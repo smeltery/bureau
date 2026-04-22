@@ -449,10 +449,10 @@ sequenceDiagram
     API->>FS: SHA256 dedup, save to files/
     FS-->>API: attachment metadata
     API-->>UI: metadata (id, name, type)
-    Note over UI: Send button blocked<br/>while uploads in progress
+    Note over UI: Send button blocked while uploads in progress
     UI->>SDK: send_message(text + attachment refs)
     SDK-->>UI: stream response
-    Note over FS,SDK: Text files inlined as text blocks;<br/>binary files flagged as unreadable
+    Note over FS,SDK: Text files inlined; binary flagged unreadable
 ```
 
 The browser sends files via multipart HTTP POST to `/api/upload/{agentId}`, and then the server saves them to a per-agent `files/` directory (SHA256-deduped) and returns attachment metadata. On the frontend, the "send" button is blocked while uploads are in progress.
