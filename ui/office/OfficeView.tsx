@@ -86,9 +86,9 @@ export function OfficeView({ onSpawn, onContextMenu, username, onEditUsername, o
       ) : (
         <div
           style={{
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
             alignItems: "center",
-            justifyContent: "space-between",
             padding: "0 20px",
             height: 44,
             background: "var(--bg-hud)",
@@ -98,7 +98,7 @@ export function OfficeView({ onSpawn, onContextMenu, username, onEditUsername, o
             zIndex: 500,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, justifySelf: "start", minWidth: 0 }}>
             <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--text-primary)" }}>Bureau</span>
             {updateAvailable && (
               <span
@@ -120,7 +120,7 @@ export function OfficeView({ onSpawn, onContextMenu, username, onEditUsername, o
               </span>
             )}
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
+          <div style={{ display: "flex", gap: 12, justifySelf: "center" }}>
             {(
               [
                 { n: counts.working, c: "var(--green)", l: "working" },
@@ -157,7 +157,7 @@ export function OfficeView({ onSpawn, onContextMenu, username, onEditUsername, o
                 </div>
               ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, justifySelf: "end" }}>
             <button
               onClick={onOpenTasks}
               style={{
