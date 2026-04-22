@@ -2,8 +2,6 @@
 
 ![demo](../demo/demo-office.gif)
 
-## Introduction
-
 The main friction with scaling from a single Claude Code session to 4+ concurrent agents was terminal management, especially for tasks that can only be done remotely, like model training.
 
 Tmux helped; cmux was even better. But trying to keep good uptime on multiple agents felt cramped.
@@ -452,7 +450,7 @@ sequenceDiagram
     Note over UI: Send button blocked while uploads in progress
     UI->>SDK: send_message(text + attachment refs)
     SDK-->>UI: stream response
-    Note over FS,SDK: Text files inlined; binary flagged unreadable
+    Note over FS,SDK: Text files inlined and binary flagged unreadable
 ```
 
 The browser sends files via multipart HTTP POST to `/api/upload/{agentId}`, and then the server saves them to a per-agent `files/` directory (SHA256-deduped) and returns attachment metadata. On the frontend, the "send" button is blocked while uploads are in progress.
