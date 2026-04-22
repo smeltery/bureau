@@ -1,0 +1,32 @@
+{
+  "name": "bureau",
+  "type": "module",
+  "scripts": {
+    "dev": "bash scripts/dev-watch.sh",
+    "dev:manual": "bun run build:ui && bun run server/index.ts",
+    "build:ui": "bash scripts/build.sh",
+    "demo:build": "bash scripts/build-demo.sh",
+    "demo": "bun run demo:build && PORT=${PORT:-4001} bun run server/index.ts",
+    "build:ui:watch": "bun build ui/index.tsx --outdir ui/dist --production --watch",
+    "server:watch": "bun --watch server/index.ts",
+    "server": "bun run server/index.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.116",
+    "@anthropic-ai/sdk": "^0.88.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "highlight.js": "^11.11.1",
+    "marked": "^17.0.5",
+    "marked-highlight": "^2.2.3",
+    "node-pty": "^1.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.0"
+  }
+}
