@@ -175,11 +175,6 @@ graph TD
     C --> D["4. Agent Prompt (user-defined)<br/>Applied to a single agent"]
     D --> E["Final system prompt<br/>--append-system-prompt"]
 
-    style A fill:#e1f5fe
-    style B fill:#e8f5e9
-    style C fill:#fff3e0
-    style D fill:#fce4ec
-    style E fill:#f3e5f5
 ```
 
 1. **Baseline**: hardcoded context explaining the office setting, the agent's identity (name and room), and Bureau features.
@@ -387,9 +382,6 @@ graph BT
 
     P1 --> P2 --> P3 --> P4 --> P45 --> P5
 
-    style P1 fill:#ffcdd2
-    style P45 fill:#c8e6c9
-    style P5 fill:#e0e0e0
 ```
 
 In addition to dynamically fetching all these skills (except Enterprise), Bureau adds its own tier of **bureau-bundled skills**:
@@ -481,10 +473,6 @@ graph LR
     S1 -->|fork at msg 5| S3["Session C<br/>msgs 1-5 + new path"]
     S2 -->|fork at msg 4| S4["Session D<br/>msgs 1-3 + B's 4 + new"]
 
-    style S1 fill:#e3f2fd
-    style S2 fill:#fff3e0
-    style S3 fill:#e8f5e9
-    style S4 fill:#fce4ec
 ```
 
 Each session's JSONL only stores its own entries. When displaying a forked session, the UI walks the `forkedFrom` chain and assembles the full history from ancestors at display time — no data duplication.
@@ -518,9 +506,6 @@ graph TD
     B -.->|effective: 300 - not double counted| Result["B lifetime = 300 tokens"]
     C -.->|effective: 200 - not double counted| Result2["C lifetime = 200 tokens"]
 
-    style A fill:#e3f2fd
-    style B fill:#fff3e0
-    style C fill:#e8f5e9
 ```
 
 Getting "cumulative at the fork point" means looking up the snapshot right before the fork point, so we save a snapshot after every turn for exactly this.
