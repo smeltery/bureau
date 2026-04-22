@@ -1,4 +1,4 @@
-# Bureau
+# Bureau 🏢
 
 ![demo](demo/demo-office.gif)
 
