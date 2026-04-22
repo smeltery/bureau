@@ -1,5 +1,7 @@
 # Punching In: Building an Office for AI Agents
 
+![demo](../demo/demo-office.gif)
+
 ## Introduction
 
 The main friction with scaling from a single Claude Code session to 4+ concurrent agents was terminal management, especially for tasks that can only be done remotely, like model training.
@@ -31,10 +33,36 @@ Bureau is a **single Bun process** that:
 - manages agent lifecycles,
 - and runs Claude Code sessions with the Agent SDK.
 
-```
-Browser A  ──┐                      ┌── Agent 1 (SDK session)
-Browser B  ──┼── WebSocket ── Bun ──┼── Agent 2 (SDK session)
-Phone      ──┘              server  └── Agent 3 (SDK session)
+```mermaid
+flowchart LR
+    subgraph Clients
+        A[Browser A]
+        B[Browser B]
+        C[Phone]
+    end
+
+    subgraph "Bun Server (single process)"
+        WS[WebSocket Hub]
+        AM[Agent Manager]
+        SDK[Claude SDK]
+        FS[File System]
+        WS <--> AM
+        AM <--> SDK
+        AM <--> FS
+    end
+
+    subgraph "Agent Sessions"
+        AG1[Agent 1]
+        AG2[Agent 2]
+        AG3[Agent 3]
+    end
+
+    A <-->|WebSocket| WS
+    B <-->|WebSocket| WS
+    C <-->|WebSocket| WS
+    SDK --> AG1
+    SDK --> AG2
+    SDK --> AG3
 ```
 
 ## How the Claude Agent SDK Works
@@ -59,6 +87,26 @@ This makes abort possible: call `close()` to kill the stream, then `resumeSessio
 
 Bureau needs the ability to abort agents (e.g., the user does Ctrl+C to add, "Sorry, I meant..."), so it uses V2 even though it's in alpha.
 
+```mermaid
+sequenceDiagram
+    participant App as Bureau
+    participant V1 as SDK V1 (query)
+    participant V2 as SDK V2 (createSession)
+
+    Note over App,V1: V1 — fire-and-forget
+    App->>V1: query(message)
+    V1-->>App: runs to completion
+    Note over App,V1: No handle. Cannot abort.
+
+    Note over App,V2: V2 — persistent session
+    App->>V2: createSession(opts)
+    V2-->>App: session {send, stream, close}
+    App->>V2: send(message)
+    V2-->>App: stream events (thinking, tool, done)
+    App->>V2: close() — abort stream
+    App->>V2: resumeSession(id) — continue later
+```
+
 For now, V2 seems a bit buggy. Sometimes, the message order gets fumbled. SDK bugs are investigated and worked around as they appear.
 
 ## The Agent Lifecycle
@@ -73,6 +121,24 @@ When you click an empty desk to spawn an agent, you can provide:
 - an agent-specific system prompt
 
 The browser sends a `spawn` command to the server, which:
+
+```mermaid
+sequenceDiagram
+    participant UI as Browser UI
+    participant WS as WebSocket Server
+    participant AM as Agent Manager
+    participant SDK as Claude SDK
+    participant FS as File System
+
+    UI->>WS: spawn {name, cwd, model, prompt}
+    WS->>AM: create agent
+    AM->>FS: persist to agents.json
+    AM->>SDK: unstable_v2_createSession(opts)
+    SDK-->>AM: session ID + stream
+    AM->>WS: emit agent_added event
+    WS->>UI: broadcast agent_added
+    WS->>UI: broadcast full_state update
+```
 
 1. Initializes the SDK session,
 2. Emits an `agent_added` event to all browsers.
@@ -101,6 +167,20 @@ The system prompt is rebuilt on every `createSession` call, so office/room/agent
 ### Agent identity
 
 The system prompt is assembled from **four hierarchical layers**, concatenated into a single string and injected into the Claude Code CLI subprocess via the `--append-system-prompt` argument:
+
+```mermaid
+graph TD
+    A["1. Baseline (hardcoded)<br/>Office setting, agent identity, Bureau features"] --> B["2. Office Prompt (user-defined)<br/>Applied to all agents"]
+    B --> C["3. Room Prompt (user-defined)<br/>Applied to agents in a room"]
+    C --> D["4. Agent Prompt (user-defined)<br/>Applied to a single agent"]
+    D --> E["Final system prompt<br/>--append-system-prompt"]
+
+    style A fill:#e1f5fe
+    style B fill:#e8f5e9
+    style C fill:#fff3e0
+    style D fill:#fce4ec
+    style E fill:#f3e5f5
+```
 
 1. **Baseline**: hardcoded context explaining the office setting, the agent's identity (name and room), and Bureau features.
 2. **Office prompt**: user-defined, applied to every agent in the office.
@@ -200,6 +280,27 @@ Bureau reads each agent's event stream in an async loop, converting SDK events i
 
 Browsers are stateless relays — when one connects, the WebSocket `open` handler sends it a `full_state` snapshot, and from there incremental events keep it in sync.
 
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Server
+    participant Agents
+
+    Browser->>Server: WebSocket connect
+    Server->>Browser: full_state (all agents, logs, settings)
+    loop Incremental sync
+        Server->>Browser: broadcast event (agent_added, state_update, etc.)
+    end
+    Browser->>Server: send_message (no await — fire-and-forget)
+    Server->>Agents: SDK stream starts in background
+    loop Stream events
+        Agents-->>Server: SDK events (thinking, tool, done)
+        Server->>Browser: broadcast log entries + state updates
+    end
+    Browser->>Server: spawn / abort / other commands
+    Server-->>Browser: handled synchronously
+```
+
 The server talks to connected browsers via web sockets.
 
 - The server notifies all browsers of state updates via a single `broadcast` function.
@@ -275,12 +376,21 @@ The embedded terminal is very handy when you need to run one of the blocked comm
 
 In Claude Code, skills can come from a few places, some hardcoded and some discovered dynamically. There is a hierarchy that determines which one you see if there's a name clash. From highest to lowest priority:
 
-1. **Hardcoded commands**: `/clear`, `/resume`, etc. These are not actually skills because they are not a prompt — the logic is hardcoded in the CLI tool.
-2. **Enterprise skills**.
-3. **User skills** (`~/.claude/skills/`).
-4. **Project skills** (`.claude/skills/`). They are based on Claude Code's cwd.
-5. **Bureau bundled skills** (priority 4.5): `/bureau-peer-review`, `/bureau-all-hands`, `/bureau-system-prompt`.
-6. **Claude Code bundled skills**: `/review`, `/simplify`, `/loop`, etc.
+```mermaid
+graph BT
+    P1["1. Hardcoded commands<br/>/clear, /resume (CLI logic, not skills)"]
+    P2["2. Enterprise skills"]
+    P3["3. User skills<br/>~/.claude/skills/"]
+    P4["4. Project skills<br/>.claude/skills/ (cwd-based)"]
+    P45["4.5. Bureau bundled skills<br/>/bureau-peer-review, /bureau-all-hands"]
+    P5["5. Claude Code bundled skills<br/>/review, /simplify, /loop"]
+
+    P1 --> P2 --> P3 --> P4 --> P45 --> P5
+
+    style P1 fill:#ffcdd2
+    style P45 fill:#c8e6c9
+    style P5 fill:#e0e0e0
+```
 
 In addition to dynamically fetching all these skills (except Enterprise), Bureau adds its own tier of **bureau-bundled skills**:
 
@@ -334,7 +444,26 @@ The easiest way found was to display images inline in the conversation as a side
 
 For (2), the SDK's user message format natively supports image and PDF content blocks, so a file-attachment feature was added to match that.
 
-The upload path itself: files never travel over the WebSocket — only metadata does. The browser sends files via multipart HTTP POST to `/api/upload/{agentId}`, and then the server saves them to a per-agent `files/` directory (SHA256-deduped) and returns attachment metadata. On the frontend, the "send" button is blocked while uploads are in progress.
+The upload path itself: files never travel over the WebSocket — only metadata does.
+
+```mermaid
+sequenceDiagram
+    participant UI as Browser
+    participant API as HTTP /api/upload/{agentId}
+    participant FS as Server File Store
+    participant SDK as Claude SDK
+
+    UI->>API: POST multipart file
+    API->>FS: SHA256 dedup, save to files/
+    FS-->>API: attachment metadata
+    API-->>UI: metadata (id, name, type)
+    Note over UI: Send button blocked<br/>while uploads in progress
+    UI->>SDK: send_message(text + attachment refs)
+    SDK-->>UI: stream response
+    Note over FS,SDK: Text files inlined as text blocks;<br/>binary files flagged as unreadable
+```
+
+The browser sends files via multipart HTTP POST to `/api/upload/{agentId}`, and then the server saves them to a per-agent `files/` directory (SHA256-deduped) and returns attachment metadata. On the frontend, the "send" button is blocked while uploads are in progress.
 
 When it's time to send the actual SDK message to Claude, the text and attachment references are combined.
 
@@ -345,6 +474,20 @@ Since the upload-to-server path was already there, it was extended to support ar
 Sometimes you send a message and wish you'd phrased it differently. In Bureau, you can click edit on any past user message to fork the conversation from that point.
 
 The SDK has a `forkSession` function that copies a session transcript up to a given message. For the edge case of editing the very first message, there's no predecessor, so we just start a fresh session.
+
+```mermaid
+graph LR
+    S1["Session A<br/>messages 1-5"] -->|fork at msg 3| S2["Session B<br/>msgs 1-3 + new path"]
+    S1 -->|fork at msg 5| S3["Session C<br/>msgs 1-5 + new path"]
+    S2 -->|fork at msg 4| S4["Session D<br/>msgs 1-3 + B's 4 + new"]
+
+    style S1 fill:#e3f2fd
+    style S2 fill:#fff3e0
+    style S3 fill:#e8f5e9
+    style S4 fill:#fce4ec
+```
+
+Each session's JSONL only stores its own entries. When displaying a forked session, the UI walks the `forkedFrom` chain and assembles the full history from ancestors at display time — no data duplication.
 
 A key decision was how to handle logs. Since we want to preserve the existing conversation, we can't just delete all posterior messages. Instead, we create a new session. The naive approach is to copy all the parent entries into the fork's JSONL file. But that duplicates data, which inflates disk usage and pollutes search results. Instead, each session's JSONL only stores its own entries. When displaying a forked session, we walk the `forkedFrom` chain in `sessions.json` and assemble the full history from ancestors at display time. Chain depth is typically 1-2 levels, so the overhead is negligible.
 
@@ -361,7 +504,26 @@ The SDK reports two flavors of accounting on each `result` event, and they don't
 
 So we persist two buckets per session: `usage` for the current run (tokens accumulated, cost overwritten) and `priorRunsUsage` for completed runs, rolled up when a resume happens. Session lifetime is their sum.
 
-Forks add another wrinkle. When Session B forks Session A at turn 5, some of A's accounting leaks into B's first reported turn. To avoid double-counting when summing across sessions, we record the parent's usage at the fork point as `forkBaseUsage` on the child and subtract it. Getting "cumulative at the fork point" means looking up the snapshot right before the fork point, so we save a snapshot after every turn for exactly this.
+Forks add another wrinkle. When Session B forks Session A at turn 5, some of A's accounting leaks into B's first reported turn. To avoid double-counting when summing across sessions, we record the parent's usage at the fork point as `forkBaseUsage` on the child and subtract it.
+
+```mermaid
+graph TD
+    A["Session A<br/>Turn 1-5<br/>usage: 1000 tokens"]
+    B["Session B forked at turn 5<br/>forkBaseUsage: 1000<br/>own usage: 300"]
+    C["Session C forked at turn 3<br/>forkBaseUsage: 600<br/>own usage: 200"]
+
+    A -->|fork at 5| B
+    A -->|fork at 3| C
+
+    B -.->|effective: 300 - not double counted| Result["B lifetime = 300 tokens"]
+    C -.->|effective: 200 - not double counted| Result2["C lifetime = 200 tokens"]
+
+    style A fill:#e3f2fd
+    style B fill:#fff3e0
+    style C fill:#e8f5e9
+```
+
+Getting "cumulative at the fork point" means looking up the snapshot right before the fork point, so we save a snapshot after every turn for exactly this.
 
 ## Final Thoughts
 
