@@ -2,7 +2,7 @@
 
 An isometric 2D office UI for managing multiple concurrent Claude Code agents. Each agent sits at a desk in a browser-based office. The core abstraction separates the **agent** (persistent identity) from the **conversation** (ephemeral task).
 
-Read the [design and architecture article](articles/design-and-architecture.md) for a full feature overview.
+Read the [design and architecture article](articles/punching-in-building-an-office-for-ai-agents.md) for a full feature overview.
 
 ## How to develop
 

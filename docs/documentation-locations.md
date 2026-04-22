@@ -16,7 +16,7 @@ An index of every place that describes Bureau features to users. When a new feat
 
 ## 2. Architecture Article
 
-- **File:** `articles/design-and-architecture.md`
+- **File:** `articles/punching-in-building-an-office-for-ai-agents.md`
 - **Audience:** Developers wanting to understand how Bureau works under the hood.
 - **Structure:** SDK internals, agent lifecycle, WebSocket layer, frontend, QoL features.
 - **Update when:** architecture-level changes land (SDK upgrades, lifecycle changes, new subsystems).
@@ -67,7 +67,7 @@ These aren't user-facing docs, but they do describe features and can fall out of
 ## Quick checklist when adding a user-visible feature
 
 1. `README.md` — Feature list and/or documentation links.
-2. `articles/design-and-architecture.md` — if it changes architecture.
+2. `articles/punching-in-building-an-office-for-ai-agents.md` — if it changes architecture.
 3. `docs/INDEX.md` — if you add a new doc.
 4. `website/app/page.tsx` and `website/src/components/sections/*` — only if it belongs on the headline list.
 5. `api/chat.ts` `SYSTEM_PROMPT` — the feature-list section and any relevant guideline.

@@ -44,7 +44,7 @@ Bureau has been built by Claude Code agents running inside Bureau since 3 hours 
 - Built with Bun, React, TypeScript, and the Claude Agent SDK. Runs as a single Bun process. No bundler, no database, minimal deps.
 - GitHub: github.com/dotbrains/bureau
 - Created by Nil Mamano (nicholasadamou.com)
-- Blog post with architecture deep dive: articles/design-and-architecture.md
+- Blog post with architecture deep dive: articles/punching-in-building-an-office-for-ai-agents.md
 
 ## Getting Started
 1. Install Bun (v1.2+) and the Claude Code CLI, authenticated with a Claude Pro or Max subscription

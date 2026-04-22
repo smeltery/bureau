@@ -23,7 +23,7 @@ Detailed subsystem documentation.
 
 | Document | Description |
 |----------|-------------|
-| [Architecture Overview](articles/design-and-architecture.md) | Deep dive: SDK, agent lifecycle, WebSocket layer, frontend |
+| [Architecture Overview](articles/punching-in-building-an-office-for-ai-agents.md) | Deep dive: SDK, agent lifecycle, WebSocket layer, frontend |
 | [Conversation Branching](features/conversation-branching-design.md) | Edit past messages to fork conversations |
 | [Multi-Office Isolation](features/multi-office-design.md) | Multiple isolated workspaces |
 | [Per-Agent MCP Access](features/per-agent-mcp-access.md) | Controlling MCP integration access per agent |
@@ -92,7 +92,7 @@ graph TB
 ## Quick Navigation by Topic
 
 **Want to understand how agents work?**
-→ Start with [Architecture Overview](articles/design-and-architecture.md), then [Agent Lifecycle](architecture/agent-lifecycle.md)
+→ Start with [Architecture Overview](articles/punching-in-building-an-office-for-ai-agents.md), then [Agent Lifecycle](architecture/agent-lifecycle.md)
 
 **Adding a new feature?**
 → Check [Documentation Locations](documentation-locations.md) for what to update

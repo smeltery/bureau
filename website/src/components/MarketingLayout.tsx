@@ -263,7 +263,7 @@ export function MarketingFooter() {
               </li>
               <li>
                 <a
-                  href="https://github.com/dotbrains/bureau/blob/master/articles/design-and-architecture.md"
+                  href="https://github.com/dotbrains/bureau/blob/master/articles/punching-in-building-an-office-for-ai-agents.md"
                   className="inline-flex items-center gap-1.5 text-sm text-cream/70 transition-colors hover:text-cream"
                   target="_blank"
                   rel="noopener noreferrer"

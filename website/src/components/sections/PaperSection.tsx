@@ -66,7 +66,7 @@ export function PaperSection() {
               and synchronizes every connected client in real time without a traditional backend stack.
             </p>
             <a
-              href="https://github.com/dotbrains/bureau/blob/master/articles/design-and-architecture.md"
+              href="https://github.com/dotbrains/bureau/blob/master/articles/punching-in-building-an-office-for-ai-agents.md"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-distill-purple to-distill-violet px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-distill-purple/30 transition-all hover:from-distill-violet hover:to-distill-lavender"

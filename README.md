@@ -45,7 +45,7 @@ Then open **http://localhost:4000** and click an empty desk.
 
 | | |
 |---|---|
-| [**Design & Architecture**](articles/design-and-architecture.md) | Deep dive: how Bureau works under the hood |
+| [**Design & Architecture**](articles/punching-in-building-an-office-for-ai-agents.md) | Deep dive: how Bureau works under the hood |
 | [**Documentation**](docs/README.md) | Navigate all design docs, investigations, and plans |
 | [**CLAUDE.md**](CLAUDE.md) | Developer & agent guide to the codebase |
 
@@ -64,7 +64,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Slash commands** — `/bureau-peer-review`, `/bureau-all-hands`, and more
 - **File attachments** — images, PDFs, arbitrary files
 
-For the full feature list, see the [design & architecture article](articles/design-and-architecture.md).
+For the full feature list, see the [design & architecture article](articles/punching-in-building-an-office-for-ai-agents.md).
 
 ## Project Structure
 
