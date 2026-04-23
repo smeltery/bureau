@@ -39,10 +39,10 @@ An index of every place that describes Bureau features to users. When a new feat
 
 ## 5. `/help` slash command
 
-- **File:** `server/agent-manager.ts` — the `/help` branch.
+- **File:** `server/agents/conversation/slash-commands.ts` — the `help` handler in the `commandHandlers` record.
 - **Audience:** Agents/users inside Bureau who type `/help` in a conversation.
 - **Content:** agent info, usage tips, and a list of available commands/skills with short descriptions.
-- **Related:** `server/commands.ts` holds the command registry with a `description` field on every bundled command — keep those in sync.
+- **Related:** `server/agents/commands.ts` holds the command registry with a `description` field on every bundled command — keep those in sync.
 - **Update when:** a new slash command or skill is added, or existing command behavior changes.
 
 ## 6. Documentation Index
@@ -61,8 +61,8 @@ These aren't user-facing docs, but they do describe features and can fall out of
   - `docs/features/` — feature design docs (conversation branching, multi-office, task system, etc.)
   - `docs/investigations/` — bug investigations and SDK research
   - `docs/planning/` — design specs and implementation plans
-- `server/commands.ts` — per-command `description` fields surface in the slash-command autocomplete UI.
-- `server/agent-manager.ts` `buildSystemPrompt()` — the system prompt injected into every spawned agent. Update when the agent's role or capabilities change.
+- `server/agents/commands.ts` — per-command `description` fields surface in the slash-command autocomplete UI.
+- `server/agents/session/system-prompt.ts` `buildSystemPrompt()` — the system prompt injected into every spawned agent. Update when the agent's role or capabilities change.
 
 ## Quick checklist when adding a user-visible feature
 
@@ -71,4 +71,4 @@ These aren't user-facing docs, but they do describe features and can fall out of
 3. `docs/INDEX.md` — if you add a new doc.
 4. `website/app/page.tsx` and `website/src/components/sections/*` — only if it belongs on the headline list.
 5. `api/chat.ts` `SYSTEM_PROMPT` — the feature-list section and any relevant guideline.
-6. `server/agent-manager.ts` `/help` output and/or `server/commands.ts` — only if it adds a command or changes tips.
+6. `server/agents/conversation/slash-commands.ts` `/help` handler and/or `server/agents/commands.ts` — only if it adds a command or changes tips.

@@ -68,7 +68,7 @@ Browser                          Server
 
 ### Server → Browser Messages (`ServerMessage`)
 
-All messages flow through a single `broadcast()` function. The event system in `agent-manager.ts` emits `AgentEvent` objects that are cast to `ServerMessage` and broadcast to all connected browsers.
+All messages flow through a single `broadcast()` function (defined in `server/ws/broadcast.ts`). The event system in `server/agents/state.ts` emits `AgentEvent` objects that are cast to `ServerMessage` and broadcast to all connected browsers. The root-level `server/agent-manager.ts` re-exports the agent API via a thin barrel.
 
 Key message types:
 - `full_state` — initial snapshot on connect

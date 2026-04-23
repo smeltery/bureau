@@ -4,7 +4,7 @@ How Bureau manages Claude Code SDK sessions — from spawn to stream processing 
 
 ## Core Abstraction: ManagedAgent
 
-Each agent is tracked as a `ManagedAgent` in `server/agent-manager.ts`:
+Each agent is tracked as a `ManagedAgent` in `server/agents/state.ts` (the shared state hub — the `agents: Map<string, ManagedAgent>` singleton and its emit/log helpers all live here):
 
 ```typescript
 interface ManagedAgent {
