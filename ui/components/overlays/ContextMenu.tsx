@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
-import type { AgentInfo, SessionInfo } from "../../shared/types.ts";
-import { useAppState, useFeatures } from "../store.tsx";
-import { send } from "../ws.ts";
+import type { AgentInfo, SessionInfo } from "../../../shared/types.ts";
+import { useAppState, useFeatures } from "../../store.tsx";
+import { send } from "../../ws.ts";
 
 interface ContextMenuProps {
   x: number;

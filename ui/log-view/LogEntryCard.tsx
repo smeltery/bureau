@@ -1,17 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { LogEntry, Attachment } from "../../shared/types.ts";
 import { Markdown } from "./Markdown.tsx";
-import { CopyButton } from "../components/CopyButton.tsx";
-import { SpeakButton } from "../components/SpeakButton.tsx";
-
-function EditIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9.5 3.5L12.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
+import { CopyButton } from "../components/controls/CopyButton.tsx";
+import { SpeakButton } from "../components/controls/SpeakButton.tsx";
+import { EditIcon } from "../components/controls/Icons.tsx";
+import { formatDuration } from "../utils/time.ts";
+import { formatFileSize } from "../utils/format.ts";
 
 /** Serialize entries for clipboard (text + tool_call only) */
 export function serializeEntries(entries: LogEntry[]): string {
@@ -28,21 +22,6 @@ export function serializeEntries(entries: LogEntry[]): string {
     }
   }
   return parts.join("\n\n");
-}
-
-function formatDuration(ms: number): string {
-  const totalSec = ms / 1000;
-  if (totalSec < 60) return `${totalSec.toFixed(1)}s`;
-  const min = Math.floor(totalSec / 60);
-  const sec = Math.floor(totalSec % 60);
-  return `${min}:${sec.toString().padStart(2, "0")}`;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function FileChip({ att, agentId, isMobile }: { att: Attachment; agentId: string; isMobile?: boolean }) {

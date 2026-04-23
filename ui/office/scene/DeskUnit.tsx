@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import type { AgentInfo, ModelFamily } from "../../shared/types.ts";
+import type { AgentInfo, ModelFamily } from "../../../shared/types.ts";
 import { DeskSprite } from "./DeskSprite.tsx";
 import { Character } from "./Character.tsx";
 import { StatusLight } from "./StatusLight.tsx";
-import { deskPixelPos, DESK_SLOTS } from "./grid.ts";
+import { deskPixelPos, DESK_SLOTS } from "../grid.ts";
 
 const MODEL_TINT: Record<ModelFamily, { border: string; bg: string }> = {
   opus:   { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },

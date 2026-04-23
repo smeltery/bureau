@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { AgentInfo, AgentOutfit, ClientCommand, ModelFamily } from "../../shared/types.ts";
-import { MODEL_FAMILIES, modelVersionLabel } from "../../shared/types.ts";
-import { SHIRT_COLORS, HAIR_COLORS, SKIN_COLORS, HAIR_STYLES, BEARDS, HATS, ACCESSORIES } from "../../shared/outfit-options.ts";
-import { Character } from "../office/Character.tsx";
-import { send, addRawListener, removeRawListener } from "../ws.ts";
-import { useAppState } from "../store.tsx";
+import type { AgentInfo, AgentOutfit, ClientCommand, ModelFamily } from "../../../shared/types.ts";
+import { MODEL_FAMILIES, modelVersionLabel } from "../../../shared/types.ts";
+import { SHIRT_COLORS, HAIR_COLORS, SKIN_COLORS, HAIR_STYLES, BEARDS, HATS, ACCESSORIES } from "../../../shared/outfit-options.ts";
+import { Character } from "../../office/scene/Character.tsx";
+import { send, addRawListener, removeRawListener } from "../../ws.ts";
+import { useAppState } from "../../store.tsx";
 
 const HAIR_STYLE_LABELS: Record<AgentOutfit["hairStyle"], string> = {
   short: "Short",

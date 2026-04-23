@@ -1,4 +1,5 @@
-import type { AgentState } from "../../shared/types.ts";
+import type { AgentState } from "../../../shared/types.ts";
+import { ESCALATION_AMBER_MS, ESCALATION_RED_MS } from "../../utils/time.ts";
 
 const COLORS: Record<string, string> = {
   thinking: "var(--green)",
@@ -8,9 +9,6 @@ const COLORS: Record<string, string> = {
   error: "var(--red)",
   stopped: "var(--text-muted)",
 };
-
-const ESCALATION_AMBER_MS = 2 * 60 * 1000;
-const ESCALATION_RED_MS = 5 * 60 * 1000;
 
 export function StatusLight({ state, size = 10, elapsedMs }: { state: AgentState; size?: number; elapsedMs?: number }) {
   let c = COLORS[state] || "var(--text-muted)";

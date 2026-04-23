@@ -1,4 +1,4 @@
-import type { AgentState, ModelFamily } from "../../shared/types.ts";
+import type { AgentState, ModelFamily } from "../../../shared/types.ts";
 
 // Map our states to visual categories
 function visualState(state: AgentState): "working" | "waiting_for_response" | "error" | "idle" {
