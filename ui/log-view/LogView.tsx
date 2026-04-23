@@ -5,7 +5,7 @@ import { StatusLight } from "../office/scene/StatusLight.tsx";
 import { Character } from "../office/scene/Character.tsx";
 import { send } from "../ws.ts";
 import { useAppState, useDispatch, useFeatures, useTheme } from "../store.tsx";
-import { LogEntryCard, serializeEntries } from "./LogEntryCard.tsx";
+import { LogEntryCard, serializeEntries } from "./entries/index.tsx";
 import { CopyButton } from "../components/controls/CopyButton.tsx";
 import { SunIcon, MoonIcon, PersonIcon } from "../components/controls/Icons.tsx";
 import { TerminalPanel } from "./TerminalPanel.tsx";
