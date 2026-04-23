@@ -1,6 +1,7 @@
-import { useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import { useAppState } from "../../store.tsx";
 import { CopyButton } from "../controls/CopyButton.tsx";
+import { Modal } from "./Modal.tsx";
 
 const REPO = "dotbrains/bureau";
 
@@ -42,15 +43,7 @@ const textStyle: React.CSSProperties = {
 };
 
 export function UpdateModal({ onClose }: { onClose: () => void }) {
-  const { updateCurrent, updateLatest, isMobile } = useAppState();
-
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { e.stopPropagation(); onClose(); }
-    }
-    window.addEventListener("keydown", handleKey, true);
-    return () => window.removeEventListener("keydown", handleKey, true);
-  }, [onClose]);
+  const { updateCurrent, updateLatest } = useAppState();
 
   const getText = useCallback(
     () => buildPlainText(updateCurrent, updateLatest),
@@ -58,35 +51,7 @@ export function UpdateModal({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 900,
-        background: "rgba(0,0,0,0.55)",
-        backdropFilter: "blur(10px)",
-        display: "flex",
-        alignItems: isMobile ? "flex-start" : "center",
-        justifyContent: "center",
-        overflowY: "auto",
-      }}
-    >
-      <div
-        style={{
-          background: "var(--bg-overlay)",
-          backdropFilter: "blur(16px)",
-          border: "1px solid var(--border-light)",
-          borderRadius: 16,
-          padding: "24px 28px",
-          marginTop: isMobile ? "env(safe-area-inset-top, 16px)" : undefined,
-          marginBottom: isMobile ? 16 : undefined,
-          width: isMobile ? "calc(100% - 32px)" : 480,
-          maxWidth: isMobile ? "100%" : undefined,
-          boxShadow: "0 20px 60px var(--shadow-heavy)",
-          animation: "hudIn 0.2s ease-out",
-        }}
-      >
+    <Modal onClose={onClose} width={480}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
             Update Available
@@ -140,7 +105,6 @@ export function UpdateModal({ onClose }: { onClose: () => void }) {
             Got it
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
