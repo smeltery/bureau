@@ -8,7 +8,7 @@ import { EditAgentDialog } from "./components/modals/EditAgentDialog.tsx";
 import { UsernameModal } from "./components/modals/UsernameModal.tsx";
 import { OfficePromptModal } from "./components/modals/OfficePromptModal.tsx";
 import { RoomSettingsModal } from "./components/modals/RoomSettingsModal.tsx";
-import { TaskView } from "./components/overlays/TaskView.tsx";
+import { TaskView } from "./task-view/TaskView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
 import { CSS } from "./styles.ts";
 import type { AgentInfo } from "../shared/types.ts";
