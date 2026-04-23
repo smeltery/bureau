@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAppState, useDispatch } from "../store.tsx";
 import { send } from "../ws.ts";
-import { RoomSettingsModal } from "../components/RoomSettingsModal.tsx";
+import { RoomSettingsModal } from "../components/modals/RoomSettingsModal.tsx";
 
 export function RoomTabBar() {
   const { agents, currentRoom, rooms, needsAttention } = useAppState();

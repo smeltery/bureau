@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { SCENE_W, SCENE_H, VB_X, VB_Y } from "./grid.ts";
-import { useAppState } from "../store.tsx";
+import { SCENE_W, SCENE_H, VB_X, VB_Y } from "../grid.ts";
+import { useAppState } from "../../store.tsx";
 
 const NEON_COLORS = [
   "#ff6ec7", // hot pink (original)

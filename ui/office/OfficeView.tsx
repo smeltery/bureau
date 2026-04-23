@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useAppState, useDispatch, useTheme, useFeatures } from "../store.tsx";
-import { Floor, Walls } from "./Floor.tsx";
-import { RoomProps } from "./RoomProps.tsx";
+import { Floor, Walls } from "./scene/Floor.tsx";
+import { RoomProps } from "./scene/RoomProps.tsx";
 import { RoomTabBar } from "./RoomTabBar.tsx";
-import { DeskUnit } from "./DeskUnit.tsx";
-import { EmptySlot } from "./EmptySlot.tsx";
-import { StatusLight } from "./StatusLight.tsx";
+import { DeskUnit } from "./scene/DeskUnit.tsx";
+import { EmptySlot } from "./scene/EmptySlot.tsx";
+import { StatusLight } from "./scene/StatusLight.tsx";
 import { SCENE_W, SCENE_H } from "./grid.ts";
 import { send } from "../ws.ts";
-import { SunIcon, MoonIcon } from "../components/ThemeIcons.tsx";
-import { MobileHeader, getRoomCounts } from "../components/MobileHeader.tsx";
+import { SunIcon, MoonIcon } from "../components/controls/Icons.tsx";
+import { MobileHeader, getRoomCounts } from "../components/overlays/MobileHeader.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
 import type { AgentInfo } from "../../shared/types.ts";
 

@@ -1,5 +1,5 @@
-import { SCENE_W, SCENE_H, VB_X, VB_Y } from "./grid.ts";
-import { useAppState } from "../store.tsx";
+import { SCENE_W, SCENE_H, VB_X, VB_Y } from "../grid.ts";
+import { useAppState } from "../../store.tsx";
 
 const CAT_PALETTES = [
   { body: "#E8A050", stripe: "#C08030", ear: "#D08040", nose: "#D08080" }, // orange tabby

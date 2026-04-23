@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useTheme } from "../store.tsx";
-import { SunIcon, MoonIcon } from "./ThemeIcons.tsx";
-import type { AgentInfo } from "../../shared/types.ts";
+import { useTheme } from "../../store.tsx";
+import { SunIcon, MoonIcon } from "../controls/Icons.tsx";
+import type { AgentInfo } from "../../../shared/types.ts";
 
 export type RoomCounts = {
   working: number;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useAppState } from "../store.tsx";
-import { send, addRawListener, removeRawListener } from "../ws.ts";
+import { useAppState } from "../../store.tsx";
+import { send, addRawListener, removeRawListener } from "../../ws.ts";
 
 type ValidationStatus =
   | { kind: "idle" }
@@ -8,23 +8,25 @@ type ValidationStatus =
   | { kind: "ok"; keyCount?: number }
   | { kind: "error"; message: string };
 
-export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose: () => void }) {
-  const { rooms, isMobile } = useAppState();
-  const room = rooms.find((r) => r.id === roomId);
-  const [prompt, setPrompt] = useState(room?.prompt ?? "");
-  const [envFile, setEnvFile] = useState(room?.envFile ?? "");
+export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClose: () => void; username: string; onSaveUsername: (name: string) => void }) {
+  const { office, isMobile } = useAppState();
+  const [text, setText] = useState(office.prompt ?? "");
+  const [envFile, setEnvFile] = useState(office.envFile ?? "");
+  const [name, setName] = useState(username);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const requestIdRef = useRef<string>("");
 
   // Ask the server to re-validate the stored env file on open
   useEffect(() => {
-    const saved = room?.envFile;
+    const saved = office.envFile;
     if (!saved) {
       setStatus({ kind: "idle" });
       return;
     }
-    const reqId = `room-open-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const reqId = `office-open-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    requestIdRef.current = reqId;
     setStatus({ kind: "pending" });
     const listener = (data: string) => {
       try {
@@ -37,12 +39,13 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       } catch {}
     };
     addRawListener(listener);
-    send({ type: "request_settings_validation", requestId: reqId, scope: "room", roomId });
+    send({ type: "request_settings_validation", requestId: reqId, scope: "office" });
     return () => removeRawListener(listener);
-  }, [room?.envFile, roomId]);
+  }, [office.envFile]);
 
   function handleSave() {
-    const reqId = `room-save-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const reqId = `office-save-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    requestIdRef.current = reqId;
     setSaving(true);
     const listener = (data: string) => {
       try {
@@ -51,6 +54,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
           setSaving(false);
           removeRawListener(listener);
           if (msg.ok) {
+            if (name.trim() && name.trim() !== username) onSaveUsername(name.trim());
             onClose();
           } else {
             setStatus({ kind: "error", message: msg.error || "Save failed" });
@@ -60,14 +64,14 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     };
     addRawListener(listener);
     send({
-      type: "update_room_settings",
+      type: "update_office_settings",
       requestId: reqId,
-      roomId,
-      prompt: prompt.trim() ? prompt : null,
+      prompt: text.trim() ? text : null,
       envFile: envFile.trim() || null,
     });
   }
 
+  // Place cursor at end of text on mount
   useEffect(() => {
     const ta = textareaRef.current;
     if (ta) {
@@ -76,6 +80,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     }
   }, []);
 
+  // ESC to close
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") { e.stopPropagation(); onClose(); }
@@ -83,8 +88,6 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     window.addEventListener("keydown", handleKey, true);
     return () => window.removeEventListener("keydown", handleKey, true);
   }, [onClose]);
-
-  if (!room) return null;
 
   return (
     <div
@@ -117,28 +120,33 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
         }}
       >
         <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
-          {room.name} · Settings
+          Office Settings
         </h3>
 
-        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>Boss Title</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={inputStyle}
+        />
+
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
           Env File Path <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional, absolute path)</span>
         </label>
         <input
           value={envFile}
           onChange={(e) => { setEnvFile(e.target.value); setStatus({ kind: "idle" }); }}
-          placeholder="/home/you/.secrets/room.env"
+          placeholder="/home/you/.secrets/office.env"
           style={inputStyle}
         />
         <ValidationLine status={status} />
 
-        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-          Room Prompt <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional, appended after office prompt)</span>
-        </label>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Rules <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(system prompt for all agents)</span></label>
         <textarea
           ref={textareaRef}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="e.g. You're in the Marketing room. Match our brand voice."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="e.g. Always write tests. Use TypeScript. Be concise."
           rows={8}
           style={{ ...inputStyle, resize: "vertical" }}
         />
@@ -187,7 +195,6 @@ const cancelBtnStyle: React.CSSProperties = {
   color: "var(--text-dim)",
   fontSize: 12,
   cursor: "pointer",
-  fontFamily: "'DM Sans',sans-serif",
 };
 
 const saveBtnStyle: React.CSSProperties = {
@@ -199,5 +206,4 @@ const saveBtnStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
   cursor: "pointer",
-  fontFamily: "'DM Sans',sans-serif",
 };

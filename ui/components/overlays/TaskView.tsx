@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useAppState } from "../store.tsx";
-import { send } from "../ws.ts";
-import type { TaskItem, TaskStatus, TaskPriority } from "../../shared/types.ts";
+import { useAppState } from "../../store.tsx";
+import { send } from "../../ws.ts";
+import type { TaskItem, TaskStatus, TaskPriority } from "../../../shared/types.ts";
+import { timeAgo } from "../../utils/time.ts";
 
 type SortField = "status" | "priority" | "title" | "assignee" | "createdBy" | "createdAt";
 type SortDir = "asc" | "desc";
@@ -27,17 +28,6 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
   P2: "var(--blue, #58a6ff)",
   P3: "var(--text-muted)",
 };
-
-function timeAgo(ts: number): string {
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 function TaskDetailPanel({ task, onClose, username, mode = "edit", agents = [], closeRef }: { task?: TaskItem; onClose: () => void; username: string; mode?: "edit" | "create"; agents?: { name: string }[]; closeRef?: React.MutableRefObject<(() => void) | null> }) {
   const [title, setTitle] = useState(task?.title || "");

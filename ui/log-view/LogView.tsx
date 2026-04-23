@@ -1,52 +1,27 @@
 import { useState, useRef, useEffect, useMemo, useCallback, type RefCallback } from "react";
 import type { AgentInfo, AgentState, LogEntry, SkillInfo, Attachment } from "../../shared/types.ts";
 import { familyDisplayLabel, type ModelFamily } from "../../shared/types.ts";
-import { StatusLight } from "../office/StatusLight.tsx";
-import { Character } from "../office/Character.tsx";
+import { StatusLight } from "../office/scene/StatusLight.tsx";
+import { Character } from "../office/scene/Character.tsx";
 import { send } from "../ws.ts";
 import { useAppState, useDispatch, useFeatures, useTheme } from "../store.tsx";
 import { LogEntryCard, serializeEntries } from "./LogEntryCard.tsx";
-import { CopyButton } from "../components/CopyButton.tsx";
-import { SunIcon, MoonIcon } from "../components/ThemeIcons.tsx";
+import { CopyButton } from "../components/controls/CopyButton.tsx";
+import { SunIcon, MoonIcon, PersonIcon } from "../components/controls/Icons.tsx";
 import { TerminalPanel } from "./TerminalPanel.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
+import { ESCALATION_AMBER_MS, escalationColor, formatElapsed } from "../utils/time.ts";
 
 const STATE_LABELS: Partial<Record<AgentState, string>> = {
   thinking: "Thinking",
   tool_executing: "Running tool",
 };
 
-const ESCALATION_AMBER_MS = 2 * 60 * 1000; // 2 minutes
-const ESCALATION_RED_MS = 5 * 60 * 1000; // 5 minutes
-
 const MODEL_TINT: Record<ModelFamily, { border: string; bg: string }> = {
   opus:   { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
   sonnet: { border: "rgba(218,165,32,0.80)",  bg: "rgba(218,165,32,0.32)" },
   haiku:  { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
 };
-
-function PersonIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-      <path d="M3 14c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-    </svg>
-  );
-}
-
-function formatElapsed(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  if (totalSec < 60) return `${totalSec}s`;
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  return `${min}:${sec.toString().padStart(2, "0")}`;
-}
-
-function escalationColor(elapsedMs: number, baseColor: string): string {
-  if (elapsedMs >= ESCALATION_RED_MS) return "var(--red)";
-  if (elapsedMs >= ESCALATION_AMBER_MS) return "var(--orange)";
-  return baseColor;
-}
 
 function ActivityIndicator({ state, stateChangedAt, agentId }: { state: AgentState; stateChangedAt?: number; agentId: string }) {
   const label = STATE_LABELS[state];

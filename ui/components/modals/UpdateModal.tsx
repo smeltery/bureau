@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from "react";
-import { useAppState } from "../store.tsx";
-import { CopyButton } from "./CopyButton.tsx";
+import { useAppState } from "../../store.tsx";
+import { CopyButton } from "../controls/CopyButton.tsx";
 
 const REPO = "dotbrains/bureau";
 

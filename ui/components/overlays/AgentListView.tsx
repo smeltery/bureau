@@ -1,9 +1,9 @@
-import { useAppState } from "../store.tsx";
-import { StatusLight } from "../office/StatusLight.tsx";
-import { RoomTabBar } from "../office/RoomTabBar.tsx";
+import { useAppState } from "../../store.tsx";
+import { StatusLight } from "../../office/scene/StatusLight.tsx";
+import { RoomTabBar } from "../../office/RoomTabBar.tsx";
 import { MobileHeader, getRoomCounts } from "./MobileHeader.tsx";
-import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
-import type { AgentInfo } from "../../shared/types.ts";
+import { useSwipeLeftRight } from "../../hooks/useSwipeLeftRight.ts";
+import type { AgentInfo } from "../../../shared/types.ts";
 
 export function AgentListView({
   onFocus,
