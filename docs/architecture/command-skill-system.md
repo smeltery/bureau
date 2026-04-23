@@ -1,6 +1,6 @@
 # Command & Skill System
 
-Bureau manages slash commands and skills from multiple sources, each with different priority levels and override rules. Defined in `server/commands.ts` and discovered dynamically in `server/agent-manager.ts`.
+Bureau manages slash commands and skills from multiple sources, each with different priority levels and override rules. The command registry lives in `server/agents/commands.ts`; skill discovery is in `server/agents/skills-discovery.ts`; the dispatch logic (`handleSlashCommand`, `commandHandlers`, `executeSkill`) lives in `server/agents/conversation/slash-commands.ts`.
 
 ## Command Types
 
@@ -125,7 +125,7 @@ SDK-reported commands are excluded from autocomplete to avoid noise from MCP int
 
 When a user types `/command`:
 
-1. **Check hardcoded registry**: If `supported: true`, dispatch to the handler in `agent-manager.ts`.
+1. **Check hardcoded registry**: If `supported: true`, dispatch to the handler in `server/agents/conversation/slash-commands.ts` (the `commandHandlers` record).
 2. **Check hardcoded registry**: If `supported: false`, return the unsupported message.
 3. **Check discovered skills**: If found, pass through to the SDK (the SDK handles skill execution).
 4. **Check SDK-reported commands**: If found, pass through to the SDK.

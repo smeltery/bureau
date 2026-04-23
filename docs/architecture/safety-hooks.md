@@ -1,6 +1,13 @@
 # Safety Hooks
 
-Bureau injects `PreToolUse` hooks into every SDK session to block dangerous commands before they execute. The hook system is defined in `server/safety-hooks.ts`.
+Bureau injects `PreToolUse` hooks into every SDK session to block dangerous commands before they execute. The hook system lives under `server/agents/session/safety/`, split across focused modules:
+
+- `index.ts` — `createSafetyHooks()` + the three hook callbacks (Bash / Read / Write+Edit)
+- `bash-parser.ts` — `stripQuotedStrings`, `normalizeAbsolutePaths`
+- `patterns.ts` — `DESTRUCTIVE_PATTERNS` + `SAFE_PATTERNS` (git and rm)
+- `bureau-protection.ts` — `BUREAU_DIR` + `commandWritesToBureau`
+- `secrets.ts` — sensitive-file detection (`.env`, keys, credentials)
+- `deny-helpers.ts` — `deny` / `allow` / `denyMessage` / `denySecretRead`
 
 ## Hook Architecture
 
