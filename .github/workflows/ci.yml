@@ -2,7 +2,7 @@ name: CI
 
 # Quality gate for every PR and every push to master.
 # All five checks must pass before a PR can merge (enforced via branch
-# protection — see docs/development.md for the one-time setup).
+# protection — see docs/contributing/development.md for the one-time setup).
 on:
   pull_request:
   push:

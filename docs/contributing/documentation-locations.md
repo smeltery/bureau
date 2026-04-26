@@ -54,7 +54,7 @@ An index of every place that describes Bureau features to users. When a new feat
 
 ## 7. Development Guide
 
-- **File:** `docs/development.md`
+- **File:** `docs/contributing/development.md`
 - **Audience:** Contributors landing a PR.
 - **Structure:** quality-gate overview (typecheck, oxlint, prettier, tests, build), tooling notes, common-failure recipes, and the one-time `gh api` command for enabling required-status-check branch protection on `master`.
 - **Update when:** the CI workflow changes, lint / format / test scripts change, or branch-protection requirements change.
@@ -68,6 +68,7 @@ These aren't user-facing docs, but they do describe features and can fall out of
   - `docs/architecture/` — deep-dive subsystem docs (server, agent lifecycle, persistence, safety hooks, frontend, command/skill system).
   - `docs/features/` — feature design docs (conversation branching, cronjob system, multi-office, task system, etc.).
   - `docs/investigations/` — bug investigations and SDK research.
+  - `docs/contributing/` — development workflow, CI quality gate, and this index.
 - `server/agents/commands.ts` — per-command `description` fields surface in the slash-command autocomplete UI.
 - `server/agents/session/system-prompt.ts` `buildSystemPrompt()` — the system prompt injected into every spawned agent. Update when the agent's role or capabilities change.
 - `server/cronjobs/index.ts` `buildCronjobSystemPrompt()` — the system prompt injected into every cronjob run. Update when the cronjob's role or discovery hints change.
