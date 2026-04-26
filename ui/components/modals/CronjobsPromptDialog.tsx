@@ -19,7 +19,10 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { e.stopPropagation(); onClose(); }
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
     }
     window.addEventListener("keydown", handleKey, true);
     return () => window.removeEventListener("keydown", handleKey, true);
@@ -50,7 +53,9 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -103,9 +108,7 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
             resize: "vertical",
           }}
         />
-        <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>
-          Applied to the next run; in-flight runs use their captured snapshot.
-        </p>
+        <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Applied to the next run; in-flight runs use their captured snapshot.</p>
 
         {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "10px 0 0" }}>{error}</p>}
 

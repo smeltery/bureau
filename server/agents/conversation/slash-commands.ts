@@ -3,26 +3,10 @@ import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
 import { execSync } from "child_process";
 import { listAgentSessions } from "../../persistence.ts";
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
-import {
-  addLogEntry,
-  agents,
-  emit,
-  emitEphemeralLog,
-  logCache,
-  officeConfig,
-  persistAll,
-  rooms,
-  updateState,
-  type ManagedAgent,
-} from "../state.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
-import {
-  SessionSwappedError,
-  createSession,
-  createTurnDeferred,
-  replaceSession,
-} from "../session/runtime.ts";
+import { SessionSwappedError, createSession, createTurnDeferred, replaceSession } from "../session/runtime.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { formatRelativeTime, renderUsageReport } from "../usage.ts";
 
@@ -74,7 +58,7 @@ const commandHandlers: Record<string, HandlerFn> = {
 
       const pct = Math.round(ctx.percentage);
       const barLen = 30;
-      const filled = Math.round(barLen * ctx.percentage / 100);
+      const filled = Math.round((barLen * ctx.percentage) / 100);
       const bar = "\u2588".repeat(filled) + "\u2591".repeat(barLen - filled);
       lines.push(`**${ctx.model}** \u2014 ${ctx.totalTokens.toLocaleString()} / ${ctx.maxTokens.toLocaleString()} tokens (${pct}%)`);
       lines.push(`\`${bar}\``);
@@ -133,7 +117,7 @@ const commandHandlers: Record<string, HandlerFn> = {
     lines.push("");
 
     // Commands
-    const cmdList = managed.slashCommands.map((c) => c.description ? `  \`/${c.name}\`  — ${c.description}` : `  \`/${c.name}\``).join("\n");
+    const cmdList = managed.slashCommands.map((c) => (c.description ? `  \`/${c.name}\`  — ${c.description}` : `  \`/${c.name}\``)).join("\n");
     lines.push(`**Commands:**\n${cmdList}`);
 
     // Skills grouped by origin
@@ -153,10 +137,12 @@ const commandHandlers: Record<string, HandlerFn> = {
     for (const origin of originOrder) {
       const skills = grouped.get(origin);
       if (!skills || skills.length === 0) continue;
-      const skillLines = skills.map((s) => {
-        const desc = s.description ? ` — ${s.description}` : "";
-        return `  \`/${s.name}\`${desc}`;
-      }).join("\n");
+      const skillLines = skills
+        .map((s) => {
+          const desc = s.description ? ` — ${s.description}` : "";
+          return `  \`/${s.name}\`${desc}`;
+        })
+        .join("\n");
       lines.push(`\n**${originLabel[origin]}:**\n${skillLines}`);
     }
 
@@ -285,13 +271,7 @@ const commandHandlers: Record<string, HandlerFn> = {
     const userMeta = username ? { username } : undefined;
     emitEphemeralLog(agentId, "user_message", rawText, userMeta);
     const room = rooms[managed.info.room]!;
-    const prompt = buildSystemPrompt(
-      managed.info.name,
-      room.name,
-      officeConfig.prompt,
-      room.prompt,
-      managed.info.customInstructions,
-    );
+    const prompt = buildSystemPrompt(managed.info.name, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions);
     // Pick a fence longer than any backtick run inside the prompt so the block
     // renders verbatim regardless of what office/room/agent prompts contain.
     const longestRun = (prompt.match(/`+/g) ?? []).reduce((m, s) => Math.max(m, s.length), 0);
@@ -307,8 +287,7 @@ const commandHandlers: Record<string, HandlerFn> = {
     emitEphemeralLog(agentId, "user_message", rawText, userMeta);
     const cwd = managed.info.cwd;
 
-    const runGit = (args: string, maxBuffer = 10 * 1024 * 1024) =>
-      execSync(`git ${args}`, { cwd, timeout: 10000, maxBuffer, stdio: ["ignore", "pipe", "pipe"] }).toString();
+    const runGit = (args: string, maxBuffer = 10 * 1024 * 1024) => execSync(`git ${args}`, { cwd, timeout: 10000, maxBuffer, stdio: ["ignore", "pipe", "pipe"] }).toString();
 
     try {
       runGit("rev-parse --is-inside-work-tree", 1024);
@@ -446,9 +425,7 @@ export async function handleSlashCommand(agentId: string, managed: ManagedAgent,
 async function executeSkill(agentId: string, managed: ManagedAgent, skillPrompt: string, args: string[], rawText: string, username?: string): Promise<boolean> {
   const userMeta = username ? { username } : undefined;
   const userArgs = args.join(" ");
-  const fullPrompt = userArgs
-    ? `${skillPrompt}\n\nUser context: ${userArgs}`
-    : skillPrompt;
+  const fullPrompt = userArgs ? `${skillPrompt}\n\nUser context: ${userArgs}` : skillPrompt;
   addLogEntry(agentId, "user_message", rawText, userMeta);
   updateState(agentId, "thinking");
   const prefixedSkillPrompt = username ? `[${username}] ${fullPrompt}` : fullPrompt;

@@ -28,13 +28,21 @@ export const MIME_TO_EXTENSION: Record<string, string> = {
 };
 
 export const EXTENSION_TO_MIME: Record<string, string> = {
-  jpg: "image/jpeg", jpeg: "image/jpeg",
-  png: "image/png", gif: "image/gif", webp: "image/webp",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
   pdf: "application/pdf",
-  txt: "text/plain", md: "text/markdown", csv: "text/csv",
-  json: "application/json", xml: "text/xml",
-  yaml: "text/yaml", yml: "text/yaml",
-  html: "text/html", css: "text/css",
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  json: "application/json",
+  xml: "text/xml",
+  yaml: "text/yaml",
+  yml: "text/yaml",
+  html: "text/html",
+  css: "text/css",
 };
 
 /** Sanitize a filename: strip path components, replace unsafe chars, fallback to hash. */

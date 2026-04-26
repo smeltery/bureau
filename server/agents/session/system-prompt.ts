@@ -1,13 +1,7 @@
 // Concatenate baseline boilerplate, office prompt, room prompt, and agent custom
 // instructions into the exact string that gets injected as --append-system-prompt.
 // Pure function so it can be reused by /bureau-system-prompt for inspection.
-export function buildSystemPrompt(
-  agentName: string,
-  roomName: string,
-  officePrompt?: string | null,
-  roomPrompt?: string | null,
-  customInstructions?: string | null,
-): string {
+export function buildSystemPrompt(agentName: string, roomName: string, officePrompt?: string | null, roomPrompt?: string | null, customInstructions?: string | null): string {
   let systemPrompt = `You are ${agentName}, an agent in room ${roomName} of the Bureau office.
 Your goal is to help the office bosses, who talk to you in this chat.
 Messages are prefixed with the boss's name in brackets.

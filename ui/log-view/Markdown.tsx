@@ -52,7 +52,7 @@ const marked = new Marked(
       // Auto-detect for unlabeled code blocks
       return hljs.highlightAuto(code).value;
     },
-  })
+  }),
 );
 
 marked.setOptions({
@@ -94,7 +94,7 @@ export function Markdown({ content }: { content: string }) {
     const pre = wrapper?.querySelector("pre");
     if (!pre) return;
     const code = pre.querySelector("code");
-    const text = code ? code.textContent ?? "" : pre.textContent ?? "";
+    const text = code ? (code.textContent ?? "") : (pre.textContent ?? "");
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -117,11 +117,5 @@ export function Markdown({ content }: { content: string }) {
     }, 1500);
   }, []);
 
-  return (
-    <div
-      className="md-content"
-      onClick={onClick}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
+  return <div className="md-content" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />;
 }

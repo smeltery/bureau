@@ -2,31 +2,10 @@ import { readFileSync, statSync } from "fs";
 import type { SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages/messages.mjs";
 import type { AgentState, Attachment } from "../../../shared/types.ts";
-import {
-  accumulateSessionUsage,
-  appendLog,
-  appendSessionUsageSnapshot,
-  getFilePath,
-  loadLogWithAncestors,
-  saveFile,
-} from "../../persistence.ts";
+import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, getFilePath, loadLogWithAncestors, saveFile } from "../../persistence.ts";
 import { autocompleteCommands } from "../commands.ts";
-import {
-  agents,
-  addLogEntry,
-  emit,
-  emitEphemeralLog,
-  logCache,
-  persistAll,
-  updateState,
-} from "../state.ts";
-import {
-  deduplicateSkills,
-  discoverBundledSkills,
-  discoverPluginSkills,
-  discoverProjectSkills,
-  discoverUserSkills,
-} from "../skills-discovery.ts";
+import { agents, addLogEntry, emit, emitEphemeralLog, logCache, persistAll, updateState } from "../state.ts";
+import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
 
 // ---------------------------------------------------------------------------
 // Auth-error detection (shared by processMessage and runConsumer's catch block)
@@ -121,9 +100,7 @@ export function processMessage(agentId: string, msg: SDKMessage) {
         // Autocomplete: config entries with autocomplete:true + all discovered skills
         // SDK-reported commands are NOT added to autocomplete (per design)
         // Skills are listed in priority order; deduplicate by name (highest priority wins)
-        const discoveredSkills = managed
-          ? [...discoverUserSkills(), ...discoverProjectSkills(managed.info.cwd), ...discoverPluginSkills(), ...discoverBundledSkills()]
-          : [];
+        const discoveredSkills = managed ? [...discoverUserSkills(), ...discoverProjectSkills(managed.info.cwd), ...discoverPluginSkills(), ...discoverBundledSkills()] : [];
         const uniqueSkills = deduplicateSkills(discoveredSkills);
         const configCommands = autocompleteCommands();
         if (managed) {
@@ -161,9 +138,7 @@ export function processMessage(agentId: string, msg: SDKMessage) {
           });
         } else if (block.type === "thinking" && block.thinking) {
           const managed = agents.get(agentId);
-          const duration_ms = managed?.thinkingStartedAt
-            ? Date.now() - managed.thinkingStartedAt
-            : undefined;
+          const duration_ms = managed?.thinkingStartedAt ? Date.now() - managed.thinkingStartedAt : undefined;
           addLogEntry(agentId, "thinking", block.thinking, duration_ms != null ? { duration_ms } : undefined);
         }
       }
@@ -202,10 +177,16 @@ export function processMessage(agentId: string, msg: SDKMessage) {
           if (managed && callStart) {
             managed.toolCallTimestamps.delete(block.tool_use_id);
           }
-          addLogEntry(agentId, "tool_result", resultText.slice(0, 10000), {
-            toolUseId: block.tool_use_id,
-            ...(duration_ms != null ? { duration_ms } : {}),
-          }, resultAttachments);
+          addLogEntry(
+            agentId,
+            "tool_result",
+            resultText.slice(0, 10000),
+            {
+              toolUseId: block.tool_use_id,
+              ...(duration_ms != null ? { duration_ms } : {}),
+            },
+            resultAttachments,
+          );
         }
       }
       break;
@@ -224,12 +205,17 @@ export function processMessage(agentId: string, msg: SDKMessage) {
       const usageField = (msg as any).usage;
       if (managed?.sessionId && usageField) {
         const cost = (msg as any).total_cost_usd ?? 0;
-        const cumulative = accumulateSessionUsage(agentId, managed.sessionId, {
-          inputTokens: usageField.input_tokens ?? 0,
-          outputTokens: usageField.output_tokens ?? 0,
-          cacheReadInputTokens: usageField.cache_read_input_tokens ?? 0,
-          cacheCreationInputTokens: usageField.cache_creation_input_tokens ?? 0,
-        }, cost);
+        const cumulative = accumulateSessionUsage(
+          agentId,
+          managed.sessionId,
+          {
+            inputTokens: usageField.input_tokens ?? 0,
+            outputTokens: usageField.output_tokens ?? 0,
+            cacheReadInputTokens: usageField.cache_read_input_tokens ?? 0,
+            cacheCreationInputTokens: usageField.cache_creation_input_tokens ?? 0,
+          },
+          cost,
+        );
         if (managed.lastWrittenEntryId) {
           appendSessionUsageSnapshot(agentId, managed.sessionId, managed.lastWrittenEntryId, cumulative);
         }
@@ -255,9 +241,34 @@ export function processMessage(agentId: string, msg: SDKMessage) {
 
 // Extensions that should be sent as text content blocks
 const TEXT_FILE_EXTENSIONS = new Set([
-  "txt", "md", "json", "csv", "log", "xml", "yaml", "yml", "toml", "ini", "cfg",
-  "sh", "bash", "py", "js", "ts", "go", "rs", "c", "h", "cpp", "java", "rb",
-  "html", "css", "sql", "env", "conf",
+  "txt",
+  "md",
+  "json",
+  "csv",
+  "log",
+  "xml",
+  "yaml",
+  "yml",
+  "toml",
+  "ini",
+  "cfg",
+  "sh",
+  "bash",
+  "py",
+  "js",
+  "ts",
+  "go",
+  "rs",
+  "c",
+  "h",
+  "cpp",
+  "java",
+  "rb",
+  "html",
+  "css",
+  "sql",
+  "env",
+  "conf",
 ]);
 
 const IMAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);

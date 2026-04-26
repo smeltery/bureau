@@ -1,5 +1,18 @@
 import { createContext, useContext, useReducer, useEffect, useRef, useState, useCallback, type ReactNode, type Dispatch } from "react";
-import type { AgentInfo, Cronjob, CronjobRun, LogEntry, SessionInfo, ServerMessage, SkillInfo, TaskItem, OfficeSettings, RoomWire, SettingsSaveResponse, SettingsValidationResponse } from "../shared/types.ts";
+import type {
+  AgentInfo,
+  Cronjob,
+  CronjobRun,
+  LogEntry,
+  SessionInfo,
+  ServerMessage,
+  SkillInfo,
+  TaskItem,
+  OfficeSettings,
+  RoomWire,
+  SettingsSaveResponse,
+  SettingsValidationResponse,
+} from "../shared/types.ts";
 import { connect } from "./ws.ts";
 import { type Features, PRODUCTION_FEATURES } from "../shared/features.ts";
 
@@ -96,14 +109,10 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case "agent_updated": {
-      const newAgents = state.agents.map((a) =>
-        a.id === action.agentId ? { ...a, ...action.changes } : a
-      );
+      const newAgents = state.agents.map((a) => (a.id === action.agentId ? { ...a, ...action.changes } : a));
       const needsAttention = new Set(state.needsAttention);
       // Track when state changes for elapsed time display
-      const stateChangedAt = action.changes.state
-        ? new Map(state.stateChangedAt).set(action.agentId, Date.now())
-        : state.stateChangedAt;
+      const stateChangedAt = action.changes.state ? new Map(state.stateChangedAt).set(action.agentId, Date.now()) : state.stateChangedAt;
       // Mark as needing attention if state changed to an attention state
       // and the user is not currently viewing this agent
       if (action.changes.state && ATTENTION_STATES.has(action.changes.state)) {
@@ -194,11 +203,11 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, rooms: newRooms, currentRoom };
     }
     case "room_renamed": {
-      const newRooms = state.rooms.map((r) => r.id === action.roomId ? { ...r, name: action.name } : r);
+      const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, name: action.name } : r));
       return { ...state, rooms: newRooms };
     }
     case "room_settings_updated": {
-      const newRooms = state.rooms.map((r) => r.id === action.roomId ? { ...r, prompt: action.prompt, envFile: action.envFile } : r);
+      const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, prompt: action.prompt, envFile: action.envFile } : r));
       return { ...state, rooms: newRooms };
     }
     case "cronjobs_state":
@@ -206,7 +215,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "cronjob_added":
       return { ...state, cronjobs: [...state.cronjobs.filter((c) => c.id !== action.cronjob.id), action.cronjob] };
     case "cronjob_updated":
-      return { ...state, cronjobs: state.cronjobs.map((c) => c.id === action.cronjob.id ? action.cronjob : c) };
+      return { ...state, cronjobs: state.cronjobs.map((c) => (c.id === action.cronjob.id ? action.cronjob : c)) };
     case "cronjob_deleted":
       return { ...state, cronjobs: state.cronjobs.filter((c) => c.id !== action.id) };
     case "cronjobs_prompt_updated":
@@ -256,7 +265,7 @@ const initialState: AppState = {
   focusedAgentId: null,
   connected: false,
   isMobile: typeof window !== "undefined" ? window.innerWidth < 768 : false,
-  mobileViewMode: (typeof localStorage !== "undefined" && localStorage.getItem("bureau-mobile-view") === "list") ? "list" : "office",
+  mobileViewMode: typeof localStorage !== "undefined" && localStorage.getItem("bureau-mobile-view") === "list" ? "list" : "office",
   needsAttention: new Set(),
   sessionsList: new Map(),
   soundTrigger: 0,

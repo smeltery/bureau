@@ -23,15 +23,7 @@ const STATUS_COLOR: Record<CronjobRun["status"], string> = {
 // Read-only transcript viewer for a cronjob run. Resume / edit-to-fork into
 // runs is a planned follow-up; for now the user can re-trigger the cronjob
 // with "Run now" to spawn a fresh run.
-export function CronjobRunView({
-  jobId,
-  runId,
-  onClose,
-}: {
-  jobId: string;
-  runId: string;
-  onClose: () => void;
-}) {
+export function CronjobRunView({ jobId, runId, onClose }: { jobId: string; runId: string; onClose: () => void }) {
   const { cronjobRunsByJob, isMobile, logs } = useAppState();
   const streamId = cronjobRunStreamId(runId);
   const runs = cronjobRunsByJob.get(jobId) ?? [];
@@ -50,7 +42,10 @@ export function CronjobRunView({
   // ESC closes
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { e.stopPropagation(); onClose(); }
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
     }
     window.addEventListener("keydown", handleKey, true);
     return () => window.removeEventListener("keydown", handleKey, true);
@@ -90,7 +85,9 @@ export function CronjobRunView({
 
   return (
     <div
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -130,18 +127,12 @@ export function CronjobRunView({
           </button>
           {run ? (
             <>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {run.cronjobName}
-              </span>
-              <span style={{ fontSize: 11, color: STATUS_COLOR[run.status], fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>
-                {STATUS_LABEL[run.status]}
-              </span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{run.cronjobName}</span>
+              <span style={{ fontSize: 11, color: STATUS_COLOR[run.status], fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>{STATUS_LABEL[run.status]}</span>
               <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
                 {new Date(run.startedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
               </span>
-              <span style={{ fontSize: 11, color: "var(--text-ghost)", fontFamily: "'JetBrains Mono',monospace" }}>
-                {run.trigger === "manual" ? "manual" : "scheduled"}
-              </span>
+              <span style={{ fontSize: 11, color: "var(--text-ghost)", fontFamily: "'JetBrains Mono',monospace" }}>{run.trigger === "manual" ? "manual" : "scheduled"}</span>
             </>
           ) : (
             <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Run #{runId}</span>
@@ -152,32 +143,28 @@ export function CronjobRunView({
       {/* Body */}
       <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "12px" : "16px 24px" }}>
         {run && (
-          <div style={{
-            padding: "10px 14px",
-            marginBottom: 12,
-            borderRadius: 8,
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border-subtle)",
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            fontFamily: "'JetBrains Mono',monospace",
-          }}>
+          <div
+            style={{
+              padding: "10px 14px",
+              marginBottom: 12,
+              borderRadius: 8,
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-subtle)",
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              fontFamily: "'JetBrains Mono',monospace",
+            }}
+          >
             <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>PROMPT</div>
             <div style={{ whiteSpace: "pre-wrap" }}>{run.promptSnapshot}</div>
             <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-ghost)" }}>
               cwd: {run.cwdSnapshot} · model: {run.modelFamilySnapshot} · permission: {run.permissionModeSnapshot}
             </div>
-            {run.errorReason && (
-              <div style={{ marginTop: 8, fontSize: 11, color: "var(--red)" }}>
-                Error: {run.errorReason}
-              </div>
-            )}
+            {run.errorReason && <div style={{ marginTop: 8, fontSize: 11, color: "var(--red)" }}>Error: {run.errorReason}</div>}
           </div>
         )}
         {entries.length === 0 ? (
-          <div style={{ textAlign: "center", color: "var(--text-ghost)", padding: 40 }}>
-            {run?.status === "skipped" ? "This run was skipped." : "No log entries."}
-          </div>
+          <div style={{ textAlign: "center", color: "var(--text-ghost)", padding: 40 }}>{run?.status === "skipped" ? "This run was skipped." : "No log entries."}</div>
         ) : (
           entries.map((entry) => {
             const td = turnData.get(entry.id);
@@ -199,14 +186,16 @@ export function CronjobRunView({
         )}
       </div>
 
-      <div style={{
-        padding: "10px 16px",
-        borderTop: "1px solid var(--border-subtle)",
-        background: "var(--bg-surface)",
-        fontSize: 11,
-        color: "var(--text-muted)",
-        textAlign: "center",
-      }}>
+      <div
+        style={{
+          padding: "10px 16px",
+          borderTop: "1px solid var(--border-subtle)",
+          background: "var(--bg-surface)",
+          fontSize: 11,
+          color: "var(--text-muted)",
+          textAlign: "center",
+        }}
+      >
         Run transcripts are read-only. Use "Run now" on the cronjob to start a fresh run.
       </div>
     </div>

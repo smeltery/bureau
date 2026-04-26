@@ -3,11 +3,7 @@ import { useRef, useEffect } from "react";
 const TRIGGER_THRESHOLD = 100;
 const MAX_VERTICAL = 80;
 
-export function useSwipeLeftRight(
-  onSwipeLeft: () => void,
-  onSwipeRight: () => void,
-  enabled: boolean,
-) {
+export function useSwipeLeftRight(onSwipeLeft: () => void, onSwipeRight: () => void, enabled: boolean) {
   const ref = useRef<HTMLDivElement>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const onSwipeLeftRef = useRef(onSwipeLeft);

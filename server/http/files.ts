@@ -27,7 +27,8 @@ async function uploadHandler(req: Request, url: URL): Promise<Response> {
   const agentId = url.pathname.split("/")[3];
   if (!agentId || !AgentManager.getAgent(agentId)) {
     return new Response(JSON.stringify({ error: "agent not found" }), {
-      status: 404, headers: JSON_HEADERS,
+      status: 404,
+      headers: JSON_HEADERS,
     });
   }
   try {
@@ -44,18 +45,21 @@ async function uploadHandler(req: Request, url: URL): Promise<Response> {
       fileCount++;
       if (fileCount > MAX_FILES) {
         return new Response(JSON.stringify({ error: `Maximum ${MAX_FILES} files per upload` }), {
-          status: 400, headers: JSON_HEADERS,
+          status: 400,
+          headers: JSON_HEADERS,
         });
       }
       if (value.size > MAX_FILE_SIZE) {
         return new Response(JSON.stringify({ error: `File "${value.name}" exceeds 20MB limit` }), {
-          status: 400, headers: JSON_HEADERS,
+          status: 400,
+          headers: JSON_HEADERS,
         });
       }
       totalSize += value.size;
       if (totalSize > MAX_TOTAL) {
         return new Response(JSON.stringify({ error: "Total upload exceeds 40MB limit" }), {
-          status: 400, headers: JSON_HEADERS,
+          status: 400,
+          headers: JSON_HEADERS,
         });
       }
       const buffer = Buffer.from(await value.arrayBuffer());
@@ -65,16 +69,26 @@ async function uploadHandler(req: Request, url: URL): Promise<Response> {
     return new Response(JSON.stringify({ attachments }), { headers: JSON_HEADERS });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message || "Upload failed" }), {
-      status: 500, headers: JSON_HEADERS,
+      status: 500,
+      headers: JSON_HEADERS,
     });
   }
 }
 
 const SERVE_MIME_TYPES: Record<string, string> = {
-  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp",
-  pdf: "application/pdf", txt: "text/plain", md: "text/markdown",
-  json: "application/json", csv: "text/csv", xml: "text/xml",
-  html: "text/html", css: "text/css",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  pdf: "application/pdf",
+  txt: "text/plain",
+  md: "text/markdown",
+  json: "application/json",
+  csv: "text/csv",
+  xml: "text/xml",
+  html: "text/html",
+  css: "text/css",
 };
 
 function serveHandler(url: URL): Response {

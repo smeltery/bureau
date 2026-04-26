@@ -55,10 +55,7 @@ function makeRandomOutfit(): AgentOutfit {
 
 type EditAgentDialogProps = {
   onClose: () => void;
-} & (
-  | { agent: AgentInfo; deskIndex?: undefined; room?: undefined; defaultCwd?: undefined }
-  | { agent?: undefined; deskIndex: number; room: number; defaultCwd: string }
-);
+} & ({ agent: AgentInfo; deskIndex?: undefined; room?: undefined; defaultCwd?: undefined } | { agent?: undefined; deskIndex: number; room: number; defaultCwd: string });
 
 export function EditAgentDialog(props: EditAgentDialogProps) {
   const { onClose } = props;
@@ -73,9 +70,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
   const [customInstructions, setCustomInstructions] = useState(agent?.customInstructions ?? "");
   const [modelFamily, setModelFamily] = useState<ModelFamily>(agent?.modelFamily ?? MODEL_FAMILIES[0].family);
   const initialPermissionMode: AgentInfo["permissionMode"] =
-    agent?.permissionMode === "auto" && (agent?.modelFamily ?? MODEL_FAMILIES[0].family) !== "opus"
-      ? "bypassPermissions"
-      : (agent?.permissionMode ?? "auto");
+    agent?.permissionMode === "auto" && (agent?.modelFamily ?? MODEL_FAMILIES[0].family) !== "opus" ? "bypassPermissions" : (agent?.permissionMode ?? "auto");
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
   const [saving, setSaving] = useState(false);
   const [cwdError, setCwdError] = useState<string | null>(null);
@@ -175,7 +170,9 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
 
   return (
     <div
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -205,257 +202,256 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
         }}
       >
         <div style={{ overflowY: "auto", flex: 1, padding: isMobile ? "max(24px, env(safe-area-inset-top)) 20px 16px" : "24px 28px 16px" }}>
-        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{isSpawn ? "Spawn New Agent" : "Edit Agent"}</h3>
-        <p style={{ fontSize: 12, color: "var(--text-faint)", margin: "2px 0 18px" }}>
-          {isSpawn
-            ? `Desk #${props.deskIndex! + 1}`
-            : `${roomCount > 1 ? `${rooms[agent!.room]?.name ?? `Room ${agent!.room + 1}`}, ` : ""}Desk #${agent!.desk + 1}`}
-        </p>
+          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{isSpawn ? "Spawn New Agent" : "Edit Agent"}</h3>
+          <p style={{ fontSize: 12, color: "var(--text-faint)", margin: "2px 0 18px" }}>
+            {isSpawn ? `Desk #${props.deskIndex! + 1}` : `${roomCount > 1 ? `${rooms[agent!.room]?.name ?? `Room ${agent!.room + 1}`}, ` : ""}Desk #${agent!.desk + 1}`}
+          </p>
 
-        <label style={labelStyle}>Name</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={isSpawn ? `Agent ${props.deskIndex! + 1}` : undefined}
-          autoFocus={isSpawn}
-          style={inputStyle}
-        />
+          <label style={labelStyle}>Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isSpawn ? `Agent ${props.deskIndex! + 1}` : undefined} autoFocus={isSpawn} style={inputStyle} />
 
-        <label style={{ ...labelStyle, marginTop: 12 }}>Working Directory</label>
-        <input
-          value={cwd}
-          onChange={(e) => { setCwd(e.target.value); if (cwdError) setCwdError(null); }}
-          style={cwdError ? { ...inputStyle, borderColor: "#ff6b6b" } : inputStyle}
-        />
-        {cwdError && <p style={{ fontSize: 10, color: "#ff6b6b", margin: "4px 0 0" }}>{cwdError}</p>}
-        {recentCwds.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-            {recentCwds.map((c) => (
-              <button
+          <label style={{ ...labelStyle, marginTop: 12 }}>Working Directory</label>
+          <input
+            value={cwd}
+            onChange={(e) => {
+              setCwd(e.target.value);
+              if (cwdError) setCwdError(null);
+            }}
+            style={cwdError ? { ...inputStyle, borderColor: "#ff6b6b" } : inputStyle}
+          />
+          {cwdError && <p style={{ fontSize: 10, color: "#ff6b6b", margin: "4px 0 0" }}>{cwdError}</p>}
+          {recentCwds.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+              {recentCwds.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => {
+                    setCwd(c);
+                    if (cwdError) setCwdError(null);
+                  }}
+                  style={chipStyle}
+                >
+                  {c.replace(/^\/home\/[^/]+/, "~")}
+                </button>
+              ))}
+            </div>
+          )}
+          {!isSpawn && <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>}
+
+          <label style={{ ...labelStyle, marginTop: 12 }}>Permission Mode</label>
+          <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as AgentInfo["permissionMode"])} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+            {modelFamily === "opus" && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
+            <option value="default">Default (ask for everything)</option>
+            <option value="acceptEdits">Accept Edits (auto-approve file changes)</option>
+            <option value="bypassPermissions">Bypass (auto-approve all)</option>
+          </select>
+
+          <label style={{ ...labelStyle, marginTop: 12 }}>Model</label>
+          <select
+            value={modelFamily}
+            onChange={(e) => {
+              const next = e.target.value as ModelFamily;
+              setModelFamily(next);
+              if (next !== "opus" && permissionMode === "auto") setPermissionMode("bypassPermissions");
+            }}
+            style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
+          >
+            {MODEL_FAMILIES.map((m) => (
+              <option key={m.family} value={m.family}>
+                {m.label} ({modelVersionLabel(m.family)})
+              </option>
+            ))}
+          </select>
+
+          <label style={{ ...labelStyle, marginTop: 14 }}>Appearance</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
+            <div style={{ width: 52, height: 70, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Character state="idle" outfit={outfit} />
+            </div>
+            <button onClick={() => setOutfit(makeRandomOutfit())} style={randomBtnStyle}>
+              Randomize
+            </button>
+          </div>
+
+          {/* Skin Color */}
+          <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Skin</div>
+          <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
+            {SKIN_COLORS.map((c) => (
+              <div
                 key={c}
-                onClick={() => { setCwd(c); if (cwdError) setCwdError(null); }}
-                style={chipStyle}
-              >
-                {c.replace(/^\/home\/[^/]+/, "~")}
-              </button>
+                onClick={() => setOutfit({ ...outfit, skin: c })}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  background: c,
+                  cursor: "pointer",
+                  border: outfit.skin === c ? "2px solid var(--text-primary)" : "2px solid transparent",
+                }}
+              />
             ))}
           </div>
-        )}
-        {!isSpawn && <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>}
 
-        <label style={{ ...labelStyle, marginTop: 12 }}>Permission Mode</label>
-        <select
-          value={permissionMode}
-          onChange={(e) => setPermissionMode(e.target.value as AgentInfo["permissionMode"])}
-          style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
-        >
-          {modelFamily === "opus" && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
-          <option value="default">Default (ask for everything)</option>
-          <option value="acceptEdits">Accept Edits (auto-approve file changes)</option>
-          <option value="bypassPermissions">Bypass (auto-approve all)</option>
-        </select>
-
-        <label style={{ ...labelStyle, marginTop: 12 }}>Model</label>
-        <select
-          value={modelFamily}
-          onChange={(e) => {
-            const next = e.target.value as ModelFamily;
-            setModelFamily(next);
-            if (next !== "opus" && permissionMode === "auto") setPermissionMode("bypassPermissions");
-          }}
-          style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
-        >
-          {MODEL_FAMILIES.map((m) => (
-            <option key={m.family} value={m.family}>{m.label} ({modelVersionLabel(m.family)})</option>
-          ))}
-        </select>
-
-        <label style={{ ...labelStyle, marginTop: 14 }}>Appearance</label>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
-          <div style={{ width: 52, height: 70, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Character state="idle" outfit={outfit} />
+          {/* Shirt Color */}
+          <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Shirt</div>
+          <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
+            {SHIRT_COLORS.map((c) => (
+              <div
+                key={c}
+                onClick={() => setOutfit({ ...outfit, color: c })}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  background: c,
+                  cursor: "pointer",
+                  border: outfit.color === c ? "2px solid var(--text-primary)" : "2px solid transparent",
+                }}
+              />
+            ))}
           </div>
-          <button onClick={() => setOutfit(makeRandomOutfit())} style={randomBtnStyle}>
-            Randomize
-          </button>
-        </div>
 
-        {/* Skin Color */}
-        <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Skin</div>
-        <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
-          {SKIN_COLORS.map((c) => (
-            <div
-              key={c}
-              onClick={() => setOutfit({ ...outfit, skin: c })}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 6,
-                background: c,
-                cursor: "pointer",
-                border: outfit.skin === c ? "2px solid var(--text-primary)" : "2px solid transparent",
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Shirt Color */}
-        <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Shirt</div>
-        <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
-          {SHIRT_COLORS.map((c) => (
-            <div
-              key={c}
-              onClick={() => setOutfit({ ...outfit, color: c })}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 6,
-                background: c,
-                cursor: "pointer",
-                border: outfit.color === c ? "2px solid var(--text-primary)" : "2px solid transparent",
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Hair Color */}
-        <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hair Color</div>
-        <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
-          {HAIR_COLORS.map((c) => (
-            <div
-              key={c}
-              onClick={() => setOutfit({ ...outfit, hair: c })}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 6,
-                background: c,
-                cursor: "pointer",
-                border: outfit.hair === c ? "2px solid var(--text-primary)" : "2px solid transparent",
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Hair Style & Hat */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hair Style</div>
-            <select
-              value={outfit.hairStyle ?? "short"}
-              onChange={(e) => setOutfit({ ...outfit, hairStyle: e.target.value as AgentOutfit["hairStyle"] })}
-              style={selectStyle}
-            >
-              {HAIR_STYLES.map((s) => (
-                <option key={s} value={s}>{HAIR_STYLE_LABELS[s]}</option>
-              ))}
-            </select>
+          {/* Hair Color */}
+          <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hair Color</div>
+          <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
+            {HAIR_COLORS.map((c) => (
+              <div
+                key={c}
+                onClick={() => setOutfit({ ...outfit, hair: c })}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  background: c,
+                  cursor: "pointer",
+                  border: outfit.hair === c ? "2px solid var(--text-primary)" : "2px solid transparent",
+                }}
+              />
+            ))}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hat</div>
-            <select
-              value={outfit.hat}
-              onChange={(e) => setOutfit({ ...outfit, hat: e.target.value as AgentOutfit["hat"] })}
-              style={selectStyle}
-            >
-              {HATS.map((h) => (
-                <option key={h} value={h}>{HAT_LABELS[h]}</option>
-              ))}
-            </select>
-          </div>
-        </div>
 
-        {/* Beard & Accessory */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 4 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Beard</div>
-            <select
-              value={outfit.beard ?? "none"}
-              onChange={(e) => setOutfit({ ...outfit, beard: e.target.value as AgentOutfit["beard"] })}
-              style={selectStyle}
-            >
-              {BEARDS.map((b) => (
-                <option key={b} value={b}>{BEARD_LABELS[b]}</option>
-              ))}
-            </select>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Accessory</div>
-            <select
-              value={outfit.accessory ?? "none"}
-              onChange={(e) => setOutfit({ ...outfit, accessory: e.target.value === "none" ? null : e.target.value as AgentOutfit["accessory"] })}
-              style={selectStyle}
-            >
-              {ACCESSORIES.map((a) => (
-                <option key={a ?? "none"} value={a ?? "none"}>{ACCESSORY_LABELS[a ?? "none"]}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <label style={{ ...labelStyle, marginTop: 14 }}>Custom Instructions <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span></label>
-        <textarea
-          value={customInstructions}
-          onChange={(e) => setCustomInstructions(e.target.value)}
-          placeholder='e.g. "You are a backend specialist. Always write tests."'
-          rows={3}
-          style={{ ...inputStyle, resize: "vertical" }}
-        />
-        <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>
-          Run <code>/bureau-system-prompt</code> in a chat to see the agent's full system prompt.
-          {!isSpawn && " Changes take effect on next conversation."}
-        </p>
-
-        {/* Move to Room — only show when multiple rooms exist and editing */}
-        {!isSpawn && roomCount > 1 && (
-          <>
-            <label style={{ ...labelStyle, marginTop: 14 }}>Move to Room</label>
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {Array.from({ length: roomCount }, (_, i) => {
-                if (i === agent!.room) return null;
-                const roomAgentCount = agents.filter((a) => a.room === i).length;
-                const isFull = roomAgentCount >= 8;
-                return (
-                  <button
-                    key={i}
-                    disabled={isFull}
-                    onClick={() => {
-                      const targetRoomId = rooms[i]?.id;
-                      if (!targetRoomId) return;
-                      send({ type: "move_agent", agentId: agent!.id, targetRoomId });
-                      onClose();
-                    }}
-                    style={{
-                      padding: "5px 12px",
-                      borderRadius: 6,
-                      border: "1px solid var(--border)",
-                      background: isFull ? "var(--bg-input)" : "var(--btn-surface)",
-                      color: isFull ? "var(--text-ghost)" : "var(--text-dim)",
-                      fontSize: 11,
-                      cursor: isFull ? "not-allowed" : "pointer",
-                      fontFamily: "'JetBrains Mono',monospace",
-                      opacity: isFull ? 0.5 : 1,
-                    }}
-                  >
-                    {rooms[i]?.name ?? `Room ${i + 1}`} ({roomAgentCount}/8)
-                  </button>
-                );
-              })}
+          {/* Hair Style & Hat */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hair Style</div>
+              <select value={outfit.hairStyle ?? "short"} onChange={(e) => setOutfit({ ...outfit, hairStyle: e.target.value as AgentOutfit["hairStyle"] })} style={selectStyle}>
+                {HAIR_STYLES.map((s) => (
+                  <option key={s} value={s}>
+                    {HAIR_STYLE_LABELS[s]}
+                  </option>
+                ))}
+              </select>
             </div>
-          </>
-        )}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hat</div>
+              <select value={outfit.hat} onChange={(e) => setOutfit({ ...outfit, hat: e.target.value as AgentOutfit["hat"] })} style={selectStyle}>
+                {HATS.map((h) => (
+                  <option key={h} value={h}>
+                    {HAT_LABELS[h]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
+          {/* Beard & Accessory */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 4 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Beard</div>
+              <select value={outfit.beard ?? "none"} onChange={(e) => setOutfit({ ...outfit, beard: e.target.value as AgentOutfit["beard"] })} style={selectStyle}>
+                {BEARDS.map((b) => (
+                  <option key={b} value={b}>
+                    {BEARD_LABELS[b]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Accessory</div>
+              <select
+                value={outfit.accessory ?? "none"}
+                onChange={(e) => setOutfit({ ...outfit, accessory: e.target.value === "none" ? null : (e.target.value as AgentOutfit["accessory"]) })}
+                style={selectStyle}
+              >
+                {ACCESSORIES.map((a) => (
+                  <option key={a ?? "none"} value={a ?? "none"}>
+                    {ACCESSORY_LABELS[a ?? "none"]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <label style={{ ...labelStyle, marginTop: 14 }}>
+            Custom Instructions <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
+          </label>
+          <textarea
+            value={customInstructions}
+            onChange={(e) => setCustomInstructions(e.target.value)}
+            placeholder='e.g. "You are a backend specialist. Always write tests."'
+            rows={3}
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>
+            Run <code>/bureau-system-prompt</code> in a chat to see the agent's full system prompt.
+            {!isSpawn && " Changes take effect on next conversation."}
+          </p>
+
+          {/* Move to Room — only show when multiple rooms exist and editing */}
+          {!isSpawn && roomCount > 1 && (
+            <>
+              <label style={{ ...labelStyle, marginTop: 14 }}>Move to Room</label>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {Array.from({ length: roomCount }, (_, i) => {
+                  if (i === agent!.room) return null;
+                  const roomAgentCount = agents.filter((a) => a.room === i).length;
+                  const isFull = roomAgentCount >= 8;
+                  return (
+                    <button
+                      key={i}
+                      disabled={isFull}
+                      onClick={() => {
+                        const targetRoomId = rooms[i]?.id;
+                        if (!targetRoomId) return;
+                        send({ type: "move_agent", agentId: agent!.id, targetRoomId });
+                        onClose();
+                      }}
+                      style={{
+                        padding: "5px 12px",
+                        borderRadius: 6,
+                        border: "1px solid var(--border)",
+                        background: isFull ? "var(--bg-input)" : "var(--btn-surface)",
+                        color: isFull ? "var(--text-ghost)" : "var(--text-dim)",
+                        fontSize: 11,
+                        cursor: isFull ? "not-allowed" : "pointer",
+                        fontFamily: "'JetBrains Mono',monospace",
+                        opacity: isFull ? 0.5 : 1,
+                      }}
+                    >
+                      {rooms[i]?.name ?? `Room ${i + 1}`} ({roomAgentCount}/8)
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
-        <div style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 8,
-          padding: isMobile ? "16px 20px max(24px, env(safe-area-inset-bottom))" : "20px 28px 22px",
-          borderTop: "1px solid var(--border)",
-          flexShrink: 0,
-        }}>
-          <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>Cancel</button>
-          <button onClick={handleSave} style={saveBtnStyle} disabled={saving}>{saving ? "Saving…" : (isSpawn ? "Spawn" : "Save")}</button>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+            padding: isMobile ? "16px 20px max(24px, env(safe-area-inset-bottom))" : "20px 28px 22px",
+            borderTop: "1px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
+          <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>
+            Cancel
+          </button>
+          <button onClick={handleSave} style={saveBtnStyle} disabled={saving}>
+            {saving ? "Saving…" : isSpawn ? "Spawn" : "Save"}
+          </button>
         </div>
       </div>
     </div>

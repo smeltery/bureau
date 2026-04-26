@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SkillInfo } from "../../../shared/types.ts";
 
-type AgentCmds = {
-  commands: ({ name: string; description?: string } | string)[];
-  skills: SkillInfo[];
-} | undefined;
+type AgentCmds =
+  | {
+      commands: ({ name: string; description?: string } | string)[];
+      skills: SkillInfo[];
+    }
+  | undefined;
 
 /**
  * Merges agent hardcoded commands + discovered skills into one sorted list,

@@ -84,33 +84,26 @@ export function ContextMenu({ x, y, agent, onClose, onEdit }: ContextMenuProps) 
       >
         {agent.name}
       </div>
-      <MenuItem label="Edit Agent..." onClick={() => { onEdit(agent); onClose(); }} />
+      <MenuItem
+        label="Edit Agent..."
+        onClick={() => {
+          onEdit(agent);
+          onClose();
+        }}
+      />
       {features.sessions && <MenuItem label="New Conversation" onClick={() => handleAction("new_conversation")} />}
 
       {features.sessions && sessions.length > 1 && (
         <>
           <div style={{ height: 1, background: "var(--border-strong)", margin: "3px 8px" }} />
-          <div style={{ padding: "4px 10px", fontSize: 9, color: "var(--text-ghost)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Resume
-          </div>
+          <div style={{ padding: "4px 10px", fontSize: 9, color: "var(--text-ghost)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Resume</div>
           {sessions.slice(0, 5).map((s) => {
             const isCurrent = s.sessionId === currentSessionId;
             const rawLabel = s.topic || s.sessionId.slice(0, 8) + "...";
             const label = s.forked ? `↳ ${rawLabel}` : rawLabel;
             const branchedSuffix = s.branched ? " (branched)" : "";
-            const displayLabel = isCurrent
-              ? `● ${label}  ${formatTime(s.lastModified)}  (current)`
-              : `${label}  ${formatTime(s.lastModified)}${branchedSuffix}`;
-            return (
-              <MenuItem
-                key={s.sessionId}
-                label={displayLabel}
-                small
-                disabled={isCurrent}
-                dimmed={s.branched}
-                onClick={() => !isCurrent && handleAction("resume", s.sessionId)}
-              />
-            );
+            const displayLabel = isCurrent ? `● ${label}  ${formatTime(s.lastModified)}  (current)` : `${label}  ${formatTime(s.lastModified)}${branchedSuffix}`;
+            return <MenuItem key={s.sessionId} label={displayLabel} small disabled={isCurrent} dimmed={s.branched} onClick={() => !isCurrent && handleAction("resume", s.sessionId)} />;
           })}
         </>
       )}
@@ -121,21 +114,7 @@ export function ContextMenu({ x, y, agent, onClose, onEdit }: ContextMenuProps) 
   );
 }
 
-function MenuItem({
-  label,
-  danger,
-  small,
-  disabled,
-  dimmed,
-  onClick,
-}: {
-  label: string;
-  danger?: boolean;
-  small?: boolean;
-  disabled?: boolean;
-  dimmed?: boolean;
-  onClick: () => void;
-}) {
+function MenuItem({ label, danger, small, disabled, dimmed, onClick }: { label: string; danger?: boolean; small?: boolean; disabled?: boolean; dimmed?: boolean; onClick: () => void }) {
   return (
     <button
       onClick={disabled ? undefined : onClick}

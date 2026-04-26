@@ -15,13 +15,7 @@ import { CSS } from "./styles.ts";
 import type { AgentInfo } from "../shared/types.ts";
 
 /** Cycle to the next/previous agent in the current room, matching Tab/Shift+Tab logic. */
-function cycleAgent(
-  agents: AgentInfo[],
-  drafts: Map<string, string>,
-  currentRoom: number,
-  focusedAgentId: string | null,
-  direction: "next" | "prev",
-): string | null {
+function cycleAgent(agents: AgentInfo[], drafts: Map<string, string>, currentRoom: number, focusedAgentId: string | null, direction: "next" | "prev"): string | null {
   const roomAgents = agents.filter((a) => a.room === currentRoom);
   const sorted = [...roomAgents].sort((a, b) => a.desk - b.desk);
   const nonIdle = sorted.filter((a) => (a.state !== "idle" && a.state !== "stopped") || (drafts.get(a.id) ?? "").length > 0);
@@ -29,11 +23,7 @@ function cycleAgent(
   if (pool.length === 0) return null;
   const idx = pool.findIndex((a) => a.id === focusedAgentId);
   if (idx !== -1 && pool.length <= 1) return null;
-  const next = idx === -1
-    ? (direction === "prev" ? pool[pool.length - 1] : pool[0])
-    : direction === "prev"
-      ? pool[(idx - 1 + pool.length) % pool.length]
-      : pool[(idx + 1) % pool.length];
+  const next = idx === -1 ? (direction === "prev" ? pool[pool.length - 1] : pool[0]) : direction === "prev" ? pool[(idx - 1 + pool.length) % pool.length] : pool[(idx + 1) % pool.length];
   return next.id;
 }
 
@@ -119,9 +109,7 @@ export function App() {
       // Tab/Shift+Tab in office view: switch rooms
       if (!isInput && !focusedAgentId && e.key === "Tab" && roomCount > 1 && !e.defaultPrevented) {
         e.preventDefault();
-        const next = e.shiftKey
-          ? (currentRoom - 1 + roomCount) % roomCount
-          : (currentRoom + 1) % roomCount;
+        const next = e.shiftKey ? (currentRoom - 1 + roomCount) % roomCount : (currentRoom + 1) % roomCount;
         dispatch({ type: "set_current_room", room: next });
       }
       // Tab: cycle to next agent within current room (Shift+Tab: previous) when viewing an agent
@@ -166,10 +154,12 @@ export function App() {
     <>
       <style>{CSS}</style>
       {username === null && (
-        <UsernameModal onSave={(name) => {
-          localStorage.setItem("bureau-username", name);
-          setUsername(name);
-        }} />
+        <UsernameModal
+          onSave={(name) => {
+            localStorage.setItem("bureau-username", name);
+            setUsername(name);
+          }}
+        />
       )}
       {editingUsername && username !== null && (
         <UsernameModal
@@ -183,15 +173,15 @@ export function App() {
         />
       )}
       {cronjobsOpen ? (
-        <CronjobsView
-          username={username ?? ""}
-          onClose={goHome}
-        />
+        <CronjobsView username={username ?? ""} onClose={goHome} />
       ) : tasksOpen ? (
         <TaskView
           username={username ?? ""}
           onClose={goHome}
-          onFocusAgent={(agentId) => { setTasksOpen(false); dispatch({ type: "focus", agentId }); }}
+          onFocusAgent={(agentId) => {
+            setTasksOpen(false);
+            dispatch({ type: "focus", agentId });
+          }}
         />
       ) : focusedAgent ? (
         <LogView
@@ -213,7 +203,10 @@ export function App() {
           username={username ?? ""}
           onEditUsername={() => setEditingUsername(true)}
           onEditOfficePrompt={() => setEditingOfficePrompt(true)}
-          onEditRoomSettings={() => { const rid = rooms[currentRoom]?.id; if (rid) setEditingRoomSettings(rid); }}
+          onEditRoomSettings={() => {
+            const rid = rooms[currentRoom]?.id;
+            if (rid) setEditingRoomSettings(rid);
+          }}
           onOpenTasks={() => setTasksOpen(true)}
           onOpenCronjobs={() => setCronjobsOpen(true)}
           onOpenUpdate={() => setUpdateOpen(true)}
@@ -228,7 +221,10 @@ export function App() {
           username={username ?? ""}
           onEditUsername={() => setEditingUsername(true)}
           onEditOfficePrompt={() => setEditingOfficePrompt(true)}
-          onEditRoomSettings={() => { const rid = rooms[currentRoom]?.id; if (rid) setEditingRoomSettings(rid); }}
+          onEditRoomSettings={() => {
+            const rid = rooms[currentRoom]?.id;
+            if (rid) setEditingRoomSettings(rid);
+          }}
           onOpenTasks={() => setTasksOpen(true)}
           onOpenCronjobs={() => setCronjobsOpen(true)}
           onOpenUpdate={() => setUpdateOpen(true)}
@@ -236,29 +232,20 @@ export function App() {
           onSwipeRight={swipeRoomPrev}
         />
       )}
-      {spawnDesk !== null && (
-        <EditAgentDialog
-          deskIndex={spawnDesk}
-          defaultCwd="~"
-          onClose={() => setSpawnDesk(null)}
-          room={currentRoom}
-        />
-      )}
+      {spawnDesk !== null && <EditAgentDialog deskIndex={spawnDesk} defaultCwd="~" onClose={() => setSpawnDesk(null)} room={currentRoom} />}
       {ctxMenu && (
         <ContextMenu
           x={ctxMenu.x}
           y={ctxMenu.y}
           agent={ctxMenu.agent}
           onClose={() => setCtxMenu(null)}
-          onEdit={(agent) => { setEditAgent(agent); setCtxMenu(null); }}
+          onEdit={(agent) => {
+            setEditAgent(agent);
+            setCtxMenu(null);
+          }}
         />
       )}
-      {editAgent && (
-        <EditAgentDialog
-          agent={editAgent}
-          onClose={() => setEditAgent(null)}
-        />
-      )}
+      {editAgent && <EditAgentDialog agent={editAgent} onClose={() => setEditAgent(null)} />}
       {editingOfficePrompt && (
         <OfficePromptModal
           onClose={() => setEditingOfficePrompt(false)}
@@ -269,15 +256,8 @@ export function App() {
           }}
         />
       )}
-      {editingRoomSettings && (
-        <RoomSettingsModal
-          roomId={editingRoomSettings}
-          onClose={() => setEditingRoomSettings(null)}
-        />
-      )}
-      {updateOpen && (
-        <UpdateModal onClose={() => setUpdateOpen(false)} />
-      )}
+      {editingRoomSettings && <RoomSettingsModal roomId={editingRoomSettings} onClose={() => setEditingRoomSettings(null)} />}
+      {updateOpen && <UpdateModal onClose={() => setUpdateOpen(false)} />}
     </>
   );
 }
