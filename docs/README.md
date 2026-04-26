@@ -47,8 +47,7 @@ Deep dives into bugs, SDK behavior, and architectural decisions.
 | Document | Description |
 |----------|-------------|
 | [Development Guide](contributing/development.md) | Quality gate (typecheck / oxlint / prettier / tests / build) and branch protection setup |
-| [CLAUDE.md](../CLAUDE.md) | Developer & agent guide to the codebase |
-| [Documentation Locations](contributing/documentation-locations.md) | Where to update when adding user-visible features |
+| [CLAUDE.md](../CLAUDE.md) | Developer & agent guide to the codebase — includes the "Shipping a user-visible feature" checklist |
 
 ---
 
@@ -95,7 +94,7 @@ graph TB
 → Start with [Punching In](../articles/punching-in-building-an-office-for-ai-agents.md), then [Agent Lifecycle](architecture/agent-lifecycle.md)
 
 **Adding a new feature?**
-→ Check [Documentation Locations](contributing/documentation-locations.md) for what to update
+→ See the "Shipping a user-visible feature" checklist in [CLAUDE.md](../CLAUDE.md)
 
 **Adding tests or working on the CI gate?**
 → See [Development Guide](contributing/development.md)
