@@ -12,8 +12,16 @@ export const AGENT_HISTORY_FILE = join(BUREAU_DIR, "agent-history.json");
 export const MANIFEST_FILE = join(BUREAU_DIR, "agents-summary.json");
 export const RECENT_CWDS_FILE = join(BUREAU_DIR, "recent-cwds.json");
 
+// Cronjobs live under their own subtree mirroring agent logs (one extra level
+// of nesting: <jobId>/<runId>/...). See server/cronjobs and the design doc.
+export const CRONJOBS_DIR = join(BUREAU_DIR, "cronjobs");
+export const CRONJOBS_FILE = join(CRONJOBS_DIR, "cronjobs.json");
+export const CRONJOB_HISTORY_FILE = join(CRONJOBS_DIR, "cronjob-history.json");
+export const CRONJOBS_PROMPT_FILE = join(CRONJOBS_DIR, "cronjobs-prompt.md");
+
 // Ensure directories exist
 try {
   mkdirSync(BUREAU_DIR, { recursive: true });
   mkdirSync(LOGS_DIR, { recursive: true });
+  mkdirSync(CRONJOBS_DIR, { recursive: true });
 } catch {}

@@ -14,6 +14,7 @@ export function AgentListView({
   onEditOfficePrompt,
   onEditRoomSettings,
   onOpenTasks,
+  onOpenCronjobs,
   onOpenUpdate,
   onToggleView,
   onSwipeLeft,
@@ -27,6 +28,7 @@ export function AgentListView({
   onEditOfficePrompt: () => void;
   onEditRoomSettings?: () => void;
   onOpenTasks: () => void;
+  onOpenCronjobs?: () => void;
   onOpenUpdate: () => void;
   onToggleView: () => void;
   onSwipeLeft?: () => void;

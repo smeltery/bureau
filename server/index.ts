@@ -1,16 +1,23 @@
 import type { ClientCommand, ServerMessage } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
+import * as CronjobManager from "./cronjobs/index.ts";
 import { loadRecentCwds } from "./persistence.ts";
 import { getUpdateStatus, onUpdateChange, startUpdateChecker } from "./update-checker.ts";
 import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
 import { handleCommand } from "./ws/commands.ts";
 import { handleLiveReloadRequest, startLiveReloadWatcher } from "./http/live-reload.ts";
 import { handleTasksRequest } from "./http/tasks.ts";
+import { handleCronjobsRequest } from "./http/cronjobs.ts";
 import { handleFilesRequest } from "./http/files.ts";
 import { handleStaticRequest } from "./http/static.ts";
 
 // Wire AgentManager events to WebSocket broadcasts
 AgentManager.onEvent((event) => {
+  broadcast(event as ServerMessage);
+});
+
+// Wire CronjobManager events to WebSocket broadcasts
+CronjobManager.onCronjobEvent((event) => {
   broadcast(event as ServerMessage);
 });
 
@@ -38,6 +45,10 @@ const server = Bun.serve({
     const tasksResp = await handleTasksRequest(req, url);
     if (tasksResp) return tasksResp;
 
+    // Cronjobs HTTP API (read-only — mutations go through WebSocket)
+    const cronjobsResp = await handleCronjobsRequest(req, url);
+    if (cronjobsResp) return cronjobsResp;
+
     // File upload + file/image serving
     const filesResp = await handleFilesRequest(req, url);
     if (filesResp) return filesResp;
@@ -54,6 +65,12 @@ const server = Bun.serve({
       ws.send(JSON.stringify({ type: "full_state", agents, recentCwds, office: AgentManager.getOfficeSettings(), rooms: AgentManager.getRooms() } as ServerMessage));
       // Send tasks
       ws.send(JSON.stringify({ type: "tasks", tasks } as ServerMessage));
+      // Send cronjobs + cronjobsPrompt
+      ws.send(JSON.stringify({
+        type: "cronjobs_state",
+        cronjobs: CronjobManager.listCronjobs(),
+        cronjobsPrompt: CronjobManager.getCronjobsPrompt(),
+      } as ServerMessage));
       // Send update status
       const update = getUpdateStatus();
       if (update.updateAvailable) {
@@ -102,5 +119,8 @@ AgentManager.restoreAgents().then((restored) => {
     console.log(`Restored ${restored.length} agent(s): ${restored.map((a) => a.name).join(", ")}`);
   }
 });
+
+// Boot cronjob scheduler (loads configs, reconciles stale "running" rows, starts tick).
+CronjobManager.startCronjobScheduler();
 
 console.log(`Bureau running at http://localhost:${server.port}`);
