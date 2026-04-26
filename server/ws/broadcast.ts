@@ -17,4 +17,6 @@ export function broadcast(msg: ServerMessage) {
 // by WS commands (server/ws/commands.ts). A setter is exported because
 // delete replaces the whole array with a filtered copy.
 export let tasks: TaskItem[] = loadTasks();
-export function setTasks(next: TaskItem[]) { tasks = next; }
+export function setTasks(next: TaskItem[]) {
+  tasks = next;
+}

@@ -53,13 +53,7 @@ const LIGHT_THEME = {
   brightWhite: "#1a2030",
 };
 
-export function TerminalPanel({
-  agentId,
-  onClose,
-}: {
-  agentId: string;
-  onClose: () => void;
-}) {
+export function TerminalPanel({ agentId, onClose }: { agentId: string; onClose: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -78,7 +72,7 @@ export function TerminalPanel({
         }
       } catch {}
     },
-    [agentId]
+    [agentId],
   );
 
   // Initialize terminal

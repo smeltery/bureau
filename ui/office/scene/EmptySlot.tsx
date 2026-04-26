@@ -1,15 +1,7 @@
 import { useState } from "react";
 import { deskPixelPos, DESK_SLOTS } from "../grid.ts";
 
-export function EmptySlot({
-  deskIndex,
-  onClick,
-  onSwap,
-}: {
-  deskIndex: number;
-  onClick: () => void;
-  onSwap?: (sourceDesk: number, targetDesk: number) => void;
-}) {
+export function EmptySlot({ deskIndex, onClick, onSwap }: { deskIndex: number; onClick: () => void; onSwap?: (sourceDesk: number, targetDesk: number) => void }) {
   const [hov, setHov] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const pos = DESK_SLOTS[deskIndex];
@@ -17,7 +9,10 @@ export function EmptySlot({
 
   return (
     <div
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      }}
       onDragEnter={() => setDragOver(true)}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {

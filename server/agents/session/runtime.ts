@@ -1,37 +1,13 @@
-import {
-  unstable_v2_createSession,
-  unstable_v2_resumeSession,
-  type CanUseTool,
-  type PermissionResult,
-} from "@anthropic-ai/claude-agent-sdk";
+import { unstable_v2_createSession, unstable_v2_resumeSession, type CanUseTool, type PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import { FAMILY_TO_MODEL } from "../../../shared/types.ts";
 import { existsSync } from "fs";
 import { join } from "path";
-import {
-  readEnvFile,
-  rollSessionUsageOnResume,
-} from "../../persistence.ts";
+import { readEnvFile, rollSessionUsageOnResume } from "../../persistence.ts";
 import { createSafetyHooks } from "./safety/index.ts";
-import {
-  addLogEntry,
-  agents,
-  emitEphemeralLog,
-  officeConfig,
-  rooms,
-  updateState,
-  type ManagedAgent,
-} from "../state.ts";
+import { addLogEntry, agents, emitEphemeralLog, officeConfig, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
-import {
-  claudeProjectDir,
-  claudeSessionFileExists,
-  validateCwd,
-} from "./paths.ts";
-import {
-  LOGIN_INSTRUCTIONS,
-  isAuthError,
-  processMessage,
-} from "./messages.ts";
+import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
+import { LOGIN_INSTRUCTIONS, isAuthError, processMessage } from "./messages.ts";
 
 // ---------------------------------------------------------------------------
 // Claude CLI native binary resolution
@@ -50,9 +26,7 @@ function resolveClaudeNativeBinary(): string {
   if (process.platform === "linux") {
     const muslArch = process.arch === "arm64" ? "aarch64" : "x86_64";
     const isMusl = existsSync(`/lib/ld-musl-${muslArch}.so.1`);
-    const variants = isMusl
-      ? [`linux-${process.arch}-musl`, `linux-${process.arch}`]
-      : [`linux-${process.arch}`, `linux-${process.arch}-musl`];
+    const variants = isMusl ? [`linux-${process.arch}-musl`, `linux-${process.arch}`] : [`linux-${process.arch}`, `linux-${process.arch}-musl`];
     for (const v of variants) {
       const p = join(anthropicDir, `claude-agent-sdk-${v}`, binName);
       if (existsSync(p)) return p;
@@ -88,11 +62,16 @@ export function createTurnDeferred(managed: ManagedAgent): Promise<void> {
   const stale = managed.pendingTurn;
   if (stale) {
     managed.pendingTurn = null;
-    try { stale.reject(new Error("Superseded by a new turn.")); } catch {}
+    try {
+      stale.reject(new Error("Superseded by a new turn."));
+    } catch {}
   }
   let resolve!: () => void;
   let reject!: (err: unknown) => void;
-  const promise = new Promise<void>((res, rej) => { resolve = res; reject = rej; });
+  const promise = new Promise<void>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
   managed.pendingTurn = { resolve, reject };
   return promise;
 }
@@ -119,7 +98,9 @@ function requestPermission(managed: ManagedAgent, toolName: string, input: Recor
 
     // If a prior pending permission was never resolved, deny it now so we don't leak.
     if (managed.pendingPermission) {
-      try { managed.pendingPermission.resolve({ behavior: "deny", message: "Superseded by newer request." }); } catch {}
+      try {
+        managed.pendingPermission.resolve({ behavior: "deny", message: "Superseded by newer request." });
+      } catch {}
     }
     managed.pendingPermission = {
       toolUseID: opts.toolUseID,
@@ -129,12 +110,16 @@ function requestPermission(managed: ManagedAgent, toolName: string, input: Recor
     };
     updateState(agentId, "waiting_for_response");
 
-    opts.signal.addEventListener("abort", () => {
-      if (managed.pendingPermission?.toolUseID === opts.toolUseID) {
-        managed.pendingPermission = null;
-        resolve({ behavior: "deny", message: "Request aborted." });
-      }
-    }, { once: true });
+    opts.signal.addEventListener(
+      "abort",
+      () => {
+        if (managed.pendingPermission?.toolUseID === opts.toolUseID) {
+          managed.pendingPermission = null;
+          resolve({ behavior: "deny", message: "Request aborted." });
+        }
+      },
+      { once: true },
+    );
   });
 }
 
@@ -257,12 +242,18 @@ export async function replaceSession(agentId: string, managed: ManagedAgent, new
   const turn = managed.pendingTurn;
   managed.pendingTurn = null;
   if (turn) {
-    try { turn.reject(new SessionSwappedError()); } catch {}
+    try {
+      turn.reject(new SessionSwappedError());
+    } catch {}
   }
-  try { managed.session?.close(); } catch {}
+  try {
+    managed.session?.close();
+  } catch {}
   managed.session = null;
   if (oldConsumer) {
-    try { await oldConsumer; } catch {}
+    try {
+      await oldConsumer;
+    } catch {}
   }
   installSession(agentId, managed, newSession);
 }
@@ -271,7 +262,9 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   // Drop any pending permission prompt from a prior (now-closed) session so the
   // next user message isn't swallowed by a dead request.
   if (managed.pendingPermission) {
-    try { managed.pendingPermission.resolve({ behavior: "deny", message: "Session restarted." }); } catch {}
+    try {
+      managed.pendingPermission.resolve({ behavior: "deny", message: "Session restarted." });
+    } catch {}
     managed.pendingPermission = null;
   }
   // Preflight checks so failures surface as readable errors instead of the SDK's
@@ -284,18 +277,12 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   if (resumeSessionId && !claudeSessionFileExists(managed.info.cwd, resumeSessionId)) {
     throw new Error(
       `Cannot resume session ${resumeSessionId.slice(0, 8)}…: its file is missing from ${claudeProjectDir(managed.info.cwd)}. ` +
-      `Most commonly this happens after the agent's cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd. ` +
-      `Use /resume to pick a different session, or move the session .jsonl into the new project dir.`
+        `Most commonly this happens after the agent's cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd. ` +
+        `Use /resume to pick a different session, or move the session .jsonl into the new project dir.`,
     );
   }
   const room = rooms[managed.info.room]!;
-  const systemPrompt = buildSystemPrompt(
-    managed.info.name,
-    room.name,
-    officeConfig.prompt,
-    room.prompt,
-    managed.info.customInstructions,
-  );
+  const systemPrompt = buildSystemPrompt(managed.info.name, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions);
   // V2 SDKSessionOptions still doesn't expose systemPrompt / extraArgs, so we
   // inject --append-system-prompt via executableArgs. When
   // pathToClaudeCodeExecutable is a native binary, executableArgs are prepended
@@ -318,7 +305,5 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     // prior-runs accumulator so lifetime cost survives the reset.
     rollSessionUsageOnResume(managed.info.id, resumeSessionId);
   }
-  return resumeSessionId
-    ? unstable_v2_resumeSession(resumeSessionId, opts)
-    : unstable_v2_createSession(opts);
+  return resumeSessionId ? unstable_v2_resumeSession(resumeSessionId, opts) : unstable_v2_createSession(opts);
 }

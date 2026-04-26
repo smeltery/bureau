@@ -1,10 +1,5 @@
-import {
-  listAllAgentIdsOnDisk,
-  loadAgentHistory,
-  loadLog,
-  loadSessionsMap,
-  type PersistedUsage,
-} from "../persistence.ts";
+import { listAllAgentIdsOnDisk, listAllCronjobIdsOnDisk, loadAgentHistory, loadCronjobHistory, loadLog, loadSessionsMap, type PersistedUsage } from "../persistence.ts";
+import { listCronjobs, readCronjobLifetimeUsage } from "../cronjobs/index.ts";
 import { agents, rooms } from "./state.ts";
 
 // ---------------------------------------------------------------------------
@@ -64,7 +59,13 @@ export function formatUsd(n: number): string {
 // message — so "cached as a % of totalIn" is always ~100% and meaningless.
 // The useful signal is hit-rate over *cacheable* input: cacheRead / (cacheRead
 // + cacheCreation), which drops when the cache expires and gets rewritten.
-export interface UsageBucket { totalIn: number; cacheRead: number; cacheCreation: number; totalOut: number; costUSD: number; }
+export interface UsageBucket {
+  totalIn: number;
+  cacheRead: number;
+  cacheCreation: number;
+  totalOut: number;
+  costUSD: number;
+}
 
 export function emptyBucket(): UsageBucket {
   return { totalIn: 0, cacheRead: 0, cacheCreation: 0, totalOut: 0, costUSD: 0 };
@@ -98,8 +99,7 @@ export function readAgentUsage(agentId: string, currentSessionId: string | null)
     const cacheReadInputTokens = (u?.cacheReadInputTokens ?? 0) + (p?.cacheReadInputTokens ?? 0);
     const cacheCreationInputTokens = (u?.cacheCreationInputTokens ?? 0) + (p?.cacheCreationInputTokens ?? 0);
     const costUSD = (u?.costUSD ?? 0) + (p?.costUSD ?? 0);
-    lifetime.totalIn += inputTokens + cacheReadInputTokens + cacheCreationInputTokens
-      - ((base?.inputTokens ?? 0) + (base?.cacheReadInputTokens ?? 0) + (base?.cacheCreationInputTokens ?? 0));
+    lifetime.totalIn += inputTokens + cacheReadInputTokens + cacheCreationInputTokens - ((base?.inputTokens ?? 0) + (base?.cacheReadInputTokens ?? 0) + (base?.cacheCreationInputTokens ?? 0));
     lifetime.cacheRead += cacheReadInputTokens - (base?.cacheReadInputTokens ?? 0);
     lifetime.cacheCreation += cacheCreationInputTokens - (base?.cacheCreationInputTokens ?? 0);
     lifetime.totalOut += outputTokens - (base?.outputTokens ?? 0);
@@ -110,9 +110,8 @@ export function readAgentUsage(agentId: string, currentSessionId: string | null)
   if (sessEntry && (sessEntry.usage || sessEntry.priorRunsUsage)) {
     const u = sessEntry.usage;
     const p = sessEntry.priorRunsUsage;
-    session.totalIn = (u?.inputTokens ?? 0) + (p?.inputTokens ?? 0)
-      + (u?.cacheReadInputTokens ?? 0) + (p?.cacheReadInputTokens ?? 0)
-      + (u?.cacheCreationInputTokens ?? 0) + (p?.cacheCreationInputTokens ?? 0);
+    session.totalIn =
+      (u?.inputTokens ?? 0) + (p?.inputTokens ?? 0) + (u?.cacheReadInputTokens ?? 0) + (p?.cacheReadInputTokens ?? 0) + (u?.cacheCreationInputTokens ?? 0) + (p?.cacheCreationInputTokens ?? 0);
     session.cacheRead = (u?.cacheReadInputTokens ?? 0) + (p?.cacheReadInputTokens ?? 0);
     session.cacheCreation = (u?.cacheCreationInputTokens ?? 0) + (p?.cacheCreationInputTokens ?? 0);
     session.totalOut = (u?.outputTokens ?? 0) + (p?.outputTokens ?? 0);
@@ -170,9 +169,7 @@ export function findUsageAtFork(agentId: string, parentSessionId: string, forkMe
 export function renderUsageReport(): string {
   const lines: string[] = [];
 
-  lines.push(
-    `_Subscription plan limits aren't shown here — open the embedded terminal (desktop only), run \`claude\`, then \`/usage\`._`,
-  );
+  lines.push(`_Subscription plan limits aren't shown here — open the embedded terminal (desktop only), run \`claude\`, then \`/usage\`._`);
   lines.push("");
 
   // Office-wide table: per-agent session and lifetime usage. "In" is all
@@ -260,8 +257,53 @@ export function renderUsageReport(): string {
       `| ${label} | ${formatInCell(r.sess)} | ${formatTokenCount(r.sess.totalOut)} | ${formatUsd(r.sess.costUSD)} | ${formatInCell(r.life)} | ${formatTokenCount(r.life.totalOut)} | ${formatUsd(r.life.costUSD)} |`,
     );
   }
+
+  // Per-cronjob lifetime usage (no per-session column — every run is its own
+  // session). Includes cronjobs whose configs are deleted, attributed via
+  // cronjob-history.json. Folded into the office-wide grand total below so
+  // the bottom line is honest about total spend.
+  type CronjobRow = { id: string; name: string; deleted: boolean; life: UsageBucket };
+  const cronjobRows: CronjobRow[] = [];
+  const liveCronjobs = listCronjobs();
+  const liveCronjobIds = new Set(liveCronjobs.map((c) => c.id));
+  const cronjobHistory = loadCronjobHistory();
+  for (const c of liveCronjobs) {
+    const u = readCronjobLifetimeUsage(c.id);
+    cronjobRows.push({ id: c.id, name: c.name, deleted: false, life: { totalIn: u.totalIn, cacheRead: u.cacheRead, cacheCreation: u.cacheCreation, totalOut: u.totalOut, costUSD: u.costUSD } });
+  }
+  for (const id of listAllCronjobIdsOnDisk()) {
+    if (liveCronjobIds.has(id)) continue;
+    const name = cronjobHistory[id]?.lastName ?? id;
+    const u = readCronjobLifetimeUsage(id);
+    cronjobRows.push({ id, name, deleted: true, life: { totalIn: u.totalIn, cacheRead: u.cacheRead, cacheCreation: u.cacheCreation, totalOut: u.totalOut, costUSD: u.costUSD } });
+  }
+
+  const cronjobTotal = emptyBucket();
+  for (const c of cronjobRows) addBucket(cronjobTotal, c.life);
+  cronjobRows.sort((a, b) => b.life.costUSD - a.life.costUSD);
+
+  if (cronjobRows.length > 0) {
+    lines.push("");
+    lines.push(`## Per-cronjob usage`);
+    lines.push("");
+    lines.push(`_Lifetime totals across every run of each cronjob._`);
+    lines.push("");
+    lines.push(`| Cronjob | In (life) | Out (life) | $ (life) |`);
+    lines.push(`| --- | ---: | ---: | ---: |`);
+    for (const r of cronjobRows) {
+      const label = r.deleted ? `${r.name} _(deleted)_` : r.name;
+      lines.push(`| ${label} | ${formatInCell(r.life)} | ${formatTokenCount(r.life.totalOut)} | ${formatUsd(r.life.costUSD)} |`);
+    }
+  }
+
+  // Office-wide grand total: per-room + per-cronjob, so the bottom line
+  // reflects every dollar the office spent.
+  const officeTotalLife = emptyBucket();
+  addBucket(officeTotalLife, total.life);
+  addBucket(officeTotalLife, cronjobTotal);
+
   lines.push(
-    `| **Total** | ${formatInCell(total.sess)} | ${formatTokenCount(total.sess.totalOut)} | ${formatUsd(total.sess.costUSD)} | ${formatInCell(total.life)} | ${formatTokenCount(total.life.totalOut)} | ${formatUsd(total.life.costUSD)} |`,
+    `| **Office total** | ${formatInCell(total.sess)} | ${formatTokenCount(total.sess.totalOut)} | ${formatUsd(total.sess.costUSD)} | ${formatInCell(officeTotalLife)} | ${formatTokenCount(officeTotalLife.totalOut)} | ${formatUsd(officeTotalLife.costUSD)} |`,
   );
 
   return lines.join("\n");

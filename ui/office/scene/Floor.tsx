@@ -12,7 +12,10 @@ const NEON_COLORS = [
 ];
 
 const SVG_STYLE: React.CSSProperties = {
-  position: "absolute", top: 0, left: 0, pointerEvents: "none",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  pointerEvents: "none",
 };
 const VB = `${VB_X} ${VB_Y} ${SCENE_W} ${SCENE_H}`;
 
@@ -21,9 +24,12 @@ export function Floor() {
   const neon = NEON_COLORS[currentRoom % NEON_COLORS.length];
   // Floor diamond matches wall bottom edges (2:1 isometric ratio):
   // back=(120,40), left=(-260,230), right=(500,230), front=(120,420)
-  const backX = 120, backY = 40;
-  const rowDx = -47.5, rowDy = 23.75;
-  const colDx = 47.5, colDy = 23.75;
+  const backX = 120,
+    backY = 40;
+  const rowDx = -47.5,
+    rowDy = 23.75;
+  const colDx = 47.5,
+    colDy = 23.75;
   const N = 10;
 
   const tiles = [];
@@ -39,7 +45,7 @@ export function Floor() {
           fill={light ? "var(--floor-light)" : "var(--floor-dark)"}
           stroke="var(--floor-stroke)"
           strokeWidth="0.5"
-        />
+        />,
       );
     }
   }
@@ -57,7 +63,23 @@ interface DoorProps {
   reject?: boolean;
 }
 
-export function Walls({ onToggleTheme, onEditOfficePrompt, hasOfficePrompt, onOpenTasks, taskCount = 0, leftDoor, rightDoor }: { onToggleTheme?: () => void; onEditOfficePrompt?: () => void; hasOfficePrompt?: boolean; onOpenTasks?: () => void; taskCount?: number; leftDoor?: DoorProps | null; rightDoor?: DoorProps | null }) {
+export function Walls({
+  onToggleTheme,
+  onEditOfficePrompt,
+  hasOfficePrompt,
+  onOpenTasks,
+  taskCount = 0,
+  leftDoor,
+  rightDoor,
+}: {
+  onToggleTheme?: () => void;
+  onEditOfficePrompt?: () => void;
+  hasOfficePrompt?: boolean;
+  onOpenTasks?: () => void;
+  taskCount?: number;
+  leftDoor?: DoorProps | null;
+  rightDoor?: DoorProps | null;
+}) {
   const { currentRoom } = useAppState();
   const neon = NEON_COLORS[currentRoom % NEON_COLORS.length];
   const [now, setNow] = useState(new Date());
@@ -89,16 +111,34 @@ export function Walls({ onToggleTheme, onEditOfficePrompt, hasOfficePrompt, onOp
   // Pane corners: TL(-295,30) TR(-155,-40) BL(-295,120) BR(-155,50)
   // u=0..1 is left-to-right, v=0..1 is top-to-bottom
   const starUV: Array<[number, number, number]> = [
-    [0.1, 0.2, 0.6], [0.3, 0.1, 0.9], [0.5, 0.3, 0.5], [0.8, 0.15, 0.7],
-    [0.15, 0.5, 0.5], [0.4, 0.4, 0.8], [0.65, 0.2, 0.6], [0.9, 0.35, 0.5],
-    [0.2, 0.75, 0.9], [0.45, 0.6, 0.6], [0.7, 0.5, 0.7], [0.85, 0.7, 0.5],
-    [0.05, 0.9, 0.5], [0.35, 0.8, 0.7], [0.6, 0.75, 0.6], [0.95, 0.55, 0.8],
-    [0.25, 0.35, 0.5], [0.55, 0.85, 0.6], [0.75, 0.4, 0.7], [0.1, 0.65, 0.5],
-    [0.5, 0.15, 0.8], [0.7, 0.9, 0.5], [0.85, 0.1, 0.6], [0.3, 0.55, 0.5],
+    [0.1, 0.2, 0.6],
+    [0.3, 0.1, 0.9],
+    [0.5, 0.3, 0.5],
+    [0.8, 0.15, 0.7],
+    [0.15, 0.5, 0.5],
+    [0.4, 0.4, 0.8],
+    [0.65, 0.2, 0.6],
+    [0.9, 0.35, 0.5],
+    [0.2, 0.75, 0.9],
+    [0.45, 0.6, 0.6],
+    [0.7, 0.5, 0.7],
+    [0.85, 0.7, 0.5],
+    [0.05, 0.9, 0.5],
+    [0.35, 0.8, 0.7],
+    [0.6, 0.75, 0.6],
+    [0.95, 0.55, 0.8],
+    [0.25, 0.35, 0.5],
+    [0.55, 0.85, 0.6],
+    [0.75, 0.4, 0.7],
+    [0.1, 0.65, 0.5],
+    [0.5, 0.15, 0.8],
+    [0.7, 0.9, 0.5],
+    [0.85, 0.1, 0.6],
+    [0.3, 0.55, 0.5],
   ];
   const stars = starUV.map(([u, v, r]) => {
-    const topY = 25 + u * ((-45) - 25);    // top edge: 25 to -45
-    const botY = 115 + u * (45 - 115);      // bottom edge: 115 to 45
+    const topY = 25 + u * (-45 - 25); // top edge: 25 to -45
+    const botY = 115 + u * (45 - 115); // bottom edge: 115 to 45
     const x = -285 + u * 140;
     const y = topY + v * (botY - topY);
     return [x, y, r] as [number, number, number];
@@ -130,9 +170,7 @@ export function Walls({ onToggleTheme, onEditOfficePrompt, hasOfficePrompt, onOp
         {/* Stars */}
         {stars.map(([sx, sy, sr], i) => (
           <circle key={i} cx={sx} cy={sy} r={sr} fill="white" opacity={0.4 + (i % 4) * 0.15}>
-            {i % 5 === 0 && (
-              <animate attributeName="opacity" values={`${0.3 + (i % 3) * 0.1};${0.7 + (i % 2) * 0.2};${0.3 + (i % 3) * 0.1}`} dur={`${2 + (i % 3)}s`} repeatCount="indefinite" />
-            )}
+            {i % 5 === 0 && <animate attributeName="opacity" values={`${0.3 + (i % 3) * 0.1};${0.7 + (i % 2) * 0.2};${0.3 + (i % 3) * 0.1}`} dur={`${2 + (i % 3)}s`} repeatCount="indefinite" />}
           </circle>
         ))}
         {/* Moon — crescent via overlapping circles (clickable to toggle theme) */}
@@ -311,7 +349,16 @@ export function Walls({ onToggleTheme, onEditOfficePrompt, hasOfficePrompt, onOp
             <ellipse cx="14.5" cy="-26" rx="2" ry="1.5" fill="#d8c080" opacity="0.6" />
             {leftDoor.dragOver && <rect x="-33" y="-93" width="66" height="113" rx="3" fill="rgba(126,184,255,0.15)" stroke="rgba(126,184,255,0.6)" strokeWidth="2" />}
             {leftDoor.reject && <rect x="-33" y="-93" width="66" height="113" rx="3" fill="rgba(255,60,60,0.25)" stroke="rgba(255,60,60,0.7)" strokeWidth="2" />}
-            <text x="0" y="-98" textAnchor="middle" fill={leftDoor.reject ? "var(--red, #f85149)" : leftDoor.dragOver ? "var(--accent, #58a6ff)" : "var(--text-dim)"} fontSize="12" fontFamily="'JetBrains Mono',monospace" fontWeight="600" style={{ userSelect: "none" }}>
+            <text
+              x="0"
+              y="-98"
+              textAnchor="middle"
+              fill={leftDoor.reject ? "var(--red, #f85149)" : leftDoor.dragOver ? "var(--accent, #58a6ff)" : "var(--text-dim)"}
+              fontSize="12"
+              fontFamily="'JetBrains Mono',monospace"
+              fontWeight="600"
+              style={{ userSelect: "none" }}
+            >
               {leftDoor.label}
             </text>
           </g>
@@ -331,7 +378,16 @@ export function Walls({ onToggleTheme, onEditOfficePrompt, hasOfficePrompt, onOp
             <ellipse cx="-15.5" cy="-26" rx="2" ry="1.5" fill="#d8c080" opacity="0.6" />
             {rightDoor.dragOver && <rect x="-33" y="-93" width="66" height="113" rx="3" fill="rgba(126,184,255,0.15)" stroke="rgba(126,184,255,0.6)" strokeWidth="2" />}
             {rightDoor.reject && <rect x="-33" y="-93" width="66" height="113" rx="3" fill="rgba(255,60,60,0.25)" stroke="rgba(255,60,60,0.7)" strokeWidth="2" />}
-            <text x="0" y="-98" textAnchor="middle" fill={rightDoor.reject ? "var(--red, #f85149)" : rightDoor.dragOver ? "var(--accent, #58a6ff)" : "var(--text-dim)"} fontSize="12" fontFamily="'JetBrains Mono',monospace" fontWeight="600" style={{ userSelect: "none" }}>
+            <text
+              x="0"
+              y="-98"
+              textAnchor="middle"
+              fill={rightDoor.reject ? "var(--red, #f85149)" : rightDoor.dragOver ? "var(--accent, #58a6ff)" : "var(--text-dim)"}
+              fontSize="12"
+              fontFamily="'JetBrains Mono',monospace"
+              fontWeight="600"
+              style={{ userSelect: "none" }}
+            >
               {rightDoor.label}
             </text>
           </g>

@@ -14,6 +14,7 @@ export function AgentListView({
   onEditOfficePrompt,
   onEditRoomSettings,
   onOpenTasks,
+  onOpenCronjobs,
   onOpenUpdate,
   onToggleView,
   onSwipeLeft,
@@ -27,6 +28,7 @@ export function AgentListView({
   onEditOfficePrompt: () => void;
   onEditRoomSettings?: () => void;
   onOpenTasks: () => void;
+  onOpenCronjobs?: () => void;
   onOpenUpdate: () => void;
   onToggleView: () => void;
   onSwipeLeft?: () => void;
@@ -82,12 +84,8 @@ export function AgentListView({
               padding: 32,
             }}
           >
-            <span style={{ fontSize: 15, color: "var(--text-muted)" }}>
-              {roomCount > 1 ? `${rooms[currentRoom]?.name ?? `Room ${currentRoom + 1}`} is empty` : "No agents yet"}
-            </span>
-            <span style={{ fontSize: 13, color: "var(--text-faint)" }}>
-              Tap + to spawn one
-            </span>
+            <span style={{ fontSize: 15, color: "var(--text-muted)" }}>{roomCount > 1 ? `${rooms[currentRoom]?.name ?? `Room ${currentRoom + 1}`} is empty` : "No agents yet"}</span>
+            <span style={{ fontSize: 13, color: "var(--text-faint)" }}>Tap + to spawn one</span>
           </div>
         ) : (
           roomAgents.map((agent) => (

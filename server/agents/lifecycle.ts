@@ -2,35 +2,13 @@ import { homedir } from "os";
 import { join } from "path";
 import { rmSync } from "fs";
 import type { AgentInfo, AgentOutfit, LogEntry, ModelFamily, SkillInfo } from "../../shared/types.ts";
-import {
-  listAgentSessions,
-  loadAgents,
-  loadLogWithAncestors,
-} from "../persistence.ts";
+import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
 import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
-import {
-  addLogEntry,
-  agents,
-  emit,
-  logCache,
-  persistAll,
-  setRooms,
-  type ManagedAgent,
-} from "./state.ts";
-import {
-  deduplicateSkills,
-  discoverBundledSkills,
-  discoverPluginSkills,
-  discoverProjectSkills,
-  discoverUserSkills,
-} from "./skills-discovery.ts";
+import { addLogEntry, agents, emit, logCache, persistAll, setRooms, type ManagedAgent } from "./state.ts";
+import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
 import { moveClaudeSessionFiles, resolveCwd } from "./session/paths.ts";
-import {
-  createSession,
-  installSession,
-  replaceSession,
-} from "./session/runtime.ts";
+import { createSession, installSession, replaceSession } from "./session/runtime.ts";
 import { findRoomIndex, updateState } from "./state.ts";
 import { sidecarSend } from "./terminal.ts";
 
@@ -71,7 +49,10 @@ export function getCurrentSessionId(agentId: string): string | null {
 // editAgent — mutate name/cwd/outfit/customInstructions/model/permission mode
 // ---------------------------------------------------------------------------
 
-export async function editAgent(agentId: string, changes: { name?: string; cwd?: string; outfit?: AgentInfo["outfit"]; customInstructions?: string; modelFamily?: ModelFamily; permissionMode?: AgentInfo["permissionMode"] }) {
+export async function editAgent(
+  agentId: string,
+  changes: { name?: string; cwd?: string; outfit?: AgentInfo["outfit"]; customInstructions?: string; modelFamily?: ModelFamily; permissionMode?: AgentInfo["permissionMode"] },
+) {
   const managed = agents.get(agentId);
   if (!managed) return;
 
@@ -129,7 +110,16 @@ export async function editAgent(agentId: string, changes: { name?: string; cwd?:
 // spawn — create a new agent
 // ---------------------------------------------------------------------------
 
-export async function spawn(name: string, cwd: string, permissionMode: AgentInfo["permissionMode"], desk?: number, customInstructions?: string, roomId?: string, outfit?: AgentOutfit, modelFamily?: ModelFamily): Promise<AgentInfo | null> {
+export async function spawn(
+  name: string,
+  cwd: string,
+  permissionMode: AgentInfo["permissionMode"],
+  desk?: number,
+  customInstructions?: string,
+  roomId?: string,
+  outfit?: AgentOutfit,
+  modelFamily?: ModelFamily,
+): Promise<AgentInfo | null> {
   // Reject duplicate names across all rooms
   const nameLower = name.trim().toLowerCase();
   for (const a of agents.values()) {
@@ -148,7 +138,10 @@ export async function spawn(name: string, cwd: string, permissionMode: AgentInfo
     // Find first free desk in the target room
     desk = -1;
     for (let i = 0; i < 8; i++) {
-      if (!taken.has(i)) { desk = i; break; }
+      if (!taken.has(i)) {
+        desk = i;
+        break;
+      }
     }
   }
   if (desk === -1) return null;
@@ -226,20 +219,35 @@ export async function kill(agentId: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
   if (managed.pendingPermission) {
-    try { managed.pendingPermission.resolve({ behavior: "deny", message: "Agent killed." }); } catch {}
+    try {
+      managed.pendingPermission.resolve({ behavior: "deny", message: "Agent killed." });
+    } catch {}
     managed.pendingPermission = null;
   }
   const turn = managed.pendingTurn;
   managed.pendingTurn = null;
-  if (turn) { try { turn.reject(new Error("Agent killed.")); } catch {} }
+  if (turn) {
+    try {
+      turn.reject(new Error("Agent killed."));
+    } catch {}
+  }
   const oldConsumer = managed.consumerPromise;
-  try { managed.session?.close(); } catch {}
+  try {
+    managed.session?.close();
+  } catch {}
   managed.session = null;
   // Remove from the map so the consumer's outer `agents.has(agentId)` guard exits.
   agents.delete(agentId);
   logCache.delete(agentId);
-  if (oldConsumer) { try { await oldConsumer; } catch {} }
-  try { sidecarSend(managed, { type: "kill" }); managed.ptySidecar?.kill(); } catch {}
+  if (oldConsumer) {
+    try {
+      await oldConsumer;
+    } catch {}
+  }
+  try {
+    sidecarSend(managed, { type: "kill" });
+    managed.ptySidecar?.kill();
+  } catch {}
   emit({ type: "agent_removed", agentId });
   persistAll();
 }
@@ -251,7 +259,9 @@ export async function kill(agentId: string) {
 export async function restoreAgents(): Promise<AgentInfo[]> {
   // Clean up the pre-0.2.116 per-agent launcher scripts. Bureau now passes the
   // native Claude binary directly, so these are orphaned.
-  try { rmSync(join(homedir(), ".bureau", "launchers"), { recursive: true, force: true }); } catch {}
+  try {
+    rmSync(join(homedir(), ".bureau", "launchers"), { recursive: true, force: true });
+  } catch {}
 
   const loaded = loadAgents();
   setRooms(loaded.map((r) => ({ id: r.id, name: r.name, prompt: r.prompt, envFile: r.envFile })));

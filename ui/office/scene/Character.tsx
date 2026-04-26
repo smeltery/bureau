@@ -33,10 +33,7 @@ function Hair({ style, color, headCx, headCy }: { style: AgentOutfit["hairStyle"
         <>
           <ellipse cx={headCx} cy={topY} rx={10} ry={5.5} fill={color} />
           {/* Ponytail swooping to the right */}
-          <path
-            d={`M${headCx + 8} ${topY} Q${headCx + 16} ${topY - 2} ${headCx + 14} ${topY + 10} Q${headCx + 13} ${topY + 16} ${headCx + 10} ${topY + 14}`}
-            fill={color}
-          />
+          <path d={`M${headCx + 8} ${topY} Q${headCx + 16} ${topY - 2} ${headCx + 14} ${topY + 10} Q${headCx + 13} ${topY + 16} ${headCx + 10} ${topY + 14}`} fill={color} />
           {/* Hair tie at the intersection of head and tail */}
           <circle cx={headCx + 10} cy={topY + 1} r={1.5} fill="#FF6B9D" />
         </>
@@ -102,15 +99,7 @@ function Hat({ type, color, headCx, headCy }: { type: AgentOutfit["hat"]; color:
         </>
       );
     case "headband":
-      return (
-        <path
-          d={`M${headCx - 10} ${topY + 2} Q${headCx} ${topY - 2} ${headCx + 10} ${topY + 2}`}
-          stroke="#FF8C42"
-          strokeWidth={2.5}
-          fill="none"
-          strokeLinecap="round"
-        />
-      );
+      return <path d={`M${headCx - 10} ${topY + 2} Q${headCx} ${topY - 2} ${headCx + 10} ${topY + 2}`} stroke="#FF8C42" strokeWidth={2.5} fill="none" strokeLinecap="round" />;
     default:
       return null;
   }
@@ -123,27 +112,29 @@ function Beard({ type, color, headCx, headCy }: { type: AgentOutfit["beard"]; co
     case "stubble":
       return (
         <g fill={color} opacity={0.7}>
-          {[[-4, 6], [-1, 6], [2, 6], [5, 6], [-5, 8], [-2, 8], [1, 8], [4, 8], [-3, 10], [0, 10], [3, 10], [-1, 11], [1, 11]].map(([dx, dy], i) => (
+          {[
+            [-4, 6],
+            [-1, 6],
+            [2, 6],
+            [5, 6],
+            [-5, 8],
+            [-2, 8],
+            [1, 8],
+            [4, 8],
+            [-3, 10],
+            [0, 10],
+            [3, 10],
+            [-1, 11],
+            [1, 11],
+          ].map(([dx, dy], i) => (
             <circle key={i} cx={headCx + dx} cy={headCy + dy} r={0.9} />
           ))}
         </g>
       );
     case "full":
-      return (
-        <path
-          d={`M${headCx - 6} ${headCy + 5} Q${headCx - 7} ${headCy + 11} ${headCx} ${headCy + 13} Q${headCx + 7} ${headCy + 11} ${headCx + 6} ${headCy + 5}`}
-          fill={color}
-          opacity={0.9}
-        />
-      );
+      return <path d={`M${headCx - 6} ${headCy + 5} Q${headCx - 7} ${headCy + 11} ${headCx} ${headCy + 13} Q${headCx + 7} ${headCy + 11} ${headCx + 6} ${headCy + 5}`} fill={color} opacity={0.9} />;
     case "goatee":
-      return (
-        <path
-          d={`M${headCx - 4} ${headCy + 7} Q${headCx - 5} ${headCy + 11} ${headCx} ${headCy + 13} Q${headCx + 5} ${headCy + 11} ${headCx + 4} ${headCy + 7}`}
-          fill={color}
-          opacity={0.9}
-        />
-      );
+      return <path d={`M${headCx - 4} ${headCy + 7} Q${headCx - 5} ${headCy + 11} ${headCx} ${headCy + 13} Q${headCx + 5} ${headCy + 11} ${headCx + 4} ${headCy + 7}`} fill={color} opacity={0.9} />;
     case "mustache":
       return (
         <>
@@ -173,7 +164,12 @@ function Accessory({ type, headCx, headCy }: { type: AgentOutfit["accessory"]; h
     case "headphones":
       return (
         <>
-          <path d={`M${headCx - 12} ${headCy - 4} Q${headCx - 12} ${headCy - 15} ${headCx} ${headCy - 15} Q${headCx + 12} ${headCy - 15} ${headCx + 12} ${headCy - 4}`} stroke="#555" fill="none" strokeWidth={3} />
+          <path
+            d={`M${headCx - 12} ${headCy - 4} Q${headCx - 12} ${headCy - 15} ${headCx} ${headCy - 15} Q${headCx + 12} ${headCy - 15} ${headCx + 12} ${headCy - 4}`}
+            stroke="#555"
+            fill="none"
+            strokeWidth={3}
+          />
           <rect x={headCx - 16} y={headCy - 6} width={8} height={10} rx={3} fill="#555" />
           <rect x={headCx + 8} y={headCy - 6} width={8} height={10} rx={3} fill="#555" />
         </>
@@ -217,19 +213,14 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
   const vs = visualState(state);
 
   const wrap = (children: React.ReactNode, anim?: React.CSSProperties) => (
-    <svg
-      width="52"
-      height="68"
-      viewBox="0 0 52 68"
-      overflow="visible"
-      style={{ filter: "drop-shadow(0 3px 4px rgba(0,0,0,0.35))", ...anim }}
-    >
+    <svg width="52" height="68" viewBox="0 0 52 68" overflow="visible" style={{ filter: "drop-shadow(0 3px 4px rgba(0,0,0,0.35))", ...anim }}>
       {children}
     </svg>
   );
 
   if (vs === "idle") {
-    const hCx = 26, hCy = 37;
+    const hCx = 26,
+      hCy = 37;
     return wrap(
       <>
         <ellipse cx={hCx} cy={50} rx={11} ry={10} fill={bc} />
@@ -244,26 +235,24 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
         <g>
           <text x="36" y="28" fontSize="14" fill="rgba(200,220,255,0.7)" fontFamily="monospace" fontWeight="bold">
             <animate attributeName="y" values="28;22;28" dur="2s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.5;0.9;0.5" dur="2s" repeatCount="indefinite" />
-            z
+            <animate attributeName="opacity" values="0.5;0.9;0.5" dur="2s" repeatCount="indefinite" />z
           </text>
           <text x="44" y="18" fontSize="12" fill="rgba(200,220,255,0.6)" fontFamily="monospace" fontWeight="bold">
             <animate attributeName="y" values="18;12;18" dur="2.5s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2.5s" repeatCount="indefinite" />
-            z
+            <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2.5s" repeatCount="indefinite" />z
           </text>
           <text x="50" y="10" fontSize="10" fill="rgba(200,220,255,0.5)" fontFamily="monospace" fontWeight="bold">
             <animate attributeName="y" values="10;4;10" dur="3s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3s" repeatCount="indefinite" />
-            z
+            <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3s" repeatCount="indefinite" />z
           </text>
         </g>
-      </>
+      </>,
     );
   }
 
   if (vs === "error") {
-    const hCx = 26, hCy = 25;
+    const hCx = 26,
+      hCy = 25;
     return wrap(
       <>
         <rect x={16} y={36} width={20} height={16} fill={bc} rx={3} />
@@ -291,23 +280,19 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
         <rect x={18} y={52} width={6} height={10} fill="#444" rx={2} />
         <rect x={28} y={52} width={6} height={10} fill="#444" rx={2} />
       </>,
-      { animation: "errShake 0.4s ease-in-out infinite" }
+      { animation: "errShake 0.4s ease-in-out infinite" },
     );
   }
 
   if (vs === "waiting_for_response") {
-    const hCx = 26, hCy = 25;
+    const hCx = 26,
+      hCy = 25;
     return wrap(
       <>
         <rect x={16} y={36} width={20} height={16} fill={bc} rx={3} />
         <g>
           <rect x={38} y={20} width={7} height={10} fill={skin} rx={2} transform="rotate(-5 41 25)">
-            <animate
-              attributeName="transform"
-              values="rotate(-5 41 25);rotate(12 41 25);rotate(-5 41 25)"
-              dur="0.8s"
-              repeatCount="indefinite"
-            />
+            <animate attributeName="transform" values="rotate(-5 41 25);rotate(12 41 25);rotate(-5 41 25)" dur="0.8s" repeatCount="indefinite" />
           </rect>
           <circle cx={41} cy={17} r={5.5} fill={skin}>
             <animate attributeName="cy" values="17;15;17" dur="0.8s" repeatCount="indefinite" />
@@ -327,12 +312,13 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
         <rect x={18} y={52} width={6} height={10} fill="#444" rx={2} />
         <rect x={28} y={52} width={6} height={10} fill="#444" rx={2} />
       </>,
-      { animation: "waitBounce 2s ease-in-out infinite" }
+      { animation: "waitBounce 2s ease-in-out infinite" },
     );
   }
 
   // working / starting
-  const hCx = 26, hCy = 25;
+  const hCx = 26,
+    hCy = 25;
   return wrap(
     <>
       <rect x={16} y={36} width={20} height={16} fill={bc} rx={3} />
@@ -353,6 +339,6 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
       <Beard type={beard} color={hair} headCx={hCx} headCy={hCy} />
       <rect x={18} y={52} width={6} height={10} fill="#444" rx={2} />
       <rect x={28} y={52} width={6} height={10} fill="#444" rx={2} />
-    </>
+    </>,
   );
 }

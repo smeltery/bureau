@@ -3,15 +3,7 @@ import { useAppState } from "../store.tsx";
 import type { TaskStatus } from "../../shared/types.ts";
 import { timeAgo } from "../utils/time.ts";
 import { TaskDetailPanel } from "./TaskDetailPanel.tsx";
-import {
-  PRIORITY_COLORS,
-  PRIORITY_ORDER,
-  STATUS_COLORS,
-  STATUS_LABELS,
-  STATUS_ORDER,
-  type SortDir,
-  type SortField,
-} from "./constants.ts";
+import { PRIORITY_COLORS, PRIORITY_ORDER, STATUS_COLORS, STATUS_LABELS, STATUS_ORDER, type SortDir, type SortField } from "./constants.ts";
 
 export function TaskView({ username, onClose, onFocusAgent }: { username: string; onClose: () => void; onFocusAgent?: (agentId: string) => void }) {
   const { tasks, agents, isMobile } = useAppState();
@@ -52,7 +44,11 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
-        if (panelOpen) { tryClosePanel(); } else { onClose(); }
+        if (panelOpen) {
+          tryClosePanel();
+        } else {
+          onClose();
+        }
       }
     }
     window.addEventListener("keydown", handleKey, true);
@@ -74,10 +70,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
     }
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter((t) =>
-        t.title.toLowerCase().includes(q) ||
-        (t.description && t.description.toLowerCase().includes(q))
-      );
+      list = list.filter((t) => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)));
     }
     if (filterAssignee) {
       const q = filterAssignee.toLowerCase();
@@ -119,7 +112,10 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
     if (agentId && onFocusAgent) {
       return (
         <span
-          onClick={(e) => { e.stopPropagation(); onFocusAgent(agentId); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onFocusAgent(agentId);
+          }}
           style={{ cursor: "pointer", color: "var(--accent)", textDecoration: "none" }}
           onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
           onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
@@ -208,11 +204,12 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
             &larr;
           </button>
           <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>Tasks</span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
-            {filtered.length} shown
-          </span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{filtered.length} shown</span>
           <button
-            onClick={() => { setCreating(true); setSelectedId(null); }}
+            onClick={() => {
+              setCreating(true);
+              setSelectedId(null);
+            }}
             style={{
               padding: "4px 10px",
               borderRadius: 6,
@@ -279,7 +276,8 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
               // Click on empty table area (not on a row) dismisses the panel
               if (panelOpen && e.target === e.currentTarget) tryClosePanel();
             }}
-            style={{ flex: 1, overflowY: "auto", overflowX: isMobile ? "hidden" : "auto" }}>
+            style={{ flex: 1, overflowY: "auto", overflowX: isMobile ? "hidden" : "auto" }}
+          >
             <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: isMobile ? "fixed" : undefined }}>
               <thead>
                 <tr>
@@ -317,9 +315,17 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
                     <tr
                       key={task.id}
                       onClick={() => {
-                        if (task.id === selectedId) { tryClosePanel(); return; }
-                        if (panelOpen) { tryClosePanel(); pendingSelectRef.current = task.id; return; }
-                        setSelectedId(task.id); setCreating(false);
+                        if (task.id === selectedId) {
+                          tryClosePanel();
+                          return;
+                        }
+                        if (panelOpen) {
+                          tryClosePanel();
+                          pendingSelectRef.current = task.id;
+                          return;
+                        }
+                        setSelectedId(task.id);
+                        setCreating(false);
                       }}
                       style={{
                         cursor: "pointer",
@@ -373,23 +379,23 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
                         }}
                       >
                         {task.title}
-                        {task.description && (
-                          <span style={{ color: "var(--text-hint)", fontWeight: 400 }}>
-                            {" "}| {task.description}
-                          </span>
-                        )}
+                        {task.description && <span style={{ color: "var(--text-hint)", fontWeight: 400 }}> | {task.description}</span>}
                       </td>
-                      <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-dim)", fontFamily: "'JetBrains Mono',monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <td
+                        style={{
+                          padding: cellPad,
+                          fontSize: 11,
+                          color: "var(--text-dim)",
+                          fontFamily: "'JetBrains Mono',monospace",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {renderName(task.assignee)}
                       </td>
-                      {!isMobile && (
-                        <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace" }}>
-                          {renderName(task.createdBy)}
-                        </td>
-                      )}
-                      <td style={{ padding: cellPad, fontSize: 10, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>
-                        {timeAgo(task.createdAt)}
-                      </td>
+                      {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace" }}>{renderName(task.createdBy)}</td>}
+                      <td style={{ padding: cellPad, fontSize: 10, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{timeAgo(task.createdAt)}</td>
                     </tr>
                   ))
                 )}
@@ -399,29 +405,20 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
         </div>
 
         {/* Detail panel */}
-        {!isMobile && (creating ? (
-          <TaskDetailPanel
-            closeRef={closeRef}
-            mode="create"
-            onClose={() => setCreating(false)}
-            username={username}
-            agents={agents}
-          />
-        ) : selectedTask ? (
-          <TaskDetailPanel
-            closeRef={closeRef}
-            task={selectedTask}
-            onClose={() => setSelectedId(null)}
-            username={username}
-            agents={agents}
-          />
-        ) : null)}
+        {!isMobile &&
+          (creating ? (
+            <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} />
+          ) : selectedTask ? (
+            <TaskDetailPanel closeRef={closeRef} task={selectedTask} onClose={() => setSelectedId(null)} username={username} agents={agents} />
+          ) : null)}
       </div>
 
       {/* Mobile detail panel as overlay */}
       {(selectedTask || creating) && isMobile && (
         <div
-          onMouseDown={(e) => { if (e.target === e.currentTarget) tryClosePanel(); }}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) tryClosePanel();
+          }}
           style={{
             position: "fixed",
             inset: 0,
@@ -435,21 +432,9 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
         >
           <div style={{ width: "90%", maxWidth: 380, maxHeight: "80vh", overflowY: "auto", margin: "0 auto", borderRadius: 12, overflow: "hidden" }}>
             {creating ? (
-              <TaskDetailPanel
-                closeRef={closeRef}
-                mode="create"
-                onClose={() => setCreating(false)}
-                username={username}
-                agents={agents}
-              />
+              <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} />
             ) : (
-              <TaskDetailPanel
-                closeRef={closeRef}
-                task={selectedTask!}
-                onClose={() => setSelectedId(null)}
-                username={username}
-                agents={agents}
-              />
+              <TaskDetailPanel closeRef={closeRef} task={selectedTask!} onClose={() => setSelectedId(null)} username={username} agents={agents} />
             )}
           </div>
         </div>

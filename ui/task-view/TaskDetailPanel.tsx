@@ -3,7 +3,21 @@ import { send } from "../ws.ts";
 import type { TaskItem, TaskPriority, TaskStatus } from "../../shared/types.ts";
 import { timeAgo } from "../utils/time.ts";
 
-export function TaskDetailPanel({ task, onClose, username, mode = "edit", agents = [], closeRef }: { task?: TaskItem; onClose: () => void; username: string; mode?: "edit" | "create"; agents?: { name: string }[]; closeRef?: React.MutableRefObject<(() => void) | null> }) {
+export function TaskDetailPanel({
+  task,
+  onClose,
+  username,
+  mode = "edit",
+  agents = [],
+  closeRef,
+}: {
+  task?: TaskItem;
+  onClose: () => void;
+  username: string;
+  mode?: "edit" | "create";
+  agents?: { name: string }[];
+  closeRef?: React.MutableRefObject<(() => void) | null>;
+}) {
   const [title, setTitle] = useState(task?.title || "");
   const [description, setDescription] = useState(task?.description || "");
   const [priority, setPriority] = useState<TaskPriority | "">(task?.priority || "");
@@ -36,13 +50,7 @@ export function TaskDetailPanel({ task, onClose, username, mode = "edit", agents
       return !!(title.trim() || description.trim() || priority || assignee.trim());
     }
     if (!task) return false;
-    return (
-      title !== task.title ||
-      description !== (task.description || "") ||
-      priority !== (task.priority || "") ||
-      status !== task.status ||
-      assignee !== (task.assignee || "")
-    );
+    return title !== task.title || description !== (task.description || "") || priority !== (task.priority || "") || status !== task.status || assignee !== (task.assignee || "");
   }
 
   function requestClose() {
@@ -57,7 +65,9 @@ export function TaskDetailPanel({ task, onClose, username, mode = "edit", agents
   // that captures the current form state for the dirty check.
   useEffect(() => {
     if (closeRef) closeRef.current = requestClose;
-    return () => { if (closeRef) closeRef.current = null; };
+    return () => {
+      if (closeRef) closeRef.current = null;
+    };
   });
 
   function handleSave() {
@@ -88,7 +98,10 @@ export function TaskDetailPanel({ task, onClose, username, mode = "edit", agents
   }
 
   function handleDelete() {
-    if (!confirmDelete) { setConfirmDelete(true); return; }
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     if (task) send({ type: "delete_task", id: task.id });
     onClose();
   }
@@ -132,26 +145,29 @@ export function TaskDetailPanel({ task, onClose, username, mode = "edit", agents
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-          {mode === "create" ? "New Task" : `#${task!.id}`}
-        </span>
-        <button onClick={requestClose} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer", padding: "2px 6px" }}>&times;</button>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{mode === "create" ? "New Task" : `#${task!.id}`}</span>
+        <button onClick={requestClose} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer", padding: "2px 6px" }}>
+          &times;
+        </button>
       </div>
 
       <div>
         <label style={labelStyle}>Title</label>
-        <input autoFocus={mode === "create"} value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} onKeyDown={(e) => { if (e.key === "Enter") handleSave(); e.stopPropagation(); }} />
+        <input
+          autoFocus={mode === "create"}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={inputStyle}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+            e.stopPropagation();
+          }}
+        />
       </div>
 
       <div>
         <label style={labelStyle}>Description</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          style={{ ...inputStyle, resize: "vertical" }}
-          onKeyDown={(e) => e.stopPropagation()}
-        />
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} style={{ ...inputStyle, resize: "vertical" }} onKeyDown={(e) => e.stopPropagation()} />
       </div>
 
       <div style={{ display: "flex", gap: 10 }}>

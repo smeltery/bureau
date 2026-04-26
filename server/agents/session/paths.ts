@@ -49,7 +49,9 @@ export function moveClaudeSessionFiles(agentId: string, oldCwd: string, newCwd: 
     const oldJsonl = join(oldDir, `${sessionId}.jsonl`);
     const newJsonl = join(newDir, `${sessionId}.jsonl`);
     if (existsSync(oldJsonl) && !existsSync(newJsonl)) {
-      try { renameSync(oldJsonl, newJsonl); } catch (err) {
+      try {
+        renameSync(oldJsonl, newJsonl);
+      } catch (err) {
         console.error(`[cwd-change] Failed to move ${oldJsonl} -> ${newJsonl}:`, err);
       }
     }
@@ -57,7 +59,9 @@ export function moveClaudeSessionFiles(agentId: string, oldCwd: string, newCwd: 
     const oldSib = join(oldDir, sessionId);
     const newSib = join(newDir, sessionId);
     if (existsSync(oldSib) && !existsSync(newSib)) {
-      try { renameSync(oldSib, newSib); } catch (err) {
+      try {
+        renameSync(oldSib, newSib);
+      } catch (err) {
         console.error(`[cwd-change] Failed to move ${oldSib} -> ${newSib}:`, err);
       }
     }

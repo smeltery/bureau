@@ -1,22 +1,7 @@
-import type {
-  unstable_v2_createSession,
-  PermissionResult,
-  PermissionUpdate,
-} from "@anthropic-ai/claude-agent-sdk";
+import type { unstable_v2_createSession, PermissionResult, PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentInfo, AgentState, Attachment, LogEntry, OfficeSettings, RoomWire, SkillInfo } from "../../shared/types.ts";
 import { FAMILY_TO_MODEL, generateRoomId } from "../../shared/types.ts";
-import {
-  appendLog,
-  loadAgentHistory,
-  loadOfficeConfig,
-  saveAgentHistory,
-  saveAgents,
-  writeManifest,
-  type AgentHistory,
-  type OfficeConfig,
-  type PersistedAgent,
-  type Room,
-} from "../persistence.ts";
+import { appendLog, loadAgentHistory, loadOfficeConfig, saveAgentHistory, saveAgents, writeManifest, type AgentHistory, type OfficeConfig, type PersistedAgent, type Room } from "../persistence.ts";
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -103,8 +88,12 @@ export let officeConfig: OfficeConfig = loadOfficeConfig();
 export let rooms: InternalRoom[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null }];
 
 // Setters for modules that need to mutate the shared office/rooms state.
-export function setOfficeConfig(next: OfficeConfig) { officeConfig = next; }
-export function setRooms(next: InternalRoom[]) { rooms = next; }
+export function setOfficeConfig(next: OfficeConfig) {
+  officeConfig = next;
+}
+export function setRooms(next: InternalRoom[]) {
+  rooms = next;
+}
 
 // ---------------------------------------------------------------------------
 // Room view helpers
@@ -175,7 +164,7 @@ export function addLogEntry(agentId: string, kind: LogEntry["kind"], content: st
 
   // Track topicStale: new text entries after topic was generated
   if ((kind === "text" || kind === "user_message") && managed && managed.info.topic !== null && managed.info.topic !== "...") {
-    const textCount = (logCache.get(agentId) ?? []).filter(e => e.kind === "user_message" || e.kind === "text").length;
+    const textCount = (logCache.get(agentId) ?? []).filter((e) => e.kind === "user_message" || e.kind === "text").length;
     if (textCount > managed.topicMessageCount) {
       managed.info.topicStale = true;
       emit({ type: "agent_updated", agentId, changes: { topicStale: true } });
@@ -207,17 +196,19 @@ export function emitEphemeralLog(agentId: string, kind: LogEntry["kind"], conten
 // ---------------------------------------------------------------------------
 
 export function updateManifest() {
-  writeManifest([...agents.values()].map((a) => ({
-    id: a.info.id,
-    name: a.info.name,
-    desk: a.info.desk,
-    room: a.info.room,
-    roomName: rooms[a.info.room]?.name ?? `Room ${a.info.room + 1}`,
-    topic: a.info.topic,
-    cwd: a.info.cwd,
-    modelFamily: a.info.modelFamily,
-    model: FAMILY_TO_MODEL[a.info.modelFamily],
-  })));
+  writeManifest(
+    [...agents.values()].map((a) => ({
+      id: a.info.id,
+      name: a.info.name,
+      desk: a.info.desk,
+      room: a.info.room,
+      roomName: rooms[a.info.room]?.name ?? `Room ${a.info.room + 1}`,
+      topic: a.info.topic,
+      cwd: a.info.cwd,
+      modelFamily: a.info.modelFamily,
+      model: FAMILY_TO_MODEL[a.info.modelFamily],
+    })),
+  );
 }
 
 // Track each live agent's current name + room so /usage can attribute killed

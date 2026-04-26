@@ -4,22 +4,47 @@ import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { EditIcon } from "../../components/controls/Icons.tsx";
 import { AttachmentDisplay } from "./shared.tsx";
 
-export function UserMessage({ content, isMobile, username, attachments, agentId, canEdit, onEdit }: { content: string; isMobile?: boolean; username?: string; attachments?: Attachment[]; agentId?: string; canEdit?: boolean; onEdit?: () => void }) {
+export function UserMessage({
+  content,
+  isMobile,
+  username,
+  attachments,
+  agentId,
+  canEdit,
+  onEdit,
+}: {
+  content: string;
+  isMobile?: boolean;
+  username?: string;
+  attachments?: Attachment[];
+  agentId?: string;
+  canEdit?: boolean;
+  onEdit?: () => void;
+}) {
   const getText = useCallback(() => content, [content]);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   return (
     <div style={{ margin: "12px 0", padding: "10px 14px", paddingRight: 40, borderRadius: 10, background: "var(--user-msg-bg)", borderLeft: "3px solid var(--accent)", position: "relative" }}>
-      <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: "var(--accent)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{(username ?? "You").toUpperCase()}</div>
-      {content && <div style={{ color: "var(--text-secondary)", fontFamily: "'JetBrains Mono',monospace", fontSize: isMobile ? 15 : 13, lineHeight: 1.6, whiteSpace: "pre-wrap", overflowWrap: "break-word", wordBreak: "break-word" }}>{content}</div>}
+      <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: "var(--accent)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        {(username ?? "You").toUpperCase()}
+      </div>
+      {content && (
+        <div
+          style={{
+            color: "var(--text-secondary)",
+            fontFamily: "'JetBrains Mono',monospace",
+            fontSize: isMobile ? 15 : 13,
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
+            overflowWrap: "break-word",
+            wordBreak: "break-word",
+          }}
+        >
+          {content}
+        </div>
+      )}
       {attachments && attachments.length > 0 && agentId && (
-        <AttachmentDisplay
-          attachments={attachments}
-          agentId={agentId}
-          isMobile={isMobile}
-          lightboxSrc={lightboxSrc}
-          setLightboxSrc={setLightboxSrc}
-          hasContent={!!content}
-        />
+        <AttachmentDisplay attachments={attachments} agentId={agentId} isMobile={isMobile} lightboxSrc={lightboxSrc} setLightboxSrc={setLightboxSrc} hasContent={!!content} />
       )}
       <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
         {canEdit && onEdit && (
@@ -27,13 +52,19 @@ export function UserMessage({ content, isMobile, username, attachments, agentId,
             onClick={onEdit}
             title="Edit & branch"
             style={{
-              background: "transparent", border: "none", cursor: "pointer",
-              color: "var(--text-ghost)", padding: 2, borderRadius: 4,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--text-ghost)",
+              padding: 2,
+              borderRadius: 4,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               transition: "color 0.15s",
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--text-ghost)")}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-ghost)")}
           >
             <EditIcon />
           </button>
@@ -44,7 +75,14 @@ export function UserMessage({ content, isMobile, username, attachments, agentId,
   );
 }
 
-export function EditableUserMessage({ content, entryId, isMobile, username, onCancel, onSubmit }: {
+export function EditableUserMessage({
+  content,
+  entryId,
+  isMobile,
+  username,
+  onCancel,
+  onSubmit,
+}: {
   content: string;
   entryId: string;
   isMobile?: boolean;
@@ -75,38 +113,56 @@ export function EditableUserMessage({ content, entryId, isMobile, username, onCa
   }
 
   return (
-    <div style={{
-      margin: "12px 0", padding: "10px 14px", borderRadius: 10,
-      background: "var(--user-msg-bg)", borderLeft: "3px solid var(--accent)",
-      position: "relative",
-    }}>
+    <div
+      style={{
+        margin: "12px 0",
+        padding: "10px 14px",
+        borderRadius: 10,
+        background: "var(--user-msg-bg)",
+        borderLeft: "3px solid var(--accent)",
+        position: "relative",
+      }}
+    >
       <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: "var(--accent)", marginBottom: 4, fontFamily: "'DM Sans',sans-serif", textTransform: "uppercase", letterSpacing: "0.05em" }}>
         {(username ?? "You").toUpperCase()}
       </div>
       <textarea
         ref={textareaRef}
         value={text}
-        onChange={e => {
+        onChange={(e) => {
           setText(e.target.value);
           e.target.style.height = "auto";
           e.target.style.height = e.target.scrollHeight + "px";
         }}
         onKeyDown={handleKeyDown}
         style={{
-          width: "100%", resize: "none", border: "1px solid var(--accent)",
-          borderRadius: 6, padding: "8px 10px", fontSize: isMobile ? 15 : 13,
-          fontFamily: "'JetBrains Mono',monospace", lineHeight: 1.6,
-          background: "var(--bg-base)", color: "var(--text-secondary)",
-          outline: "none", minHeight: 40, boxSizing: "border-box",
+          width: "100%",
+          resize: "none",
+          border: "1px solid var(--accent)",
+          borderRadius: 6,
+          padding: "8px 10px",
+          fontSize: isMobile ? 15 : 13,
+          fontFamily: "'JetBrains Mono',monospace",
+          lineHeight: 1.6,
+          background: "var(--bg-base)",
+          color: "var(--text-secondary)",
+          outline: "none",
+          minHeight: 40,
+          boxSizing: "border-box",
         }}
       />
       <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
         <button
           onClick={onCancel}
           style={{
-            padding: "4px 14px", borderRadius: 6, border: "1px solid var(--border-medium)",
-            background: "transparent", color: "var(--text-muted)",
-            fontSize: isMobile ? 14 : 12, fontFamily: "'DM Sans',sans-serif", cursor: "pointer",
+            padding: "4px 14px",
+            borderRadius: 6,
+            border: "1px solid var(--border-medium)",
+            background: "transparent",
+            color: "var(--text-muted)",
+            fontSize: isMobile ? 14 : 12,
+            fontFamily: "'DM Sans',sans-serif",
+            cursor: "pointer",
           }}
         >
           Cancel
@@ -114,9 +170,14 @@ export function EditableUserMessage({ content, entryId, isMobile, username, onCa
         <button
           onClick={() => text.trim() && onSubmit?.(entryId, text.trim())}
           style={{
-            padding: "4px 14px", borderRadius: 6, border: "none",
-            background: "var(--accent)", color: "#fff",
-            fontSize: isMobile ? 14 : 12, fontFamily: "'DM Sans',sans-serif", cursor: "pointer",
+            padding: "4px 14px",
+            borderRadius: 6,
+            border: "none",
+            background: "var(--accent)",
+            color: "#fff",
+            fontSize: isMobile ? 14 : 12,
+            fontFamily: "'DM Sans',sans-serif",
+            cursor: "pointer",
             fontWeight: 600,
           }}
         >

@@ -1,5 +1,18 @@
 import { createContext, useContext, useReducer, useEffect, useRef, useState, useCallback, type ReactNode, type Dispatch } from "react";
-import type { AgentInfo, LogEntry, SessionInfo, ServerMessage, SkillInfo, TaskItem, OfficeSettings, RoomWire, SettingsSaveResponse, SettingsValidationResponse } from "../shared/types.ts";
+import type {
+  AgentInfo,
+  Cronjob,
+  CronjobRun,
+  LogEntry,
+  SessionInfo,
+  ServerMessage,
+  SkillInfo,
+  TaskItem,
+  OfficeSettings,
+  RoomWire,
+  SettingsSaveResponse,
+  SettingsValidationResponse,
+} from "../shared/types.ts";
 import { connect } from "./ws.ts";
 import { type Features, PRODUCTION_FEATURES } from "../shared/features.ts";
 
@@ -21,6 +34,9 @@ export interface AppState {
   rooms: RoomWire[];
   tasks: TaskItem[];
   currentRoom: number; // 0-based room index (view selection only)
+  cronjobs: Cronjob[];
+  cronjobsPrompt: string | null;
+  cronjobRunsByJob: Map<string, CronjobRun[]>;
   updateAvailable: boolean;
   updateCurrent: { sha: string; message: string; date: string };
   updateLatest: { sha: string; message: string; date: string };
@@ -48,6 +64,13 @@ type Action =
   | { type: "room_renamed"; roomId: string; name: string }
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "rooms_reordered"; order: string[] }
+  | { type: "cronjobs_state"; cronjobs: Cronjob[]; cronjobsPrompt: string | null }
+  | { type: "cronjob_added"; cronjob: Cronjob }
+  | { type: "cronjob_updated"; cronjob: Cronjob }
+  | { type: "cronjob_deleted"; id: string }
+  | { type: "cronjobs_prompt_updated"; value: string | null }
+  | { type: "cronjob_runs"; cronjobId: string; runs: CronjobRun[] }
+  | { type: "cronjob_run_updated"; run: CronjobRun }
   | SettingsSaveResponse
   | SettingsValidationResponse
   | { type: "update_status"; updateAvailable: boolean; current: { sha: string; message: string; date: string }; latest: { sha: string; message: string; date: string } };
@@ -86,14 +109,10 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case "agent_updated": {
-      const newAgents = state.agents.map((a) =>
-        a.id === action.agentId ? { ...a, ...action.changes } : a
-      );
+      const newAgents = state.agents.map((a) => (a.id === action.agentId ? { ...a, ...action.changes } : a));
       const needsAttention = new Set(state.needsAttention);
       // Track when state changes for elapsed time display
-      const stateChangedAt = action.changes.state
-        ? new Map(state.stateChangedAt).set(action.agentId, Date.now())
-        : state.stateChangedAt;
+      const stateChangedAt = action.changes.state ? new Map(state.stateChangedAt).set(action.agentId, Date.now()) : state.stateChangedAt;
       // Mark as needing attention if state changed to an attention state
       // and the user is not currently viewing this agent
       if (action.changes.state && ATTENTION_STATES.has(action.changes.state)) {
@@ -115,6 +134,11 @@ function reducer(state: AppState, action: Action): AppState {
     case "log_entry": {
       const logs = new Map(state.logs);
       const entries = logs.get(action.entry.agentId) ?? [];
+      // Dedupe by entry id: backfill of a cronjob run can replay entries that
+      // already arrived live, and the same id should never appear twice.
+      // Use a Set for O(1) membership rather than entries.some(...).
+      const seen = new Set(entries.map((e) => e.id));
+      if (seen.has(action.entry.id)) return state;
       logs.set(action.entry.agentId, [...entries, action.entry]);
       return { ...state, logs };
     }
@@ -179,12 +203,39 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, rooms: newRooms, currentRoom };
     }
     case "room_renamed": {
-      const newRooms = state.rooms.map((r) => r.id === action.roomId ? { ...r, name: action.name } : r);
+      const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, name: action.name } : r));
       return { ...state, rooms: newRooms };
     }
     case "room_settings_updated": {
-      const newRooms = state.rooms.map((r) => r.id === action.roomId ? { ...r, prompt: action.prompt, envFile: action.envFile } : r);
+      const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, prompt: action.prompt, envFile: action.envFile } : r));
       return { ...state, rooms: newRooms };
+    }
+    case "cronjobs_state":
+      return { ...state, cronjobs: action.cronjobs, cronjobsPrompt: action.cronjobsPrompt };
+    case "cronjob_added":
+      return { ...state, cronjobs: [...state.cronjobs.filter((c) => c.id !== action.cronjob.id), action.cronjob] };
+    case "cronjob_updated":
+      return { ...state, cronjobs: state.cronjobs.map((c) => (c.id === action.cronjob.id ? action.cronjob : c)) };
+    case "cronjob_deleted":
+      return { ...state, cronjobs: state.cronjobs.filter((c) => c.id !== action.id) };
+    case "cronjobs_prompt_updated":
+      return { ...state, cronjobsPrompt: action.value };
+    case "cronjob_runs": {
+      const next = new Map(state.cronjobRunsByJob);
+      next.set(action.cronjobId, action.runs);
+      return { ...state, cronjobRunsByJob: next };
+    }
+    case "cronjob_run_updated": {
+      const next = new Map(state.cronjobRunsByJob);
+      const list = next.get(action.run.cronjobId) ?? [];
+      const idx = list.findIndex((r) => r.id === action.run.id);
+      if (idx < 0) next.set(action.run.cronjobId, [...list, action.run]);
+      else {
+        const updated = list.slice();
+        updated[idx] = action.run;
+        next.set(action.run.cronjobId, updated);
+      }
+      return { ...state, cronjobRunsByJob: next };
     }
     case "rooms_reordered": {
       // action.order is the new ordering of roomIds
@@ -214,7 +265,7 @@ const initialState: AppState = {
   focusedAgentId: null,
   connected: false,
   isMobile: typeof window !== "undefined" ? window.innerWidth < 768 : false,
-  mobileViewMode: (typeof localStorage !== "undefined" && localStorage.getItem("bureau-mobile-view") === "list") ? "list" : "office",
+  mobileViewMode: typeof localStorage !== "undefined" && localStorage.getItem("bureau-mobile-view") === "list" ? "list" : "office",
   needsAttention: new Set(),
   sessionsList: new Map(),
   soundTrigger: 0,
@@ -226,6 +277,9 @@ const initialState: AppState = {
   rooms: [],
   tasks: [],
   currentRoom: 0,
+  cronjobs: [],
+  cronjobsPrompt: null,
+  cronjobRunsByJob: new Map(),
   updateAvailable: false,
   updateCurrent: { sha: "", message: "", date: "" },
   updateLatest: { sha: "", message: "", date: "" },

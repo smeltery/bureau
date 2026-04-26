@@ -1,0 +1,28 @@
+# Ignored by oxfmt (and prettier-compatible tools).
+# Build outputs
+node_modules
+ui/dist
+demo/dist
+ui/index.js
+*.min.js
+
+# Subpackage with its own lint/build pipeline
+website
+
+# Lockfiles
+bun.lock
+package-lock.json
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Misc generated
+*.tsbuildinfo
+.vercel
+.next
+
+# Existing infrastructure files we don't want to reformat
+articles
+demo

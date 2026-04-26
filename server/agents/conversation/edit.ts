@@ -1,24 +1,8 @@
 import { forkSession, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
 import type { LogEntry } from "../../../shared/types.ts";
-import {
-  loadLog,
-  loadSessionsMap,
-  persistSessionFork,
-} from "../../persistence.ts";
-import {
-  addLogEntry,
-  agents,
-  emit,
-  logCache,
-  persistAll,
-  updateState,
-} from "../state.ts";
-import {
-  SessionSwappedError,
-  createSession,
-  createTurnDeferred,
-  replaceSession,
-} from "../session/runtime.ts";
+import { loadLog, loadSessionsMap, persistSessionFork } from "../../persistence.ts";
+import { addLogEntry, agents, emit, logCache, persistAll, updateState } from "../state.ts";
+import { SessionSwappedError, createSession, createTurnDeferred, replaceSession } from "../session/runtime.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
 
@@ -44,7 +28,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // --- Phase 1: Fallible SDK operations (no UI/cache mutations yet) ---
 
     // 1. Find the target LogEntry in the current log cache
-    const targetEntry = oldLogCache.find(e => e.id === logEntryId);
+    const targetEntry = oldLogCache.find((e) => e.id === logEntryId);
     if (!targetEntry || targetEntry.kind !== "user_message") {
       addLogEntry(agentId, "error", "Cannot edit: message not found.");
       return;
@@ -56,7 +40,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     const prefixedContent = targetUsername ? `[${targetUsername}] ${targetEntry.content}` : targetEntry.content;
 
     // Count which occurrence of this exact content this is among user_message log entries
-    const userLogEntries = oldLogCache.filter(e => e.kind === "user_message");
+    const userLogEntries = oldLogCache.filter((e) => e.kind === "user_message");
     let occurrenceIndex = 0;
     for (const e of userLogEntries) {
       const u = e.metadata?.username as string | undefined;
@@ -77,10 +61,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       if (m.type !== "user") continue;
       // SDK message format: { role: "user", content: [{ type: "text", text: "..." }, ...] }
       const msg = m.message as any;
-      const contentBlocks = Array.isArray(msg?.content) ? msg.content
-        : Array.isArray(msg) ? msg
-        : typeof msg === "string" ? [{ type: "text", text: msg }]
-        : [];
+      const contentBlocks = Array.isArray(msg?.content) ? msg.content : Array.isArray(msg) ? msg : typeof msg === "string" ? [{ type: "text", text: msg }] : [];
       const msgContent = contentBlocks
         .filter((b: any) => b.type === "text")
         .map((b: any) => b.text)
@@ -123,14 +104,14 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       // loadLogWithAncestors cuts at the right level.
       let forkFromSessionId = oldSessionId;
       const ownEntries = loadLog(agentId, oldSessionId);
-      if (!ownEntries.some(e => e.id === logEntryId)) {
+      if (!ownEntries.some((e) => e.id === logEntryId)) {
         const sessMap = loadSessionsMap(agentId);
         let walk: string | undefined = sessMap[oldSessionId]?.forkedFrom;
         const visited = new Set<string>([oldSessionId]);
         while (walk && !visited.has(walk)) {
           visited.add(walk);
           const ancestorEntries = loadLog(agentId, walk);
-          if (ancestorEntries.some(e => e.id === logEntryId)) {
+          if (ancestorEntries.some((e) => e.id === logEntryId)) {
             forkFromSessionId = walk;
             break;
           }

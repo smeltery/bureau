@@ -10,10 +10,7 @@ const DEMO_DIST = join(import.meta.dir, "..", "..", "demo", "dist");
 export async function handleStaticRequest(_req: Request, url: URL): Promise<Response> {
   // Demo static file serving
   if (url.pathname === "/demo" || url.pathname === "/demo/" || url.pathname.startsWith("/demo/")) {
-    const demoPath =
-      url.pathname === "/demo" || url.pathname === "/demo/"
-        ? "/index.html"
-        : url.pathname.slice("/demo".length);
+    const demoPath = url.pathname === "/demo" || url.pathname === "/demo/" ? "/index.html" : url.pathname.slice("/demo".length);
     const demoFile = Bun.file(join(DEMO_DIST, demoPath));
     if (await demoFile.exists()) {
       return new Response(demoFile, {
