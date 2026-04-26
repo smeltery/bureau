@@ -46,9 +46,9 @@ Deep dives into bugs, SDK behavior, and architectural decisions.
 
 | Document | Description |
 |----------|-------------|
-| [Development Guide](development.md) | Quality gate (typecheck / oxlint / prettier / tests / build) and branch protection setup |
+| [Development Guide](contributing/development.md) | Quality gate (typecheck / oxlint / prettier / tests / build) and branch protection setup |
 | [CLAUDE.md](../CLAUDE.md) | Developer & agent guide to the codebase |
-| [Documentation Locations](documentation-locations.md) | Where to update when adding user-visible features |
+| [Documentation Locations](contributing/documentation-locations.md) | Where to update when adding user-visible features |
 
 ---
 
@@ -95,10 +95,10 @@ graph TB
 → Start with [Punching In](../articles/punching-in-building-an-office-for-ai-agents.md), then [Agent Lifecycle](architecture/agent-lifecycle.md)
 
 **Adding a new feature?**
-→ Check [Documentation Locations](documentation-locations.md) for what to update
+→ Check [Documentation Locations](contributing/documentation-locations.md) for what to update
 
 **Adding tests or working on the CI gate?**
-→ See [Development Guide](development.md)
+→ See [Development Guide](contributing/development.md)
 
 **Debugging an SDK issue?**
 → See [SDK Investigation](investigations/sdk-investigation.md) and [SDK Upgrade Assessment](investigations/sdk-upgrade-assessment.md)
