@@ -29,10 +29,10 @@ function migratePersistedAgent(agent: any) {
 }
 
 export interface Room {
-  id: string;                  // stable 8-char hex
-  name: string;                // display name
-  prompt: string | null;       // room-level prompt
-  envFile: string | null;      // absolute path to dotenv file
+  id: string; // stable 8-char hex
+  name: string; // display name
+  prompt: string | null; // room-level prompt
+  envFile: string | null; // absolute path to dotenv file
   agents: PersistedAgent[];
 }
 
@@ -66,9 +66,7 @@ export function loadAgents(): Room[] {
 
   // Migrate each room: fill in missing id / prompt / envFile.
   // Collect already-present ids to avoid collisions during migration.
-  const existingIds: string[] = rooms
-    .map((r) => r.id)
-    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  const existingIds: string[] = rooms.map((r) => r.id).filter((id): id is string => typeof id === "string" && id.length > 0);
   for (const room of rooms) {
     if (typeof room.id !== "string" || room.id.length === 0) {
       room.id = generateRoomId(existingIds);

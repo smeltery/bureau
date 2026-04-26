@@ -69,8 +69,11 @@ export function AttachmentDisplay({
                 alt={att.originalName}
                 onClick={() => setLightboxSrc(src)}
                 style={{
-                  maxWidth: isMobile ? "100%" : 300, maxHeight: 200, borderRadius: 4,
-                  cursor: "pointer", border: "1px solid var(--green-border)",
+                  maxWidth: isMobile ? "100%" : 300,
+                  maxHeight: 200,
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  border: "1px solid var(--green-border)",
                 }}
               />
             );
@@ -91,9 +94,13 @@ export function AttachmentDisplay({
           onClick={() => setLightboxSrc(null)}
           onKeyDown={(e) => e.key === "Escape" && setLightboxSrc(null)}
           style={{
-            position: "fixed", inset: 0, zIndex: 9999,
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
             background: "rgba(0,0,0,0.85)",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             cursor: "zoom-out",
           }}
         >
@@ -106,23 +113,22 @@ export function AttachmentDisplay({
 
 export function DurationLabel({ ms, isMobile }: { ms: number; isMobile?: boolean }) {
   return (
-    <span style={{
-      marginLeft: "auto",
-      fontSize: isMobile ? 12 : 10,
-      fontFamily: "'JetBrains Mono',monospace",
-      color: "var(--text-ghost)",
-      flexShrink: 0,
-    }}>
+    <span
+      style={{
+        marginLeft: "auto",
+        fontSize: isMobile ? 12 : 10,
+        fontFamily: "'JetBrains Mono',monospace",
+        color: "var(--text-ghost)",
+        flexShrink: 0,
+      }}
+    >
       {formatDuration(ms)}
     </span>
   );
 }
 
 export function TurnCopyButton({ turnEntries }: { turnEntries?: LogEntry[] }) {
-  const getText = useCallback(
-    () => (turnEntries ? serializeEntries(turnEntries) : ""),
-    [turnEntries],
-  );
+  const getText = useCallback(() => (turnEntries ? serializeEntries(turnEntries) : ""), [turnEntries]);
   if (!turnEntries) return null;
   return (
     <div style={{ position: "absolute", top: 8, right: 8 }}>

@@ -81,9 +81,7 @@ export function InputBar({
     const text = input.trim();
     if (!text && validAttachments.length === 0) return;
     if (isBusy || hasUploading || editingLogEntryId) return;
-    const attachments = validAttachments.length > 0
-      ? validAttachments.map(({ id: _id, uploading: _u, error: _e, ...att }) => att as Attachment)
-      : undefined;
+    const attachments = validAttachments.length > 0 ? validAttachments.map(({ id: _id, uploading: _u, error: _e, ...att }) => att as Attachment) : undefined;
     send({ type: "send_message", agentId: agent.id, text, username, attachments });
     setInput("");
     clearAttachments();
@@ -142,10 +140,18 @@ export function InputBar({
               <button
                 onClick={() => removeStaged(att.id)}
                 style={{
-                  background: "none", border: "none", color: att.error ? "var(--red)" : "var(--text-ghost)",
-                  cursor: "pointer", padding: "0 2px", fontSize: 14, lineHeight: 1, flexShrink: 0,
+                  background: "none",
+                  border: "none",
+                  color: att.error ? "var(--red)" : "var(--text-ghost)",
+                  cursor: "pointer",
+                  padding: "0 2px",
+                  fontSize: 14,
+                  lineHeight: 1,
+                  flexShrink: 0,
                 }}
-              >×</button>
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>
@@ -155,11 +161,14 @@ export function InputBar({
           onClick={() => fileInputRef.current?.click()}
           disabled={isBusy}
           style={{
-            background: "none", border: "none", padding: 0,
+            background: "none",
+            border: "none",
+            padding: 0,
             color: isBusy ? "var(--text-ghost)" : "var(--text-muted)",
             cursor: isBusy ? "default" : "pointer",
             lineHeight: "20px",
-            fontSize: 16, flexShrink: 0,
+            fontSize: 16,
+            flexShrink: 0,
             opacity: isBusy ? 0.4 : 0.7,
             transition: "opacity 0.15s",
           }}
@@ -210,35 +219,41 @@ export function InputBar({
                       gap: 8,
                     }}
                   >
-                    <span style={{
-                      color: "var(--green)",
-                      fontFamily: "'JetBrains Mono',monospace",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      flexShrink: 0,
-                    }}>
+                    <span
+                      style={{
+                        color: "var(--green)",
+                        fontFamily: "'JetBrains Mono',monospace",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                    >
                       /{cmd}
                     </span>
                     {originLabel && (
-                      <span style={{
-                        fontSize: 10,
-                        color: "var(--text-ghost)",
-                        background: "var(--bg-base)",
-                        padding: "1px 6px",
-                        borderRadius: 4,
-                        flexShrink: 0,
-                      }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "var(--text-ghost)",
+                          background: "var(--bg-base)",
+                          padding: "1px 6px",
+                          borderRadius: 4,
+                          flexShrink: 0,
+                        }}
+                      >
                         {originLabel}
                       </span>
                     )}
                     {desc && (
-                      <span style={{
-                        fontSize: 11,
-                        color: "var(--text-ghost)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "var(--text-ghost)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {desc}
                       </span>
                     )}
@@ -302,7 +317,17 @@ export function InputBar({
                 send({ type: "abort", agentId: agent.id });
               }
             }}
-            placeholder={editingLogEntryId ? "Editing message above..." : isBusy ? (isMobile ? "Agent is busy..." : "Agent is busy — Ctrl+C to interrupt...") : isMobile ? "Type a message..." : "Type a message or / for commands..."}
+            placeholder={
+              editingLogEntryId
+                ? "Editing message above..."
+                : isBusy
+                  ? isMobile
+                    ? "Agent is busy..."
+                    : "Agent is busy — Ctrl+C to interrupt..."
+                  : isMobile
+                    ? "Type a message..."
+                    : "Type a message or / for commands..."
+            }
             autoFocus={!isMobile}
             rows={1}
             style={{
@@ -310,7 +335,7 @@ export function InputBar({
               background: "transparent",
               border: "none",
               outline: "none",
-              color: (isBusy || editingLogEntryId) ? "var(--text-muted)" : "var(--text-secondary)",
+              color: isBusy || editingLogEntryId ? "var(--text-muted)" : "var(--text-secondary)",
               fontFamily: "'JetBrains Mono',monospace",
               fontSize: isMobile ? 16 : 13,
               caretColor: "var(--green)",
@@ -378,8 +403,8 @@ export function InputBar({
             {showMicHint && <MicHint onClose={() => setShowMicHint(false)} />}
           </div>
         ) : null}
-        {isMobile && (
-          isBusy ? (
+        {isMobile &&
+          (isBusy ? (
             <button
               onClick={() => send({ type: "abort", agentId: agent.id })}
               style={{
@@ -427,8 +452,7 @@ export function InputBar({
             >
               ▲
             </button>
-          )
-        )}
+          ))}
       </div>
     </div>
   );
@@ -447,45 +471,45 @@ function MicIcon() {
 
 function MicHint({ onClose }: { onClose: () => void }) {
   return (
-    <div style={{
-      position: "absolute",
-      bottom: "calc(100% + 8px)",
-      right: 0,
-      width: 320,
-      background: "var(--bg-surface)",
-      border: "1px solid var(--border-medium)",
-      borderRadius: 8,
-      padding: "12px 14px",
-      fontSize: 12,
-      color: "var(--text-secondary)",
-      boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
-      zIndex: 20,
-      animation: "fadeIn 0.1s ease-out",
-    }}>
-      <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>
-        Voice input requires HTTPS
-      </div>
+    <div
+      style={{
+        position: "absolute",
+        bottom: "calc(100% + 8px)",
+        right: 0,
+        width: 320,
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border-medium)",
+        borderRadius: 8,
+        padding: "12px 14px",
+        fontSize: 12,
+        color: "var(--text-secondary)",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+        zIndex: 20,
+        animation: "fadeIn 0.1s ease-out",
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>Voice input requires HTTPS</div>
       <div style={{ marginBottom: 8, lineHeight: 1.5 }}>
         Enable HTTPS in your <span style={{ color: "var(--text-primary)" }}>Tailscale admin console</span> (DNS page), then run these on the host (use the built-in terminal):
       </div>
-      <code style={{
-        display: "block",
-        background: "var(--bg-base)",
-        border: "1px solid var(--border)",
-        borderRadius: 4,
-        padding: "8px 10px",
-        fontSize: 11,
-        fontFamily: "'JetBrains Mono',monospace",
-        color: "var(--text-secondary)",
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-all",
-        lineHeight: 1.6,
-      }}>
+      <code
+        style={{
+          display: "block",
+          background: "var(--bg-base)",
+          border: "1px solid var(--border)",
+          borderRadius: 4,
+          padding: "8px 10px",
+          fontSize: 11,
+          fontFamily: "'JetBrains Mono',monospace",
+          color: "var(--text-secondary)",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-all",
+          lineHeight: 1.6,
+        }}
+      >
         {`sudo tailscale set --operator=$USER\ntailscale serve --bg http://localhost:4000`}
       </code>
-      <div style={{ marginTop: 8, lineHeight: 1.5, color: "var(--text-muted)" }}>
-        Restart bureau and reload this page. You'll be auto-redirected to HTTPS.
-      </div>
+      <div style={{ marginTop: 8, lineHeight: 1.5, color: "var(--text-muted)" }}>Restart bureau and reload this page. You'll be auto-redirected to HTTPS.</div>
       <button
         onClick={onClose}
         style={{

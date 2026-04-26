@@ -37,7 +37,9 @@ export function handleLiveReloadRequest(req: Request, url: URL): Response | null
       controller.enqueue(": connected\n\n");
       const onAbort = () => {
         liveReloadClients.delete(controller);
-        try { controller.close(); } catch {}
+        try {
+          controller.close();
+        } catch {}
       };
       req.signal.addEventListener("abort", onAbort, { once: true });
     },
@@ -49,7 +51,7 @@ export function handleLiveReloadRequest(req: Request, url: URL): Response | null
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
     },
   });
 }

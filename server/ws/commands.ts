@@ -2,6 +2,7 @@ import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage, TaskItem } from "../../shared/types.ts";
 import { generateTaskId, isValidPriority, isValidStatus } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
+import * as CronjobManager from "../cronjobs/index.ts";
 import { saveRecentCwd, saveTasks } from "../persistence.ts";
 import { broadcast, setTasks, tasks } from "./broadcast.ts";
 
@@ -54,7 +55,14 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         }
         saveRecentCwd(cmd.cwd);
       }
-      AgentManager.editAgent(cmd.agentId, { name: cmd.name, cwd: cmd.cwd, outfit: cmd.outfit, customInstructions: cmd.customInstructions, modelFamily: cmd.modelFamily, permissionMode: cmd.permissionMode });
+      AgentManager.editAgent(cmd.agentId, {
+        name: cmd.name,
+        cwd: cmd.cwd,
+        outfit: cmd.outfit,
+        customInstructions: cmd.customInstructions,
+        modelFamily: cmd.modelFamily,
+        permissionMode: cmd.permissionMode,
+      });
       if (cmd.requestId) {
         ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
       }
@@ -157,13 +165,23 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         const keyCount = AgentManager.validateEnvPath(envFile);
         ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, envFile, ok: true, keyCount } as ServerMessage));
       } catch (err: any) {
-        ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, envFile, ok: false, error: err.message || "Invalid env file" } as ServerMessage));
+        ws.send(
+          JSON.stringify({
+            type: "settings_validation",
+            requestId: cmd.requestId,
+            scope: cmd.scope,
+            roomId: cmd.roomId,
+            envFile,
+            ok: false,
+            error: err.message || "Invalid env file",
+          } as ServerMessage),
+        );
       }
       break;
     }
     case "add_task": {
       const task: TaskItem = {
-        id: generateTaskId(tasks.map(t => t.id)),
+        id: generateTaskId(tasks.map((t) => t.id)),
         title: cmd.title.trim(),
         description: cmd.description,
         priority: cmd.priority && isValidPriority(cmd.priority) ? cmd.priority : undefined,
@@ -217,5 +235,81 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       // Don't await — let it stream in the background (like send_message)
       AgentManager.editMessage(cmd.agentId, cmd.logEntryId, cmd.newText, cmd.username);
       break;
+    case "add_cronjob": {
+      try {
+        AgentManager.validateCwd(cmd.cwd);
+      } catch (err: any) {
+        if (cmd.requestId) {
+          ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: err.message || "Invalid directory" } as ServerMessage));
+        }
+        break;
+      }
+      saveRecentCwd(cmd.cwd);
+      CronjobManager.addCronjob({
+        name: cmd.name,
+        schedule: cmd.schedule,
+        prompt: cmd.prompt,
+        cwd: cmd.cwd,
+        modelFamily: cmd.modelFamily,
+        permissionMode: cmd.permissionMode,
+        username: cmd.username,
+        device: cmd.device,
+      });
+      if (cmd.requestId) {
+        ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
+      }
+      break;
+    }
+    case "update_cronjob": {
+      if (cmd.changes.cwd) {
+        try {
+          AgentManager.validateCwd(cmd.changes.cwd);
+        } catch (err: any) {
+          if (cmd.requestId) {
+            ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: err.message || "Invalid directory" } as ServerMessage));
+          }
+          break;
+        }
+        saveRecentCwd(cmd.changes.cwd);
+      }
+      CronjobManager.updateCronjob(cmd.id, cmd.changes);
+      if (cmd.requestId) {
+        ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
+      }
+      break;
+    }
+    case "delete_cronjob":
+      CronjobManager.deleteCronjob(cmd.id);
+      break;
+    case "run_cronjob_now":
+      CronjobManager.runCronjobNow(cmd.id, cmd.username, cmd.device);
+      break;
+    case "update_cronjobs_prompt":
+      CronjobManager.setCronjobsPrompt(cmd.value);
+      ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
+      break;
+    case "list_cronjob_runs": {
+      const runs = CronjobManager.getRunsForCronjob(cmd.cronjobId);
+      ws.send(JSON.stringify({ type: "cronjob_runs", cronjobId: cmd.cronjobId, runs } as ServerMessage));
+      break;
+    }
+    case "list_all_cronjob_runs": {
+      // Returns runs for every cronjob dir on disk (including deleted ones)
+      // so the Runs tab can surface historical runs after a cronjob is gone.
+      for (const { jobId, runs } of CronjobManager.getAllRunsByJob()) {
+        ws.send(JSON.stringify({ type: "cronjob_runs", cronjobId: jobId, runs } as ServerMessage));
+      }
+      break;
+    }
+    case "load_cronjob_run": {
+      // Client passes jobId from the run row it just clicked, so no scan
+      // needed. Works for runs from deleted cronjobs too: getRunTranscript
+      // reads from disk regardless of whether the cronjob config still exists.
+      const { entries } = CronjobManager.getRunTranscript(cmd.cronjobId, cmd.runId);
+      for (const entry of entries) {
+        ws.send(JSON.stringify({ type: "log_entry", entry } as ServerMessage));
+      }
+      break;
+    }
   }
 }

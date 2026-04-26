@@ -1,16 +1,7 @@
 import type { RoomWire } from "../../shared/types.ts";
 import { generateRoomId } from "../../shared/types.ts";
 import { readEnvFile, saveOfficeConfig } from "../persistence.ts";
-import {
-  agents,
-  emit,
-  findRoomIndex,
-  persistAll,
-  roomsWire,
-  rooms,
-  setOfficeConfig,
-  type InternalRoom,
-} from "./state.ts";
+import { agents, emit, findRoomIndex, persistAll, roomsWire, rooms, setOfficeConfig, type InternalRoom } from "./state.ts";
 
 export function getRooms(): RoomWire[] {
   return roomsWire();
@@ -158,7 +149,10 @@ export function moveAgent(agentId: string, targetRoomId: string): boolean {
   const taken = new Set(targetAgents.map((a) => a.info.desk));
   let newDesk = -1;
   for (let i = 0; i < 8; i++) {
-    if (!taken.has(i)) { newDesk = i; break; }
+    if (!taken.has(i)) {
+      newDesk = i;
+      break;
+    }
   }
   if (newDesk === -1) return false;
 

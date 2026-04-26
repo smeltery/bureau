@@ -1,23 +1,9 @@
 import type { Attachment } from "../../../shared/types.ts";
 import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
-import {
-  addLogEntry,
-  agents,
-  emit,
-  emitEphemeralLog,
-  logCache,
-  persistAll,
-  updateState,
-} from "../state.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, updateState } from "../state.ts";
 import { buildUserMessage } from "../session/messages.ts";
-import {
-  SessionSwappedError,
-  createSession,
-  createTurnDeferred,
-  installSession,
-  replaceSession,
-} from "../session/runtime.ts";
+import { SessionSwappedError, createSession, createTurnDeferred, installSession, replaceSession } from "../session/runtime.ts";
 import { generateTopic, persistCurrentSessionTopic } from "../topic.ts";
 import { handleSlashCommand } from "./slash-commands.ts";
 

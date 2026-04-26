@@ -6,9 +6,9 @@ import { StatusLight } from "./StatusLight.tsx";
 import { deskPixelPos, DESK_SLOTS } from "../grid.ts";
 
 const MODEL_TINT: Record<ModelFamily, { border: string; bg: string }> = {
-  opus:   { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
-  sonnet: { border: "rgba(218,165,32,0.80)",  bg: "rgba(218,165,32,0.32)" },
-  haiku:  { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
+  opus: { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
+  sonnet: { border: "rgba(218,165,32,0.80)", bg: "rgba(218,165,32,0.32)" },
+  haiku: { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
 };
 
 export function DeskUnit({
@@ -62,7 +62,10 @@ export function DeskUnit({
       }, 500);
     }
     function handleTouchEnd(e: TouchEvent) {
-      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
       if (longPressTriggered.current) {
         e.preventDefault();
       } else {
@@ -70,7 +73,10 @@ export function DeskUnit({
       }
     }
     function handleTouchMove() {
-      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
     }
 
     el.addEventListener("touchstart", handleTouchStart, { passive: false });
@@ -96,7 +102,10 @@ export function DeskUnit({
         e.dataTransfer.setData("text/plain", String(agent.desk));
         e.dataTransfer.effectAllowed = "move";
       }}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      }}
       onDragEnter={() => setDragOver(true)}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
@@ -106,7 +115,9 @@ export function DeskUnit({
         if (!isNaN(src) && src !== agent.desk) onSwap?.(src, agent.desk);
       }}
       onDragEnd={() => setDragOver(false)}
-      onClick={() => { if (!longPressTriggered.current) onClick(); }}
+      onClick={() => {
+        if (!longPressTriggered.current) onClick();
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         onContextMenu(e);
@@ -130,7 +141,6 @@ export function DeskUnit({
         WebkitUserSelect: "none",
       }}
     >
-
       {/* Character behind desk — idle agents sit back a bit */}
       <div style={{ position: "absolute", left: agent.state === "idle" || agent.state === "stopped" ? 84 : 78, top: agent.state === "idle" || agent.state === "stopped" ? -16 : -20, zIndex: 1 }}>
         <Character state={agent.state} outfit={agent.outfit} />
@@ -194,7 +204,6 @@ export function DeskUnit({
           </div>
         )}
       </div>
-
     </div>
   );
 }

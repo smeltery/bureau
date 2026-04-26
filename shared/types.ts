@@ -1,11 +1,5 @@
 // Agent states derived from SDK stream events
-export type AgentState =
-  | "idle"
-  | "thinking"
-  | "tool_executing"
-  | "waiting_for_response"
-  | "error"
-  | "stopped";
+export type AgentState = "idle" | "thinking" | "tool_executing" | "waiting_for_response" | "error" | "stopped";
 
 // Deterministic outfit from name hash
 export interface AgentOutfit {
@@ -76,10 +70,10 @@ export interface AgentInfo {
 
 // File attachment metadata
 export interface Attachment {
-  filename: string;      // on-disk hash name: "a1b2c3.png"
-  originalName: string;  // user-facing: "photo.png"
-  mediaType: string;     // "image/png", "application/pdf", etc.
-  size: number;          // bytes
+  filename: string; // on-disk hash name: "a1b2c3.png"
+  originalName: string; // user-facing: "photo.png"
+  mediaType: string; // "image/png", "application/pdf", etc.
+  size: number; // bytes
 }
 
 // Log entry in the conversation view
@@ -98,7 +92,7 @@ export type TaskStatus = "open" | "in_progress" | "done";
 export type TaskPriority = "P0" | "P1" | "P2" | "P3";
 
 export interface TaskItem {
-  id: string;           // 8-char hex hash
+  id: string; // 8-char hex hash
   title: string;
   description?: string;
   priority?: TaskPriority;
@@ -114,13 +108,97 @@ function generateHexId(existing?: string[]): string {
   for (;;) {
     const bytes = new Uint8Array(4);
     crypto.getRandomValues(bytes);
-    const id = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const id = Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
     if (!ids || !ids.has(id)) return id;
   }
 }
 
 export function generateTaskId(existing?: string[]): string {
   return generateHexId(existing);
+}
+
+export function generateCronjobId(existing?: string[]): string {
+  return generateHexId(existing);
+}
+
+export function generateCronjobRunId(existing?: string[]): string {
+  return generateHexId(existing);
+}
+
+// ---------------------------------------------------------------------------
+// Cronjobs
+// ---------------------------------------------------------------------------
+// Cronjobs are scheduled SDK sessions. They are NOT agents — no desk, no room,
+// no persistent identity. Each scheduled fire creates a fresh session whose
+// transcript becomes a "run" row.
+
+export type Schedule = { type: "daily"; hour: number; minute: number } | { type: "weekly"; weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6; hour: number; minute: number } | { type: "interval"; minutes: number };
+
+// Permission modes available for cronjobs. Subset of agent options:
+// "default" / "acceptEdits" / "plan" would block forever in an unattended run.
+export type CronjobPermissionMode = "bypassPermissions" | "auto";
+
+export interface Cronjob {
+  id: string; // 8-char hex
+  name: string; // free text, not unique
+  schedule: Schedule;
+  prompt: string; // first user message at each fire
+  cwd: string;
+  modelFamily: ModelFamily;
+  permissionMode: CronjobPermissionMode;
+  enabled: boolean;
+  createdBy: string;
+  device: string | null;
+  createdAt: number;
+  lastFireAt: number | null;
+  nextFireAt: number;
+}
+
+export type CronjobRunStatus = "running" | "completed" | "failed" | "timed_out" | "skipped";
+export type CronjobRunTrigger = "scheduled" | "manual";
+
+export interface CronjobRun {
+  id: string; // 8-char hex
+  cronjobId: string;
+  cronjobName: string; // denormalized so deleted-cronjob runs still display
+  trigger: CronjobRunTrigger;
+  status: CronjobRunStatus;
+  startedAt: number;
+  endedAt: number | null;
+  errorReason: string | null;
+  promptSnapshot: string;
+  modelFamilySnapshot: ModelFamily;
+  cwdSnapshot: string;
+  permissionModeSnapshot: CronjobPermissionMode;
+  rootSessionId: string; // first session id created at fire time
+  previewText: string; // last assistant text block, truncated ~120 chars
+}
+
+// Cronjob runs piggy-back on the LogEntry.agentId routing by using a
+// "cronrun-<runId>" prefix as a synthetic stream id. Entries written for a run
+// carry this in `agentId` so the existing client-side Map<streamId, entries>
+// routing works unchanged.
+export function cronjobRunStreamId(runId: string): string {
+  return `cronrun-${runId}`;
+}
+
+export function parseStreamId(id: string): { kind: "agent"; agentId: string } | { kind: "cronjob_run"; runId: string } {
+  if (id.startsWith("cronrun-")) return { kind: "cronjob_run", runId: id.slice("cronrun-".length) };
+  return { kind: "agent", agentId: id };
+}
+
+export function humanizeSchedule(s: Schedule): string {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  if (s.type === "daily") return `Daily at ${pad(s.hour)}:${pad(s.minute)}`;
+  if (s.type === "weekly") {
+    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return `Weekly ${weekdays[s.weekday]} at ${pad(s.hour)}:${pad(s.minute)}`;
+  }
+  if (s.minutes < 60) return `Every ${s.minutes}m`;
+  if (s.minutes % 60 === 0) return `Every ${s.minutes / 60}h`;
+  return `Every ${Math.floor(s.minutes / 60)}h${s.minutes % 60}m`;
 }
 
 const VALID_STATUSES = new Set<TaskStatus>(["open", "in_progress", "done"]);
@@ -139,8 +217,8 @@ export interface SessionInfo {
   sessionId: string;
   lastModified: number;
   topic: string | null;
-  branched?: boolean;      // true if another session was forked from this one
-  forked?: boolean;        // true if this session is a fork (was created by editing a message)
+  branched?: boolean; // true if another session was forked from this one
+  forked?: boolean; // true if this session is a fork (was created by editing a message)
 }
 
 // Skill metadata for autocomplete and /help
@@ -159,8 +237,8 @@ export interface OfficeSettings {
 
 // A room with stable ID, display name, and per-room config
 export interface RoomWire {
-  id: string;               // 8-char hex, stable
-  name: string;             // display name
+  id: string; // 8-char hex, stable
+  name: string; // display name
   prompt: string | null;
   envFile: string | null;
 }
@@ -225,18 +303,46 @@ export type ServerMessage =
   | AgentSaveResponse
   | CwdValidationResponse
   | { type: "update_status"; updateAvailable: boolean; current: { sha: string; message: string; date: string }; latest: { sha: string; message: string; date: string } }
+  | { type: "cronjobs_state"; cronjobs: Cronjob[]; cronjobsPrompt: string | null }
+  | { type: "cronjob_added"; cronjob: Cronjob }
+  | { type: "cronjob_updated"; cronjob: Cronjob }
+  | { type: "cronjob_deleted"; id: string }
+  | { type: "cronjobs_prompt_updated"; value: string | null }
+  | { type: "cronjob_runs"; cronjobId: string; runs: CronjobRun[] }
+  | { type: "cronjob_run_updated"; run: CronjobRun }
   | { type: "pong" };
 
 // Browser → Server commands
 export type ClientCommand =
-  | { type: "spawn"; requestId?: string; name: string; cwd: string; permissionMode: AgentInfo["permissionMode"]; desk: number; roomId?: string; customInstructions?: string; outfit?: AgentOutfit; modelFamily?: ModelFamily }
+  | {
+      type: "spawn";
+      requestId?: string;
+      name: string;
+      cwd: string;
+      permissionMode: AgentInfo["permissionMode"];
+      desk: number;
+      roomId?: string;
+      customInstructions?: string;
+      outfit?: AgentOutfit;
+      modelFamily?: ModelFamily;
+    }
   | { type: "kill"; agentId: string }
   | { type: "abort"; agentId: string }
   | { type: "send_message"; agentId: string; text: string; username?: string; attachments?: Attachment[] }
   | { type: "new_conversation"; agentId: string }
   | { type: "resume"; agentId: string; sessionId: string }
   | { type: "list_sessions"; agentId: string }
-  | { type: "edit_agent"; requestId?: string; agentId: string; name?: string; cwd?: string; outfit?: AgentOutfit; customInstructions?: string; modelFamily?: ModelFamily; permissionMode?: AgentInfo["permissionMode"] }
+  | {
+      type: "edit_agent";
+      requestId?: string;
+      agentId: string;
+      name?: string;
+      cwd?: string;
+      outfit?: AgentOutfit;
+      customInstructions?: string;
+      modelFamily?: ModelFamily;
+      permissionMode?: AgentInfo["permissionMode"];
+    }
   | { type: "swap_desks"; deskA: number; deskB: number; roomId: string }
   | { type: "set_topic"; agentId: string; topic: string }
   | { type: "reset_topic"; agentId: string }
@@ -257,6 +363,25 @@ export type ClientCommand =
   | { type: "move_agent"; agentId: string; targetRoomId: string }
   | { type: "reorder_rooms"; order: string[] }
   | { type: "edit_message"; agentId: string; logEntryId: string; newText: string; username?: string }
+  | {
+      type: "add_cronjob";
+      requestId?: string;
+      name: string;
+      schedule: Schedule;
+      prompt: string;
+      cwd: string;
+      modelFamily: ModelFamily;
+      permissionMode: CronjobPermissionMode;
+      username: string;
+      device?: string;
+    }
+  | { type: "update_cronjob"; requestId?: string; id: string; changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "permissionMode" | "enabled">> }
+  | { type: "delete_cronjob"; id: string }
+  | { type: "run_cronjob_now"; id: string; username: string; device?: string }
+  | { type: "update_cronjobs_prompt"; requestId: string; value: string | null }
+  | { type: "list_cronjob_runs"; cronjobId: string }
+  | { type: "list_all_cronjob_runs" }
+  | { type: "load_cronjob_run"; cronjobId: string; runId: string }
   | { type: "ping" };
 
 // Generate a stable 8-char hex room ID (used at room creation and during migration)

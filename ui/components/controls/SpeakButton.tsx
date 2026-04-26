@@ -34,11 +34,8 @@ function stripMarkdown(md: string): string {
 
 function pickVoice(): SpeechSynthesisVoice | undefined {
   const voices = speechSynthesis.getVoices();
-  const en = voices.filter(v => v.lang.startsWith("en"));
-  return en.find(v => v.name === "Google US English")
-    ?? en.find(v => /google/i.test(v.name))
-    ?? en.find(v => v.default)
-    ?? en[0];
+  const en = voices.filter((v) => v.lang.startsWith("en"));
+  return en.find((v) => v.name === "Google US English") ?? en.find((v) => /google/i.test(v.name)) ?? en.find((v) => v.default) ?? en[0];
 }
 
 export function SpeakButton({ getText, size = 24 }: { getText: () => string; size?: number }) {
@@ -68,7 +65,10 @@ export function SpeakButton({ getText, size = 24 }: { getText: () => string; siz
 
   return (
     <button
-      onClick={(e) => { handleClick(); (e.target as HTMLElement).blur(); }}
+      onClick={(e) => {
+        handleClick();
+        (e.target as HTMLElement).blur();
+      }}
       className="copy-btn"
       title={speaking ? "Stop" : "Speak"}
       style={{

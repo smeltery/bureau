@@ -1,0 +1,79 @@
+name: CI
+
+# Quality gate for every PR and every push to master.
+# All five checks must pass before a PR can merge (enforced via branch
+# protection — see docs/development.md for the one-time setup).
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# Cancel in-flight runs for the same PR / branch when a new commit lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Lock down default permissions; specific jobs opt in below if they need more.
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+
+  lint:
+    name: oxlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run format:check
+
+  test:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run test
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      # UI bundle (production-ish; equivalent to scripts/build.sh inputs).
+      - run: bun build ui/index.tsx --outdir ui/dist --production
+      # Server typechecks/imports — `bun build` with --target bun catches
+      # missing imports, circular deps, and bad type-only re-exports without
+      # actually starting the server.
+      - run: bun build server/index.ts --target bun --outdir /tmp/bureau-server-build

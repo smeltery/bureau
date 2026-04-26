@@ -1,12 +1,5 @@
 import { listAgentSessions, loadLogWithAncestors } from "../../persistence.ts";
-import {
-  addLogEntry,
-  agents,
-  emit,
-  logCache,
-  persistAll,
-  updateState,
-} from "../state.ts";
+import { addLogEntry, agents, emit, logCache, persistAll, updateState } from "../state.ts";
 import { createSession, replaceSession } from "../session/runtime.ts";
 import { generateTopic, persistCurrentSessionTopic } from "../topic.ts";
 
@@ -93,7 +86,7 @@ export async function resume(agentId: string, sessionId: string) {
 
     // Restore topic from sessions.json
     const sessions = listAgentSessions(agentId);
-    const sessionEntry = sessions.find(s => s.sessionId === sessionId);
+    const sessionEntry = sessions.find((s) => s.sessionId === sessionId);
     managed.info.topic = sessionEntry?.topic ?? null;
     managed.info.topicStale = false;
     emit({ type: "agent_updated", agentId, changes: { topic: managed.info.topic, topicStale: false } });

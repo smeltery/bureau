@@ -22,7 +22,7 @@ export function openTerminal(agentId: string): boolean {
   const shell = process.env.SHELL || "/bin/bash";
   const home = homedir();
   const ptyEnv: Record<string, string> = {
-    ...process.env as Record<string, string>,
+    ...(process.env as Record<string, string>),
     TERM: "xterm-256color",
     SHELL: shell,
     HOME: home,
@@ -55,7 +55,11 @@ export function openTerminal(agentId: string): boolean {
         for (const line of lines) {
           if (!line) continue;
           let msg: any;
-          try { msg = JSON.parse(line); } catch { continue; }
+          try {
+            msg = JSON.parse(line);
+          } catch {
+            continue;
+          }
           if (msg.type === "output") {
             managed.ptyBuffer += msg.data;
             if (managed.ptyBuffer.length > MAX_PTY_BUFFER) {
