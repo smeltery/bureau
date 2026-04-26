@@ -1,12 +1,14 @@
 # Bureau Documentation
 
 Welcome to the Bureau documentation. This is your starting point for understanding the system.
+## Articles
 
-## Architecture & Design
+Long-form, narrative reading.
 
-In-depth documents on how Bureau is built.
-
-### Deep-Dive Architecture
+| Document | Description |
+|----------|-------------|
+| [Punching In: Building an Office for AI Agents](../articles/punching-in-building-an-office-for-ai-agents.md) | Deep dive: SDK, agent lifecycle, WebSocket layer, frontend |
+## Architecture
 
 Detailed subsystem documentation.
 
@@ -18,20 +20,18 @@ Detailed subsystem documentation.
 | [Safety Hooks](architecture/safety-hooks.md) | PreToolUse hooks: git safety, filesystem, secrets, config protection |
 | [Frontend Architecture](architecture/frontend-architecture.md) | Redux-like store, SVG scene, components, mobile, terminal |
 | [Command & Skill System](architecture/command-skill-system.md) | Slash command registry, skill discovery, priority hierarchy |
-
-### Feature Design Docs
+## Feature Design Docs
 
 | Document | Description |
 |----------|-------------|
-| [Architecture Overview](articles/punching-in-building-an-office-for-ai-agents.md) | Deep dive: SDK, agent lifecycle, WebSocket layer, frontend |
 | [Conversation Branching](features/conversation-branching-design.md) | Edit past messages to fork conversations |
+| [Cronjob System](features/cronjob-system-design.md) | Scheduled SDK sessions; per-run transcripts; Cronjobs page |
 | [Multi-Office Isolation](features/multi-office-design.md) | Multiple isolated workspaces |
 | [Per-Agent MCP Access](features/per-agent-mcp-access.md) | Controlling MCP integration access per agent |
 | [Plugin Management](features/plugin-management-design.md) | Plugin UI and lifecycle |
 | [Room Environment & Prompts](features/room-env-prompt-design.md) | Per-room env vars and prompt hierarchy |
 | [Task System](features/task-system-design.md) | Shared task board for humans and agents |
 | [Named Rooms](features/prompt-named-rooms.md) | Custom room names |
-
 ## Investigations & Research
 
 Deep dives into bugs, SDK behavior, and architectural decisions.
@@ -42,13 +42,13 @@ Deep dives into bugs, SDK behavior, and architectural decisions.
 | [SDK Investigation](investigations/sdk-investigation.md) | SDK v0.2.85 research and findings |
 | [SDK Upgrade Assessment](investigations/sdk-upgrade-assessment.md) | v0.2.86 → v0.2.92 upgrade notes |
 | [Skills Investigation](investigations/skills-investigation.md) | Claude Code slash command architecture |
-
-## Development
+## Contributing & Development
 
 | Document | Description |
 |----------|-------------|
+| [Development Guide](development.md) | Quality gate (typecheck / oxlint / prettier / tests / build) and branch protection setup |
 | [CLAUDE.md](../CLAUDE.md) | Developer & agent guide to the codebase |
-| [Documentation Locations](documentation-locations.md) | Where to update when adding features |
+| [Documentation Locations](documentation-locations.md) | Where to update when adding user-visible features |
 
 ---
 
@@ -92,10 +92,13 @@ graph TB
 ## Quick Navigation by Topic
 
 **Want to understand how agents work?**
-→ Start with [Architecture Overview](articles/punching-in-building-an-office-for-ai-agents.md), then [Agent Lifecycle](architecture/agent-lifecycle.md)
+→ Start with [Punching In](../articles/punching-in-building-an-office-for-ai-agents.md), then [Agent Lifecycle](architecture/agent-lifecycle.md)
 
 **Adding a new feature?**
 → Check [Documentation Locations](documentation-locations.md) for what to update
+
+**Adding tests or working on the CI gate?**
+→ See [Development Guide](development.md)
 
 **Debugging an SDK issue?**
 → See [SDK Investigation](investigations/sdk-investigation.md) and [SDK Upgrade Assessment](investigations/sdk-upgrade-assessment.md)
@@ -108,6 +111,9 @@ graph TB
 
 **Working on slash commands or skills?**
 → See [Command & Skill System](architecture/command-skill-system.md)
+
+**Working on cronjobs / scheduled sessions?**
+→ See [Cronjob System](features/cronjob-system-design.md)
 
 **Setting up for development?**
 → See [CLAUDE.md](../CLAUDE.md)
