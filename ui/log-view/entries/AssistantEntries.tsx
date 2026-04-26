@@ -19,17 +19,36 @@ export function AssistantText({ content, isLastInTurn, turnEntries, isMobile }: 
   );
 }
 
-export function ThinkingBlock({ content, durationMs, isLastInTurn, turnEntries, isMobile }: { content: string; durationMs?: number; isLastInTurn?: boolean; turnEntries?: LogEntry[]; isMobile?: boolean }) {
+export function ThinkingBlock({
+  content,
+  durationMs,
+  isLastInTurn,
+  turnEntries,
+  isMobile,
+}: {
+  content: string;
+  durationMs?: number;
+  isLastInTurn?: boolean;
+  turnEntries?: LogEntry[];
+  isMobile?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{ margin: "4px 0", position: "relative" }}>
       <button
         onClick={() => setOpen(!open)}
         style={{
-          display: "flex", alignItems: "center", gap: 6,
-          padding: "4px 8px", border: "none", background: "transparent",
-          color: "var(--text-faint)", fontSize: isMobile ? 13 : 11, cursor: "pointer",
-          width: "100%", textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "4px 8px",
+          border: "none",
+          background: "transparent",
+          color: "var(--text-faint)",
+          fontSize: isMobile ? 13 : 11,
+          cursor: "pointer",
+          width: "100%",
+          textAlign: "left",
         }}
       >
         <span style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", display: "inline-block" }}>&#9654;</span>
@@ -37,13 +56,24 @@ export function ThinkingBlock({ content, durationMs, isLastInTurn, turnEntries, 
         {durationMs != null && <DurationLabel ms={durationMs} isMobile={isMobile} />}
       </button>
       {open && (
-        <div style={{
-          margin: "4px 0 4px 20px", padding: "8px 12px",
-          borderRadius: 8, background: "var(--thinking-bg)",
-          borderLeft: "2px solid var(--thinking-border)",
-          color: "var(--text-faint)", fontSize: isMobile ? 14 : 12, fontFamily: "'JetBrains Mono',monospace",
-          lineHeight: 1.6, whiteSpace: "pre-wrap", maxHeight: 300, overflowY: "auto", overflowWrap: "break-word", wordBreak: "break-word",
-        }}>
+        <div
+          style={{
+            margin: "4px 0 4px 20px",
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "var(--thinking-bg)",
+            borderLeft: "2px solid var(--thinking-border)",
+            color: "var(--text-faint)",
+            fontSize: isMobile ? 14 : 12,
+            fontFamily: "'JetBrains Mono',monospace",
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
+            maxHeight: 300,
+            overflowY: "auto",
+            overflowWrap: "break-word",
+            wordBreak: "break-word",
+          }}
+        >
           {content}
         </div>
       )}
@@ -54,13 +84,23 @@ export function ThinkingBlock({ content, durationMs, isLastInTurn, turnEntries, 
 
 export function ErrorBlock({ content, isLastInTurn, turnEntries, isMobile }: { content: string; isLastInTurn?: boolean; turnEntries?: LogEntry[]; isMobile?: boolean }) {
   return (
-    <div style={{
-      margin: "8px 0", padding: "10px 14px",
-      borderRadius: 8, background: "var(--red-bg)",
-      borderLeft: "3px solid var(--red)",
-      color: "var(--red)", fontSize: isMobile ? 14 : 12, fontFamily: "'JetBrains Mono',monospace",
-      lineHeight: 1.5, whiteSpace: "pre-wrap", overflowWrap: "break-word", wordBreak: "break-word", position: "relative",
-    }}>
+    <div
+      style={{
+        margin: "8px 0",
+        padding: "10px 14px",
+        borderRadius: 8,
+        background: "var(--red-bg)",
+        borderLeft: "3px solid var(--red)",
+        color: "var(--red)",
+        fontSize: isMobile ? 14 : 12,
+        fontFamily: "'JetBrains Mono',monospace",
+        lineHeight: 1.5,
+        whiteSpace: "pre-wrap",
+        overflowWrap: "break-word",
+        wordBreak: "break-word",
+        position: "relative",
+      }}
+    >
       {content}
       {isLastInTurn && <TurnCopyButton turnEntries={turnEntries} />}
     </div>
@@ -70,15 +110,18 @@ export function ErrorBlock({ content, isLastInTurn, turnEntries, isMobile }: { c
 export function SystemMessage({ content, isMobile }: { content: string; isMobile?: boolean }) {
   const isMultiline = content.includes("\n");
   return (
-    <div style={{
-      margin: "8px 0", padding: "6px 0",
-      textAlign: isMultiline ? "left" : "center",
-      color: isMultiline ? "var(--text-dim)" : "var(--text-ghost)",
-      fontSize: isMultiline ? (isMobile ? 15 : 13) : (isMobile ? 13 : 11),
-      fontFamily: isMultiline ? "'JetBrains Mono',monospace" : undefined,
-      fontStyle: isMultiline ? "normal" : "italic",
-      ...(!isMultiline && { whiteSpace: "pre-wrap" }),
-    }}>
+    <div
+      style={{
+        margin: "8px 0",
+        padding: "6px 0",
+        textAlign: isMultiline ? "left" : "center",
+        color: isMultiline ? "var(--text-dim)" : "var(--text-ghost)",
+        fontSize: isMultiline ? (isMobile ? 15 : 13) : isMobile ? 13 : 11,
+        fontFamily: isMultiline ? "'JetBrains Mono',monospace" : undefined,
+        fontStyle: isMultiline ? "normal" : "italic",
+        ...(!isMultiline && { whiteSpace: "pre-wrap" }),
+      }}
+    >
       {isMultiline ? <Markdown content={content} /> : content}
     </div>
   );

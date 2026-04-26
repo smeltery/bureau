@@ -39,65 +39,35 @@ export function LogEntryCard({
       if (isEditing) {
         return <EditableUserMessage content={entry.content} entryId={entry.id} isMobile={isMobile} username={username} onCancel={onCancelEdit} onSubmit={onSubmitEdit} />;
       }
-      return <UserMessage content={entry.content} isMobile={isMobile} username={username} attachments={entry.attachments} agentId={entry.agentId} canEdit={canEdit} onEdit={onStartEdit ? () => onStartEdit(entry.id) : undefined} />;
+      return (
+        <UserMessage
+          content={entry.content}
+          isMobile={isMobile}
+          username={username}
+          attachments={entry.attachments}
+          agentId={entry.agentId}
+          canEdit={canEdit}
+          onEdit={onStartEdit ? () => onStartEdit(entry.id) : undefined}
+        />
+      );
     }
     case "text":
-      return (
-        <AssistantText
-          content={entry.content}
-          isLastInTurn={isLastInTurn}
-          turnEntries={turnEntries}
-          isMobile={isMobile}
-        />
-      );
+      return <AssistantText content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     case "thinking": {
       const durationMs = entry.metadata?.duration_ms as number | undefined;
-      return (
-        <ThinkingBlock
-          content={entry.content}
-          durationMs={durationMs}
-          isLastInTurn={isLastInTurn}
-          turnEntries={turnEntries}
-          isMobile={isMobile}
-        />
-      );
+      return <ThinkingBlock content={entry.content} durationMs={durationMs} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     }
     case "tool_call": {
       // Find matching tool_result to get duration
       const toolId = entry.metadata?.toolId;
-      const matchingResult = turnEntries?.find(
-        (e) => e.kind === "tool_result" && e.metadata?.toolUseId === toolId
-      );
+      const matchingResult = turnEntries?.find((e) => e.kind === "tool_result" && e.metadata?.toolUseId === toolId);
       const durationMs = matchingResult?.metadata?.duration_ms as number | undefined;
-      return (
-        <ToolCall
-          name={entry.content}
-          input={entry.metadata?.input}
-          durationMs={durationMs}
-          isLastInTurn={isLastInTurn}
-          turnEntries={turnEntries}
-          isMobile={isMobile}
-        />
-      );
+      return <ToolCall name={entry.content} input={entry.metadata?.input} durationMs={durationMs} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     }
     case "tool_result":
-      return (
-        <ToolResult
-          entry={entry}
-          isLastInTurn={isLastInTurn}
-          turnEntries={turnEntries}
-          isMobile={isMobile}
-        />
-      );
+      return <ToolResult entry={entry} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     case "error":
-      return (
-        <ErrorBlock
-          content={entry.content}
-          isLastInTurn={isLastInTurn}
-          turnEntries={turnEntries}
-          isMobile={isMobile}
-        />
-      );
+      return <ErrorBlock content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     case "system":
       return <SystemMessage content={entry.content} isMobile={isMobile} />;
     default:

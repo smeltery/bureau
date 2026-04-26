@@ -11,12 +11,7 @@
  * Read operations on ~/.bureau/ are always allowed (agents need discovery/logs).
  */
 
-import type {
-  HookCallback,
-  HookCallbackMatcher,
-  HookEvent,
-  PreToolUseHookInput,
-} from "@anthropic-ai/claude-agent-sdk";
+import type { HookCallback, HookCallbackMatcher, HookEvent, PreToolUseHookInput } from "@anthropic-ai/claude-agent-sdk";
 import { basename, resolve } from "path";
 import { homedir } from "os";
 import { allow, deny, denyMessage, denySecretRead } from "./deny-helpers.ts";
@@ -40,15 +35,11 @@ const checkBashSafety: HookCallback = async (input) => {
 
   // Check ~/.bureau/ write protection first
   if (commandWritesToBureau(stripped)) {
-    return denyMessage(
-      "Writing to ~/.bureau/ is not allowed. This directory is managed by the bureau server. " +
-      "Read operations (cat, ls, grep, etc.) are permitted.",
-      command,
-    );
+    return denyMessage("Writing to ~/.bureau/ is not allowed. This directory is managed by the bureau server. " + "Read operations (cat, ls, grep, etc.) are permitted.", command);
   }
 
   // Check sensitive file reads via shell commands (cat .env, head key.pem, etc.)
-  const subCommands = normalized.split(/[|;&]+/).map(s => s.trim());
+  const subCommands = normalized.split(/[|;&]+/).map((s) => s.trim());
   for (const sub of subCommands) {
     const tokens = sub.split(/\s+/);
     const cmd = tokens[0]?.replace(/^.*\//, "") ?? "";
@@ -59,8 +50,8 @@ const checkBashSafety: HookCallback = async (input) => {
       if (isSensitiveFile(arg)) {
         return denyMessage(
           `"${basename(arg)}" may contain secrets. Agents are not allowed ` +
-          `to read sensitive files (.env, private keys, credentials, etc.). ` +
-          `If you need a value from this file, ask the user to provide it.`,
+            `to read sensitive files (.env, private keys, credentials, etc.). ` +
+            `If you need a value from this file, ask the user to provide it.`,
           command,
         );
       }
@@ -88,19 +79,15 @@ const checkWriteEditSafety: HookCallback = async (input) => {
   if (typeof filePath !== "string" || !filePath) return allow();
 
   // Resolve ~ and relative paths
-  const resolved = filePath.startsWith("~/")
-    ? resolve(homedir(), filePath.slice(2))
-    : filePath.startsWith("~")
-      ? homedir()
-      : resolve(filePath);
+  const resolved = filePath.startsWith("~/") ? resolve(homedir(), filePath.slice(2)) : filePath.startsWith("~") ? homedir() : resolve(filePath);
 
   if (resolved === BUREAU_DIR || resolved.startsWith(BUREAU_DIR + "/")) {
     return deny(
       `BLOCKED by bureau safety hooks\n\n` +
-      `Reason: Writing to ~/.bureau/ is not allowed. This directory is managed by the bureau server.\n\n` +
-      `${tool_name} target: ${filePath}\n\n` +
-      `If this operation is truly needed, ask the user for explicit ` +
-      `permission and have them run the command manually.`
+        `Reason: Writing to ~/.bureau/ is not allowed. This directory is managed by the bureau server.\n\n` +
+        `${tool_name} target: ${filePath}\n\n` +
+        `If this operation is truly needed, ask the user for explicit ` +
+        `permission and have them run the command manually.`,
     );
   }
 

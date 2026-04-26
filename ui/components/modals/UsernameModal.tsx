@@ -1,14 +1,6 @@
 import { useState, useEffect } from "react";
 
-export function UsernameModal({
-  onSave,
-  onClose,
-  defaultValue,
-}: {
-  onSave: (name: string) => void;
-  onClose?: () => void;
-  defaultValue?: string;
-}) {
+export function UsernameModal({ onSave, onClose, defaultValue }: { onSave: (name: string) => void; onClose?: () => void; defaultValue?: string }) {
   const [name, setName] = useState(defaultValue ?? "");
   const isEditing = defaultValue != null;
   const canSubmit = name.trim().length > 0;
@@ -31,7 +23,13 @@ export function UsernameModal({
 
   return (
     <div
-      onMouseDown={canClose ? (e) => { if (e.target === e.currentTarget) onClose!(); } : undefined}
+      onMouseDown={
+        canClose
+          ? (e) => {
+              if (e.target === e.currentTarget) onClose!();
+            }
+          : undefined
+      }
       style={{
         position: "fixed",
         inset: 0,

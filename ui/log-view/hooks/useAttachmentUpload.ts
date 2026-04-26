@@ -27,17 +27,32 @@ export function useAttachmentUpload(agentId: string) {
     for (const file of Array.from(files)) {
       if (file.size > 20 * 1024 * 1024) {
         const id = Math.random().toString(36).slice(2, 10);
-        setStagedAttachments((prev) => [...prev, {
-          id, filename: "", originalName: file.name, mediaType: file.type || "application/octet-stream", size: file.size,
-          uploading: false, error: "File too large (max 20MB)",
-        }]);
+        setStagedAttachments((prev) => [
+          ...prev,
+          {
+            id,
+            filename: "",
+            originalName: file.name,
+            mediaType: file.type || "application/octet-stream",
+            size: file.size,
+            uploading: false,
+            error: "File too large (max 20MB)",
+          },
+        ]);
         continue;
       }
       const id = Math.random().toString(36).slice(2, 10);
-      setStagedAttachments((prev) => [...prev, {
-        id, filename: "", originalName: file.name, mediaType: file.type || "application/octet-stream", size: file.size,
-        uploading: true,
-      }]);
+      setStagedAttachments((prev) => [
+        ...prev,
+        {
+          id,
+          filename: "",
+          originalName: file.name,
+          mediaType: file.type || "application/octet-stream",
+          size: file.size,
+          uploading: true,
+        },
+      ]);
       const formData = new FormData();
       formData.append("file", file);
       fetch(`/api/upload/${agentId}`, { method: "POST", body: formData })
@@ -47,14 +62,10 @@ export function useAttachmentUpload(agentId: string) {
         })
         .then((data: { attachments: Attachment[] }) => {
           const att = data.attachments[0];
-          setStagedAttachments((prev) => prev.map((s) =>
-            s.id === id ? { ...s, ...att, uploading: false } : s
-          ));
+          setStagedAttachments((prev) => prev.map((s) => (s.id === id ? { ...s, ...att, uploading: false } : s)));
         })
         .catch((err) => {
-          setStagedAttachments((prev) => prev.map((s) =>
-            s.id === id ? { ...s, uploading: false, error: err.message } : s
-          ));
+          setStagedAttachments((prev) => prev.map((s) => (s.id === id ? { ...s, uploading: false, error: err.message } : s)));
         });
     }
   }

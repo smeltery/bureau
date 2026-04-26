@@ -66,11 +66,13 @@ const server = Bun.serve({
       // Send tasks
       ws.send(JSON.stringify({ type: "tasks", tasks } as ServerMessage));
       // Send cronjobs + cronjobsPrompt
-      ws.send(JSON.stringify({
-        type: "cronjobs_state",
-        cronjobs: CronjobManager.listCronjobs(),
-        cronjobsPrompt: CronjobManager.getCronjobsPrompt(),
-      } as ServerMessage));
+      ws.send(
+        JSON.stringify({
+          type: "cronjobs_state",
+          cronjobs: CronjobManager.listCronjobs(),
+          cronjobsPrompt: CronjobManager.getCronjobsPrompt(),
+        } as ServerMessage),
+      );
       // Send update status
       const update = getUpdateStatus();
       if (update.updateAvailable) {
@@ -84,12 +86,14 @@ const server = Bun.serve({
         }
         const cmds = AgentManager.getAgentCommands(agent.id);
         if (cmds.commands.length > 0 || cmds.skills.length > 0) {
-          ws.send(JSON.stringify({
-            type: "slash_commands",
-            agentId: agent.id,
-            commands: cmds.commands,
-            skills: cmds.skills,
-          } as ServerMessage));
+          ws.send(
+            JSON.stringify({
+              type: "slash_commands",
+              agentId: agent.id,
+              commands: cmds.commands,
+              skills: cmds.skills,
+            } as ServerMessage),
+          );
         }
       }
     },

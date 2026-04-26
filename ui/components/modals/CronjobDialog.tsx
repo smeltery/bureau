@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../../store.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
-import {
-  MODEL_FAMILIES,
-  modelVersionLabel,
-  type Cronjob,
-  type CronjobPermissionMode,
-  type ModelFamily,
-  type Schedule,
-} from "../../../shared/types.ts";
+import { MODEL_FAMILIES, modelVersionLabel, type Cronjob, type CronjobPermissionMode, type ModelFamily, type Schedule } from "../../../shared/types.ts";
 
 const WEEKDAYS: { value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }[] = [
   { value: 0, label: "Sunday" },
@@ -22,15 +15,7 @@ const WEEKDAYS: { value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }[] = [
 
 type ScheduleType = "daily" | "weekly" | "interval";
 
-export function CronjobDialog({
-  cronjob,
-  username,
-  onClose,
-}: {
-  cronjob?: Cronjob;
-  username: string;
-  onClose: () => void;
-}) {
+export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjob; username: string; onClose: () => void }) {
   const isEdit = !!cronjob;
   const { recentCwds, isMobile } = useAppState();
 
@@ -58,9 +43,7 @@ export function CronjobDialog({
   const [cwd, setCwd] = useState(cronjob?.cwd ?? "~");
   const [modelFamily, setModelFamily] = useState<ModelFamily>(cronjob?.modelFamily ?? "opus");
   const initialPermission: CronjobPermissionMode =
-    cronjob?.permissionMode === "auto" && (cronjob?.modelFamily ?? "opus") !== "opus"
-      ? "bypassPermissions"
-      : (cronjob?.permissionMode ?? "bypassPermissions");
+    cronjob?.permissionMode === "auto" && (cronjob?.modelFamily ?? "opus") !== "opus" ? "bypassPermissions" : (cronjob?.permissionMode ?? "bypassPermissions");
   const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(initialPermission);
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
 
@@ -80,7 +63,10 @@ export function CronjobDialog({
   // ESC to close
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { e.stopPropagation(); onClose(); }
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
     }
     window.addEventListener("keydown", handleKey, true);
     return () => window.removeEventListener("keydown", handleKey, true);
@@ -150,14 +136,19 @@ export function CronjobDialog({
 
   function handleDelete() {
     if (!cronjob) return;
-    if (!confirmDelete) { setConfirmDelete(true); return; }
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     send({ type: "delete_cronjob", id: cronjob.id });
     onClose();
   }
 
   return (
     <div
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -186,30 +177,14 @@ export function CronjobDialog({
         }}
       >
         <div style={{ overflowY: "auto", flex: 1, padding: isMobile ? "max(24px, env(safe-area-inset-top)) 20px 0" : "24px 28px 0" }}>
-          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
-            {isEdit ? "Edit Cronjob" : "New Cronjob"}
-          </h3>
-          {isEdit && (
-            <p style={{ fontSize: 11, color: "var(--text-faint)", margin: "2px 0 18px", fontFamily: "'JetBrains Mono',monospace" }}>
-              #{cronjob!.id}
-            </p>
-          )}
+          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{isEdit ? "Edit Cronjob" : "New Cronjob"}</h3>
+          {isEdit && <p style={{ fontSize: 11, color: "var(--text-faint)", margin: "2px 0 18px", fontFamily: "'JetBrains Mono',monospace" }}>#{cronjob!.id}</p>}
 
           <label style={labelStyle}>Name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Daily summary"
-            autoFocus={!isEdit}
-            style={inputStyle}
-          />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Daily summary" autoFocus={!isEdit} style={inputStyle} />
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Schedule</label>
-          <select
-            value={scheduleType}
-            onChange={(e) => setScheduleType(e.target.value as ScheduleType)}
-            style={{ ...inputStyle, appearance: "none", cursor: "pointer", marginBottom: 6 }}
-          >
+          <select value={scheduleType} onChange={(e) => setScheduleType(e.target.value as ScheduleType)} style={{ ...inputStyle, appearance: "none", cursor: "pointer", marginBottom: 6 }}>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="interval">Every N minutes</option>
@@ -221,7 +196,9 @@ export function CronjobDialog({
               style={{ ...inputStyle, appearance: "none", cursor: "pointer", marginBottom: 6 }}
             >
               {WEEKDAYS.map((d) => (
-                <option key={d.value} value={d.value}>{d.label}</option>
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
               ))}
             </select>
           )}
@@ -278,11 +255,7 @@ export function CronjobDialog({
           />
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Working Directory</label>
-          <input
-            value={cwd}
-            onChange={(e) => setCwd(e.target.value)}
-            style={inputStyle}
-          />
+          <input value={cwd} onChange={(e) => setCwd(e.target.value)} style={inputStyle} />
           {recentCwdsFiltered.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
               {recentCwdsFiltered.map((c) => (
@@ -304,51 +277,41 @@ export function CronjobDialog({
             style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
           >
             {MODEL_FAMILIES.map((m) => (
-              <option key={m.family} value={m.family}>{m.label} ({modelVersionLabel(m.family)})</option>
+              <option key={m.family} value={m.family}>
+                {m.label} ({modelVersionLabel(m.family)})
+              </option>
             ))}
           </select>
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Permission Mode</label>
-          <select
-            value={permissionMode}
-            onChange={(e) => setPermissionMode(e.target.value as CronjobPermissionMode)}
-            style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
-          >
+          <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as CronjobPermissionMode)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
             {modelFamily === "opus" && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
             <option value="bypassPermissions">Bypass (auto-approve all)</option>
           </select>
-          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>
-            Cronjobs run unattended — modes that require human approval are not available.
-          </p>
+          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Cronjobs run unattended — modes that require human approval are not available.</p>
 
           {isEdit && (
             <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8 }}>
-              <input
-                type="checkbox"
-                id="cronjob-enabled"
-                checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
-                style={{ width: 16, height: 16, cursor: "pointer" }}
-              />
+              <input type="checkbox" id="cronjob-enabled" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} style={{ width: 16, height: 16, cursor: "pointer" }} />
               <label htmlFor="cronjob-enabled" style={{ fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
                 Enabled (uncheck to pause without deleting)
               </label>
             </div>
           )}
 
-          {error && (
-            <p style={{ fontSize: 11, color: "#ff6b6b", margin: "10px 0 0" }}>{error}</p>
-          )}
+          {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "10px 0 0" }}>{error}</p>}
         </div>
 
-        <div style={{
-          display: "flex",
-          justifyContent: isEdit ? "space-between" : "flex-end",
-          gap: 8,
-          padding: isMobile ? "16px 20px max(16px, env(safe-area-inset-bottom))" : "16px 28px",
-          borderTop: "1px solid var(--border)",
-          flexShrink: 0,
-        }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: isEdit ? "space-between" : "flex-end",
+            gap: 8,
+            padding: isMobile ? "16px 20px max(16px, env(safe-area-inset-bottom))" : "16px 28px",
+            borderTop: "1px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
           {isEdit && (
             <button
               onClick={handleDelete}
@@ -369,8 +332,12 @@ export function CronjobDialog({
             </button>
           )}
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>Cancel</button>
-            <button onClick={handleSave} style={saveBtnStyle} disabled={saving}>{saving ? "Saving…" : (isEdit ? "Save" : "Create")}</button>
+            <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>
+              Cancel
+            </button>
+            <button onClick={handleSave} style={saveBtnStyle} disabled={saving}>
+              {saving ? "Saving…" : isEdit ? "Save" : "Create"}
+            </button>
           </div>
         </div>
       </div>

@@ -1,12 +1,4 @@
-import {
-  listAllAgentIdsOnDisk,
-  listAllCronjobIdsOnDisk,
-  loadAgentHistory,
-  loadCronjobHistory,
-  loadLog,
-  loadSessionsMap,
-  type PersistedUsage,
-} from "../persistence.ts";
+import { listAllAgentIdsOnDisk, listAllCronjobIdsOnDisk, loadAgentHistory, loadCronjobHistory, loadLog, loadSessionsMap, type PersistedUsage } from "../persistence.ts";
 import { listCronjobs, readCronjobLifetimeUsage } from "../cronjobs/index.ts";
 import { agents, rooms } from "./state.ts";
 
@@ -67,7 +59,13 @@ export function formatUsd(n: number): string {
 // message — so "cached as a % of totalIn" is always ~100% and meaningless.
 // The useful signal is hit-rate over *cacheable* input: cacheRead / (cacheRead
 // + cacheCreation), which drops when the cache expires and gets rewritten.
-export interface UsageBucket { totalIn: number; cacheRead: number; cacheCreation: number; totalOut: number; costUSD: number; }
+export interface UsageBucket {
+  totalIn: number;
+  cacheRead: number;
+  cacheCreation: number;
+  totalOut: number;
+  costUSD: number;
+}
 
 export function emptyBucket(): UsageBucket {
   return { totalIn: 0, cacheRead: 0, cacheCreation: 0, totalOut: 0, costUSD: 0 };
@@ -101,8 +99,7 @@ export function readAgentUsage(agentId: string, currentSessionId: string | null)
     const cacheReadInputTokens = (u?.cacheReadInputTokens ?? 0) + (p?.cacheReadInputTokens ?? 0);
     const cacheCreationInputTokens = (u?.cacheCreationInputTokens ?? 0) + (p?.cacheCreationInputTokens ?? 0);
     const costUSD = (u?.costUSD ?? 0) + (p?.costUSD ?? 0);
-    lifetime.totalIn += inputTokens + cacheReadInputTokens + cacheCreationInputTokens
-      - ((base?.inputTokens ?? 0) + (base?.cacheReadInputTokens ?? 0) + (base?.cacheCreationInputTokens ?? 0));
+    lifetime.totalIn += inputTokens + cacheReadInputTokens + cacheCreationInputTokens - ((base?.inputTokens ?? 0) + (base?.cacheReadInputTokens ?? 0) + (base?.cacheCreationInputTokens ?? 0));
     lifetime.cacheRead += cacheReadInputTokens - (base?.cacheReadInputTokens ?? 0);
     lifetime.cacheCreation += cacheCreationInputTokens - (base?.cacheCreationInputTokens ?? 0);
     lifetime.totalOut += outputTokens - (base?.outputTokens ?? 0);
@@ -113,9 +110,8 @@ export function readAgentUsage(agentId: string, currentSessionId: string | null)
   if (sessEntry && (sessEntry.usage || sessEntry.priorRunsUsage)) {
     const u = sessEntry.usage;
     const p = sessEntry.priorRunsUsage;
-    session.totalIn = (u?.inputTokens ?? 0) + (p?.inputTokens ?? 0)
-      + (u?.cacheReadInputTokens ?? 0) + (p?.cacheReadInputTokens ?? 0)
-      + (u?.cacheCreationInputTokens ?? 0) + (p?.cacheCreationInputTokens ?? 0);
+    session.totalIn =
+      (u?.inputTokens ?? 0) + (p?.inputTokens ?? 0) + (u?.cacheReadInputTokens ?? 0) + (p?.cacheReadInputTokens ?? 0) + (u?.cacheCreationInputTokens ?? 0) + (p?.cacheCreationInputTokens ?? 0);
     session.cacheRead = (u?.cacheReadInputTokens ?? 0) + (p?.cacheReadInputTokens ?? 0);
     session.cacheCreation = (u?.cacheCreationInputTokens ?? 0) + (p?.cacheCreationInputTokens ?? 0);
     session.totalOut = (u?.outputTokens ?? 0) + (p?.outputTokens ?? 0);
@@ -173,9 +169,7 @@ export function findUsageAtFork(agentId: string, parentSessionId: string, forkMe
 export function renderUsageReport(): string {
   const lines: string[] = [];
 
-  lines.push(
-    `_Subscription plan limits aren't shown here — open the embedded terminal (desktop only), run \`claude\`, then \`/usage\`._`,
-  );
+  lines.push(`_Subscription plan limits aren't shown here — open the embedded terminal (desktop only), run \`claude\`, then \`/usage\`._`);
   lines.push("");
 
   // Office-wide table: per-agent session and lifetime usage. "In" is all
@@ -298,9 +292,7 @@ export function renderUsageReport(): string {
     lines.push(`| --- | ---: | ---: | ---: |`);
     for (const r of cronjobRows) {
       const label = r.deleted ? `${r.name} _(deleted)_` : r.name;
-      lines.push(
-        `| ${label} | ${formatInCell(r.life)} | ${formatTokenCount(r.life.totalOut)} | ${formatUsd(r.life.costUSD)} |`,
-      );
+      lines.push(`| ${label} | ${formatInCell(r.life)} | ${formatTokenCount(r.life.totalOut)} | ${formatUsd(r.life.costUSD)} |`);
     }
   }
 

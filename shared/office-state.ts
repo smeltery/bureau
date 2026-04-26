@@ -45,10 +45,18 @@ export class OfficeState {
   private _tasks: TaskItem[] = [];
   private _recentCwds: string[] = [];
 
-  get rooms() { return this._rooms; }
-  get office() { return this._office; }
-  get tasks() { return this._tasks; }
-  get recentCwds() { return this._recentCwds; }
+  get rooms() {
+    return this._rooms;
+  }
+  get office() {
+    return this._office;
+  }
+  get tasks() {
+    return this._tasks;
+  }
+  get recentCwds() {
+    return this._recentCwds;
+  }
 
   getState(): OfficeStateData {
     return {
@@ -120,7 +128,10 @@ export class OfficeState {
     } else {
       desk = -1;
       for (let i = 0; i < 8; i++) {
-        if (!taken.has(i)) { desk = i; break; }
+        if (!taken.has(i)) {
+          desk = i;
+          break;
+        }
       }
     }
     if (desk === -1) return null; // room full
@@ -274,7 +285,10 @@ export class OfficeState {
     const taken = new Set(targetAgents.map((a) => a.desk));
     let newDesk = -1;
     for (let i = 0; i < 8; i++) {
-      if (!taken.has(i)) { newDesk = i; break; }
+      if (!taken.has(i)) {
+        newDesk = i;
+        break;
+      }
     }
     if (newDesk === -1) return [];
 
@@ -315,7 +329,7 @@ export class OfficeState {
 
   addTask(title: string, createdBy: string, opts?: { description?: string; priority?: TaskPriority; assignee?: string }): OfficeEvent[] {
     const task: TaskItem = {
-      id: generateTaskId(this._tasks.map(t => t.id)),
+      id: generateTaskId(this._tasks.map((t) => t.id)),
       title: title.trim(),
       description: opts?.description,
       priority: opts?.priority,

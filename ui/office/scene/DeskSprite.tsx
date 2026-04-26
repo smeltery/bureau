@@ -18,15 +18,35 @@ function visualState(state: AgentState): "working" | "waiting_for_response" | "e
 // Leaf pattern variants — each is 3 stems with [quadratic control points, stroke color, width]
 const PLANT_VARIANTS: Array<Array<[string, string, number]>> = [
   // Upright bushy
-  [["M0 0 Q-6 -8 -2 -14", "#3a7a3a", 1.5], ["M0 -2 Q4 -10 8 -12", "#4a8a4a", 1.2], ["M0 -1 Q-3 -6 1 -10", "#3a7a3a", 1]],
+  [
+    ["M0 0 Q-6 -8 -2 -14", "#3a7a3a", 1.5],
+    ["M0 -2 Q4 -10 8 -12", "#4a8a4a", 1.2],
+    ["M0 -1 Q-3 -6 1 -10", "#3a7a3a", 1],
+  ],
   // Droopy fern
-  [["M0 0 Q-8 -5 -10 -10", "#2e8a4a", 1.4], ["M0 -1 Q6 -8 10 -8", "#3a9a5a", 1.1], ["M0 0 Q-2 -9 2 -13", "#2e7a3a", 1]],
+  [
+    ["M0 0 Q-8 -5 -10 -10", "#2e8a4a", 1.4],
+    ["M0 -1 Q6 -8 10 -8", "#3a9a5a", 1.1],
+    ["M0 0 Q-2 -9 2 -13", "#2e7a3a", 1],
+  ],
   // Spiky succulent
-  [["M0 0 Q-2 -10 -1 -15", "#4a8a3a", 1.6], ["M0 -1 Q3 -10 5 -14", "#5a9a4a", 1.3], ["M0 0 Q-4 -7 -6 -11", "#4a7a3a", 1.1]],
+  [
+    ["M0 0 Q-2 -10 -1 -15", "#4a8a3a", 1.6],
+    ["M0 -1 Q3 -10 5 -14", "#5a9a4a", 1.3],
+    ["M0 0 Q-4 -7 -6 -11", "#4a7a3a", 1.1],
+  ],
   // Wide spreading
-  [["M0 0 Q-9 -6 -12 -9", "#3a8a4a", 1.3], ["M0 -1 Q8 -6 12 -8", "#4a9a3a", 1.2], ["M0 0 Q0 -8 -1 -13", "#3a7a4a", 1.4]],
+  [
+    ["M0 0 Q-9 -6 -12 -9", "#3a8a4a", 1.3],
+    ["M0 -1 Q8 -6 12 -8", "#4a9a3a", 1.2],
+    ["M0 0 Q0 -8 -1 -13", "#3a7a4a", 1.4],
+  ],
   // Tall single stem with side shoots
-  [["M0 0 Q-1 -10 0 -16", "#3a8a3a", 1.6], ["M0 -6 Q-6 -10 -8 -12", "#4a9a4a", 1], ["M0 -8 Q5 -11 7 -13", "#3a7a3a", 0.9]],
+  [
+    ["M0 0 Q-1 -10 0 -16", "#3a8a3a", 1.6],
+    ["M0 -6 Q-6 -10 -8 -12", "#4a9a4a", 1],
+    ["M0 -8 Q5 -11 7 -13", "#3a7a3a", 0.9],
+  ],
 ];
 
 // Book color variants — [front cover, back/side, spine/dark] — green (index 0) is the BCTCI easter egg
@@ -175,12 +195,7 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily }: { state: 
         )}
         {on && (
           <path d="M66 30 L108 48" stroke={glow} strokeWidth="0.8" opacity="0.3">
-            <animate
-              attributeName="d"
-              values="M66 18 L108 37;M66 41 L108 60;M66 18 L108 37"
-              dur="4s"
-              repeatCount="indefinite"
-            />
+            <animate attributeName="d" values="M66 18 L108 37;M66 41 L108 60;M66 18 L108 37" dur="4s" repeatCount="indefinite" />
           </path>
         )}
         {/* CWD text on monitor */}
@@ -223,12 +238,7 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily }: { state: 
           {/* Steam when active */}
           {on && (
             <path d="M138 53 Q136 47 140 43" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8">
-              <animate
-                attributeName="d"
-                values="M138 53 Q136 47 140 43;M138 53 Q140 45 137 40;M138 53 Q136 47 140 43"
-                dur="2.5s"
-                repeatCount="indefinite"
-              />
+              <animate attributeName="d" values="M138 53 Q136 47 140 43;M138 53 Q140 45 137 40;M138 53 Q136 47 140 43" dur="2.5s" repeatCount="indefinite" />
             </path>
           )}
         </g>
@@ -258,38 +268,39 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily }: { state: 
           <path d="M9.5 8.5 L12 10 L9.5 11.5" fill="#D8A030" transform="rotate(-5 4 10.5)" />
         </g>
       )}
-      {modelFamily === "opus" && (() => {
-        const [bookFront, bookBack, bookSpine] = BOOK_VARIANTS[deskIndex % BOOK_VARIANTS.length];
-        const isGreen = deskIndex % BOOK_VARIANTS.length === 0;
-        return (
-        <g transform="translate(102.5, 69.5) scale(0.8)">
-          {/* Book on desk — color varies by desk */}
-          <path d="M-4 8 L15 -1.5 L29 5.5 L10 15 Z" fill={bookBack} />
-          <path d="M-4 8 L10 15 L10 16 L-4 9 Z" fill={bookSpine} />
-          <path d="M-2 4 L10 10 L10 14 L-2 8 Z" fill="#F0EDE4" />
-          <path d="M10 16 L29 6.5 L29 -0.5 L10 9 Z" fill={bookSpine} />
-          <path d="M-4 2 L15 -7.5 L29 -0.5 L10 9 Z" fill={bookFront} />
-          <path d="M-4 2 L10 9 L10 10 L-4 3 Z" fill={bookBack} />
-          {/* Title lines — parallel to SW edge */}
-          <line x1="0.95" y1="1.63" x2="10.75" y2="6.53" stroke="#1a1a1a" strokeWidth="1.2" strokeLinecap="round" />
-          <line x1="4.82" y1="0.84" x2="11.12" y2="3.99" stroke="#1a1a1a" strokeWidth="0.9" strokeLinecap="round" />
-          {/* Silver clock — only on the green BCTCI book */}
-          {isGreen && (
-            <g transform="matrix(4.02,-2.01,4.02,2.01,15.35,-0.68)">
-              <circle cx="0" cy="0" r="1" fill="#C0C0C0" stroke="#888" strokeWidth="0.1" />
-              <circle cx="0" cy="0" r="0.88" fill="#D8D8D8" stroke="#A0A0A0" strokeWidth="0.04" />
-              <line x1="0" y1="-0.78" x2="0" y2="-0.6" stroke="#444" strokeWidth="0.07" />
-              <line x1="0.78" y1="0" x2="0.6" y2="0" stroke="#444" strokeWidth="0.07" />
-              <line x1="0" y1="0.78" x2="0" y2="0.6" stroke="#444" strokeWidth="0.07" />
-              <line x1="-0.78" y1="0" x2="-0.6" y2="0" stroke="#444" strokeWidth="0.07" />
-              <line x1="0" y1="0" x2="-0.33" y2="-0.48" stroke="#333" strokeWidth="0.1" strokeLinecap="round" />
-              <line x1="0" y1="0" x2="0.28" y2="-0.62" stroke="#333" strokeWidth="0.07" strokeLinecap="round" />
-              <circle cx="0" cy="0" r="0.08" fill="#555" />
+      {modelFamily === "opus" &&
+        (() => {
+          const [bookFront, bookBack, bookSpine] = BOOK_VARIANTS[deskIndex % BOOK_VARIANTS.length];
+          const isGreen = deskIndex % BOOK_VARIANTS.length === 0;
+          return (
+            <g transform="translate(102.5, 69.5) scale(0.8)">
+              {/* Book on desk — color varies by desk */}
+              <path d="M-4 8 L15 -1.5 L29 5.5 L10 15 Z" fill={bookBack} />
+              <path d="M-4 8 L10 15 L10 16 L-4 9 Z" fill={bookSpine} />
+              <path d="M-2 4 L10 10 L10 14 L-2 8 Z" fill="#F0EDE4" />
+              <path d="M10 16 L29 6.5 L29 -0.5 L10 9 Z" fill={bookSpine} />
+              <path d="M-4 2 L15 -7.5 L29 -0.5 L10 9 Z" fill={bookFront} />
+              <path d="M-4 2 L10 9 L10 10 L-4 3 Z" fill={bookBack} />
+              {/* Title lines — parallel to SW edge */}
+              <line x1="0.95" y1="1.63" x2="10.75" y2="6.53" stroke="#1a1a1a" strokeWidth="1.2" strokeLinecap="round" />
+              <line x1="4.82" y1="0.84" x2="11.12" y2="3.99" stroke="#1a1a1a" strokeWidth="0.9" strokeLinecap="round" />
+              {/* Silver clock — only on the green BCTCI book */}
+              {isGreen && (
+                <g transform="matrix(4.02,-2.01,4.02,2.01,15.35,-0.68)">
+                  <circle cx="0" cy="0" r="1" fill="#C0C0C0" stroke="#888" strokeWidth="0.1" />
+                  <circle cx="0" cy="0" r="0.88" fill="#D8D8D8" stroke="#A0A0A0" strokeWidth="0.04" />
+                  <line x1="0" y1="-0.78" x2="0" y2="-0.6" stroke="#444" strokeWidth="0.07" />
+                  <line x1="0.78" y1="0" x2="0.6" y2="0" stroke="#444" strokeWidth="0.07" />
+                  <line x1="0" y1="0.78" x2="0" y2="0.6" stroke="#444" strokeWidth="0.07" />
+                  <line x1="-0.78" y1="0" x2="-0.6" y2="0" stroke="#444" strokeWidth="0.07" />
+                  <line x1="0" y1="0" x2="-0.33" y2="-0.48" stroke="#333" strokeWidth="0.1" strokeLinecap="round" />
+                  <line x1="0" y1="0" x2="0.28" y2="-0.62" stroke="#333" strokeWidth="0.07" strokeLinecap="round" />
+                  <circle cx="0" cy="0" r="0.08" fill="#555" />
+                </g>
+              )}
             </g>
-          )}
-        </g>
-        );
-      })()}
+          );
+        })()}
 
       {/* Desk lamp — south corner */}
       <g transform="translate(72, 78)">

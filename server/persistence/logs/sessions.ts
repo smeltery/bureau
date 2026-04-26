@@ -26,7 +26,19 @@ export interface PersistedUsage {
 }
 
 type UsageSnapshot = { entryId: string; usage: PersistedUsage };
-type SessionsMap = Record<string, { topic: string | null; lastModified: number; forkedFrom?: string; forkMessageId?: string; usage?: PersistedUsage; priorRunsUsage?: PersistedUsage; forkBaseUsage?: PersistedUsage; usageSnapshots?: UsageSnapshot[] }>;
+type SessionsMap = Record<
+  string,
+  {
+    topic: string | null;
+    lastModified: number;
+    forkedFrom?: string;
+    forkMessageId?: string;
+    usage?: PersistedUsage;
+    priorRunsUsage?: PersistedUsage;
+    forkBaseUsage?: PersistedUsage;
+    usageSnapshots?: UsageSnapshot[];
+  }
+>;
 
 export function loadSessionsMap(agentId: string): SessionsMap {
   try {

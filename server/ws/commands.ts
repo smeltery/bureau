@@ -55,7 +55,14 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         }
         saveRecentCwd(cmd.cwd);
       }
-      AgentManager.editAgent(cmd.agentId, { name: cmd.name, cwd: cmd.cwd, outfit: cmd.outfit, customInstructions: cmd.customInstructions, modelFamily: cmd.modelFamily, permissionMode: cmd.permissionMode });
+      AgentManager.editAgent(cmd.agentId, {
+        name: cmd.name,
+        cwd: cmd.cwd,
+        outfit: cmd.outfit,
+        customInstructions: cmd.customInstructions,
+        modelFamily: cmd.modelFamily,
+        permissionMode: cmd.permissionMode,
+      });
       if (cmd.requestId) {
         ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
       }
@@ -158,13 +165,23 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         const keyCount = AgentManager.validateEnvPath(envFile);
         ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, envFile, ok: true, keyCount } as ServerMessage));
       } catch (err: any) {
-        ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, envFile, ok: false, error: err.message || "Invalid env file" } as ServerMessage));
+        ws.send(
+          JSON.stringify({
+            type: "settings_validation",
+            requestId: cmd.requestId,
+            scope: cmd.scope,
+            roomId: cmd.roomId,
+            envFile,
+            ok: false,
+            error: err.message || "Invalid env file",
+          } as ServerMessage),
+        );
       }
       break;
     }
     case "add_task": {
       const task: TaskItem = {
-        id: generateTaskId(tasks.map(t => t.id)),
+        id: generateTaskId(tasks.map((t) => t.id)),
         title: cmd.title.trim(),
         description: cmd.description,
         priority: cmd.priority && isValidPriority(cmd.priority) ? cmd.priority : undefined,

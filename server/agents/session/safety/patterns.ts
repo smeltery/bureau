@@ -5,50 +5,20 @@
 
 export const DESTRUCTIVE_PATTERNS: [RegExp, string][] = [
   // Git commands that discard uncommitted changes
-  [
-    /git\s+checkout\s+--\s+/,
-    "git checkout -- discards uncommitted changes permanently. Use 'git stash' first.",
-  ],
-  [
-    /git\s+checkout\s+(?!-b\b)(?!--orphan\b)[^\s]+\s+--\s+/,
-    "git checkout <ref> -- <path> overwrites working tree. Use 'git stash' first.",
-  ],
-  [
-    /git\s+restore\s+(?!--staged\b)(?!-S\b)/,
-    "git restore discards uncommitted changes. Use 'git stash' or 'git diff' first.",
-  ],
-  [
-    /git\s+restore\s+.*(?:--worktree|-W\b)/,
-    "git restore --worktree/-W discards uncommitted changes permanently.",
-  ],
+  [/git\s+checkout\s+--\s+/, "git checkout -- discards uncommitted changes permanently. Use 'git stash' first."],
+  [/git\s+checkout\s+(?!-b\b)(?!--orphan\b)[^\s]+\s+--\s+/, "git checkout <ref> -- <path> overwrites working tree. Use 'git stash' first."],
+  [/git\s+restore\s+(?!--staged\b)(?!-S\b)/, "git restore discards uncommitted changes. Use 'git stash' or 'git diff' first."],
+  [/git\s+restore\s+.*(?:--worktree|-W\b)/, "git restore --worktree/-W discards uncommitted changes permanently."],
   // Git reset variants
-  [
-    /git\s+reset\s+--hard/,
-    "git reset --hard destroys uncommitted changes. Use 'git stash' first.",
-  ],
-  [
-    /git\s+reset\s+--merge/,
-    "git reset --merge can lose uncommitted changes.",
-  ],
+  [/git\s+reset\s+--hard/, "git reset --hard destroys uncommitted changes. Use 'git stash' first."],
+  [/git\s+reset\s+--merge/, "git reset --merge can lose uncommitted changes."],
   // Git clean
-  [
-    /git\s+clean\s+-[a-z]*f/,
-    "git clean -f removes untracked files permanently. Review with 'git clean -n' first.",
-  ],
+  [/git\s+clean\s+-[a-z]*f/, "git clean -f removes untracked files permanently. Review with 'git clean -n' first."],
   // Force operations
   // Note: (?![-a-z]) ensures we only block bare --force, not --force-with-lease
-  [
-    /git\s+push\s+.*--force(?![-a-z])/,
-    "Force push can destroy remote history. Use --force-with-lease if necessary.",
-  ],
-  [
-    /git\s+push\s+.*-f\b/,
-    "Force push (-f) can destroy remote history. Use --force-with-lease if necessary.",
-  ],
-  [
-    /git\s+branch\s+-D\b/,
-    "git branch -D force-deletes without merge check. Use -d for safety.",
-  ],
+  [/git\s+push\s+.*--force(?![-a-z])/, "Force push can destroy remote history. Use --force-with-lease if necessary."],
+  [/git\s+push\s+.*-f\b/, "Force push (-f) can destroy remote history. Use --force-with-lease if necessary."],
+  [/git\s+branch\s+-D\b/, "git branch -D force-deletes without merge check. Use -d for safety."],
   // Filesystem safety — destructive rm commands
   // Note: [rR] because both -r and -R mean recursive in GNU coreutils
   // Specific root/home pattern MUST come before generic pattern
@@ -61,34 +31,22 @@ export const DESTRUCTIVE_PATTERNS: [RegExp, string][] = [
     "rm -rf is destructive and requires human approval. Explain what you want to delete and why, then ask the user to run the command manually.",
   ],
   // Catch rm with separate -r and -f flags (e.g., rm -r -f, rm -f -r)
-  [
-    /rm\s+(-[a-zA-Z]+\s+)*-[rR]\s+(-[a-zA-Z]+\s+)*-f|rm\s+(-[a-zA-Z]+\s+)*-f\s+(-[a-zA-Z]+\s+)*-[rR]/,
-    "rm with separate -r -f flags is destructive and requires human approval.",
-  ],
+  [/rm\s+(-[a-zA-Z]+\s+)*-[rR]\s+(-[a-zA-Z]+\s+)*-f|rm\s+(-[a-zA-Z]+\s+)*-f\s+(-[a-zA-Z]+\s+)*-[rR]/, "rm with separate -r -f flags is destructive and requires human approval."],
   // Catch rm with long options (--recursive, --force)
-  [
-    /rm\s+.*--recursive.*--force|rm\s+.*--force.*--recursive/,
-    "rm --recursive --force is destructive and requires human approval.",
-  ],
+  [/rm\s+.*--recursive.*--force|rm\s+.*--force.*--recursive/, "rm --recursive --force is destructive and requires human approval."],
   // Git stash drop/clear
-  [
-    /git\s+stash\s+drop/,
-    "git stash drop permanently deletes stashed changes. List stashes first.",
-  ],
-  [
-    /git\s+stash\s+clear/,
-    "git stash clear permanently deletes ALL stashed changes.",
-  ],
+  [/git\s+stash\s+drop/, "git stash drop permanently deletes stashed changes. List stashes first."],
+  [/git\s+stash\s+clear/, "git stash clear permanently deletes ALL stashed changes."],
 ];
 
 // Patterns that are safe even if they match above (allowlist)
 export const SAFE_PATTERNS: RegExp[] = [
-  /git\s+checkout\s+-b\s+/,                                          // Creating new branch
-  /git\s+checkout\s+--orphan\s+/,                                    // Creating orphan branch
-  /git\s+restore\s+--staged\s+(?!.*--worktree)(?!.*-W\b)/,          // Unstaging only (safe)
-  /git\s+restore\s+-S\s+(?!.*--worktree)(?!.*-W\b)/,                // Unstaging short form (safe)
-  /git\s+clean\s+-[a-z]*n[a-z]*/,                                   // Dry run (-n, -fn, -nf, etc.)
-  /git\s+clean\s+--dry-run/,                                        // Dry run (long form)
+  /git\s+checkout\s+-b\s+/, // Creating new branch
+  /git\s+checkout\s+--orphan\s+/, // Creating orphan branch
+  /git\s+restore\s+--staged\s+(?!.*--worktree)(?!.*-W\b)/, // Unstaging only (safe)
+  /git\s+restore\s+-S\s+(?!.*--worktree)(?!.*-W\b)/, // Unstaging short form (safe)
+  /git\s+clean\s+-[a-z]*n[a-z]*/, // Dry run (-n, -fn, -nf, etc.)
+  /git\s+clean\s+--dry-run/, // Dry run (long form)
   // Allow rm -rf on temp directories (-rf/-Rf and -fr/-fR flag orderings)
   /rm\s+-[a-zA-Z]*[rR][a-zA-Z]*f[a-zA-Z]*\s+\/tmp\//,
   /rm\s+-[a-zA-Z]*f[a-zA-Z]*[rR][a-zA-Z]*\s+\/tmp\//,

@@ -10,10 +10,7 @@
 // broadcasts log entries to the UI via the existing event bus. The synthetic
 // "stream id" used for log routing is `cronjobRunStreamId(runId)`.
 
-import {
-  unstable_v2_createSession,
-  type SDKMessage,
-} from "@anthropic-ai/claude-agent-sdk";
+import { unstable_v2_createSession, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import {
   FAMILY_TO_MODEL,
   generateCronjobId,
@@ -52,6 +49,10 @@ import { CLAUDE_NATIVE_BIN } from "../agents/session/runtime.ts";
 import { resolveCwd, validateCwd } from "../agents/session/paths.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
 import { officeConfig } from "../agents/state.ts";
+import { clampSchedule, computeNextFire } from "./schedule.ts";
+// Re-exported so external callers can use the same scheduler math (kept for
+// the public surface of this module before the refactor split it out).
+export { computeNextFire };
 
 // ---------------------------------------------------------------------------
 // In-memory state
@@ -62,12 +63,12 @@ interface ActiveRun {
   runId: string;
   streamId: string;
   session: ReturnType<typeof unstable_v2_createSession>;
-  sessionId: string | null;       // assigned on first system:init
-  rootSessionId: string;          // the run row's rootSessionId (placeholder until init)
+  sessionId: string | null; // assigned on first system:init
+  rootSessionId: string; // the run row's rootSessionId (placeholder until init)
   consumerPromise: Promise<void>;
   hardTimeoutTimer: ReturnType<typeof setTimeout> | null;
   lastWrittenEntryId: string | null;
-  lastAssistantText: string;      // for previewText computation
+  lastAssistantText: string; // for previewText computation
   trigger: CronjobRun["trigger"];
   killed: boolean;
   // Buffer entries created before SDK init assigns a sessionId. Without this,
@@ -83,7 +84,6 @@ let cronjobsPrompt: string | null = null;
 
 const HARD_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const TICK_INTERVAL_MS = 60 * 1000;
-const MIN_INTERVAL_MINUTES = 5;
 
 // ---------------------------------------------------------------------------
 // Event bus (server/index.ts wires this to the WebSocket broadcast)
@@ -101,58 +101,6 @@ let eventHandler: (e: CronjobEvent) => void = () => {};
 
 export function onCronjobEvent(handler: (e: CronjobEvent) => void) {
   eventHandler = handler;
-}
-
-// ---------------------------------------------------------------------------
-// Schedule math
-// ---------------------------------------------------------------------------
-
-export function computeNextFire(schedule: Schedule, anchor: number, now: number = Date.now()): number {
-  if (schedule.type === "interval") {
-    const intervalMs = Math.max(MIN_INTERVAL_MINUTES, schedule.minutes) * 60_000;
-    if (now <= anchor) return anchor + intervalMs;
-    const elapsed = now - anchor;
-    // floor + 1 (not ceil): when elapsed lands exactly on a period boundary,
-    // ceil(N) = N gives nextFireAt == now and the scheduler fires immediately.
-    // floor(N) + 1 always returns the *next* future period.
-    const periods = Math.floor(elapsed / intervalMs) + 1;
-    return anchor + periods * intervalMs;
-  }
-  if (schedule.type === "daily") {
-    const next = new Date(now);
-    next.setSeconds(0, 0);
-    next.setHours(schedule.hour, schedule.minute, 0, 0);
-    if (next.getTime() <= now) next.setDate(next.getDate() + 1);
-    return next.getTime();
-  }
-  // weekly
-  const next = new Date(now);
-  next.setSeconds(0, 0);
-  next.setHours(schedule.hour, schedule.minute, 0, 0);
-  const currentDay = next.getDay();
-  let daysAhead = (schedule.weekday - currentDay + 7) % 7;
-  if (daysAhead === 0 && next.getTime() <= now) daysAhead = 7;
-  next.setDate(next.getDate() + daysAhead);
-  return next.getTime();
-}
-
-function clampSchedule(schedule: Schedule): Schedule {
-  if (schedule.type === "interval") {
-    return { type: "interval", minutes: Math.max(MIN_INTERVAL_MINUTES, Math.floor(schedule.minutes)) };
-  }
-  if (schedule.type === "daily") {
-    return {
-      type: "daily",
-      hour: Math.min(23, Math.max(0, Math.floor(schedule.hour))),
-      minute: Math.min(59, Math.max(0, Math.floor(schedule.minute))),
-    };
-  }
-  return {
-    type: "weekly",
-    weekday: (Math.min(6, Math.max(0, Math.floor(schedule.weekday))) as 0 | 1 | 2 | 3 | 4 | 5 | 6),
-    hour: Math.min(23, Math.max(0, Math.floor(schedule.hour))),
-    minute: Math.min(59, Math.max(0, Math.floor(schedule.minute))),
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -213,10 +161,7 @@ export function addCronjob(input: AddCronjobInput): Cronjob {
   return cronjob;
 }
 
-export function updateCronjob(
-  id: string,
-  changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "permissionMode" | "enabled">>,
-): Cronjob | null {
+export function updateCronjob(id: string, changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "permissionMode" | "enabled">>): Cronjob | null {
   const idx = cronjobs.findIndex((c) => c.id === id);
   if (idx < 0) return null;
   const prev = cronjobs[idx];
@@ -385,12 +330,7 @@ function processCronjobMessage(active: ActiveRun, msg: SDKMessage) {
             for (const c of block.content as any[]) {
               if (c.type === "image" && c.source?.type === "base64") {
                 const decoded = Buffer.from(c.source.data, "base64");
-                const att = saveFile(
-                  active.streamId,
-                  decoded,
-                  c.source.media_type,
-                  `image.${c.source.media_type.split("/")[1] ?? "png"}`,
-                );
+                const att = saveFile(active.streamId, decoded, c.source.media_type, `image.${c.source.media_type.split("/")[1] ?? "png"}`);
                 if (att) atts.push(att);
               }
             }
@@ -493,7 +433,9 @@ function finalizeRun(active: ActiveRun, status: CronjobRun["status"], errorReaso
   // Release the underlying Claude subprocess. The V2 SDK's stream() ends per
   // turn (not per session), so a successful run reaches finalizeRun with the
   // session still alive — without close() it would leak until process exit.
-  try { active.session.close(); } catch {}
+  try {
+    active.session.close();
+  } catch {}
   const previewText = (active.lastAssistantText || "").trim().replace(/\s+/g, " ").slice(0, 120);
   const updated = updateRun(active.jobId, active.runId, {
     status,
@@ -596,7 +538,9 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
   active.hardTimeoutTimer = setTimeout(() => {
     if (!activeRuns.has(runId)) return;
     active.killed = true;
-    try { session.close(); } catch {}
+    try {
+      session.close();
+    } catch {}
     writeLog(active, "error", "Cronjob run exceeded 30-minute hard timeout.");
     finalizeRun(active, "timed_out", "exceeded global run timeout");
   }, HARD_TIMEOUT_MS);
@@ -610,7 +554,9 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
       if (active.killed) return;
       console.error(`Cronjob run ${runId} input error:`, err.message);
       writeLog(active, "error", `Failed to send prompt: ${err.message || String(err)}`);
-      try { session.close(); } catch {}
+      try {
+        session.close();
+      } catch {}
       finalizeRun(active, "failed", err.message || String(err));
     }
   })();
@@ -754,8 +700,7 @@ export function readCronjobLifetimeUsage(jobId: string): {
       const cacheReadInputTokens = (u?.cacheReadInputTokens ?? 0) + (p?.cacheReadInputTokens ?? 0);
       const cacheCreationInputTokens = (u?.cacheCreationInputTokens ?? 0) + (p?.cacheCreationInputTokens ?? 0);
       const costUSD = (u?.costUSD ?? 0) + (p?.costUSD ?? 0);
-      totals.totalIn += inputTokens + cacheReadInputTokens + cacheCreationInputTokens
-        - ((base?.inputTokens ?? 0) + (base?.cacheReadInputTokens ?? 0) + (base?.cacheCreationInputTokens ?? 0));
+      totals.totalIn += inputTokens + cacheReadInputTokens + cacheCreationInputTokens - ((base?.inputTokens ?? 0) + (base?.cacheReadInputTokens ?? 0) + (base?.cacheCreationInputTokens ?? 0));
       totals.cacheRead += cacheReadInputTokens - (base?.cacheReadInputTokens ?? 0);
       totals.cacheCreation += cacheCreationInputTokens - (base?.cacheCreationInputTokens ?? 0);
       totals.totalOut += outputTokens - (base?.outputTokens ?? 0);

@@ -47,7 +47,13 @@ export function Modal({
 
   return (
     <div
-      onMouseDown={allowBackdropClose ? (e) => { if (e.target === e.currentTarget) onClose(); } : undefined}
+      onMouseDown={
+        allowBackdropClose
+          ? (e) => {
+              if (e.target === e.currentTarget) onClose();
+            }
+          : undefined
+      }
       style={{
         position: "fixed",
         inset: 0,

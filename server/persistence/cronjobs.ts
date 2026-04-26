@@ -13,12 +13,7 @@
 import { join } from "path";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, appendFileSync, readdirSync } from "fs";
 import type { Cronjob, CronjobRun, LogEntry } from "../../shared/types.ts";
-import {
-  CRONJOBS_DIR,
-  CRONJOBS_FILE,
-  CRONJOB_HISTORY_FILE,
-  CRONJOBS_PROMPT_FILE,
-} from "./paths.ts";
+import { CRONJOBS_DIR, CRONJOBS_FILE, CRONJOB_HISTORY_FILE, CRONJOBS_PROMPT_FILE } from "./paths.ts";
 import type { PersistedUsage } from "./logs/sessions.ts";
 
 // Cronjobs system prompt — owned by the cronjob manager and stored in its own
@@ -169,16 +164,19 @@ export function listAllCronjobIdsOnDisk(): string[] {
 // ---------------------------------------------------------------------------
 
 type UsageSnapshot = { entryId: string; usage: PersistedUsage };
-type RunSessionsMap = Record<string, {
-  topic: string | null;
-  lastModified: number;
-  forkedFrom?: string;
-  forkMessageId?: string;
-  usage?: PersistedUsage;
-  priorRunsUsage?: PersistedUsage;
-  forkBaseUsage?: PersistedUsage;
-  usageSnapshots?: UsageSnapshot[];
-}>;
+type RunSessionsMap = Record<
+  string,
+  {
+    topic: string | null;
+    lastModified: number;
+    forkedFrom?: string;
+    forkMessageId?: string;
+    usage?: PersistedUsage;
+    priorRunsUsage?: PersistedUsage;
+    forkBaseUsage?: PersistedUsage;
+    usageSnapshots?: UsageSnapshot[];
+  }
+>;
 
 export function loadRunSessionsMap(jobId: string, runId: string): RunSessionsMap {
   try {
@@ -199,13 +197,7 @@ function saveRunSessionsMap(jobId: string, runId: string, map: RunSessionsMap) {
   }
 }
 
-export function accumulateRunSessionUsage(
-  jobId: string,
-  runId: string,
-  sessionId: string,
-  turnTokens: Omit<PersistedUsage, "costUSD">,
-  runCostUSD: number,
-): PersistedUsage {
+export function accumulateRunSessionUsage(jobId: string, runId: string, sessionId: string, turnTokens: Omit<PersistedUsage, "costUSD">, runCostUSD: number): PersistedUsage {
   const map = loadRunSessionsMap(jobId, runId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
   const prev = existing.usage;
@@ -221,13 +213,7 @@ export function accumulateRunSessionUsage(
   return next;
 }
 
-export function appendRunSessionUsageSnapshot(
-  jobId: string,
-  runId: string,
-  sessionId: string,
-  entryId: string,
-  usage: PersistedUsage,
-) {
+export function appendRunSessionUsageSnapshot(jobId: string, runId: string, sessionId: string, entryId: string, usage: PersistedUsage) {
   const map = loadRunSessionsMap(jobId, runId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
   const snapshots = existing.usageSnapshots ?? [];

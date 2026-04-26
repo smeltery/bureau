@@ -63,7 +63,9 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
   // POST /tasks — create
   if (req.method === "POST" && !taskId) {
     let body: Record<string, unknown>;
-    try { body = await req.json() as Record<string, unknown>; } catch {
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
       return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: corsHeaders });
     }
     if (!body.title || !body.createdBy) {
@@ -73,7 +75,7 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
       return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3" }), { status: 400, headers: corsHeaders });
     }
     const task: TaskItem = {
-      id: generateTaskId(tasks.map(t => t.id)),
+      id: generateTaskId(tasks.map((t) => t.id)),
       title: String(body.title).trim(),
       description: body.description ? String(body.description) : undefined,
       priority: body.priority as TaskItem["priority"],
@@ -93,7 +95,9 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     let body: Record<string, unknown>;
-    try { body = await req.json() as Record<string, unknown>; } catch {
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
       return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: corsHeaders });
     }
     if (body.status !== undefined && !isValidStatus(body.status)) {
@@ -105,7 +109,7 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
     if (body.title !== undefined) task.title = String(body.title);
     if (body.description !== undefined) task.description = body.description ? String(body.description) : undefined;
     if (body.status !== undefined) task.status = body.status as TaskItem["status"];
-    if (body.priority !== undefined) task.priority = body.priority ? body.priority as TaskItem["priority"] : undefined;
+    if (body.priority !== undefined) task.priority = body.priority ? (body.priority as TaskItem["priority"]) : undefined;
     if (body.assignee !== undefined) task.assignee = body.assignee ? String(body.assignee) : undefined;
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);
@@ -117,7 +121,9 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     let body: Record<string, unknown>;
-    try { body = await req.json() as Record<string, unknown>; } catch {
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
       return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: corsHeaders });
     }
     task.assignee = body.assignee ? String(body.assignee) : task.assignee;
@@ -132,7 +138,9 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     // Agents send `curl -d '{}'` — consume the body so Bun doesn't warn
-    try { await req.json(); } catch {}
+    try {
+      await req.json();
+    } catch {}
     task.status = "done";
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);

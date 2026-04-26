@@ -215,13 +215,22 @@ export function MobileHeader({
               ].map((item, i) => (
                 <button
                   key={i}
-                  onClick={() => { setMenuOpen(false); item.action(); }}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    item.action();
+                  }}
                   style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    width: "100%", padding: "12px 16px",
-                    background: "transparent", border: "none",
-                    color: "var(--text-primary)", fontSize: 14,
-                    cursor: "pointer", textAlign: "left",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    width: "100%",
+                    padding: "12px 16px",
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-primary)",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    textAlign: "left",
                   }}
                 >
                   <span style={{ width: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>{item.icon}</span>

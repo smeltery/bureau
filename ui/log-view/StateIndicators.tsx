@@ -49,9 +49,7 @@ export function ActivityIndicator({ state, stateChangedAt, agentId }: { state: A
         <span style={{ width: 4, height: 4, borderRadius: "50%", background: color, animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0.4s" }} />
       </span>
       <span>{label}...</span>
-      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, opacity: 0.7 }}>
-        {formatElapsed(elapsedMs)}
-      </span>
+      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, opacity: 0.7 }}>{formatElapsed(elapsedMs)}</span>
       {showAbort && (
         <button
           onClick={() => send({ type: "abort", agentId })}

@@ -30,9 +30,7 @@ let onChange: ((s: UpdateStatus) => void) | null = null;
 function getLocalCommit(): CommitInfo | null {
   try {
     // Format: hash\nmessage\nISO date
-    const out = execSync('git log -1 --format="%H%n%s%n%aI"', { cwd: PROJECT_ROOT, timeout: 5000 })
-      .toString()
-      .trim();
+    const out = execSync('git log -1 --format="%H%n%s%n%aI"', { cwd: PROJECT_ROOT, timeout: 5000 }).toString().trim();
     const [sha, message, date] = out.split("\n");
     return { sha, message, date };
   } catch {

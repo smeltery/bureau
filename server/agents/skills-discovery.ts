@@ -171,17 +171,18 @@ function resolvePluginSkillPrompt(pluginName: string, skillName: string): string
   let manifest: any;
   try {
     manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 
-  const pluginKey = Object.keys(manifest.plugins ?? {}).find(k => k.split("@")[0] === pluginName);
+  const pluginKey = Object.keys(manifest.plugins ?? {}).find((k) => k.split("@")[0] === pluginName);
   if (!pluginKey) return null;
   const entries = manifest.plugins[pluginKey];
   if (!Array.isArray(entries) || entries.length === 0) return null;
   const installPath = entries[0].installPath;
   if (!installPath) return null;
 
-  return readSkillFile(join(installPath, "skills", skillName, "SKILL.md"))
-    ?? readSkillFile(join(installPath, "commands", `${skillName}.md`));
+  return readSkillFile(join(installPath, "skills", skillName, "SKILL.md")) ?? readSkillFile(join(installPath, "commands", `${skillName}.md`));
 }
 
 // Resolve a skill name to its prompt text, checking skill dirs in priority order:

@@ -17,9 +17,9 @@ import { useVoiceInput } from "./hooks/useVoiceInput.ts";
 import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
 
 const MODEL_TINT: Record<ModelFamily, { border: string; bg: string }> = {
-  opus:   { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
-  sonnet: { border: "rgba(218,165,32,0.80)",  bg: "rgba(218,165,32,0.32)" },
-  haiku:  { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
+  opus: { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
+  sonnet: { border: "rgba(218,165,32,0.80)", bg: "rgba(218,165,32,0.32)" },
+  haiku: { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
 };
 
 export function LogView({
@@ -67,11 +67,15 @@ export function LogView({
   // Chrome + UI state
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [showAvatar, setShowAvatar] = useState(() => localStorage.getItem("bureau-show-avatar") !== "false");
-  const toggleAvatar = useCallback(() => setShowAvatar((prev) => {
-    const next = !prev;
-    localStorage.setItem("bureau-show-avatar", String(next));
-    return next;
-  }), []);
+  const toggleAvatar = useCallback(
+    () =>
+      setShowAvatar((prev) => {
+        const next = !prev;
+        localStorage.setItem("bureau-show-avatar", String(next));
+        return next;
+      }),
+    [],
+  );
   const [editingLogEntryId, setEditingLogEntryId] = useState<string | null>(null);
 
   // Hooks owning their own concerns
@@ -81,7 +85,9 @@ export function LogView({
   const voice = useVoiceInput({
     inputRef,
     onTranscript: (text) => dispatch({ type: "set_draft", agentId: agent.id, text }),
-    onGrow: () => { if (textareaRef.current) autoResize(textareaRef.current); },
+    onGrow: () => {
+      if (textareaRef.current) autoResize(textareaRef.current);
+    },
   });
   const attachments = useAttachmentUpload(agent.id);
 
@@ -153,16 +159,18 @@ export function LogView({
   return (
     <div
       style={{
-        ...(isMobile ? {
-          position: "fixed" as const,
-          top: 0,
-          left: 0,
-          right: 0,
-          height: vpHeight != null ? vpHeight : "calc(100dvh - var(--banner-h, 0px))",
-          overflow: "hidden",
-        } : {
-          height: "calc(100vh - var(--banner-h, 0px))",
-        }),
+        ...(isMobile
+          ? {
+              position: "fixed" as const,
+              top: 0,
+              left: 0,
+              right: 0,
+              height: vpHeight != null ? vpHeight : "calc(100dvh - var(--banner-h, 0px))",
+              overflow: "hidden",
+            }
+          : {
+              height: "calc(100vh - var(--banner-h, 0px))",
+            }),
         display: "flex",
         flexDirection: "row",
         background: "var(--bg-base)",
@@ -236,11 +244,7 @@ export function LogView({
           >
             <Character key={agent.state} state={agent.state} outfit={agent.outfit} />
           </div>
-          {logs.length === 0 && (
-            <div style={{ color: "var(--text-ghost)", textAlign: "center", marginTop: 40 }}>
-              Send a message to start a conversation.
-            </div>
-          )}
+          {logs.length === 0 && <div style={{ color: "var(--text-ghost)", textAlign: "center", marginTop: 40 }}>Send a message to start a conversation.</div>}
           {logs.map((entry) => {
             const td = turnData.get(entry.id);
             const canEditMsg = entry.kind === "user_message" && agent.state === "waiting_for_response" && !editingLogEntryId;

@@ -4,12 +4,7 @@ import { send } from "../ws.ts";
 import { CronjobDialog } from "./modals/CronjobDialog.tsx";
 import { CronjobsPromptDialog } from "./modals/CronjobsPromptDialog.tsx";
 import { CronjobRunView } from "./CronjobRunView.tsx";
-import {
-  humanizeSchedule,
-  type Cronjob,
-  type CronjobRun,
-  type CronjobRunStatus,
-} from "../../shared/types.ts";
+import { humanizeSchedule, type Cronjob, type CronjobRun, type CronjobRunStatus } from "../../shared/types.ts";
 
 type Tab = "runs" | "cronjobs";
 
@@ -111,8 +106,18 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        if (openRun) { e.stopPropagation(); setOpenRun(null); return; }
-        if (editing || creating || editingPrompt) { e.stopPropagation(); setEditing(null); setCreating(false); setEditingPrompt(false); return; }
+        if (openRun) {
+          e.stopPropagation();
+          setOpenRun(null);
+          return;
+        }
+        if (editing || creating || editingPrompt) {
+          e.stopPropagation();
+          setEditing(null);
+          setCreating(false);
+          setEditingPrompt(false);
+          return;
+        }
       }
     }
     window.addEventListener("keydown", handleKey, true);
@@ -249,31 +254,23 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
             cronjobs={cronjobs}
             runsByJob={cronjobRunsByJob}
             isMobile={isMobile}
-            onRowClick={(c) => { setRunFilter({ jobId: c.id, jobName: c.name }); setTab("runs"); }}
+            onRowClick={(c) => {
+              setRunFilter({ jobId: c.id, jobName: c.name });
+              setTab("runs");
+            }}
             onEdit={(c) => setEditing(c)}
             onToggleEnabled={(c) => send({ type: "update_cronjob", id: c.id, changes: { enabled: !c.enabled } })}
             onRunNow={(c) => send({ type: "run_cronjob_now", id: c.id, username })}
           />
         ) : (
-          <RunsTable
-            runs={filteredRuns}
-            liveCronjobIds={new Set(cronjobs.map((c) => c.id))}
-            isMobile={isMobile}
-            onRowClick={(r) => setOpenRun({ jobId: r.cronjobId, runId: r.id })}
-          />
+          <RunsTable runs={filteredRuns} liveCronjobIds={new Set(cronjobs.map((c) => c.id))} isMobile={isMobile} onRowClick={(r) => setOpenRun({ jobId: r.cronjobId, runId: r.id })} />
         )}
       </div>
 
       {creating && <CronjobDialog username={username} onClose={() => setCreating(false)} />}
       {editing && <CronjobDialog cronjob={editing} username={username} onClose={() => setEditing(null)} />}
       {editingPrompt && <CronjobsPromptDialog onClose={() => setEditingPrompt(false)} />}
-      {openRun && (
-        <CronjobRunView
-          jobId={openRun.jobId}
-          runId={openRun.runId}
-          onClose={() => setOpenRun(null)}
-        />
-      )}
+      {openRun && <CronjobRunView jobId={openRun.jobId} runId={openRun.runId} onClose={() => setOpenRun(null)} />}
     </div>
   );
 }
@@ -324,11 +321,7 @@ function CronjobsTable({
   };
 
   if (cronjobs.length === 0) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-        No cronjobs yet. Click "+ New" to create one.
-      </div>
-    );
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>No cronjobs yet. Click "+ New" to create one.</div>;
   }
 
   return (
@@ -357,10 +350,16 @@ function CronjobsTable({
                 borderBottom: "1px solid var(--border-subtle)",
                 opacity: c.enabled ? 1 : 0.55,
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <td style={{ padding: cellPad }} onClick={(e) => { e.stopPropagation(); onToggleEnabled(c); }}>
+              <td
+                style={{ padding: cellPad }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleEnabled(c);
+                }}
+              >
                 <span
                   title={c.enabled ? "Enabled (click to pause)" : "Paused (click to enable)"}
                   style={{
@@ -379,42 +378,35 @@ function CronjobsTable({
                   const inFlight = runs.filter((r) => r.status === "running").length;
                   if (inFlight === 0) return null;
                   return (
-                    <span style={{
-                      marginLeft: 8,
-                      padding: "1px 7px",
-                      borderRadius: 10,
-                      background: "rgba(80,200,120,0.15)",
-                      border: "1px solid var(--green)",
-                      color: "var(--green)",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      fontFamily: "'JetBrains Mono',monospace",
-                      verticalAlign: "middle",
-                    }}>
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        padding: "1px 7px",
+                        borderRadius: 10,
+                        background: "rgba(80,200,120,0.15)",
+                        border: "1px solid var(--green)",
+                        color: "var(--green)",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        fontFamily: "'JetBrains Mono',monospace",
+                        verticalAlign: "middle",
+                      }}
+                    >
                       ● running{inFlight > 1 ? ` ×${inFlight}` : ""}
                     </span>
                   );
                 })()}
               </td>
-              {!isMobile && (
-                <td style={{ padding: cellPad, fontSize: 12, color: "var(--text-secondary)", fontFamily: "'JetBrains Mono',monospace" }}>
-                  {humanizeSchedule(c.schedule)}
-                </td>
-              )}
-              {!isMobile && (
-                <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
-                  {timeAgo(c.lastFireAt)}
-                </td>
-              )}
+              {!isMobile && <td style={{ padding: cellPad, fontSize: 12, color: "var(--text-secondary)", fontFamily: "'JetBrains Mono',monospace" }}>{humanizeSchedule(c.schedule)}</td>}
+              {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{timeAgo(c.lastFireAt)}</td>}
               <td style={{ padding: cellPad, fontSize: 11, color: c.enabled ? "var(--text-secondary)" : "var(--text-ghost)", fontFamily: "'JetBrains Mono',monospace" }}>
                 {c.enabled ? `in ${timeUntil(c.nextFireAt)}` : "paused"}
               </td>
-              <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
-                {runs.length}
-              </td>
+              <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{runs.length}</td>
               {!isMobile && (
                 <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
-                  {c.createdBy}{c.device && c.device !== c.createdBy ? ` (${c.device})` : ""}
+                  {c.createdBy}
+                  {c.device && c.device !== c.createdBy ? ` (${c.device})` : ""}
                 </td>
               )}
               <td style={{ padding: cellPad, whiteSpace: "nowrap", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
@@ -462,17 +454,7 @@ function CronjobsTable({
   );
 }
 
-function RunsTable({
-  runs,
-  liveCronjobIds,
-  isMobile,
-  onRowClick,
-}: {
-  runs: CronjobRun[];
-  liveCronjobIds: Set<string>;
-  isMobile: boolean;
-  onRowClick: (r: CronjobRun) => void;
-}) {
+function RunsTable({ runs, liveCronjobIds, isMobile, onRowClick }: { runs: CronjobRun[]; liveCronjobIds: Set<string>; isMobile: boolean; onRowClick: (r: CronjobRun) => void }) {
   const cellPad = isMobile ? "8px 6px" : "10px 12px";
   const thStyle: React.CSSProperties = {
     padding: cellPad,
@@ -487,17 +469,15 @@ function RunsTable({
   };
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [runs.length]);
+  useEffect(() => {
+    setPage(0);
+  }, [runs.length]);
   const pageStart = page * PAGE_SIZE;
   const pageRuns = runs.slice(pageStart, pageStart + PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(runs.length / PAGE_SIZE));
 
   if (runs.length === 0) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-        No runs yet.
-      </div>
-    );
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>No runs yet.</div>;
   }
 
   return (
@@ -522,8 +502,8 @@ function RunsTable({
                 cursor: "pointer",
                 borderBottom: "1px solid var(--border-subtle)",
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <td style={{ padding: cellPad, color: STATUS_COLOR[r.status], fontSize: 14, textAlign: "center" }} title={r.status}>
                 {STATUS_ICON[r.status]}
@@ -533,52 +513,36 @@ function RunsTable({
               </td>
               <td style={{ padding: cellPad, fontSize: 12, fontWeight: 600 }}>
                 {r.cronjobName}
-                {!liveCronjobIds.has(r.cronjobId) && (
-                  <span style={{ marginLeft: 6, color: "var(--text-ghost)", fontWeight: 400, fontStyle: "italic", fontSize: 11 }}>
-                    (deleted)
-                  </span>
-                )}
+                {!liveCronjobIds.has(r.cronjobId) && <span style={{ marginLeft: 6, color: "var(--text-ghost)", fontWeight: 400, fontStyle: "italic", fontSize: 11 }}>(deleted)</span>}
               </td>
-              <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>
-                {formatStartedAt(r.startedAt)}
-              </td>
-              <td style={{
-                padding: cellPad,
-                fontSize: 11,
-                color: r.errorReason ? "var(--red)" : "var(--text-secondary)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: 0,
-              }}>
+              <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{formatStartedAt(r.startedAt)}</td>
+              <td
+                style={{
+                  padding: cellPad,
+                  fontSize: 11,
+                  color: r.errorReason ? "var(--red)" : "var(--text-secondary)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  maxWidth: 0,
+                }}
+              >
                 {r.errorReason || r.previewText || "—"}
               </td>
-              {!isMobile && (
-                <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
-                  {formatDuration(r.startedAt, r.endedAt)}
-                </td>
-              )}
+              {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{formatDuration(r.startedAt, r.endedAt)}</td>}
             </tr>
           ))}
         </tbody>
       </table>
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, padding: "12px 0" }}>
-          <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            style={pagerBtn(page === 0)}
-          >
+          <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} style={pagerBtn(page === 0)}>
             ← Prev
           </button>
           <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
             {page + 1} / {totalPages}
           </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
-            style={pagerBtn(page >= totalPages - 1)}
-          >
+          <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} style={pagerBtn(page >= totalPages - 1)}>
             Next →
           </button>
         </div>

@@ -12,11 +12,7 @@ import { useEffect, useRef, useState } from "react";
  * - The element is scrolled to the bottom whenever logs or agent state
  *   change, using double-rAF to wait for layout.
  */
-export function useAutoScroll<T>(
-  scrollRef: React.RefObject<HTMLDivElement | null>,
-  logs: T[],
-  agentState: string,
-) {
+export function useAutoScroll<T>(scrollRef: React.RefObject<HTMLDivElement | null>, logs: T[], agentState: string) {
   const [autoScroll, setAutoScroll] = useState(true);
 
   // Re-enable auto-scroll when logs are cleared (e.g. /resume, /clear)
