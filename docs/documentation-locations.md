@@ -47,28 +47,37 @@ An index of every place that describes Bureau features to users. When a new feat
 
 ## 6. Documentation Index
 
-- **File:** `docs/INDEX.md`
-- **Audience:** Anyone navigating the docs/ directory.
-- **Structure:** categorized tables linking to all design docs, investigations, and plans. Includes mermaid architecture diagram.
+- **File:** `docs/README.md`
+- **Audience:** Anyone navigating the `docs/` directory.
+- **Structure:** categorized tables linking to all architecture, feature, investigation, and contributing docs. Includes a Mermaid architecture diagram and a quick-navigation by-topic section.
 - **Update when:** a new doc is added to `docs/` or the doc structure changes.
+
+## 7. Development Guide
+
+- **File:** `docs/development.md`
+- **Audience:** Contributors landing a PR.
+- **Structure:** quality-gate overview (typecheck, oxlint, prettier, tests, build), tooling notes, common-failure recipes, and the one-time `gh api` command for enabling required-status-check branch protection on `master`.
+- **Update when:** the CI workflow changes, lint / format / test scripts change, or branch-protection requirements change.
 
 ## Secondary / internal references
 
 These aren't user-facing docs, but they do describe features and can fall out of date:
 
 - `CLAUDE.md` — developer/agent-facing overview of the codebase. Update when architecture or conventions change.
-- `docs/` — design documents for individual features. See `docs/INDEX.md` for navigation.
-  - `docs/features/` — feature design docs (conversation branching, multi-office, task system, etc.)
-  - `docs/investigations/` — bug investigations and SDK research
-  - `docs/planning/` — design specs and implementation plans
+- `docs/` — design documents for individual features. See `docs/README.md` for navigation.
+  - `docs/architecture/` — deep-dive subsystem docs (server, agent lifecycle, persistence, safety hooks, frontend, command/skill system).
+  - `docs/features/` — feature design docs (conversation branching, cronjob system, multi-office, task system, etc.).
+  - `docs/investigations/` — bug investigations and SDK research.
 - `server/agents/commands.ts` — per-command `description` fields surface in the slash-command autocomplete UI.
 - `server/agents/session/system-prompt.ts` `buildSystemPrompt()` — the system prompt injected into every spawned agent. Update when the agent's role or capabilities change.
+- `server/cronjobs/index.ts` `buildCronjobSystemPrompt()` — the system prompt injected into every cronjob run. Update when the cronjob's role or discovery hints change.
 
 ## Quick checklist when adding a user-visible feature
 
-1. `README.md` — Feature list and/or documentation links.
+1. `README.md` — feature list and/or documentation links.
 2. `articles/punching-in-building-an-office-for-ai-agents.md` — if it changes architecture.
-3. `docs/INDEX.md` — if you add a new doc.
-4. `website/app/page.tsx` and `website/src/components/sections/*` — only if it belongs on the headline list.
-5. `api/chat.ts` `SYSTEM_PROMPT` — the feature-list section and any relevant guideline.
-6. `server/agents/conversation/slash-commands.ts` `/help` handler and/or `server/agents/commands.ts` — only if it adds a command or changes tips.
+3. `docs/README.md` — if you add a new doc, register it in the appropriate table.
+4. `docs/features/` or `docs/architecture/` — add the design doc itself.
+5. `website/app/page.tsx` and `website/src/components/sections/*` — only if it belongs on the headline list.
+6. `api/chat.ts` `SYSTEM_PROMPT` — the feature-list section and any relevant guideline.
+7. `server/agents/conversation/slash-commands.ts` `/help` handler and/or `server/agents/commands.ts` — only if it adds a command or changes tips.

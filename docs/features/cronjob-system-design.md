@@ -221,7 +221,7 @@ Header button on the Cronjobs page → modal with one textarea for `cronjobsProm
 - `server/cronjobs/index.ts` — scheduler tick, fire path, run lifecycle, usage rollup helpers.
 - `server/persistence/cronjobs.ts` — load/save for cronjobs.json, runs.json, sessions.json under cronjobs/, cronjob-history.json.
 - `server/http/cronjobs.ts` — read-only HTTP endpoints under `/cronjobs`.
-- `docs/cronjob-system-design.md` — this file.
+- `docs/features/cronjob-system-design.md` — this file.
 
 **Modified**
 - `shared/types.ts` — Cronjob, CronjobRun, Schedule types; new ClientCommand variants; ServerMessage events for cronjob and run state changes.
