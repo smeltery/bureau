@@ -9,7 +9,13 @@
     "demo": "bun run demo:build && PORT=${PORT:-4001} bun run server/index.ts",
     "build:ui:watch": "bun build ui/index.tsx --outdir ui/dist --production --watch",
     "server:watch": "bun --watch server/index.ts",
-    "server": "bun run server/index.ts"
+    "server": "bun run server/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --react-plugin server shared ui",
+    "format": "prettier --write 'server/**/*.{ts,tsx}' 'shared/**/*.{ts,tsx}' 'ui/**/*.{ts,tsx}'",
+    "format:check": "prettier --check 'server/**/*.{ts,tsx}' 'shared/**/*.{ts,tsx}' 'ui/**/*.{ts,tsx}'",
+    "test": "bun test",
+    "check": "bun run typecheck && bun run lint && bun run format:check && bun run test"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.116",
@@ -27,6 +33,8 @@
     "@types/bun": "latest",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "oxlint": "1",
+    "prettier": "^3.8.3",
     "typescript": "^5.9.0"
   }
 }

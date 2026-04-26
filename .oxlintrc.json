@@ -1,0 +1,53 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "oxc", "import"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "settings": {
+    "react": { "version": "19.0.0" }
+  },
+  "rules": {
+    "no-empty": ["error", { "allowEmptyCatch": true }],
+    "no-unused-vars": "off",
+    "no-console": "off",
+    "no-shadow": "off",
+    "no-useless-escape": "off",
+    "no-useless-concat": "off",
+    "no-await-in-loop": "off",
+    "no-control-regex": "off",
+    "preserve-caught-error": "off",
+    "oxc/no-map-spread": "off",
+    "react/jsx-key": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/no-children-prop": "off",
+    "react/no-unknown-property": "error",
+    "react/no-array-index-key": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "import/no-cycle": "off"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**/*.ts"],
+      "rules": {
+        "no-empty": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "node_modules",
+    "ui/dist",
+    "demo/dist",
+    "website/.next",
+    "ui/index.js"
+  ]
+}
