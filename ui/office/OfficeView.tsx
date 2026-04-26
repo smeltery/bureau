@@ -40,7 +40,7 @@ function DoorDropZone({ side, onDrop, onDragOverChange, onClick }: { side: "left
   );
 }
 
-export function OfficeView({ onSpawn, onContextMenu, username, onEditUsername, onEditOfficePrompt, onEditRoomSettings, onOpenTasks, onOpenUpdate, onSwipeLeft, onSwipeRight }: { onSpawn: (deskIndex: number) => void; onContextMenu: (x: number, y: number, agent: AgentInfo) => void; username: string; onEditUsername: () => void; onEditOfficePrompt: () => void; onEditRoomSettings?: () => void; onOpenTasks: () => void; onOpenUpdate: () => void; onSwipeLeft?: () => void; onSwipeRight?: () => void }) {
+export function OfficeView({ onSpawn, onContextMenu, username, onEditUsername, onEditOfficePrompt, onEditRoomSettings, onOpenTasks, onOpenCronjobs, onOpenUpdate, onSwipeLeft, onSwipeRight }: { onSpawn: (deskIndex: number) => void; onContextMenu: (x: number, y: number, agent: AgentInfo) => void; username: string; onEditUsername: () => void; onEditOfficePrompt: () => void; onEditRoomSettings?: () => void; onOpenTasks: () => void; onOpenCronjobs?: () => void; onOpenUpdate: () => void; onSwipeLeft?: () => void; onSwipeRight?: () => void }) {
   const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateAvailable } = useAppState();
   const roomCount = rooms.length;
   const roomNames = rooms.map((r) => r.name);
@@ -172,6 +172,23 @@ export function OfficeView({ onSpawn, onContextMenu, username, onEditUsername, o
             >
               Tasks
             </button>
+            {onOpenCronjobs && (
+              <button
+                onClick={onOpenCronjobs}
+                title="Cronjobs (scheduled SDK sessions)"
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border-medium)",
+                  background: "var(--btn-surface)",
+                  color: "var(--text-dim)",
+                  fontSize: 11,
+                  cursor: "pointer",
+                }}
+              >
+                Cronjobs
+              </button>
+            )}
             <button
               onClick={onEditOfficePrompt}
               style={{

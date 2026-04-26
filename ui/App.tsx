@@ -9,6 +9,7 @@ import { UsernameModal } from "./components/modals/UsernameModal.tsx";
 import { OfficePromptModal } from "./components/modals/OfficePromptModal.tsx";
 import { RoomSettingsModal } from "./components/modals/RoomSettingsModal.tsx";
 import { TaskView } from "./task-view/TaskView.tsx";
+import { CronjobsView } from "./components/CronjobsView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
 import { CSS } from "./styles.ts";
 import type { AgentInfo } from "../shared/types.ts";
@@ -53,6 +54,7 @@ export function App() {
   const [editingOfficePrompt, setEditingOfficePrompt] = useState(false);
   const [editingRoomSettings, setEditingRoomSettings] = useState<string | null>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
+  const [cronjobsOpen, setCronjobsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
 
   const focusedAgent = focusedAgentId ? agents.find((a) => a.id === focusedAgentId) : null;
@@ -89,6 +91,7 @@ export function App() {
     } else {
       // Safety fallback — shouldn't happen, but don't break if it does
       setTasksOpen(false);
+      setCronjobsOpen(false);
       dispatch({ type: "focus", agentId: null });
     }
   }, [dispatch]);
@@ -134,7 +137,7 @@ export function App() {
   }, [dispatch, goHome, focusedAgentId, agents, drafts, currentRoom, roomCount]);
 
   // Sync history stack with view state
-  const isDeep = tasksOpen || focusedAgentId !== null;
+  const isDeep = tasksOpen || cronjobsOpen || focusedAgentId !== null;
   useEffect(() => {
     if (isDeep && !deepRef.current) {
       window.history.pushState({ bureau: true }, "");
@@ -152,6 +155,7 @@ export function App() {
     function handlePopState() {
       deepRef.current = false;
       setTasksOpen(false);
+      setCronjobsOpen(false);
       dispatch({ type: "focus", agentId: null });
     }
     window.addEventListener("popstate", handlePopState);
@@ -178,7 +182,12 @@ export function App() {
           onClose={() => setEditingUsername(false)}
         />
       )}
-      {tasksOpen ? (
+      {cronjobsOpen ? (
+        <CronjobsView
+          username={username ?? ""}
+          onClose={goHome}
+        />
+      ) : tasksOpen ? (
         <TaskView
           username={username ?? ""}
           onClose={goHome}
@@ -206,6 +215,7 @@ export function App() {
           onEditOfficePrompt={() => setEditingOfficePrompt(true)}
           onEditRoomSettings={() => { const rid = rooms[currentRoom]?.id; if (rid) setEditingRoomSettings(rid); }}
           onOpenTasks={() => setTasksOpen(true)}
+          onOpenCronjobs={() => setCronjobsOpen(true)}
           onOpenUpdate={() => setUpdateOpen(true)}
           onToggleView={() => dispatch({ type: "toggle_mobile_view" })}
           onSwipeLeft={swipeRoomNext}
@@ -220,6 +230,7 @@ export function App() {
           onEditOfficePrompt={() => setEditingOfficePrompt(true)}
           onEditRoomSettings={() => { const rid = rooms[currentRoom]?.id; if (rid) setEditingRoomSettings(rid); }}
           onOpenTasks={() => setTasksOpen(true)}
+          onOpenCronjobs={() => setCronjobsOpen(true)}
           onOpenUpdate={() => setUpdateOpen(true)}
           onSwipeLeft={swipeRoomNext}
           onSwipeRight={swipeRoomPrev}
