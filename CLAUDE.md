@@ -45,3 +45,22 @@ Read the [design and architecture article](articles/punching-in-building-an-offi
 - `~/.bureau/logs/` — agent conversation logs
 - `~/.bureau/launchers/` — launcher scripts (cwd workaround for SDK - details in docs/sdk-investigation.md)
 - `ui/dist/` — UI build output (gitignored)
+
+## Shipping a user-visible feature
+
+When a feature lands, several places describe Bureau to its various audiences. They drift apart easily — walk this list before merging:
+
+1. **`README.md`** — feature list and/or documentation links. Audience: anyone landing on the GitHub repo.
+2. **`articles/punching-in-building-an-office-for-ai-agents.md`** — only if the change is architecture-level (SDK upgrades, lifecycle changes, new subsystems).
+3. **`docs/README.md`** — if you're adding a new design doc, register it in the appropriate table (`architecture/`, `features/`, `investigations/`, or `contributing/`).
+4. **`docs/features/` or `docs/architecture/`** — add the design doc itself.
+5. **Landing page** — `website/app/page.tsx` plus the section components in `website/src/components/sections/*`. Only update if the feature belongs on the marketing-headline list. Next.js app, deployed via Vercel.
+6. **Site chatbot system prompt** — `api/chat.ts`'s `SYSTEM_PROMPT` constant (around line 25). The prompt has a "never make up features" rule, so stale content here makes the bot lie by omission. Vercel Edge function; redeployed with the site.
+7. **`/help` slash command** — `server/agents/conversation/slash-commands.ts` (the `help` handler). Update only if you added a slash command or skill, or changed an existing command's behavior. Keep `server/agents/commands.ts` `description` fields in sync — they show up in the autocomplete UI.
+
+The non-obvious touchpoints are 5, 6, and 7 — those are the ones contributors forget. The first four are easy to find by `ls`.
+
+### Other places that describe behavior (and silently fall stale)
+
+- `server/agents/session/system-prompt.ts` `buildSystemPrompt()` — the system prompt injected into every spawned agent. Update when an agent's role or capabilities change.
+- `server/cronjobs/index.ts` `buildCronjobSystemPrompt()` — the system prompt injected into every cronjob run. Update when the cronjob's role or discovery hints change.
