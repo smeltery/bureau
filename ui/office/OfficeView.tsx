@@ -313,7 +313,7 @@ export function OfficeView({
             onWallPanelClick={(x, y) => setWallMenu({ x, y })}
             hasOfficePrompt={!!officePrompt}
             onOpenTasks={onOpenTasks}
-            taskCount={tasks.filter((t) => t.status !== "done").length}
+            taskCount={tasks.filter((t) => t.status !== "done" && t.status !== "backlog").length}
             leftDoor={
               currentRoom > 0
                 ? {

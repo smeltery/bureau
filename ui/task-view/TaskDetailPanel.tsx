@@ -186,6 +186,7 @@ export function TaskDetailPanel({
           <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)} style={inputStyle}>
             <option value="open">Open</option>
             <option value="in_progress">In Progress</option>
+            <option value="backlog">Backlog</option>
             <option value="done">Done</option>
           </select>
         </div>

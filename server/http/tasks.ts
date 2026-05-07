@@ -32,14 +32,14 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
     return new Response(JSON.stringify({ error: "DELETE not allowed via HTTP" }), { status: 405, headers: corsHeaders });
   }
 
-  // GET /tasks — list (excludes done by default)
+  // GET /tasks — list (excludes done and backlog by default)
   if (req.method === "GET" && !taskId) {
     const status = url.searchParams.get("status");
     const assignee = url.searchParams.get("assignee");
     const titleFilter = url.searchParams.get("title");
     let filtered = tasks;
     if (!status) {
-      filtered = filtered.filter((t) => t.status !== "done");
+      filtered = filtered.filter((t) => t.status !== "done" && t.status !== "backlog");
     } else if (status !== "all") {
       filtered = filtered.filter((t) => t.status === status);
     }
@@ -101,7 +101,7 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
       return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: corsHeaders });
     }
     if (body.status !== undefined && !isValidStatus(body.status)) {
-      return new Response(JSON.stringify({ error: "invalid status, must be open|in_progress|done" }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "invalid status, must be open|in_progress|backlog|done" }), { status: 400, headers: corsHeaders });
     }
     if (body.priority !== undefined && !isValidPriority(body.priority)) {
       return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3" }), { status: 400, headers: corsHeaders });
