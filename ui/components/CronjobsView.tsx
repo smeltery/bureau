@@ -277,7 +277,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
       {creating && <CronjobDialog username={username} onClose={() => setCreating(false)} />}
       {editing && <CronjobDialog cronjob={editing} username={username} onClose={() => setEditing(null)} />}
       {editingPrompt && <CronjobsPromptDialog onClose={() => setEditingPrompt(false)} />}
-      {openRun && <CronjobRunView jobId={openRun.jobId} runId={openRun.runId} onClose={() => setOpenRun(null)} />}
+      {openRun && <CronjobRunView jobId={openRun.jobId} runId={openRun.runId} username={username} onClose={() => setOpenRun(null)} />}
     </div>
   );
 }
