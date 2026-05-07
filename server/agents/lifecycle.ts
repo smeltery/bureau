@@ -2,10 +2,11 @@ import { homedir } from "os";
 import { join } from "path";
 import { rmSync } from "fs";
 import type { AgentInfo, AgentOutfit, LogEntry, ModelFamily, SkillInfo } from "../../shared/types.ts";
+import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
 import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
 import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
-import { addLogEntry, agents, emit, logCache, persistAll, setRooms, type ManagedAgent } from "./state.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, setRooms, type ManagedAgent } from "./state.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
 import { moveClaudeSessionFiles, resolveCwd } from "./session/paths.ts";
 import { createSession, installSession, replaceSession } from "./session/runtime.ts";
@@ -43,6 +44,36 @@ export function listSessions(agentId: string) {
 
 export function getCurrentSessionId(agentId: string): string | null {
   return agents.get(agentId)?.sessionId ?? null;
+}
+
+// Emit a styled diff card into an agent's chat. Mirrors the /bureau-diff slash
+// command but driven by HTTP — agents call POST /agents/:id/diff to surface a
+// diff when the boss asks for their changes in plain English.
+export function emitAgentDiff(agentId: string, dir?: string): { ok: true } | { ok: false; status: number; error: string } {
+  const managed = agents.get(agentId);
+  if (!managed) return { ok: false, status: 404, error: "agent not found" };
+
+  const resolved = resolveDiffCwd(dir, managed.info.cwd);
+  if (resolved.kind === "bad_dir") {
+    return { ok: false, status: 400, error: `\`${resolved.attempted}\` is not a directory.` };
+  }
+
+  const result = computeBureauDiff(resolved.cwd);
+  switch (result.kind) {
+    case "not_repo":
+      emitEphemeralLog(agentId, "system", `\`${result.cwd}\` is not a git repository.`);
+      break;
+    case "git_error":
+      emitEphemeralLog(agentId, "system", `Failed to run git diff in \`${result.cwd}\`:\n\n\`\`\`\n${result.message}\n\`\`\``);
+      break;
+    case "clean":
+      emitEphemeralLog(agentId, "system", `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
+      break;
+    case "ok":
+      emitEphemeralLog(agentId, "diff", result.summary, undefined, { diff: result.payload });
+      break;
+  }
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------------

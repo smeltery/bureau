@@ -288,7 +288,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     );
   }
   const room = rooms[managed.info.room]!;
-  const systemPrompt = buildSystemPrompt(managed.info.name, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions);
+  const systemPrompt = buildSystemPrompt(managed.info.name, managed.info.id, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions);
   // V2 SDKSessionOptions still doesn't expose systemPrompt / extraArgs, so we
   // inject --append-system-prompt via executableArgs. When
   // pathToClaudeCodeExecutable is a native binary, executableArgs are prepended
