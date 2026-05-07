@@ -1,6 +1,9 @@
 import type { SkillInfo, SkillOrigin } from "../../../shared/types.ts";
 import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
 import { execSync } from "child_process";
+import { statSync } from "fs";
+import { homedir } from "os";
+import { isAbsolute, join, resolve } from "path";
 import { listAgentSessions } from "../../persistence.ts";
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
@@ -282,12 +285,28 @@ const commandHandlers: Record<string, HandlerFn> = {
     return true;
   },
 
-  async bureauDiff(agentId, managed, _args, rawText, username) {
+  async bureauDiff(agentId, managed, args, rawText, username) {
     const userMeta = username ? { username } : undefined;
     emitEphemeralLog(agentId, "user_message", rawText, userMeta);
-    const cwd = managed.info.cwd;
 
-    const runGit = (args: string, maxBuffer = 10 * 1024 * 1024) => execSync(`git ${args}`, { cwd, timeout: 10000, maxBuffer, stdio: ["ignore", "pipe", "pipe"] }).toString();
+    // Optional directory arg — useful for peeking at a worktree without
+    // having to spawn a fresh agent there. ~ expands to the user's home;
+    // relative paths resolve against the agent's cwd; absolute paths win.
+    const rawDir = args[0]?.trim();
+    let cwd = managed.info.cwd;
+    if (rawDir) {
+      const expanded = rawDir.startsWith("~") ? join(homedir(), rawDir.slice(1).replace(/^[/\\]/, "")) : rawDir;
+      cwd = isAbsolute(expanded) ? expanded : resolve(managed.info.cwd, expanded);
+      try {
+        if (!statSync(cwd).isDirectory()) throw new Error("not a directory");
+      } catch {
+        emitEphemeralLog(agentId, "system", `\`${cwd}\` is not a directory.`);
+        updateState(agentId, "waiting_for_response");
+        return true;
+      }
+    }
+
+    const runGit = (cmdArgs: string, maxBuffer = 10 * 1024 * 1024) => execSync(`git ${cmdArgs}`, { cwd, timeout: 10000, maxBuffer, stdio: ["ignore", "pipe", "pipe"] }).toString();
 
     try {
       runGit("rev-parse --is-inside-work-tree", 1024);
