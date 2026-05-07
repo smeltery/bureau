@@ -233,7 +233,7 @@ export function OfficeView({
             {onOpenCronjobs && (
               <button
                 onClick={onOpenCronjobs}
-                title="Cronjobs (scheduled SDK sessions)"
+                title="Cron jobs (scheduled SDK sessions)"
                 style={{
                   padding: "4px 10px",
                   borderRadius: 8,
@@ -244,7 +244,7 @@ export function OfficeView({
                   cursor: "pointer",
                 }}
               >
-                Cronjobs
+                Cron jobs
               </button>
             )}
             <button
