@@ -87,8 +87,33 @@ Setup:
 - Escape returns to office
 - Ctrl+C to interrupt — cleanly aborts and lets you resume
 
+### Cron Jobs
+- Schedule recurring SDK sessions on a daily, weekly, or interval cadence (minimum 5 min)
+- Each fire opens a fresh session, runs your prompt unattended, and persists the transcript as a "run"
+- Cron Jobs page surfaces a runs feed (with filter by job) and a job-config table; click a run to read its transcript
+- Resume any past run by sending a follow-up message; or edit-to-fork a prior user message to branch from that point
+- Per-cron-job system prompt for shared rules across all of your scheduled jobs
+- Cost attribution per cron job in /usage, including jobs whose configs were later deleted
+- 30-minute hard timeout per run; 5-minute scheduler tick; "skipped" rows when a scheduled run is still in flight
+
+### Diff Viewer
+- /bureau-diff renders uncommitted changes in your cwd as a styled per-file card: status badges, +/- counts, click-to-collapse, unified/split toggle, lightbox overlay for large files, 2 MB safety rail
+- Optional directory argument (\`/bureau-diff ~/some/worktree\`) to peek at a worktree without spawning a fresh agent there
+- Agents can surface the same card themselves via POST localhost:4000/agents/:id/diff — they learn the curl recipe from their system prompt, so "show me what you've changed" just works in plain English
+
+### Daily Backups
+- Server-managed scheduler tarballs ~/.bureau/ to ~/bureau-backups/bureau-YYYY-MM-DD.tar.gz once a day
+- Keeps the last 7 archives; destination overridable via \$BUREAU_BACKUP_DIR
+- Live tar — JSON config writes use atomic write-then-rename so the snapshot can't capture a half-written file
+- Status (last run timestamp, ok/error, retention) at GET /backup/status
+
+### Task Board
+- Statuses: open, in_progress, backlog, done. Backlog tasks are hidden from the default "active" filter and the office desk badge so deferred work doesn't clutter the working set
+- Default GET /tasks excludes done + backlog; pass \`?status=backlog\` or \`?status=all\` to see them
+
 ### Slash Commands & Autocomplete
-- Built-in commands: /clear, /help, /cost, /context
+- Built-in commands: /clear, /help, /cost, /context, /resume, /model
+- Bureau-specific: /bureau-diff (rich diff card), /bureau-system-prompt (inspect your effective system prompt), /usage (per-agent + per-room + per-cron-job cost report)
 - User skills from ~/.claude/skills/ and project commands
 - Bureau-bundled skills like /bureau-peer-review (tells an agent to review another agent's work) and /bureau-all-hands (shows what everyone is up to)
 - Autocomplete dropdown with keyboard navigation

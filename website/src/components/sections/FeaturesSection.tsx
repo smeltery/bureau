@@ -3,6 +3,7 @@
 import {
   LayoutGrid,
   Users,
+  Clock,
   RefreshCw,
   Smartphone,
   Terminal,
@@ -10,6 +11,8 @@ import {
   Shield,
   GitBranch,
   ListChecks,
+  FileDiff,
+  Archive,
   Eye,
   Paperclip,
 } from 'lucide-react';
@@ -27,6 +30,12 @@ export function FeaturesSection() {
       title: 'Multi-Agent Orchestration',
       description:
         'Spawn and manage concurrent Claude Code sessions from one interface instead of juggling terminals.',
+    },
+    {
+      icon: <Clock className="h-6 w-6" />,
+      title: 'Cron Jobs',
+      description:
+        'Schedule recurring SDK sessions (daily, weekly, or by interval). Browse per-run transcripts; resume or edit-to-fork any past run.',
     },
     {
       icon: <RefreshCw className="h-6 w-6" />,
@@ -68,7 +77,19 @@ export function FeaturesSection() {
       icon: <ListChecks className="h-6 w-6" />,
       title: 'Shared Task Board',
       description:
-        'Humans and agents can create, claim, and complete tasks through both UI and API workflows.',
+        'Humans and agents can create, claim, and complete tasks through both UI and API workflows. Backlog status keeps deferred work out of the active list.',
+    },
+    {
+      icon: <FileDiff className="h-6 w-6" />,
+      title: 'Rich Diff Viewer',
+      description:
+        'Run /bureau-diff to render uncommitted changes as a per-file card with status badges, +/- counts, and a unified/split toggle. Agents can also surface diffs via POST /agents/:id/diff.',
+    },
+    {
+      icon: <Archive className="h-6 w-6" />,
+      title: 'Daily Backups',
+      description:
+        'Bureau auto-tarballs ~/.bureau/ to ~/bureau-backups/ once a day, keeping the last 7 archives. Status exposed at /backup/status.',
     },
     {
       icon: <Eye className="h-6 w-6" />,

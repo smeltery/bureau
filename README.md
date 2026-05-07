@@ -53,15 +53,18 @@ Then open **http://localhost:4000** and click an empty desk.
 
 - **Visual office metaphor** — isometric desks, animated characters, status lights
 - **Multi-agent orchestration** — spawn, manage, and monitor concurrent Claude Code sessions
+- **Cron jobs** — scheduled SDK sessions (daily/weekly/interval) with browsable per-run transcripts; resume or edit-to-fork any past run
 - **Real-time sync** — WebSocket keeps every connected device in lockstep
 - **Mobile & PWA** — touch-optimized UI, installable on any device
 - **Embedded terminal** — per-agent shell access
 - **Voice I/O** — speech-to-text prompts, text-to-speech responses
 - **Safety hooks** — blocks `rm -rf`, `git reset --hard`, and other footguns
 - **Conversation branching** — fork any past message, preserve the original
-- **Shared task board** — humans and agents create, assign, and close tasks
+- **Shared task board** — humans and agents create, assign, and close tasks (with a Backlog status for deferred work)
+- **Rich diff viewer** — `/bureau-diff` (or `POST /agents/:id/diff`) renders uncommitted changes as a per-file card with status badges, +/- counts, and unified/split toggle
+- **Daily backups** — automatic tarball of `~/.bureau/` to `~/bureau-backups/` (last 7 retained)
 - **Inter-agent discovery** — agents can read each other's conversations
-- **Slash commands** — `/bureau-peer-review`, `/bureau-all-hands`, and more
+- **Slash commands** — `/bureau-peer-review`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-system-prompt`, `/usage`, `/resume`, `/model`, and more
 - **File attachments** — images, PDFs, arbitrary files
 
 For the full feature list, see the [design & architecture article](articles/punching-in-building-an-office-for-ai-agents.md).
