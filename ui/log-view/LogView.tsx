@@ -42,7 +42,7 @@ export function LogView({
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
 }) {
-  const { drafts, slashCommands, stateChangedAt, isMobile } = useAppState();
+  const { drafts, slashCommands, stateChangedAt, isMobile, connected } = useAppState();
   const dispatch = useDispatch();
   const features = useFeatures();
 
@@ -286,7 +286,7 @@ export function LogView({
           >
             <Character key={agent.state} state={agent.state} outfit={agent.outfit} />
           </div>
-          {logs.length === 0 && <div style={{ color: "var(--text-ghost)", textAlign: "center", marginTop: 40 }}>Send a message to start a conversation.</div>}
+          {logs.length === 0 && <div style={{ color: "var(--text-ghost)", textAlign: "center", marginTop: 40 }}>{connected ? "Send a message to start a conversation." : "Loading..."}</div>}
           {logs.map((entry) => {
             const td = turnData.get(entry.id);
             const canEditMsg = entry.kind === "user_message" && agent.state === "waiting_for_response" && !editingLogEntryId;
@@ -306,6 +306,13 @@ export function LogView({
                   send({ type: "edit_message", agentId: agent.id, logEntryId: id, newText, username });
                 }}
               />
+            );
+            return isUserMsg ? (
+              <div key={entry.id} ref={getUserMsgRefCb(entry.id)}>
+                {card}
+              </div>
+            ) : (
+              <div key={entry.id}>{card}</div>
             );
           })}
           <ActivityIndicator state={agent.state} stateChangedAt={stateChangedAt.get(agent.id)} agentId={agent.id} />
