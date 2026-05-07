@@ -1,6 +1,6 @@
 import { join } from "path";
 import { homedir } from "os";
-import { mkdirSync } from "fs";
+import { mkdirSync, renameSync, writeFileSync } from "fs";
 
 export const BUREAU_DIR = join(homedir(), ".bureau");
 export const LOGS_DIR = join(BUREAU_DIR, "logs");
@@ -25,3 +25,13 @@ try {
   mkdirSync(LOGS_DIR, { recursive: true });
   mkdirSync(CRONJOBS_DIR, { recursive: true });
 } catch {}
+
+// Atomic file write: write to a sibling .tmp file then rename. Renames are
+// atomic on the same filesystem, so a concurrent reader (notably the backup
+// tarball) sees either the previous contents or the new contents, never a
+// half-written file. JSONL appends are line-tolerant and skip this.
+export function atomicWriteFileSync(path: string, data: string | Buffer) {
+  const tmp = path + ".tmp";
+  writeFileSync(tmp, data);
+  renameSync(tmp, path);
+}

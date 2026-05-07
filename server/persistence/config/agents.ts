@@ -1,8 +1,8 @@
 import { join } from "path";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import type { AgentInfo, ClaudeModel, ModelFamily } from "../../../shared/types.ts";
 import { familyFromLegacyModel, generateRoomId } from "../../../shared/types.ts";
-import { AGENTS_FILE, LOGS_DIR, MANIFEST_FILE } from "../paths.ts";
+import { AGENTS_FILE, atomicWriteFileSync, LOGS_DIR, MANIFEST_FILE } from "../paths.ts";
 
 // Persisted agent config (subset of AgentInfo + session tracking)
 export interface PersistedAgent {
@@ -81,7 +81,7 @@ export function loadAgents(): Room[] {
 
 export function saveAgents(rooms: Room[]) {
   try {
-    writeFileSync(AGENTS_FILE, JSON.stringify(rooms, null, 2));
+    atomicWriteFileSync(AGENTS_FILE, JSON.stringify(rooms, null, 2));
   } catch (err) {
     console.error("Failed to save agents:", err);
   }
@@ -101,7 +101,7 @@ export function writeManifest(agents: { id: string; name: string; desk: number; 
       model: a.model,
       logDir: join(LOGS_DIR, a.id),
     }));
-    writeFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2));
+    atomicWriteFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2));
   } catch (err) {
     console.error("Failed to write manifest:", err);
   }

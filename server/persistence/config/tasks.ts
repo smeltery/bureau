@@ -1,6 +1,6 @@
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import type { TaskItem } from "../../../shared/types.ts";
-import { TASKS_FILE } from "../paths.ts";
+import { atomicWriteFileSync, TASKS_FILE } from "../paths.ts";
 
 export function loadTasks(): TaskItem[] {
   try {
@@ -13,7 +13,7 @@ export function loadTasks(): TaskItem[] {
 
 export function saveTasks(tasks: TaskItem[]) {
   try {
-    writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
+    atomicWriteFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
   } catch (err) {
     console.error("Failed to save tasks:", err);
   }

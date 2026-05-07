@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { OFFICE_CONFIG_FILE, OFFICE_PROMPT_FILE } from "../paths.ts";
+import { readFileSync, existsSync } from "fs";
+import { atomicWriteFileSync, OFFICE_CONFIG_FILE, OFFICE_PROMPT_FILE } from "../paths.ts";
 
 // Office-level settings (prompt + env file path) stored in office-config.json.
 // On first load, if the legacy office-prompt.md exists and no config file does,
@@ -35,7 +35,7 @@ export function loadOfficeConfig(): OfficeConfig {
   // it anyway once there's real data.
   if (legacyPrompt) {
     try {
-      writeFileSync(OFFICE_CONFIG_FILE, JSON.stringify(config, null, 2));
+      atomicWriteFileSync(OFFICE_CONFIG_FILE, JSON.stringify(config, null, 2));
     } catch (err) {
       console.error("Failed to write initial office config:", err);
     }
@@ -45,7 +45,7 @@ export function loadOfficeConfig(): OfficeConfig {
 
 export function saveOfficeConfig(config: OfficeConfig) {
   try {
-    writeFileSync(OFFICE_CONFIG_FILE, JSON.stringify(config, null, 2));
+    atomicWriteFileSync(OFFICE_CONFIG_FILE, JSON.stringify(config, null, 2));
   } catch (err) {
     console.error("Failed to save office config:", err);
   }
