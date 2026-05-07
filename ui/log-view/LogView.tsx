@@ -12,6 +12,7 @@ import { InputBar } from "./InputBar.tsx";
 import { ActivityIndicator } from "./StateIndicators.tsx";
 import { useViewportHeight } from "./hooks/useViewportHeight.ts";
 import { useAutoScroll } from "./hooks/useAutoScroll.ts";
+import { usePinnedUserMessage } from "./hooks/usePinnedUserMessage.ts";
 import { useSlashAutocomplete } from "./hooks/useSlashAutocomplete.ts";
 import { useVoiceInput } from "./hooks/useVoiceInput.ts";
 import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
@@ -80,7 +81,12 @@ export function LogView({
 
   // Hooks owning their own concerns
   const vpHeight = useViewportHeight(isMobile, scrollRef);
-  const { autoScroll, setAutoScroll, handleScroll } = useAutoScroll(scrollRef, logs, agent.state);
+  const { autoScroll, setAutoScroll, handleScroll: handleAutoScroll } = useAutoScroll(scrollRef, logs, agent.state);
+  const { pinnedMessage, scrollToPinnedMessage, getUserMsgRefCb, recomputePinned } = usePinnedUserMessage(scrollRef, logs, agent.state);
+  const handleScroll = useCallback(() => {
+    handleAutoScroll();
+    recomputePinned();
+  }, [handleAutoScroll, recomputePinned]);
   const autocomplete = useSlashAutocomplete(input, slashCommands.get(agent.id));
   const voice = useVoiceInput({
     inputRef,
@@ -203,6 +209,42 @@ export function LogView({
           getConversationText={getConversationText}
         />
 
+        {/* Pinned user message — sits between the header and the messages
+            when no user_message is currently visible in the scroll viewport.
+            Click scrolls the conversation back to that message. */}
+        {pinnedMessage && (
+          <div
+            onClick={scrollToPinnedMessage}
+            title={pinnedMessage.content}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: isMobile ? "6px 12px" : "6px 24px",
+              background: "var(--bg-subtle)",
+              borderBottom: "1px solid var(--border)",
+              cursor: "pointer",
+              color: "var(--text-muted)",
+              fontSize: 12,
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ color: "var(--text-ghost)", flexShrink: 0, fontWeight: 600 }}>↑ you:</span>
+            <span
+              style={{
+                flex: 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                minWidth: 0,
+              }}
+            >
+              {pinnedMessage.content}
+            </span>
+            <span style={{ color: "var(--text-ghost)", flexShrink: 0, fontSize: 11, lineHeight: 1 }}>↑</span>
+          </div>
+        )}
+
         {/* Messages */}
         <div
           ref={messagesRef}
@@ -248,9 +290,9 @@ export function LogView({
           {logs.map((entry) => {
             const td = turnData.get(entry.id);
             const canEditMsg = entry.kind === "user_message" && agent.state === "waiting_for_response" && !editingLogEntryId;
-            return (
+            const isUserMsg = entry.kind === "user_message";
+            const card = (
               <LogEntryCard
-                key={entry.id}
                 entry={entry}
                 isLastInTurn={td?.isLastInTurn}
                 turnEntries={td?.turnEntries}
