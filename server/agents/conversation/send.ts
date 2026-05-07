@@ -10,12 +10,24 @@ import { handleSlashCommand } from "./slash-commands.ts";
 export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[]) {
   const managed = agents.get(agentId);
   if (!managed) return;
+  // If an abort is mid-handoff, wait for it to install the replacement session.
+  // Without this, a follow-up message arriving in the gap between session.close()
+  // and installSession sees session=null and falls into the recovery branch below,
+  // amputating the agent's context.
+  if (managed.abortPromise) {
+    try {
+      await managed.abortPromise;
+    } catch {}
+  }
   if (!managed.session) {
     // Try to create a fresh session so the user's next message doesn't silently vanish.
+    // Pass managed.sessionId so the new session resumes from the prior transcript when
+    // possible — the previous session is genuinely dead, but the on-disk transcript is
+    // still intact and worth restoring.
     try {
-      installSession(agentId, managed, createSession(managed));
-      managed.sessionId = null;
-      addLogEntry(agentId, "system", "Started a fresh session (previous one could not be restored).");
+      const sessionId = managed.sessionId;
+      installSession(agentId, managed, sessionId ? createSession(managed, sessionId) : createSession(managed));
+      addLogEntry(agentId, "system", sessionId ? "Resumed prior session after the previous one ended unexpectedly." : "Started a fresh session (previous one could not be restored).");
       updateState(agentId, "waiting_for_response");
       // Fall through so the message is actually sent on the new session.
     } catch (err: any) {

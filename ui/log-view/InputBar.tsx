@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { AgentInfo, Attachment } from "../../shared/types.ts";
 import { send } from "../ws.ts";
+import { sendAbortDebounced } from "../utils/abort.ts";
 import { useAppState } from "../store.tsx";
 import type { StagedAttachment } from "./hooks/useAttachmentUpload.ts";
 
@@ -314,7 +315,7 @@ export function InputBar({
               }
               if (e.key === "c" && (e.ctrlKey || e.metaKey) && isBusy) {
                 e.preventDefault();
-                send({ type: "abort", agentId: agent.id });
+                sendAbortDebounced(agent.id);
               }
             }}
             placeholder={
@@ -406,7 +407,7 @@ export function InputBar({
         {isMobile &&
           (isBusy ? (
             <button
-              onClick={() => send({ type: "abort", agentId: agent.id })}
+              onClick={() => sendAbortDebounced(agent.id)}
               style={{
                 flexShrink: 0,
                 alignSelf: "flex-end",
