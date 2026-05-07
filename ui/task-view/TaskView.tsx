@@ -64,7 +64,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
   const filtered = useMemo(() => {
     let list = tasks;
     if (filterStatus === "active") {
-      list = list.filter((t) => t.status !== "done");
+      list = list.filter((t) => t.status !== "done" && t.status !== "backlog");
     } else if (filterStatus !== "all") {
       list = list.filter((t) => t.status === filterStatus);
     }
@@ -233,6 +233,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
             <option value="active">Open + In Progress</option>
             <option value="open">Open</option>
             <option value="in_progress">In Progress</option>
+            <option value="backlog">Backlog</option>
             <option value="done">Done</option>
             <option value="all">All</option>
           </select>
@@ -352,7 +353,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
                             height: 8,
                             borderRadius: "50%",
                             background: STATUS_COLORS[task.status],
-                            boxShadow: task.status !== "done" ? `0 0 6px ${STATUS_COLORS[task.status]}` : "none",
+                            boxShadow: task.status === "open" || task.status === "in_progress" ? `0 0 6px ${STATUS_COLORS[task.status]}` : "none",
                           }}
                           title={STATUS_LABELS[task.status]}
                         />
