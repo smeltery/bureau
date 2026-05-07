@@ -180,7 +180,7 @@ export function addLogEntry(agentId: string, kind: LogEntry["kind"], content: st
 // Note: entries are still added to logCache for UI display. If sessionId is null when this is
 // called, the backfill logic in processMessage (system/init) would write them to disk. In practice
 // this doesn't happen because /resume requires existing sessions (sessionId already set).
-export function emitEphemeralLog(agentId: string, kind: LogEntry["kind"], content: string, metadata?: Record<string, unknown>) {
+export function emitEphemeralLog(agentId: string, kind: LogEntry["kind"], content: string, metadata?: Record<string, unknown>, extra?: Partial<Pick<LogEntry, "diff">>) {
   const entry: LogEntry = {
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     agentId,
@@ -188,6 +188,7 @@ export function emitEphemeralLog(agentId: string, kind: LogEntry["kind"], conten
     kind,
     content,
     metadata,
+    ...(extra ?? {}),
   };
   const cached = logCache.get(agentId) ?? [];
   cached.push(entry);

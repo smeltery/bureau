@@ -2,6 +2,7 @@ import type { LogEntry } from "../../../shared/types.ts";
 import { UserMessage, EditableUserMessage } from "./UserMessage.tsx";
 import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage } from "./AssistantEntries.tsx";
 import { ToolCall, ToolResult } from "./ToolEntries.tsx";
+import { DiffCard } from "../DiffCard.tsx";
 
 export { serializeEntries } from "./serialize.ts";
 
@@ -70,6 +71,10 @@ export function LogEntryCard({
       return <ErrorBlock content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     case "system":
       return <SystemMessage content={entry.content} isMobile={isMobile} />;
+    case "diff": {
+      if (!entry.diff) return <SystemMessage content={entry.content} isMobile={isMobile} />;
+      return <DiffCard payload={entry.diff} />;
+    }
     default:
       return <div style={{ padding: "4px 0", color: "var(--text-muted)", fontSize: isMobile ? 14 : 12 }}>{entry.content}</div>;
   }

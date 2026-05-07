@@ -1,9 +1,6 @@
 import type { SkillInfo, SkillOrigin } from "../../../shared/types.ts";
 import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
-import { execSync } from "child_process";
-import { statSync } from "fs";
-import { homedir } from "os";
-import { isAbsolute, join, resolve } from "path";
+import { computeBureauDiff, resolveDiffCwd } from "../../bureau-diff.ts";
 import { listAgentSessions } from "../../persistence.ts";
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
@@ -274,7 +271,7 @@ const commandHandlers: Record<string, HandlerFn> = {
     const userMeta = username ? { username } : undefined;
     emitEphemeralLog(agentId, "user_message", rawText, userMeta);
     const room = rooms[managed.info.room]!;
-    const prompt = buildSystemPrompt(managed.info.name, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions);
+    const prompt = buildSystemPrompt(managed.info.name, agentId, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions);
     // Pick a fence longer than any backtick run inside the prompt so the block
     // renders verbatim regardless of what office/room/agent prompts contain.
     const longestRun = (prompt.match(/`+/g) ?? []).reduce((m, s) => Math.max(m, s.length), 0);
@@ -289,90 +286,28 @@ const commandHandlers: Record<string, HandlerFn> = {
     const userMeta = username ? { username } : undefined;
     emitEphemeralLog(agentId, "user_message", rawText, userMeta);
 
-    // Optional directory arg — useful for peeking at a worktree without
-    // having to spawn a fresh agent there. ~ expands to the user's home;
-    // relative paths resolve against the agent's cwd; absolute paths win.
-    const rawDir = args[0]?.trim();
-    let cwd = managed.info.cwd;
-    if (rawDir) {
-      const expanded = rawDir.startsWith("~") ? join(homedir(), rawDir.slice(1).replace(/^[/\\]/, "")) : rawDir;
-      cwd = isAbsolute(expanded) ? expanded : resolve(managed.info.cwd, expanded);
-      try {
-        if (!statSync(cwd).isDirectory()) throw new Error("not a directory");
-      } catch {
-        emitEphemeralLog(agentId, "system", `\`${cwd}\` is not a directory.`);
-        updateState(agentId, "waiting_for_response");
-        return true;
-      }
-    }
-
-    const runGit = (cmdArgs: string, maxBuffer = 10 * 1024 * 1024) => execSync(`git ${cmdArgs}`, { cwd, timeout: 10000, maxBuffer, stdio: ["ignore", "pipe", "pipe"] }).toString();
-
-    try {
-      runGit("rev-parse --is-inside-work-tree", 1024);
-    } catch {
-      emitEphemeralLog(agentId, "system", `\`${cwd}\` is not a git repository.`);
+    const resolved = resolveDiffCwd(args[0], managed.info.cwd);
+    if (resolved.kind === "bad_dir") {
+      emitEphemeralLog(agentId, "system", `\`${resolved.attempted}\` is not a directory.`);
       updateState(agentId, "waiting_for_response");
       return true;
     }
 
-    let stat = "";
-    let diff = "";
-    let untracked: string[] = [];
-    try {
-      // Prefer HEAD (includes staged+unstaged). Fall back to workdir-only if HEAD is missing (fresh repo).
-      try {
-        stat = runGit("diff HEAD --stat").trim();
-        diff = runGit("diff HEAD", 50 * 1024 * 1024);
-      } catch {
-        stat = runGit("diff --stat").trim();
-        diff = runGit("diff", 50 * 1024 * 1024);
-      }
-      const untrackedOut = runGit("ls-files --others --exclude-standard").trim();
-      if (untrackedOut) untracked = untrackedOut.split("\n");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      emitEphemeralLog(agentId, "system", `Failed to run git diff in \`${cwd}\`:\n\n\`\`\`\n${msg}\n\`\`\``);
-      updateState(agentId, "waiting_for_response");
-      return true;
+    const result = computeBureauDiff(resolved.cwd);
+    switch (result.kind) {
+      case "not_repo":
+        emitEphemeralLog(agentId, "system", `\`${result.cwd}\` is not a git repository.`);
+        break;
+      case "git_error":
+        emitEphemeralLog(agentId, "system", `Failed to run git diff in \`${result.cwd}\`:\n\n\`\`\`\n${result.message}\n\`\`\``);
+        break;
+      case "clean":
+        emitEphemeralLog(agentId, "system", `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
+        break;
+      case "ok":
+        emitEphemeralLog(agentId, "diff", result.summary, undefined, { diff: result.payload });
+        break;
     }
-
-    const parts: string[] = [];
-    parts.push(`**Uncommitted changes in** \`${cwd}\``);
-    parts.push("");
-
-    if (!stat && untracked.length === 0) {
-      parts.push("*Working tree clean — no uncommitted changes.*");
-    } else {
-      if (stat) {
-        parts.push("```");
-        parts.push(stat);
-        parts.push("```");
-      }
-      if (diff.trim()) {
-        const MAX = 500_000;
-        let body = diff;
-        let truncated = false;
-        if (body.length > MAX) {
-          body = body.slice(0, MAX);
-          truncated = true;
-        }
-        const longestRun = (body.match(/`+/g) ?? []).reduce((m, s) => Math.max(m, s.length), 0);
-        const fence = "`".repeat(Math.max(3, longestRun + 1));
-        parts.push("");
-        parts.push(`${fence}diff`);
-        parts.push(body);
-        parts.push(fence);
-        if (truncated) parts.push(`\n*Diff truncated at ${MAX.toLocaleString()} bytes — run \`git diff HEAD\` for the full patch.*`);
-      }
-      if (untracked.length > 0) {
-        parts.push("");
-        parts.push(`**Untracked files (${untracked.length}):**`);
-        for (const f of untracked) parts.push(`- \`${f}\``);
-      }
-    }
-
-    emitEphemeralLog(agentId, "system", parts.join("\n"));
     updateState(agentId, "waiting_for_response");
     return true;
   },
