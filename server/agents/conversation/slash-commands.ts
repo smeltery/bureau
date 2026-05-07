@@ -154,6 +154,11 @@ const commandHandlers: Record<string, HandlerFn> = {
     lines.push("  \u2022 Bureau agents can check what other agents are up to in real time. Just ask naturally.");
     lines.push("  \u2022 Use voice-to-text for faster prompting. The shortcut is ctrl+space.");
     lines.push("  \u2022 Use `/bureau-all-hands` to check what every agent is up to.");
+    lines.push("  \u2022 Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Pass a directory to peek at a worktree.");
+    lines.push("  \u2022 Use `/usage` to see per-agent + per-room + per-cron-job lifetime cost.");
+    lines.push("  \u2022 Schedule recurring work in the Cron Jobs page \u2014 daily, weekly, or by interval. Resume or edit-to-fork any past run.");
+    lines.push("  \u2022 Tasks have a Backlog status \u2014 use it to defer work without it cluttering the active list.");
+    lines.push("  \u2022 ~/.bureau/ is auto-tarballed daily to ~/bureau-backups/ (last 7 kept).");
     lines.push("  \u2022 Use `/report-bureau-bug` if you find any issues.");
     lines.push("  \u2022 Use `/bureau-grill-me` to make your feature designs more robust.");
 
