@@ -68,7 +68,7 @@ function formatStartedAt(ts: number): string {
 }
 
 export function CronjobsView({ username, onClose }: { username: string; onClose: () => void }) {
-  const { cronjobs, cronjobRunsByJob, isMobile } = useAppState();
+  const { cronjobs, cronjobsLoaded, cronjobRunsByJob, cronjobRunsLoaded, isMobile } = useAppState();
   const [tab, setTab] = useState<Tab>("runs");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Cronjob | null>(null);
@@ -252,6 +252,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
         {tab === "cronjobs" ? (
           <CronjobsTable
             cronjobs={cronjobs}
+            loaded={cronjobsLoaded}
             runsByJob={cronjobRunsByJob}
             isMobile={isMobile}
             onRowClick={(c) => {
@@ -263,7 +264,13 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
             onRunNow={(c) => send({ type: "run_cronjob_now", id: c.id, username })}
           />
         ) : (
-          <RunsTable runs={filteredRuns} liveCronjobIds={new Set(cronjobs.map((c) => c.id))} isMobile={isMobile} onRowClick={(r) => setOpenRun({ jobId: r.cronjobId, runId: r.id })} />
+          <RunsTable
+            runs={filteredRuns}
+            loaded={cronjobRunsLoaded}
+            liveCronjobIds={new Set(cronjobs.map((c) => c.id))}
+            isMobile={isMobile}
+            onRowClick={(r) => setOpenRun({ jobId: r.cronjobId, runId: r.id })}
+          />
         )}
       </div>
 
@@ -277,6 +284,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
 
 function CronjobsTable({
   cronjobs,
+  loaded,
   runsByJob,
   isMobile,
   onRowClick,
@@ -285,6 +293,7 @@ function CronjobsTable({
   onRunNow,
 }: {
   cronjobs: Cronjob[];
+  loaded: boolean;
   runsByJob: Map<string, CronjobRun[]>;
   isMobile: boolean;
   onRowClick: (c: Cronjob) => void;
@@ -321,7 +330,7 @@ function CronjobsTable({
   };
 
   if (cronjobs.length === 0) {
-    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>No cronjobs yet. Click "+ New" to create one.</div>;
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{loaded ? `No cronjobs yet. Click "+ New" to create one.` : "Loading..."}</div>;
   }
 
   return (
@@ -454,7 +463,19 @@ function CronjobsTable({
   );
 }
 
-function RunsTable({ runs, liveCronjobIds, isMobile, onRowClick }: { runs: CronjobRun[]; liveCronjobIds: Set<string>; isMobile: boolean; onRowClick: (r: CronjobRun) => void }) {
+function RunsTable({
+  runs,
+  loaded,
+  liveCronjobIds,
+  isMobile,
+  onRowClick,
+}: {
+  runs: CronjobRun[];
+  loaded: boolean;
+  liveCronjobIds: Set<string>;
+  isMobile: boolean;
+  onRowClick: (r: CronjobRun) => void;
+}) {
   const cellPad = isMobile ? "8px 6px" : "10px 12px";
   const thStyle: React.CSSProperties = {
     padding: cellPad,
@@ -477,7 +498,7 @@ function RunsTable({ runs, liveCronjobIds, isMobile, onRowClick }: { runs: Cronj
   const totalPages = Math.max(1, Math.ceil(runs.length / PAGE_SIZE));
 
   if (runs.length === 0) {
-    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>No runs yet.</div>;
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{loaded ? "No runs yet." : "Loading..."}</div>;
   }
 
   return (

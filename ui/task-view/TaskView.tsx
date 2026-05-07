@@ -6,7 +6,7 @@ import { TaskDetailPanel } from "./TaskDetailPanel.tsx";
 import { PRIORITY_COLORS, PRIORITY_ORDER, STATUS_COLORS, STATUS_LABELS, STATUS_ORDER, type SortDir, type SortField } from "./constants.ts";
 
 export function TaskView({ username, onClose, onFocusAgent }: { username: string; onClose: () => void; onFocusAgent?: (agentId: string) => void }) {
-  const { tasks, agents, isMobile } = useAppState();
+  const { tasks, tasksLoaded, agents, isMobile } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all" | "active">("active");
   const [creating, setCreating] = useState(false);
@@ -311,7 +311,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
                 {filtered.length === 0 ? (
                   <tr>
                     <td colSpan={isMobile ? 5 : 6} style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
-                      No tasks
+                      {tasksLoaded ? "No tasks" : "Loading..."}
                     </td>
                   </tr>
                 ) : (
