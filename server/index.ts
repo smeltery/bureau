@@ -3,6 +3,7 @@ import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
 import { loadRecentCwds } from "./persistence.ts";
 import { getUpdateStatus, onUpdateChange, startUpdateChecker } from "./update-checker.ts";
+import { getBackupStatus, startBackupScheduler } from "./backup.ts";
 import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
 import { handleCommand } from "./ws/commands.ts";
 import { handleLiveReloadRequest, startLiveReloadWatcher } from "./http/live-reload.ts";
@@ -40,6 +41,13 @@ const server = Bun.serve({
     // Live-reload SSE
     const liveReload = handleLiveReloadRequest(req, url);
     if (liveReload) return liveReload;
+
+    // GET /backup/status — last-run timestamp, ok/error, retention, dest dir.
+    if (url.pathname === "/backup/status" && req.method === "GET") {
+      return new Response(JSON.stringify(getBackupStatus()), {
+        headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+      });
+    }
 
     // Task HTTP API
     const tasksResp = await handleTasksRequest(req, url);
@@ -126,5 +134,8 @@ AgentManager.restoreAgents().then((restored) => {
 
 // Boot cronjob scheduler (loads configs, reconciles stale "running" rows, starts tick).
 CronjobManager.startCronjobScheduler();
+
+// Daily ~/.bureau/ backup tarball with N=7 retention. See server/backup.ts.
+startBackupScheduler();
 
 console.log(`Bureau running at http://localhost:${server.port}`);

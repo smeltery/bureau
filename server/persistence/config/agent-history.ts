@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { AGENT_HISTORY_FILE } from "../paths.ts";
+import { readFileSync, existsSync } from "fs";
+import { AGENT_HISTORY_FILE, atomicWriteFileSync } from "../paths.ts";
 
 // Agent history: per-agent last-known name + last-known room (id + name).
 // Used by /usage to attribute killed agents to the room they were in, and to
@@ -23,7 +23,7 @@ export function loadAgentHistory(): AgentHistory {
 
 export function saveAgentHistory(history: AgentHistory) {
   try {
-    writeFileSync(AGENT_HISTORY_FILE, JSON.stringify(history, null, 2));
+    atomicWriteFileSync(AGENT_HISTORY_FILE, JSON.stringify(history, null, 2));
   } catch (err) {
     console.error("Failed to save agent history:", err);
   }

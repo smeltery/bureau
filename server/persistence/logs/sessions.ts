@@ -1,6 +1,6 @@
 import { join } from "path";
-import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
-import { LOGS_DIR } from "../paths.ts";
+import { mkdirSync, readFileSync, existsSync, readdirSync } from "fs";
+import { atomicWriteFileSync, LOGS_DIR } from "../paths.ts";
 
 // Per-session metadata storage: ~/.bureau/logs/<agentId>/sessions.json.
 // - `usage` holds current-run accumulated usage. Token fields are summed as
@@ -54,7 +54,7 @@ function saveSessionsMap(agentId: string, map: SessionsMap) {
   try {
     const agentDir = join(LOGS_DIR, agentId);
     mkdirSync(agentDir, { recursive: true });
-    writeFileSync(join(agentDir, "sessions.json"), JSON.stringify(map, null, 2));
+    atomicWriteFileSync(join(agentDir, "sessions.json"), JSON.stringify(map, null, 2));
   } catch (err) {
     console.error("Failed to save sessions map:", err);
   }

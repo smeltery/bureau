@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { RECENT_CWDS_FILE } from "../paths.ts";
+import { readFileSync, existsSync } from "fs";
+import { atomicWriteFileSync, RECENT_CWDS_FILE } from "../paths.ts";
 
 const MAX_RECENT_CWDS = 20;
 
@@ -16,7 +16,7 @@ export function saveRecentCwd(cwd: string) {
   try {
     const recent = loadRecentCwds().filter((c) => c !== cwd);
     recent.unshift(cwd);
-    writeFileSync(RECENT_CWDS_FILE, JSON.stringify(recent.slice(0, MAX_RECENT_CWDS), null, 2));
+    atomicWriteFileSync(RECENT_CWDS_FILE, JSON.stringify(recent.slice(0, MAX_RECENT_CWDS), null, 2));
   } catch (err) {
     console.error("Failed to save recent cwd:", err);
   }
