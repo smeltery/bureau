@@ -213,11 +213,11 @@ export function renderUsageReport(): string {
 
   if (cronjobRows.length > 0) {
     lines.push("");
-    lines.push(`## Per-cronjob usage`);
+    lines.push(`## Per-cron job usage`);
     lines.push("");
-    lines.push(`_Lifetime totals across every run of each cronjob._`);
+    lines.push(`_Lifetime totals across every run of each cron job._`);
     lines.push("");
-    lines.push(`| Cronjob | In (life) | Out (life) | $ (life) |`);
+    lines.push(`| Cron job | In (life) | Out (life) | $ (life) |`);
     lines.push(`| --- | ---: | ---: | ---: |`);
     for (const r of cronjobRows) {
       const label = r.deleted ? `${r.name} _(deleted)_` : r.name;

@@ -154,7 +154,7 @@ export function addCronjob(input: AddCronjobInput): Cronjob {
   const now = Date.now();
   const cronjob: Cronjob = {
     id: generateCronjobId(cronjobs.map((c) => c.id)),
-    name: input.name.trim() || "Untitled cronjob",
+    name: input.name.trim() || "Untitled cron job",
     schedule,
     prompt: input.prompt,
     cwd: resolveCwd(input.cwd),
@@ -271,7 +271,7 @@ How to show an image: read the image file with the Read tool — it renders inli
 How to read prior runs of this cronjob: ~/.bureau/cronjobs/${jobId}/runs.json lists every run (newest last) with startedAt, status, and rootSessionId. The transcript for a run lives at ~/.bureau/cronjobs/${jobId}/<runId>/<rootSessionId>.jsonl.`;
 
   if (officeConfig.prompt) prompt += `\n\n## Office Instructions\n\n${officeConfig.prompt}`;
-  if (cronjobsPrompt) prompt += `\n\n## Cronjobs Instructions\n\n${cronjobsPrompt}`;
+  if (cronjobsPrompt) prompt += `\n\n## Cron Jobs Instructions\n\n${cronjobsPrompt}`;
   return prompt;
 }
 
@@ -566,7 +566,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
     try {
       session.close();
     } catch {}
-    writeLog(active, "error", "Cronjob run exceeded 30-minute hard timeout.");
+    writeLog(active, "error", "Cron job run exceeded 30-minute hard timeout.");
     finalizeRun(active, "timed_out", "exceeded global run timeout");
   }, HARD_TIMEOUT_MS);
 
