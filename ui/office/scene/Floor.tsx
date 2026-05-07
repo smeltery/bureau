@@ -65,7 +65,7 @@ interface DoorProps {
 
 export function Walls({
   onToggleTheme,
-  onEditOfficePrompt,
+  onWallPanelClick,
   hasOfficePrompt,
   onOpenTasks,
   taskCount = 0,
@@ -73,7 +73,7 @@ export function Walls({
   rightDoor,
 }: {
   onToggleTheme?: () => void;
-  onEditOfficePrompt?: () => void;
+  onWallPanelClick?: (x: number, y: number) => void;
   hasOfficePrompt?: boolean;
   onOpenTasks?: () => void;
   taskCount?: number;
@@ -274,7 +274,7 @@ export function Walls({
       </g>
 
       {/* Framed wall sign on left wall — formal, authoritative feel */}
-      <g transform="translate(50, -75) skewY(-27)" onClick={onEditOfficePrompt} style={{ cursor: "pointer", pointerEvents: "auto" }}>
+      <g transform="translate(50, -75) skewY(-27)" onClick={(e) => onWallPanelClick?.(e.clientX, e.clientY)} style={{ cursor: "pointer", pointerEvents: "auto" }}>
         {/* Outer frame — dark wood/brass */}
         <rect x="-30" y="-32" width="60" height="58" rx="2" fill="#3a3028" stroke="#2a2018" strokeWidth="1.2" />
         {/* Inner frame — thin brass inset */}

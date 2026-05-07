@@ -10,8 +10,31 @@ import { SCENE_W, SCENE_H } from "./grid.ts";
 import { send } from "../ws.ts";
 import { SunIcon, MoonIcon } from "../components/controls/Icons.tsx";
 import { MobileHeader, getRoomCounts } from "../components/overlays/MobileHeader.tsx";
+import { WallPanelMenu, type WallPanelMenuItem } from "../components/overlays/WallPanelMenu.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
 import type { AgentInfo } from "../../shared/types.ts";
+
+function BuildingIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="3" y="2" width="10" height="13" />
+      <line x1="6" y1="5" x2="6" y2="6" />
+      <line x1="10" y1="5" x2="10" y2="6" />
+      <line x1="6" y1="9" x2="6" y2="10" />
+      <line x1="10" y1="9" x2="10" y2="10" />
+      <line x1="7" y1="13" x2="9" y2="13" />
+    </svg>
+  );
+}
+
+function DoorIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="4" y="2" width="8" height="13" />
+      <circle cx="10" cy="9" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
 
 /** HTML drop zone positioned over an SVG door — SVG elements are unreliable drag-and-drop targets */
 function DoorDropZone({ side, onDrop, onDragOverChange, onClick }: { side: "left" | "right"; onDrop: (deskIndex: number) => boolean; onDragOverChange: (over: boolean) => void; onClick: () => void }) {
@@ -86,6 +109,12 @@ export function OfficeView({
   const [rightDoorDragOver, setRightDoorDragOver] = useState(false);
   const [leftDoorReject, setLeftDoorReject] = useState(false);
   const [rightDoorReject, setRightDoorReject] = useState(false);
+  const [wallMenu, setWallMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const wallMenuItems: WallPanelMenuItem[] = [
+    { id: "office", icon: <BuildingIcon />, label: "Office settings", onClick: onEditOfficePrompt },
+    ...(onEditRoomSettings ? [{ id: "room", icon: <DoorIcon />, label: "Room settings", onClick: onEditRoomSettings }] : []),
+  ];
 
   const counts = getRoomCounts(roomAgents);
 
@@ -281,7 +310,7 @@ export function OfficeView({
         >
           <Walls
             onToggleTheme={toggleTheme}
-            onEditOfficePrompt={onEditOfficePrompt}
+            onWallPanelClick={(x, y) => setWallMenu({ x, y })}
             hasOfficePrompt={!!officePrompt}
             onOpenTasks={onOpenTasks}
             taskCount={tasks.filter((t) => t.status !== "done").length}
@@ -433,6 +462,7 @@ export function OfficeView({
           ))}
         </div>
       )}
+      {wallMenu && <WallPanelMenu x={wallMenu.x} y={wallMenu.y} items={wallMenuItems} onClose={() => setWallMenu(null)} />}
     </div>
   );
 }
