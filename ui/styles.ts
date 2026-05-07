@@ -309,4 +309,52 @@ export const CSS = `
     cursor: pointer; padding: 0;
     transition: color 0.15s, background 0.15s, border-color 0.15s;
   }
+
+  /* diff2html — chat-context tweaks: tighter density, no per-file double-border. */
+  .d2h-bureau-host .d2h-file-wrapper {
+    border: none; border-radius: 0; margin-bottom: 0;
+  }
+  .d2h-bureau-host .d2h-file-header {
+    display: none;
+  }
+  .d2h-bureau-host .d2h-diff-table {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  }
+  .d2h-bureau-host .d2h-code-line, .d2h-bureau-host .d2h-code-side-line {
+    padding: 0 4em; width: calc(100% - 8em);
+  }
+  .d2h-bureau-host .d2h-code-side-line {
+    padding: 0 3em; width: calc(100% - 6em);
+  }
+  .d2h-bureau-host .d2h-code-linenumber, .d2h-bureau-host .d2h-code-side-linenumber {
+    width: 3.5em;
+  }
+
+  /* Dark theme: re-route diff2html's light defaults to its own dark palette. */
+  [data-theme="dark"] .d2h-bureau-host {
+    --d2h-bg-color: var(--d2h-dark-bg-color);
+    --d2h-border-color: var(--d2h-dark-border-color);
+    --d2h-dim-color: var(--d2h-dark-dim-color);
+    --d2h-line-border-color: var(--d2h-dark-line-border-color);
+    --d2h-file-header-bg-color: var(--d2h-dark-file-header-bg-color);
+    --d2h-file-header-border-color: var(--d2h-dark-file-header-border-color);
+    --d2h-empty-placeholder-bg-color: var(--d2h-dark-empty-placeholder-bg-color);
+    --d2h-empty-placeholder-border-color: var(--d2h-dark-empty-placeholder-border-color);
+    --d2h-selected-color: var(--d2h-dark-selected-color);
+    --d2h-ins-bg-color: var(--d2h-dark-ins-bg-color);
+    --d2h-ins-border-color: var(--d2h-dark-ins-border-color);
+    --d2h-ins-highlight-bg-color: var(--d2h-dark-ins-highlight-bg-color);
+    --d2h-ins-label-color: var(--d2h-dark-ins-label-color);
+    --d2h-del-bg-color: var(--d2h-dark-del-bg-color);
+    --d2h-del-border-color: var(--d2h-dark-del-border-color);
+    --d2h-del-highlight-bg-color: var(--d2h-dark-del-highlight-bg-color);
+    --d2h-del-label-color: var(--d2h-dark-del-label-color);
+    --d2h-change-del-color: var(--d2h-dark-change-del-color);
+    --d2h-change-ins-color: var(--d2h-dark-change-ins-color);
+    --d2h-info-bg-color: var(--d2h-dark-info-bg-color);
+    --d2h-info-border-color: var(--d2h-dark-info-border-color);
+    --d2h-change-label-color: var(--d2h-dark-change-label-color);
+    --d2h-moved-label-color: var(--d2h-dark-moved-label-color);
+    color: var(--d2h-dark-color);
+  }
 `;

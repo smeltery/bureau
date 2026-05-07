@@ -76,15 +76,39 @@ export interface Attachment {
   size: number; // bytes
 }
 
+// Per-file summary inside a kind:"diff" LogEntry. The server pre-computes
+// inlineEligible so the client doesn't re-parse the patch to decide rendering.
+export interface DiffFileSummary {
+  path: string;
+  oldPath?: string; // set on rename / copy
+  status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" | "binary";
+  additions: number;
+  deletions: number;
+  lineCount: number; // approx size of the per-file patch (additions + deletions)
+  inlineEligible: boolean; // server-computed: lineCount <= 500 && !binary && patch present
+}
+
+// Structured payload attached to LogEntry when kind === "diff".
+export interface DiffPayload {
+  cwd: string;
+  branch: string | null; // null on detached HEAD or fresh repo
+  head: string | null; // short SHA, null on fresh repo with no commits
+  stats: { additions: number; deletions: number; filesChanged: number };
+  files: DiffFileSummary[];
+  patchText: string | null; // null when over 2MB safety rail
+  truncated: boolean; // true when patchText was dropped
+}
+
 // Log entry in the conversation view
 export interface LogEntry {
   id: string;
   agentId: string;
   timestamp: number;
-  kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message";
+  kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "diff";
   content: string;
   metadata?: Record<string, unknown>;
   attachments?: Attachment[]; // file attachments, served via /api/files/<agentId>/<filename>
+  diff?: DiffPayload; // present only when kind === "diff"
 }
 
 // Task item (replaces todos)
