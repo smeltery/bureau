@@ -274,29 +274,36 @@ export function Header({
             }}
           />
         )}
-        <span style={{ color: "var(--text-ghost)" }}>&middot;</span>
+        <span style={{ color: "var(--text-ghost)", flexShrink: 0 }}>&middot;</span>
         <span
+          title={agent.cwd}
           style={{
             fontFamily: "'JetBrains Mono',monospace",
             color: "var(--text-muted)",
             fontSize: 12,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            minWidth: 0,
+            flexShrink: 1,
           }}
         >
           {agent.cwd.replace(/^\/home\/[^/]+/, "~")}
         </span>
-        <span style={{ color: "var(--text-ghost)" }}>&middot;</span>
+        <span style={{ color: "var(--text-ghost)", flexShrink: 0 }}>&middot;</span>
         <span
           style={{
             fontFamily: "'JetBrains Mono',monospace",
             color: "var(--text-ghost)",
             fontSize: 11,
             whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           {familyDisplayLabel(agent.modelFamily)}
         </span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end", flexShrink: 0, marginLeft: 12 }}>
         {onOpenTasks && (
           <button
             onClick={onOpenTasks}
