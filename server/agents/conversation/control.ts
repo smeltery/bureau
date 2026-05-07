@@ -17,18 +17,30 @@ export async function abort(agentId: string) {
     return;
   }
   managed.aborting = true;
+  let abortDone!: () => void;
+  managed.abortPromise = new Promise<void>((res) => {
+    abortDone = res;
+  });
   const sessionId = managed.sessionId;
+
+  // Flip UI state and log the interrupt up front so the agent appears to
+  // stop immediately. The SDK's close() takes a few seconds to actually
+  // drain, but runConsumer suppresses events from the dying session — so
+  // from the user's perspective the agent stops on Ctrl+C, matching the
+  // Claude Code interactive behavior.
+  updateState(agentId, "waiting_for_response");
+  addLogEntry(agentId, "system", "Agent interrupted.");
 
   try {
     const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
     await replaceSession(agentId, managed, newSession);
-    updateState(agentId, "waiting_for_response");
-    addLogEntry(agentId, "system", "Agent interrupted.");
   } catch (err: any) {
     addLogEntry(agentId, "error", `Failed to resume after interrupt: ${err.message}`);
     updateState(agentId, "error");
   } finally {
     managed.aborting = false;
+    managed.abortPromise = null;
+    abortDone();
   }
 }
 

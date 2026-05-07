@@ -191,6 +191,12 @@ async function runConsumer(agentId: string, managed: ManagedAgent, boundSession:
   while (agents.has(agentId) && managed.session === boundSession) {
     try {
       for await (const msg of boundSession.stream()) {
+        // After an abort/resume/fork the dying session may keep yielding
+        // messages for several seconds before its stream() generator finally
+        // ends (the SDK's close() doesn't interrupt mid-chunk). We must keep
+        // draining so the inner generator terminates, but we drop the events
+        // — otherwise the user sees model output continuing after Ctrl+C.
+        if (managed.session !== boundSession) continue;
         processMessage(agentId, msg);
       }
       // Inner generator ended: either the turn's `result` arrived, or the

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AgentState } from "../../shared/types.ts";
-import { send } from "../ws.ts";
+import { sendAbortDebounced } from "../utils/abort.ts";
 import { ESCALATION_AMBER_MS, escalationColor, formatElapsed } from "../utils/time.ts";
 
 export const STATE_LABELS: Partial<Record<AgentState, string>> = {
@@ -52,7 +52,7 @@ export function ActivityIndicator({ state, stateChangedAt, agentId }: { state: A
       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, opacity: 0.7 }}>{formatElapsed(elapsedMs)}</span>
       {showAbort && (
         <button
-          onClick={() => send({ type: "abort", agentId })}
+          onClick={() => sendAbortDebounced(agentId)}
           style={{
             marginLeft: 8,
             padding: "2px 10px",
