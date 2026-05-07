@@ -10,6 +10,7 @@ import { handleLiveReloadRequest, startLiveReloadWatcher } from "./http/live-rel
 import { handleTasksRequest } from "./http/tasks.ts";
 import { handleCronjobsRequest } from "./http/cronjobs.ts";
 import { handleFilesRequest } from "./http/files.ts";
+import { handleAgentsRequest } from "./http/agents.ts";
 import { handleStaticRequest } from "./http/static.ts";
 
 // Wire AgentManager events to WebSocket broadcasts
@@ -60,6 +61,10 @@ const server = Bun.serve({
     // File upload + file/image serving
     const filesResp = await handleFilesRequest(req, url);
     if (filesResp) return filesResp;
+
+    // Agent-scoped HTTP endpoints (e.g. POST /agents/:id/diff)
+    const agentsResp = await handleAgentsRequest(req, url);
+    if (agentsResp) return agentsResp;
 
     // Demo + UI SPA fallback
     return handleStaticRequest(req, url);

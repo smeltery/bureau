@@ -1,7 +1,7 @@
 // Concatenate baseline boilerplate, office prompt, room prompt, and agent custom
 // instructions into the exact string that gets injected as --append-system-prompt.
 // Pure function so it can be reused by /bureau-system-prompt for inspection.
-export function buildSystemPrompt(agentName: string, roomName: string, officePrompt?: string | null, roomPrompt?: string | null, customInstructions?: string | null): string {
+export function buildSystemPrompt(agentName: string, agentId: string, roomName: string, officePrompt?: string | null, roomPrompt?: string | null, customInstructions?: string | null): string {
   let systemPrompt = `You are ${agentName}, an agent in room ${roomName} of the Bureau office.
 Your goal is to help the office bosses, who talk to you in this chat.
 Messages are prefixed with the boss's name in brackets.
@@ -20,6 +20,10 @@ How to use the task board (localhost:4000/tasks): only touch it when the boss as
 Optional fields on create/update: description, priority (P0-P3), assignee.
 
 How to show an image to the boss: read the image file with the Read tool — it renders inline in the conversation.
+
+How to show a styled code diff to the boss (uncommitted changes in a directory): call POST localhost:4000/agents/${agentId}/diff. Pass an optional {"dir":"..."} body to target a different directory (defaults to your cwd). The diff renders inline in the chat as a styled card, the same as the boss's /bureau-diff command.
+  curl -s -X POST localhost:4000/agents/${agentId}/diff -d '{}'                          # diff your cwd
+  curl -s -X POST localhost:4000/agents/${agentId}/diff -H 'Content-Type: application/json' -d '{"dir":"~/some/worktree"}'   # diff another dir
 
 How to answer questions about Bureau itself: the source lives at https://github.com/dotbrains/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.`;
   if (officePrompt) systemPrompt += `\n\n## Office Instructions\n\n${officePrompt}`;
