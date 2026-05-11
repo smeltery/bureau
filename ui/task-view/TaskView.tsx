@@ -70,7 +70,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
     }
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter((t) => t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)));
+      list = list.filter((t) => t.id.toLowerCase().includes(q) || t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)));
     }
     if (filterAssignee) {
       const q = filterAssignee.toLowerCase();

@@ -4,7 +4,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { readEnvFile, rollSessionUsageOnResume } from "../../persistence.ts";
 import { createSafetyHooks } from "./safety/index.ts";
-import { addLogEntry, agents, emitEphemeralLog, officeConfig, rooms, updateState, type ManagedAgent } from "../state.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, officeConfig, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
 import { LOGIN_INSTRUCTIONS, isAuthError, processMessage } from "./messages.ts";
@@ -244,24 +244,31 @@ export function installSession(agentId: string, managed: ManagedAgent, session: 
 // drain, install the new session + consumer. Rejects any in-flight turn so
 // callers awaiting sendMessage's deferred don't hang.
 export async function replaceSession(agentId: string, managed: ManagedAgent, newSession: ReturnType<typeof unstable_v2_createSession>) {
-  const oldConsumer = managed.consumerPromise;
-  const turn = managed.pendingTurn;
-  managed.pendingTurn = null;
-  if (turn) {
-    try {
-      turn.reject(new SessionSwappedError());
-    } catch {}
-  }
+  managed.info = { ...managed.info, sessionSwapping: true };
+  emit({ type: "agent_updated", agentId, changes: { sessionSwapping: true } });
   try {
-    managed.session?.close();
-  } catch {}
-  managed.session = null;
-  if (oldConsumer) {
+    const oldConsumer = managed.consumerPromise;
+    const turn = managed.pendingTurn;
+    managed.pendingTurn = null;
+    if (turn) {
+      try {
+        turn.reject(new SessionSwappedError());
+      } catch {}
+    }
     try {
-      await oldConsumer;
+      managed.session?.close();
     } catch {}
+    managed.session = null;
+    if (oldConsumer) {
+      try {
+        await oldConsumer;
+      } catch {}
+    }
+    installSession(agentId, managed, newSession);
+  } finally {
+    managed.info = { ...managed.info, sessionSwapping: false };
+    emit({ type: "agent_updated", agentId, changes: { sessionSwapping: false } });
   }
-  installSession(agentId, managed, newSession);
 }
 
 export function createSession(managed: ManagedAgent, resumeSessionId?: string) {

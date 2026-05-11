@@ -43,6 +43,35 @@ export interface AppState {
   updateAvailable: boolean;
   updateCurrent: { sha: string; message: string; date: string };
   updateLatest: { sha: string; message: string; date: string };
+  // Per-agent side panel state: which side panel (if any) is open next to
+  // the chat. Persisted to localStorage per-agent so switching between
+  // agents and reloading both restore the right panel.
+  sidePanels: Map<string, "terminal" | "editor" | null>;
+}
+
+const SIDE_PANEL_KEY = "bureau:side-panels";
+
+function readSidePanels(): Map<string, "terminal" | "editor" | null> {
+  if (typeof localStorage === "undefined") return new Map();
+  try {
+    const raw = localStorage.getItem(SIDE_PANEL_KEY);
+    if (!raw) return new Map();
+    const obj = JSON.parse(raw) as Record<string, "terminal" | "editor" | null>;
+    return new Map(Object.entries(obj));
+  } catch {
+    return new Map();
+  }
+}
+
+function writeSidePanels(map: Map<string, "terminal" | "editor" | null>) {
+  if (typeof localStorage === "undefined") return;
+  try {
+    const obj: Record<string, "terminal" | "editor" | null> = {};
+    map.forEach((v, k) => {
+      if (v) obj[k] = v;
+    });
+    localStorage.setItem(SIDE_PANEL_KEY, JSON.stringify(obj));
+  } catch {}
 }
 
 type Action =
@@ -77,7 +106,8 @@ type Action =
   | { type: "cronjob_run_updated"; run: CronjobRun }
   | SettingsSaveResponse
   | SettingsValidationResponse
-  | { type: "update_status"; updateAvailable: boolean; current: { sha: string; message: string; date: string }; latest: { sha: string; message: string; date: string } };
+  | { type: "update_status"; updateAvailable: boolean; current: { sha: string; message: string; date: string }; latest: { sha: string; message: string; date: string } }
+  | { type: "set_side_panel"; agentId: string; panel: "terminal" | "editor" | null };
 
 // States that warrant attention
 const ATTENTION_STATES = new Set(["idle", "error", "waiting_for_response"]);
@@ -104,11 +134,14 @@ function reducer(state: AppState, action: Action): AppState {
       logs.delete(action.agentId);
       const needsAttention = new Set(state.needsAttention);
       needsAttention.delete(action.agentId);
+      const sidePanels = new Map(state.sidePanels);
+      if (sidePanels.delete(action.agentId)) writeSidePanels(sidePanels);
       return {
         ...state,
         agents: state.agents.filter((a) => a.id !== action.agentId),
         logs,
         needsAttention,
+        sidePanels,
         focusedAgentId: state.focusedAgentId === action.agentId ? null : state.focusedAgentId,
       };
     }
@@ -243,6 +276,13 @@ function reducer(state: AppState, action: Action): AppState {
       }
       return { ...state, cronjobRunsByJob: next };
     }
+    case "set_side_panel": {
+      const sidePanels = new Map(state.sidePanels);
+      if (action.panel) sidePanels.set(action.agentId, action.panel);
+      else sidePanels.delete(action.agentId);
+      writeSidePanels(sidePanels);
+      return { ...state, sidePanels };
+    }
     case "rooms_reordered": {
       // action.order is the new ordering of roomIds
       const idToOldIdx = new Map(state.rooms.map((r, i) => [r.id, i]));
@@ -292,6 +332,7 @@ const initialState: AppState = {
   updateAvailable: false,
   updateCurrent: { sha: "", message: "", date: "" },
   updateLatest: { sha: "", message: "", date: "" },
+  sidePanels: readSidePanels(),
 };
 
 const StateCtx = createContext<AppState>(initialState);

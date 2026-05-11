@@ -56,12 +56,16 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Cron jobs** — scheduled SDK sessions (daily/weekly/interval) with browsable per-run transcripts; resume or edit-to-fork any past run
 - **Real-time sync** — WebSocket keeps every connected device in lockstep
 - **Mobile & PWA** — touch-optimized UI, installable on any device
-- **Embedded terminal** — per-agent shell access
+- **File editor side panel** — built-in CodeMirror editor with tabs, syntax highlighting, dirty-buffer tracking, and external-change detection; agents can offer `[Open in editor]` cards via `POST /agents/:id/edit-file`
+- **Embedded terminal** — per-agent shell access with a mobile full-screen overlay (Tab / Esc / Ctrl+C / Paste soft-keys, IME-friendly textarea); agents can offer `[Copy to terminal]` cards via `POST /agents/:id/terminal-command` that prefill a command at the prompt without executing
+- **Resizable side panels** — drag the splitter to size the terminal or editor; widths persist
+- **Per-agent message queue** — typing while an agent is busy queues messages as chips above the input; they flush automatically when the agent idles, and you can cancel any of them before they send
 - **Voice I/O** — speech-to-text prompts, text-to-speech responses
 - **Safety hooks** — blocks `rm -rf`, `git reset --hard`, and other footguns
 - **Conversation branching** — fork any past message, preserve the original
-- **Shared task board** — humans and agents create, assign, and close tasks (with a Backlog status for deferred work)
+- **Shared task board** — humans and agents create, assign, and close tasks (with a Backlog status for deferred work); search by id, title, or description
 - **Rich diff viewer** — `/bureau-diff` (or `POST /agents/:id/diff`) renders uncommitted changes as a per-file card with status badges, +/- counts, and unified/split toggle
+- **Session-swap indicator** — chat shows a brief "Restarting session..." hint during `/resume`, `/model`, or fork-from-edit so the drain → install gap isn't silent
 - **Daily backups** — automatic tarball of `~/.bureau/` to `~/bureau-backups/` (last 7 retained)
 - **Inter-agent discovery** — agents can read each other's conversations
 - **Slash commands** — `/bureau-peer-review`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-system-prompt`, `/usage`, `/resume`, `/model`, and more

@@ -66,6 +66,28 @@ export interface AgentInfo {
   topic: string | null;
   topicStale: boolean;
   customInstructions: string | null;
+  // True while the agent's SDK session is being replaced (e.g. resume,
+  // model change, edit/fork, slash-command compact). The chat UI shows a
+  // "Restarting session..." hint until the swap completes — without it
+  // there's no feedback during the drain → install gap, which can take
+  // a noticeable beat on a busy session.
+  sessionSwapping?: boolean;
+  // Pending user messages that arrived while the agent was busy. Flushed
+  // together as the agent transitions back to an idle state. In-memory
+  // only — never persisted.
+  queue?: QueuedMessage[];
+}
+
+// A pending user message waiting for the agent to finish its current turn.
+// Bosses see queued messages as chips above the input bar; they can cancel
+// any of them before the flush. Senders are humans only for now (agents
+// don't queue messages to each other in Bureau).
+export interface QueuedMessage {
+  id: string; // short hex; UI uses this to cancel
+  username?: string;
+  text: string;
+  attachments?: Attachment[];
+  queuedAt: number;
 }
 
 // File attachment metadata
@@ -99,16 +121,33 @@ export interface DiffPayload {
   truncated: boolean; // true when patchText was dropped
 }
 
+// Structured payload attached to LogEntry when kind === "edit-request".
+// Emitted by POST /agents/:id/edit-file. The card surfaces an
+// [Open in editor] button that opens the file in the editor side panel.
+export interface FilePayload {
+  path: string; // resolved absolute path
+}
+
+// Structured payload attached to LogEntry when kind === "terminal-command".
+// Emitted by POST /agents/:id/terminal-command. The card surfaces a
+// [Copy to terminal] button that opens the terminal side panel and types
+// the command at the prompt without executing it (boss presses Enter).
+export interface TerminalCommandPayload {
+  command: string; // single-line shell command
+}
+
 // Log entry in the conversation view
 export interface LogEntry {
   id: string;
   agentId: string;
   timestamp: number;
-  kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "diff";
+  kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "diff" | "edit-request" | "terminal-command";
   content: string;
   metadata?: Record<string, unknown>;
   attachments?: Attachment[]; // file attachments, served via /api/files/<agentId>/<filename>
   diff?: DiffPayload; // present only when kind === "diff"
+  file?: FilePayload; // present only when kind === "edit-request"
+  terminal?: TerminalCommandPayload; // present only when kind === "terminal-command"
 }
 
 // Task item (replaces todos)
@@ -320,6 +359,10 @@ export type ServerMessage =
   | { type: "clear_logs"; agentId: string }
   | { type: "terminal_output"; agentId: string; data: string }
   | { type: "terminal_exit"; agentId: string; exitCode: number }
+  | { type: "editor_content"; agentId: string; path: string; content: string; mtime: number; language: string; size: number }
+  | { type: "editor_save_response"; agentId: string; path: string; ok: boolean; mtime?: number; error?: string; reason?: "stale"; currentMtime?: number }
+  | { type: "editor_external_change"; agentId: string; path: string; mtime: number }
+  | { type: "editor_open_error"; agentId: string; path: string; reason: "not_found" | "not_file" | "binary" | "too_large" | "io_error" | "bad_path"; message?: string; size?: number }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
   | { type: "tasks"; tasks: TaskItem[] }
   | { type: "room_created"; room: RoomWire }
@@ -380,6 +423,9 @@ export type ClientCommand =
   | { type: "terminal_input"; agentId: string; data: string }
   | { type: "terminal_resize"; agentId: string; cols: number; rows: number }
   | { type: "terminal_close"; agentId: string }
+  | { type: "editor_open"; agentId: string; path: string }
+  | { type: "editor_save"; agentId: string; path: string; content: string; expectedMtime: number; force?: boolean }
+  | { type: "editor_close"; agentId: string; path: string }
   | { type: "update_office_settings"; requestId: string; prompt: string | null; envFile: string | null }
   | { type: "update_room_settings"; requestId: string; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "request_settings_validation"; requestId: string; scope: "office" | "room"; roomId?: string }
@@ -393,6 +439,7 @@ export type ClientCommand =
   | { type: "move_agent"; agentId: string; targetRoomId: string }
   | { type: "reorder_rooms"; order: string[] }
   | { type: "edit_message"; agentId: string; logEntryId: string; newText: string; username?: string }
+  | { type: "dequeue_message"; agentId: string; queuedId: string }
   | {
       type: "add_cronjob";
       requestId?: string;

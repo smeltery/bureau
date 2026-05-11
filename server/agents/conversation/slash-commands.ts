@@ -149,7 +149,13 @@ const commandHandlers: Record<string, HandlerFn> = {
     // Tips
     lines.push("\n**Tips:**");
     lines.push("  \u2022 Bureau also works on your phone. The easiest way is to connect it to the same tailscale network as the machine running it (it's free).");
-    lines.push("  \u2022 The built-in side-panel terminal is useful for one-off situations where you need to run something manually, like auth flows.");
+    lines.push(
+      "  \u2022 The built-in side-panel terminal is useful for one-off situations where you need to run something manually, like auth flows. On mobile it opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.",
+    );
+    lines.push("  \u2022 The file editor side panel (toggle next to the terminal button) opens any file with CodeMirror \u2014 tabs, syntax highlighting, and external-change detection.");
+    lines.push("  \u2022 Agents can offer `[Open in editor]` and `[Copy to terminal]` cards in chat (POST /agents/:id/edit-file and /terminal-command); click to open in the side panel.");
+    lines.push("  \u2022 Drag the splitter between chat and the side panel to resize it. Widths persist per kind.");
+    lines.push("  \u2022 Sending a message while an agent is busy queues it as a chip above the input; it flushes when the agent idles. Click \u00d7 on the chip to cancel.");
     lines.push("  \u2022 Bureau comes with safety pre-tool-call hooks to prevent destructive commands, like `rm -rf /`.");
     lines.push("  \u2022 Bureau agents can check what other agents are up to in real time. Just ask naturally.");
     lines.push("  \u2022 Use voice-to-text for faster prompting. The shortcut is ctrl+space.");

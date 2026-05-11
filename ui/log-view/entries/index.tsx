@@ -3,6 +3,8 @@ import { UserMessage, EditableUserMessage } from "./UserMessage.tsx";
 import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage } from "./AssistantEntries.tsx";
 import { ToolCall, ToolResult } from "./ToolEntries.tsx";
 import { DiffCard } from "../DiffCard.tsx";
+import { EditRequestCard } from "../EditRequestCard.tsx";
+import { TerminalCommandCard } from "../TerminalCommandCard.tsx";
 
 export { serializeEntries } from "./serialize.ts";
 
@@ -23,6 +25,8 @@ export function LogEntryCard({
   onStartEdit,
   onCancelEdit,
   onSubmitEdit,
+  onOpenInEditor,
+  onCopyToTerminal,
 }: {
   entry: LogEntry;
   isLastInTurn?: boolean;
@@ -33,6 +37,8 @@ export function LogEntryCard({
   onStartEdit?: (entryId: string) => void;
   onCancelEdit?: () => void;
   onSubmitEdit?: (entryId: string, newText: string) => void;
+  onOpenInEditor?: (path: string) => void;
+  onCopyToTerminal?: (command: string) => void;
 }) {
   switch (entry.kind) {
     case "user_message": {
@@ -74,6 +80,14 @@ export function LogEntryCard({
     case "diff": {
       if (!entry.diff) return <SystemMessage content={entry.content} isMobile={isMobile} />;
       return <DiffCard payload={entry.diff} />;
+    }
+    case "edit-request": {
+      if (!entry.file || !onOpenInEditor) return <SystemMessage content={entry.content} isMobile={isMobile} />;
+      return <EditRequestCard payload={entry.file} onOpen={onOpenInEditor} />;
+    }
+    case "terminal-command": {
+      if (!entry.terminal || !onCopyToTerminal) return <SystemMessage content={entry.content} isMobile={isMobile} />;
+      return <TerminalCommandCard payload={entry.terminal} onCopy={onCopyToTerminal} />;
     }
     default:
       return <div style={{ padding: "4px 0", color: "var(--text-muted)", fontSize: isMobile ? 14 : 12 }}>{entry.content}</div>;

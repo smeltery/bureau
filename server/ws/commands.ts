@@ -5,6 +5,21 @@ import * as AgentManager from "../agent-manager.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import { saveRecentCwd, saveTasks } from "../persistence.ts";
 import { broadcast, setTasks, tasks } from "./broadcast.ts";
+import { stopWatch, watchFile } from "../file-editor.ts";
+import { editorWatchers } from "../index.ts";
+
+function editorKey(agentId: string, absPath: string): string {
+  return `${agentId}\0${absPath}`;
+}
+
+function getWatcherMap(ws: ServerWebSocket<unknown>) {
+  let map = editorWatchers.get(ws);
+  if (!map) {
+    map = new Map();
+    editorWatchers.set(ws, map);
+  }
+  return map;
+}
 
 export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>) {
   switch (cmd.type) {
@@ -36,6 +51,9 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
     case "send_message":
       // Don't await — let it stream in the background
       AgentManager.sendMessage(cmd.agentId, cmd.text, cmd.username, cmd.attachments);
+      break;
+    case "dequeue_message":
+      AgentManager.dequeueMessage(cmd.agentId, cmd.queuedId);
       break;
     case "new_conversation":
       await AgentManager.newConversation(cmd.agentId);
@@ -108,6 +126,95 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
     case "terminal_close":
       AgentManager.closeTerminal(cmd.agentId);
       break;
+    case "editor_open": {
+      const probe = AgentManager.openEditorFile(cmd.agentId, cmd.path);
+      if (!probe.ok) {
+        ws.send(
+          JSON.stringify({
+            type: "editor_open_error",
+            agentId: cmd.agentId,
+            path: cmd.path,
+            reason: probe.error === "not_agent" ? "io_error" : "bad_path",
+            message: probe.error === "not_agent" ? "agent not found" : undefined,
+          } as ServerMessage),
+        );
+        break;
+      }
+      const r = probe.result;
+      if (r.kind !== "ok") {
+        ws.send(
+          JSON.stringify({
+            type: "editor_open_error",
+            agentId: cmd.agentId,
+            path: r.path,
+            reason: r.kind,
+            message: r.kind === "io_error" ? r.message : undefined,
+            size: r.kind === "too_large" ? r.size : undefined,
+          } as ServerMessage),
+        );
+        break;
+      }
+      ws.send(
+        JSON.stringify({
+          type: "editor_content",
+          agentId: cmd.agentId,
+          path: r.path,
+          content: r.content,
+          mtime: r.mtime,
+          language: r.language,
+          size: r.size,
+        } as ServerMessage),
+      );
+      // Install (or replace) the per-WS watcher so external edits surface as
+      // `editor_external_change`. Replacing collapses duplicate opens.
+      const map = getWatcherMap(ws);
+      const key = editorKey(cmd.agentId, r.path);
+      const old = map.get(key);
+      if (old) stopWatch(old);
+      const watcher = watchFile(r.path, cmd.agentId, (mtime) => {
+        ws.send(JSON.stringify({ type: "editor_external_change", agentId: cmd.agentId, path: r.path, mtime } as ServerMessage));
+      });
+      if (watcher) map.set(key, watcher);
+      break;
+    }
+    case "editor_save": {
+      const abs = AgentManager.resolveEditorPathForAgent(cmd.agentId, cmd.path);
+      if (!abs) {
+        ws.send(JSON.stringify({ type: "editor_save_response", agentId: cmd.agentId, path: cmd.path, ok: false, error: "agent not found" } as ServerMessage));
+        break;
+      }
+      const result = AgentManager.saveEditorFile(abs, cmd.content, cmd.expectedMtime, cmd.force ?? false);
+      if (result.kind === "ok") {
+        ws.send(JSON.stringify({ type: "editor_save_response", agentId: cmd.agentId, path: result.path, ok: true, mtime: result.mtime } as ServerMessage));
+      } else if (result.kind === "stale") {
+        ws.send(
+          JSON.stringify({
+            type: "editor_save_response",
+            agentId: cmd.agentId,
+            path: result.path,
+            ok: false,
+            reason: "stale",
+            currentMtime: result.currentMtime,
+            error: "File changed on disk since you opened it.",
+          } as ServerMessage),
+        );
+      } else {
+        ws.send(JSON.stringify({ type: "editor_save_response", agentId: cmd.agentId, path: result.path, ok: false, error: result.message } as ServerMessage));
+      }
+      break;
+    }
+    case "editor_close": {
+      const abs = AgentManager.resolveEditorPathForAgent(cmd.agentId, cmd.path);
+      if (!abs) break;
+      const map = getWatcherMap(ws);
+      const key = editorKey(cmd.agentId, abs);
+      const w = map.get(key);
+      if (w) {
+        stopWatch(w);
+        map.delete(key);
+      }
+      break;
+    }
     case "update_office_settings": {
       const envFile = cmd.envFile && cmd.envFile.trim() ? cmd.envFile.trim() : null;
       if (envFile) {
