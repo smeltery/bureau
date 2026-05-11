@@ -2,9 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { DEMO_FEATURES, PRODUCTION_FEATURES, type Features } from "../features.ts";
 
 describe("PRODUCTION_FEATURES", () => {
-  test("enables sessions, terminal and live LLM", () => {
+  test("enables sessions, terminal, editor and live LLM", () => {
     expect(PRODUCTION_FEATURES.sessions).toBe(true);
     expect(PRODUCTION_FEATURES.terminal).toBe(true);
+    expect(PRODUCTION_FEATURES.editor).toBe(true);
     expect(PRODUCTION_FEATURES.llmConnected).toBe(true);
   });
 
@@ -20,6 +21,10 @@ describe("DEMO_FEATURES", () => {
 
   test("disables the terminal panel", () => {
     expect(DEMO_FEATURES.terminal).toBe(false);
+  });
+
+  test("disables the file editor side panel", () => {
+    expect(DEMO_FEATURES.editor).toBe(false);
   });
 
   test("runs without an LLM (fake responses)", () => {
