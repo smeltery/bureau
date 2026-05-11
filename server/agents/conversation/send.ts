@@ -1,15 +1,114 @@
-import type { Attachment } from "../../../shared/types.ts";
+import type { Attachment, QueuedMessage } from "../../../shared/types.ts";
 import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
-import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, updateState } from "../state.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { buildUserMessage } from "../session/messages.ts";
 import { SessionSwappedError, createSession, createTurnDeferred, installSession, replaceSession } from "../session/runtime.ts";
 import { generateTopic, persistCurrentSessionTopic } from "../topic.ts";
 import { handleSlashCommand } from "./slash-commands.ts";
 
+const QUEUE_MAX = 50;
+
+function generateQueuedId(existing: QueuedMessage[]): string {
+  // 6-char hex; retry on collision (extremely unlikely with a Map<= QUEUE_MAX)
+  for (let i = 0; i < 8; i++) {
+    const id = Math.random().toString(16).slice(2, 8);
+    if (!existing.some((m) => m.id === id)) return id;
+  }
+  return `${Date.now().toString(16).slice(-6)}`;
+}
+
+function enqueueUserMessage(agentId: string, managed: ManagedAgent, text: string, username: string | undefined, attachments: Attachment[] | undefined): boolean {
+  if (managed.messageQueue.length >= QUEUE_MAX) return false;
+  const item: QueuedMessage = {
+    id: generateQueuedId(managed.messageQueue),
+    username,
+    text,
+    attachments,
+    queuedAt: Date.now(),
+  };
+  managed.messageQueue.push(item);
+  emitQueueUpdate(agentId, managed);
+  return true;
+}
+
+// Flush the per-agent message queue. Combines all queued items into one
+// SDK send (each item is also written as its own user_message log entry so
+// chat history shows them as individual turns). Called from updateState
+// when the agent transitions to a non-busy state.
+export async function flushQueue(agentId: string): Promise<void> {
+  const managed = agents.get(agentId);
+  if (!managed) return;
+  if (managed.flushInProgress) return;
+  if (managed.messageQueue.length === 0) return;
+  if (isAgentBusy(managed.info.state)) return;
+  if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick) return;
+
+  managed.flushInProgress = true;
+  try {
+    const items = managed.messageQueue.slice();
+    managed.messageQueue = [];
+    emitQueueUpdate(agentId, managed);
+    // Combine with username prefixes so the agent can tell senders apart.
+    const promptParts: string[] = [];
+    const allAttachments: Attachment[] = [];
+    for (const m of items) {
+      const prefix = m.username ? `[${m.username}] ` : "";
+      promptParts.push(`${prefix}${m.text}`);
+      if (m.attachments) allAttachments.push(...m.attachments);
+    }
+    const prompt = promptParts.join("\n\n");
+    // Log each item separately so it shows up as its own chat bubble.
+    for (const m of items) {
+      addLogEntry(agentId, "user_message", m.text, m.username ? { username: m.username } : undefined, m.attachments);
+    }
+    // Defer to sendMessage so all the session-recovery / topic-gen plumbing
+    // runs the same way as a fresh send. Pass the combined prompt with the
+    // pre-existing log entries already written.
+    updateState(agentId, "thinking");
+    try {
+      const turn = createTurnDeferred(managed);
+      if (allAttachments.length > 0) {
+        const message = buildUserMessage(agentId, prompt, allAttachments);
+        await managed.session!.send(message);
+      } else {
+        await managed.session!.send(prompt);
+      }
+      await turn;
+    } catch (err: any) {
+      if (err instanceof SessionSwappedError) return;
+      addLogEntry(agentId, "error", `Error flushing queue: ${err.message}`);
+      updateState(agentId, "error");
+    }
+  } finally {
+    managed.flushInProgress = false;
+  }
+}
+
+// Remove a queued message by id. Called from the dequeue_message WS command.
+export function dequeueMessage(agentId: string, queuedId: string): boolean {
+  const managed = agents.get(agentId);
+  if (!managed) return false;
+  const before = managed.messageQueue.length;
+  managed.messageQueue = managed.messageQueue.filter((m) => m.id !== queuedId);
+  if (managed.messageQueue.length === before) return false;
+  emitQueueUpdate(agentId, managed);
+  return true;
+}
+
 export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[]) {
   const managed = agents.get(agentId);
   if (!managed) return;
+  // Queue the message if the agent is busy. Multi-step prompts (pendingResume
+  // / model pick / permission) bypass the queue: the boss expects their input
+  // to flow into the prompt immediately.
+  if (isAgentBusy(managed.info.state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick) {
+    const queued = enqueueUserMessage(agentId, managed, text, username, attachments);
+    if (!queued) {
+      addLogEntry(agentId, "error", `Message queue is full (limit ${QUEUE_MAX}). Try again after the agent finishes.`);
+    }
+    return;
+  }
   // If an abort is mid-handoff, wait for it to install the replacement session.
   // Without this, a follow-up message arriving in the gap between session.close()
   // and installSession sees session=null and falls into the recovery branch below,

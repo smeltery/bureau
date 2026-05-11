@@ -72,6 +72,36 @@ export function ActivityIndicator({ state, stateChangedAt, agentId }: { state: A
   );
 }
 
+/**
+ * Brief "Restarting session..." hint shown while the SDK session is being
+ * swapped out and back in (e.g. /resume, model change, fork-from-edit).
+ * The drain → install window is otherwise silent, which made it look like
+ * the agent had hung.
+ */
+export function SessionSwapIndicator({ swapping }: { swapping: boolean }) {
+  if (!swapping) return null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 8,
+        color: "var(--text-muted)",
+        fontSize: 12,
+        animation: "fadeIn 0.2s ease-out",
+      }}
+    >
+      <span style={{ display: "inline-flex", gap: 3 }}>
+        <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--text-muted)", animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0s" }} />
+        <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--text-muted)", animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0.2s" }} />
+        <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--text-muted)", animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0.4s" }} />
+      </span>
+      <span>Restarting session...</span>
+    </div>
+  );
+}
+
 /** Inline state + elapsed timer shown next to the agent name in the header. */
 export function HeaderTimer({ state, stateChangedAt }: { state: AgentState; stateChangedAt?: number }) {
   const [now, setNow] = useState(Date.now());

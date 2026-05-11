@@ -18,6 +18,8 @@ export function Header({
   toggleAvatar,
   terminalOpen,
   setTerminalOpen,
+  editorOpen,
+  setEditorOpen,
   getConversationText,
 }: {
   agent: AgentInfo;
@@ -29,6 +31,8 @@ export function Header({
   toggleAvatar: () => void;
   terminalOpen: boolean;
   setTerminalOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
+  editorOpen: boolean;
+  setEditorOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
   getConversationText: () => string;
 }) {
   const { stateChangedAt, isMobile } = useAppState();
@@ -357,6 +361,27 @@ export function Header({
         >
           {theme === "dark" ? <SunIcon /> : <MoonIcon />}
         </button>
+        {features.editor && (
+          <button
+            onClick={() => setEditorOpen((prev) => !prev)}
+            title={editorOpen ? "Close editor" : "Open editor"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "4px 10px",
+              borderRadius: 6,
+              border: `1px solid ${editorOpen ? "var(--green-border)" : "var(--border-medium)"}`,
+              background: editorOpen ? "var(--green-bg)" : "var(--btn-surface)",
+              color: editorOpen ? "var(--green)" : "var(--text-dim)",
+              fontSize: 12,
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+          >
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{}</span>
+          </button>
+        )}
         {features.terminal && (
           <button
             onClick={() => setTerminalOpen((prev) => !prev)}
