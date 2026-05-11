@@ -48,6 +48,10 @@ export interface ManagedAgent {
   // Terminal PTY sidecar (spawned on demand via Node.js)
   ptySidecar: import("bun").Subprocess | null;
   ptyBuffer: string; // buffered output for reconnecting browsers
+  // Pending messages queued while the agent was busy. Flushed together
+  // as the agent transitions to an idle state. In-memory only.
+  messageQueue: import("../../shared/types.ts").QueuedMessage[];
+  flushInProgress: boolean;
   // /usage tracking. The SDK's `result` reports session-cumulative totals,
   // which are written to sessions.json on every turn (`usage` field) along
   // with a per-turn snapshot (`usageSnapshots`). /usage reads those entries
@@ -131,17 +135,52 @@ export function emit(event: AgentEvent) {
 // State mutation helpers used throughout the agent modules
 // ---------------------------------------------------------------------------
 
+// States where the agent isn't accepting new user input directly — pending
+// messages go into the queue and flush when the agent transitions back.
+const BUSY_STATES: ReadonlySet<AgentState> = new Set<AgentState>(["thinking", "tool_executing"]);
+
+export function isAgentBusy(state: AgentState): boolean {
+  return BUSY_STATES.has(state);
+}
+
+export function emitQueueUpdate(agentId: string, managed: ManagedAgent) {
+  const queue = managed.messageQueue.slice();
+  managed.info = { ...managed.info, queue };
+  emit({ type: "agent_updated", agentId, changes: { queue } });
+}
+
 export function updateState(agentId: string, state: AgentState) {
   const managed = agents.get(agentId);
   if (!managed) return;
   if (state === "thinking" && managed.info.state !== "thinking") {
     managed.thinkingStartedAt = Date.now();
   }
+  const wasBusy = isAgentBusy(managed.info.state);
   managed.info = { ...managed.info, state };
   emit({ type: "agent_updated", agentId, changes: { state } });
+  // Transitioning out of a busy state: flush any queued messages. Dynamic
+  // import dodges the state↔send circular dependency.
+  if (wasBusy && !isAgentBusy(state) && managed.messageQueue.length > 0) {
+    import("./conversation/send.ts")
+      .then(({ flushQueue }) =>
+        flushQueue(agentId).catch((err: any) => {
+          console.error(`flushQueue failed for ${agentId}:`, err.message);
+        }),
+      )
+      .catch((err) => {
+        console.error("failed to load flushQueue module:", err);
+      });
+  }
 }
 
-export function addLogEntry(agentId: string, kind: LogEntry["kind"], content: string, metadata?: Record<string, unknown>, attachments?: Attachment[]) {
+export function addLogEntry(
+  agentId: string,
+  kind: LogEntry["kind"],
+  content: string,
+  metadata?: Record<string, unknown>,
+  attachments?: Attachment[],
+  extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
+) {
   const entry: LogEntry = {
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     agentId,
@@ -150,6 +189,7 @@ export function addLogEntry(agentId: string, kind: LogEntry["kind"], content: st
     content,
     metadata,
     ...(attachments && attachments.length > 0 ? { attachments } : {}),
+    ...(extra ?? {}),
   };
   // Cache locally
   const cached = logCache.get(agentId) ?? [];
@@ -180,7 +220,7 @@ export function addLogEntry(agentId: string, kind: LogEntry["kind"], content: st
 // Note: entries are still added to logCache for UI display. If sessionId is null when this is
 // called, the backfill logic in processMessage (system/init) would write them to disk. In practice
 // this doesn't happen because /resume requires existing sessions (sessionId already set).
-export function emitEphemeralLog(agentId: string, kind: LogEntry["kind"], content: string, metadata?: Record<string, unknown>, extra?: Partial<Pick<LogEntry, "diff">>) {
+export function emitEphemeralLog(agentId: string, kind: LogEntry["kind"], content: string, metadata?: Record<string, unknown>, extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>) {
   const entry: LogEntry = {
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     agentId,

@@ -8,6 +8,7 @@ import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, setRooms, type ManagedAgent } from "./state.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
+import { openFile as openFileImpl, saveFile as saveFileImpl, resolveEditorPath, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
 import { moveClaudeSessionFiles, resolveCwd } from "./session/paths.ts";
 import { createSession, installSession, replaceSession } from "./session/runtime.ts";
 import { findRoomIndex, updateState } from "./state.ts";
@@ -44,6 +45,71 @@ export function listSessions(agentId: string) {
 
 export function getCurrentSessionId(agentId: string): string | null {
   return agents.get(agentId)?.sessionId ?? null;
+}
+
+// Validate a shell command and emit a `terminal-command` log entry so the
+// boss sees a [Copy to terminal] card in chat. Single-line only; agents
+// that need multiple steps can join with `&&` / `;`. The card does not
+// auto-execute — clicking it opens the terminal panel and types the
+// command at the prompt, leaving the boss to review and press Enter.
+const TERMINAL_COMMAND_MAX_LEN = 4096;
+export function emitAgentTerminalCommand(agentId: string, rawCommand: string): { ok: true } | { ok: false; status: number; error: string } {
+  const managed = agents.get(agentId);
+  if (!managed) return { ok: false, status: 404, error: "agent not found" };
+  if (typeof rawCommand !== "string") return { ok: false, status: 400, error: "command must be a string" };
+  const command = rawCommand.replace(/\s+$/u, "");
+  if (!command) return { ok: false, status: 400, error: "empty command" };
+  if (command.length > TERMINAL_COMMAND_MAX_LEN) {
+    return { ok: false, status: 400, error: `command too long (max ${TERMINAL_COMMAND_MAX_LEN} chars)` };
+  }
+  if (/[\r\n]/u.test(command)) {
+    return { ok: false, status: 400, error: "command must be single-line; join steps with && or ;" };
+  }
+  addLogEntry(agentId, "terminal-command", command, undefined, undefined, { terminal: { command } });
+  return { ok: true };
+}
+
+// Resolve a user-supplied editor path against the named agent's cwd and
+// open it. Returns either the file payload or a structured error so the WS
+// handler can render the right diagnostic.
+export function openEditorFile(agentId: string, rawPath: string): { ok: true; result: OpenFileResult } | { ok: false; error: "not_agent" | "bad_path" } {
+  const managed = agents.get(agentId);
+  if (!managed) return { ok: false, error: "not_agent" };
+  const resolved = resolveEditorPath(rawPath, managed.info.cwd);
+  if (resolved.kind === "bad_path") return { ok: false, error: "bad_path" };
+  return { ok: true, result: openFileImpl(resolved.path) };
+}
+
+export function saveEditorFile(absPath: string, content: string, expectedMtime: number, force: boolean): SaveFileResult {
+  return saveFileImpl(absPath, content, expectedMtime, force);
+}
+
+export function resolveEditorPathForAgent(agentId: string, rawPath: string): string | null {
+  const managed = agents.get(agentId);
+  if (!managed) return null;
+  const resolved = resolveEditorPath(rawPath, managed.info.cwd);
+  return resolved.kind === "ok" ? resolved.path : null;
+}
+
+// Validate a file path and emit an `edit-request` log entry so the boss
+// sees an [Open in editor] card in chat. Clicking the card opens the file
+// in the editor side panel.
+import { resolve as resolvePath } from "path";
+const EDIT_FILE_MAX_LEN = 4096;
+export function emitAgentEditFile(agentId: string, rawPath: string): { ok: true } | { ok: false; status: number; error: string } {
+  const managed = agents.get(agentId);
+  if (!managed) return { ok: false, status: 404, error: "agent not found" };
+  if (typeof rawPath !== "string") return { ok: false, status: 400, error: "path must be a string" };
+  const trimmed = rawPath.trim();
+  if (!trimmed) return { ok: false, status: 400, error: "empty path" };
+  if (trimmed.length > EDIT_FILE_MAX_LEN) return { ok: false, status: 400, error: `path too long (max ${EDIT_FILE_MAX_LEN} chars)` };
+  let resolved: string;
+  if (trimmed.startsWith("~/")) resolved = resolvePath(homedir(), trimmed.slice(2));
+  else if (trimmed === "~") resolved = homedir();
+  else if (trimmed.startsWith("/")) resolved = resolvePath(trimmed);
+  else resolved = resolvePath(managed.info.cwd, trimmed);
+  addLogEntry(agentId, "edit-request", resolved, undefined, undefined, { file: { path: resolved } });
+  return { ok: true };
 }
 
 // Emit a styled diff card into an agent's chat. Mirrors the /bureau-diff slash
@@ -193,6 +259,7 @@ export async function spawn(
     topic: null,
     topicStale: false,
     customInstructions: customInstructions || null,
+    queue: [],
   };
 
   const managed: ManagedAgent = {
@@ -216,6 +283,8 @@ export async function spawn(
     pendingPermission: null,
     ptySidecar: null,
     ptyBuffer: "",
+    messageQueue: [],
+    flushInProgress: false,
     lastWrittenEntryId: null,
   };
   agents.set(id, managed);
@@ -313,6 +382,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         topic: p.topic ?? null,
         topicStale: false,
         customInstructions: p.customInstructions ?? null,
+        queue: [],
       };
       const managed: ManagedAgent = {
         info,
@@ -335,6 +405,8 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         pendingPermission: null,
         ptySidecar: null,
         ptyBuffer: "",
+        messageQueue: [],
+        flushInProgress: false,
         lastWrittenEntryId: null,
       };
       agents.set(p.id, managed);

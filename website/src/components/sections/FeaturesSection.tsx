@@ -15,6 +15,8 @@ import {
   Archive,
   Eye,
   Paperclip,
+  FileCode,
+  Inbox,
 } from 'lucide-react';
 
 export function FeaturesSection() {
@@ -53,7 +55,19 @@ export function FeaturesSection() {
       icon: <Terminal className="h-6 w-6" />,
       title: 'Embedded Terminal',
       description:
-        'Every desk can expose shell access so you can inspect or intervene without leaving Bureau.',
+        'Every desk exposes shell access — full-screen on mobile with Tab / Esc / Ctrl+C / Paste soft-keys. Agents can drop [Copy to terminal] cards in chat that prefill a command at the prompt without executing.',
+    },
+    {
+      icon: <FileCode className="h-6 w-6" />,
+      title: 'File Editor Side Panel',
+      description:
+        'A built-in CodeMirror editor sits next to chat — tabs, syntax highlighting, dirty-buffer tracking, external-change detection. Agents can offer [Open in editor] cards via POST /agents/:id/edit-file.',
+    },
+    {
+      icon: <Inbox className="h-6 w-6" />,
+      title: 'Per-Agent Message Queue',
+      description:
+        'Type while an agent is busy — your message becomes a chip above the input and flushes when it next idles. Cancel any chip before it sends.',
     },
     {
       icon: <Mic className="h-6 w-6" />,

@@ -7,9 +7,12 @@ import { Character } from "../office/scene/Character.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
 import { LogEntryCard, serializeEntries } from "./entries/index.tsx";
 import { TerminalPanel } from "./TerminalPanel.tsx";
+import { EditorPanel } from "./EditorPanel.tsx";
+import { PanelResizer } from "./PanelResizer.tsx";
 import { Header } from "./Header.tsx";
 import { InputBar } from "./InputBar.tsx";
-import { ActivityIndicator } from "./StateIndicators.tsx";
+import { QueueChips } from "./QueueChips.tsx";
+import { ActivityIndicator, SessionSwapIndicator } from "./StateIndicators.tsx";
 import { useViewportHeight } from "./hooks/useViewportHeight.ts";
 import { useAutoScroll } from "./hooks/useAutoScroll.ts";
 import { usePinnedUserMessage } from "./hooks/usePinnedUserMessage.ts";
@@ -22,6 +25,34 @@ const MODEL_TINT: Record<ModelFamily, { border: string; bg: string }> = {
   sonnet: { border: "rgba(218,165,32,0.80)", bg: "rgba(218,165,32,0.32)" },
   haiku: { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
 };
+
+// Side panel size constraints. Editor has a higher min than terminal so the
+// tab strip + line numbers don't squeeze content into a useless column.
+const PANEL_MIN = { terminal: 300, editor: 380 } as const;
+const PANEL_MAX = { terminal: 1000, editor: 1200 } as const;
+// The chat column always keeps at least this many pixels regardless of how
+// far the boss drags the panel.
+const CHAT_COLUMN_FLOOR = 300;
+
+function readPanelWidth(kind: "terminal" | "editor", fallback: number): number {
+  if (typeof localStorage === "undefined") return fallback;
+  try {
+    const raw = localStorage.getItem(`bureau:panel-width:${kind}`);
+    if (raw === null) return fallback;
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n <= 0) return fallback;
+    return Math.max(PANEL_MIN[kind], Math.min(PANEL_MAX[kind], n));
+  } catch {
+    return fallback;
+  }
+}
+
+function writePanelWidth(kind: "terminal" | "editor", width: number): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(`bureau:panel-width:${kind}`, String(Math.round(width)));
+  } catch {}
+}
 
 export function LogView({
   agent,
@@ -42,9 +73,61 @@ export function LogView({
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
 }) {
-  const { drafts, slashCommands, stateChangedAt, isMobile, connected } = useAppState();
+  const { drafts, slashCommands, stateChangedAt, isMobile, connected, sidePanels } = useAppState();
   const dispatch = useDispatch();
   const features = useFeatures();
+  const sidePanel = sidePanels.get(agent.id) ?? null;
+  const terminalOpen = sidePanel === "terminal";
+  const editorOpen = sidePanel === "editor";
+  const setTerminalOpen = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      const prev = sidePanels.get(agent.id) === "terminal";
+      const next = typeof value === "function" ? value(prev) : value;
+      dispatch({ type: "set_side_panel", agentId: agent.id, panel: next ? "terminal" : null });
+    },
+    [dispatch, agent.id, sidePanels],
+  );
+  const setEditorOpen = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      const prev = sidePanels.get(agent.id) === "editor";
+      const next = typeof value === "function" ? value(prev) : value;
+      dispatch({ type: "set_side_panel", agentId: agent.id, panel: next ? "editor" : null });
+    },
+    [dispatch, agent.id, sidePanels],
+  );
+
+  // Side panel widths (persisted to localStorage per kind). Read at mount,
+  // clamped on window resize so a shrinking browser can't push the chat
+  // column below CHAT_COLUMN_FLOOR.
+  const [terminalWidth, setTerminalWidth] = useState<number>(() => readPanelWidth("terminal", 500));
+  const [editorWidth, setEditorWidth] = useState<number>(() => readPanelWidth("editor", 600));
+  const terminalContainerRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const commitTerminalWidth = useCallback((w: number) => {
+    setTerminalWidth(w);
+    writePanelWidth("terminal", w);
+  }, []);
+  const commitEditorWidth = useCallback((w: number) => {
+    setEditorWidth(w);
+    writePanelWidth("editor", w);
+  }, []);
+  const getTerminalMax = useCallback(() => {
+    return Math.max(PANEL_MIN.terminal, Math.min(PANEL_MAX.terminal, window.innerWidth - CHAT_COLUMN_FLOOR));
+  }, []);
+  const getEditorMax = useCallback(() => {
+    return Math.max(PANEL_MIN.editor, Math.min(PANEL_MAX.editor, window.innerWidth - CHAT_COLUMN_FLOOR));
+  }, []);
+  useEffect(() => {
+    function clamp() {
+      const maxAllowed = Math.max(PANEL_MIN.terminal, window.innerWidth - CHAT_COLUMN_FLOOR);
+      setTerminalWidth((w) => (w > maxAllowed ? maxAllowed : w));
+      const maxAllowedEditor = Math.max(PANEL_MIN.editor, window.innerWidth - CHAT_COLUMN_FLOOR);
+      setEditorWidth((w) => (w > maxAllowedEditor ? maxAllowedEditor : w));
+    }
+    window.addEventListener("resize", clamp);
+    clamp();
+    return () => window.removeEventListener("resize", clamp);
+  }, []);
 
   // Input draft + textarea ref
   const input = drafts.get(agent.id) ?? "";
@@ -66,7 +149,6 @@ export function LogView({
   }, []);
 
   // Chrome + UI state
-  const [terminalOpen, setTerminalOpen] = useState(false);
   const [showAvatar, setShowAvatar] = useState(() => localStorage.getItem("bureau-show-avatar") !== "false");
   const toggleAvatar = useCallback(
     () =>
@@ -98,6 +180,36 @@ export function LogView({
   const attachments = useAttachmentUpload(agent.id);
 
   const isBusy = agent.state === "thinking" || agent.state === "tool_executing";
+
+  // Open the editor side panel and focus the file. Path is held in local
+  // state so the editor panel can read it on mount and clear it after.
+  const [editorInitialPath, setEditorInitialPath] = useState<string | null>(null);
+  const openInEditor = useCallback(
+    (path: string) => {
+      setEditorInitialPath(path);
+      dispatch({ type: "set_side_panel", agentId: agent.id, panel: "editor" });
+    },
+    [dispatch, agent.id],
+  );
+
+  // Open the terminal panel and prefill the command at the prompt without
+  // executing it. The 250ms delay covers the panel-mount → terminal_open
+  // → PTY-spawn → first-prompt sequence; if the panel was already open it
+  // just adds a tiny lag before the bytes appear. WS messages are ordered
+  // per-connection, so terminal_open (sent on panel mount) lands before
+  // terminal_input only because of this delay — sending synchronously
+  // would race ahead of mount and the bytes would hit a non-existent PTY.
+  const copyToTerminal = useCallback(
+    (command: string) => {
+      const wasOpen = sidePanels.get(agent.id) === "terminal";
+      dispatch({ type: "set_side_panel", agentId: agent.id, panel: "terminal" });
+      const delay = wasOpen ? 0 : 250;
+      setTimeout(() => {
+        send({ type: "terminal_input", agentId: agent.id, data: command });
+      }, delay);
+    },
+    [dispatch, agent.id, sidePanels],
+  );
 
   // Dismiss edit textarea when agent is no longer idle (e.g. another tab sent a message)
   useEffect(() => {
@@ -206,6 +318,8 @@ export function LogView({
           toggleAvatar={toggleAvatar}
           terminalOpen={terminalOpen}
           setTerminalOpen={setTerminalOpen}
+          editorOpen={editorOpen}
+          setEditorOpen={setEditorOpen}
           getConversationText={getConversationText}
         />
 
@@ -305,6 +419,8 @@ export function LogView({
                   setEditingLogEntryId(null);
                   send({ type: "edit_message", agentId: agent.id, logEntryId: id, newText, username });
                 }}
+                onOpenInEditor={features.editor ? openInEditor : undefined}
+                onCopyToTerminal={features.terminal ? copyToTerminal : undefined}
               />
             );
             return isUserMsg ? (
@@ -316,6 +432,7 @@ export function LogView({
             );
           })}
           <ActivityIndicator state={agent.state} stateChangedAt={stateChangedAt.get(agent.id)} agentId={agent.id} />
+          <SessionSwapIndicator swapping={agent.sessionSwapping ?? false} />
         </div>
 
         {/* Scroll to bottom */}
@@ -352,6 +469,7 @@ export function LogView({
           </button>
         )}
 
+        <QueueChips queue={agent.queue ?? []} agentId={agent.id} isMobile={isMobile} />
         <InputBar
           agent={agent}
           input={input}
@@ -388,8 +506,54 @@ export function LogView({
         />
       </div>
       {features.terminal && !isMobile && terminalOpen && (
-        <div style={{ width: "40%", minWidth: 300, maxWidth: 600, flexShrink: 0 }}>
+        <div ref={terminalContainerRef} style={{ width: terminalWidth, flexShrink: 0, position: "relative" }}>
+          <PanelResizer panelRef={terminalContainerRef} min={PANEL_MIN.terminal} getMax={getTerminalMax} onCommit={commitTerminalWidth} />
           <TerminalPanel agentId={agent.id} onClose={() => setTerminalOpen(false)} />
+        </div>
+      )}
+      {features.editor && !isMobile && editorOpen && (
+        <div ref={editorContainerRef} style={{ width: editorWidth, flexShrink: 0, position: "relative" }}>
+          <PanelResizer panelRef={editorContainerRef} min={PANEL_MIN.editor} getMax={getEditorMax} onCommit={commitEditorWidth} />
+          <EditorPanel agentId={agent.id} initialPath={editorInitialPath} onClose={() => setEditorOpen(false)} onPathOpened={() => setEditorInitialPath(null)} />
+        </div>
+      )}
+      {isMobile && features.terminal && terminalOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "100%",
+            paddingTop: "env(safe-area-inset-top, 0px)",
+            boxSizing: "border-box",
+            background: "var(--bg-base)",
+            zIndex: 30,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <TerminalPanel agentId={agent.id} onClose={() => setTerminalOpen(false)} mobile />
+        </div>
+      )}
+      {isMobile && features.editor && editorOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "100%",
+            paddingTop: "env(safe-area-inset-top, 0px)",
+            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            boxSizing: "border-box",
+            background: "var(--bg-base)",
+            zIndex: 30,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <EditorPanel agentId={agent.id} initialPath={editorInitialPath} onClose={() => setEditorOpen(false)} onPathOpened={() => setEditorInitialPath(null)} mobile />
         </div>
       )}
     </div>

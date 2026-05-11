@@ -6,6 +6,12 @@ import { getUpdateStatus, onUpdateChange, startUpdateChecker } from "./update-ch
 import { getBackupStatus, startBackupScheduler } from "./backup.ts";
 import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
 import { handleCommand } from "./ws/commands.ts";
+import { stopWatch, type FileWatcher } from "./file-editor.ts";
+
+// Per-WS editor file watchers. Each open file gets one fs.watch handle keyed
+// by `${agentId}\0${absPath}` so the same path can be watched independently
+// across agents. Watchers close on editor_close or WS disconnect.
+export const editorWatchers = new WeakMap<import("bun").ServerWebSocket<unknown>, Map<string, FileWatcher>>();
 import { handleLiveReloadRequest, startLiveReloadWatcher } from "./http/live-reload.ts";
 import { handleTasksRequest } from "./http/tasks.ts";
 import { handleCronjobsRequest } from "./http/cronjobs.ts";
@@ -120,6 +126,11 @@ const server = Bun.serve({
     },
     close(ws) {
       browsers.delete(ws);
+      const map = editorWatchers.get(ws);
+      if (map) {
+        for (const w of map.values()) stopWatch(w);
+        editorWatchers.delete(ws);
+      }
     },
   },
 });

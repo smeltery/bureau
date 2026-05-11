@@ -77,7 +77,12 @@ Setup:
 - Send disabled while agent is busy — type ahead freely, send when ready
 - File attachments: agents understand images and PDFs. Upload via button, drag-and-drop, or paste
 - Image display: agents can show images inline in the conversation (e.g., matplotlib plots)
-- Embedded terminal for direct shell access per agent
+- Embedded terminal for direct shell access per agent — mobile gets a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys and an IME-friendly textarea
+- File editor side panel — built-in CodeMirror editor with tabs, syntax highlighting, dirty-buffer tracking, and external-change detection; toggleable from the chat header
+- Resizable side panels — drag the splitter to size the terminal or editor; widths persist
+- Per-agent message queue — typing while the agent is busy queues messages as chips above the input; they flush together when the agent next idles, and you can cancel any of them before they send
+- Agent-driven cards in chat — agents can offer [Open in editor] and [Copy to terminal] cards via POST /agents/:id/edit-file and /agents/:id/terminal-command; clicking opens the file or prefills the command at the prompt without executing
+- Session-swap indicator — chat shows a brief "Restarting session..." hint during /resume, /model, or fork-from-edit so the drain → install gap isn't silent
 - Conversation branching — edit a past message to fork the conversation from that point, preserving the original
 - Right-click context menu — resume past sessions, edit agent, kill
 
@@ -110,6 +115,7 @@ Setup:
 ### Task Board
 - Statuses: open, in_progress, backlog, done. Backlog tasks are hidden from the default "active" filter and the office desk badge so deferred work doesn't clutter the working set
 - Default GET /tasks excludes done + backlog; pass \`?status=backlog\` or \`?status=all\` to see them
+- The search box in the task view matches task IDs, titles, and descriptions — paste a partial ID from a log entry to jump straight to it
 
 ### Slash Commands & Autocomplete
 - Built-in commands: /clear, /help, /cost, /context, /resume, /model
