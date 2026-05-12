@@ -6,7 +6,7 @@ import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
 import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
 import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
-import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, setRooms, type ManagedAgent } from "./state.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
 import { openFile as openFileImpl, saveFile as saveFileImpl, resolveEditorPath, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
 import { moveClaudeSessionFiles, resolveCwd } from "./session/paths.ts";
@@ -20,6 +20,19 @@ import { sidecarSend } from "./terminal.ts";
 
 export function getAgent(agentId: string): AgentInfo | undefined {
   return agents.get(agentId)?.info;
+}
+
+// Resolve an agent's display identity (name + room) for prefixing
+// agent-to-agent messages. Returns null if the agent isn't known.
+// Looking it up server-side from the senderAgentId (rather than trusting
+// a client-supplied name) prevents spoofing and stops a malicious caller
+// from injecting prefix-delimiter characters into the prompt the
+// receiver sees.
+export function getAgentDisplay(agentId: string): { name: string; roomName: string } | null {
+  const managed = agents.get(agentId);
+  if (!managed) return null;
+  const room = roomList[managed.info.room];
+  return { name: managed.info.name, roomName: room?.name ?? `Room ${managed.info.room + 1}` };
 }
 
 export function getAllAgents(): AgentInfo[] {
@@ -417,6 +430,18 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         const history = loadLogWithAncestors(p.id, p.lastSessionId);
         if (history.length > 0) {
           logCache.set(p.id, [...history]);
+        }
+      }
+
+      // If the prior session died owing a response (e.g. server restart
+      // while mid-stream), drop a breadcrumb before auto-resume. Mirrors
+      // the SDK's lazy synthetic placeholder injected into its own
+      // transcript at the same moment so the user-visible log doesn't
+      // diverge from the model's context.
+      if (p.lastSessionId) {
+        const tail = (logCache.get(p.id) ?? []).at(-1);
+        if (tail?.kind === "user_message") {
+          addLogEntry(p.id, "system", "Previous response was interrupted.");
         }
       }
 

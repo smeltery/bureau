@@ -7,6 +7,7 @@ export { onEvent, getOfficeSettings } from "./state.ts";
 export { getRooms, setOfficeSettings, setRoomSettings, validateEnvPath, swapDesks, createRoom, closeRoom, renameRoom, reorderRooms, moveAgent } from "./rooms.ts";
 export {
   getAgent,
+  getAgentDisplay,
   getAllAgents,
   getAgentLogs,
   getAgentCommands,
@@ -23,7 +24,7 @@ export {
   kill,
   restoreAgents,
 } from "./lifecycle.ts";
-export { sendMessage, dequeueMessage } from "./conversation/send.ts";
+export { sendMessage, dequeueMessage, enqueueMessage } from "./conversation/send.ts";
 export { abort, newConversation, resume } from "./conversation/control.ts";
 export { editMessage } from "./conversation/edit.ts";
 export { setTopic, resetTopic } from "./topic.ts";

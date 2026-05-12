@@ -78,13 +78,16 @@ export interface AgentInfo {
   queue?: QueuedMessage[];
 }
 
-// A pending user message waiting for the agent to finish its current turn.
-// Bosses see queued messages as chips above the input bar; they can cancel
-// any of them before the flush. Senders are humans only for now (agents
-// don't queue messages to each other in Bureau).
+// A pending message waiting for the agent to finish its current turn.
+// Senders can be human bosses (typed at the textarea) or other agents
+// (POST /agents/:id/message); both go through the same queue and flush
+// together. The receiver sees one chat bubble per item with the right
+// kind of prefix so it can tell them apart.
+export type QueuedSender = { kind: "user"; username?: string } | { kind: "agent"; agentId: string; agentName: string; roomName: string };
+
 export interface QueuedMessage {
   id: string; // short hex; UI uses this to cancel
-  username?: string;
+  sender: QueuedSender;
   text: string;
   attachments?: Attachment[];
   queuedAt: number;
