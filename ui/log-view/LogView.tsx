@@ -199,6 +199,9 @@ export function LogView({
   // per-connection, so terminal_open (sent on panel mount) lands before
   // terminal_input only because of this delay — sending synchronously
   // would race ahead of mount and the bytes would hit a non-existent PTY.
+  // After sending, focus xterm's helper textarea so Enter goes to the
+  // shell instead of re-firing the still-focused button (which would
+  // re-copy).
   const copyToTerminal = useCallback(
     (command: string) => {
       const wasOpen = sidePanels.get(agent.id) === "terminal";
@@ -206,6 +209,8 @@ export function LogView({
       const delay = wasOpen ? 0 : 250;
       setTimeout(() => {
         send({ type: "terminal_input", agentId: agent.id, data: command });
+        const helper = (terminalContainerRef.current ?? document).querySelector(".xterm-helper-textarea") as HTMLTextAreaElement | null;
+        helper?.focus();
       }, delay);
     },
     [dispatch, agent.id, sidePanels],

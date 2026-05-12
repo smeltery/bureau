@@ -42,15 +42,15 @@ const commandHandlers: Record<string, HandlerFn> = {
 
   async context(agentId, managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
-    emitEphemeralLog(agentId, "user_message", rawText, userMeta);
+    addLogEntry(agentId, "user_message", rawText, userMeta);
     if (!managed.session) {
-      emitEphemeralLog(agentId, "system", "No active session.");
+      addLogEntry(agentId, "system", "No active session.");
       return true;
     }
     try {
       const query = (managed.session as any).query;
       if (!query?.getContextUsage) {
-        emitEphemeralLog(agentId, "system", "Context usage not available for this session.");
+        addLogEntry(agentId, "system", "Context usage not available for this session.");
         return true;
       }
       const ctx = await query.getContextUsage();
@@ -92,9 +92,9 @@ const commandHandlers: Record<string, HandlerFn> = {
         lines.push(`\nAuto-compact at ${compactPct}% (${ctx.autoCompactThreshold.toLocaleString()} tokens)`);
       }
 
-      emitEphemeralLog(agentId, "system", lines.join("\n"));
+      addLogEntry(agentId, "system", lines.join("\n"));
     } catch (err: any) {
-      emitEphemeralLog(agentId, "system", `Failed to get context usage: ${err.message}`);
+      addLogEntry(agentId, "system", `Failed to get context usage: ${err.message}`);
     }
     return true;
   },
@@ -280,7 +280,7 @@ const commandHandlers: Record<string, HandlerFn> = {
 
   async bureauSystemPrompt(agentId, managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
-    emitEphemeralLog(agentId, "user_message", rawText, userMeta);
+    addLogEntry(agentId, "user_message", rawText, userMeta);
     const room = rooms[managed.info.room]!;
     const prompt = buildSystemPrompt(managed.info.name, agentId, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions);
     // Pick a fence longer than any backtick run inside the prompt so the block
@@ -288,18 +288,18 @@ const commandHandlers: Record<string, HandlerFn> = {
     const longestRun = (prompt.match(/`+/g) ?? []).reduce((m, s) => Math.max(m, s.length), 0);
     const fence = "`".repeat(Math.max(3, longestRun + 1));
     const header = "**Full system prompt** *(reflects current settings; takes effect on next conversation)*";
-    emitEphemeralLog(agentId, "system", `${header}\n\n${fence}plaintext\n${prompt}\n${fence}`);
+    addLogEntry(agentId, "system", `${header}\n\n${fence}plaintext\n${prompt}\n${fence}`);
     updateState(agentId, "waiting_for_response");
     return true;
   },
 
   async bureauDiff(agentId, managed, args, rawText, username) {
     const userMeta = username ? { username } : undefined;
-    emitEphemeralLog(agentId, "user_message", rawText, userMeta);
+    addLogEntry(agentId, "user_message", rawText, userMeta);
 
     const resolved = resolveDiffCwd(args[0], managed.info.cwd);
     if (resolved.kind === "bad_dir") {
-      emitEphemeralLog(agentId, "system", `\`${resolved.attempted}\` is not a directory.`);
+      addLogEntry(agentId, "system", `\`${resolved.attempted}\` is not a directory.`);
       updateState(agentId, "waiting_for_response");
       return true;
     }
@@ -307,16 +307,16 @@ const commandHandlers: Record<string, HandlerFn> = {
     const result = computeBureauDiff(resolved.cwd);
     switch (result.kind) {
       case "not_repo":
-        emitEphemeralLog(agentId, "system", `\`${result.cwd}\` is not a git repository.`);
+        addLogEntry(agentId, "system", `\`${result.cwd}\` is not a git repository.`);
         break;
       case "git_error":
-        emitEphemeralLog(agentId, "system", `Failed to run git diff in \`${result.cwd}\`:\n\n\`\`\`\n${result.message}\n\`\`\``);
+        addLogEntry(agentId, "system", `Failed to run git diff in \`${result.cwd}\`:\n\n\`\`\`\n${result.message}\n\`\`\``);
         break;
       case "clean":
-        emitEphemeralLog(agentId, "system", `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
+        addLogEntry(agentId, "system", `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
         break;
       case "ok":
-        emitEphemeralLog(agentId, "diff", result.summary, undefined, { diff: result.payload });
+        addLogEntry(agentId, "diff", result.summary, undefined, undefined, { diff: result.payload });
         break;
     }
     updateState(agentId, "waiting_for_response");
@@ -325,8 +325,8 @@ const commandHandlers: Record<string, HandlerFn> = {
 
   async usage(agentId, _managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
-    emitEphemeralLog(agentId, "user_message", rawText, userMeta);
-    emitEphemeralLog(agentId, "system", renderUsageReport());
+    addLogEntry(agentId, "user_message", rawText, userMeta);
+    addLogEntry(agentId, "system", renderUsageReport());
     updateState(agentId, "waiting_for_response");
     return true;
   },

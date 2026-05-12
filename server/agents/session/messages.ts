@@ -122,11 +122,17 @@ export function processMessage(agentId: string, msg: SDKMessage) {
       break;
     }
     case "assistant": {
-      const content = (msg as any).message?.content;
+      const message = (msg as any).message;
+      const content = message?.content;
       if (!Array.isArray(content)) break;
+      // The SDK injects synthetic assistant turns (model === "<synthetic>")
+      // for things like usage-limit hits and queue-flush gaps. Persist
+      // their text as system breadcrumbs so they don't render as
+      // Claude-voiced messages and mislead the boss.
+      const isSynthetic = message?.model === "<synthetic>";
       for (const block of content) {
         if (block.type === "text" && block.text) {
-          addLogEntry(agentId, "text", block.text);
+          addLogEntry(agentId, isSynthetic ? "system" : "text", block.text);
         } else if (block.type === "tool_use") {
           const managed = agents.get(agentId);
           if (managed) {

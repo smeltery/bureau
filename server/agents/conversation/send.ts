@@ -46,6 +46,26 @@ export async function flushQueue(agentId: string): Promise<void> {
 
   managed.flushInProgress = true;
   try {
+    // If the session died mid-flight (e.g. server restart between
+    // enqueue and flush), resume the prior transcript so the queued
+    // messages aren't sent into the void. The breadcrumb mirrors the
+    // SDK's lazy synthetic placeholder so the model's transcript and
+    // the user-visible log stay in sync on resume.
+    if (!managed.session) {
+      const tail = (logCache.get(agentId) ?? []).at(-1);
+      if (tail?.kind === "user_message") {
+        addLogEntry(agentId, "system", "Previous response was interrupted.");
+      }
+      try {
+        const sessionId = managed.sessionId;
+        installSession(agentId, managed, sessionId ? createSession(managed, sessionId) : createSession(managed));
+        addLogEntry(agentId, "system", sessionId ? "Resumed prior session before flushing queued messages." : "Started a fresh session before flushing queued messages.");
+      } catch (err: any) {
+        addLogEntry(agentId, "error", `Cannot start session to flush queue: ${err.message}`);
+        updateState(agentId, "error");
+        return;
+      }
+    }
     const items = managed.messageQueue.slice();
     managed.messageQueue = [];
     emitQueueUpdate(agentId, managed);
@@ -62,9 +82,6 @@ export async function flushQueue(agentId: string): Promise<void> {
     for (const m of items) {
       addLogEntry(agentId, "user_message", m.text, m.username ? { username: m.username } : undefined, m.attachments);
     }
-    // Defer to sendMessage so all the session-recovery / topic-gen plumbing
-    // runs the same way as a fresh send. Pass the combined prompt with the
-    // pre-existing log entries already written.
     updateState(agentId, "thinking");
     try {
       const turn = createTurnDeferred(managed);
@@ -119,6 +136,14 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     } catch {}
   }
   if (!managed.session) {
+    // If the prior session ended owing a response, write the gap
+    // breadcrumb before the recovery message lands. Parity with the
+    // SDK's lazy synthetic placeholder so the user-visible log mirrors
+    // the model's transcript on resume.
+    const tail = (logCache.get(agentId) ?? []).at(-1);
+    if (tail?.kind === "user_message") {
+      addLogEntry(agentId, "system", "Previous response was interrupted.");
+    }
     // Try to create a fresh session so the user's next message doesn't silently vanish.
     // Pass managed.sessionId so the new session resumes from the prior transcript when
     // possible — the previous session is genuinely dead, but the on-disk transcript is
