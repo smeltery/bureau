@@ -4,6 +4,7 @@
 
 Your agent office. *Cute in a useful way.*
 
+[![CI](https://github.com/dotbrains/bureau/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dotbrains/bureau/actions/workflows/ci.yml)
 [![License: PolyForm Shield 1.0.0](https://img.shields.io/badge/License-PolyForm%20Shield%201.0.0-blue.svg)](https://polyformproject.org/licenses/shield/1.0.0/)
 
 ![Bun](https://img.shields.io/badge/-Bun-000000?style=flat-square&logo=bun&logoColor=white)
@@ -12,6 +13,7 @@ Your agent office. *Cute in a useful way.*
 ![Anthropic](https://img.shields.io/badge/-Anthropic-191919?style=flat-square&logo=anthropic&logoColor=white)
 ![macOS](https://img.shields.io/badge/-macOS-000000?style=flat-square&logo=apple&logoColor=white)
 ![Linux](https://img.shields.io/badge/-Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
+[![CI on Blacksmith](https://img.shields.io/badge/CI-Blacksmith-1F2937?style=flat-square&logoColor=white)](https://blacksmith.sh)
 
 ---
 
