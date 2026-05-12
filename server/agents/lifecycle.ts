@@ -420,6 +420,18 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         }
       }
 
+      // If the prior session died owing a response (e.g. server restart
+      // while mid-stream), drop a breadcrumb before auto-resume. Mirrors
+      // the SDK's lazy synthetic placeholder injected into its own
+      // transcript at the same moment so the user-visible log doesn't
+      // diverge from the model's context.
+      if (p.lastSessionId) {
+        const tail = (logCache.get(p.id) ?? []).at(-1);
+        if (tail?.kind === "user_message") {
+          addLogEntry(p.id, "system", "Previous response was interrupted.");
+        }
+      }
+
       // Auto-resume session
       try {
         const session = p.lastSessionId ? createSession(managed, p.lastSessionId) : createSession(managed);
