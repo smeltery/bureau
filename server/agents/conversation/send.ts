@@ -1,5 +1,6 @@
-import type { Attachment, QueuedMessage } from "../../../shared/types.ts";
+import type { Attachment, QueuedMessage, QueuedSender } from "../../../shared/types.ts";
 import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
+import { formatAgentSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { buildUserMessage } from "../session/messages.ts";
@@ -18,11 +19,71 @@ function generateQueuedId(existing: QueuedMessage[]): string {
   return `${Date.now().toString(16).slice(-6)}`;
 }
 
+// Single entry point for both human (textarea via sendMessage) and agent
+// (HTTP POST /agents/:id/message) senders. Decides whether to queue or
+// flush-immediately based on the receiver's state. Rejects `error` /
+// `stopped` agents with 409. The textarea path (sendMessage) is more
+// permissive — it has its own session-recovery branch — but agents
+// benefit from an explicit failure so they can retry or fall back.
+export type EnqueueResult = { ok: true; queued: boolean; messageId: string } | { ok: false; error: string; status: number };
+
+export function enqueueMessage(receiverId: string, msg: { sender: QueuedSender; text: string; attachments?: Attachment[] }): EnqueueResult {
+  const managed = agents.get(receiverId);
+  if (!managed) return { ok: false, error: "agent not found", status: 404 };
+  const state = managed.info.state;
+  if (state === "error" || state === "stopped") {
+    return { ok: false, error: "agent is not accepting messages", status: 409 };
+  }
+  if (managed.messageQueue.length >= QUEUE_MAX) {
+    return { ok: false, error: `queue full (limit ${QUEUE_MAX})`, status: 429 };
+  }
+  const id = generateQueuedId(managed.messageQueue);
+  managed.messageQueue.push({
+    id,
+    sender: msg.sender,
+    text: msg.text,
+    attachments: msg.attachments,
+    queuedAt: Date.now(),
+  });
+  emitQueueUpdate(receiverId, managed);
+  // Receiver is idle: flush right away so the message lands without a
+  // user gesture. flushQueue is safe to call here — it re-checks state.
+  if (!isAgentBusy(state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick) {
+    flushQueue(receiverId).catch((err: any) => {
+      console.error(`flushQueue (post-enqueue) failed for ${receiverId}:`, err.message);
+    });
+    return { ok: true, queued: false, messageId: id };
+  }
+  return { ok: true, queued: true, messageId: id };
+}
+
+function senderPrefixText(sender: QueuedSender): string {
+  switch (sender.kind) {
+    case "user":
+      return formatUserPrefix(sender.username);
+    case "agent":
+      return `${formatAgentSenderPrefix(sender.agentId, sender.agentName, sender.roomName)} `;
+  }
+}
+
+function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
+  switch (sender.kind) {
+    case "user":
+      return sender.username ? { username: sender.username } : undefined;
+    case "agent":
+      return {
+        sender_agent_id: sender.agentId,
+        sender_agent_name: sender.agentName,
+        sender_agent_room: sender.roomName,
+      };
+  }
+}
+
 function enqueueUserMessage(agentId: string, managed: ManagedAgent, text: string, username: string | undefined, attachments: Attachment[] | undefined): boolean {
   if (managed.messageQueue.length >= QUEUE_MAX) return false;
   const item: QueuedMessage = {
     id: generateQueuedId(managed.messageQueue),
-    username,
+    sender: { kind: "user", username },
     text,
     attachments,
     queuedAt: Date.now(),
@@ -46,25 +107,42 @@ export async function flushQueue(agentId: string): Promise<void> {
 
   managed.flushInProgress = true;
   try {
+    // If the session died mid-flight (e.g. server restart between
+    // enqueue and flush), resume the prior transcript so the queued
+    // messages aren't sent into the void. The breadcrumb mirrors the
+    // SDK's lazy synthetic placeholder so the model's transcript and
+    // the user-visible log stay in sync on resume.
+    if (!managed.session) {
+      const tail = (logCache.get(agentId) ?? []).at(-1);
+      if (tail?.kind === "user_message") {
+        addLogEntry(agentId, "system", "Previous response was interrupted.");
+      }
+      try {
+        const sessionId = managed.sessionId;
+        installSession(agentId, managed, sessionId ? createSession(managed, sessionId) : createSession(managed));
+        addLogEntry(agentId, "system", sessionId ? "Resumed prior session before flushing queued messages." : "Started a fresh session before flushing queued messages.");
+      } catch (err: any) {
+        addLogEntry(agentId, "error", `Cannot start session to flush queue: ${err.message}`);
+        updateState(agentId, "error");
+        return;
+      }
+    }
     const items = managed.messageQueue.slice();
     managed.messageQueue = [];
     emitQueueUpdate(agentId, managed);
-    // Combine with username prefixes so the agent can tell senders apart.
+    // Combine with sender-kind-specific prefixes so the agent can tell
+    // human bosses from other agents apart.
     const promptParts: string[] = [];
     const allAttachments: Attachment[] = [];
     for (const m of items) {
-      const prefix = m.username ? `[${m.username}] ` : "";
-      promptParts.push(`${prefix}${m.text}`);
+      promptParts.push(`${senderPrefixText(m.sender)}${m.text}`);
       if (m.attachments) allAttachments.push(...m.attachments);
     }
     const prompt = promptParts.join("\n\n");
     // Log each item separately so it shows up as its own chat bubble.
     for (const m of items) {
-      addLogEntry(agentId, "user_message", m.text, m.username ? { username: m.username } : undefined, m.attachments);
+      addLogEntry(agentId, "user_message", m.text, senderMeta(m.sender), m.attachments);
     }
-    // Defer to sendMessage so all the session-recovery / topic-gen plumbing
-    // runs the same way as a fresh send. Pass the combined prompt with the
-    // pre-existing log entries already written.
     updateState(agentId, "thinking");
     try {
       const turn = createTurnDeferred(managed);
@@ -119,6 +197,14 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     } catch {}
   }
   if (!managed.session) {
+    // If the prior session ended owing a response, write the gap
+    // breadcrumb before the recovery message lands. Parity with the
+    // SDK's lazy synthetic placeholder so the user-visible log mirrors
+    // the model's transcript on resume.
+    const tail = (logCache.get(agentId) ?? []).at(-1);
+    if (tail?.kind === "user_message") {
+      addLogEntry(agentId, "system", "Previous response was interrupted.");
+    }
     // Try to create a fresh session so the user's next message doesn't silently vanish.
     // Pass managed.sessionId so the new session resumes from the prior transcript when
     // possible — the previous session is genuinely dead, but the on-disk transcript is

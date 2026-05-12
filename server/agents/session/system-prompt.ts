@@ -31,6 +31,9 @@ How to offer the boss to open a file in their editor side panel: call POST local
 How to offer the boss to run a command in their terminal side panel: call POST localhost:4000/agents/${agentId}/terminal-command with body {"command":"..."}. The boss sees a [Copy to terminal] card; clicking opens the terminal panel and types the command at the prompt without executing it — the boss reviews and presses Enter. Single-line only; join multiple steps with \`&&\` or \`;\`. Use this when you want to suggest a shell command for the boss to run themselves (a test, a service restart, a one-off).
   curl -s -X POST localhost:4000/agents/${agentId}/terminal-command -H 'Content-Type: application/json' -d '{"command":"bun run build:ui"}'
 
+How to send a message to another agent's chat: call POST localhost:4000/agents/<receiver-id>/message. If the receiver is busy, your message is queued and delivered with the receiver's next turn; if idle, it's delivered right away. The receiver decides whether to reply — replies are just another POST in the opposite direction; there is no automatic back-and-forth. Find the receiver's id in ~/.bureau/agents-summary.json.
+  curl -s -X POST localhost:4000/agents/<receiver-id>/message -H 'Content-Type: application/json' -d '{"text":"...","senderAgentId":"${agentId}"}'
+
 How to answer questions about Bureau itself: the source lives at https://github.com/dotbrains/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.`;
   if (officePrompt) systemPrompt += `\n\n## Office Instructions\n\n${officePrompt}`;
   if (roomPrompt) systemPrompt += `\n\n## Instructions For Your Room: ${roomName}\n\n${roomPrompt}`;

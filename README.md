@@ -69,7 +69,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Rich diff viewer** — `/bureau-diff` (or `POST /agents/:id/diff`) renders uncommitted changes as a per-file card with status badges, +/- counts, and unified/split toggle
 - **Session-swap indicator** — chat shows a brief "Restarting session..." hint during `/resume`, `/model`, or fork-from-edit so the drain → install gap isn't silent
 - **Daily backups** — automatic tarball of `~/.bureau/` to `~/bureau-backups/` (last 7 retained)
-- **Inter-agent discovery** — agents can read each other's conversations
+- **Inter-agent discovery & messaging** — agents can read each other's conversations and send messages directly via `POST /agents/:id/message`; the receiver sees them in the same queue as human-typed input, prefixed so they can tell agent senders from human bosses
 - **Slash commands** — `/bureau-peer-review`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-system-prompt`, `/usage`, `/resume`, `/model`, and more
 - **File attachments** — images, PDFs, arbitrary files
 
