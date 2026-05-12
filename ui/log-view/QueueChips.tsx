@@ -18,6 +18,8 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
     >
       {queue.map((msg) => {
         const attachmentCount = msg.attachments?.length ?? 0;
+        const isAgent = msg.sender.kind === "agent";
+        const senderLabel = msg.sender.kind === "agent" ? `${msg.sender.agentName} · agent · Room "${msg.sender.roomName}"` : msg.sender.username || "you";
         return (
           <div
             key={msg.id}
@@ -27,8 +29,8 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
               gap: 8,
               padding: "6px 10px",
               borderRadius: 8,
-              background: "var(--bg-hover)",
-              border: "1px solid var(--border-medium)",
+              background: isAgent ? "var(--bg-base)" : "var(--bg-hover)",
+              border: `1px ${isAgent ? "dashed" : "solid"} var(--border-medium)`,
               fontSize: isMobile ? 13 : 12,
               fontFamily: "'JetBrains Mono',monospace",
               color: "var(--text-secondary)",
@@ -36,7 +38,7 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
           >
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <span style={{ color: "var(--text-ghost)", fontSize: 10, fontWeight: 600 }}>QUEUED · {msg.username || "you"}</span>
+                <span style={{ color: "var(--text-ghost)", fontSize: 10, fontWeight: 600 }}>QUEUED · {senderLabel}</span>
                 {attachmentCount > 0 && (
                   <span style={{ fontSize: 10, color: "var(--text-ghost)" }}>
                     · {attachmentCount} attachment{attachmentCount === 1 ? "" : "s"}
