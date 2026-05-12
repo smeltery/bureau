@@ -6,7 +6,7 @@ import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
 import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
 import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
-import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, setRooms, type ManagedAgent } from "./state.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
 import { openFile as openFileImpl, saveFile as saveFileImpl, resolveEditorPath, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
 import { moveClaudeSessionFiles, resolveCwd } from "./session/paths.ts";
@@ -20,6 +20,19 @@ import { sidecarSend } from "./terminal.ts";
 
 export function getAgent(agentId: string): AgentInfo | undefined {
   return agents.get(agentId)?.info;
+}
+
+// Resolve an agent's display identity (name + room) for prefixing
+// agent-to-agent messages. Returns null if the agent isn't known.
+// Looking it up server-side from the senderAgentId (rather than trusting
+// a client-supplied name) prevents spoofing and stops a malicious caller
+// from injecting prefix-delimiter characters into the prompt the
+// receiver sees.
+export function getAgentDisplay(agentId: string): { name: string; roomName: string } | null {
+  const managed = agents.get(agentId);
+  if (!managed) return null;
+  const room = roomList[managed.info.room];
+  return { name: managed.info.name, roomName: room?.name ?? `Room ${managed.info.room + 1}` };
 }
 
 export function getAllAgents(): AgentInfo[] {

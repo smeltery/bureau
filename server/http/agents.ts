@@ -7,6 +7,8 @@ const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "appl
  *   POST /agents/:id/diff             — emit a styled diff card (optional body: { dir }).
  *   POST /agents/:id/edit-file        — emit an [Open in editor] card (body: { path }).
  *   POST /agents/:id/terminal-command — emit a [Copy to terminal] card (body: { command }).
+ *   POST /agents/:id/message          — queue an agent-to-agent message into the
+ *                                       receiver's chat (body: { text, senderAgentId }).
  *
  * Returns null for any other URL so the caller can fall through.
  */
@@ -49,6 +51,37 @@ export async function handleAgentsRequest(req: Request, url: URL): Promise<Respo
       const result = AgentManager.emitAgentTerminalCommand(agentId, command);
       if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
       return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
+    }
+    if (parts.length === 3 && parts[2] === "message") {
+      // The sender's identity (name + room) is looked up server-side from
+      // senderAgentId so callers can't spoof identity or inject
+      // prefix-delimiter characters into the prompt the receiver sees.
+      const receiverId = parts[1]!;
+      let body: Record<string, unknown> | null = null;
+      try {
+        body = (await req.json()) as Record<string, unknown> | null;
+      } catch {}
+      if (!body) return new Response(JSON.stringify({ error: "invalid JSON body" }), { status: 400, headers: JSON_HEADERS });
+      const text = typeof body.text === "string" ? body.text : null;
+      const senderAgentId = typeof body.senderAgentId === "string" ? body.senderAgentId : null;
+      if (!text || !senderAgentId) {
+        return new Response(JSON.stringify({ error: "required: text, senderAgentId" }), { status: 400, headers: JSON_HEADERS });
+      }
+      if (senderAgentId === receiverId) {
+        return new Response(JSON.stringify({ error: "cannot send to self" }), { status: 400, headers: JSON_HEADERS });
+      }
+      const senderInfo = AgentManager.getAgentDisplay(senderAgentId);
+      if (!senderInfo) {
+        return new Response(JSON.stringify({ error: "senderAgentId is not a known agent" }), { status: 400, headers: JSON_HEADERS });
+      }
+      const result = AgentManager.enqueueMessage(receiverId, {
+        sender: { kind: "agent", agentId: senderAgentId, agentName: senderInfo.name, roomName: senderInfo.roomName },
+        text,
+      });
+      if (!result.ok) {
+        return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
+      }
+      return new Response(JSON.stringify(result), { headers: JSON_HEADERS });
     }
   }
 
