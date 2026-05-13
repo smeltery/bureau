@@ -1,9 +1,10 @@
 import { homedir } from "os";
-import { join } from "path";
-import { rmSync } from "fs";
+import { basename, join } from "path";
+import { existsSync, readFileSync, rmSync, statSync } from "fs";
 import type { AgentInfo, AgentOutfit, LogEntry, ModelFamily, SkillInfo } from "../../shared/types.ts";
 import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
-import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
+import { listAgentSessions, loadAgents, loadLogWithAncestors, saveFile as savePersistedFile } from "../persistence.ts";
+import { mimeTypeForFilename } from "../mime-types.ts";
 import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
@@ -122,6 +123,61 @@ export function emitAgentEditFile(agentId: string, rawPath: string): { ok: true 
   else if (trimmed.startsWith("/")) resolved = resolvePath(trimmed);
   else resolved = resolvePath(managed.info.cwd, trimmed);
   addLogEntry(agentId, "edit-request", resolved, undefined, undefined, { file: { path: resolved } });
+  return { ok: true };
+}
+
+// Display cap for POST /agents/:id/read-file. Independent from the editor
+// panel's text cap — this one bounds binary/image display payloads served
+// through /api/files.
+const MAX_READ_FILE_BYTES = 20 * 1024 * 1024;
+
+// Resolve a path against the agent's cwd, copy it into the agent's files
+// dir (hash-deduped via saveFile), and emit a `file-view` log entry so the
+// UI renders the attachment inline (images) or as a clickable chip
+// (everything else). Mirrors emitAgentEditFile's error-surface pattern:
+// path/size/io failures become system messages, not HTTP errors.
+export function emitAgentReadFile(agentId: string, rawPath: string): { ok: true } | { ok: false; status: number; error: string } {
+  const managed = agents.get(agentId);
+  if (!managed) return { ok: false, status: 404, error: "agent not found" };
+  const resolved = resolveEditorPath(rawPath, managed.info.cwd);
+  if (resolved.kind === "bad_path") {
+    return { ok: false, status: 400, error: "missing or empty path" };
+  }
+  const absPath = resolved.path;
+  if (!existsSync(absPath)) {
+    addLogEntry(agentId, "system", `\`${absPath}\` does not exist.`);
+    return { ok: true };
+  }
+  let st;
+  try {
+    st = statSync(absPath);
+  } catch (err) {
+    addLogEntry(agentId, "system", `Failed to read \`${absPath}\`: ${err instanceof Error ? err.message : String(err)}`);
+    return { ok: true };
+  }
+  if (!st.isFile()) {
+    addLogEntry(agentId, "system", `\`${absPath}\` is not a file.`);
+    return { ok: true };
+  }
+  if (st.size > MAX_READ_FILE_BYTES) {
+    addLogEntry(agentId, "system", `\`${absPath}\` is ${(st.size / (1024 * 1024)).toFixed(1)} MB — too large to display (${MAX_READ_FILE_BYTES / (1024 * 1024)} MB limit).`);
+    return { ok: true };
+  }
+  let data: Buffer;
+  try {
+    data = readFileSync(absPath);
+  } catch (err) {
+    addLogEntry(agentId, "system", `Failed to read \`${absPath}\`: ${err instanceof Error ? err.message : String(err)}`);
+    return { ok: true };
+  }
+  const originalName = basename(absPath);
+  const mediaType = mimeTypeForFilename(originalName);
+  const att = savePersistedFile(agentId, data, mediaType, originalName);
+  if (!att) {
+    addLogEntry(agentId, "system", `Failed to save \`${absPath}\` for display.`);
+    return { ok: true };
+  }
+  addLogEntry(agentId, "file-view", originalName, undefined, [att]);
   return { ok: true };
 }
 

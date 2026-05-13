@@ -1,21 +1,57 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback, RefCallback } from "react";
 
 const TRIGGER_THRESHOLD = 100;
 const MAX_VERTICAL = 80;
 
-export function useSwipeLeftRight(onSwipeLeft: () => void, onSwipeRight: () => void, enabled: boolean) {
-  const ref = useRef<HTMLDivElement>(null);
+function isActuallyHorizontallyScrollable(node: HTMLElement) {
+  const style = window.getComputedStyle(node);
+  const overflowX = style.overflowX;
+  const allowsScroll = overflowX === "auto" || overflowX === "scroll" || overflowX === "overlay";
+  return allowsScroll && node.scrollWidth > node.clientWidth;
+}
+
+export function useSwipeLeftRight(
+  onSwipeLeft: () => void,
+  onSwipeRight: () => void,
+  enabled: boolean,
+  /** Per-gesture predicate. If provided and returns false at touch-start, the swipe is not tracked
+   *  (used to cede one-finger drags to the viewport pan when the scene is zoomed in). */
+  shouldStart?: () => boolean,
+): RefCallback<HTMLDivElement> {
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
+  const multiTouchRef = useRef(false);
   const onSwipeLeftRef = useRef(onSwipeLeft);
   const onSwipeRightRef = useRef(onSwipeRight);
+  const shouldStartRef = useRef(shouldStart);
+  // Latest-ref pattern so the touch-listener effect doesn't re-register on
+  // every prop change. Writing to .current during render is the canonical
+  // implementation; the React Compiler rule flags it but the alternative is
+  // per-render listener churn.
+  /* eslint-disable react-hooks/refs */
   onSwipeLeftRef.current = onSwipeLeft;
   onSwipeRightRef.current = onSwipeRight;
+  shouldStartRef.current = shouldStart;
+  /* eslint-enable react-hooks/refs */
+
+  const ref = useCallback<RefCallback<HTMLDivElement>>((nextNode) => {
+    setNode((prev) => (prev === nextNode ? prev : nextNode));
+  }, []);
 
   useEffect(() => {
-    if (!enabled || !ref.current) return;
-    const el = ref.current;
+    if (!enabled || !node) return;
+    const el = node;
 
     function onTouchStart(e: TouchEvent) {
+      multiTouchRef.current = e.touches.length > 1;
+      if (multiTouchRef.current) {
+        startRef.current = null;
+        return;
+      }
+      if (shouldStartRef.current && !shouldStartRef.current()) {
+        startRef.current = null;
+        return;
+      }
       const t = e.touches[0];
       let node = e.target as HTMLElement | null;
       while (node && node !== el) {
@@ -24,7 +60,7 @@ export function useSwipeLeftRight(onSwipeLeft: () => void, onSwipeRight: () => v
           startRef.current = null;
           return;
         }
-        if (node.scrollWidth > node.clientWidth) {
+        if (isActuallyHorizontallyScrollable(node)) {
           startRef.current = null;
           return;
         }
@@ -34,6 +70,12 @@ export function useSwipeLeftRight(onSwipeLeft: () => void, onSwipeRight: () => v
     }
 
     function onTouchMove(e: TouchEvent) {
+      // Cancel swipe if a second finger appears (pinch-to-zoom)
+      if (e.touches.length > 1) {
+        multiTouchRef.current = true;
+        startRef.current = null;
+        return;
+      }
       if (!startRef.current) return;
       const t = e.touches[0];
       const dy = Math.abs(t.clientY - startRef.current.y);
@@ -43,6 +85,12 @@ export function useSwipeLeftRight(onSwipeLeft: () => void, onSwipeRight: () => v
     }
 
     function onTouchEnd(e: TouchEvent) {
+      if (multiTouchRef.current) {
+        if (e.touches.length === 0) {
+          multiTouchRef.current = false;
+        }
+        return;
+      }
       if (!startRef.current) return;
       const t = e.changedTouches[0];
       const dx = t.clientX - startRef.current.x;
@@ -59,15 +107,26 @@ export function useSwipeLeftRight(onSwipeLeft: () => void, onSwipeRight: () => v
       }
     }
 
+    // iOS can cancel a touch sequence without a matching touchend (e.g. system
+    // gesture, notification, palm rejection). Reset unconditionally — even a
+    // partial cancel (one finger of a pinch) must clear the multi-touch guard
+    // so the remaining finger isn't silently dropped for the rest of its life.
+    function onTouchCancel() {
+      multiTouchRef.current = false;
+      startRef.current = null;
+    }
+
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: true });
     el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchCancel, { passive: true });
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchCancel);
     };
-  }, [enabled]);
+  }, [enabled, node]);
 
   return ref;
 }

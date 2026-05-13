@@ -41,13 +41,30 @@ export async function generateTopic(agentId: string) {
     context = `First message: ${firstUserMsg.content}\n\nRecent conversation:\n` + recent.map((e) => `${e.kind === "user_message" ? "User" : "Assistant"}: ${e.content.slice(0, 200)}`).join("\n");
   }
 
-  const prompt = `${context}\n\nRespond with ONLY a short topic description for this conversation, max 8 words. No quotes, no punctuation at the end.`;
+  // System framing matters: without it, Sonnet occasionally roleplayed as
+  // the agent in the conversation and "responded" to the task (e.g. asking
+  // for file access) instead of labelling. Wrapping the snippet in a tag
+  // and pinning the model to a labeller role suppresses that.
+  const topicSystemPrompt = `You are a labelling tool. You receive a snippet of a conversation between a user and an AI assistant and you output a short topic label that summarizes what the conversation is about. You are NOT the assistant in the conversation, you do NOT have access to any files or systems mentioned, and you must NOT attempt to do the task. You only label.`;
+  const prompt = `<conversation>\n${context}\n</conversation>\n\nOutput ONLY a topic label, max 8 words. No quotes, no trailing punctuation.`;
 
   try {
+    // One-shot label task: no tools, no extended thinking, no filesystem
+    // context. `permissionMode: "plan"` had been adding a planning system
+    // prompt + adaptive thinking, which produced 200+-token outputs, ~10s+
+    // latency, and a ~20% rate of the model roleplaying as an agent
+    // attempting the conversation's task. cwd:"/tmp" + settingSources:[]
+    // prevents the caller's cwd from leaking git/dir context into the
+    // prompt (which made the model occasionally label with an unrelated
+    // recent commit).
     const result = await unstable_v2_prompt(prompt, {
       model: "claude-sonnet-4-20250514",
-      permissionMode: "plan",
-    });
+      tools: [],
+      thinking: { type: "disabled" },
+      settingSources: [],
+      cwd: "/tmp",
+      systemPrompt: topicSystemPrompt,
+    } as any);
     if (result.subtype === "success" && agents.has(agentId)) {
       const topic = result.result.trim().slice(0, 80);
       managed.info.topic = topic;

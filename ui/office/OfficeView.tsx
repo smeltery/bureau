@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAppState, useDispatch, useTheme, useFeatures } from "../store.tsx";
 import { Floor, Walls } from "./scene/Floor.tsx";
 import { RoomProps } from "./scene/RoomProps.tsx";
@@ -12,7 +12,15 @@ import { SunIcon, MoonIcon } from "../components/controls/Icons.tsx";
 import { MobileHeader, getRoomCounts } from "../components/overlays/MobileHeader.tsx";
 import { WallPanelMenu, type WallPanelMenuItem } from "../components/overlays/WallPanelMenu.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
+import { useViewport } from "./useViewport.ts";
+import { ZoomControls } from "./ZoomControls.tsx";
 import type { AgentInfo } from "../../shared/types.ts";
+
+export interface ViewportControls {
+  resetView: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+}
 
 function BuildingIcon() {
   return (
@@ -44,6 +52,7 @@ function DoorDropZone({ side, onDrop, onDragOverChange, onClick }: { side: "left
     side === "left" ? { position: "absolute", left: 0, top: 225, width: 85, height: 155, zIndex: 200 } : { position: "absolute", right: 0, top: 225, width: 85, height: 155, zIndex: 200 };
   return (
     <div
+      data-no-pan
       style={{ ...style, cursor: "pointer", background: reject ? "rgba(255,60,60,0.08)" : "transparent" }}
       onClick={onClick}
       onDragOver={(e) => {
@@ -80,6 +89,7 @@ export function OfficeView({
   onOpenUpdate,
   onSwipeLeft,
   onSwipeRight,
+  viewportControlsRef,
 }: {
   onSpawn: (deskIndex: number) => void;
   onContextMenu: (x: number, y: number, agent: AgentInfo) => void;
@@ -92,6 +102,7 @@ export function OfficeView({
   onOpenUpdate: () => void;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
+  viewportControlsRef?: React.RefObject<ViewportControls | null>;
 }) {
   const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateAvailable } = useAppState();
   const roomCount = rooms.length;
@@ -101,7 +112,34 @@ export function OfficeView({
   const { theme, toggleTheme } = useTheme();
   const { embed } = useFeatures();
   const mobileScale = isMobile ? screen.width / (SCENE_W - 200) : 1;
-  const swipeRef = useSwipeLeftRight(onSwipeLeft ?? (() => {}), onSwipeRight ?? (() => {}), isMobile);
+  // layoutKey changes whenever the centered-scene static transform changes,
+  // so useViewport re-measures pan-clamp bounds (ResizeObserver alone won't
+  // catch transform-only updates).
+  const layoutKey = `${embed ? 1 : 0}|${isMobile ? 1 : 0}|${mobileScale}`;
+  const viewport = useViewport(layoutKey, !embed);
+  // Cede one-finger swipes to pan once the user zooms in (iOS-gallery pattern).
+  const swipeRef = useSwipeLeftRight(onSwipeLeft ?? (() => {}), onSwipeRight ?? (() => {}), isMobile, () => !viewport.isZoomedIn());
+  const attachContainer = useCallback(
+    (node: HTMLDivElement | null) => {
+      swipeRef(node);
+      viewport.setContainer(node);
+    },
+    [swipeRef, viewport.setContainer],
+  );
+
+  // Expose viewport controls to parent for keyboard shortcuts (0, +, -).
+  // Skip in embed mode — the zoom UI is hidden there.
+  useEffect(() => {
+    if (!viewportControlsRef || embed) return;
+    viewportControlsRef.current = {
+      resetView: viewport.resetView,
+      zoomIn: viewport.zoomIn,
+      zoomOut: viewport.zoomOut,
+    };
+    return () => {
+      viewportControlsRef.current = null;
+    };
+  }, [viewportControlsRef, embed, viewport.resetView, viewport.zoomIn, viewport.zoomOut]);
 
   // Filter agents to current room for rendering
   const roomAgents = agents.filter((a) => a.room === currentRoom);
@@ -285,7 +323,10 @@ export function OfficeView({
       {!embed && <RoomTabBar />}
 
       {/* Office scene */}
-      <div ref={swipeRef} style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+      {/* touch-action: none keeps iOS from turning one-finger drags into page
+          scroll. Room-swipe still works because that hook reads touch
+          coordinates directly. */}
+      <div ref={attachContainer} style={{ flex: 1, position: "relative", overflow: "hidden", touchAction: "none" }}>
         {/* Ambient gradients */}
         <div
           style={{
@@ -293,128 +334,133 @@ export function OfficeView({
             inset: 0,
             background:
               "radial-gradient(ellipse at 50% 30%, var(--ambient-1) 0%, transparent 50%), radial-gradient(ellipse at 25% 65%, var(--ambient-2) 0%, transparent 35%), radial-gradient(ellipse at 75% 65%, var(--ambient-3) 0%, transparent 35%)",
+            pointerEvents: "none",
           }}
         />
 
-        {/* Single scene container — floor, walls, and desks share the same coordinate space */}
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: embed ? (isMobile ? "55%" : "64%") : isMobile ? "45%" : "50%",
-            transform: embed ? `translate(-50%, -50%) scale(${isMobile ? mobileScale * 0.85 : 0.9})` : isMobile ? `translate(-50%, -50%) scale(${mobileScale})` : "translate(-50%, -50%)",
-            transformOrigin: "center center",
-            width: SCENE_W,
-            height: SCENE_H,
-          }}
-        >
-          <Walls
-            onToggleTheme={toggleTheme}
-            onWallPanelClick={(x, y) => setWallMenu({ x, y })}
-            hasOfficePrompt={!!officePrompt}
-            onOpenTasks={onOpenTasks}
-            taskCount={tasks.filter((t) => t.status !== "done" && t.status !== "backlog").length}
-            leftDoor={
-              currentRoom > 0
-                ? {
-                    label: roomNames[currentRoom - 1] ?? `Room ${currentRoom}`,
-                    onClick: () => dispatch({ type: "set_current_room", room: currentRoom - 1 }),
-                    dragOver: leftDoorDragOver,
-                    reject: leftDoorReject,
-                  }
-                : null
-            }
-            rightDoor={
-              currentRoom < roomCount - 1
-                ? {
-                    label: roomNames[currentRoom + 1] ?? `Room ${currentRoom + 2}`,
-                    onClick: () => dispatch({ type: "set_current_room", room: currentRoom + 1 }),
-                    dragOver: rightDoorDragOver,
-                    reject: rightDoorReject,
-                  }
-                : null
-            }
-          />
-          <Floor />
-          <RoomProps />
-          {currentRoom > 0 && (
-            <DoorDropZone
-              side="left"
-              onClick={() => dispatch({ type: "set_current_room", room: currentRoom - 1 })}
-              onDragOverChange={(over) => setLeftDoorDragOver(over)}
-              onDrop={(deskIndex) => {
-                const a = roomAgents.find((a) => a.desk === deskIndex);
-                if (!a) {
-                  setLeftDoorReject(true);
-                  setTimeout(() => setLeftDoorReject(false), 400);
-                  return false;
-                }
-                const targetRoom = currentRoom - 1;
-                const targetRoomId = rooms[targetRoom]?.id;
-                if (!targetRoomId || agents.filter((x) => x.room === targetRoom).length >= 8) {
-                  setLeftDoorReject(true);
-                  setTimeout(() => setLeftDoorReject(false), 400);
-                  return false;
-                }
-                send({ type: "move_agent", agentId: a.id, targetRoomId });
-                return true;
-              }}
+        {/* Viewport layer — zoom/pan transform applies here, wrapping the centered scene */}
+        <div ref={viewport.setScene} style={{ position: "absolute", inset: 0, transformOrigin: "0 0" }}>
+          {/* Centered scene container — static centering transform */}
+          <div
+            ref={viewport.setContent}
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: embed ? (isMobile ? "55%" : "64%") : isMobile ? "45%" : "50%",
+              transform: embed ? `translate(-50%, -50%) scale(${isMobile ? mobileScale * 0.85 : 0.9})` : isMobile ? `translate(-50%, -50%) scale(${mobileScale})` : "translate(-50%, -50%)",
+              transformOrigin: "center center",
+              width: SCENE_W,
+              height: SCENE_H,
+            }}
+          >
+            <Walls
+              onToggleTheme={toggleTheme}
+              onWallPanelClick={(x, y) => setWallMenu({ x, y })}
+              hasOfficePrompt={!!officePrompt}
+              onOpenTasks={onOpenTasks}
+              taskCount={tasks.filter((t) => t.status !== "done" && t.status !== "backlog").length}
+              leftDoor={
+                currentRoom > 0
+                  ? {
+                      label: roomNames[currentRoom - 1] ?? `Room ${currentRoom}`,
+                      onClick: () => dispatch({ type: "set_current_room", room: currentRoom - 1 }),
+                      dragOver: leftDoorDragOver,
+                      reject: leftDoorReject,
+                    }
+                  : null
+              }
+              rightDoor={
+                currentRoom < roomCount - 1
+                  ? {
+                      label: roomNames[currentRoom + 1] ?? `Room ${currentRoom + 2}`,
+                      onClick: () => dispatch({ type: "set_current_room", room: currentRoom + 1 }),
+                      dragOver: rightDoorDragOver,
+                      reject: rightDoorReject,
+                    }
+                  : null
+              }
             />
-          )}
-          {currentRoom < roomCount - 1 && (
-            <DoorDropZone
-              side="right"
-              onClick={() => dispatch({ type: "set_current_room", room: currentRoom + 1 })}
-              onDragOverChange={(over) => setRightDoorDragOver(over)}
-              onDrop={(deskIndex) => {
-                const a = roomAgents.find((a) => a.desk === deskIndex);
-                if (!a) {
-                  setRightDoorReject(true);
-                  setTimeout(() => setRightDoorReject(false), 400);
-                  return false;
-                }
-                const targetRoom = currentRoom + 1;
-                const targetRoomId = rooms[targetRoom]?.id;
-                if (!targetRoomId || agents.filter((x) => x.room === targetRoom).length >= 8) {
-                  setRightDoorReject(true);
-                  setTimeout(() => setRightDoorReject(false), 400);
-                  return false;
-                }
-                send({ type: "move_agent", agentId: a.id, targetRoomId });
-                return true;
-              }}
-            />
-          )}
-          {Array.from({ length: 8 }, (_, i) => {
-            const agent = roomAgents.find((a) => a.desk === i);
-            if (agent) {
+            <Floor />
+            <RoomProps />
+            {currentRoom > 0 && (
+              <DoorDropZone
+                side="left"
+                onClick={() => dispatch({ type: "set_current_room", room: currentRoom - 1 })}
+                onDragOverChange={(over) => setLeftDoorDragOver(over)}
+                onDrop={(deskIndex) => {
+                  const a = roomAgents.find((a) => a.desk === deskIndex);
+                  if (!a) {
+                    setLeftDoorReject(true);
+                    setTimeout(() => setLeftDoorReject(false), 400);
+                    return false;
+                  }
+                  const targetRoom = currentRoom - 1;
+                  const targetRoomId = rooms[targetRoom]?.id;
+                  if (!targetRoomId || agents.filter((x) => x.room === targetRoom).length >= 8) {
+                    setLeftDoorReject(true);
+                    setTimeout(() => setLeftDoorReject(false), 400);
+                    return false;
+                  }
+                  send({ type: "move_agent", agentId: a.id, targetRoomId });
+                  return true;
+                }}
+              />
+            )}
+            {currentRoom < roomCount - 1 && (
+              <DoorDropZone
+                side="right"
+                onClick={() => dispatch({ type: "set_current_room", room: currentRoom + 1 })}
+                onDragOverChange={(over) => setRightDoorDragOver(over)}
+                onDrop={(deskIndex) => {
+                  const a = roomAgents.find((a) => a.desk === deskIndex);
+                  if (!a) {
+                    setRightDoorReject(true);
+                    setTimeout(() => setRightDoorReject(false), 400);
+                    return false;
+                  }
+                  const targetRoom = currentRoom + 1;
+                  const targetRoomId = rooms[targetRoom]?.id;
+                  if (!targetRoomId || agents.filter((x) => x.room === targetRoom).length >= 8) {
+                    setRightDoorReject(true);
+                    setTimeout(() => setRightDoorReject(false), 400);
+                    return false;
+                  }
+                  send({ type: "move_agent", agentId: a.id, targetRoomId });
+                  return true;
+                }}
+              />
+            )}
+            {Array.from({ length: 8 }, (_, i) => {
+              const agent = roomAgents.find((a) => a.desk === i);
+              if (agent) {
+                return (
+                  <DeskUnit
+                    key={agent.id}
+                    agent={agent}
+                    onClick={() => dispatch({ type: "focus", agentId: agent.id })}
+                    onContextMenu={(e) => onContextMenu(e.clientX, e.clientY, agent)}
+                    needsAttention={needsAttention.has(agent.id)}
+                    onSwap={(a, b) => {
+                      const rid = rooms[currentRoom]?.id;
+                      if (rid) send({ type: "swap_desks", deskA: a, deskB: b, roomId: rid });
+                    }}
+                    stateChangedAt={stateChangedAt.get(agent.id)}
+                  />
+                );
+              }
               return (
-                <DeskUnit
-                  key={agent.id}
-                  agent={agent}
-                  onClick={() => dispatch({ type: "focus", agentId: agent.id })}
-                  onContextMenu={(e) => onContextMenu(e.clientX, e.clientY, agent)}
-                  needsAttention={needsAttention.has(agent.id)}
+                <EmptySlot
+                  key={`empty-${i}`}
+                  deskIndex={i}
+                  onClick={() => onSpawn(i)}
                   onSwap={(a, b) => {
                     const rid = rooms[currentRoom]?.id;
                     if (rid) send({ type: "swap_desks", deskA: a, deskB: b, roomId: rid });
                   }}
-                  stateChangedAt={stateChangedAt.get(agent.id)}
                 />
               );
-            }
-            return (
-              <EmptySlot
-                key={`empty-${i}`}
-                deskIndex={i}
-                onClick={() => onSpawn(i)}
-                onSwap={(a, b) => {
-                  const rid = rooms[currentRoom]?.id;
-                  if (rid) send({ type: "swap_desks", deskA: a, deskB: b, roomId: rid });
-                }}
-              />
-            );
-          })}
+            })}
+          </div>
         </div>
 
         {/* Vignette */}
@@ -428,6 +474,8 @@ export function OfficeView({
             }}
           />
         )}
+
+        {!embed && <ZoomControls onZoomIn={viewport.zoomIn} onZoomOut={viewport.zoomOut} onReset={() => viewport.resetView()} />}
       </div>
 
       {/* Bottom HUD */}

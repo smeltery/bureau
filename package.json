@@ -2,6 +2,7 @@
   "name": "bureau",
   "type": "module",
   "scripts": {
+    "postinstall": "git config core.hooksPath .githooks 2>/dev/null || true",
     "dev": "bash scripts/dev-watch.sh",
     "dev:manual": "bun run build:ui && bun run server/index.ts",
     "build:ui": "bash scripts/build.sh",
@@ -18,7 +19,7 @@
     "check": "bun run typecheck && bun run lint && bun run format:check && bun run test"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.116",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.129",
     "@anthropic-ai/sdk": "^0.91.1",
     "@codemirror/autocomplete": "^6.20.2",
     "@codemirror/commands": "^6.10.3",
