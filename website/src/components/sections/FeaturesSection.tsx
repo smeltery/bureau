@@ -107,15 +107,15 @@ export function FeaturesSection() {
     },
     {
       icon: <Eye className="h-6 w-6" />,
-      title: 'Inter-Agent Discovery',
+      title: 'Inter-Agent Discovery & Messaging',
       description:
-        "Agents can inspect each other's progress so work can be coordinated across desks.",
+        "Agents can inspect each other's progress and send messages directly via POST /agents/:id/message — receivers see them in the same queue as human input, prefixed so they can tell agents apart.",
     },
     {
       icon: <Paperclip className="h-6 w-6" />,
       title: 'Rich Attachments',
       description:
-        'Attach images, PDFs, and files directly to conversations so agents can reason over source material.',
+        "Attach images, PDFs, and files directly to conversations. Agents can also surface their own files via POST /agents/:id/read-file — images render inline, others as clickable chips.",
     },
   ];
 

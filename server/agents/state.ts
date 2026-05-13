@@ -149,6 +149,23 @@ export function emitQueueUpdate(agentId: string, managed: ManagedAgent) {
   emit({ type: "agent_updated", agentId, changes: { queue } });
 }
 
+// Turn-start primitive. Stamps the per-turn "did a human originate this
+// turn" flag and then transitions the agent into "thinking", in that
+// order. The UI reads turnHadHumanInput at the working→attention
+// transition to decide whether to fire the turn-end notification sound,
+// so the flag must land before the state event. Every place that begins
+// a new turn (flushQueue, sendMessage echo paths, editMessage, skill
+// commands) goes through here.
+export function beginTurn(agentId: string, opts: { humanInput: boolean }) {
+  const managed = agents.get(agentId);
+  if (!managed) return;
+  if (managed.info.turnHadHumanInput !== opts.humanInput) {
+    managed.info = { ...managed.info, turnHadHumanInput: opts.humanInput };
+    emit({ type: "agent_updated", agentId, changes: { turnHadHumanInput: opts.humanInput } });
+  }
+  updateState(agentId, "thinking");
+}
+
 export function updateState(agentId: string, state: AgentState) {
   const managed = agents.get(agentId);
   if (!managed) return;

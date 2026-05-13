@@ -71,7 +71,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Daily backups** — automatic tarball of `~/.bureau/` to `~/bureau-backups/` (last 7 retained)
 - **Inter-agent discovery & messaging** — agents can read each other's conversations and send messages directly via `POST /agents/:id/message`; the receiver sees them in the same queue as human-typed input, prefixed so they can tell agent senders from human bosses
 - **Slash commands** — `/bureau-peer-review`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-system-prompt`, `/usage`, `/resume`, `/model`, and more
-- **File attachments** — images, PDFs, arbitrary files
+- **File attachments** — images, PDFs, arbitrary files; agents can surface their own files via `POST /agents/:id/read-file` (images render inline, others as clickable chips)
 
 For the full feature list, see the [design & architecture article](articles/punching-in-building-an-office-for-ai-agents.md).
 

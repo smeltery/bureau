@@ -72,6 +72,11 @@ export interface AgentInfo {
   // there's no feedback during the drain → install gap, which can take
   // a noticeable beat on a busy session.
   sessionSwapping?: boolean;
+  // True iff the current (or most-recent) turn started by processing a
+  // human message. The UI gates the turn-end notification sound on this
+  // so an agent-only turn (one agent messages another, the receiver
+  // answers and idles) stays silent. In-memory only — never persisted.
+  turnHadHumanInput?: boolean;
   // Pending user messages that arrived while the agent was busy. Flushed
   // together as the agent transitions back to an idle state. In-memory
   // only — never persisted.
@@ -88,7 +93,16 @@ export type QueuedSender = { kind: "user"; username?: string } | { kind: "agent"
 export interface QueuedMessage {
   id: string; // short hex; UI uses this to cancel
   sender: QueuedSender;
-  text: string;
+  text: string; // what we show in chat (raw user input)
+  // What we send to the SDK in place of `text`. Set when the queued item
+  // is a pre-expanded slash command (e.g. /bureau-peer-review → full skill
+  // prompt). Stays undefined for plain user messages.
+  sdkText?: string;
+  // True when the message landed while the agent was busy (thinking /
+  // tool_executing) or otherwise unable to receive it immediately. Used
+  // at flush time to warn the agent that the sender hadn't yet seen its
+  // most recent reply when sending this.
+  queuedDuringBusyTurn?: boolean;
   attachments?: Attachment[];
   queuedAt: number;
 }
@@ -144,7 +158,7 @@ export interface LogEntry {
   id: string;
   agentId: string;
   timestamp: number;
-  kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "diff" | "edit-request" | "terminal-command";
+  kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "diff" | "edit-request" | "terminal-command" | "file-view";
   content: string;
   metadata?: Record<string, unknown>;
   attachments?: Attachment[]; // file attachments, served via /api/files/<agentId>/<filename>

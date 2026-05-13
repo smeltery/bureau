@@ -19,7 +19,8 @@ How to use the task board (localhost:4000/tasks): only touch it when the boss as
   curl -s -X POST localhost:4000/tasks/ID/done -d '{}'                  # mark done
 Optional fields on create/update: description, priority (P0-P3), assignee.
 
-How to show an image to the boss: read the image file with the Read tool — it renders inline in the conversation.
+How to show a file to the boss (images render inline; other files render as a clickable file chip): call POST localhost:4000/agents/${agentId}/read-file with body {"path":"..."}. The path can be relative to your cwd, absolute, or \`~/...\`. Use this when you've produced or want to surface a file (a plot, screenshot, generated PDF, log snippet) to the boss.
+  curl -s -X POST localhost:4000/agents/${agentId}/read-file -H 'Content-Type: application/json' -d '{"path":"plot.png"}'
 
 How to show a styled code diff to the boss (uncommitted changes in a directory): call POST localhost:4000/agents/${agentId}/diff. Pass an optional {"dir":"..."} body to target a different directory (defaults to your cwd). The diff renders inline in the chat as a styled card, the same as the boss's /bureau-diff command.
   curl -s -X POST localhost:4000/agents/${agentId}/diff -d '{}'                          # diff your cwd

@@ -2,7 +2,7 @@ import type { Attachment, QueuedMessage, QueuedSender } from "../../../shared/ty
 import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
 import { formatAgentSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
-import { addLogEntry, agents, emit, emitEphemeralLog, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
+import { addLogEntry, agents, beginTurn, emit, emitEphemeralLog, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { buildUserMessage } from "../session/messages.ts";
 import { SessionSwappedError, createSession, createTurnDeferred, installSession, replaceSession } from "../session/runtime.ts";
 import { generateTopic, persistCurrentSessionTopic } from "../topic.ts";
@@ -27,7 +27,7 @@ function generateQueuedId(existing: QueuedMessage[]): string {
 // benefit from an explicit failure so they can retry or fall back.
 export type EnqueueResult = { ok: true; queued: boolean; messageId: string } | { ok: false; error: string; status: number };
 
-export function enqueueMessage(receiverId: string, msg: { sender: QueuedSender; text: string; attachments?: Attachment[] }): EnqueueResult {
+export function enqueueMessage(receiverId: string, msg: { sender: QueuedSender; text: string; sdkText?: string; attachments?: Attachment[] }): EnqueueResult {
   const managed = agents.get(receiverId);
   if (!managed) return { ok: false, error: "agent not found", status: 404 };
   const state = managed.info.state;
@@ -38,17 +38,20 @@ export function enqueueMessage(receiverId: string, msg: { sender: QueuedSender; 
     return { ok: false, error: `queue full (limit ${QUEUE_MAX})`, status: 429 };
   }
   const id = generateQueuedId(managed.messageQueue);
+  const canFlushNow = !isAgentBusy(state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick;
   managed.messageQueue.push({
     id,
     sender: msg.sender,
     text: msg.text,
+    ...(msg.sdkText ? { sdkText: msg.sdkText } : {}),
+    ...(canFlushNow ? {} : { queuedDuringBusyTurn: true }),
     attachments: msg.attachments,
     queuedAt: Date.now(),
   });
   emitQueueUpdate(receiverId, managed);
   // Receiver is idle: flush right away so the message lands without a
   // user gesture. flushQueue is safe to call here — it re-checks state.
-  if (!isAgentBusy(state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick) {
+  if (canFlushNow) {
     flushQueue(receiverId).catch((err: any) => {
       console.error(`flushQueue (post-enqueue) failed for ${receiverId}:`, err.message);
     });
@@ -81,10 +84,14 @@ function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
 
 function enqueueUserMessage(agentId: string, managed: ManagedAgent, text: string, username: string | undefined, attachments: Attachment[] | undefined): boolean {
   if (managed.messageQueue.length >= QUEUE_MAX) return false;
+  // This path is only reached when the agent is mid-turn (see sendMessage's
+  // isAgentBusy gate), so the queued item by definition predates the
+  // agent's most recent reply.
   const item: QueuedMessage = {
     id: generateQueuedId(managed.messageQueue),
     sender: { kind: "user", username },
     text,
+    queuedDuringBusyTurn: true,
     attachments,
     queuedAt: Date.now(),
   };
@@ -134,16 +141,36 @@ export async function flushQueue(agentId: string): Promise<void> {
     // human bosses from other agents apart.
     const promptParts: string[] = [];
     const allAttachments: Attachment[] = [];
+    // If any items were queued while the agent was busy, prepend a single
+    // coalesced note so the agent doesn't read them as reactions to its
+    // most recent reply (the sender hadn't seen that reply yet).
+    const busyCount = items.reduce((n, m) => (m.queuedDuringBusyTurn ? n + 1 : n), 0);
+    if (busyCount > 0) {
+      promptParts.push(
+        busyCount === 1
+          ? `[Note: this message was queued while you were processing your previous turn — the sender had not seen your most recent reply when they sent it.]`
+          : `[Note: these messages were queued while you were processing your previous turn — the sender had not seen your most recent reply when they sent them.]`,
+      );
+    }
     for (const m of items) {
-      promptParts.push(`${senderPrefixText(m.sender)}${m.text}`);
+      // sdkText is set for pre-expanded slash commands (e.g. an
+      // /bureau-peer-review queued while the agent was mid-turn): chat
+      // shows m.text "/bureau-peer-review", but the SDK needs the full
+      // skill prompt.
+      promptParts.push(`${senderPrefixText(m.sender)}${m.sdkText ?? m.text}`);
       if (m.attachments) allAttachments.push(...m.attachments);
     }
     const prompt = promptParts.join("\n\n");
     // Log each item separately so it shows up as its own chat bubble.
     for (const m of items) {
-      addLogEntry(agentId, "user_message", m.text, senderMeta(m.sender), m.attachments);
+      // Carry sdkText into the log metadata so editMessage can match this
+      // entry against the SDK session (the SDK saw the expanded prompt,
+      // not m.text). Same shape executeSkill uses on the immediate path.
+      const base = senderMeta(m.sender);
+      const meta = m.sdkText ? { ...(base ?? {}), sdkText: m.sdkText } : base;
+      addLogEntry(agentId, "user_message", m.text, meta, m.attachments);
     }
-    updateState(agentId, "thinking");
+    beginTurn(agentId, { humanInput: items.some((m) => m.sender.kind === "user") });
     try {
       const turn = createTurnDeferred(managed);
       if (allAttachments.length > 0) {
@@ -337,7 +364,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   }
 
   addLogEntry(agentId, "user_message", text, username ? { username } : undefined, attachments);
-  updateState(agentId, "thinking");
+  beginTurn(agentId, { humanInput: true });
 
   // Auto-generate topic on first user message in a conversation
   if (managed.info.topic === null && !managed.topicGenerating) {

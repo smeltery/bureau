@@ -1,5 +1,6 @@
 import type { Attachment } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
+import { mimeTypeForFilename } from "../mime-types.ts";
 import { getFilePath, saveFile } from "../persistence.ts";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -75,22 +76,6 @@ async function uploadHandler(req: Request, url: URL): Promise<Response> {
   }
 }
 
-const SERVE_MIME_TYPES: Record<string, string> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  gif: "image/gif",
-  webp: "image/webp",
-  pdf: "application/pdf",
-  txt: "text/plain",
-  md: "text/markdown",
-  json: "application/json",
-  csv: "text/csv",
-  xml: "text/xml",
-  html: "text/html",
-  css: "text/css",
-};
-
 function serveHandler(url: URL): Response {
   const parts = url.pathname.split("/").filter(Boolean); // ["api", "files"|"images", agentId, filename]
   const agentId = parts[2];
@@ -102,10 +87,9 @@ function serveHandler(url: URL): Response {
   if (!filePath) {
     return new Response("Not found", { status: 404 });
   }
-  const ext = filename.split(".").pop();
   return new Response(Bun.file(filePath), {
     headers: {
-      "Content-Type": SERVE_MIME_TYPES[ext!] || "application/octet-stream",
+      "Content-Type": mimeTypeForFilename(filename),
       "Cache-Control": "public, max-age=31536000, immutable",
     },
   });

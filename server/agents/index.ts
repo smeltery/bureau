@@ -16,6 +16,7 @@ export {
   editAgent,
   emitAgentDiff,
   emitAgentEditFile,
+  emitAgentReadFile,
   emitAgentTerminalCommand,
   openEditorFile,
   saveEditorFile,
