@@ -1,7 +1,7 @@
 import { forkSession, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
 import type { LogEntry } from "../../../shared/types.ts";
-import { loadLog, loadSessionsMap, persistSessionFork } from "../../persistence.ts";
-import { addLogEntry, agents, emit, logCache, persistAll, updateState } from "../state.ts";
+import { listAgentSessions, loadLog, loadSessionsMap, persistSessionFork } from "../../persistence.ts";
+import { addLogEntry, agents, beginTurn, emit, logCache, persistAll, updateState } from "../state.ts";
 import { SessionSwappedError, createSession, createTurnDeferred, replaceSession } from "../session/runtime.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
@@ -76,7 +76,23 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     }
 
     if (targetIdx === -1) {
-      addLogEntry(agentId, "error", "Cannot edit: could not locate message in SDK session.");
+      // Walk the agent's on-disk sessions to find which one owns the entry,
+      // so the error tells the user where the message actually lives. The
+      // chat can show entries from a session that isn't the current backend
+      // session — e.g. ContextMenu "New conversation" or message edits that
+      // branched the timeline can leave entries from a prior session in view.
+      let ownerHint = "";
+      try {
+        for (const s of listAgentSessions(agentId)) {
+          if (s.sessionId === oldSessionId) continue;
+          if (loadLog(agentId, s.sessionId).some((e) => e.id === logEntryId)) {
+            const label = s.topic ?? s.sessionId.slice(0, 8) + "...";
+            ownerHint = ` This message lives in a different session ("${label}"). Use /resume to switch to it first, then edit.`;
+            break;
+          }
+        }
+      } catch {}
+      addLogEntry(agentId, "error", `Cannot edit: could not locate message in SDK session.${ownerHint}`);
       return;
     }
 
@@ -165,7 +181,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     emit({ type: "agent_updated", agentId, changes: { topic: oldTopic, topicStale: true } });
 
     // 10. Send the edited message
-    updateState(agentId, "thinking");
+    beginTurn(agentId, { humanInput: true });
     addLogEntry(agentId, "user_message", newText, username ? { username } : undefined);
 
     const prefixedNew = username ? `[${username}] ${newText}` : newText;

@@ -81,7 +81,7 @@ Setup:
 - File editor side panel — built-in CodeMirror editor with tabs, syntax highlighting, dirty-buffer tracking, and external-change detection; toggleable from the chat header
 - Resizable side panels — drag the splitter to size the terminal or editor; widths persist
 - Per-agent message queue — typing while the agent is busy queues messages as chips above the input; they flush together when the agent next idles, and you can cancel any of them before they send
-- Agent-driven cards in chat — agents can offer [Open in editor] and [Copy to terminal] cards via POST /agents/:id/edit-file and /agents/:id/terminal-command; clicking opens the file or prefills the command at the prompt without executing
+- Agent-driven cards in chat — agents can offer [Open in editor] and [Copy to terminal] cards via POST /agents/:id/edit-file and /agents/:id/terminal-command; clicking opens the file or prefills the command at the prompt without executing. Agents can also surface a file inline (images render in-chat, others as a clickable chip) via POST /agents/:id/read-file
 - Session-swap indicator — chat shows a brief "Restarting session..." hint during /resume, /model, or fork-from-edit so the drain → install gap isn't silent
 - Conversation branching — edit a past message to fork the conversation from that point, preserving the original
 - Right-click context menu — resume past sessions, edit agent, kill

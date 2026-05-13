@@ -4,6 +4,7 @@ import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage } from "./Assis
 import { ToolCall, ToolResult } from "./ToolEntries.tsx";
 import { DiffCard } from "../DiffCard.tsx";
 import { EditRequestCard } from "../EditRequestCard.tsx";
+import { FileViewCard } from "../FileViewCard.tsx";
 import { TerminalCommandCard } from "../TerminalCommandCard.tsx";
 
 export { serializeEntries } from "./serialize.ts";
@@ -88,6 +89,10 @@ export function LogEntryCard({
     case "terminal-command": {
       if (!entry.terminal || !onCopyToTerminal) return <SystemMessage content={entry.content} isMobile={isMobile} />;
       return <TerminalCommandCard payload={entry.terminal} onCopy={onCopyToTerminal} />;
+    }
+    case "file-view": {
+      if (!entry.attachments || entry.attachments.length === 0) return <SystemMessage content={entry.content} isMobile={isMobile} />;
+      return <FileViewCard attachments={entry.attachments} agentId={entry.agentId} isMobile={isMobile} />;
     }
     default:
       return <div style={{ padding: "4px 0", color: "var(--text-muted)", fontSize: isMobile ? 14 : 12 }}>{entry.content}</div>;

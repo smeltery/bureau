@@ -143,10 +143,13 @@ export function LogView({
   // Scroll container ref + swipe-to-cycle-agent (mobile)
   const scrollRef = useRef<HTMLDivElement>(null);
   const swipeRef = useSwipeLeftRight(onSwipeLeft ?? (() => {}), onSwipeRight ?? (() => {}), isMobile);
-  const messagesRef: RefCallback<HTMLDivElement> = useCallback((node) => {
-    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-    (swipeRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-  }, []);
+  const messagesRef: RefCallback<HTMLDivElement> = useCallback(
+    (node) => {
+      (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      swipeRef(node);
+    },
+    [swipeRef],
+  );
 
   // Chrome + UI state
   const [showAvatar, setShowAvatar] = useState(() => localStorage.getItem("bureau-show-avatar") !== "false");

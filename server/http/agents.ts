@@ -6,6 +6,8 @@ const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "appl
  * Handle agent-scoped HTTP routes:
  *   POST /agents/:id/diff             — emit a styled diff card (optional body: { dir }).
  *   POST /agents/:id/edit-file        — emit an [Open in editor] card (body: { path }).
+ *   POST /agents/:id/read-file        — copy a file into the agent's files dir and
+ *                                       emit a `file-view` card (body: { path }).
  *   POST /agents/:id/terminal-command — emit a [Copy to terminal] card (body: { command }).
  *   POST /agents/:id/message          — queue an agent-to-agent message into the
  *                                       receiver's chat (body: { text, senderAgentId }).
@@ -37,6 +39,18 @@ export async function handleAgentsRequest(req: Request, url: URL): Promise<Respo
       } catch {}
       if (!path) return new Response(JSON.stringify({ error: "missing path" }), { status: 400, headers: JSON_HEADERS });
       const result = AgentManager.emitAgentEditFile(agentId, path);
+      if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
+    }
+    if (parts.length === 3 && parts[2] === "read-file") {
+      const agentId = parts[1]!;
+      let path: string | undefined;
+      try {
+        const body = (await req.json()) as Record<string, unknown> | null;
+        if (body && typeof body.path === "string") path = body.path;
+      } catch {}
+      if (!path) return new Response(JSON.stringify({ error: "missing path" }), { status: 400, headers: JSON_HEADERS });
+      const result = AgentManager.emitAgentReadFile(agentId, path);
       if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
       return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
     }

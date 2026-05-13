@@ -61,6 +61,11 @@ export async function newConversation(agentId: string) {
     managed.info.topic = null;
     managed.info.topicStale = false;
     emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false } });
+    // Match /clear's behavior: wipe the chat. Without this, the timeline
+    // continues across session boundaries and editing an old entry hits
+    // the cross-session dead-end.
+    logCache.set(agentId, []);
+    emit({ type: "clear_logs", agentId } as any);
     updateState(agentId, "idle");
     addLogEntry(agentId, "system", "New conversation started.");
     persistAll();

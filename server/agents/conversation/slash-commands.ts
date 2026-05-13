@@ -3,7 +3,8 @@ import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
 import { computeBureauDiff, resolveDiffCwd } from "../../bureau-diff.ts";
 import { listAgentSessions } from "../../persistence.ts";
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
-import { addLogEntry, agents, emit, emitEphemeralLog, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
+import { addLogEntry, agents, beginTurn, emit, emitEphemeralLog, isAgentBusy, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
+import { enqueueMessage } from "./send.ts";
 import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
 import { SessionSwappedError, createSession, createTurnDeferred, replaceSession } from "../session/runtime.ts";
@@ -391,8 +392,30 @@ async function executeSkill(agentId: string, managed: ManagedAgent, skillPrompt:
   const userMeta = username ? { username } : undefined;
   const userArgs = args.join(" ");
   const fullPrompt = userArgs ? `${skillPrompt}\n\nUser context: ${userArgs}` : skillPrompt;
+
+  // If the agent is mid-turn, defer the skill via the queue instead of
+  // calling session.send now. Otherwise createTurnDeferred below would
+  // supersede the in-flight turn and reject it with "Superseded by a new
+  // turn". sendMessage's own queueing gate lets all slash commands skip
+  // the queue — which is right for immediate handlers like /clear or
+  // /bureau-diff, but wrong for skills that actually run the model.
+  // Multi-step pending flows still take the immediate path: the user's
+  // reply during /resume etc. is a pick, not a skill.
+  const inMultiStep = !!(managed.pendingPermission || managed.pendingResume || managed.pendingModelPick);
+  if (isAgentBusy(managed.info.state) && !inMultiStep) {
+    const result = enqueueMessage(agentId, {
+      sender: { kind: "user", username },
+      text: rawText,
+      sdkText: fullPrompt,
+    });
+    if (!result.ok) {
+      addLogEntry(agentId, "system", `Could not queue ${rawText}: ${result.error}`);
+    }
+    return true;
+  }
+
   addLogEntry(agentId, "user_message", rawText, userMeta);
-  updateState(agentId, "thinking");
+  beginTurn(agentId, { humanInput: true });
   const prefixedSkillPrompt = username ? `[${username}] ${fullPrompt}` : fullPrompt;
   try {
     const turn = createTurnDeferred(managed);

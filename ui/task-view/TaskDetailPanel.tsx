@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { send } from "../ws.ts";
 import type { TaskItem, TaskPriority, TaskStatus } from "../../shared/types.ts";
 import { timeAgo } from "../utils/time.ts";
+import { dialogInput, dialogLabel } from "../components/modals/dialog-styles.ts";
 
 export function TaskDetailPanel({
   task,
@@ -107,26 +108,13 @@ export function TaskDetailPanel({
   }
 
   const inputStyle: React.CSSProperties = {
-    width: "100%",
+    ...dialogInput,
     padding: "8px 10px",
     borderRadius: 6,
-    border: "1px solid var(--border)",
-    background: "var(--bg-input)",
-    color: "var(--text-primary)",
     fontSize: 13,
-    outline: "none",
-    boxSizing: "border-box",
   };
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "var(--text-muted)",
-    marginBottom: 4,
-    display: "block",
-    fontFamily: "'JetBrains Mono',monospace",
-    letterSpacing: "0.03em",
-  };
+  const labelStyle: React.CSSProperties = dialogLabel;
 
   return (
     <div

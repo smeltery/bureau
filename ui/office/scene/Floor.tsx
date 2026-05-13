@@ -174,7 +174,7 @@ export function Walls({
           </circle>
         ))}
         {/* Moon — crescent via overlapping circles (clickable to toggle theme) */}
-        <g onClick={onToggleTheme} style={{ cursor: "pointer", pointerEvents: "auto" }}>
+        <g data-no-pan onClick={onToggleTheme} style={{ cursor: "pointer", pointerEvents: "auto" }}>
           <circle cx={-203} cy={-8} r={18} fill="transparent" />
           <circle cx={-203} cy={-8} r={12} fill="#E8E0C8" />
           <circle cx={-203 + moonPhase * 10} cy={-9} r={10} fill="#0a0e1a" />
@@ -187,7 +187,7 @@ export function Walls({
       <g clipPath="url(#window-clip)" className="window-day">
         <path d="M-285 115 L-145 45 L-145 -45 L-285 25 Z" fill="#87CEEB" />
         {/* Sun (clickable to toggle theme) */}
-        <g onClick={onToggleTheme} style={{ cursor: "pointer", pointerEvents: "auto" }}>
+        <g data-no-pan onClick={onToggleTheme} style={{ cursor: "pointer", pointerEvents: "auto" }}>
           <circle cx={-205} cy={-5} r={20} fill="transparent" />
           <circle cx={-205} cy={-5} r={14} fill="#F5D060" />
           <circle cx={-205} cy={-5} r={20} fill="#F5D060" opacity="0.15" />
@@ -205,7 +205,7 @@ export function Walls({
       <path d="M-285 70 L-145 0" stroke="var(--wall-decor)" strokeWidth="2" fill="none" />
 
       {/* Corkboard on left wall — casual, mutable feel */}
-      <g transform="translate(-55, -30) skewY(-27)" onClick={onOpenTasks} style={{ cursor: "pointer", pointerEvents: "auto" }}>
+      <g data-no-pan transform="translate(-55, -30) skewY(-27)" onClick={onOpenTasks} style={{ cursor: "pointer", pointerEvents: "auto" }}>
         {/* Board frame */}
         <rect x="-50" y="-40" width="95" height="70" rx="2" fill="#5a4430" stroke="#4a3620" strokeWidth="1" />
         {/* Cork surface */}
@@ -274,7 +274,7 @@ export function Walls({
       </g>
 
       {/* Framed wall sign on left wall — formal, authoritative feel */}
-      <g transform="translate(50, -75) skewY(-27)" onClick={(e) => onWallPanelClick?.(e.clientX, e.clientY)} style={{ cursor: "pointer", pointerEvents: "auto" }}>
+      <g data-no-pan transform="translate(50, -75) skewY(-27)" onClick={(e) => onWallPanelClick?.(e.clientX, e.clientY)} style={{ cursor: "pointer", pointerEvents: "auto" }}>
         {/* Outer frame — dark wood/brass */}
         <rect x="-30" y="-32" width="60" height="58" rx="2" fill="#3a3028" stroke="#2a2018" strokeWidth="1.2" />
         {/* Inner frame — thin brass inset */}
@@ -338,7 +338,7 @@ export function Walls({
 
       {/* Left wall door — leads to previous room */}
       {leftDoor && (
-        <g onClick={leftDoor.onClick} style={{ cursor: "pointer", pointerEvents: "auto" }}>
+        <g data-no-pan onClick={leftDoor.onClick} style={{ cursor: "pointer", pointerEvents: "auto" }}>
           <g transform="translate(-315, 237) skewY(-27)">
             <rect x="-33" y="-93" width="66" height="113" rx="3" fill={leftDoor.reject ? "#5a2020" : leftDoor.dragOver ? "#5a4a2a" : "#3a2a1a"} stroke="#2a1a0a" strokeWidth="1.5" />
             <rect x="-27" y="-87" width="54" height="101" rx="1.5" fill={leftDoor.reject ? "#7a3030" : leftDoor.dragOver ? "#7a6050" : "#5a4030"} />
@@ -367,7 +367,7 @@ export function Walls({
 
       {/* Right wall door — leads to next room */}
       {rightDoor && (
-        <g onClick={rightDoor.onClick} style={{ cursor: "pointer", pointerEvents: "auto" }}>
+        <g data-no-pan onClick={rightDoor.onClick} style={{ cursor: "pointer", pointerEvents: "auto" }}>
           <g transform="translate(555, 237) skewY(27)">
             <rect x="-33" y="-93" width="66" height="113" rx="3" fill={rightDoor.reject ? "#5a2020" : rightDoor.dragOver ? "#5a4a2a" : "#3a2a1a"} stroke="#2a1a0a" strokeWidth="1.5" />
             <rect x="-27" y="-87" width="54" height="101" rx="1.5" fill={rightDoor.reject ? "#7a3030" : rightDoor.dragOver ? "#7a6050" : "#5a4030"} />
