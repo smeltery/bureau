@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTheme } from "../../store.tsx";
 import { SunIcon, MoonIcon } from "../controls/Icons.tsx";
+import { ThemePicker } from "../ThemePicker.tsx";
 import type { AgentInfo } from "../../../shared/types.ts";
 
 export type RoomCounts = {
@@ -78,8 +79,9 @@ export function MobileHeader({
   updateAvailable?: boolean;
   onOpenUpdate?: () => void;
 }) {
-  const { theme, toggleTheme } = useTheme();
+  const { mode } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -211,7 +213,7 @@ export function MobileHeader({
                 { icon: TASKS_ICON, label: "Tasks", action: onOpenTasks },
                 { icon: BUILDING_ICON, label: "Office settings", action: onEditOfficePrompt },
                 ...(onEditRoomSettings ? [{ icon: DOOR_ICON, label: "Room settings", action: onEditRoomSettings }] : []),
-                { icon: theme === "dark" ? <SunIcon size={15} /> : <MoonIcon size={15} />, label: theme === "dark" ? "Light mode" : "Dark mode", action: toggleTheme },
+                { icon: mode === "dark" ? <MoonIcon size={15} /> : <SunIcon size={15} />, label: "Theme", action: () => setThemePickerOpen(true) },
               ].map((item, i) => (
                 <button
                   key={i}
@@ -241,6 +243,7 @@ export function MobileHeader({
           )}
         </div>
       </div>
+      <ThemePicker open={themePickerOpen} onClose={() => setThemePickerOpen(false)} />
     </div>
   );
 }

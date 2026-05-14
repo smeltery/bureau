@@ -27,20 +27,31 @@ export function validateCwd(cwd: string): string {
 // Directory where Claude CLI stores per-project session JSONLs.
 // Sanitization observed: any non-alphanumeric, non-hyphen char becomes "-".
 // Ex: /home/nil/nicholasadamou.com -> -home-nil-nicholasadamou-com
-export function claudeProjectDir(cwd: string): string {
-  return join(homedir(), ".claude", "projects", cwd.replace(/[^a-zA-Z0-9-]/g, "-"));
+//
+// Honors CLAUDE_CONFIG_DIR (the same env var the Claude SDK reads) so that
+// office/room envFile setups pointing at a non-default config dir resolve to
+// the same projects/ tree the spawned subprocess uses. Falls back to ~/.claude
+// when env is unset or omitted — preserves today's behavior for default users.
+export function claudeProjectDir(cwd: string, env?: { [key: string]: string | undefined }): string {
+  const configDir = env?.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
+  return join(configDir, "projects", cwd.replace(/[^a-zA-Z0-9-]/g, "-"));
 }
 
-export function claudeSessionFileExists(cwd: string, sessionId: string): boolean {
-  return existsSync(join(claudeProjectDir(cwd), `${sessionId}.jsonl`));
+export function claudeSessionFileExists(cwd: string, sessionId: string, env?: { [key: string]: string | undefined }): boolean {
+  return existsSync(join(claudeProjectDir(cwd, env), `${sessionId}.jsonl`));
 }
 
 // Move an agent's Claude CLI session files from one cwd's project dir to another.
 // The Claude CLI derives its session storage path from cwd, so changing an agent's cwd
 // without moving these files orphans every session on the next respawn (e.g. server restart).
-export function moveClaudeSessionFiles(agentId: string, oldCwd: string, newCwd: string) {
-  const oldDir = claudeProjectDir(oldCwd);
-  const newDir = claudeProjectDir(newCwd);
+//
+// `env` selects which CLAUDE_CONFIG_DIR projects/ tree to read from and write to.
+// Callers must pass the env that corresponds to the agent's *current* room/office
+// envFile state — if room ever changes in the same edit as cwd, the move must
+// run with the OLD room's env, before the room mutation commits.
+export function moveClaudeSessionFiles(agentId: string, oldCwd: string, newCwd: string, env?: { [key: string]: string | undefined }) {
+  const oldDir = claudeProjectDir(oldCwd, env);
+  const newDir = claudeProjectDir(newCwd, env);
   if (oldDir === newDir || !existsSync(oldDir)) return;
   const sessions = listAgentSessions(agentId);
   if (sessions.length === 0) return;

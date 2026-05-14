@@ -418,32 +418,13 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
           ) : null)}
       </div>
 
-      {/* Mobile detail panel as overlay */}
-      {(selectedTask || creating) && isMobile && (
-        <div
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) tryClosePanel();
-          }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 900,
-            background: "rgba(0,0,0,0.55)",
-            backdropFilter: "blur(10px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div style={{ width: "90%", maxWidth: 380, maxHeight: "80vh", overflowY: "auto", margin: "0 auto", borderRadius: 12, overflow: "hidden" }}>
-            {creating ? (
-              <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} />
-            ) : (
-              <TaskDetailPanel closeRef={closeRef} task={selectedTask!} onClose={() => setSelectedId(null)} username={username} agents={agents} />
-            )}
-          </div>
-        </div>
-      )}
+      {/* Mobile detail panel as full-page */}
+      {isMobile &&
+        (creating ? (
+          <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} fullScreen />
+        ) : selectedTask ? (
+          <TaskDetailPanel closeRef={closeRef} task={selectedTask} onClose={() => setSelectedId(null)} username={username} agents={agents} fullScreen />
+        ) : null)}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { send } from "../ws.ts";
 import { useAppState, useFeatures, useTheme } from "../store.tsx";
 import { CopyButton } from "../components/controls/CopyButton.tsx";
 import { MoonIcon, PersonIcon, SunIcon } from "../components/controls/Icons.tsx";
+import { ThemePicker } from "../components/ThemePicker.tsx";
 import { StatusLight } from "../office/scene/StatusLight.tsx";
 import { HeaderTimer, STATE_LABELS } from "./StateIndicators.tsx";
 
@@ -36,13 +37,14 @@ export function Header({
   getConversationText: () => string;
 }) {
   const { stateChangedAt, isMobile } = useAppState();
-  const { theme, toggleTheme } = useTheme();
+  const { mode } = useTheme();
   const features = useFeatures();
 
   const [editingTopic, setEditingTopic] = useState(false);
   const [topicDraft, setTopicDraft] = useState("");
   const topicInputRef = useRef<HTMLInputElement>(null);
   const topicSavedRef = useRef(false);
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
 
   if (isMobile) {
     return (
@@ -345,8 +347,8 @@ export function Header({
           <PersonIcon />
         </button>
         <button
-          onClick={toggleTheme}
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          onClick={() => setThemePickerOpen(true)}
+          title="Change theme"
           style={{
             display: "flex",
             alignItems: "center",
@@ -359,8 +361,9 @@ export function Header({
             cursor: "pointer",
           }}
         >
-          {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+          {mode === "dark" ? <MoonIcon /> : <SunIcon />}
         </button>
+        <ThemePicker open={themePickerOpen} onClose={() => setThemePickerOpen(false)} />
         {features.editor && (
           <button
             onClick={() => setEditorOpen((prev) => !prev)}
