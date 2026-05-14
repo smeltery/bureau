@@ -32,7 +32,11 @@ export function createStreamResponse(
       let fullText = "";
       try {
         for await (const event of stream) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta?.type === "text_delta" &&
+            typeof event.delta.text === "string"
+          ) {
             fullText += event.delta.text;
             enqueueSseData(controller, encoder, { text: event.delta.text });
           }
