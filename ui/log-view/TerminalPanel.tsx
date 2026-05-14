@@ -270,7 +270,7 @@ export function TerminalPanel({
   // gesture (in which case we should NOT focus the input proxy and pop the
   // keyboard). The function is set by the touch-handling effect.
   const scrollMovedRef = useRef<(() => boolean) | null>(null);
-  const { theme } = useTheme();
+  const { mode } = useTheme();
   const [exited, setExited] = useState<number | null>(null);
   const [ctrlActive, setCtrlActive] = useState(false);
   const ctrlActiveRef = useRef(false);
@@ -325,7 +325,7 @@ export function TerminalPanel({
       fontSize: mobile ? 14 : 13,
       lineHeight: 1.4,
       cursorBlink: true,
-      theme: theme === "dark" ? DARK_THEME : LIGHT_THEME,
+      theme: mode === "dark" ? DARK_THEME : LIGHT_THEME,
       allowProposedApi: true,
     });
 
@@ -398,9 +398,9 @@ export function TerminalPanel({
   // Update theme without re-creating terminal
   useEffect(() => {
     if (termRef.current) {
-      termRef.current.options.theme = theme === "dark" ? DARK_THEME : LIGHT_THEME;
+      termRef.current.options.theme = mode === "dark" ? DARK_THEME : LIGHT_THEME;
     }
-  }, [theme]);
+  }, [mode]);
 
   // Track keyboard-open state by comparing visualViewport.height to
   // window.innerHeight. 100px threshold ignores toolbar appear/disappear and
@@ -601,7 +601,7 @@ export function TerminalPanel({
         height: "100%",
         // borderLeft removed — the parent container's PanelResizer renders
         // the divider so it can be drag-targeted and hover-tinted.
-        background: theme === "dark" ? "#0a0e16" : "#f0f2f6",
+        background: "var(--bg-base)",
         position: "relative",
       }}
     >

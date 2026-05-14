@@ -223,7 +223,14 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       await managed.abortPromise;
     } catch {}
   }
-  if (!managed.session) {
+  const isSlash = text.startsWith("/");
+  // Skip auto-recovery for slash commands: they are control-plane actions
+  // (/clear creates a fresh session, /resume picks from disk) and must stay
+  // reachable when the data-plane session is broken. The recovery path below
+  // re-runs createSession, which re-trips the same throw that killed the
+  // previous session — blocking the user's escape hatch. Normal messages
+  // still fall into the recovery path and surface the descriptive error.
+  if (!managed.session && !isSlash) {
     // If the prior session ended owing a response, write the gap
     // breadcrumb before the recovery message lands. Parity with the
     // SDK's lazy synthetic placeholder so the user-visible log mirrors
@@ -244,7 +251,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       // Fall through so the message is actually sent on the new session.
     } catch (err: any) {
       addLogEntry(agentId, "user_message", text, username ? { username } : undefined, attachments);
-      addLogEntry(agentId, "error", `Cannot start session: ${err.message}`);
+      addLogEntry(agentId, "error", `Cannot start session: ${err.message}\nType /clear to start fresh, or /resume to pick another session.`);
       updateState(agentId, "error");
       return;
     }
@@ -357,7 +364,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   }
 
   // Intercept slash commands that are handled locally, not by the LLM
-  if (text.startsWith("/")) {
+  if (isSlash) {
     const [cmd, ...args] = text.slice(1).trim().split(/\s+/);
     const handled = await handleSlashCommand(agentId, managed, cmd, args, text, username);
     if (handled) return;

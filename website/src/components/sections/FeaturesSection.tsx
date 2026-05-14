@@ -17,6 +17,7 @@ import {
   Paperclip,
   FileCode,
   Inbox,
+  Palette,
 } from 'lucide-react';
 
 export function FeaturesSection() {
@@ -116,6 +117,12 @@ export function FeaturesSection() {
       title: 'Rich Attachments',
       description:
         "Attach images, PDFs, and files directly to conversations. Agents can also surface their own files via POST /agents/:id/read-file — images render inline, others as clickable chips.",
+    },
+    {
+      icon: <Palette className="h-6 w-6" />,
+      title: '6 Color Themes',
+      description:
+        'Pick from Dark, Light, Nord, Dracula, Solarized Dark, and Solarized Light. The header toggle remembers your last pick in each mode, so a quick moon/sun flip swaps between your two favorites.',
     },
   ];
 

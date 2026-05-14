@@ -131,7 +131,7 @@ function requestPermission(managed: ManagedAgent, toolName: string, input: Recor
 // Room overrides office; office overrides process.env. Spawn-time failure mode:
 // if a configured env file is missing or fails to parse, throw — the caller is
 // responsible for surfacing the error to the agent log.
-function buildSessionEnv(managed: ManagedAgent): { [key: string]: string | undefined } | undefined {
+export function buildSessionEnv(managed: ManagedAgent): { [key: string]: string | undefined } | undefined {
   const room = rooms[managed.info.room];
   const roomEnvFile = room?.envFile ?? null;
   const officeEnvFile = officeConfig.envFile;
@@ -158,6 +158,10 @@ function buildSessionEnv(managed: ManagedAgent): { [key: string]: string | undef
 // Produce a human-readable hint for why the Claude CLI subprocess may have died,
 // to go alongside the SDK's generic "process exited with code 1". Returns null if
 // no specific cause is identifiable.
+//
+// Resolves session paths against the same CLAUDE_CONFIG_DIR the spawn used by
+// reading env via envForHints (best-effort: a broken envFile must not mask the
+// original backend error this hint is annotating).
 function diagnoseProcessExit(managed: ManagedAgent): string | null {
   const cwd = managed.info.cwd;
   try {
@@ -165,14 +169,30 @@ function diagnoseProcessExit(managed: ManagedAgent): string | null {
   } catch {
     return `Likely cause: cwd \`${cwd}\` no longer exists. Click the agent name in the log view header to point it at a valid directory.`;
   }
-  if (managed.sessionId && !claudeSessionFileExists(cwd, managed.sessionId)) {
+  const env = envForHints(managed);
+  if (managed.sessionId && !claudeSessionFileExists(cwd, managed.sessionId, env)) {
     return (
-      `Likely cause: session \`${managed.sessionId.slice(0, 8)}…\` was not found in \`${claudeProjectDir(cwd)}\`. ` +
+      `Likely cause: session \`${managed.sessionId.slice(0, 8)}…\` was not found in \`${claudeProjectDir(cwd, env)}\`. ` +
       `This usually happens after cwd was moved/renamed — the Claude CLI locates session files by a path derived from cwd. ` +
       `Use /resume to pick another session, or move the session .jsonl into the new project dir.`
     );
   }
   return null;
+}
+
+// Error-path env build for diagnostic hints. Resume preflights deliberately
+// fail loudly on a broken envFile (an agent expecting custom creds must not
+// silently fall through to host creds). Hint generators are different: they
+// annotate an already-failed backend error, and a broken envFile here would
+// mask the real cause. Swallow and return undefined — the hint just falls back
+// to inspecting the default ~/.claude path, which is the worst-case-correct
+// behavior when we can't resolve env.
+function envForHints(managed: ManagedAgent): { [key: string]: string | undefined } | undefined {
+  try {
+    return buildSessionEnv(managed);
+  } catch {
+    return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -287,9 +307,12 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   } catch (err: any) {
     throw new Error(`cwd is invalid: ${err.message}. Click the agent name in the log view header to fix it.`);
   }
-  if (resumeSessionId && !claudeSessionFileExists(managed.info.cwd, resumeSessionId)) {
+  // Compute env once — both the resume preflight (Claude sessions dir lookup
+  // honors CLAUDE_CONFIG_DIR) and the session opts use it.
+  const env = buildSessionEnv(managed);
+  if (resumeSessionId && !claudeSessionFileExists(managed.info.cwd, resumeSessionId, env)) {
     throw new Error(
-      `Cannot resume session ${resumeSessionId.slice(0, 8)}…: its file is missing from ${claudeProjectDir(managed.info.cwd)}. ` +
+      `Cannot resume session ${resumeSessionId.slice(0, 8)}…: its file is missing from ${claudeProjectDir(managed.info.cwd, env)}. ` +
         `Most commonly this happens after the agent's cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd. ` +
         `Use /resume to pick a different session, or move the session .jsonl into the new project dir.`,
     );
@@ -309,7 +332,6 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     hooks: createSafetyHooks(),
     canUseTool: ((toolName, input, options) => requestPermission(managed, toolName, input, options)) as CanUseTool,
   };
-  const env = buildSessionEnv(managed);
   if (env) opts.env = env;
   if (resumeSessionId) {
     opts.resume = resumeSessionId;

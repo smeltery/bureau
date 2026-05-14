@@ -22,11 +22,31 @@ const commandHandlers: Record<string, HandlerFn> = {
   async clear(agentId, managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
     emitEphemeralLog(agentId, "user_message", rawText, userMeta);
+    // Build the new session BEFORE destroying pending control state and the
+    // message queue. If createSession throws (bad cwd, broken env, etc.) the
+    // user sees a visible error and the prior pending/queue state stays
+    // intact — they can retry or pick another recovery path. Once
+    // createSession returns, the swap commits: pending/queue clear, topic
+    // persists, replaceSession installs. Queue must clear BEFORE
+    // replaceSession or the post-swap idle trigger flushes prior-context
+    // messages into the fresh session.
+    let newSession;
+    try {
+      newSession = createSession(managed);
+    } catch (err: any) {
+      emitEphemeralLog(agentId, "error", `Failed to clear conversation: ${err.message}`);
+      updateState(agentId, "error");
+      return true;
+    }
     managed.pendingResume = false;
     managed.pendingResumeSessions = [];
     managed.pendingModelPick = false;
+    if (managed.messageQueue.length > 0) {
+      managed.messageQueue = [];
+      emit({ type: "agent_updated", agentId, changes: { queue: [] } });
+    }
     persistCurrentSessionTopic(agentId, managed);
-    await replaceSession(agentId, managed, createSession(managed));
+    await replaceSession(agentId, managed, newSession);
     managed.sessionId = null;
     managed.topicGenerating = false;
     managed.topicMessageCount = 0;
@@ -164,7 +184,13 @@ const commandHandlers: Record<string, HandlerFn> = {
     lines.push("  \u2022 Bureau agents can check what other agents are up to in real time. Just ask naturally.");
     lines.push("  \u2022 Use voice-to-text for faster prompting. The shortcut is ctrl+space.");
     lines.push("  \u2022 Use `/bureau-all-hands` to check what every agent is up to.");
+    lines.push(
+      "  \u2022 Use `/bureau-pair-programming` to walk through scoping, design review with a peer agent, and implementation review \u2014 escalates to the boss after 5 rounds or on architectural tradeoffs.",
+    );
     lines.push("  \u2022 Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Pass a directory to peek at a worktree.");
+    lines.push(
+      "  \u2022 Pick a color theme from the header palette button \u2014 Dark, Light, Nord, Dracula, Solarized Dark, or Solarized Light. The moon/sun toggle bounces between your last-picked dark and light themes.",
+    );
     lines.push("  \u2022 Use `/usage` to see per-agent + per-room + per-cron-job lifetime cost.");
     lines.push("  \u2022 Schedule recurring work in the Cron Jobs page \u2014 daily, weekly, or by interval. Resume or edit-to-fork any past run.");
     lines.push("  \u2022 Tasks have a Backlog status \u2014 use it to defer work without it cluttering the active list.");
