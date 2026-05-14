@@ -9,6 +9,7 @@ import { StatusLight } from "./scene/StatusLight.tsx";
 import { SCENE_W, SCENE_H } from "./grid.ts";
 import { send } from "../ws.ts";
 import { SunIcon, MoonIcon } from "../components/controls/Icons.tsx";
+import { ThemePicker } from "../components/ThemePicker.tsx";
 import { MobileHeader, getRoomCounts } from "../components/overlays/MobileHeader.tsx";
 import { WallPanelMenu, type WallPanelMenuItem } from "../components/overlays/WallPanelMenu.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
@@ -109,7 +110,8 @@ export function OfficeView({
   const roomNames = rooms.map((r) => r.name);
   const officePrompt = office.prompt;
   const dispatch = useDispatch();
-  const { theme, toggleTheme } = useTheme();
+  const { mode, toggleTheme } = useTheme();
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
   const { embed } = useFeatures();
   const mobileScale = isMobile ? screen.width / (SCENE_W - 200) : 1;
   // layoutKey changes whenever the centered-scene static transform changes,
@@ -300,8 +302,8 @@ export function OfficeView({
               Office settings
             </button>
             <button
-              onClick={toggleTheme}
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              onClick={() => setThemePickerOpen(true)}
+              title="Change theme"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -314,7 +316,7 @@ export function OfficeView({
                 cursor: "pointer",
               }}
             >
-              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+              {mode === "dark" ? <MoonIcon /> : <SunIcon />}
             </button>
           </div>
         </div>
@@ -511,6 +513,7 @@ export function OfficeView({
         </div>
       )}
       {wallMenu && <WallPanelMenu x={wallMenu.x} y={wallMenu.y} items={wallMenuItems} onClose={() => setWallMenu(null)} />}
+      <ThemePicker open={themePickerOpen} onClose={() => setThemePickerOpen(false)} />
     </div>
   );
 }

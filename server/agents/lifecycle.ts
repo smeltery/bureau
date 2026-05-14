@@ -11,7 +11,7 @@ import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, room
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
 import { openFile as openFileImpl, saveFile as saveFileImpl, resolveEditorPath, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
 import { moveClaudeSessionFiles, resolveCwd } from "./session/paths.ts";
-import { createSession, installSession, replaceSession } from "./session/runtime.ts";
+import { buildSessionEnv, createSession, installSession, replaceSession } from "./session/runtime.ts";
 import { findRoomIndex, updateState } from "./state.ts";
 import { sidecarSend } from "./terminal.ts";
 
@@ -235,9 +235,19 @@ export async function editAgent(
   }
   if (changes.cwd && changes.cwd !== managed.info.cwd) {
     const oldCwd = managed.info.cwd;
+    // Build env BEFORE mutating cwd so the move targets the same
+    // CLAUDE_CONFIG_DIR the spawn was using. Best-effort: if the office/room
+    // envFile is broken, fall through to the default ~/.claude — losing the
+    // move silently is worse than failing the cwd edit on a config error.
+    let env: { [key: string]: string | undefined } | undefined;
+    try {
+      env = buildSessionEnv(managed);
+    } catch {
+      env = undefined;
+    }
     managed.info.cwd = resolveCwd(changes.cwd);
     updated.cwd = managed.info.cwd;
-    moveClaudeSessionFiles(agentId, oldCwd, managed.info.cwd);
+    moveClaudeSessionFiles(agentId, oldCwd, managed.info.cwd, env);
   }
   if (changes.outfit) {
     managed.info.outfit = changes.outfit;
@@ -514,7 +524,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
           agentId: p.id,
           timestamp: Date.now(),
           kind: "error",
-          content: `Failed to restore on startup: ${err.message}`,
+          content: `Failed to restore on startup: ${err.message}\nType /clear to start fresh, or /resume to pick another session.`,
         };
         const cached = logCache.get(p.id) ?? [];
         cached.push(entry);
