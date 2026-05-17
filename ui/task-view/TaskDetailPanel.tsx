@@ -195,7 +195,7 @@ export function TaskDetailPanel({
             onChange={(e) => setTitle(e.target.value)}
             style={inputStyle}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleSave();
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSave();
               e.stopPropagation();
             }}
           />

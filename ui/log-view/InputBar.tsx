@@ -272,6 +272,9 @@ export function InputBar({
               autoResize(e.target);
             }}
             onKeyDown={(e) => {
+              // While an OS IME is composing (CJK / accent input), let the
+              // composition consume Enter and other keys instead of sending.
+              if (e.nativeEvent.isComposing) return;
               // Autocomplete navigation
               if (showAutocomplete && filteredCommands.length > 0) {
                 if (e.key === "ArrowUp") {

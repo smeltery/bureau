@@ -243,7 +243,7 @@ export function Header({
             value={topicDraft}
             onChange={(e) => setTopicDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                 const trimmed = topicDraft.trim();
                 if (trimmed && trimmed !== agent.topic) {
                   send({ type: "set_topic", agentId: agent.id, topic: trimmed });

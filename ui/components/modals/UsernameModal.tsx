@@ -67,7 +67,7 @@ export function UsernameModal({ onSave, onClose, defaultValue }: { onSave: (name
           value={name}
           onChange={(e) => setName(e.target.value.slice(0, 16))}
           onKeyDown={(e) => {
-            if (e.key === "Enter") handleSubmit();
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSubmit();
             if (e.key === "Escape" && onClose) onClose();
           }}
           maxLength={16}
