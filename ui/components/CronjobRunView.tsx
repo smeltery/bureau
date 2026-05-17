@@ -299,7 +299,7 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
                   autoResize(e.target);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey && !isMobile) {
+                  if (e.key === "Enter" && !e.shiftKey && !isMobile && !e.nativeEvent.isComposing) {
                     e.preventDefault();
                     handleSend();
                   }
