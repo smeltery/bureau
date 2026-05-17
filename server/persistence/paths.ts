@@ -2,7 +2,8 @@ import { join } from "path";
 import { homedir } from "os";
 import { mkdirSync, renameSync, writeFileSync } from "fs";
 
-export const BUREAU_DIR = join(homedir(), ".bureau");
+export const DEFAULT_BUREAU_DIR = join(homedir(), ".bureau");
+export const BUREAU_DIR = process.env.BUREAU_HOME?.trim() || DEFAULT_BUREAU_DIR;
 export const LOGS_DIR = join(BUREAU_DIR, "logs");
 export const AGENTS_FILE = join(BUREAU_DIR, "agents.json");
 export const OFFICE_PROMPT_FILE = join(BUREAU_DIR, "office-prompt.md");

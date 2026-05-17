@@ -1,7 +1,7 @@
-import { homedir } from "os";
 import { resolve } from "path";
+import { BUREAU_DIR as RAW_BUREAU_DIR } from "../../../persistence/paths.ts";
 
-export const BUREAU_DIR = resolve(homedir(), ".bureau");
+export const BUREAU_DIR = resolve(RAW_BUREAU_DIR);
 
 // ---------------------------------------------------------------------------
 // Bureau config protection — block writes to ~/.bureau/

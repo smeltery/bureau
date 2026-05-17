@@ -14,6 +14,7 @@ import { moveClaudeSessionFiles, resolveCwd } from "./session/paths.ts";
 import { buildSessionEnv, createSession, installSession, replaceSession } from "./session/runtime.ts";
 import { findRoomIndex, updateState } from "./state.ts";
 import { sidecarSend } from "./terminal.ts";
+import { BUREAU_DIR } from "../persistence/paths.ts";
 
 // ---------------------------------------------------------------------------
 // Public read-only getters used by server/index.ts
@@ -440,7 +441,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
   // Clean up the pre-0.2.116 per-agent launcher scripts. Bureau now passes the
   // native Claude binary directly, so these are orphaned.
   try {
-    rmSync(join(homedir(), ".bureau", "launchers"), { recursive: true, force: true });
+    rmSync(join(BUREAU_DIR, "launchers"), { recursive: true, force: true });
   } catch {}
 
   const loaded = loadAgents();
