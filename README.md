@@ -40,7 +40,7 @@ Then open **http://localhost:4000** and click an empty desk.
 | **Auth** | Your Claude subscription (CLI login) — no API key |
 | **Frontend** | React + SVG, served from the same process |
 | **Sync** | WebSocket — every device stays in lockstep |
-| **Persistence** | File system (`~/.bureau/`) — survives crashes |
+| **Persistence** | File system (`~/.bureau/` or `BUREAU_HOME`) — survives crashes |
 | **Deploy** | Local or headless server + Tailscale |
 
 ## Documentation
@@ -68,7 +68,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Shared task board** — humans and agents create, assign, and close tasks (with a Backlog status for deferred work); search by id, title, or description
 - **Rich diff viewer** — `/bureau-diff` (or `POST /agents/:id/diff`) renders uncommitted changes as a per-file card with status badges, +/- counts, and unified/split toggle
 - **Session-swap indicator** — chat shows a brief "Restarting session..." hint during `/resume`, `/model`, or fork-from-edit so the drain → install gap isn't silent
-- **Daily backups** — automatic tarball of `~/.bureau/` to `~/bureau-backups/` (last 7 retained)
+- **Daily backups** — automatic tarball of Bureau state to `~/bureau-backups/` (last 7 retained)
 - **Inter-agent discovery & messaging** — agents can read each other's conversations and send messages directly via `POST /agents/:id/message`; the receiver sees them in the same queue as human-typed input, prefixed so they can tell agent senders from human bosses
 - **Slash commands** — `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-system-prompt`, `/usage`, `/resume`, `/model`, and more
 - **6 color themes** — Dark, Light, Nord, Dracula, Solarized Dark, Solarized Light; pick from the theme picker in the header. Per-mode last-pick is remembered, so a quick moon/sun toggle swaps between your two favorites instead of resetting to canonical Dark/Light

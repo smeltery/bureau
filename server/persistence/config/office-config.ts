@@ -7,6 +7,7 @@ import { atomicWriteFileSync, OFFICE_CONFIG_FILE, OFFICE_PROMPT_FILE } from "../
 export interface OfficeConfig {
   prompt: string | null;
   envFile: string | null;
+  publicOrigin?: string | null;
 }
 
 export function loadOfficeConfig(): OfficeConfig {
@@ -16,6 +17,7 @@ export function loadOfficeConfig(): OfficeConfig {
       return {
         prompt: typeof parsed.prompt === "string" && parsed.prompt ? parsed.prompt : null,
         envFile: typeof parsed.envFile === "string" && parsed.envFile ? parsed.envFile : null,
+        publicOrigin: typeof parsed.publicOrigin === "string" && parsed.publicOrigin ? parsed.publicOrigin : null,
       };
     }
   } catch (err) {
@@ -29,7 +31,7 @@ export function loadOfficeConfig(): OfficeConfig {
       if (raw.trim()) legacyPrompt = raw;
     }
   } catch {}
-  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null };
+  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null };
   // Only persist if the legacy prompt actually had content — otherwise a fresh
   // install touches a new file for no reason, and the next save/set will write
   // it anyway once there's real data.

@@ -18,6 +18,7 @@ import { handleCronjobsRequest } from "./http/cronjobs.ts";
 import { handleFilesRequest } from "./http/files.ts";
 import { handleAgentsRequest } from "./http/agents.ts";
 import { handleStaticRequest } from "./http/static.ts";
+import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
 
 // Wire AgentManager events to WebSocket broadcasts
 AgentManager.onEvent((event) => {
@@ -32,17 +33,43 @@ CronjobManager.onCronjobEvent((event) => {
 // Start the live-reload filesystem watcher (no-op unless BUREAU_LIVE_RELOAD=1)
 startLiveReloadWatcher();
 
-const PORT = parseInt(process.env.PORT || "4000");
+function readArgValue(name: string): string | null {
+  const prefix = `${name}=`;
+  for (let i = 2; i < Bun.argv.length; i++) {
+    const arg = Bun.argv[i];
+    if (arg === name) return Bun.argv[i + 1] ?? null;
+    if (arg.startsWith(prefix)) return arg.slice(prefix.length);
+  }
+  return null;
+}
+
+const socketPath = readArgValue("--socket");
+const portArg = readArgValue("--port");
+const envPort = process.env.PORT;
+const PORT = parseInt(portArg || process.env.PORT || "4000");
+
+if (socketPath && (portArg || envPort)) {
+  throw new Error("--socket is mutually exclusive with --port/PORT");
+}
+
+process.env.PORT = String(PORT);
 
 const server = Bun.serve({
-  port: PORT,
+  ...(socketPath ? { unix: socketPath } : { port: PORT }),
   async fetch(req, server) {
     const url = new URL(req.url);
 
     // WebSocket upgrade
     if (url.pathname === "/ws") {
+      if (!originAllowed(req, url)) {
+        return new Response("Forbidden", { status: 403 });
+      }
       if (server.upgrade(req)) return;
       return new Response("WebSocket upgrade failed", { status: 400 });
+    }
+
+    if (!stateChangingOriginAllowed(req, url)) {
+      return new Response("Forbidden", { status: 403 });
     }
 
     // Live-reload SSE
@@ -154,4 +181,6 @@ CronjobManager.startCronjobScheduler();
 // Daily ~/.bureau/ backup tarball with N=7 retention. See server/backup.ts.
 startBackupScheduler();
 
-console.log(`Bureau running at http://localhost:${server.port}`);
+const listenTarget = socketPath ? `unix:${socketPath}` : `http://localhost:${server.port}`;
+console.log(`Bureau running at ${listenTarget}`);
+console.log(`Bureau public origin: ${getPublicOrigin()}`);

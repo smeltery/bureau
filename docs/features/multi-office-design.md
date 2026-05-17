@@ -48,7 +48,7 @@ Each bureau instance listens on a Unix socket instead of a TCP port. No port all
   team.sock
 ```
 
-Bureau needs a `--socket /path/to/file.sock` flag (alongside the existing `--port`). Bun supports `unix:` in `Bun.serve`.
+Bureau supports a `--socket /path/to/file.sock` flag (alongside `--port`). Bun supports `unix:` in `Bun.serve`.
 
 ### State Layout
 
@@ -74,7 +74,7 @@ Bureau needs a `--socket /path/to/file.sock` flag (alongside the existing `--por
       ...
 ```
 
-Each bureau instance is launched with `BUREAU_HOME=~/.bureau-hub/offices/<name>` (replacing the current hardcoded `~/.bureau/`).
+Each bureau instance is launched with `BUREAU_HOME=~/.bureau-hub/offices/<name>`.
 
 ### Office Lifecycle
 
@@ -122,8 +122,8 @@ Offices never need to store or know about Claude credentials.
 
 Only two changes to bureau itself:
 
-1. **Configurable state root.** Respect `BUREAU_HOME` env var instead of hardcoding `~/.bureau/`. Fall back to `~/.bureau/` when unset (backward compatible).
-2. **Unix socket listening.** Accept `--socket /path/to/file.sock` as an alternative to `--port`. Mutually exclusive.
+1. **Configurable state root.** Respect `BUREAU_HOME` env var. Fall back to `~/.bureau/` when unset (implemented).
+2. **Unix socket listening.** Accept `--socket /path/to/file.sock` as an alternative to `--port`. Mutually exclusive (implemented).
 
 Bureau remains a single-office application. It has no knowledge of the hub or other offices.
 

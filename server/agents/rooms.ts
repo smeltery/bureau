@@ -1,7 +1,7 @@
 import type { RoomWire } from "../../shared/types.ts";
 import { generateRoomId } from "../../shared/types.ts";
 import { readEnvFile, saveOfficeConfig } from "../persistence.ts";
-import { agents, emit, findRoomIndex, persistAll, roomsWire, rooms, setOfficeConfig, type InternalRoom } from "./state.ts";
+import { agents, emit, findRoomIndex, officeConfig, persistAll, roomsWire, rooms, setOfficeConfig, type InternalRoom } from "./state.ts";
 
 export function getRooms(): RoomWire[] {
   return roomsWire();
@@ -10,7 +10,7 @@ export function getRooms(): RoomWire[] {
 // Update office settings. Caller is responsible for validating envFile (see validateEnvPath).
 export function setOfficeSettings(prompt: string | null, envFile: string | null) {
   const normalizedPrompt = prompt && prompt.trim() ? prompt.trim() : null;
-  const nextConfig = { prompt: normalizedPrompt, envFile: envFile || null };
+  const nextConfig = { ...officeConfig, prompt: normalizedPrompt, envFile: envFile || null };
   setOfficeConfig(nextConfig);
   saveOfficeConfig(nextConfig);
   // System prompt is rebuilt at every createSession from current office/room/agent

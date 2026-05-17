@@ -9,7 +9,11 @@ const rawListeners = new Set<RawHandler>();
 let socketGen = 0;
 let pongTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let visibilityBound = false;
+
+const HEARTBEAT_INTERVAL_MS = 25_000;
+const PONG_GRACE_MS = 5_000;
 
 // Shim: when set, bypasses real WebSocket entirely
 let shimHandler: ((cmd: ClientCommand) => void) | null = null;
@@ -40,6 +44,36 @@ function clearReconnectTimer() {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+}
+
+function clearHeartbeat() {
+  if (heartbeatTimer !== null) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
+function forceReconnect() {
+  if (!handler) return;
+  connect(handler);
+}
+
+function startHeartbeat() {
+  clearHeartbeat();
+  heartbeatTimer = setInterval(() => {
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    try {
+      socket.send(JSON.stringify({ type: "ping" } as ClientCommand));
+    } catch {
+      forceReconnect();
+      return;
+    }
+    if (pongTimer !== null) return;
+    pongTimer = setTimeout(() => {
+      pongTimer = null;
+      forceReconnect();
+    }, PONG_GRACE_MS);
+  }, HEARTBEAT_INTERVAL_MS);
 }
 
 function onVisible() {
@@ -79,6 +113,7 @@ export function connect(onMessage: MessageHandler) {
   }
 
   clearReconnectTimer();
+  clearHeartbeat();
   const myGen = ++socketGen;
   if (socket) {
     try {
@@ -89,6 +124,10 @@ export function connect(onMessage: MessageHandler) {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   const ws = new WebSocket(`${protocol}//${location.host}/ws`);
   socket = ws;
+  ws.onopen = () => {
+    if (myGen !== socketGen) return;
+    startHeartbeat();
+  };
   ws.onmessage = (e) => {
     const data = e.data as string;
     let msg: ServerMessage | null = null;
@@ -109,6 +148,7 @@ export function connect(onMessage: MessageHandler) {
     if (myGen !== socketGen) return;
     clearPongTimer();
     clearReconnectTimer();
+    clearHeartbeat();
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       connect(onMessage);

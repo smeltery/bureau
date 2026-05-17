@@ -1,4 +1,4 @@
-// Daily backup of ~/.bureau to a local tarball.
+// Daily backup of the Bureau state directory to a local tarball.
 //
 // Approach: live tar (no quiesce). Configs are written via atomicWriteFileSync
 // in persistence/, so tar can't capture a half-written JSON. JSONL log files
@@ -19,8 +19,8 @@
 import { join, basename } from "path";
 import { homedir } from "os";
 import { mkdirSync, existsSync, readdirSync, statSync, unlinkSync } from "fs";
+import { BUREAU_DIR } from "./persistence/paths.ts";
 
-const BUREAU_DIR_NAME = ".bureau";
 const HOME = homedir();
 const BACKUP_DIR = process.env.BUREAU_BACKUP_DIR || join(HOME, "bureau-backups");
 const RETENTION = 7;
@@ -35,6 +35,7 @@ let lastBackupFile: string | null = null;
 let running = false;
 
 export interface BackupStatus {
+  stateDir: string;
   backupDir: string;
   retention: number;
   lastBackupAt: number | null;
@@ -46,6 +47,7 @@ export interface BackupStatus {
 
 export function getBackupStatus(): BackupStatus {
   return {
+    stateDir: BUREAU_DIR,
     backupDir: BACKUP_DIR,
     retention: RETENTION,
     lastBackupAt,
@@ -90,7 +92,7 @@ async function runBackup() {
   try {
     mkdirSync(BACKUP_DIR, { recursive: true });
     const dest = join(BACKUP_DIR, `bureau-${todayDateStr()}.tar.gz`);
-    const proc = Bun.spawn(["tar", "-czf", dest, "-C", HOME, BUREAU_DIR_NAME], {
+    const proc = Bun.spawn(["tar", "-czf", dest, "-C", BUREAU_DIR, "."], {
       stdout: "pipe",
       stderr: "pipe",
     });
