@@ -1,13 +1,14 @@
 import type { LogEntry } from "../../../shared/types.ts";
 import { UserMessage, EditableUserMessage } from "./UserMessage.tsx";
 import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage } from "./AssistantEntries.tsx";
-import { ToolCall, ToolResult } from "./ToolEntries.tsx";
+import { findMatchingToolResult, isFoldedToolResult, ToolCall, ToolResult } from "./ToolEntries.tsx";
 import { DiffCard } from "../DiffCard.tsx";
 import { EditRequestCard } from "../EditRequestCard.tsx";
 import { FileViewCard } from "../FileViewCard.tsx";
 import { TerminalCommandCard } from "../TerminalCommandCard.tsx";
 
 export { serializeEntries } from "./serialize.ts";
+export { isFoldedToolResult } from "./ToolEntries.tsx";
 
 /**
  * Dispatches a `LogEntry` to its kind-specific renderer.
@@ -66,14 +67,27 @@ export function LogEntryCard({
       return <ThinkingBlock content={entry.content} durationMs={durationMs} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     }
     case "tool_call": {
-      // Find matching tool_result to get duration
-      const toolId = entry.metadata?.toolId;
-      const matchingResult = turnEntries?.find((e) => e.kind === "tool_result" && e.metadata?.toolUseId === toolId);
+      const matchingResult = findMatchingToolResult(entry, turnEntries);
       const durationMs = matchingResult?.metadata?.duration_ms as number | undefined;
-      return <ToolCall name={entry.content} input={entry.metadata?.input} durationMs={durationMs} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
+      const resultIsError = matchingResult?.metadata?.isError === true;
+      return (
+        <ToolCall
+          name={entry.content}
+          input={entry.metadata?.input}
+          hasResult={matchingResult != null}
+          resultContent={matchingResult?.content}
+          resultIsError={resultIsError}
+          durationMs={durationMs}
+          isLastInTurn={isLastInTurn}
+          turnEntries={turnEntries}
+          isMobile={isMobile}
+        />
+      );
     }
-    case "tool_result":
+    case "tool_result": {
+      if (isFoldedToolResult(entry, turnEntries)) return null;
       return <ToolResult entry={entry} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
+    }
     case "error":
       return <ErrorBlock content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     case "system":

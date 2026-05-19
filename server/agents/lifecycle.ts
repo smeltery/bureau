@@ -185,7 +185,7 @@ export function emitAgentReadFile(agentId: string, rawPath: string): { ok: true 
 // Emit a styled diff card into an agent's chat. Mirrors the /bureau-diff slash
 // command but driven by HTTP — agents call POST /agents/:id/diff to surface a
 // diff when the boss asks for their changes in plain English.
-export function emitAgentDiff(agentId: string, dir?: string): { ok: true } | { ok: false; status: number; error: string } {
+export function emitAgentDiff(agentId: string, dir?: string, commit?: string): { ok: true } | { ok: false; status: number; error: string } {
   const managed = agents.get(agentId);
   if (!managed) return { ok: false, status: 404, error: "agent not found" };
 
@@ -194,7 +194,7 @@ export function emitAgentDiff(agentId: string, dir?: string): { ok: true } | { o
     return { ok: false, status: 400, error: `\`${resolved.attempted}\` is not a directory.` };
   }
 
-  const result = computeBureauDiff(resolved.cwd);
+  const result = computeBureauDiff(resolved.cwd, { commit });
   switch (result.kind) {
     case "not_repo":
       emitEphemeralLog(agentId, "system", `\`${result.cwd}\` is not a git repository.`);
@@ -202,8 +202,11 @@ export function emitAgentDiff(agentId: string, dir?: string): { ok: true } | { o
     case "git_error":
       emitEphemeralLog(agentId, "system", `Failed to run git diff in \`${result.cwd}\`:\n\n\`\`\`\n${result.message}\n\`\`\``);
       break;
+    case "bad_commit":
+      emitEphemeralLog(agentId, "system", `Cannot diff \`${result.attempted}\`: ${result.message}.`);
+      break;
     case "clean":
-      emitEphemeralLog(agentId, "system", `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
+      emitEphemeralLog(agentId, "system", commit ? `\`${commit}\` introduced no file changes (empty commit?).` : `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
       break;
     case "ok":
       emitEphemeralLog(agentId, "diff", result.summary, undefined, { diff: result.payload });

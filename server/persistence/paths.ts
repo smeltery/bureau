@@ -9,6 +9,7 @@ export const AGENTS_FILE = join(BUREAU_DIR, "agents.json");
 export const OFFICE_PROMPT_FILE = join(BUREAU_DIR, "office-prompt.md");
 export const OFFICE_CONFIG_FILE = join(BUREAU_DIR, "office-config.json");
 export const TASKS_FILE = join(BUREAU_DIR, "tasks.json");
+export const USERS_FILE = join(BUREAU_DIR, "users.json");
 export const AGENT_HISTORY_FILE = join(BUREAU_DIR, "agent-history.json");
 export const MANIFEST_FILE = join(BUREAU_DIR, "agents-summary.json");
 export const RECENT_CWDS_FILE = join(BUREAU_DIR, "recent-cwds.json");

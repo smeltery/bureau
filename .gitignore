@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 ui/dist/
 demo/dist/
 website/.next/

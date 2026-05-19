@@ -359,7 +359,7 @@ function processCronjobMessage(active: ActiveRun, msg: SDKMessage) {
             }
             if (atts.length > 0) resultAttachments = atts;
           }
-          writeLog(active, "tool_result", resultText.slice(0, 10000), { toolUseId: block.tool_use_id }, resultAttachments);
+          writeLog(active, "tool_result", resultText.slice(0, 10000), { toolUseId: block.tool_use_id, ...(block.is_error === true ? { isError: true } : {}) }, resultAttachments);
         }
       }
       break;

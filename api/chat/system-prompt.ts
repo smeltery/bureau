@@ -98,7 +98,7 @@ Setup:
 - Cron Jobs page surfaces a runs feed (with filter by job) and a job-config table; click a run to read its transcript
 - Resume any past run by sending a follow-up message; or edit-to-fork a prior user message to branch from that point
 - Per-cron-job system prompt for shared rules across all of your scheduled jobs
-- Cost attribution per cron job in /usage, including jobs whose configs were later deleted
+- Cost attribution per cron job in /bureau-usage, including jobs whose configs were later deleted
 - 30-minute hard timeout per run; 5-minute scheduler tick; "skipped" rows when a scheduled run is still in flight
 
 ### Diff Viewer
@@ -119,7 +119,7 @@ Setup:
 
 ### Slash Commands & Autocomplete
 - Built-in commands: /clear, /help, /cost, /context, /resume, /model
-- Bureau-specific: /bureau-diff (rich diff card), /bureau-system-prompt (inspect your effective system prompt), /usage (per-agent + per-room + per-cron-job cost report)
+- Bureau-specific: /bureau-diff (rich diff card), /bureau-system-prompt (inspect your effective system prompt), /bureau-usage (per-agent + per-room + per-cron-job cost report)
 - User skills from ~/.claude/skills/ and project commands
 - Bureau-bundled skills like /bureau-peer-review (tells an agent to review another agent's work), /bureau-pair-programming (walks an agent through scoping, design review with a peer, and implementation review — escalates to the boss after 5 rounds or on architectural tradeoffs), and /bureau-all-hands (shows what everyone is up to)
 - Autocomplete dropdown with keyboard navigation

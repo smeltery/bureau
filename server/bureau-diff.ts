@@ -8,9 +8,45 @@ export type ComputeDiffResult =
   | { kind: "ok"; cwd: string; summary: string; payload: DiffPayload }
   | { kind: "clean"; cwd: string }
   | { kind: "not_repo"; cwd: string }
-  | { kind: "git_error"; cwd: string; message: string };
+  | { kind: "git_error"; cwd: string; message: string }
+  | { kind: "bad_commit"; cwd: string; attempted: string; message: string };
 
 export type ResolveDirResult = { kind: "ok"; cwd: string } | { kind: "bad_dir"; attempted: string };
+type CommitSpec = { kind: "single"; ref: string } | { kind: "range"; raw: string };
+
+const REF_CHARS = /^[A-Za-z0-9._\-/~^@:]+$/;
+
+export function parseCommitArg(raw: string): { ok: true; spec: CommitSpec } | { ok: false; reason: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { ok: false, reason: "empty commit string" };
+
+  let runStart = -1;
+  let runLen = 0;
+  for (let i = 0; i < trimmed.length; i++) {
+    if (trimmed[i] !== ".") continue;
+    let j = i;
+    while (j < trimmed.length && trimmed[j] === ".") j++;
+    const len = j - i;
+    if (len >= 2) {
+      if (len > 3) return { ok: false, reason: "too many dots in range" };
+      if (runStart !== -1) return { ok: false, reason: "multiple range operators" };
+      runStart = i;
+      runLen = len;
+    }
+    i = j - 1;
+  }
+
+  if (runStart === -1) {
+    if (!REF_CHARS.test(trimmed)) return { ok: false, reason: "invalid characters in ref" };
+    return { ok: true, spec: { kind: "single", ref: trimmed } };
+  }
+
+  const left = trimmed.slice(0, runStart);
+  const right = trimmed.slice(runStart + runLen);
+  if (!left || !right) return { ok: false, reason: "range operator requires both sides" };
+  if (!REF_CHARS.test(left) || !REF_CHARS.test(right)) return { ok: false, reason: "invalid characters in range" };
+  return { ok: true, spec: { kind: "range", raw: trimmed } };
+}
 
 // Resolve an optional user-supplied directory against the agent's cwd.
 // `~` expands to the user's home; relative paths resolve against `agentCwd`;
@@ -32,7 +68,7 @@ export function resolveDiffCwd(rawDir: string | undefined, agentCwd: string): Re
 // rich payload. Shells out to git but doesn't touch agent state, log cache,
 // or broadcasts — callers format the result themselves. Both /bureau-diff
 // and the HTTP endpoint share this so the on-screen rendering stays identical.
-export function computeBureauDiff(cwd: string): ComputeDiffResult {
+export function computeBureauDiff(cwd: string, opts?: { commit?: string }): ComputeDiffResult {
   // -c core.quotePath=false keeps non-ASCII / spaced paths in raw UTF-8 form
   // so the client splitter can match them by-path against name-status output.
   const runGit = (args: string, maxBuffer = 10 * 1024 * 1024) => execSync(`git -c core.quotePath=false ${args}`, { cwd, timeout: 10000, maxBuffer, stdio: ["ignore", "pipe", "pipe"] }).toString();
@@ -50,9 +86,42 @@ export function computeBureauDiff(cwd: string): ComputeDiffResult {
     return { kind: "not_repo", cwd };
   }
 
+  let commitSpec: CommitSpec | null = null;
+  let subject: string | null = null;
+  let refArgs: string | null = null;
+  if (opts?.commit && opts.commit.trim()) {
+    const parsed = parseCommitArg(opts.commit);
+    if (!parsed.ok) return { kind: "bad_commit", cwd, attempted: opts.commit, message: parsed.reason };
+    commitSpec = parsed.spec;
+
+    const verifyRef = (ref: string): boolean => runGitOrNull(`rev-parse --verify --quiet ${ref}^{commit}`, 1024) !== null;
+    if (commitSpec.kind === "single") {
+      if (!verifyRef(commitSpec.ref)) {
+        return { kind: "bad_commit", cwd, attempted: opts.commit, message: `unknown ref: ${commitSpec.ref}` };
+      }
+      const hasParent = verifyRef(`${commitSpec.ref}^`);
+      refArgs = hasParent ? `${commitSpec.ref}^ ${commitSpec.ref}` : `--root ${commitSpec.ref}`;
+      subject = runGitOrNull(`show -s --format=%s ${commitSpec.ref}`, 16 * 1024)?.trim() || null;
+    } else {
+      const dotsIdx = commitSpec.raw.indexOf("..");
+      const dotsLen = commitSpec.raw.startsWith("...", dotsIdx) ? 3 : 2;
+      const left = commitSpec.raw.slice(0, dotsIdx);
+      const right = commitSpec.raw.slice(dotsIdx + dotsLen);
+      if (!verifyRef(left)) return { kind: "bad_commit", cwd, attempted: opts.commit, message: `unknown ref: ${left}` };
+      if (!verifyRef(right)) return { kind: "bad_commit", cwd, attempted: opts.commit, message: `unknown ref: ${right}` };
+      refArgs = commitSpec.raw;
+      subject = commitSpec.raw;
+    }
+  }
+
   const branchRaw = runGitOrNull("rev-parse --abbrev-ref HEAD", 1024)?.trim() ?? null;
-  const branch = branchRaw && branchRaw !== "HEAD" ? branchRaw : null;
-  const head = runGitOrNull("rev-parse --short HEAD", 1024)?.trim() || null;
+  const branch = commitSpec === null && branchRaw && branchRaw !== "HEAD" ? branchRaw : null;
+  let head: string | null = null;
+  if (commitSpec === null) {
+    head = runGitOrNull("rev-parse --short HEAD", 1024)?.trim() || null;
+  } else if (commitSpec.kind === "single") {
+    head = runGitOrNull(`rev-parse --short ${commitSpec.ref}`, 1024)?.trim() || null;
+  }
 
   const gather = (refArgs: string) => ({
     diff: runGit(`diff ${refArgs}`.trim(), 50 * 1024 * 1024),
@@ -64,7 +133,9 @@ export function computeBureauDiff(cwd: string): ComputeDiffResult {
   let nameStatus = "";
   let untracked: string[] = [];
   try {
-    if (head !== null) {
+    if (refArgs !== null) {
+      ({ diff, numstat, nameStatus } = gather(refArgs));
+    } else if (head !== null) {
       ({ diff, numstat, nameStatus } = gather("HEAD"));
     } else {
       const cached = gather("--cached");
@@ -73,8 +144,10 @@ export function computeBureauDiff(cwd: string): ComputeDiffResult {
       numstat = [cached.numstat, wd.numstat].filter(Boolean).join("\n");
       nameStatus = [cached.nameStatus, wd.nameStatus].filter(Boolean).join("\n");
     }
-    const untrackedOut = runGit("ls-files --others --exclude-standard").trim();
-    if (untrackedOut) untracked = untrackedOut.split("\n");
+    if (commitSpec === null) {
+      const untrackedOut = runGit("ls-files --others --exclude-standard").trim();
+      if (untrackedOut) untracked = untrackedOut.split("\n");
+    }
   } catch (err) {
     return { kind: "git_error", cwd, message: err instanceof Error ? err.message : String(err) };
   }
@@ -249,6 +322,6 @@ export function computeBureauDiff(cwd: string): ComputeDiffResult {
   if (files.length === 0) return { kind: "clean", cwd };
 
   const summary = `+${stats.additions} -${stats.deletions} across ${stats.filesChanged} file${stats.filesChanged === 1 ? "" : "s"}`;
-  const payload: DiffPayload = { cwd, branch, head, stats, files, patchText, truncated };
+  const payload: DiffPayload = { cwd, branch, head, subject, stats, files, patchText, truncated };
   return { kind: "ok", cwd, summary, payload };
 }

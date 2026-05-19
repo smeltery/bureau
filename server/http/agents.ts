@@ -4,7 +4,7 @@ const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "appl
 
 /**
  * Handle agent-scoped HTTP routes:
- *   POST /agents/:id/diff             — emit a styled diff card (optional body: { dir }).
+ *   POST /agents/:id/diff             — emit a styled diff card (optional body: { dir, commit }).
  *   POST /agents/:id/edit-file        — emit an [Open in editor] card (body: { path }).
  *   POST /agents/:id/read-file        — copy a file into the agent's files dir and
  *                                       emit a `file-view` card (body: { path }).
@@ -22,11 +22,13 @@ export async function handleAgentsRequest(req: Request, url: URL): Promise<Respo
     if (parts.length === 3 && parts[2] === "diff") {
       const agentId = parts[1]!;
       let dir: string | undefined;
+      let commit: string | undefined;
       try {
         const body = (await req.json()) as Record<string, unknown> | null;
         if (body && typeof body.dir === "string") dir = body.dir;
+        if (body && typeof body.commit === "string") commit = body.commit;
       } catch {}
-      const result = AgentManager.emitAgentDiff(agentId, dir);
+      const result = AgentManager.emitAgentDiff(agentId, dir, commit);
       if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
       return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
     }

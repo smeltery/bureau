@@ -5,7 +5,8 @@ import { LogView } from "./log-view/LogView.tsx";
 import { AgentListView } from "./components/overlays/AgentListView.tsx";
 import { ContextMenu } from "./components/overlays/ContextMenu.tsx";
 import { EditAgentDialog } from "./components/modals/EditAgentDialog.tsx";
-import { UsernameModal } from "./components/modals/UsernameModal.tsx";
+import { UserManagementModal } from "./components/modals/UserManagementModal.tsx";
+import { DeviceSettingsModal } from "./components/modals/DeviceSettingsModal.tsx";
 import { OfficePromptModal } from "./components/modals/OfficePromptModal.tsx";
 import { RoomSettingsModal } from "./components/modals/RoomSettingsModal.tsx";
 import { TaskView } from "./task-view/TaskView.tsx";
@@ -13,6 +14,8 @@ import { CronjobsView } from "./components/CronjobsView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
 import { CSS } from "./styles.ts";
 import type { AgentInfo } from "../shared/types.ts";
+import { send } from "./ws.ts";
+import { getDevice } from "./device-settings.ts";
 
 /** Cycle to the next/previous agent in the current room, matching Tab/Shift+Tab logic. */
 function cycleAgent(agents: AgentInfo[], drafts: Map<string, string>, currentRoom: number, focusedAgentId: string | null, direction: "next" | "prev"): string | null {
@@ -27,8 +30,12 @@ function cycleAgent(agents: AgentInfo[], drafts: Map<string, string>, currentRoo
   return next.id;
 }
 
+function sendClaim(username: string) {
+  send({ type: "claim_user", username });
+}
+
 export function App() {
-  const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms } = useAppState();
+  const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext } = useAppState();
   const roomCount = rooms.length;
   const dispatch = useDispatch();
   const [spawnDesk, setSpawnDesk] = useState<number | null>(null);
@@ -41,6 +48,8 @@ export function App() {
     return null;
   });
   const [editingUsername, setEditingUsername] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingDeviceSettings, setEditingDeviceSettings] = useState(false);
   const [editingOfficePrompt, setEditingOfficePrompt] = useState(false);
   const [editingRoomSettings, setEditingRoomSettings] = useState<string | null>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
@@ -49,6 +58,18 @@ export function App() {
 
   const viewportControlsRef = useRef<ViewportControls | null>(null);
   const focusedAgent = focusedAgentId ? agents.find((a) => a.id === focusedAgentId) : null;
+
+  useEffect(() => {
+    if (username && connected) sendClaim(username);
+  }, [username, connected]);
+
+  const anyModalOpen = editingUsername || editingDeviceSettings || editingOfficePrompt || editingRoomSettings !== null || updateOpen;
+  const viewMode: "office" | "log" | "away" = tasksOpen || cronjobsOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
+  const presenceRoom = focusedAgent?.room ?? currentRoom;
+  useEffect(() => {
+    if (!sessionContext) return;
+    send({ type: "presence_update", currentRoom: presenceRoom, focusedAgentId, viewMode, device: getDevice() });
+  }, [sessionContext, presenceRoom, focusedAgentId, viewMode]);
 
   const swipeRoomNext = useCallback(() => {
     if (roomCount <= 1) return;
@@ -171,23 +192,17 @@ export function App() {
   return (
     <>
       <style>{CSS}</style>
-      {username === null && (
-        <UsernameModal
-          onSave={(name) => {
-            localStorage.setItem("bureau-username", name);
-            setUsername(name);
-          }}
-        />
-      )}
+      {username === null && <UserManagementModal currentUsername={null} forceCreate onSwitchUser={setUsername} />}
       {editingUsername && username !== null && (
-        <UsernameModal
-          defaultValue={username}
-          onSave={(name) => {
-            localStorage.setItem("bureau-username", name);
-            setUsername(name);
+        <UserManagementModal
+          currentUsername={username}
+          forceCreate={false}
+          initialUserId={editingUserId}
+          onSwitchUser={setUsername}
+          onClose={() => {
             setEditingUsername(false);
+            setEditingUserId(null);
           }}
-          onClose={() => setEditingUsername(false)}
         />
       )}
       {cronjobsOpen ? (
@@ -220,6 +235,7 @@ export function App() {
           onContextMenu={(x, y, agent) => setCtxMenu({ x, y, agent })}
           username={username ?? ""}
           onEditUsername={() => setEditingUsername(true)}
+          onOpenDeviceSettings={() => setEditingDeviceSettings(true)}
           onEditOfficePrompt={() => setEditingOfficePrompt(true)}
           onEditRoomSettings={() => {
             const rid = rooms[currentRoom]?.id;
@@ -238,6 +254,11 @@ export function App() {
           onContextMenu={(x, y, agent) => setCtxMenu({ x, y, agent })}
           username={username ?? ""}
           onEditUsername={() => setEditingUsername(true)}
+          onOpenUserSettingsForUser={(userId) => {
+            setEditingUserId(userId);
+            setEditingUsername(true);
+          }}
+          onOpenDeviceSettings={() => setEditingDeviceSettings(true)}
           onEditOfficePrompt={() => setEditingOfficePrompt(true)}
           onEditRoomSettings={() => {
             const rid = rooms[currentRoom]?.id;
@@ -275,6 +296,7 @@ export function App() {
           }}
         />
       )}
+      {editingDeviceSettings && <DeviceSettingsModal onClose={() => setEditingDeviceSettings(false)} />}
       {editingRoomSettings && <RoomSettingsModal roomId={editingRoomSettings} onClose={() => setEditingRoomSettings(null)} />}
       {updateOpen && <UpdateModal onClose={() => setUpdateOpen(false)} />}
     </>

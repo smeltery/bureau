@@ -5,7 +5,7 @@ import { send } from "../ws.ts";
 import { useAppState, useDispatch, useFeatures } from "../store.tsx";
 import { Character } from "../office/scene/Character.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
-import { LogEntryCard, serializeEntries } from "./entries/index.tsx";
+import { isFoldedToolResult, LogEntryCard, serializeEntries } from "./entries/index.tsx";
 import { TerminalPanel } from "./TerminalPanel.tsx";
 import { EditorPanel } from "./EditorPanel.tsx";
 import { PanelResizer } from "./PanelResizer.tsx";
@@ -272,9 +272,15 @@ export function LogView({
         entryMap.set(turn.entries[0].id, { isLastInTurn: false, turnEntries: [] });
         continue;
       }
+      let lastVisibleIdx = -1;
+      for (let i = turn.entries.length - 1; i >= 0; i--) {
+        if (!isFoldedToolResult(turn.entries[i], turn.entries)) {
+          lastVisibleIdx = i;
+          break;
+        }
+      }
       for (let i = 0; i < turn.entries.length; i++) {
-        const isLast = i === turn.entries.length - 1;
-        entryMap.set(turn.entries[i].id, { isLastInTurn: isLast, turnEntries: turn.entries });
+        entryMap.set(turn.entries[i].id, { isLastInTurn: i === lastVisibleIdx, turnEntries: turn.entries });
       }
     }
     return entryMap;

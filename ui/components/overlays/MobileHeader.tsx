@@ -51,6 +51,13 @@ const BUILDING_ICON = (
   </svg>
 );
 
+const DEVICE_ICON = (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" style={{ display: "block" }}>
+    <rect x="5" y="1.5" width="6" height="13" rx="1.2" />
+    <path d="M7.4 12.2h1.2" />
+  </svg>
+);
+
 const TASKS_ICON = (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" style={{ display: "block" }}>
     <path d="M3 4.5l1.3 1.3L6.8 3.3" />
@@ -65,6 +72,8 @@ export function MobileHeader({
   onToggleView,
   counts,
   onOpenTasks,
+  onEditUsername,
+  onOpenDeviceSettings,
   onEditOfficePrompt,
   onEditRoomSettings,
   updateAvailable,
@@ -74,6 +83,8 @@ export function MobileHeader({
   onToggleView: () => void;
   counts: RoomCounts;
   onOpenTasks: () => void;
+  onEditUsername?: () => void;
+  onOpenDeviceSettings?: () => void;
   onEditOfficePrompt: () => void;
   onEditRoomSettings?: () => void;
   updateAvailable?: boolean;
@@ -211,6 +222,8 @@ export function MobileHeader({
             >
               {[
                 { icon: TASKS_ICON, label: "Tasks", action: onOpenTasks },
+                ...(onEditUsername ? [{ icon: BUILDING_ICON, label: "User settings", action: onEditUsername }] : []),
+                ...(onOpenDeviceSettings ? [{ icon: DEVICE_ICON, label: "Device settings", action: onOpenDeviceSettings }] : []),
                 { icon: BUILDING_ICON, label: "Office settings", action: onEditOfficePrompt },
                 ...(onEditRoomSettings ? [{ icon: DOOR_ICON, label: "Room settings", action: onEditRoomSettings }] : []),
                 { icon: mode === "dark" ? <MoonIcon size={15} /> : <SunIcon size={15} />, label: "Theme", action: () => setThemePickerOpen(true) },

@@ -11,6 +11,7 @@ export function AgentListView({
   onContextMenu,
   username,
   onEditUsername,
+  onOpenDeviceSettings,
   onEditOfficePrompt,
   onEditRoomSettings,
   onOpenTasks,
@@ -25,6 +26,7 @@ export function AgentListView({
   onContextMenu: (x: number, y: number, agent: AgentInfo) => void;
   username: string;
   onEditUsername: () => void;
+  onOpenDeviceSettings: () => void;
   onEditOfficePrompt: () => void;
   onEditRoomSettings?: () => void;
   onOpenTasks: () => void;
@@ -54,6 +56,8 @@ export function AgentListView({
         onToggleView={onToggleView}
         counts={getRoomCounts(roomAgents)}
         onOpenTasks={onOpenTasks}
+        onEditUsername={onEditUsername}
+        onOpenDeviceSettings={onOpenDeviceSettings}
         onEditOfficePrompt={onEditOfficePrompt}
         onEditRoomSettings={onEditRoomSettings}
         updateAvailable={updateAvailable}

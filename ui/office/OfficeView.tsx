@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useAppState, useDispatch, useTheme, useFeatures } from "../store.tsx";
 import { Floor, Walls } from "./scene/Floor.tsx";
 import { RoomProps } from "./scene/RoomProps.tsx";
@@ -6,7 +6,8 @@ import { RoomTabBar } from "./RoomTabBar.tsx";
 import { DeskUnit } from "./scene/DeskUnit.tsx";
 import { EmptySlot } from "./scene/EmptySlot.tsx";
 import { StatusLight } from "./scene/StatusLight.tsx";
-import { SCENE_W, SCENE_H } from "./grid.ts";
+import { DESK_SLOTS, SCENE_W, SCENE_H, deskPixelPos } from "./grid.ts";
+import { GhostBody, GhostTag } from "./Ghost.tsx";
 import { send } from "../ws.ts";
 import { SunIcon, MoonIcon } from "../components/controls/Icons.tsx";
 import { ThemePicker } from "../components/ThemePicker.tsx";
@@ -15,7 +16,41 @@ import { WallPanelMenu, type WallPanelMenuItem } from "../components/overlays/Wa
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
 import { useViewport } from "./useViewport.ts";
 import { ZoomControls } from "./ZoomControls.tsx";
-import type { AgentInfo } from "../../shared/types.ts";
+import type { AgentInfo, PresenceInfo } from "../../shared/types.ts";
+
+const GHOST_SIZE = 40;
+
+function computeGhostPlacements(presences: PresenceInfo[], roomAgents: AgentInfo[], currentRoom: number, ownConnectionId: string | null) {
+  const visible = presences.filter((presence) => presence.currentRoom === currentRoom && presence.connectionId !== ownConnectionId);
+  const groups = new Map<string, PresenceInfo[]>();
+  for (const presence of visible) {
+    const agent = presence.focusedAgentId ? roomAgents.find((a) => a.id === presence.focusedAgentId) : undefined;
+    const key = agent ? `desk:${agent.desk}` : "lobby";
+    const list = groups.get(key) ?? [];
+    list.push(presence);
+    groups.set(key, list);
+  }
+  const rankByConnection = new Map<string, { key: string; index: number }>();
+  for (const [key, group] of groups) {
+    group.forEach((presence, index) => rankByConnection.set(presence.connectionId, { key, index }));
+  }
+  const placements: { presence: PresenceInfo; left: number; top: number; dimmed: boolean }[] = [];
+  for (const presence of visible) {
+    const rank = rankByConnection.get(presence.connectionId);
+    if (!rank) continue;
+    const { key, index } = rank;
+    if (key === "lobby") {
+      placements.push({ presence, left: 600 + index * 52, top: 590, dimmed: presence.viewMode === "away" });
+      continue;
+    }
+    const deskIndex = Number(key.slice("desk:".length));
+    const slot = DESK_SLOTS[deskIndex];
+    if (!slot) continue;
+    const pos = deskPixelPos(slot.row, slot.col);
+    placements.push({ presence, left: pos.left + 130 + index * 18, top: pos.top + 90 + index * 4, dimmed: presence.viewMode === "away" });
+  }
+  return placements;
+}
 
 export interface ViewportControls {
   resetView: () => void;
@@ -42,6 +77,69 @@ function DoorIcon() {
       <rect x="4" y="2" width="8" height="13" />
       <circle cx="10" cy="9" r="0.6" fill="currentColor" />
     </svg>
+  );
+}
+
+function TasksIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 4.5l1.3 1.3L6.8 3.3" />
+      <path d="M3 8.5l1.3 1.3L6.8 7.3" />
+      <path d="M9 4.5h4.5M9 8.5h4.5M3 12.5h10.5" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 4.5V8l2.5 1.5" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <circle cx="8" cy="5" r="2.3" />
+      <path d="M3.5 13c.7-2.4 2.2-3.6 4.5-3.6s3.8 1.2 4.5 3.6" />
+    </svg>
+  );
+}
+
+function DeviceIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="1.5" width="6" height="13" rx="1.2" />
+      <path d="M7.4 12.2h1.2" />
+    </svg>
+  );
+}
+
+function HeaderButton({ icon, label, title, onClick }: { icon: ReactNode; label: string; title?: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "7px 13px",
+        borderRadius: 8,
+        border: "1px solid var(--border-medium)",
+        background: "var(--btn-surface)",
+        color: "var(--text-dim)",
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 
@@ -83,6 +181,8 @@ export function OfficeView({
   onContextMenu,
   username,
   onEditUsername,
+  onOpenUserSettingsForUser,
+  onOpenDeviceSettings,
   onEditOfficePrompt,
   onEditRoomSettings,
   onOpenTasks,
@@ -96,6 +196,8 @@ export function OfficeView({
   onContextMenu: (x: number, y: number, agent: AgentInfo) => void;
   username: string;
   onEditUsername: () => void;
+  onOpenUserSettingsForUser?: (userId: string) => void;
+  onOpenDeviceSettings: () => void;
   onEditOfficePrompt: () => void;
   onEditRoomSettings?: () => void;
   onOpenTasks: () => void;
@@ -105,7 +207,7 @@ export function OfficeView({
   onSwipeRight?: () => void;
   viewportControlsRef?: React.RefObject<ViewportControls | null>;
 }) {
-  const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateAvailable } = useAppState();
+  const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateAvailable, presences, sessionContext } = useAppState();
   const roomCount = rooms.length;
   const roomNames = rooms.map((r) => r.name);
   const officePrompt = office.prompt;
@@ -176,6 +278,8 @@ export function OfficeView({
           onToggleView={() => dispatch({ type: "toggle_mobile_view" })}
           counts={counts}
           onOpenTasks={onOpenTasks}
+          onEditUsername={onEditUsername}
+          onOpenDeviceSettings={onOpenDeviceSettings}
           onEditOfficePrompt={onEditOfficePrompt}
           onEditRoomSettings={onEditRoomSettings}
           updateAvailable={updateAvailable}
@@ -256,68 +360,13 @@ export function OfficeView({
               ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, justifySelf: "end" }}>
-            <button
-              onClick={onOpenTasks}
-              style={{
-                padding: "4px 10px",
-                borderRadius: 8,
-                border: "1px solid var(--border-medium)",
-                background: "var(--btn-surface)",
-                color: "var(--text-dim)",
-                fontSize: 11,
-                cursor: "pointer",
-              }}
-            >
-              Tasks
-            </button>
-            {onOpenCronjobs && (
-              <button
-                onClick={onOpenCronjobs}
-                title="Cron jobs (scheduled SDK sessions)"
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 8,
-                  border: "1px solid var(--border-medium)",
-                  background: "var(--btn-surface)",
-                  color: "var(--text-dim)",
-                  fontSize: 11,
-                  cursor: "pointer",
-                }}
-              >
-                Cron jobs
-              </button>
-            )}
-            <button
-              onClick={onEditOfficePrompt}
-              style={{
-                padding: "4px 10px",
-                borderRadius: 8,
-                border: "1px solid var(--border-medium)",
-                background: "var(--btn-surface)",
-                color: "var(--text-dim)",
-                fontSize: 11,
-                cursor: "pointer",
-              }}
-            >
-              Office settings
-            </button>
-            <button
-              onClick={() => setThemePickerOpen(true)}
-              title="Change theme"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "4px 8px",
-                borderRadius: 8,
-                border: "1px solid var(--border-medium)",
-                background: "var(--btn-surface)",
-                color: "var(--text-dim)",
-                cursor: "pointer",
-              }}
-            >
-              {mode === "dark" ? <MoonIcon /> : <SunIcon />}
-            </button>
+            <HeaderButton icon={<TasksIcon />} label="Tasks" onClick={onOpenTasks} />
+            {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label="Cron jobs" title="Cron jobs" onClick={onOpenCronjobs} />}
+            <HeaderButton icon={<UserIcon />} label="User" title={username || "User settings"} onClick={onEditUsername} />
+            <HeaderButton icon={<DeviceIcon />} label="Device" title="Device settings" onClick={onOpenDeviceSettings} />
+            <HeaderButton icon={<BuildingIcon />} label="Office" title="Office settings" onClick={onEditOfficePrompt} />
+            {onEditRoomSettings && <HeaderButton icon={<DoorIcon />} label="Room" title="Room settings" onClick={onEditRoomSettings} />}
+            <HeaderButton icon={mode === "dark" ? <MoonIcon /> : <SunIcon />} label="Theme" title="Change theme" onClick={() => setThemePickerOpen(true)} />
           </div>
         </div>
       )}
@@ -462,6 +511,43 @@ export function OfficeView({
                 />
               );
             })}
+            {(() => {
+              const ghostPlacements = computeGhostPlacements(presences, roomAgents, currentRoom, sessionContext?.connectionId ?? null);
+              return (
+                <>
+                  {ghostPlacements.map((p) => (
+                    <GhostBody
+                      key={`body-${p.presence.connectionId}`}
+                      left={p.left}
+                      top={p.top}
+                      size={GHOST_SIZE}
+                      variant={p.presence.avatarVariant}
+                      color={p.presence.avatarColor}
+                      username={p.presence.username}
+                      device={p.presence.device}
+                      userId={p.presence.userId}
+                      dimmed={p.dimmed}
+                      onClick={onOpenUserSettingsForUser}
+                    />
+                  ))}
+                  {ghostPlacements.map((p) => (
+                    <GhostTag
+                      key={`tag-${p.presence.connectionId}`}
+                      left={p.left}
+                      top={p.top}
+                      size={GHOST_SIZE}
+                      variant={p.presence.avatarVariant}
+                      color={p.presence.avatarColor}
+                      username={p.presence.username}
+                      device={p.presence.device}
+                      userId={p.presence.userId}
+                      dimmed={p.dimmed}
+                      onClick={onOpenUserSettingsForUser}
+                    />
+                  ))}
+                </>
+              );
+            })()}
           </div>
         </div>
 

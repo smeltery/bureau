@@ -98,9 +98,6 @@ export function findUsageAtFork(agentId: string, parentSessionId: string, forkMe
 export function renderUsageReport(): string {
   const lines: string[] = [];
 
-  lines.push(`_Subscription plan limits aren't shown here — open the embedded terminal (desktop only), run \`claude\`, then \`/usage\`._`);
-  lines.push("");
-
   // Office-wide table: per-agent session and lifetime usage. "In" is all
   // input tiers summed (raw + cache read + cache creation); the inline "%
   // hit" is cache hit rate over cacheable input. Markdown only supports a

@@ -1,4 +1,4 @@
-import type { ClientCommand, ServerMessage } from "../shared/types.ts";
+import type { ClientCommand, PresenceInfo, ServerMessage } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
 import { loadRecentCwds } from "./persistence.ts";
@@ -7,6 +7,8 @@ import { getBackupStatus, startBackupScheduler } from "./backup.ts";
 import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
 import { handleCommand } from "./ws/commands.ts";
 import { stopWatch, type FileWatcher } from "./file-editor.ts";
+import { canSeeRoom, clearWsUser, getSessionContext, getWsUser, listUsers, projectAgents, projectRooms } from "./users.ts";
+import { listAllPresence, removePresence } from "./presence.ts";
 
 // Per-WS editor file watchers. Each open file gets one fs.watch handle keyed
 // by `${agentId}\0${absPath}` so the same path can be watched independently
@@ -20,8 +22,84 @@ import { handleAgentsRequest } from "./http/agents.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
 
-// Wire AgentManager events to WebSocket broadcasts
+function sendToVisibleAgent(agentId: string, msg: ServerMessage) {
+  const agent = AgentManager.getAllAgents().find((a) => a.id === agentId);
+  const roomId = agent ? AgentManager.getRooms()[agent.room]?.id : null;
+  for (const ws of browsers) {
+    const user = getWsUser(ws);
+    if (!roomId || canSeeRoom(user, roomId)) {
+      if (msg.type === "agent_updated" && typeof msg.changes.room === "number" && user?.role === "member") {
+        const projectedRooms = projectRooms(user, AgentManager.getRooms());
+        const projectedRoom = projectedRooms.findIndex((r) => r.id === roomId);
+        ws.send(JSON.stringify({ ...msg, changes: { ...msg.changes, room: projectedRoom } } as ServerMessage));
+      } else if (msg.type === "agent_added" && user?.role === "member") {
+        const projected = projectAgents(user, [msg.agent], AgentManager.getRooms())[0];
+        if (projected) ws.send(JSON.stringify({ ...msg, agent: projected } as ServerMessage));
+      } else {
+        ws.send(JSON.stringify(msg));
+      }
+    }
+  }
+}
+
+function buildPresenceListFor(ws: import("bun").ServerWebSocket<unknown>): PresenceInfo[] {
+  const user = getWsUser(ws);
+  const rooms = AgentManager.getRooms();
+  const projectedRooms = projectRooms(user, rooms);
+  const visibleIndexById = new Map(projectedRooms.map((room, index) => [room.id, index]));
+  const entries: PresenceInfo[] = [];
+  for (const presence of listAllPresence()) {
+    if (!presence.currentRoomId) continue;
+    const currentRoom = visibleIndexById.get(presence.currentRoomId);
+    if (currentRoom === undefined) continue;
+    entries.push({
+      connectionId: presence.connectionId,
+      userId: presence.userId,
+      username: presence.username,
+      device: presence.device,
+      avatarColor: presence.avatarColor,
+      avatarVariant: presence.avatarVariant,
+      currentRoom,
+      focusedAgentId: presence.focusedAgentId,
+      viewMode: presence.viewMode,
+    });
+  }
+  entries.sort((a, b) => a.connectionId.localeCompare(b.connectionId));
+  return entries;
+}
+
+export function pushPresenceListToEachWs() {
+  for (const ws of browsers) {
+    ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws) } as ServerMessage));
+  }
+}
+
+// Wire AgentManager events to WebSocket broadcasts, filtering agent-scoped
+// events through each connection's room access.
 AgentManager.onEvent((event) => {
+  if (event.type === "log_entry") {
+    sendToVisibleAgent(event.entry.agentId, event as ServerMessage);
+    return;
+  }
+  if (event.type === "agent_added") {
+    sendToVisibleAgent(event.agent.id, event as ServerMessage);
+    return;
+  }
+  if (event.type === "agent_updated") {
+    sendToVisibleAgent(event.agentId, event as ServerMessage);
+    return;
+  }
+  if (
+    event.type === "agent_removed" ||
+    event.type === "room_created" ||
+    event.type === "room_closed" ||
+    event.type === "room_renamed" ||
+    event.type === "room_settings_updated" ||
+    event.type === "rooms_reordered"
+  ) {
+    for (const ws of browsers) sendInitialPayload(ws);
+    return;
+  }
   broadcast(event as ServerMessage);
 });
 
@@ -53,6 +131,49 @@ if (socketPath && (portArg || envPort)) {
 }
 
 process.env.PORT = String(PORT);
+
+export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
+  const user = getWsUser(ws);
+  const rooms = AgentManager.getRooms();
+  const agents = AgentManager.getAllAgents();
+  const projectedRooms = projectRooms(user, rooms);
+  const projectedAgents = projectAgents(user, agents, rooms);
+  ws.send(
+    JSON.stringify({
+      type: "full_state",
+      agents: projectedAgents,
+      recentCwds: loadRecentCwds(),
+      office: AgentManager.getOfficeSettings(),
+      rooms: projectedRooms,
+      allRooms: user?.role === "owner" ? rooms : undefined,
+    } as ServerMessage),
+  );
+  ws.send(JSON.stringify({ type: "users_list", users: listUsers(rooms) } as ServerMessage));
+  ws.send(JSON.stringify({ type: "session_context", context: getSessionContext(ws) } as ServerMessage));
+  ws.send(JSON.stringify({ type: "tasks", tasks } as ServerMessage));
+  ws.send(
+    JSON.stringify({
+      type: "cronjobs_state",
+      cronjobs: CronjobManager.listCronjobs(),
+      cronjobsPrompt: CronjobManager.getCronjobsPrompt(),
+    } as ServerMessage),
+  );
+  const update = getUpdateStatus();
+  if (update.updateAvailable) {
+    ws.send(JSON.stringify({ type: "update_status", updateAvailable: true, current: update.current, latest: update.latest } as ServerMessage));
+  }
+  for (const agent of projectedAgents) {
+    const logs = AgentManager.getAgentLogs(agent.id);
+    for (const entry of logs) {
+      ws.send(JSON.stringify({ type: "log_entry", entry } as ServerMessage));
+    }
+    const cmds = AgentManager.getAgentCommands(agent.id);
+    if (cmds.commands.length > 0 || cmds.skills.length > 0) {
+      ws.send(JSON.stringify({ type: "slash_commands", agentId: agent.id, commands: cmds.commands, skills: cmds.skills } as ServerMessage));
+    }
+  }
+  ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws) } as ServerMessage));
+}
 
 const server = Bun.serve({
   ...(socketPath ? { unix: socketPath } : { port: PORT }),
@@ -105,43 +226,7 @@ const server = Bun.serve({
   websocket: {
     open(ws) {
       browsers.add(ws);
-      // Send current agent list
-      const agents = AgentManager.getAllAgents();
-      const recentCwds = loadRecentCwds();
-      ws.send(JSON.stringify({ type: "full_state", agents, recentCwds, office: AgentManager.getOfficeSettings(), rooms: AgentManager.getRooms() } as ServerMessage));
-      // Send tasks
-      ws.send(JSON.stringify({ type: "tasks", tasks } as ServerMessage));
-      // Send cronjobs + cronjobsPrompt
-      ws.send(
-        JSON.stringify({
-          type: "cronjobs_state",
-          cronjobs: CronjobManager.listCronjobs(),
-          cronjobsPrompt: CronjobManager.getCronjobsPrompt(),
-        } as ServerMessage),
-      );
-      // Send update status
-      const update = getUpdateStatus();
-      if (update.updateAvailable) {
-        ws.send(JSON.stringify({ type: "update_status", updateAvailable: true, current: update.current, latest: update.latest } as ServerMessage));
-      }
-      // Send cached log history and slash commands for each agent
-      for (const agent of agents) {
-        const logs = AgentManager.getAgentLogs(agent.id);
-        for (const entry of logs) {
-          ws.send(JSON.stringify({ type: "log_entry", entry } as ServerMessage));
-        }
-        const cmds = AgentManager.getAgentCommands(agent.id);
-        if (cmds.commands.length > 0 || cmds.skills.length > 0) {
-          ws.send(
-            JSON.stringify({
-              type: "slash_commands",
-              agentId: agent.id,
-              commands: cmds.commands,
-              skills: cmds.skills,
-            } as ServerMessage),
-          );
-        }
-      }
+      sendInitialPayload(ws);
     },
     message(ws, data) {
       try {
@@ -153,6 +238,10 @@ const server = Bun.serve({
     },
     close(ws) {
       browsers.delete(ws);
+      if (getSessionContext(ws)?.connectionId && removePresence(getSessionContext(ws)!.connectionId)) {
+        pushPresenceListToEachWs();
+      }
+      clearWsUser(ws);
       const map = editorWatchers.get(ws);
       if (map) {
         for (const w of map.values()) stopWatch(w);

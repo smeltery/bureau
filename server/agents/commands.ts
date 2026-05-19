@@ -70,6 +70,14 @@ export const commands: Record<string, CommandConfig> = {
     handler: "help",
     description: "List all available commands",
   },
+  "bureau-usage": {
+    type: "hardcoded",
+    supported: true,
+    autocomplete: true,
+    overridable: false,
+    handler: "bureauUsage",
+    description: "Per-agent / per-room / per-cron-job token spend",
+  },
   resume: {
     type: "hardcoded",
     supported: true,
@@ -141,7 +149,7 @@ export const commands: Record<string, CommandConfig> = {
     autocomplete: true,
     overridable: false,
     handler: "usage",
-    description: "Per-agent token usage",
+    description: "Where to check subscription and office usage",
   },
   stats: { ...UNSUPPORTED_HARDCODED, description: "Usage patterns over time" },
   "extra-usage": { ...UNSUPPORTED_HARDCODED, description: "Extra usage options" },

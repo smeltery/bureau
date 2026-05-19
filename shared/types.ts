@@ -1,3 +1,5 @@
+import type { GhostVariant } from "./avatar.ts";
+
 // Agent states derived from SDK stream events
 export type AgentState = "idle" | "thinking" | "tool_executing" | "waiting_for_response" | "error" | "stopped";
 
@@ -132,6 +134,10 @@ export interface DiffPayload {
   cwd: string;
   branch: string | null; // null on detached HEAD or fresh repo
   head: string | null; // short SHA, null on fresh repo with no commits
+  // Present when the diff targets a specific commit/range rather than the
+  // working tree. Single commits use the commit subject; ranges use the
+  // literal range string. Optional for persisted pre-existing diff entries.
+  subject?: string | null;
   stats: { additions: number; deletions: number; filesChanged: number };
   files: DiffFileSummary[];
   patchText: string | null; // null when over 2MB safety rail
@@ -320,6 +326,50 @@ export interface OfficeSettings {
   envFile: string | null;
 }
 
+export type UserRole = "owner" | "member";
+
+export interface UserRecord {
+  id: string;
+  name: string;
+  role: UserRole;
+  // Strict list of room IDs this user can see and act in. Owners can edit it.
+  allowedRooms: string[];
+  defaultRoomId: string | null;
+  avatarColor: string;
+  avatarVariant: GhostVariant;
+  createdAt: number;
+}
+
+export interface SessionContext {
+  userId: string;
+  username: string;
+  role: UserRole;
+  currentSessionPrefix: string;
+  connectionId: string;
+}
+
+export interface PresenceInfo {
+  connectionId: string;
+  userId: string;
+  username: string;
+  device: string | null;
+  avatarColor: string;
+  avatarVariant: GhostVariant;
+  currentRoom: number | null;
+  focusedAgentId: string | null;
+  viewMode: "office" | "log" | "away";
+}
+
+export interface SessionWire {
+  sessionPrefix: string;
+  username: string;
+  createdAt: number;
+  lastSeenAt: number;
+  expiresAt: number;
+  absoluteExpiresAt: number;
+  userAgent?: string;
+}
+
 // A room with stable ID, display name, and per-room config
 export interface RoomWire {
   id: string; // 8-char hex, stable
@@ -366,7 +416,11 @@ export interface CwdValidationResponse {
 
 // Server → Browser messages
 export type ServerMessage =
-  | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[] }
+  | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[] }
+  | { type: "session_context"; context: SessionContext | null }
+  | { type: "presence_list"; entries: PresenceInfo[] }
+  | { type: "users_list"; users: UserRecord[] }
+  | { type: "sessions_active_list"; sessions: SessionWire[] }
   | { type: "agent_added"; agent: AgentInfo }
   | { type: "agent_removed"; agentId: string }
   | { type: "agent_updated"; agentId: string; changes: Partial<AgentInfo> }
@@ -478,6 +532,13 @@ export type ClientCommand =
   | { type: "load_cronjob_run"; cronjobId: string; runId: string }
   | { type: "send_cronjob_run_message"; cronjobId: string; runId: string; text: string; username?: string }
   | { type: "edit_cronjob_run_message"; cronjobId: string; runId: string; logEntryId: string; newText: string; username?: string }
+  | { type: "claim_user"; username: string }
+  | { type: "update_user"; userId: string; changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "avatarColor" | "avatarVariant">> }
+  | { type: "delete_user"; userId: string }
+  | { type: "list_active_sessions" }
+  | { type: "revoke_session"; sessionPrefix: string }
+  | { type: "logout" }
+  | { type: "presence_update"; currentRoom: number | null; focusedAgentId: string | null; viewMode: "office" | "log" | "away"; device?: string | null }
   | { type: "ping" };
 
 // Generate a stable 8-char hex room ID (used at room creation and during migration)
