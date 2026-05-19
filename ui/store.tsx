@@ -12,6 +12,10 @@ import type {
   RoomWire,
   SettingsSaveResponse,
   SettingsValidationResponse,
+  SessionContext,
+  SessionWire,
+  PresenceInfo,
+  UserRecord,
 } from "../shared/types.ts";
 import { connect } from "./ws.ts";
 import { type Features, PRODUCTION_FEATURES } from "../shared/features.ts";
@@ -33,6 +37,12 @@ export interface AppState {
   stateChangedAt: Map<string, number>; // agentId → timestamp when agent state last changed
   office: OfficeSettings;
   rooms: RoomWire[];
+  allRooms: RoomWire[];
+  users: Map<string, UserRecord>;
+  sessionContext: SessionContext | null;
+  activeSessions: SessionWire[];
+  activeSessionsLoaded: boolean;
+  presences: PresenceInfo[];
   tasks: TaskItem[];
   tasksLoaded: boolean;
   currentRoom: number; // 0-based room index (view selection only)
@@ -76,7 +86,11 @@ function writeSidePanels(map: Map<string, "terminal" | "editor" | null>) {
 }
 
 type Action =
-  | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[] }
+  | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[] }
+  | { type: "session_context"; context: SessionContext | null }
+  | { type: "presence_list"; entries: PresenceInfo[] }
+  | { type: "users_list"; users: UserRecord[] }
+  | { type: "sessions_active_list"; sessions: SessionWire[] }
   | { type: "agent_added"; agent: AgentInfo }
   | { type: "agent_removed"; agentId: string }
   | { type: "agent_updated"; agentId: string; changes: Partial<AgentInfo> }
@@ -122,12 +136,21 @@ function reducer(state: AppState, action: Action): AppState {
         recentCwds: action.recentCwds,
         office: action.office,
         rooms: action.rooms,
+        allRooms: action.allRooms ?? action.rooms,
         currentRoom: Math.min(state.currentRoom, Math.max(0, action.rooms.length - 1)),
         logs: new Map(),
         needsAttention: new Set(),
         slashCommands: new Map(),
         stateChangedAt: new Map(action.agents.filter((a) => a.state !== "idle" && a.state !== "stopped").map((a) => [a.id, Date.now()])),
       };
+    case "session_context":
+      return { ...state, sessionContext: action.context, activeSessionsLoaded: false };
+    case "users_list":
+      return { ...state, users: new Map(action.users.map((u) => [u.name.trim().toLocaleLowerCase(), u])) };
+    case "sessions_active_list":
+      return { ...state, activeSessions: action.sessions, activeSessionsLoaded: true };
+    case "presence_list":
+      return { ...state, presences: action.entries };
     case "agent_added":
       return { ...state, agents: [...state.agents, action.agent] };
     case "agent_removed": {
@@ -329,6 +352,12 @@ const initialState: AppState = {
   stateChangedAt: new Map(),
   office: { prompt: null, envFile: null },
   rooms: [],
+  allRooms: [],
+  users: new Map(),
+  sessionContext: null,
+  activeSessions: [],
+  activeSessionsLoaded: false,
+  presences: [],
   tasks: [],
   tasksLoaded: false,
   currentRoom: 0,

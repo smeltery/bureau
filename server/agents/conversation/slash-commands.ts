@@ -187,11 +187,11 @@ const commandHandlers: Record<string, HandlerFn> = {
     lines.push(
       "  \u2022 Use `/bureau-pair-programming` to walk through scoping, design review with a peer agent, and implementation review \u2014 escalates to the boss after 5 rounds or on architectural tradeoffs.",
     );
-    lines.push("  \u2022 Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Pass a directory to peek at a worktree.");
+    lines.push("  \u2022 Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Agents can also POST /agents/:id/diff with a commit or range.");
     lines.push(
       "  \u2022 Pick a color theme from the header palette button \u2014 Dark, Light, Nord, Dracula, Solarized Dark, or Solarized Light. The moon/sun toggle bounces between your last-picked dark and light themes.",
     );
-    lines.push("  \u2022 Use `/usage` to see per-agent + per-room + per-cron-job lifetime cost.");
+    lines.push("  \u2022 Use `/bureau-usage` to see per-agent + per-room + per-cron-job lifetime cost.");
     lines.push("  \u2022 Schedule recurring work in the Cron Jobs page \u2014 daily, weekly, or by interval. Resume or edit-to-fork any past run.");
     lines.push("  \u2022 Tasks have a Backlog status \u2014 use it to defer work without it cluttering the active list.");
     lines.push("  \u2022 ~/.bureau/ is auto-tarballed daily to ~/bureau-backups/ (last 7 kept).");
@@ -354,6 +354,29 @@ const commandHandlers: Record<string, HandlerFn> = {
   },
 
   async usage(agentId, _managed, _args, rawText, username) {
+    const userMeta = username ? { username } : undefined;
+    addLogEntry(agentId, "user_message", rawText, userMeta);
+    addLogEntry(
+      agentId,
+      "system",
+      [
+        "**Subscription plan limits aren't shown here.**",
+        "",
+        "To check your Claude or ChatGPT subscription quota, open the embedded terminal and:",
+        "",
+        "- launch `claude`, then type `/usage`",
+        "- launch `codex`, then type `/status`",
+        "",
+        "For Bureau office-level token spend (per-agent / per-room / per-cron-job), see `/bureau-usage`.",
+      ].join("\n"),
+    );
+    addLogEntry(agentId, "terminal-command", "claude", undefined, undefined, { terminal: { command: "claude" } });
+    addLogEntry(agentId, "terminal-command", "codex", undefined, undefined, { terminal: { command: "codex" } });
+    updateState(agentId, "waiting_for_response");
+    return true;
+  },
+
+  async bureauUsage(agentId, _managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
     addLogEntry(agentId, "user_message", rawText, userMeta);
     addLogEntry(agentId, "system", renderUsageReport());

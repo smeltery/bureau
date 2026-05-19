@@ -4,9 +4,12 @@ import { generateTaskId, isValidPriority, isValidStatus } from "../../shared/typ
 import * as AgentManager from "../agent-manager.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import { saveRecentCwd, saveTasks } from "../persistence.ts";
-import { broadcast, setTasks, tasks } from "./broadcast.ts";
+import { broadcast, browsers, setTasks, tasks } from "./broadcast.ts";
 import { stopWatch, watchFile } from "../file-editor.ts";
 import { editorWatchers } from "../index.ts";
+import { pushPresenceListToEachWs, sendInitialPayload } from "../index.ts";
+import { canSeeRoom, claimUser, deleteUser, getSessionContext, getWsUser, listActiveSessions, updateUser } from "../users.ts";
+import { refreshPresenceForUser, setPresence } from "../presence.ts";
 
 function editorKey(agentId: string, absPath: string): string {
   return `${agentId}\0${absPath}`;
@@ -21,12 +24,88 @@ function getWatcherMap(ws: ServerWebSocket<unknown>) {
   return map;
 }
 
+function canUseAgent(ws: ServerWebSocket<unknown>, agentId: string): boolean {
+  const agent = AgentManager.getAllAgents().find((a) => a.id === agentId);
+  if (!agent) return false;
+  const roomId = AgentManager.getRooms()[agent.room]?.id;
+  return !!roomId && canSeeRoom(getWsUser(ws), roomId);
+}
+
+function canUseRoom(ws: ServerWebSocket<unknown>, roomId: string): boolean {
+  return canSeeRoom(getWsUser(ws), roomId);
+}
+
+function isOwner(ws: ServerWebSocket<unknown>): boolean {
+  return getWsUser(ws)?.role === "owner";
+}
+
 export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>) {
   switch (cmd.type) {
     case "ping":
       ws.send(JSON.stringify({ type: "pong" } as ServerMessage));
       break;
+    case "claim_user": {
+      claimUser(ws, cmd.username, AgentManager.getRooms());
+      sendInitialPayload(ws);
+      pushPresenceListToEachWs();
+      break;
+    }
+    case "update_user": {
+      const updated = updateUser(getWsUser(ws), cmd.userId, cmd.changes, AgentManager.getRooms());
+      for (const browser of browsers) {
+        sendInitialPayload(browser);
+      }
+      if (updated) {
+        refreshPresenceForUser(updated.id, { name: updated.name, avatarColor: updated.avatarColor, avatarVariant: updated.avatarVariant }, new Set(updated.allowedRooms));
+        pushPresenceListToEachWs();
+      }
+      break;
+    }
+    case "delete_user": {
+      deleteUser(getWsUser(ws), cmd.userId);
+      for (const browser of browsers) {
+        sendInitialPayload(browser);
+      }
+      break;
+    }
+    case "list_active_sessions":
+      ws.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessions() } as ServerMessage));
+      break;
+    case "revoke_session":
+      ws.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessions().filter((s) => s.sessionPrefix !== cmd.sessionPrefix) } as ServerMessage));
+      break;
+    case "logout":
+      ws.send(JSON.stringify({ type: "session_context", context: null } as ServerMessage));
+      break;
+    case "presence_update": {
+      const user = getWsUser(ws);
+      if (!user) break;
+      const rooms = AgentManager.getRooms();
+      const visibleRooms = user.role === "owner" ? rooms : rooms.filter((r) => user.allowedRooms.includes(r.id));
+      const roomId = cmd.currentRoom !== null && Number.isInteger(cmd.currentRoom) ? (visibleRooms[cmd.currentRoom]?.id ?? null) : null;
+      let focusedAgentId: string | null = null;
+      if (roomId && cmd.focusedAgentId) {
+        const agent = AgentManager.getAllAgents().find((a) => a.id === cmd.focusedAgentId);
+        if (agent && rooms[agent.room]?.id === roomId) focusedAgentId = agent.id;
+      }
+      const connectionId = getSessionContext(ws)?.connectionId ?? "";
+      const changed = setPresence({
+        connectionId,
+        userId: user.id,
+        username: user.name,
+        device: cmd.device ?? null,
+        avatarColor: user.avatarColor,
+        avatarVariant: user.avatarVariant,
+        currentRoomId: roomId,
+        focusedAgentId,
+        viewMode: cmd.viewMode === "log" || cmd.viewMode === "away" ? cmd.viewMode : "office",
+        lastSeenAt: Date.now(),
+      });
+      if (changed) pushPresenceListToEachWs();
+      break;
+    }
     case "spawn": {
+      if (cmd.roomId && !canUseRoom(ws, cmd.roomId)) break;
       try {
         AgentManager.validateCwd(cmd.cwd);
       } catch (err: any) {
@@ -43,25 +122,32 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "kill":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       await AgentManager.kill(cmd.agentId);
       break;
     case "abort":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       await AgentManager.abort(cmd.agentId);
       break;
     case "send_message":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       // Don't await — let it stream in the background
       AgentManager.sendMessage(cmd.agentId, cmd.text, cmd.username, cmd.attachments);
       break;
     case "dequeue_message":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       AgentManager.dequeueMessage(cmd.agentId, cmd.queuedId);
       break;
     case "new_conversation":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       await AgentManager.newConversation(cmd.agentId);
       break;
     case "resume":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       await AgentManager.resume(cmd.agentId, cmd.sessionId);
       break;
     case "edit_agent": {
+      if (!canUseAgent(ws, cmd.agentId)) break;
       if (cmd.cwd) {
         try {
           AgentManager.validateCwd(cmd.cwd);
@@ -87,15 +173,19 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "swap_desks":
+      if (!canUseRoom(ws, cmd.roomId)) break;
       AgentManager.swapDesks(cmd.deskA, cmd.deskB, cmd.roomId);
       break;
     case "set_topic":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       AgentManager.setTopic(cmd.agentId, cmd.topic);
       break;
     case "reset_topic":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       AgentManager.resetTopic(cmd.agentId);
       break;
     case "list_sessions": {
+      if (!canUseAgent(ws, cmd.agentId)) break;
       const sessions = AgentManager.listSessions(cmd.agentId);
       const currentSessionId = AgentManager.getCurrentSessionId(cmd.agentId);
       broadcast({
@@ -107,6 +197,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "terminal_open": {
+      if (!canUseAgent(ws, cmd.agentId)) break;
       const opened = AgentManager.openTerminal(cmd.agentId);
       if (opened) {
         // Replay buffered output so the browser catches up
@@ -118,15 +209,19 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "terminal_input":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       AgentManager.terminalInput(cmd.agentId, cmd.data);
       break;
     case "terminal_resize":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       AgentManager.terminalResize(cmd.agentId, cmd.cols, cmd.rows);
       break;
     case "terminal_close":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       AgentManager.closeTerminal(cmd.agentId);
       break;
     case "editor_open": {
+      if (!canUseAgent(ws, cmd.agentId)) break;
       const probe = AgentManager.openEditorFile(cmd.agentId, cmd.path);
       if (!probe.ok) {
         ws.send(
@@ -178,6 +273,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "editor_save": {
+      if (!canUseAgent(ws, cmd.agentId)) break;
       const abs = AgentManager.resolveEditorPathForAgent(cmd.agentId, cmd.path);
       if (!abs) {
         ws.send(JSON.stringify({ type: "editor_save_response", agentId: cmd.agentId, path: cmd.path, ok: false, error: "agent not found" } as ServerMessage));
@@ -204,6 +300,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "editor_close": {
+      if (!canUseAgent(ws, cmd.agentId)) break;
       const abs = AgentManager.resolveEditorPathForAgent(cmd.agentId, cmd.path);
       if (!abs) break;
       const map = getWatcherMap(ws);
@@ -230,6 +327,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "update_room_settings": {
+      if (!canUseRoom(ws, cmd.roomId)) break;
       const envFile = cmd.envFile && cmd.envFile.trim() ? cmd.envFile.trim() : null;
       if (envFile) {
         try {
@@ -324,21 +422,30 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "create_room":
+      if (!isOwner(ws)) break;
       AgentManager.createRoom(cmd.name);
+      pushPresenceListToEachWs();
       break;
     case "close_room":
+      if (!canUseRoom(ws, cmd.roomId)) break;
       AgentManager.closeRoom(cmd.roomId);
+      pushPresenceListToEachWs();
       break;
     case "rename_room":
+      if (!canUseRoom(ws, cmd.roomId)) break;
       AgentManager.renameRoom(cmd.roomId, cmd.name);
       break;
     case "move_agent":
+      if (!canUseAgent(ws, cmd.agentId) || !canUseRoom(ws, cmd.targetRoomId)) break;
       AgentManager.moveAgent(cmd.agentId, cmd.targetRoomId);
       break;
     case "reorder_rooms":
+      if (!isOwner(ws)) break;
       AgentManager.reorderRooms(cmd.order);
+      pushPresenceListToEachWs();
       break;
     case "edit_message":
+      if (!canUseAgent(ws, cmd.agentId)) break;
       // Don't await — let it stream in the background (like send_message)
       AgentManager.editMessage(cmd.agentId, cmd.logEntryId, cmd.newText, cmd.username);
       break;

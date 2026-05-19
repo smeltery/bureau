@@ -190,6 +190,7 @@ export function processMessage(agentId: string, msg: SDKMessage) {
             {
               toolUseId: block.tool_use_id,
               ...(duration_ms != null ? { duration_ms } : {}),
+              ...(block.is_error === true ? { isError: true } : {}),
             },
             resultAttachments,
           );

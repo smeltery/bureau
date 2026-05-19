@@ -11,4 +11,5 @@ export * from "./config/office-config.ts";
 export * from "./config/agent-history.ts";
 export * from "./config/tasks.ts";
 export * from "./config/recent-cwds.ts";
+export * from "./config/users.ts";
 export * from "./cronjobs.ts";

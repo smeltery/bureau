@@ -8,19 +8,20 @@ Bureau manages slash commands and skills from multiple sources, each with differ
 
 Commands with Bureau-side handlers. Defined in the `commands` registry with `type: "hardcoded"` and `supported: true`:
 
-| Command | Handler | Description |
-|---------|---------|-------------|
-| `/clear` | `clear` | Wipe conversation history |
-| `/context` | `context` | Visualize context window usage |
-| `/help` | `help` | List all available commands |
-| `/resume` | `resume` | Pick up a previous session |
-| `/usage` | `usage` | Per-agent token usage |
-| `/model` | `model` | Switch model |
-| `/bureau-all-hands` | `bureauAllHands` | Summary of all agents |
-| `/bureau-system-prompt` | `bureauSystemPrompt` | Show the full system prompt |
-| `/bureau-diff` | `bureauDiff` | Peek uncommitted changes in cwd |
-| `/reset` | `clear` | Alias for `/clear` |
-| `/new` | `clear` | Alias for `/clear` |
+| Command                 | Handler              | Description                                     |
+| ----------------------- | -------------------- | ----------------------------------------------- |
+| `/clear`                | `clear`              | Wipe conversation history                       |
+| `/context`              | `context`            | Visualize context window usage                  |
+| `/help`                 | `help`               | List all available commands                     |
+| `/bureau-usage`         | `bureauUsage`        | Per-agent / per-room / per-cron-job token spend |
+| `/resume`               | `resume`             | Pick up a previous session                      |
+| `/usage`                | `usage`              | Where to check subscription and office usage    |
+| `/model`                | `model`              | Switch model                                    |
+| `/bureau-all-hands`     | `bureauAllHands`     | Summary of all agents                           |
+| `/bureau-system-prompt` | `bureauSystemPrompt` | Show the full system prompt                     |
+| `/bureau-diff`          | `bureauDiff`         | Peek uncommitted changes in cwd                 |
+| `/reset`                | `clear`              | Alias for `/clear`                              |
+| `/new`                  | `clear`              | Alias for `/clear`                              |
 
 ### Unsupported Hardcoded Commands
 
@@ -116,6 +117,7 @@ On `system:init`, the SDK reports available slash commands via `msg.slash_comman
 ## Autocomplete
 
 Only commands with `autocomplete: true` appear in the slash command autocomplete UI. This includes:
+
 - Supported hardcoded commands
 - Discovered skills (user, project, plugin, bureau)
 
@@ -136,12 +138,12 @@ When a user types `/command`:
 ```typescript
 type CommandConfig = {
   type: "hardcoded" | "bundled-skill";
-  supported: boolean;       // Does Bureau handle this?
-  autocomplete: boolean;    // Show in autocomplete?
-  overridable: boolean;     // Can skills shadow this?
-  handler?: string;         // Handler key (required when supported)
-  description?: string;     // Short description
-  message?: string;         // Custom unsupported message
+  supported: boolean; // Does Bureau handle this?
+  autocomplete: boolean; // Show in autocomplete?
+  overridable: boolean; // Can skills shadow this?
+  handler?: string; // Handler key (required when supported)
+  description?: string; // Short description
+  message?: string; // Custom unsupported message
 };
 ```
 

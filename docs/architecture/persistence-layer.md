@@ -53,6 +53,7 @@ Stores agents organized by room. Each room has a stable ID, display name, and pe
 ### Migration
 
 The loader handles multiple legacy formats:
+
 - Flat array of agents → wrapped in default room
 - Array of arrays → each becomes a room with generated ID
 - Missing `modelFamily` → migrated from legacy `model` field (e.g., `"claude-opus-4-6"` → `"opus"`)
@@ -95,15 +96,15 @@ Each session gets an append-only JSONL file. One `LogEntry` per line:
 
 ### Log Entry Kinds
 
-| Kind | Description |
-|------|-------------|
-| `user_message` | User's message to the agent |
-| `thinking` | Agent's extended thinking (with `duration_ms`) |
-| `tool_call` | Tool invocation (name + input in metadata) |
-| `tool_result` | Tool output (truncated to 10k chars) |
-| `text` | Agent's text response |
-| `error` | Error messages |
-| `system` | System messages (session init, clear, etc.) |
+| Kind           | Description                                    |
+| -------------- | ---------------------------------------------- |
+| `user_message` | User's message to the agent                    |
+| `thinking`     | Agent's extended thinking (with `duration_ms`) |
+| `tool_call`    | Tool invocation (name + input in metadata)     |
+| `tool_result`  | Tool output (truncated to 10k chars)           |
+| `text`         | Agent's text response                          |
+| `error`        | Error messages                                 |
+| `system`       | System messages (session init, clear, etc.)    |
 
 ### Fork-Aware Log Loading
 
@@ -163,6 +164,7 @@ The SDK reports two flavors of accounting on each `result` event:
 - **Cost** (`total_cost_usd`) is **cumulative-per-process**. Overwritten each turn. Resets to 0 on session resume.
 
 Two buckets per session:
+
 - `usage`: current run (tokens accumulated, cost overwritten)
 - `priorRunsUsage`: completed runs, rolled up on resume
 
@@ -171,8 +173,9 @@ Session lifetime = `usage` + `priorRunsUsage`.
 ### Fork-Aware Usage
 
 When Session B forks Session A at turn 5:
+
 - `forkBaseUsage` records parent's cumulative at fork point
-- On `/usage`, fork's total = fork's cumulative - `forkBaseUsage`
+- On `/bureau-usage`, fork's total = fork's cumulative - `forkBaseUsage`
 - `usageSnapshots` (saved after every turn) enable finding the exact snapshot at the fork point
 
 ## File Storage
@@ -189,6 +192,7 @@ Legacy `images/` directory is still served for backward compatibility.
 ## Env File Parsing
 
 Minimal dotenv parser supporting:
+
 - `KEY=VALUE` format
 - `export` prefix
 - Single/double-quoted values (with `\n` escape in double quotes)
@@ -200,7 +204,7 @@ Throws with line-number context on parse errors.
 
 ## Agent History (`agent-history.json`)
 
-Tracks last-known name and room for killed agents. Used by `/usage` to attribute historical token spend to the correct room, even after the agent is gone. Entries are never removed.
+Tracks last-known name and room for killed agents. Used by `/bureau-usage` to attribute historical token spend to the correct room, even after the agent is gone. Entries are never removed.
 
 ```json
 {

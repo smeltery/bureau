@@ -1,6 +1,7 @@
 import { OfficeState, type OfficeEvent } from "../shared/office-state.ts";
-import type { AgentInfo, ClientCommand, ServerMessage, LogEntry, ModelFamily, Cronjob, Schedule } from "../shared/types.ts";
+import type { AgentInfo, ClientCommand, ServerMessage, LogEntry, ModelFamily, Cronjob, PresenceInfo, Schedule, SessionContext, SessionWire, UserRecord } from "../shared/types.ts";
 import { generateCronjobId } from "../shared/types.ts";
+import { defaultGhostColorForUserId, isGhostVariant, isHexColor, normalizeHexColor } from "../shared/avatar.ts";
 import { shimEmit } from "../ui/ws.ts";
 
 const state = new OfficeState();
@@ -183,7 +184,7 @@ function seedLogs() {
     let t = baseTime;
     for (const { kind, content, metadata } of entries) {
       t += 3000 + Math.random() * 5000;
-      const meta = kind === "user_message" ? { ...metadata, username: "demo-boss" } : metadata;
+      const meta = kind === "user_message" ? { ...metadata, username: "Ricky" } : metadata;
       const entry = makeLogEntry(agentId, kind, content, meta);
       entry.timestamp = t;
       shimEmit({ type: "log_entry", entry });
@@ -197,6 +198,70 @@ const DEMO_REPLY =
 // Cron jobs: maintained as plain in-memory state (not via OfficeState).
 const cronjobs: Cronjob[] = [];
 let cronjobsPrompt: string | null = null;
+const users = new Map<string, UserRecord>();
+let sessionContext: SessionContext | null = null;
+let activeSessions: SessionWire[] = [];
+let demoPresenceAgentIndex = 0;
+let demoPresenceTimer: ReturnType<typeof setInterval> | null = null;
+let currentDemoPresence: PresenceInfo | null = null;
+
+function emitDemoPresence(currentRoom: number | null, focusedAgentId: string | null, viewMode: "office" | "log" | "away", device: string | null = null) {
+  const entries: PresenceInfo[] = [];
+  if (sessionContext) {
+    const me = [...users.values()].find((u) => u.id === sessionContext?.userId);
+    if (me) {
+      currentDemoPresence = { connectionId: sessionContext.connectionId, userId: me.id, username: me.name, device, avatarColor: me.avatarColor, avatarVariant: me.avatarVariant, currentRoom, focusedAgentId, viewMode };
+      entries.push(currentDemoPresence);
+    }
+  } else {
+    currentDemoPresence = null;
+  }
+  const stephenPresence = getStephenPhonePresence();
+  if (stephenPresence) entries.push(stephenPresence);
+  shimEmit({ type: "presence_list", entries });
+}
+
+function getStephenPhonePresence(): PresenceInfo | null {
+  const stephen = users.get("stephen");
+  const roomZeroAgents = state.getState().agents.filter((a) => a.room === 0);
+  const stephenAgent = roomZeroAgents[demoPresenceAgentIndex % Math.max(1, roomZeroAgents.length)];
+  if (!stephen || !stephenAgent) return null;
+  return { connectionId: "demo-stephen-phone", userId: stephen.id, username: stephen.name, device: "Phone", avatarColor: stephen.avatarColor, avatarVariant: stephen.avatarVariant, currentRoom: 0, focusedAgentId: stephenAgent.id, viewMode: "log" };
+}
+
+function emitCurrentDemoPresence() {
+  const entries: PresenceInfo[] = [];
+  if (currentDemoPresence) entries.push(currentDemoPresence);
+  const stephenPresence = getStephenPhonePresence();
+  if (stephenPresence) entries.push(stephenPresence);
+  shimEmit({ type: "presence_list", entries });
+}
+
+function startDemoPresenceCycle() {
+  if (demoPresenceTimer) return;
+  demoPresenceTimer = setInterval(() => {
+    const roomZeroAgents = state.getState().agents.filter((a) => a.room === 0);
+    if (roomZeroAgents.length === 0) return;
+    demoPresenceAgentIndex = (demoPresenceAgentIndex + 1) % roomZeroAgents.length;
+    emitCurrentDemoPresence();
+  }, 6000);
+}
+
+function seedUsers() {
+  if (users.size > 0) return;
+  const roomIds = state.getState().rooms.map((r) => r.id);
+  const now = Date.now();
+  const ricky: UserRecord = { id: "demo-ricky", name: "Ricky", role: "owner", allowedRooms: roomIds, defaultRoomId: roomIds[0] ?? null, avatarColor: defaultGhostColorForUserId("demo-ricky"), avatarVariant: "classic", createdAt: now - 7 * 86400000 };
+  const stephen: UserRecord = { id: "demo-stephen", name: "Stephen", role: "member", allowedRooms: roomIds.slice(0, 1), defaultRoomId: roomIds[0] ?? null, avatarColor: defaultGhostColorForUserId("demo-stephen"), avatarVariant: "stubby-arms", createdAt: now - 5 * 86400000 };
+  users.set("ricky", ricky);
+  users.set("stephen", stephen);
+  sessionContext = { userId: ricky.id, username: ricky.name, role: ricky.role, currentSessionPrefix: "a1b2c3d4", connectionId: "a1b2c3d4" };
+  activeSessions = [
+    { sessionPrefix: "a1b2c3d4", username: "Ricky", createdAt: now - 7 * 86400000, lastSeenAt: now - 30_000, expiresAt: now + 30 * 86400000, absoluteExpiresAt: now + 365 * 86400000 },
+    { sessionPrefix: "7e9f0a12", username: "Ricky", createdAt: now - 3 * 86400000, lastSeenAt: now - 2 * 3600000, expiresAt: now + 30 * 86400000, absoluteExpiresAt: now + 365 * 86400000 },
+    { sessionPrefix: "9f8e7d6c", username: "Stephen", createdAt: now - 5 * 86400000, lastSeenAt: now - 15 * 60_000, expiresAt: now + 30 * 86400000, absoluteExpiresAt: now + 365 * 86400000 },
+  ];
+}
 
 function computeNextFireDemo(schedule: Schedule, anchor: number, now: number = Date.now()): number {
   if (schedule.type === "interval") {
@@ -423,6 +488,55 @@ export function handleCommand(cmd: ClientCommand) {
       }
       break;
     }
+    case "claim_user": {
+      const user = users.get(cmd.username.trim().toLocaleLowerCase());
+      if (user) sessionContext = { userId: user.id, username: user.name, role: user.role, currentSessionPrefix: user.name === "Ricky" ? "a1b2c3d4" : "9f8e7d6c", connectionId: user.name === "Ricky" ? "a1b2c3d4" : "9f8e7d6c" };
+      shimEmit({ type: "session_context", context: sessionContext });
+      shimEmit({ type: "users_list", users: [...users.values()] });
+      break;
+    }
+    case "update_user": {
+      const existing = [...users.values()].find((u) => u.id === cmd.userId);
+      let updated: UserRecord | null = null;
+      if (existing) {
+        const next: UserRecord = {
+          ...existing,
+          name: cmd.changes.name?.trim() || existing.name,
+          role: cmd.changes.role ?? existing.role,
+          allowedRooms: cmd.changes.allowedRooms ?? existing.allowedRooms,
+          defaultRoomId: cmd.changes.defaultRoomId === undefined ? existing.defaultRoomId : cmd.changes.defaultRoomId,
+          avatarColor: cmd.changes.avatarColor && isHexColor(cmd.changes.avatarColor) ? normalizeHexColor(cmd.changes.avatarColor) : existing.avatarColor,
+          avatarVariant: cmd.changes.avatarVariant && isGhostVariant(cmd.changes.avatarVariant) ? cmd.changes.avatarVariant : existing.avatarVariant,
+        };
+        users.delete(existing.name.toLocaleLowerCase());
+        users.set(next.name.toLocaleLowerCase(), next);
+        updated = next;
+      }
+      shimEmit({ type: "users_list", users: [...users.values()] });
+      if (updated?.name === "Stephen") emitCurrentDemoPresence();
+      break;
+    }
+    case "delete_user": {
+      const existing = [...users.values()].find((u) => u.id === cmd.userId);
+      if (existing) users.delete(existing.name.toLocaleLowerCase());
+      shimEmit({ type: "users_list", users: [...users.values()] });
+      break;
+    }
+    case "list_active_sessions":
+      shimEmit({ type: "sessions_active_list", sessions: [...activeSessions] });
+      break;
+    case "revoke_session":
+      activeSessions = activeSessions.filter((s) => s.sessionPrefix !== cmd.sessionPrefix);
+      shimEmit({ type: "sessions_active_list", sessions: [...activeSessions] });
+      break;
+    case "logout":
+      sessionContext = null;
+      shimEmit({ type: "session_context", context: null });
+      emitDemoPresence(null, null, "away");
+      break;
+    case "presence_update":
+      emitDemoPresence(cmd.currentRoom, cmd.focusedAgentId, cmd.viewMode, cmd.device ?? null);
+      break;
     case "add_task": {
       emitEvents(state.addTask(cmd.title, cmd.username, { description: cmd.description, priority: cmd.priority, assignee: cmd.assignee }));
       break;
@@ -544,9 +658,14 @@ export function handleCommand(cmd: ClientCommand) {
 
 export function sendInitialState() {
   ensureSeeded();
+  seedUsers();
   const s = state.getState();
-  shimEmit({ type: "full_state", agents: s.agents, recentCwds: s.recentCwds, office: s.office, rooms: s.rooms });
+  shimEmit({ type: "full_state", agents: s.agents, recentCwds: s.recentCwds, office: s.office, rooms: s.rooms, allRooms: s.rooms });
   shimEmit({ type: "tasks", tasks: s.tasks });
   shimEmit({ type: "cronjobs_state", cronjobs: [...cronjobs], cronjobsPrompt });
+  shimEmit({ type: "users_list", users: [...users.values()] });
+  shimEmit({ type: "session_context", context: sessionContext });
+  emitDemoPresence(0, null, "office");
+  startDemoPresenceCycle();
   seedLogs();
 }
