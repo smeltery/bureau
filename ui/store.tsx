@@ -43,6 +43,7 @@ export interface AppState {
   activeSessions: SessionWire[];
   activeSessionsLoaded: boolean;
   presences: PresenceInfo[];
+  totalOnlineUsers: number;
   tasks: TaskItem[];
   tasksLoaded: boolean;
   currentRoom: number; // 0-based room index (view selection only)
@@ -88,7 +89,7 @@ function writeSidePanels(map: Map<string, "terminal" | "editor" | null>) {
 type Action =
   | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[] }
   | { type: "session_context"; context: SessionContext | null }
-  | { type: "presence_list"; entries: PresenceInfo[] }
+  | { type: "presence_list"; entries: PresenceInfo[]; totalOnlineUsers: number }
   | { type: "users_list"; users: UserRecord[] }
   | { type: "sessions_active_list"; sessions: SessionWire[] }
   | { type: "agent_added"; agent: AgentInfo }
@@ -150,7 +151,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "sessions_active_list":
       return { ...state, activeSessions: action.sessions, activeSessionsLoaded: true };
     case "presence_list":
-      return { ...state, presences: action.entries };
+      return { ...state, presences: action.entries, totalOnlineUsers: action.totalOnlineUsers };
     case "agent_added":
       return { ...state, agents: [...state.agents, action.agent] };
     case "agent_removed": {
@@ -358,6 +359,7 @@ const initialState: AppState = {
   activeSessions: [],
   activeSessionsLoaded: false,
   presences: [],
+  totalOnlineUsers: 0,
   tasks: [],
   tasksLoaded: false,
   currentRoom: 0,

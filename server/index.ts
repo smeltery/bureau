@@ -68,9 +68,13 @@ function buildPresenceListFor(ws: import("bun").ServerWebSocket<unknown>): Prese
   return entries;
 }
 
+function countTotalOnlineUsers(): number {
+  return new Set(listAllPresence().map((presence) => presence.userId)).size;
+}
+
 export function pushPresenceListToEachWs() {
   for (const ws of browsers) {
-    ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws) } as ServerMessage));
+    ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws), totalOnlineUsers: countTotalOnlineUsers() } as ServerMessage));
   }
 }
 
@@ -172,7 +176,7 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
       ws.send(JSON.stringify({ type: "slash_commands", agentId: agent.id, commands: cmds.commands, skills: cmds.skills } as ServerMessage));
     }
   }
-  ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws) } as ServerMessage));
+  ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws), totalOnlineUsers: countTotalOnlineUsers() } as ServerMessage));
 }
 
 const server = Bun.serve({

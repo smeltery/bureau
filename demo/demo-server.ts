@@ -218,7 +218,7 @@ function emitDemoPresence(currentRoom: number | null, focusedAgentId: string | n
   }
   const stephenPresence = getStephenPhonePresence();
   if (stephenPresence) entries.push(stephenPresence);
-  shimEmit({ type: "presence_list", entries });
+  shimEmit({ type: "presence_list", entries, totalOnlineUsers: countDemoOnlineUsers(entries) });
 }
 
 function getStephenPhonePresence(): PresenceInfo | null {
@@ -234,7 +234,11 @@ function emitCurrentDemoPresence() {
   if (currentDemoPresence) entries.push(currentDemoPresence);
   const stephenPresence = getStephenPhonePresence();
   if (stephenPresence) entries.push(stephenPresence);
-  shimEmit({ type: "presence_list", entries });
+  shimEmit({ type: "presence_list", entries, totalOnlineUsers: countDemoOnlineUsers(entries) });
+}
+
+function countDemoOnlineUsers(entries: PresenceInfo[]): number {
+  return new Set(entries.map((entry) => entry.userId)).size;
 }
 
 function startDemoPresenceCycle() {
