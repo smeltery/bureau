@@ -17,6 +17,8 @@ interface GhostGraphicProps {
   // the body box, so the rendered footprint is slightly taller and
   // wider than the body alone.
   size?: number;
+  animated?: boolean;
+  shadow?: boolean;
 }
 
 // Per-variant bob period. A handful of small differences keep multiple
@@ -32,7 +34,7 @@ const BOB_DUR_S: Record<GhostVariant, number> = {
   "glow-halo": 2.8,
 };
 
-export function GhostGraphic({ variant, color, size = 40 }: GhostGraphicProps) {
+export function GhostGraphic({ variant, color, size = 40, animated = true, shadow = true }: GhostGraphicProps) {
   // Body sits in a 100x100 box (head at y=0, waves at y=100); the
   // viewBox extends -15..115 horizontally and -30..140 vertically to
   // accommodate the nightcap above and the wisp-tail / glow halo below
@@ -41,9 +43,9 @@ export function GhostGraphic({ variant, color, size = 40 }: GhostGraphicProps) {
   const width = size;
   const height = Math.round(size * (170 / 130));
   return (
-    <svg width={width} height={height} viewBox="-15 -30 130 170" overflow="visible" style={{ filter: "drop-shadow(0 3px 4px rgba(0,0,0,0.35))" }}>
+    <svg width={width} height={height} viewBox="-15 -30 130 170" overflow="visible" style={shadow ? { filter: "drop-shadow(0 3px 4px rgba(0,0,0,0.35))" } : undefined}>
       <g>
-        <animateTransform attributeName="transform" type="translate" values="0,0; 0,-4; 0,0" dur={`${BOB_DUR_S[variant]}s`} repeatCount="indefinite" />
+        {animated && <animateTransform attributeName="transform" type="translate" values="0,0; 0,-4; 0,0" dur={`${BOB_DUR_S[variant]}s`} repeatCount="indefinite" />}
         {renderVariant(variant, color)}
       </g>
     </svg>
@@ -98,7 +100,7 @@ function renderVariant(variant: GhostVariant, color: string) {
     case "nightcap":
       return (
         <>
-          <Nightcap color={color} />
+          <Nightcap />
           <BodyClassic color={color} />
           <FaceBigEyes />
         </>
@@ -121,7 +123,13 @@ function BodyClassic({ color }: { color: string }) {
 }
 
 function BodyWispTail({ color }: { color: string }) {
-  return <path d="M50,0 C26,0 14,20 14,44 L14,80 Q14,94 26,96 Q38,98 44,112 Q47,124 50,134 Q53,124 56,112 Q62,98 74,96 Q86,94 86,80 L86,44 C86,20 74,0 50,0 Z" fill={color} opacity={0.84} />;
+  return (
+    <path
+      d="M50,0 C26,0 14,20 14,44 L14,88 Q22,100 30,88 Q38,100 46,88 Q54,100 62,88 Q70,98 80,94 Q88,82 100,92 Q116,108 124,76 Q116,88 108,76 C100,68 94,80 94,76 L94,44 C94,20 74,0 50,0 Z"
+      fill={color}
+      opacity={0.84}
+    />
+  );
 }
 
 // --- Face details --------------------------------------------------------
@@ -195,10 +203,10 @@ function StubbyArms({ color }: { color: string }) {
   );
 }
 
-function Nightcap({ color }: { color: string }) {
+function Nightcap() {
   return (
     <>
-      <path d="M30,12 L70,12 L60,-22 Q56,-28 52,-22 Z" fill={color} opacity={0.92} />
+      <path d="M30,12 L70,12 L60,-22 Q56,-28 52,-22 Z" fill="#c8423a" opacity={0.92} />
       <rect x={26} y={8} width={48} height={8} rx={4} fill="white" opacity={0.92} />
       <circle cx={56} cy={-24} r={6} fill="white" opacity={0.92} />
     </>

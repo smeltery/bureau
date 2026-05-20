@@ -1,13 +1,73 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useAppState, useDispatch } from "../store.tsx";
 import { send } from "../ws.ts";
 import { RoomSettingsModal } from "../components/modals/RoomSettingsModal.tsx";
+import { GhostGraphic } from "./ghostVariants.tsx";
+import type { PresenceInfo } from "../../shared/types.ts";
+
+const MINI_GHOST_SIZE = 12;
+const MAX_MINI_GHOSTS = 3;
+const MINI_GHOST_OVERLAP = -8;
+
+function MiniGhostCluster({ presences, selfConnectionId }: { presences: PresenceInfo[]; selfConnectionId: string | null }) {
+  const visible = (selfConnectionId ? presences.filter((presence) => presence.connectionId !== selfConnectionId) : presences).slice(0, MAX_MINI_GHOSTS);
+  if (visible.length === 0) return null;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0, verticalAlign: "middle" }}>
+      {visible.map((presence, index) => {
+        const title = presence.device ? `${presence.username} (${presence.device})` : presence.username;
+        return (
+          <span
+            key={presence.connectionId}
+            title={title}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginLeft: index === 0 ? 0 : MINI_GHOST_OVERLAP,
+              opacity: presence.viewMode === "away" ? 0.4 : 1,
+              transform: "translateY(1px)",
+            }}
+          >
+            <GhostGraphic variant={presence.avatarVariant} color={presence.avatarColor} size={MINI_GHOST_SIZE} animated={false} shadow={false} />
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function TotalOnlineChip({ count }: { count: number }) {
+  if (count <= 0) return null;
+  const label = count === 1 ? "1 online user" : `${count} online users`;
+  return (
+    <span
+      title={label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        marginLeft: "auto",
+        paddingLeft: 12,
+        color: "var(--text-dim)",
+        fontStyle: "italic",
+        fontSize: 11,
+        flexShrink: 0,
+        lineHeight: 1,
+      }}
+    >
+      <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 4px var(--green)", flexShrink: 0 }} />
+      {label}
+    </span>
+  );
+}
 
 export function RoomTabBar() {
-  const { agents, currentRoom, rooms, needsAttention } = useAppState();
+  const { agents, currentRoom, rooms, needsAttention, presences, totalOnlineUsers, sessionContext } = useAppState();
   const roomCount = rooms.length;
   const roomNames = rooms.map((r) => r.name);
   const dispatch = useDispatch();
+  const selfConnectionId = sessionContext?.connectionId ?? null;
   const [editingRoom, setEditingRoom] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -17,6 +77,16 @@ export function RoomTabBar() {
   const [settingsRoomId, setSettingsRoomId] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
+  const presencesByRoom = useMemo(() => {
+    const buckets = new Map<number, PresenceInfo[]>();
+    for (const presence of presences) {
+      if (presence.currentRoom === null) continue;
+      const list = buckets.get(presence.currentRoom);
+      if (list) list.push(presence);
+      else buckets.set(presence.currentRoom, [presence]);
+    }
+    return buckets;
+  }, [presences]);
 
   // Focus input when editing starts — must be before any early returns (rules of hooks)
   useEffect(() => {
@@ -149,6 +219,7 @@ export function RoomTabBar() {
         const displayName = roomNames[i] ?? `Room ${i + 1}`;
         const isDragging = dragFrom === i;
         const isDropTarget = dragOver === i;
+        const roomPresences = presencesByRoom.get(i) ?? [];
 
         return (
           <div
@@ -164,6 +235,7 @@ export function RoomTabBar() {
               alignItems: "center",
               gap: 4,
               position: "relative",
+              flexShrink: 0,
               opacity: isDragging ? 0.4 : 1,
               borderLeft: isDropTarget && dragFrom !== null && dragFrom > i ? "2px solid var(--accent)" : "2px solid transparent",
               borderRight: isDropTarget && dragFrom !== null && dragFrom < i ? "2px solid var(--accent)" : "2px solid transparent",
@@ -230,6 +302,9 @@ export function RoomTabBar() {
                   letterSpacing: "0.02em",
                   outline: "none",
                   position: "relative",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {displayName}
@@ -258,6 +333,7 @@ export function RoomTabBar() {
                 )}
               </button>
             )}
+            <MiniGhostCluster presences={roomPresences} selfConnectionId={selfConnectionId} />
             {/* Close button: only for empty rooms that aren't Room 1 */}
             {i > 0 && isEmpty && editingRoom !== i && (
               <button
@@ -308,6 +384,7 @@ export function RoomTabBar() {
       >
         +
       </button>
+      <TotalOnlineChip count={totalOnlineUsers} />
 
       {ctxMenu &&
         (() => {

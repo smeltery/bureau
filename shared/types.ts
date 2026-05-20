@@ -418,7 +418,7 @@ export interface CwdValidationResponse {
 export type ServerMessage =
   | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[] }
   | { type: "session_context"; context: SessionContext | null }
-  | { type: "presence_list"; entries: PresenceInfo[] }
+  | { type: "presence_list"; entries: PresenceInfo[]; totalOnlineUsers: number }
   | { type: "users_list"; users: UserRecord[] }
   | { type: "sessions_active_list"; sessions: SessionWire[] }
   | { type: "agent_added"; agent: AgentInfo }
