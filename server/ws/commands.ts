@@ -3,13 +3,31 @@ import type { ClientCommand, ServerMessage, TaskItem } from "../../shared/types.
 import { generateTaskId, isValidPriority, isValidStatus } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
-import { saveRecentCwd, saveTasks } from "../persistence.ts";
+import { loadOfficeConfig, saveOfficeConfig, saveRecentCwd, saveTasks } from "../persistence.ts";
 import { broadcast, browsers, setTasks, tasks } from "./broadcast.ts";
 import { stopWatch, watchFile } from "../file-editor.ts";
 import { editorWatchers } from "../index.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../index.ts";
-import { canSeeRoom, claimUser, deleteUser, getSessionContext, getWsUser, listActiveSessions, updateUser } from "../users.ts";
+import { canSeeRoom, claimUser, deleteUser, getSessionContext, getUserById, getWsUser, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { refreshPresenceForUser, setPresence } from "../presence.ts";
+import {
+  buildPublicOrigin,
+  evictSessionsForUserId,
+  isProcessBoundLoopback,
+  listActiveSessions as listAuthSessions,
+  listActiveSessionsForUserId,
+  listInvites,
+  listInvitesForUsername,
+  logoutBySessionHash,
+  mintInvite,
+  resolveSessionHashByPrefix,
+  revokeActiveSessionByPrefixForUserId,
+  revokeInviteByPrefix,
+  revokeOutstandingInviteByPrefixForUsername,
+  revokeSessionByPrefix,
+  wouldRevokeLeaveOfficeUnreachable,
+} from "../auth/auth.ts";
+import { normalizePublicOrigin } from "../../shared/public-origin.ts";
 
 function editorKey(agentId: string, absPath: string): string {
   return `${agentId}\0${absPath}`;
@@ -39,6 +57,50 @@ function isOwner(ws: ServerWebSocket<unknown>): boolean {
   return getWsUser(ws)?.role === "owner";
 }
 
+// Push an invites list to every WS using the right scope for the receiving
+// session: owners get the full list; members get just the invites bound to
+// their own username (driving the member self-devices view). Used after any
+// mutation that could change either scope.
+function pushInvitesListToEachWs() {
+  for (const browser of browsers) {
+    const user = getWsUser(browser);
+    if (!user) continue;
+    if (user.role === "owner") {
+      browser.send(JSON.stringify({ type: "invites_list", invites: listInvites() } as ServerMessage));
+    } else {
+      browser.send(JSON.stringify({ type: "invites_list", invites: listInvitesForUsername(user.name) } as ServerMessage));
+    }
+  }
+}
+
+// Companion to pushInvitesListToEachWs for active sessions. Owners see the
+// global list; members see only their own user's sessions (rename-stable
+// via stable userId).
+function pushSessionsListToEachWs() {
+  for (const browser of browsers) {
+    const user = getWsUser(browser);
+    if (!user) continue;
+    if (user.role === "owner") {
+      browser.send(JSON.stringify({ type: "sessions_active_list", sessions: listAuthSessions() } as ServerMessage));
+    } else {
+      browser.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessionsForUserId(user.id) } as ServerMessage));
+    }
+  }
+}
+
+// Fan-out for owner-scoped events that carry per-prefix details (e.g. an
+// invite or session was revoked). Members don't render the owner Access
+// pane, but a plain broadcast() would still seed those rows into their
+// reducer state — leaking other users' token prefixes / usernames /
+// timestamps. Routing only the owner-WS subset preserves the owner-only
+// design contract.
+function broadcastToOwners(msg: ServerMessage) {
+  const data = JSON.stringify(msg);
+  for (const ws of browsers) {
+    if (isOwner(ws)) ws.send(data);
+  }
+}
+
 export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>) {
   switch (cmd.type) {
     case "ping":
@@ -62,21 +124,406 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "delete_user": {
-      deleteUser(getWsUser(ws), cmd.userId);
+      const actor = getWsUser(ws);
+      if (!actor || actor.role !== "owner") break;
+      // Lockout-prevention: refuse deletion that would leave the office
+      // without any owner record on disk. Defense in depth: same invariant
+      // as the session-revoke check, applied to user records.
+      if (wouldDeleteLeaveNoOwner(cmd.userId)) {
+        console.warn(`[auth] delete_user "${cmd.userId}" refused: would leave office with no owners`);
+        break;
+      }
+      deleteUser(actor, cmd.userId);
       for (const browser of browsers) {
         sendInitialPayload(browser);
       }
+      // Evict any sessions the deleted user still had open: their browsers
+      // get session_expired + close so they land on the login wall instead
+      // of looping reconnect against a now-orphaned cookie.
+      await evictSessionsForUserId(cmd.userId);
       break;
     }
-    case "list_active_sessions":
-      ws.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessions() } as ServerMessage));
+    case "list_active_sessions": {
+      const user = getWsUser(ws);
+      if (!user) {
+        ws.send(JSON.stringify({ type: "sessions_active_list", sessions: [] } as ServerMessage));
+        break;
+      }
+      if (user.role === "owner") {
+        ws.send(JSON.stringify({ type: "sessions_active_list", sessions: listAuthSessions() } as ServerMessage));
+      } else {
+        ws.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessionsForUserId(user.id) } as ServerMessage));
+      }
       break;
-    case "revoke_session":
-      ws.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessions().filter((s) => s.sessionPrefix !== cmd.sessionPrefix) } as ServerMessage));
+    }
+    case "revoke_session": {
+      // Branch on role BEFORE any prefix-based check. The owner path runs
+      // its lockout precheck against the global session set (owners can
+      // revoke anyone's session, so they're allowed to know that a given
+      // prefix is the last owner session). The member path must not run
+      // that precheck on the unscoped set, because a divergent "blocked"
+      // reason for a foreign prefix would leak the existence of an owner
+      // session at that prefix. The scoped mutator folds the lockout check
+      // inside its own scope-confirmed branch.
+      const user = getWsUser(ws);
+      if (!user) break;
+      const lockoutReason =
+        "Refused: this is the last active owner session in the office. " +
+        "Mint an additional invite for an owner first, accept it on " +
+        "another device, then retry.";
+      if (user.role === "owner") {
+        const targetHash = resolveSessionHashByPrefix(cmd.sessionPrefix);
+        if (targetHash && wouldRevokeLeaveOfficeUnreachable(targetHash)) {
+          ws.send(
+            JSON.stringify({
+              type: "revoke_blocked",
+              sessionPrefix: cmd.sessionPrefix,
+              reason: lockoutReason,
+            } as ServerMessage),
+          );
+          break;
+        }
+        const result = await revokeSessionByPrefix(cmd.sessionPrefix);
+        if (result === "ok") {
+          broadcastToOwners({ type: "session_revoked", sessionPrefix: cmd.sessionPrefix });
+          pushSessionsListToEachWs();
+        } else if (result === "ambiguous") {
+          console.warn(`[auth] ambiguous session prefix ${cmd.sessionPrefix} — refused revoke`);
+        }
+        break;
+      }
+      const result = await revokeActiveSessionByPrefixForUserId(cmd.sessionPrefix, user.id);
+      if (result === "would_strand_office") {
+        ws.send(
+          JSON.stringify({
+            type: "revoke_blocked",
+            sessionPrefix: cmd.sessionPrefix,
+            reason: lockoutReason,
+          } as ServerMessage),
+        );
+      } else if (result === "ok") {
+        pushSessionsListToEachWs();
+      } else if (result === "ambiguous") {
+        console.warn(`[auth] ambiguous session prefix ${cmd.sessionPrefix} — refused revoke`);
+      }
       break;
-    case "logout":
+    }
+    case "logout": {
+      // Treat the WS-side logout as a synchronization signal — the actual
+      // cookie clear happens via POST /auth/logout. Surface the same
+      // lockout-prevention check here so the UI can refuse the "Sign out"
+      // button before the form submit fires.
+      const user = getWsUser(ws);
+      const sessionHash = getSessionContext(ws)?.currentSessionPrefix
+        ? resolveSessionHashByPrefix(getSessionContext(ws)!.currentSessionPrefix)
+        : null;
+      if (user && sessionHash && wouldRevokeLeaveOfficeUnreachable(sessionHash)) {
+        ws.send(
+          JSON.stringify({
+            type: "revoke_blocked",
+            sessionPrefix: getSessionContext(ws)!.currentSessionPrefix,
+            reason:
+              "Sign out refused: this is the last active owner session in the office. " +
+              "Mint an additional invite for yourself and accept it on another device first, then retry.",
+          } as ServerMessage),
+        );
+        break;
+      }
+      if (sessionHash) await logoutBySessionHash(sessionHash);
       ws.send(JSON.stringify({ type: "session_context", context: null } as ServerMessage));
       break;
+    }
+    case "list_invites": {
+      const user = getWsUser(ws);
+      if (!user) break;
+      if (user.role === "owner") {
+        ws.send(JSON.stringify({ type: "invites_list", invites: listInvites() } as ServerMessage));
+      } else {
+        ws.send(JSON.stringify({ type: "invites_list", invites: listInvitesForUsername(user.name) } as ServerMessage));
+      }
+      break;
+    }
+    case "mint_invite": {
+      const user = getWsUser(ws);
+      if (!user || user.role !== "owner") {
+        ws.send(
+          JSON.stringify({
+            type: "invite_minted",
+            requestId: cmd.requestId,
+            ok: false,
+            error:
+              "Only owners can mint invites. Use mint_self_invite to add another of your own devices.",
+          } as ServerMessage),
+        );
+        break;
+      }
+      const result = await mintInvite({
+        username: cmd.username,
+        role: cmd.role,
+        createdBy: user.name,
+        allowExisting: !!cmd.allowExisting,
+      });
+      if (!result.ok) {
+        ws.send(
+          JSON.stringify({
+            type: "invite_minted",
+            requestId: cmd.requestId,
+            ok: false,
+            error: result.error,
+          } as ServerMessage),
+        );
+        break;
+      }
+      const { origin } = buildPublicOrigin();
+      ws.send(
+        JSON.stringify({
+          type: "invite_minted",
+          requestId: cmd.requestId,
+          ok: true,
+          url: `${origin}/i/${result.rawToken}`,
+          invite: {
+            tokenPrefix: result.invite.tokenPrefix,
+            username: result.invite.username,
+            role: result.invite.role,
+            createdBy: result.invite.createdBy,
+            createdAt: result.invite.createdAt,
+            expiresAt: result.invite.expiresAt,
+          },
+        } as ServerMessage),
+      );
+      pushInvitesListToEachWs();
+      break;
+    }
+    case "mint_self_invite": {
+      // Tailscale-style "additional device" flow. Bound to the caller's own
+      // user record, mirrors their role (members mint member invites,
+      // owners mint owner invites), and uses the tighter 1h self-invite
+      // TTL. replacePriorForUsername enforces the 1-outstanding-per-user
+      // rule atomically AND is the marker mintInvite uses to pick the
+      // shorter TTL.
+      const user = getWsUser(ws);
+      if (!user) {
+        ws.send(
+          JSON.stringify({
+            type: "invite_minted",
+            requestId: cmd.requestId,
+            ok: false,
+            error: "Your user record is missing; reload and try again.",
+          } as ServerMessage),
+        );
+        break;
+      }
+      const result = await mintInvite({
+        username: user.name,
+        role: user.role,
+        createdBy: user.name,
+        allowExisting: true,
+        replacePriorForUsername: true,
+      });
+      if (!result.ok) {
+        ws.send(
+          JSON.stringify({
+            type: "invite_minted",
+            requestId: cmd.requestId,
+            ok: false,
+            error: result.error,
+          } as ServerMessage),
+        );
+        break;
+      }
+      const { origin } = buildPublicOrigin();
+      ws.send(
+        JSON.stringify({
+          type: "invite_minted",
+          requestId: cmd.requestId,
+          ok: true,
+          url: `${origin}/i/${result.rawToken}`,
+          invite: {
+            tokenPrefix: result.invite.tokenPrefix,
+            username: result.invite.username,
+            role: result.invite.role,
+            createdBy: result.invite.createdBy,
+            createdAt: result.invite.createdAt,
+            expiresAt: result.invite.expiresAt,
+          },
+        } as ServerMessage),
+      );
+      pushInvitesListToEachWs();
+      break;
+    }
+    case "revoke_invite": {
+      // Owners use the unrestricted revoker; members route through the
+      // scoped mutator so authorization and the state change happen in a
+      // single mutate() — no TOCTOU window. A unique prefix that isn't
+      // theirs returns "not_found" silently so we don't reveal the foreign
+      // row's existence.
+      const user = getWsUser(ws);
+      if (!user) break;
+      let result: "ok" | "not_found" | "ambiguous";
+      if (user.role === "owner") {
+        result = await revokeInviteByPrefix(cmd.tokenPrefix);
+      } else {
+        result = await revokeOutstandingInviteByPrefixForUsername(cmd.tokenPrefix, user.name);
+      }
+      if (result === "ok") {
+        broadcastToOwners({ type: "invite_revoked", tokenPrefix: cmd.tokenPrefix });
+        pushInvitesListToEachWs();
+      } else if (result === "ambiguous") {
+        console.warn(`[auth] ambiguous invite prefix ${cmd.tokenPrefix} — refused revoke`);
+      }
+      break;
+    }
+    case "get_access_settings": {
+      const user = getWsUser(ws);
+      if (!user || user.role !== "owner") {
+        ws.send(
+          JSON.stringify({
+            type: "access_settings",
+            ok: false,
+            error: "Only owners can view access settings.",
+          } as ServerMessage),
+        );
+        break;
+      }
+      const cfg = loadOfficeConfig();
+      const envRaw = process.env.BUREAU_PUBLIC_ORIGIN?.trim() ?? "";
+      const envOriginSet = envRaw.length > 0;
+      const envOrigin = envRaw ? normalizePublicOrigin(envRaw) : null;
+      // Match the boot-time migration default so the UI reflects the same
+      // effective state the running process is using. Only a *valid* env
+      // value implies external access; an invalid env value is ignored.
+      const effectiveExternal =
+        cfg.externalAccess !== null ? cfg.externalAccess : cfg.publicOrigin !== null || envOrigin !== null;
+      ws.send(
+        JSON.stringify({
+          type: "access_settings",
+          ok: true,
+          externalAccess: effectiveExternal,
+          publicOrigin: cfg.publicOrigin,
+          envOriginSet,
+          envOrigin,
+          boundLoopback: isProcessBoundLoopback(),
+        } as ServerMessage),
+      );
+      break;
+    }
+    case "update_access_settings": {
+      const user = getWsUser(ws);
+      if (!user || user.role !== "owner") {
+        ws.send(
+          JSON.stringify({
+            type: "access_settings_updated",
+            requestId: cmd.requestId,
+            ok: false,
+            error: "Only owners can change access settings.",
+          } as ServerMessage),
+        );
+        break;
+      }
+      const wantsExternal = !!cmd.externalAccess;
+      const rawOrigin = typeof cmd.publicOrigin === "string" ? cmd.publicOrigin.trim() : "";
+      let publicOrigin: string | null = null;
+      if (rawOrigin) {
+        const normalized = normalizePublicOrigin(rawOrigin);
+        if (!normalized) {
+          ws.send(
+            JSON.stringify({
+              type: "access_settings_updated",
+              requestId: cmd.requestId,
+              ok: false,
+              error: "Public URL must be https://<host> or http://localhost (no path, query, or fragment).",
+            } as ServerMessage),
+          );
+          break;
+        }
+        publicOrigin = normalized;
+      }
+      if (wantsExternal && !publicOrigin) {
+        ws.send(
+          JSON.stringify({
+            type: "access_settings_updated",
+            requestId: cmd.requestId,
+            ok: false,
+            error: "Enabling external access requires a public URL.",
+          } as ServerMessage),
+        );
+        break;
+      }
+      // Refuse the save when *enabling* external access against a valid
+      // BUREAU_PUBLIC_ORIGIN env override that differs from the typed URL.
+      // After restart the env var would win, so the freshly minted signInUrl
+      // we'd otherwise return points at an origin the running server would
+      // 403 on. Only the *enable* path is gated: disable is safe because
+      // the boot freeze pins loopback regardless of env.
+      const envRaw = process.env.BUREAU_PUBLIC_ORIGIN?.trim() ?? "";
+      const envOrigin = envRaw ? normalizePublicOrigin(envRaw) : null;
+      if (wantsExternal && envOrigin && publicOrigin && envOrigin !== publicOrigin) {
+        ws.send(
+          JSON.stringify({
+            type: "access_settings_updated",
+            requestId: cmd.requestId,
+            ok: false,
+            error: `BUREAU_PUBLIC_ORIGIN is still set to ${envOrigin}. Remove it from the service environment or set the Public URL to the same value, then save again.`,
+            envOrigin,
+          } as ServerMessage),
+        );
+        break;
+      }
+      const prevCfg = loadOfficeConfig();
+      try {
+        saveOfficeConfig({
+          prompt: prevCfg.prompt,
+          envFile: prevCfg.envFile,
+          publicOrigin,
+          externalAccess: wantsExternal,
+        });
+      } catch (err) {
+        ws.send(
+          JSON.stringify({
+            type: "access_settings_updated",
+            requestId: cmd.requestId,
+            ok: false,
+            error: (err as Error).message,
+          } as ServerMessage),
+        );
+        break;
+      }
+      // Mint a fresh owner self-invite bound to the calling user, using the
+      // NEW public origin (not buildPublicOrigin(), which is boot-frozen).
+      // Skip the mint when external access is being turned OFF.
+      let signInUrl: string | null = null;
+      if (wantsExternal && publicOrigin) {
+        const me = getUserById(user.id);
+        if (me) {
+          const minted = await mintInvite({
+            username: me.name,
+            role: me.role,
+            createdBy: user.name,
+            allowExisting: true,
+            replacePriorForUsername: true,
+          });
+          if (minted.ok) {
+            signInUrl = `${publicOrigin}/i/${minted.rawToken}`;
+            pushInvitesListToEachWs();
+          } else {
+            console.warn(`[auth] update_access_settings: self-invite mint failed: ${minted.error}`);
+          }
+        }
+      }
+      ws.send(
+        JSON.stringify({
+          type: "access_settings_updated",
+          requestId: cmd.requestId,
+          ok: true,
+          externalAccess: wantsExternal,
+          publicOrigin,
+          signInUrl,
+          restartRequired: true,
+          envOrigin,
+        } as ServerMessage),
+      );
+      break;
+    }
     case "presence_update": {
       const user = getWsUser(ws);
       if (!user) break;
