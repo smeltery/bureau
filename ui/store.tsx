@@ -3,6 +3,7 @@ import type {
   AgentInfo,
   Cronjob,
   CronjobRun,
+  InviteWire,
   LogEntry,
   SessionInfo,
   ServerMessage,
@@ -42,6 +43,8 @@ export interface AppState {
   sessionContext: SessionContext | null;
   activeSessions: SessionWire[];
   activeSessionsLoaded: boolean;
+  invitesList: InviteWire[];
+  invitesLoaded: boolean;
   presences: PresenceInfo[];
   totalOnlineUsers: number;
   tasks: TaskItem[];
@@ -92,6 +95,9 @@ type Action =
   | { type: "presence_list"; entries: PresenceInfo[]; totalOnlineUsers: number }
   | { type: "users_list"; users: UserRecord[] }
   | { type: "sessions_active_list"; sessions: SessionWire[] }
+  | { type: "invites_list"; invites: InviteWire[] }
+  | { type: "invite_revoked"; tokenPrefix: string }
+  | { type: "session_revoked"; sessionPrefix: string }
   | { type: "agent_added"; agent: AgentInfo }
   | { type: "agent_removed"; agentId: string }
   | { type: "agent_updated"; agentId: string; changes: Partial<AgentInfo> }
@@ -145,11 +151,20 @@ function reducer(state: AppState, action: Action): AppState {
         stateChangedAt: new Map(action.agents.filter((a) => a.state !== "idle" && a.state !== "stopped").map((a) => [a.id, Date.now()])),
       };
     case "session_context":
-      return { ...state, sessionContext: action.context, activeSessionsLoaded: false };
+      // Reset both invite + session loaded flags on session_context so the
+      // Access pane re-fetches across WS reconnects. The new context could
+      // be a different user; previously-cached owner lists must not leak.
+      return { ...state, sessionContext: action.context, activeSessionsLoaded: false, invitesLoaded: false };
     case "users_list":
       return { ...state, users: new Map(action.users.map((u) => [u.name.trim().toLocaleLowerCase(), u])) };
     case "sessions_active_list":
       return { ...state, activeSessions: action.sessions, activeSessionsLoaded: true };
+    case "invites_list":
+      return { ...state, invitesList: action.invites, invitesLoaded: true };
+    case "invite_revoked":
+      return { ...state, invitesList: state.invitesList.filter((i) => i.tokenPrefix !== action.tokenPrefix) };
+    case "session_revoked":
+      return { ...state, activeSessions: state.activeSessions.filter((s) => s.sessionPrefix !== action.sessionPrefix) };
     case "presence_list":
       return { ...state, presences: action.entries, totalOnlineUsers: action.totalOnlineUsers };
     case "agent_added":
@@ -358,6 +373,8 @@ const initialState: AppState = {
   sessionContext: null,
   activeSessions: [],
   activeSessionsLoaded: false,
+  invitesList: [],
+  invitesLoaded: false,
   presences: [],
   totalOnlineUsers: 0,
   tasks: [],
@@ -416,6 +433,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     connect((msg: ServerMessage) => {
       dispatch(msg as Action);
       if (msg.type === "full_state") dispatch({ type: "connected" });
+      // Server-initiated session invalidation (revoke / logout / expiry /
+      // delete-user fanout). The server sends `session_expired` immediately
+      // before force-closing the WS, so reload here lets the login wall take
+      // over instead of looping reconnect against a 401-returning upgrade.
+      if (msg.type === "session_expired") {
+        if (typeof window !== "undefined") window.location.reload();
+      }
     });
   }, []);
 
