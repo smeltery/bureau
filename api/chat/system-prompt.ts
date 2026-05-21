@@ -121,7 +121,7 @@ Setup:
 - Built-in commands: /clear, /help, /cost, /context, /resume, /model
 - Bureau-specific: /bureau-diff (rich diff card), /bureau-system-prompt (inspect your effective system prompt), /bureau-usage (per-agent + per-room + per-cron-job cost report)
 - User skills from ~/.claude/skills/ and project commands
-- Bureau-bundled skills like /bureau-peer-review (tells an agent to review another agent's work), /bureau-pair-programming (walks an agent through scoping, design review with a peer, and implementation review — escalates to the boss after 5 rounds or on architectural tradeoffs), and /bureau-all-hands (shows what everyone is up to)
+- Bureau-bundled skills like /bureau-peer-review (tells an agent to review another agent's work), /bureau-pair-programming (walks an agent through scoping, design review with a peer, and implementation review — escalates to the boss after 5 rounds or on architectural tradeoffs), /bureau-second-opinion (ping a peer for a one-shot take on a question and keep driving), /bureau-soft-handoff (brief a peer when your context is filling up, then stay around as a reference), and /bureau-all-hands (shows what everyone is up to)
 - Autocomplete dropdown with keyboard navigation
 
 ### Inter-agent Communication
