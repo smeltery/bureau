@@ -1,7 +1,7 @@
 import { listAgentSessions, loadLogWithAncestors } from "../../persistence.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, updateState } from "../state.ts";
 import { createSession, replaceSession } from "../session/runtime.ts";
-import { generateTopic, persistCurrentSessionTopic } from "../topic.ts";
+import { generateTopic, persistCurrentSessionTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
 
 export async function abort(agentId: string) {
   const managed = agents.get(agentId);
@@ -88,7 +88,6 @@ export async function resume(agentId: string, sessionId: string) {
     await replaceSession(agentId, managed, newSession);
     managed.sessionId = sessionId;
     managed.topicGenerating = false;
-    managed.topicMessageCount = 0;
 
     // Clear and replay resumed session's logs (walks fork ancestry for branched sessions)
     const history = loadLogWithAncestors(agentId, sessionId);
@@ -101,19 +100,27 @@ export async function resume(agentId: string, sessionId: string) {
       }
     }
 
-    // Restore topic from sessions.json
+    // Restore topic + topicMessageCount baseline from sessions.json so drift
+    // can be measured against the replayed history.
     const sessions = listAgentSessions(agentId);
     const sessionEntry = sessions.find((s) => s.sessionId === sessionId);
-    managed.info.topic = sessionEntry?.topic ?? null;
-    managed.info.topicStale = false;
-    emit({ type: "agent_updated", agentId, changes: { topic: managed.info.topic, topicStale: false } });
+    const restoredTopic = sessionEntry?.topic ?? null;
+    const restoredCount = sessionEntry?.topicMessageCount ?? 0;
+    managed.topicMessageCount = restoredCount;
+    const replayedTextCount = history.filter((e) => e.kind === "user_message" || e.kind === "text").length;
+    const drift = replayedTextCount - restoredCount;
+    managed.info.topic = restoredTopic;
+    managed.info.topicStale = drift > 0;
+    emit({ type: "agent_updated", agentId, changes: { topic: managed.info.topic, topicStale: drift > 0 } });
 
     updateState(agentId, "waiting_for_response");
-    addLogEntry(agentId, "system", `Resumed session: ${managed.info.topic || sessionId.slice(0, 8) + "..."}`);
+    addLogEntry(agentId, "system", `Resumed session: ${restoredTopic || sessionId.slice(0, 8) + "..."}`);
     persistAll();
 
-    // If no topic, regenerate from session logs
-    if (!managed.info.topic) {
+    // Regenerate now (rather than waiting for the next user_message) if the
+    // topic is missing or the replayed history has drifted past the
+    // refresh threshold — same policy as the /resume two-step flow above.
+    if (!restoredTopic || drift >= TOPIC_REGEN_THRESHOLD) {
       generateTopic(agentId);
     }
   } catch (err: any) {

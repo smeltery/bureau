@@ -2,11 +2,34 @@ import { unstable_v2_prompt } from "@anthropic-ai/claude-agent-sdk";
 import { persistSessionTopic } from "../persistence.ts";
 import { agents, emit, logCache, persistAll, updateManifest, type ManagedAgent } from "./state.ts";
 
+// Auto-regenerate the topic once this many new user_message+text entries have
+// accumulated since the topic was last generated. The goal is catching
+// "the conversation is now about a fundamentally different thing" (the same
+// signal /clear gives explicitly), not chasing every subtle drift — a smaller
+// number would burn Sonnet calls on minor shifts that the original topic
+// still describes well enough. Users who want an earlier refresh have the ↻
+// button in LogView (calls resetTopic, no threshold).
+export const TOPIC_REGEN_THRESHOLD = 20;
+
+// True when the conversation has accumulated enough new exchanges since the
+// topic was generated that the topic likely no longer describes what the
+// agent is actually working on. Used by the post-resume / post-restart /
+// long-session triggers; the manual ↻ button uses the looser topicStale
+// signal (any drift at all) via resetTopic directly.
+export function shouldAutoRegenerateTopic(managed: ManagedAgent): boolean {
+  if (!managed.info.topicStale) return false;
+  if (managed.info.topic === null || managed.info.topic === "...") return false;
+  const textCount = (logCache.get(managed.info.id) ?? []).filter(
+    (e) => e.kind === "user_message" || e.kind === "text",
+  ).length;
+  return textCount - managed.topicMessageCount >= TOPIC_REGEN_THRESHOLD;
+}
+
 // Persist an agent's current in-memory topic into sessions.json so that the
 // /resume list can display it later. Skips the transient "..." placeholder.
 export function persistCurrentSessionTopic(agentId: string, managed: ManagedAgent) {
   if (managed.sessionId && managed.info.topic && managed.info.topic !== "...") {
-    persistSessionTopic(agentId, managed.sessionId, managed.info.topic);
+    persistSessionTopic(agentId, managed.sessionId, managed.info.topic, managed.topicMessageCount);
   }
 }
 
@@ -72,9 +95,11 @@ export async function generateTopic(agentId: string) {
       managed.topicMessageCount = textEntries.length;
       emit({ type: "agent_updated", agentId, changes: { topic, topicStale: false } });
       persistAll();
-      // Persist topic to sessions.json for resume list
+      // Persist topic + the textCount at which it was generated, so that on
+      // resume/restart we can compute drift against the replayed history and
+      // decide whether to auto-refresh.
       if (managed.sessionId) {
-        persistSessionTopic(agentId, managed.sessionId, topic);
+        persistSessionTopic(agentId, managed.sessionId, topic, textEntries.length);
       }
     }
   } catch (err: any) {
@@ -97,9 +122,10 @@ export function setTopic(agentId: string, topic: string) {
   const textCount = (logCache.get(agentId) ?? []).filter((e) => e.kind === "user_message" || e.kind === "text").length;
   managed.topicMessageCount = textCount;
   emit({ type: "agent_updated", agentId, changes: { topic: managed.info.topic, topicStale: false } });
-  // Persist to sessions.json so resume list shows the manual topic
+  // Persist to sessions.json so resume list shows the manual topic; the
+  // count anchors future drift detection to the moment the user signed off.
   if (managed.sessionId) {
-    persistSessionTopic(agentId, managed.sessionId, managed.info.topic);
+    persistSessionTopic(agentId, managed.sessionId, managed.info.topic, textCount);
   }
   updateManifest();
 }

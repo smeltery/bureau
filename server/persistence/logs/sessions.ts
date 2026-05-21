@@ -30,6 +30,12 @@ type SessionsMap = Record<
   string,
   {
     topic: string | null;
+    // Count of user_message + text log entries at the moment the persisted
+    // topic was last generated. Used on resume/startup to detect drift: if
+    // the replayed log has materially more entries, the topic is stale and
+    // worth regenerating. Missing on entries persisted before this field
+    // existed — treated as 0 (regenerate aggressively).
+    topicMessageCount?: number;
     lastModified: number;
     forkedFrom?: string;
     forkMessageId?: string;
@@ -60,17 +66,17 @@ function saveSessionsMap(agentId: string, map: SessionsMap) {
   }
 }
 
-export function persistSessionTopic(agentId: string, sessionId: string, topic: string | null) {
+export function persistSessionTopic(agentId: string, sessionId: string, topic: string | null, topicMessageCount: number = 0) {
   const map = loadSessionsMap(agentId);
   const existing = map[sessionId];
-  map[sessionId] = { ...existing, topic, lastModified: Date.now() };
+  map[sessionId] = { ...existing, topic, topicMessageCount, lastModified: Date.now() };
   saveSessionsMap(agentId, map);
 }
 
-export function persistSessionFork(agentId: string, sessionId: string, forkedFrom: string, forkMessageId: string, topic: string | null, forkBaseUsage?: PersistedUsage) {
+export function persistSessionFork(agentId: string, sessionId: string, forkedFrom: string, forkMessageId: string, topic: string | null, topicMessageCount: number, forkBaseUsage?: PersistedUsage) {
   const map = loadSessionsMap(agentId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
-  map[sessionId] = { ...existing, topic, lastModified: Date.now(), forkedFrom, forkMessageId, ...(forkBaseUsage ? { forkBaseUsage } : {}) };
+  map[sessionId] = { ...existing, topic, topicMessageCount, lastModified: Date.now(), forkedFrom, forkMessageId, ...(forkBaseUsage ? { forkBaseUsage } : {}) };
   saveSessionsMap(agentId, map);
 }
 
@@ -132,7 +138,7 @@ export function appendSessionUsageSnapshot(agentId: string, sessionId: string, e
 }
 
 // List all sessions for an agent (sorted by most recent first), with topics from sessions.json
-export function listAgentSessions(agentId: string): { sessionId: string; lastModified: number; topic: string | null; branched?: boolean; forked?: boolean }[] {
+export function listAgentSessions(agentId: string): { sessionId: string; lastModified: number; topic: string | null; topicMessageCount: number; branched?: boolean; forked?: boolean }[] {
   try {
     const agentDir = join(LOGS_DIR, agentId);
     if (!existsSync(agentDir)) return [];
@@ -153,6 +159,7 @@ export function listAgentSessions(agentId: string): { sessionId: string; lastMod
           sessionId: sid,
           lastModified: entry?.lastModified ?? Bun.file(join(agentDir, f)).lastModified,
           topic: entry?.topic ?? null,
+          topicMessageCount: entry?.topicMessageCount ?? 0,
           ...(branchedFromIds.has(sid) ? { branched: true as const } : {}),
           ...(entry?.forkedFrom ? { forked: true as const } : {}),
         };

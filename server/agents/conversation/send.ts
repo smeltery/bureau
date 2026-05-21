@@ -5,7 +5,7 @@ import { loadLogWithAncestors } from "../../persistence.ts";
 import { addLogEntry, agents, beginTurn, emit, emitEphemeralLog, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { buildUserMessage } from "../session/messages.ts";
 import { SessionSwappedError, createSession, createTurnDeferred, installSession, replaceSession } from "../session/runtime.ts";
-import { generateTopic, persistCurrentSessionTopic } from "../topic.ts";
+import { generateTopic, persistCurrentSessionTopic, shouldAutoRegenerateTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
 import { handleSlashCommand } from "./slash-commands.ts";
 
 const QUEUE_MAX = 50;
@@ -303,7 +303,10 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         await replaceSession(agentId, managed, newSession);
         managed.sessionId = picked.sessionId;
         managed.topicGenerating = false;
-        managed.topicMessageCount = 0;
+        // Restore the textCount baseline from sessions.json so drift is
+        // measured against the replayed history, not from zero (otherwise
+        // any first new message after resume trivially trips the threshold).
+        managed.topicMessageCount = picked.topicMessageCount;
         // Clear and replay resumed session's logs (walks fork ancestry)
         const history = loadLogWithAncestors(agentId, picked.sessionId);
         logCache.set(agentId, []);
@@ -314,14 +317,22 @@ export async function sendMessage(agentId: string, text: string, username?: stri
             emit({ type: "log_entry", entry });
           }
         }
-        // Restore topic
+        // Restore topic; topicStale reflects whether the replayed history has
+        // moved past the topic's generation point.
+        const replayedTextCount = history.filter((e) => e.kind === "user_message" || e.kind === "text").length;
+        const drift = replayedTextCount - picked.topicMessageCount;
         managed.info.topic = picked.topic;
-        managed.info.topicStale = false;
-        emit({ type: "agent_updated", agentId, changes: { topic: picked.topic, topicStale: false } });
+        managed.info.topicStale = drift > 0;
+        emit({ type: "agent_updated", agentId, changes: { topic: picked.topic, topicStale: drift > 0 } });
         emitEphemeralLog(agentId, "system", `Resumed session: ${picked.topic || picked.sessionId.slice(0, 8) + "..."}`);
         updateState(agentId, "waiting_for_response");
         persistAll();
-        if (!picked.topic) {
+        // Regenerate immediately if there's no topic at all, or if the
+        // resumed conversation has drifted enough since the topic was last
+        // generated. Waiting for the next user_message would let one stale
+        // message through; firing here keeps the resumed agent's topic
+        // honest from the moment the user sees it.
+        if (!picked.topic || drift >= TOPIC_REGEN_THRESHOLD) {
           generateTopic(agentId);
         }
       } catch (err: any) {
@@ -373,8 +384,11 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   addLogEntry(agentId, "user_message", text, username ? { username } : undefined, attachments);
   beginTurn(agentId, { humanInput: true });
 
-  // Auto-generate topic on first user message in a conversation
-  if (managed.info.topic === null && !managed.topicGenerating) {
+  // First-message bootstrap (topic === null) OR drift-driven refresh after
+  // resume/restart/long session (shouldAutoRegenerateTopic). The threshold
+  // inside the helper keeps cost bounded to ~one regen per
+  // TOPIC_REGEN_THRESHOLD new user/text entries.
+  if ((managed.info.topic === null || shouldAutoRegenerateTopic(managed)) && !managed.topicGenerating) {
     generateTopic(agentId); // fire-and-forget
   }
 
