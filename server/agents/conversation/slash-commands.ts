@@ -9,7 +9,7 @@ import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
 import { SessionSwappedError, createSession, createTurnDeferred, replaceSession } from "../session/runtime.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
-import { formatRelativeTime, renderUsageReport } from "../usage.ts";
+import { renderUsageReport } from "../usage.ts";
 
 // ---------------------------------------------------------------------------
 // Command handler registry — each supported command maps to a handler function.
@@ -169,7 +169,7 @@ const commandHandlers: Record<string, HandlerFn> = {
 
     // Tips
     lines.push("\n**Tips:**");
-    lines.push("  \u2022 Bureau also works on your phone. The easiest way is to connect it to the same tailscale network as the machine running it (it's free).");
+    lines.push("  \u2022 Bureau also works on your phone. The easiest way is to connect it to the same VPN (e.g., Tailscale - free) as the machine running it.");
     lines.push(
       "  \u2022 The built-in side-panel terminal is useful for one-off situations where you need to run something manually, like auth flows. On mobile it opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.",
     );
@@ -183,15 +183,8 @@ const commandHandlers: Record<string, HandlerFn> = {
     lines.push("  \u2022 Bureau comes with safety pre-tool-call hooks to prevent destructive commands, like `rm -rf /`.");
     lines.push("  \u2022 Bureau agents can check what other agents are up to in real time. Just ask naturally.");
     lines.push("  \u2022 Use voice-to-text for faster prompting. The shortcut is ctrl+space.");
-    lines.push("  \u2022 Use `/bureau-all-hands` to check what every agent is up to.");
     lines.push(
       "  \u2022 Use `/bureau-pair-programming` to walk through scoping, design review with a peer agent, and implementation review \u2014 escalates to the boss after 5 rounds or on architectural tradeoffs.",
-    );
-    lines.push(
-      "  \u2022 Use `/bureau-second-opinion` to ping a peer agent for a one-shot take on a question, then keep driving while you wait for their reply.",
-    );
-    lines.push(
-      "  \u2022 Use `/bureau-soft-handoff` when your context is filling up but the work isn't done \u2014 you brief a peer agent, then stay around as a reference.",
     );
     lines.push("  \u2022 Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Agents can also POST /agents/:id/diff with a commit or range.");
     lines.push(
@@ -201,8 +194,6 @@ const commandHandlers: Record<string, HandlerFn> = {
     lines.push("  \u2022 Schedule recurring work in the Cron Jobs page \u2014 daily, weekly, or by interval. Resume or edit-to-fork any past run.");
     lines.push("  \u2022 Tasks have a Backlog status \u2014 use it to defer work without it cluttering the active list.");
     lines.push("  \u2022 ~/.bureau/ is auto-tarballed daily to ~/bureau-backups/ (last 7 kept).");
-    lines.push("  \u2022 Use `/report-bureau-bug` if you find any issues.");
-    lines.push("  \u2022 Use `/bureau-grill-me` to make your feature designs more robust.");
 
     addLogEntry(agentId, "system", lines.join("\n"));
     updateState(agentId, "waiting_for_response");
@@ -289,19 +280,14 @@ const commandHandlers: Record<string, HandlerFn> = {
       for (const a of roomAgents) {
         const selfTag = a.info.id === agentId ? "  **(me)**" : "";
         const modelLabel = familyDisplayLabel(a.info.modelFamily);
-        lines.push(`**${a.info.name}** (desk ${a.info.desk + 1})${selfTag} — ${modelLabel} — \`${a.info.cwd}\``);
-
-        const sessions = listAgentSessions(a.info.id);
-        if (sessions.length === 0) {
-          lines.push("  (no conversations)");
+        const topic = a.info.topic;
+        const hasTopic = topic && topic !== "...";
+        const header = `**${a.info.name}** (desk ${a.info.desk + 1})${selfTag} — ${modelLabel} — \`${a.info.cwd}\``;
+        if (hasTopic) {
+          lines.push(header);
+          lines.push(`  Topic: ${topic}`);
         } else {
-          let num = 1;
-          for (const s of sessions) {
-            const label = s.topic || s.sessionId.slice(0, 8) + "...";
-            const ago = formatRelativeTime(s.lastModified);
-            lines.push(`  ${num}. ${label}  (${ago})`);
-            num++;
-          }
+          lines.push(`<span style="color: var(--text-dim)">${header}</span>`);
         }
         lines.push("");
       }

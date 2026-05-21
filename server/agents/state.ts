@@ -35,7 +35,7 @@ export interface ManagedAgent {
   topicMessageCount: number; // text entry count when topic was last generated
   // /resume two-step state
   pendingResume: boolean;
-  pendingResumeSessions: { sessionId: string; lastModified: number; topic: string | null }[];
+  pendingResumeSessions: { sessionId: string; lastModified: number; topic: string | null; topicMessageCount: number }[];
   // /model two-step state
   pendingModelPick: boolean;
   // Auto-mode permission prompt two-step state

@@ -140,7 +140,18 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       // entry's position, then look up the latest snapshot whose anchor entry
       // sits before that position.
       const parentBase = findUsageAtFork(agentId, forkFromSessionId, logEntryId);
-      persistSessionFork(agentId, newSessionId, forkFromSessionId, logEntryId, oldTopic, parentBase);
+      // Count the parent's user/text entries up to the fork point — that's
+      // the baseline for measuring drift on the new branch. Persisting it
+      // alongside the inherited topic lets a later /resume of this fork
+      // correctly recognize that the topic is in sync (or not).
+      let parentTopicMessageCount = 0;
+      for (const entry of oldLogCache) {
+        if (entry.id === logEntryId) break;
+        if (entry.kind === "user_message" || entry.kind === "text") {
+          parentTopicMessageCount++;
+        }
+      }
+      persistSessionFork(agentId, newSessionId, forkFromSessionId, logEntryId, oldTopic, parentTopicMessageCount, parentBase);
     }
 
     // 5. Create new session from fork (or fresh session for first-message edit), then close old
@@ -150,7 +161,6 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // For forks, set it now.
     managed.sessionId = isFirstMessage ? null : newSessionId;
     managed.topicGenerating = false;
-    managed.topicMessageCount = 0;
 
     // --- Phase 2: UI/cache mutations (point of no return) ---
 
@@ -160,6 +170,11 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       if (entry.id === logEntryId) break;
       parentEntries.push(entry);
     }
+    // Anchor drift detection to the parent's text count at the fork point.
+    // Zeroing here would trip the regen threshold on the very first new
+    // exchange in the fork — defeating the threshold's debounce. Match what's
+    // persisted alongside the inherited topic above.
+    managed.topicMessageCount = parentEntries.filter((e) => e.kind === "user_message" || e.kind === "text").length;
 
     // 7. Clear UI and replay parent entries (not persisted — ancestors are loaded
     //    via loadLogWithAncestors on resume, avoiding log duplication on disk)

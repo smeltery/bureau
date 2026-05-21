@@ -7,6 +7,7 @@ import { listAgentSessions, loadAgents, loadLogWithAncestors, saveFile as savePe
 import { mimeTypeForFilename } from "../mime-types.ts";
 import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
+import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
 import { openFile as openFileImpl, saveFile as saveFileImpl, resolveEditorPath, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
@@ -452,6 +453,13 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
 
   for (let roomIdx = 0; roomIdx < loaded.length; roomIdx++) {
     for (const p of loaded[roomIdx].agents) {
+      // Look up the persisted topicMessageCount baseline for the session
+      // we're about to resume. Combined with a textCount scan of the loaded
+      // history below, this lets us decide whether the persisted topic has
+      // drifted since the topic was last generated.
+      const persistedTopicCount = p.lastSessionId
+        ? (listAgentSessions(p.id).find((s) => s.sessionId === p.lastSessionId)?.topicMessageCount ?? 0)
+        : 0;
       const info: AgentInfo = {
         id: p.id,
         name: p.name,
@@ -463,6 +471,10 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         modelFamily: p.modelFamily ?? "opus",
         state: p.lastSessionId ? "waiting_for_response" : "idle",
         topic: p.topic ?? null,
+        // Stale-on-load is determined by the textCount scan below (after
+        // logs are loaded into the cache). Default to false here so a clean
+        // restart doesn't flash the ↻ button on agents whose topic is
+        // actually current.
         topicStale: false,
         customInstructions: p.customInstructions ?? null,
         queue: [],
@@ -481,7 +493,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         thinkingStartedAt: 0,
         toolCallTimestamps: new Map(),
         topicGenerating: false,
-        topicMessageCount: 0,
+        topicMessageCount: persistedTopicCount,
         pendingResume: false,
         pendingResumeSessions: [],
         pendingModelPick: false,
@@ -500,6 +512,23 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         const history = loadLogWithAncestors(p.id, p.lastSessionId);
         if (history.length > 0) {
           logCache.set(p.id, [...history]);
+        }
+        // Detect topic drift against the persisted baseline: if the
+        // replayed history has grown past where the topic was last
+        // generated, flag stale (lights up the ↻ button) and, if past the
+        // refresh threshold, regenerate now so the agent's nametag is
+        // honest the moment the user looks at it. fire-and-forget — the
+        // call only needs logCache, which is populated above.
+        if (info.topic) {
+          const textCount = history.filter((e) => e.kind === "user_message" || e.kind === "text").length;
+          const drift = textCount - persistedTopicCount;
+          if (drift > 0) {
+            // Mutate directly: no clients are listening yet (broadcast comes later).
+            info.topicStale = true;
+          }
+          if (drift >= TOPIC_REGEN_THRESHOLD) {
+            void generateTopic(p.id);
+          }
         }
       }
 
