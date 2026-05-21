@@ -454,6 +454,7 @@ export type ServerMessage =
       envOriginSet?: boolean;
       envOrigin?: string | null;
       boundLoopback?: boolean;
+      officeName?: string | null;
       error?: string;
     }
   | {
@@ -465,6 +466,7 @@ export type ServerMessage =
       signInUrl?: string | null;
       restartRequired?: boolean;
       envOrigin?: string | null;
+      officeName?: string | null;
       error?: string;
     }
   | { type: "agent_added"; agent: AgentInfo }
@@ -600,6 +602,7 @@ export type ClientCommand =
       requestId: string;
       externalAccess: boolean;
       publicOrigin: string | null;
+      officeName?: string | null;
     }
   | { type: "presence_update"; currentRoom: number | null; focusedAgentId: string | null; viewMode: "office" | "log" | "away"; device?: string | null }
   | { type: "ping" };
