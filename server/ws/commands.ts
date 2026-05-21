@@ -466,8 +466,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       const rawOfficeName = typeof cmd.officeName === "string" ? cmd.officeName.trim().slice(0, 64) : "";
       // undefined means "leave it alone" (older client, partial update); null
       // / "" means "explicitly clear".
-      const nextOfficeName: string | null =
-        cmd.officeName === undefined ? (loadOfficeConfig().officeName ?? null) : (rawOfficeName || null);
+      const nextOfficeName: string | null = cmd.officeName === undefined ? (loadOfficeConfig().officeName ?? null) : rawOfficeName || null;
       const prevCfg = loadOfficeConfig();
       try {
         saveOfficeConfig({
