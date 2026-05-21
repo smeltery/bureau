@@ -198,10 +198,7 @@ function ExternalAccessSection() {
     });
   }
 
-  const dirty =
-    enabled !== savedSnapshot.enabled ||
-    urlInput.trim() !== savedSnapshot.urlInput ||
-    officeNameInput.trim() !== savedSnapshot.officeNameInput;
+  const dirty = enabled !== savedSnapshot.enabled || urlInput.trim() !== savedSnapshot.urlInput || officeNameInput.trim() !== savedSnapshot.officeNameInput;
 
   // Apply the same normalization the server uses, so the env-conflict /
   // env-match notes don't flash a false warning when the operator types
@@ -226,7 +223,10 @@ function ExternalAccessSection() {
       </p>
       <div style={subLabel}>Office name (optional)</div>
       <input value={officeNameInput} onChange={(e) => setOfficeNameInput(e.target.value.slice(0, 64))} placeholder="e.g. Acme HQ" style={dialogInput} />
-      <p style={hint}>Shown on the sign-in and invite pages as "&lt;Office name&gt; | Bureau — sign in". Useful when you run multiple bureau instances and want to tell them apart at a glance. Takes effect immediately.</p>
+      <p style={hint}>
+        Shown on the sign-in and invite pages as "&lt;Office name&gt; | Bureau — sign in". Useful when you run multiple bureau instances and want to tell them apart at a glance. Takes effect
+        immediately.
+      </p>
       <label style={{ display: "flex", gap: 6, marginTop: 12, fontSize: 12 }}>
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
         <span>Enable external access</span>

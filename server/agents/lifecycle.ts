@@ -457,9 +457,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
       // we're about to resume. Combined with a textCount scan of the loaded
       // history below, this lets us decide whether the persisted topic has
       // drifted since the topic was last generated.
-      const persistedTopicCount = p.lastSessionId
-        ? (listAgentSessions(p.id).find((s) => s.sessionId === p.lastSessionId)?.topicMessageCount ?? 0)
-        : 0;
+      const persistedTopicCount = p.lastSessionId ? (listAgentSessions(p.id).find((s) => s.sessionId === p.lastSessionId)?.topicMessageCount ?? 0) : 0;
       const info: AgentInfo = {
         id: p.id,
         name: p.name,

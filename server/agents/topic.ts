@@ -19,9 +19,7 @@ export const TOPIC_REGEN_THRESHOLD = 20;
 export function shouldAutoRegenerateTopic(managed: ManagedAgent): boolean {
   if (!managed.info.topicStale) return false;
   if (managed.info.topic === null || managed.info.topic === "...") return false;
-  const textCount = (logCache.get(managed.info.id) ?? []).filter(
-    (e) => e.kind === "user_message" || e.kind === "text",
-  ).length;
+  const textCount = (logCache.get(managed.info.id) ?? []).filter((e) => e.kind === "user_message" || e.kind === "text").length;
   return textCount - managed.topicMessageCount >= TOPIC_REGEN_THRESHOLD;
 }
 
