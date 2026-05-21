@@ -109,6 +109,7 @@ function ExternalAccessSection() {
   const [loaded, setLoaded] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [urlInput, setUrlInput] = useState("");
+  const [officeNameInput, setOfficeNameInput] = useState("");
   const [envOriginSet, setEnvOriginSet] = useState(false);
   // The normalized env value, or null when the env var is absent OR set but
   // invalid (in which case envOriginSet is true while envOrigin is null —
@@ -123,7 +124,7 @@ function ExternalAccessSection() {
 
   // Snapshot of the last-saved state. Compared against the form during
   // render to drive the Save-button enabled/disabled state.
-  const [savedSnapshot, setSavedSnapshot] = useState<{ enabled: boolean; urlInput: string }>({ enabled: false, urlInput: "" });
+  const [savedSnapshot, setSavedSnapshot] = useState<{ enabled: boolean; urlInput: string; officeNameInput: string }>({ enabled: false, urlInput: "", officeNameInput: "" });
 
   useEffect(() => {
     const fn = (data: string) => {
@@ -132,12 +133,14 @@ function ExternalAccessSection() {
         if (m.type === "access_settings" && m.ok) {
           const nextEnabled = !!m.externalAccess;
           const nextUrl = typeof m.publicOrigin === "string" ? m.publicOrigin : "";
+          const nextOfficeName = typeof m.officeName === "string" ? m.officeName : "";
           setEnabled(nextEnabled);
           setUrlInput(nextUrl);
+          setOfficeNameInput(nextOfficeName);
           setEnvOriginSet(!!m.envOriginSet);
           setEnvOrigin(typeof m.envOrigin === "string" ? m.envOrigin : null);
           setBoundLoopback(!!m.boundLoopback);
-          setSavedSnapshot({ enabled: nextEnabled, urlInput: nextUrl });
+          setSavedSnapshot({ enabled: nextEnabled, urlInput: nextUrl, officeNameInput: nextOfficeName });
           setLoaded(true);
         }
       } catch {}
@@ -171,9 +174,11 @@ function ExternalAccessSection() {
           if (m.ok) {
             const nextEnabled = !!m.externalAccess;
             const nextUrl = typeof m.publicOrigin === "string" ? m.publicOrigin : "";
+            const nextOfficeName = typeof m.officeName === "string" ? m.officeName : "";
             setEnabled(nextEnabled);
             setUrlInput(nextUrl);
-            setSavedSnapshot({ enabled: nextEnabled, urlInput: nextUrl });
+            setOfficeNameInput(nextOfficeName);
+            setSavedSnapshot({ enabled: nextEnabled, urlInput: nextUrl, officeNameInput: nextOfficeName });
             setSignInUrl(typeof m.signInUrl === "string" ? m.signInUrl : null);
             setRestartRequired(!!m.restartRequired);
           } else {
@@ -189,10 +194,14 @@ function ExternalAccessSection() {
       requestId: reqId,
       externalAccess: enabled,
       publicOrigin: enabled ? trimmed : null,
+      officeName: officeNameInput.trim() || null,
     });
   }
 
-  const dirty = enabled !== savedSnapshot.enabled || urlInput.trim() !== savedSnapshot.urlInput;
+  const dirty =
+    enabled !== savedSnapshot.enabled ||
+    urlInput.trim() !== savedSnapshot.urlInput ||
+    officeNameInput.trim() !== savedSnapshot.officeNameInput;
 
   // Apply the same normalization the server uses, so the env-conflict /
   // env-match notes don't flash a false warning when the operator types
@@ -215,7 +224,10 @@ function ExternalAccessSection() {
         Currently {boundLoopback ? "loopback-only" : "listening externally"}.
         {boundLoopback ? " The office is reachable from this machine, or from other machines via an SSH tunnel." : " The office is reachable from anywhere the public URL resolves."}
       </p>
-      <label style={{ display: "flex", gap: 6, marginTop: 8, fontSize: 12 }}>
+      <div style={subLabel}>Office name (optional)</div>
+      <input value={officeNameInput} onChange={(e) => setOfficeNameInput(e.target.value.slice(0, 64))} placeholder="e.g. Acme HQ" style={dialogInput} />
+      <p style={hint}>Shown on the sign-in and invite pages as "&lt;Office name&gt; | Bureau — sign in". Useful when you run multiple bureau instances and want to tell them apart at a glance. Takes effect immediately.</p>
+      <label style={{ display: "flex", gap: 6, marginTop: 12, fontSize: 12 }}>
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
         <span>Enable external access</span>
       </label>

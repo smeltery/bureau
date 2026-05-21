@@ -1106,6 +1106,17 @@ export function freezeBootState(opts: { externalAccess: boolean }): void {
   bootExternalAccess = opts.externalAccess;
 }
 
+// Live (not frozen at boot) — owners can rename the office without a
+// restart. Read by auth-middleware to prefix page titles. null falls back
+// to the bare "Bureau — …" title.
+let officeName: string | null = null;
+export function setOfficeName(name: string | null): void {
+  officeName = name && name.trim() ? name.trim().slice(0, 64) : null;
+}
+export function getOfficeName(): string | null {
+  return officeName;
+}
+
 // Auto-init safety net: if freezeBootState() wasn't called (e.g. tests
 // importing auth.ts standalone), default to the strictest interpretation
 // — pre-claim, loopback-only — so callers can't accidentally mint a

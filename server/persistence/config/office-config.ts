@@ -14,6 +14,11 @@ export interface OfficeConfig {
   // when the field has never been set on disk — the boot block infers a
   // default from the presence of any publicOrigin source and backfills.
   externalAccess: boolean | null;
+  // Display name for this bureau instance, prefixed onto the auth page
+  // titles ("<OfficeName> | Bureau — sign in") so owners managing multiple
+  // bureau instances can tell them apart at a glance. null falls back to
+  // the bare "Bureau — …" title.
+  officeName: string | null;
 }
 
 export function loadOfficeConfig(): OfficeConfig {
@@ -25,6 +30,7 @@ export function loadOfficeConfig(): OfficeConfig {
         envFile: typeof parsed.envFile === "string" && parsed.envFile ? parsed.envFile : null,
         publicOrigin: typeof parsed.publicOrigin === "string" && parsed.publicOrigin ? parsed.publicOrigin : null,
         externalAccess: typeof parsed.externalAccess === "boolean" ? parsed.externalAccess : null,
+        officeName: typeof parsed.officeName === "string" && parsed.officeName.trim() ? parsed.officeName.trim().slice(0, 64) : null,
       };
     }
   } catch (err) {
@@ -38,7 +44,7 @@ export function loadOfficeConfig(): OfficeConfig {
       if (raw.trim()) legacyPrompt = raw;
     }
   } catch {}
-  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null, externalAccess: null };
+  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null, externalAccess: null, officeName: null };
   // Only persist if the legacy prompt actually had content — otherwise a fresh
   // install touches a new file for no reason, and the next save/set will write
   // it anyway once there's real data.

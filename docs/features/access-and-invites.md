@@ -88,10 +88,11 @@ Cloudflare Tunnel is another outbound-tunnel option (same shape as Funnel using 
 
 Post-claim, the **Access pane** in User Settings has an _External access_ section with:
 
+- **Office name** text field (optional, ≤ 64 chars). Prefixed onto the sign-in / claim / invite-accept page titles as `<Office name> | Bureau — sign in`. Useful when you run multiple bureau instances and want to tell them apart at a glance. Takes effect on the next page render — no restart needed.
 - **Enable external access** toggle. Off by default; the server keeps binding `127.0.0.1` only and the office is reachable from the host machine (or via an SSH tunnel) but not from your LAN/VPN.
 - **Public URL** text field. Where browsers on other machines will reach this office (e.g. `https://my-mac-mini.<your-tailnet>.ts.net`).
 
-Saving persists both fields to `~/.bureau/office-config.json` and mints an owner self-invite bound to the new URL so you can sign in on the new origin immediately. The toggle takes effect on the next bureau restart (the pane spells out the exact `systemctl --user restart bureau` command). Restart is intentional: changing the bind interface and cookie/origin policy mid-process is brittle, and the toggle is rare enough that "save then restart" is the right trade.
+Saving persists all three fields to `~/.bureau/office-config.json` and (when external access is on) mints an owner self-invite bound to the new URL so you can sign in on the new origin immediately. The toggle takes effect on the next bureau restart (the pane spells out the exact `systemctl --user restart bureau` command). Restart is intentional: changing the bind interface and cookie/origin policy mid-process is brittle, and the toggle is rare enough that "save then restart" is the right trade.
 
 The resolved value drives:
 

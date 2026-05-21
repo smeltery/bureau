@@ -24,9 +24,11 @@ import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./pu
 import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
 import {
   freezeBootState,
+  getOfficeName,
   isProcessPreClaim,
   registerSocket,
   revalidateByHash,
+  setOfficeName,
   setOnInviteConsumed,
   setOnSessionsChanged,
   setPublicOriginFallback,
@@ -107,6 +109,7 @@ if (Bun.argv[2] === "owner-login") {
         envFile: cfg.envFile,
         publicOrigin: cfg.publicOrigin,
         externalAccess,
+        officeName: cfg.officeName,
       });
     } catch (err) {
       console.error(`[auth] failed to backfill office-config.json (${(err as Error).message}); will re-attempt next boot`);
@@ -114,6 +117,7 @@ if (Bun.argv[2] === "owner-login") {
   }
 
   setPublicOriginFallback(cfg.publicOrigin);
+  setOfficeName(cfg.officeName);
   freezeBootState({ externalAccess });
 }
 
@@ -340,7 +344,7 @@ const server = Bun.serve<WsData>({
     // Auth-state routes (claim form, invite peek/accept, logout). These run
     // BEFORE any cookie gate — they're how an unauthenticated visitor
     // transitions to authenticated.
-    const authRouted = await tryHandleAuthRoute(req, url, null, server);
+    const authRouted = await tryHandleAuthRoute(req, url, getOfficeName(), server);
     if (authRouted) return authRouted;
 
     // WebSocket upgrade — gated by both Origin and a valid session cookie
@@ -349,7 +353,7 @@ const server = Bun.serve<WsData>({
       if (!originAllowed(req, url)) {
         return new Response("Forbidden", { status: 403 });
       }
-      const auth = authenticate(req, server, { allowLoopback: false });
+      const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
       if (auth.kind === "rejected") return auth.response;
       const session = auth.kind === "ok" ? auth.session : null;
       if (server.upgrade(req, { data: { session } satisfies WsData })) return;
@@ -366,7 +370,7 @@ const server = Bun.serve<WsData>({
 
     // Backup status — owner ops; auth-gated.
     if (url.pathname === "/backup/status" && req.method === "GET") {
-      const auth = authenticate(req, server, { allowLoopback: true });
+      const auth = authenticate(req, server, { allowLoopback: true, officeName: getOfficeName() });
       if (auth.kind === "rejected") return auth.response;
       return new Response(JSON.stringify(getBackupStatus()), {
         headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
@@ -377,7 +381,7 @@ const server = Bun.serve<WsData>({
     // local agents legitimately hit them; non-loopback callers need a
     // session cookie.
     {
-      const auth = authenticate(req, server, { allowLoopback: true });
+      const auth = authenticate(req, server, { allowLoopback: true, officeName: getOfficeName() });
       if (auth.kind === "rejected") return auth.response;
     }
 
@@ -396,7 +400,7 @@ const server = Bun.serve<WsData>({
     // SPA shell — auth-gated; an unauthenticated visitor lands on the
     // login page (or the claim form pre-claim).
     {
-      const auth = authenticate(req, server, { allowLoopback: false });
+      const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
       if (auth.kind === "rejected") return auth.response;
     }
     return handleStaticRequest(req, url);

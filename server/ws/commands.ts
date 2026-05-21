@@ -25,6 +25,7 @@ import {
   revokeInviteByPrefix,
   revokeOutstandingInviteByPrefixForUsername,
   revokeSessionByPrefix,
+  setOfficeName,
   wouldRevokeLeaveOfficeUnreachable,
 } from "../auth/auth.ts";
 import { normalizePublicOrigin } from "../../shared/public-origin.ts";
@@ -394,6 +395,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
           envOriginSet,
           envOrigin,
           boundLoopback: isProcessBoundLoopback(),
+          officeName: cfg.officeName,
         } as ServerMessage),
       );
       break;
@@ -460,6 +462,12 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         );
         break;
       }
+      // Normalize officeName: trim + length-cap; "" / missing field clears it.
+      const rawOfficeName = typeof cmd.officeName === "string" ? cmd.officeName.trim().slice(0, 64) : "";
+      // undefined means "leave it alone" (older client, partial update); null
+      // / "" means "explicitly clear".
+      const nextOfficeName: string | null =
+        cmd.officeName === undefined ? (loadOfficeConfig().officeName ?? null) : (rawOfficeName || null);
       const prevCfg = loadOfficeConfig();
       try {
         saveOfficeConfig({
@@ -467,6 +475,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
           envFile: prevCfg.envFile,
           publicOrigin,
           externalAccess: wantsExternal,
+          officeName: nextOfficeName,
         });
       } catch (err) {
         ws.send(
@@ -501,6 +510,11 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
           }
         }
       }
+      // Office-name changes are live (used for the next auth-page render); no
+      // restart needed for that piece. externalAccess / publicOrigin still
+      // require the systemd restart, which the UI's restartRequired flag
+      // surfaces.
+      setOfficeName(nextOfficeName);
       ws.send(
         JSON.stringify({
           type: "access_settings_updated",
@@ -511,6 +525,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
           signInUrl,
           restartRequired: true,
           envOrigin,
+          officeName: nextOfficeName,
         } as ServerMessage),
       );
       break;
