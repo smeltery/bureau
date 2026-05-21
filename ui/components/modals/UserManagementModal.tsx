@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../../store.tsx";
 import { send } from "../../ws.ts";
 import type { UserRecord, UserRole } from "../../../shared/types.ts";
@@ -28,6 +28,14 @@ export function UserManagementModal({
   const editorRooms = allRooms.length ? allRooms : rooms;
   const dismissable = !forceCreate && !!onClose;
 
+  // Set by the open edit panel when its form is dirty; used to gate
+  // backdrop/Close so in-flight edits don't vanish silently.
+  const editIsDirtyRef = useRef(false);
+  function requestClose() {
+    if (editIsDirtyRef.current && !window.confirm("Discard unsaved changes?")) return;
+    onClose?.();
+  }
+
   useEffect(() => {
     if (isOwner && !activeSessionsLoaded) send({ type: "list_active_sessions" });
   }, [isOwner, activeSessionsLoaded]);
@@ -51,7 +59,7 @@ export function UserManagementModal({
   }
 
   return (
-    <Modal onClose={onClose ?? (() => {})} width={680} allowBackdropClose={dismissable}>
+    <Modal onClose={dismissable ? requestClose : () => {}} width={680} allowBackdropClose={dismissable}>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{forceCreate ? "Welcome - pick or create a user" : "User Settings"}</h3>
       <p style={{ fontSize: 11, color: "var(--text-ghost)", margin: "6px 0 0", lineHeight: 1.4 }}>Profiles live on the server. Owners can set which rooms each member can see and use.</p>
 
@@ -86,7 +94,7 @@ export function UserManagementModal({
                       </button>
                     )}
                   </div>
-                  {isEditing && <UserEditPanel user={u} rooms={editorRooms} canEditAccess={isOwner} onClose={() => setEditingId(null)} />}
+                  {isEditing && <UserEditPanel user={u} rooms={editorRooms} canEditAccess={isOwner} onClose={() => setEditingId(null)} onDirtyChange={(d) => { editIsDirtyRef.current = d; }} />}
                 </div>
               );
             })}
@@ -138,7 +146,7 @@ export function UserManagementModal({
 
       {dismissable && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
-          <button onClick={onClose} style={dialogCancelBtn}>
+          <button onClick={requestClose} style={dialogCancelBtn}>
             Close
           </button>
         </div>
@@ -147,7 +155,7 @@ export function UserManagementModal({
   );
 }
 
-function UserEditPanel({ user, rooms, canEditAccess, onClose }: { user: UserRecord; rooms: { id: string; name: string }[]; canEditAccess: boolean; onClose: () => void }) {
+function UserEditPanel({ user, rooms, canEditAccess, onClose, onDirtyChange }: { user: UserRecord; rooms: { id: string; name: string }[]; canEditAccess: boolean; onClose: () => void; onDirtyChange?: (dirty: boolean) => void }) {
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState<UserRole>(user.role);
   const [allowedRooms, setAllowedRooms] = useState(() => new Set(user.allowedRooms));
@@ -156,8 +164,25 @@ function UserEditPanel({ user, rooms, canEditAccess, onClose }: { user: UserReco
   const [avatarVariant, setAvatarVariant] = useState<GhostVariant>(user.avatarVariant);
   const allAllowed = allowedRooms.size === rooms.length;
 
+  const isDirty =
+    name !== user.name ||
+    role !== user.role ||
+    avatarColor !== user.avatarColor ||
+    avatarVariant !== user.avatarVariant ||
+    (defaultRoomId ?? null) !== (user.defaultRoomId ?? null) ||
+    allowedRooms.size !== user.allowedRooms.length ||
+    user.allowedRooms.some((id) => !allowedRooms.has(id));
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+    return () => onDirtyChange?.(false);
+  }, [isDirty, onDirtyChange]);
+
   function save() {
     send({ type: "update_user", userId: user.id, changes: { name: name.trim(), role, allowedRooms: [...allowedRooms], defaultRoomId, avatarColor, avatarVariant } });
+    onClose();
+  }
+  function cancel() {
+    if (isDirty && !window.confirm("Discard unsaved changes?")) return;
     onClose();
   }
 
@@ -248,7 +273,7 @@ function UserEditPanel({ user, rooms, canEditAccess, onClose }: { user: UserReco
         })}
       </select>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-        <button style={dialogCancelBtn} onClick={onClose}>
+        <button style={dialogCancelBtn} onClick={cancel}>
           Cancel
         </button>
         <button style={dialogSaveBtn} onClick={save}>
