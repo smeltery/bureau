@@ -70,7 +70,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Session-swap indicator** — chat shows a brief "Restarting session..." hint during `/resume`, `/model`, or fork-from-edit so the drain → install gap isn't silent
 - **Daily backups** — automatic tarball of Bureau state to `~/bureau-backups/` (last 7 retained)
 - **Inter-agent discovery & messaging** — agents can read each other's conversations and send messages directly via `POST /agents/:id/message`; the receiver sees them in the same queue as human-typed input, prefixed so they can tell agent senders from human bosses
-- **Slash commands** — `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-system-prompt`, `/usage`, `/resume`, `/model`, and more
+- **Slash commands** — `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-system-prompt`, `/usage`, `/resume`, `/model`, and more
 - **6 color themes** — Dark, Light, Nord, Dracula, Solarized Dark, Solarized Light; pick from the theme picker in the header. Per-mode last-pick is remembered, so a quick moon/sun toggle swaps between your two favorites instead of resetting to canonical Dark/Light
 - **File attachments** — images, PDFs, arbitrary files; agents can surface their own files via `POST /agents/:id/read-file` (images render inline, others as clickable chips)
 

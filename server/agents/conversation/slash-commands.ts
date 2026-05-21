@@ -187,6 +187,12 @@ const commandHandlers: Record<string, HandlerFn> = {
     lines.push(
       "  \u2022 Use `/bureau-pair-programming` to walk through scoping, design review with a peer agent, and implementation review \u2014 escalates to the boss after 5 rounds or on architectural tradeoffs.",
     );
+    lines.push(
+      "  \u2022 Use `/bureau-second-opinion` to ping a peer agent for a one-shot take on a question, then keep driving while you wait for their reply.",
+    );
+    lines.push(
+      "  \u2022 Use `/bureau-soft-handoff` when your context is filling up but the work isn't done \u2014 you brief a peer agent, then stay around as a reference.",
+    );
     lines.push("  \u2022 Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Agents can also POST /agents/:id/diff with a commit or range.");
     lines.push(
       "  \u2022 Pick a color theme from the header palette button \u2014 Dark, Light, Nord, Dracula, Solarized Dark, or Solarized Light. The moon/sun toggle bounces between your last-picked dark and light themes.",
