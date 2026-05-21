@@ -248,7 +248,7 @@ function startDemoPresenceCycle() {
     if (roomZeroAgents.length === 0) return;
     demoPresenceAgentIndex = (demoPresenceAgentIndex + 1) % roomZeroAgents.length;
     emitCurrentDemoPresence();
-  }, 6000);
+  }, 4000);
 }
 
 function seedUsers() {

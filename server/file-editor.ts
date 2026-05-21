@@ -40,6 +40,7 @@ function detectLanguage(absPath: string): string {
       return "json";
     case ".md":
     case ".markdown":
+    case ".mdx":
       return "markdown";
     case ".css":
     case ".scss":
