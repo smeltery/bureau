@@ -38,6 +38,15 @@ Setup:
 4. On your phone, use "Add to Home Screen" for a full-screen app experience.
 5. For voice input over Tailscale, enable HTTPS certificates in the Tailscale admin console and run \`tailscale serve --bg http://localhost:4000\`.
 
+## Auth & Access (Self-Hosted)
+Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Sessions are created by opening invite links the office owner generates. No accounts or passwords.
+
+- First boot: the server binds 127.0.0.1 only and serves a localhost-only first-time-setup form at \`/\`. Whoever pulls it up on the host machine picks a display name and becomes the office owner. The boot banner spells out the SSH \`-L\` incantation to reach the form from another machine.
+- Once claimed, the owner opens \`User Settings → Access\` to mint invite URLs (one-time, 24h expiry) and revoke either invites or active sessions. Members can mint self-invites for their own additional devices (1h expiry, max 1 active).
+- \`External access\` toggle in the Access pane controls whether the server binds 0.0.0.0 (post-restart) and which \`Public URL\` is used for invite URLs, cookie Secure flag, and the Origin allowlist. Off by default; the office stays reachable only from the host or via SSH tunnel until the operator flips it on.
+- Lost your only owner session? Run \`bun run server/index.ts owner-login --name "<your-name>"\` from a shell on the box. It mints a 15-minute recovery URL via a Unix-domain socket at \`~/.bureau/admin.sock\` (mode 0600 — only the user running bureau can connect).
+- Pair with Tailscale Funnel or Caddy + your own DNS for a public URL; or stay tailnet-only for invitees willing to join Tailscale. Full doc: docs/features/access-and-invites.md.
+
 ## Full Feature List
 
 ### Office View

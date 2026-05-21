@@ -24,6 +24,7 @@ Detailed subsystem documentation.
 
 | Document | Description |
 |----------|-------------|
+| [Access & Invites](features/access-and-invites.md) | Invite-link auth, sessions, external access toggle, owner-login CLI |
 | [Conversation Branching](features/conversation-branching-design.md) | Edit past messages to fork conversations |
 | [Cronjob System](features/cronjob-system-design.md) | Scheduled SDK sessions; per-run transcripts; Cronjobs page |
 | [Multi-Office Isolation](features/multi-office-design.md) | Multiple isolated workspaces |
