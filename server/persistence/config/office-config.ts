@@ -7,7 +7,13 @@ import { atomicWriteFileSync, OFFICE_CONFIG_FILE, OFFICE_PROMPT_FILE } from "../
 export interface OfficeConfig {
   prompt: string | null;
   envFile: string | null;
-  publicOrigin?: string | null;
+  publicOrigin: string | null;
+  // External-access toggle. When false, the server binds 127.0.0.1 only and
+  // the office is unreachable off-box (a per-process freeze locks cookie
+  // attributes and origin policy to the localhost fallback as well). null
+  // when the field has never been set on disk — the boot block infers a
+  // default from the presence of any publicOrigin source and backfills.
+  externalAccess: boolean | null;
 }
 
 export function loadOfficeConfig(): OfficeConfig {
@@ -18,6 +24,7 @@ export function loadOfficeConfig(): OfficeConfig {
         prompt: typeof parsed.prompt === "string" && parsed.prompt ? parsed.prompt : null,
         envFile: typeof parsed.envFile === "string" && parsed.envFile ? parsed.envFile : null,
         publicOrigin: typeof parsed.publicOrigin === "string" && parsed.publicOrigin ? parsed.publicOrigin : null,
+        externalAccess: typeof parsed.externalAccess === "boolean" ? parsed.externalAccess : null,
       };
     }
   } catch (err) {
@@ -31,7 +38,7 @@ export function loadOfficeConfig(): OfficeConfig {
       if (raw.trim()) legacyPrompt = raw;
     }
   } catch {}
-  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null };
+  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null, externalAccess: null };
   // Only persist if the legacy prompt actually had content — otherwise a fresh
   // install touches a new file for no reason, and the next save/set will write
   // it anyway once there's real data.

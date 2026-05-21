@@ -367,7 +367,19 @@ export interface SessionWire {
   lastSeenAt: number;
   expiresAt: number;
   absoluteExpiresAt: number;
-  userAgent?: string;
+  userAgent?: string | null;
+}
+
+// Wire shape for an outstanding invite (owner UI). Raw token never crosses
+// the wire — only the 8-char display prefix.
+export interface InviteWire {
+  tokenPrefix: string;
+  username: string | null; // null for unconsumed bootstrap invites
+  role: UserRole;
+  createdBy: string | null; // null for bootstrap (no owner existed yet)
+  createdAt: number;
+  expiresAt: number;
+  bootstrap?: true; // present on bootstrap invites so the UI can label them
 }
 
 // A room with stable ID, display name, and per-room config
@@ -421,6 +433,40 @@ export type ServerMessage =
   | { type: "presence_list"; entries: PresenceInfo[]; totalOnlineUsers: number }
   | { type: "users_list"; users: UserRecord[] }
   | { type: "sessions_active_list"; sessions: SessionWire[] }
+  | { type: "invites_list"; invites: InviteWire[] }
+  | {
+      type: "invite_minted";
+      requestId: string;
+      ok: boolean;
+      url?: string;
+      invite?: InviteWire;
+      error?: string;
+    }
+  | { type: "invite_revoked"; tokenPrefix: string }
+  | { type: "session_revoked"; sessionPrefix: string }
+  | { type: "revoke_blocked"; sessionPrefix: string; reason: string }
+  | { type: "session_expired" }
+  | {
+      type: "access_settings";
+      ok: boolean;
+      externalAccess?: boolean;
+      publicOrigin?: string | null;
+      envOriginSet?: boolean;
+      envOrigin?: string | null;
+      boundLoopback?: boolean;
+      error?: string;
+    }
+  | {
+      type: "access_settings_updated";
+      requestId: string;
+      ok: boolean;
+      externalAccess?: boolean;
+      publicOrigin?: string | null;
+      signInUrl?: string | null;
+      restartRequired?: boolean;
+      envOrigin?: string | null;
+      error?: string;
+    }
   | { type: "agent_added"; agent: AgentInfo }
   | { type: "agent_removed"; agentId: string }
   | { type: "agent_updated"; agentId: string; changes: Partial<AgentInfo> }
@@ -538,6 +584,23 @@ export type ClientCommand =
   | { type: "list_active_sessions" }
   | { type: "revoke_session"; sessionPrefix: string }
   | { type: "logout" }
+  | { type: "list_invites" }
+  | {
+      type: "mint_invite";
+      requestId: string;
+      username: string;
+      role: UserRole;
+      allowExisting?: boolean;
+    }
+  | { type: "mint_self_invite"; requestId: string }
+  | { type: "revoke_invite"; tokenPrefix: string }
+  | { type: "get_access_settings" }
+  | {
+      type: "update_access_settings";
+      requestId: string;
+      externalAccess: boolean;
+      publicOrigin: string | null;
+    }
   | { type: "presence_update"; currentRoom: number | null; focusedAgentId: string | null; viewMode: "office" | "log" | "away"; device?: string | null }
   | { type: "ping" };
 

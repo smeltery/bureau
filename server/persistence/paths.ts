@@ -14,6 +14,18 @@ export const AGENT_HISTORY_FILE = join(BUREAU_DIR, "agent-history.json");
 export const MANIFEST_FILE = join(BUREAU_DIR, "agents-summary.json");
 export const RECENT_CWDS_FILE = join(BUREAU_DIR, "recent-cwds.json");
 
+// Auth state — invite-link auth and cookie sessions. Both written atomically
+// and serialized through the auth mutex (see server/auth/auth.ts) so an
+// invite acceptance (mark-consumed + upsert-user + create-session) cannot
+// interleave with a concurrent acceptance of the same token.
+export const INVITES_FILE = join(BUREAU_DIR, "invites.json");
+export const SESSIONS_FILE = join(BUREAU_DIR, "sessions.json");
+
+// Unix-domain admin socket used by the owner-login recovery CLI. Filesystem
+// permissions (mode 0600 + the parent dir's existing perms) are the auth
+// boundary, so we keep this path next to the rest of ~/.bureau/.
+export const ADMIN_SOCKET_FILE = join(BUREAU_DIR, "admin.sock");
+
 // Cronjobs live under their own subtree mirroring agent logs (one extra level
 // of nesting: <jobId>/<runId>/...). See server/cronjobs and the design doc.
 export const CRONJOBS_DIR = join(BUREAU_DIR, "cronjobs");

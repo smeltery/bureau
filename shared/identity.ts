@@ -8,6 +8,12 @@ export function formatUserPrefix(username: string | undefined): string {
   return `[${username}] `;
 }
 
+// Lowercase key used for users.json lookup and invite-binding. Display case
+// is whatever the client sent; the key only normalizes for matching.
+export function lowercaseKey(name: string): string {
+  return name.trim().toLocaleLowerCase();
+}
+
 // Prefix for messages that come from another agent. Distinguishes
 // agent-to-agent traffic from human boss messages so the receiving agent
 // can apply different authority rules; the id lets the receiver POST a
