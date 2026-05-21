@@ -9,25 +9,11 @@
 
 import { existsSync, readFileSync } from "fs";
 import { randomBytes, createHash, timingSafeEqual } from "crypto";
-import type {
-  UserRole,
-  UserRecord,
-  InviteWire,
-  SessionWire,
-  SessionContext,
-} from "../../shared/types.ts";
+import type { UserRole, UserRecord, InviteWire, SessionWire, SessionContext } from "../../shared/types.ts";
 import { atomicWriteFileSync, INVITES_FILE, SESSIONS_FILE } from "../persistence/paths.ts";
 import { normalizePublicOrigin } from "../../shared/public-origin.ts";
 import { lowercaseKey } from "../../shared/identity.ts";
-import {
-  claimUserByName,
-  deleteUserById,
-  getUserById,
-  getUserByName,
-  hasOwner,
-  setUserRoleById,
-  updateUserById,
-} from "../users.ts";
+import { claimUserByName, deleteUserById, getUserById, getUserByName, hasOwner, setUserRoleById, updateUserById } from "../users.ts";
 
 // Injected by server/index.ts at boot. New owners need a snapshot of every
 // current room id as their initial allowedRooms (the strict string[] model
@@ -359,13 +345,7 @@ export async function mintInvite(opts: MintOptions): Promise<MintResult | MintEr
       role: opts.role,
       createdBy: opts.createdBy,
       createdAt: now,
-      expiresAt:
-        now +
-        (opts.ttlMsOverride !== undefined
-          ? opts.ttlMsOverride
-          : opts.replacePriorForUsername
-            ? SELF_INVITE_TTL_MS
-            : INVITE_TTL_MS),
+      expiresAt: now + (opts.ttlMsOverride !== undefined ? opts.ttlMsOverride : opts.replacePriorForUsername ? SELF_INVITE_TTL_MS : INVITE_TTL_MS),
       consumed: false,
       consumedAt: null,
       bootstrap: !!opts.bootstrap,
@@ -393,9 +373,7 @@ export interface InvitePeek {
   role: UserRole;
   bootstrap: boolean;
 }
-export function peekInvite(
-  rawToken: string,
-): InvitePeek | { error: "not_found" | "consumed" | "expired" | "owner_exists" } {
+export function peekInvite(rawToken: string): InvitePeek | { error: "not_found" | "consumed" | "expired" | "owner_exists" } {
   ensureLoaded();
   if (!rawToken) return { error: "not_found" };
   const hash = hashOf(rawToken);
@@ -425,14 +403,7 @@ export interface AcceptOk {
 }
 export interface AcceptErr {
   ok: false;
-  error:
-    | "not_found"
-    | "consumed"
-    | "expired"
-    | "needs_name"
-    | "invalid_name"
-    | "role_mismatch"
-    | "owner_exists";
+  error: "not_found" | "consumed" | "expired" | "needs_name" | "invalid_name" | "role_mismatch" | "owner_exists";
 }
 
 // Mark every still-unconsumed bootstrap invite as consumed. Called after a
@@ -456,10 +427,7 @@ function markAllUnconsumedBootstrapInvitesConsumed(): void {
       inv.consumed = false;
       inv.consumedAt = null;
     }
-    console.error(
-      `[auth] failed to sweep ${stale.length} stale bootstrap invite(s); they will be retried on the next owner-creating accept`,
-      err,
-    );
+    console.error(`[auth] failed to sweep ${stale.length} stale bootstrap invite(s); they will be retried on the next owner-creating accept`, err);
   }
 }
 
@@ -545,10 +513,7 @@ function commitBootstrapOwnerUser(chosenName: string): {
 // is bound to the new session. If the invite is a bootstrap invite, the
 // caller must supply `chosenName` (the only path where invitees pick their
 // own display name).
-export async function acceptInvite(
-  rawToken: string,
-  ctx: { userAgent: string | null; chosenName?: string | null },
-): Promise<AcceptOk | AcceptErr> {
+export async function acceptInvite(rawToken: string, ctx: { userAgent: string | null; chosenName?: string | null }): Promise<AcceptOk | AcceptErr> {
   return mutate(() => {
     ensureLoaded();
     const hash = hashOf(rawToken);
@@ -636,13 +601,7 @@ export async function acceptInvite(
       try {
         persistInvites();
       } catch (revertErr) {
-        console.error(
-          "[auth] catastrophic: invite consumed on disk but session " +
-            "persist + revert both failed; this invite is now permanently " +
-            "unusable. Mint a replacement.",
-          err,
-          revertErr,
-        );
+        console.error("[auth] catastrophic: invite consumed on disk but session " + "persist + revert both failed; this invite is now permanently " + "unusable. Mint a replacement.", err, revertErr);
       }
       if (bootstrapRollback) bootstrapRollback();
       throw err;
@@ -688,10 +647,7 @@ export interface ClaimErr {
 // pre-claim, plus a peer-IP loopback check and a strict same-origin check
 // on the POST); this function is only the auth-state mutation under the
 // mutex.
-export async function claimOwnership(
-  rawChosenName: string,
-  ctx: { userAgent: string | null },
-): Promise<ClaimOk | ClaimErr> {
+export async function claimOwnership(rawChosenName: string, ctx: { userAgent: string | null }): Promise<ClaimOk | ClaimErr> {
   return mutate(() => {
     ensureLoaded();
     if (hasOwner()) {
@@ -825,10 +781,7 @@ export async function evictSessionsForUserId(userId: string): Promise<number> {
     try {
       persistSessions();
     } catch (err) {
-      console.error(
-        `[auth] evictSessionsForUserId persist failed (userId=${userId}, count=${hashes.length}):`,
-        err,
-      );
+      console.error(`[auth] evictSessionsForUserId persist failed (userId=${userId}, count=${hashes.length}):`, err);
     }
     for (const hash of hashes) forceExpireSocketsForSession(hash);
     fireSessionsChangedHook();
@@ -984,10 +937,7 @@ export function listActiveSessionsForUserId(userId: string): SessionWire[] {
   return result.sort((a, b) => b.lastSeenAt - a.lastSeenAt);
 }
 
-export async function revokeOutstandingInviteByPrefixForUsername(
-  prefix: string,
-  username: string,
-): Promise<RevokeResult> {
+export async function revokeOutstandingInviteByPrefixForUsername(prefix: string, username: string): Promise<RevokeResult> {
   return mutate(() => {
     ensureLoaded();
     const target = lowercaseKey(username);
@@ -1020,10 +970,7 @@ export async function revokeOutstandingInviteByPrefixForUsername(
 
 export type ScopedSessionRevokeResult = RevokeResult | "would_strand_office";
 
-export async function revokeActiveSessionByPrefixForUserId(
-  prefix: string,
-  userId: string,
-): Promise<ScopedSessionRevokeResult> {
+export async function revokeActiveSessionByPrefixForUserId(prefix: string, userId: string): Promise<ScopedSessionRevokeResult> {
   return mutate(() => {
     ensureLoaded();
     const now = Date.now();
@@ -1143,9 +1090,7 @@ function evaluateEnvOrigin(): string | null {
   }
   const normalized = normalizePublicOrigin(raw);
   if (!normalized) {
-    console.error(
-      `[auth] BUREAU_PUBLIC_ORIGIN="${raw}" is not a valid public origin (need https://<host> or http://localhost; no path/query/fragment); ignoring`,
-    );
+    console.error(`[auth] BUREAU_PUBLIC_ORIGIN="${raw}" is not a valid public origin (need https://<host> or http://localhost; no path/query/fragment); ignoring`);
     envCachedOrigin = null;
     return null;
   }
@@ -1211,13 +1156,7 @@ export function buildPublicOrigin(): {
 export function setCookieHeader(rawSessionId: string, absoluteExpiresAt: number): string {
   const { isHttps } = buildPublicOrigin();
   const maxAgeSec = Math.max(0, Math.floor((absoluteExpiresAt - Date.now()) / 1000));
-  const attrs = [
-    `${COOKIE_NAME}=${rawSessionId}`,
-    `Path=/`,
-    `HttpOnly`,
-    `SameSite=Lax`,
-    `Max-Age=${maxAgeSec}`,
-  ];
+  const attrs = [`${COOKIE_NAME}=${rawSessionId}`, `Path=/`, `HttpOnly`, `SameSite=Lax`, `Max-Age=${maxAgeSec}`];
   if (isHttps) attrs.push("Secure");
   return attrs.join("; ");
 }

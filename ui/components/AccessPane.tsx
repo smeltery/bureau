@@ -52,9 +52,7 @@ export function AccessPane() {
   return (
     <div style={{ marginTop: 24 }}>
       <h4 style={sectionHeader}>Access</h4>
-      <p style={hint}>
-        Add owners and members here by issuing invite URLs and sending them to the recipient. Toggle external access if you want this office reachable from outside the host machine.
-      </p>
+      <p style={hint}>Add owners and members here by issuing invite URLs and sending them to the recipient. Toggle external access if you want this office reachable from outside the host machine.</p>
 
       {blockedNote && (
         <div style={blockedBox}>
@@ -81,10 +79,14 @@ export function AccessPane() {
       <IssueInviteForm />
 
       <h5 style={subsectionHeader}>Outstanding invites</h5>
-      {renderListSection(invitesList, invitesLoaded, (rows) => <InvitesTable invites={rows} />)}
+      {renderListSection(invitesList, invitesLoaded, (rows) => (
+        <InvitesTable invites={rows} />
+      ))}
 
       <h5 style={subsectionHeader}>Active sessions</h5>
-      {renderListSection(activeSessions, activeSessionsLoaded, (rows) => <SessionsTable sessions={rows} />)}
+      {renderListSection(activeSessions, activeSessionsLoaded, (rows) => (
+        <SessionsTable sessions={rows} />
+      ))}
     </div>
   );
 }
@@ -211,9 +213,7 @@ function ExternalAccessSection() {
       <h5 style={{ ...subsectionHeader, margin: "0 0 6px" }}>External access</h5>
       <p style={hint}>
         Currently {boundLoopback ? "loopback-only" : "listening externally"}.
-        {boundLoopback
-          ? " The office is reachable from this machine, or from other machines via an SSH tunnel."
-          : " The office is reachable from anywhere the public URL resolves."}
+        {boundLoopback ? " The office is reachable from this machine, or from other machines via an SSH tunnel." : " The office is reachable from anywhere the public URL resolves."}
       </p>
       <label style={{ display: "flex", gap: 6, marginTop: 8, fontSize: 12 }}>
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
@@ -222,44 +222,37 @@ function ExternalAccessSection() {
       {enabled && (
         <>
           <div style={subLabel}>Public URL</div>
-          <input
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            placeholder="https://my-mac-mini.tailnet.ts.net"
-            style={dialogInput}
-          />
-          <p style={hint}>
-            Pattern: https://&lt;host&gt; (the address you'll open from your laptop / phone). Saving doesn't change the running server's bind on its own — restart bureau to apply.
-          </p>
+          <input value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://my-mac-mini.tailnet.ts.net" style={dialogInput} />
+          <p style={hint}>Pattern: https://&lt;host&gt; (the address you'll open from your laptop / phone). Saving doesn't change the running server's bind on its own — restart bureau to apply.</p>
         </>
       )}
       {envOriginSet && !envOrigin && (
         <p style={{ ...hint, marginTop: 6 }}>
-          Note: <code>BUREAU_PUBLIC_ORIGIN</code> is set in the environment but not a valid public origin, so the server ignores it. Remove it from your env file or set it to <code>https://&lt;host&gt;</code> or <code>http://localhost</code>.
+          Note: <code>BUREAU_PUBLIC_ORIGIN</code> is set in the environment but not a valid public origin, so the server ignores it. Remove it from your env file or set it to{" "}
+          <code>https://&lt;host&gt;</code> or <code>http://localhost</code>.
         </p>
       )}
       {envOrigin && enabled && normalizedInput === envOrigin && (
         <p style={{ ...hint, marginTop: 6 }}>
-          Note: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> is set in the environment and matches this Public URL. The env var is deprecated — remove it from your env file once this office-config value is saved.
+          Note: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> is set in the environment and matches this Public URL. The env var is deprecated — remove it from your env file once this office-config
+          value is saved.
         </p>
       )}
       {envOrigin && enabled && normalizedInput && normalizedInput !== envOrigin && (
         <p style={{ ...hint, marginTop: 6 }}>
-          Note: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> is set in the environment. After restart it would override any different value saved here, so the save will be refused until you either match this URL to the env value or remove the env var from your service environment.
+          Note: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> is set in the environment. After restart it would override any different value saved here, so the save will be refused until you either
+          match this URL to the env value or remove the env var from your service environment.
         </p>
       )}
       {envOrigin && !enabled && (
         <p style={{ ...hint, marginTop: 6 }}>
-          Note: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> is set in the environment but the office is bound loopback-only, so the value is ignored at runtime. The env var is deprecated — remove it from your env file.
+          Note: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> is set in the environment but the office is bound loopback-only, so the value is ignored at runtime. The env var is deprecated — remove it
+          from your env file.
         </p>
       )}
       {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{error}</p>}
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <button
-          onClick={submit}
-          disabled={pending || !dirty}
-          style={{ ...dialogSaveBtn, opacity: pending || !dirty ? 0.5 : 1 }}
-        >
+        <button onClick={submit} disabled={pending || !dirty} style={{ ...dialogSaveBtn, opacity: pending || !dirty ? 0.5 : 1 }}>
           {pending ? "Saving…" : dirty ? "Save" : "Saved"}
         </button>
       </div>
@@ -269,9 +262,7 @@ function ExternalAccessSection() {
           <code style={codeBlockStyle}>systemctl --user restart bureau</code>
           {signInUrl && (
             <>
-              <p style={{ ...hint, marginTop: 10 }}>
-                After the restart, open this URL on whichever device you want to use from the public address. (It expires 1 hour after minting.)
-              </p>
+              <p style={{ ...hint, marginTop: 10 }}>After the restart, open this URL on whichever device you want to use from the public address. (It expires 1 hour after minting.)</p>
               <MintedUrlBox url={signInUrl} />
             </>
           )}
@@ -384,9 +375,7 @@ function IssueInviteForm() {
           )}
         </label>
       </div>
-      <p style={{ ...hint, marginTop: 6 }}>
-        Invite link expires 24h after issuing if unused. Accepted sessions last up to 1 year (revocable from the Access pane any time).
-      </p>
+      <p style={{ ...hint, marginTop: 6 }}>Invite link expires 24h after issuing if unused. Accepted sessions last up to 1 year (revocable from the Access pane any time).</p>
       {existing && (
         <label style={{ display: "flex", gap: 6, marginTop: 8, fontSize: 12 }}>
           <input type="checkbox" checked={allowExisting} onChange={(e) => setAllowExisting(e.target.checked)} />
@@ -487,9 +476,7 @@ export function MintedUrlBox({ url }: { url: string }) {
       >
         {copyState === "ok" || copyState === "fallback" ? "Copied!" : "Copy"}
       </button>
-      {copyState === "fail" && (
-        <p style={{ ...hint, color: "#ff6b6b", marginTop: 4 }}>Clipboard blocked. The URL above is selected — copy it manually.</p>
-      )}
+      {copyState === "fail" && <p style={{ ...hint, color: "#ff6b6b", marginTop: 4 }}>Clipboard blocked. The URL above is selected — copy it manually.</p>}
       <p style={hint}>Send this URL to the invitee. It's one-time: opening it on their device signs them in. The URL is shown once — copy it now.</p>
     </div>
   );
@@ -553,10 +540,7 @@ function SessionsTable({ sessions }: { sessions: SessionWire[] }) {
               <td style={mono}>{s.sessionPrefix}…</td>
               <td style={td}>
                 {isCurrent ? (
-                  <span
-                    style={{ fontSize: 10, color: "var(--text-ghost)", fontStyle: "italic" }}
-                    title="Use Sign out to end your current session."
-                  >
+                  <span style={{ fontSize: 10, color: "var(--text-ghost)", fontStyle: "italic" }} title="Use Sign out to end your current session.">
                     Current session
                   </span>
                 ) : (

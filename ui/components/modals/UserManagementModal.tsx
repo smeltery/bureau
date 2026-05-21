@@ -91,7 +91,17 @@ export function UserManagementModal({
                       </button>
                     )}
                   </div>
-                  {isEditing && <UserEditPanel user={u} rooms={editorRooms} canEditAccess={isOwner} onClose={() => setEditingId(null)} onDirtyChange={(d) => { editIsDirtyRef.current = d; }} />}
+                  {isEditing && (
+                    <UserEditPanel
+                      user={u}
+                      rooms={editorRooms}
+                      canEditAccess={isOwner}
+                      onClose={() => setEditingId(null)}
+                      onDirtyChange={(d) => {
+                        editIsDirtyRef.current = d;
+                      }}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -120,9 +130,7 @@ export function UserManagementModal({
       {sessionContext && (
         <div style={{ marginTop: 22 }}>
           <h4 style={{ fontSize: 13, margin: 0, color: "var(--text-primary)" }}>Sign out</h4>
-          <p style={{ fontSize: 11, margin: "5px 0 8px", color: "var(--text-ghost)" }}>
-            Sign out of this device. Other devices for the same user stay signed in.
-          </p>
+          <p style={{ fontSize: 11, margin: "5px 0 8px", color: "var(--text-ghost)" }}>Sign out of this device. Other devices for the same user stay signed in.</p>
           {/* HTML form POST so the browser sends the cookie and the server's
               /auth/logout handler can apply the lockout-prevention check
               before clearing it. The WS-side logout sets session_context to
@@ -156,7 +164,19 @@ const signOutBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
-function UserEditPanel({ user, rooms, canEditAccess, onClose, onDirtyChange }: { user: UserRecord; rooms: { id: string; name: string }[]; canEditAccess: boolean; onClose: () => void; onDirtyChange?: (dirty: boolean) => void }) {
+function UserEditPanel({
+  user,
+  rooms,
+  canEditAccess,
+  onClose,
+  onDirtyChange,
+}: {
+  user: UserRecord;
+  rooms: { id: string; name: string }[];
+  canEditAccess: boolean;
+  onClose: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState<UserRole>(user.role);
   const [allowedRooms, setAllowedRooms] = useState(() => new Set(user.allowedRooms));

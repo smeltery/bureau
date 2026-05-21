@@ -21,11 +21,7 @@ import { handleFilesRequest } from "./http/files.ts";
 import { handleAgentsRequest } from "./http/agents.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
-import {
-  authenticate,
-  setOnOwnerCreated,
-  tryHandleAuthRoute,
-} from "./auth/auth-middleware.ts";
+import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
 import {
   freezeBootState,
   isProcessPreClaim,
@@ -83,9 +79,7 @@ if (Bun.argv[2] === "owner-login") {
       cfg = { ...cfg, publicOrigin: envOrigin };
       configDirty = true;
     } else if (cfg.publicOrigin === envOrigin) {
-      console.log(
-        `[auth] BUREAU_PUBLIC_ORIGIN env var is redundant with office-config.json#publicOrigin (${cfg.publicOrigin}) and is deprecated. Remove it from your env on your next deploy.`,
-      );
+      console.log(`[auth] BUREAU_PUBLIC_ORIGIN env var is redundant with office-config.json#publicOrigin (${cfg.publicOrigin}) and is deprecated. Remove it from your env on your next deploy.`);
     } else {
       console.error(
         `[auth] BUREAU_PUBLIC_ORIGIN ("${envOrigin}") differs from office-config.json#publicOrigin ("${cfg.publicOrigin}"). The env var is deprecated; bureau uses the env value for THIS boot but will use the JSON value once the env var is removed. Reconcile by editing one and removing the other.`,
@@ -115,9 +109,7 @@ if (Bun.argv[2] === "owner-login") {
         externalAccess,
       });
     } catch (err) {
-      console.error(
-        `[auth] failed to backfill office-config.json (${(err as Error).message}); will re-attempt next boot`,
-      );
+      console.error(`[auth] failed to backfill office-config.json (${(err as Error).message}); will re-attempt next boot`);
     }
   }
 

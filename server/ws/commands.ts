@@ -167,10 +167,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       // inside its own scope-confirmed branch.
       const user = getWsUser(ws);
       if (!user) break;
-      const lockoutReason =
-        "Refused: this is the last active owner session in the office. " +
-        "Mint an additional invite for an owner first, accept it on " +
-        "another device, then retry.";
+      const lockoutReason = "Refused: this is the last active owner session in the office. " + "Mint an additional invite for an owner first, accept it on " + "another device, then retry.";
       if (user.role === "owner") {
         const targetHash = resolveSessionHashByPrefix(cmd.sessionPrefix);
         if (targetHash && wouldRevokeLeaveOfficeUnreachable(targetHash)) {
@@ -214,17 +211,13 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       // lockout-prevention check here so the UI can refuse the "Sign out"
       // button before the form submit fires.
       const user = getWsUser(ws);
-      const sessionHash = getSessionContext(ws)?.currentSessionPrefix
-        ? resolveSessionHashByPrefix(getSessionContext(ws)!.currentSessionPrefix)
-        : null;
+      const sessionHash = getSessionContext(ws)?.currentSessionPrefix ? resolveSessionHashByPrefix(getSessionContext(ws)!.currentSessionPrefix) : null;
       if (user && sessionHash && wouldRevokeLeaveOfficeUnreachable(sessionHash)) {
         ws.send(
           JSON.stringify({
             type: "revoke_blocked",
             sessionPrefix: getSessionContext(ws)!.currentSessionPrefix,
-            reason:
-              "Sign out refused: this is the last active owner session in the office. " +
-              "Mint an additional invite for yourself and accept it on another device first, then retry.",
+            reason: "Sign out refused: this is the last active owner session in the office. " + "Mint an additional invite for yourself and accept it on another device first, then retry.",
           } as ServerMessage),
         );
         break;
@@ -251,8 +244,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
             type: "invite_minted",
             requestId: cmd.requestId,
             ok: false,
-            error:
-              "Only owners can mint invites. Use mint_self_invite to add another of your own devices.",
+            error: "Only owners can mint invites. Use mint_self_invite to add another of your own devices.",
           } as ServerMessage),
         );
         break;
@@ -392,8 +384,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       // Match the boot-time migration default so the UI reflects the same
       // effective state the running process is using. Only a *valid* env
       // value implies external access; an invalid env value is ignored.
-      const effectiveExternal =
-        cfg.externalAccess !== null ? cfg.externalAccess : cfg.publicOrigin !== null || envOrigin !== null;
+      const effectiveExternal = cfg.externalAccess !== null ? cfg.externalAccess : cfg.publicOrigin !== null || envOrigin !== null;
       ws.send(
         JSON.stringify({
           type: "access_settings",
