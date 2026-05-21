@@ -31,23 +31,17 @@ export function startAdminSocket(): void {
     try {
       isSocket = statSync(ADMIN_SOCKET_FILE).isSocket();
     } catch (err) {
-      console.error(
-        `[admin-socket] could not stat ${ADMIN_SOCKET_FILE}: ${(err as Error).message}; admin CLI will be unavailable`,
-      );
+      console.error(`[admin-socket] could not stat ${ADMIN_SOCKET_FILE}: ${(err as Error).message}; admin CLI will be unavailable`);
       return;
     }
     if (!isSocket) {
-      console.error(
-        `[admin-socket] ${ADMIN_SOCKET_FILE} exists and is not a socket; refusing to overwrite. Move it aside and restart bureau to re-enable the admin CLI.`,
-      );
+      console.error(`[admin-socket] ${ADMIN_SOCKET_FILE} exists and is not a socket; refusing to overwrite. Move it aside and restart bureau to re-enable the admin CLI.`);
       return;
     }
     try {
       unlinkSync(ADMIN_SOCKET_FILE);
     } catch (err) {
-      console.error(
-        `[admin-socket] could not remove stale socket ${ADMIN_SOCKET_FILE}: ${(err as Error).message}; admin CLI will be unavailable`,
-      );
+      console.error(`[admin-socket] could not remove stale socket ${ADMIN_SOCKET_FILE}: ${(err as Error).message}; admin CLI will be unavailable`);
       return;
     }
   }
@@ -59,9 +53,7 @@ export function startAdminSocket(): void {
   try {
     Bun.serve({ unix: ADMIN_SOCKET_FILE, fetch: handleAdmin });
   } catch (err) {
-    console.error(
-      `[admin-socket] failed to bind ${ADMIN_SOCKET_FILE}: ${(err as Error).message}; admin CLI will be unavailable`,
-    );
+    console.error(`[admin-socket] failed to bind ${ADMIN_SOCKET_FILE}: ${(err as Error).message}; admin CLI will be unavailable`);
     return;
   } finally {
     process.umask(prevUmask);
@@ -70,9 +62,7 @@ export function startAdminSocket(): void {
   try {
     chmodSync(ADMIN_SOCKET_FILE, 0o600);
   } catch (err) {
-    console.error(
-      `[admin-socket] chmod 0600 ${ADMIN_SOCKET_FILE} failed: ${(err as Error).message}; admin CLI may be reachable by other local users`,
-    );
+    console.error(`[admin-socket] chmod 0600 ${ADMIN_SOCKET_FILE} failed: ${(err as Error).message}; admin CLI may be reachable by other local users`);
   }
   console.log(`[admin-socket] listening on ${ADMIN_SOCKET_FILE} (mode 0600)`);
 }

@@ -60,10 +60,7 @@ export function wouldDeleteLeaveNoOwner(userId: string): boolean {
 // claimed implicitly becomes owner. `opts.allowedRooms` defaults to [] for
 // members and to the snapshot for owners — callers (auth.ts) pass the
 // snapshot at first-owner time so the new owner sees every existing room.
-export function claimUserByName(
-  name: string,
-  opts: { role?: UserRole; allowedRooms?: string[] } = {},
-): UserRecord {
+export function claimUserByName(name: string, opts: { role?: UserRole; allowedRooms?: string[] } = {}): UserRecord {
   const trimmed = name.trim().slice(0, 64) || "Boss";
   const key = normalizeUserKey(trimmed);
   const existing = users.get(key);

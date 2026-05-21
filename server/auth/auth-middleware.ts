@@ -40,12 +40,7 @@ export function setOnOwnerCreated(cb: OwnerCreatedCb | null): void {
 
 function isLoopback(addr: string | null): boolean {
   if (!addr) return false;
-  return (
-    addr === "127.0.0.1" ||
-    addr === "::1" ||
-    addr === "::ffff:127.0.0.1" ||
-    addr.startsWith("127.")
-  );
+  return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1" || addr.startsWith("127.");
 }
 
 export function requestIsLoopback<T>(req: Request, server: Server<T>): boolean {
@@ -150,11 +145,7 @@ function authPageTitle(officeName: string | null, suffix: string): string {
 // ---------------------------------------------------------------------------
 // Gating function. Called at the top of every fetch handler.
 
-export function authenticate<T>(
-  req: Request,
-  server: Server<T>,
-  opts?: { allowLoopback?: boolean; officeName?: string | null },
-): AuthResult {
+export function authenticate<T>(req: Request, server: Server<T>, opts?: { allowLoopback?: boolean; officeName?: string | null }): AuthResult {
   const looped = !!opts?.allowLoopback && requestIsLoopback(req, server);
   // Origin check runs regardless of the cookie path. A user's browser
   // running on the same machine as the server can otherwise be tricked by
@@ -187,11 +178,7 @@ export function authenticate<T>(
 // ---------------------------------------------------------------------------
 // /auth/* route handlers.
 
-export function handleInvitePeek(
-  _req: Request,
-  token: string,
-  officeName: string | null,
-): Response {
+export function handleInvitePeek(_req: Request, token: string, officeName: string | null): Response {
   const peek = peekInvite(token);
   if ("error" in peek) return renderInviteError(peek.error, officeName);
   return new Response(renderAcceptPage(token, peek.needsName, null, officeName), {
@@ -217,16 +204,13 @@ export async function handleAccept(req: Request, officeName: string | null): Pro
   const result = await acceptInvite(token, { userAgent: ua, chosenName: name });
   if (!result.ok) {
     if (result.error === "needs_name" || result.error === "invalid_name") {
-      return new Response(
-        renderAcceptPage(token, true, "Please pick a display name.", officeName),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            ...securityHeaders(),
-          },
+      return new Response(renderAcceptPage(token, true, "Please pick a display name.", officeName), {
+        status: 400,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          ...securityHeaders(),
         },
-      );
+      });
     }
     return renderInviteError(result.error, officeName);
   }
@@ -256,9 +240,7 @@ export async function handleLogout(req: Request, officeName: string | null): Pro
   if (lookup && wouldRevokeLeaveOfficeUnreachable(lookup.sessionIdHash)) {
     return new Response(
       renderLockoutBlocked(
-        "Sign out refused: this is the last active owner session in the " +
-          "office. Mint an additional invite for yourself and accept it " +
-          "on another device first, then retry.",
+        "Sign out refused: this is the last active owner session in the " + "office. Mint an additional invite for yourself and accept it " + "on another device first, then retry.",
         officeName,
       ),
       {
@@ -314,12 +296,7 @@ function originValidForAuthPost(req: Request): boolean {
 
 // Top-level router used by index.ts: returns null when the path isn't an
 // /auth/* path, so the caller falls through to its normal dispatch.
-export async function tryHandleAuthRoute<T>(
-  req: Request,
-  url: URL,
-  officeName: string | null,
-  server: Server<T>,
-): Promise<Response | null> {
+export async function tryHandleAuthRoute<T>(req: Request, url: URL, officeName: string | null, server: Server<T>): Promise<Response | null> {
   // Pre-claim tokenless flow. The server binds 127.0.0.1 pre-claim, so this
   // surface is unreachable from off-box; we still layer a strict same-origin
   // + loopback-peer-IP check on the POST as defense-in-depth in case the
@@ -379,11 +356,7 @@ function handleClaimForm(officeName: string | null): Response {
 // the documented mitigation is operator discipline (claim first, expose
 // later — see docs/features/access-and-invites.md "Bootstrap-window
 // exposure").
-async function handleClaim<T>(
-  req: Request,
-  server: Server<T>,
-  officeName: string | null,
-): Promise<Response> {
+async function handleClaim<T>(req: Request, server: Server<T>, officeName: string | null): Promise<Response> {
   if (!requestIsLoopback(req, server)) {
     return new Response("forbidden", { status: 403 });
   }
@@ -430,9 +403,7 @@ async function handleClaim<T>(
 // claim-form Origin. The browser sends whichever the operator typed.
 function isLoopbackOrigin(origin: string): boolean {
   const port = process.env.PORT || "4000";
-  return (
-    origin === `http://localhost:${port}` || origin === `http://127.0.0.1:${port}`
-  );
+  return origin === `http://localhost:${port}` || origin === `http://127.0.0.1:${port}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -539,19 +510,12 @@ const PREAUTH_EXTRA_CSS = `
   }
 `;
 
-function renderAcceptPage(
-  token: string,
-  needsName: boolean,
-  errorMsg: string | null,
-  officeName: string | null,
-): string {
+function renderAcceptPage(token: string, needsName: boolean, errorMsg: string | null, officeName: string | null): string {
   const safeToken = escapeAttr(token);
   const err = errorMsg ? `<p class="err">${escapeHtml(errorMsg)}</p>` : "";
   const og = {
     title: needsName ? "Bureau — first-time setup" : "Bureau — accept invite",
-    description: needsName
-      ? "Open this link to claim ownership of a Bureau office."
-      : "Open this link to sign in to a Bureau office on this device.",
+    description: needsName ? "Open this link to claim ownership of a Bureau office." : "Open this link to sign in to a Bureau office on this device.",
   };
   if (needsName) {
     return baseHtml(
@@ -572,9 +536,7 @@ function renderAcceptPage(
       PREAUTH_EXTRA_CSS,
     );
   }
-  const heading = officeName
-    ? `Open your invite to the Bureau office: ${escapeHtml(officeName)}`
-    : "Open your Bureau invite";
+  const heading = officeName ? `Open your invite to the Bureau office: ${escapeHtml(officeName)}` : "Open your Bureau invite";
   return baseHtml(
     authPageTitle(officeName, "accept invite"),
     `
@@ -604,10 +566,7 @@ function renderInviteError(kind: string, officeName: string | null): Response {
           : kind === "owner_exists"
             ? "This office already has an owner. Bootstrap invites stop working once the office has been claimed."
             : "This invite is no longer valid.";
-  const body = baseHtml(
-    authPageTitle(officeName, "invite"),
-    `<h1>Invite unavailable</h1><p>${escapeHtml(msg)}</p>`,
-  );
+  const body = baseHtml(authPageTitle(officeName, "invite"), `<h1>Invite unavailable</h1><p>${escapeHtml(msg)}</p>`);
   return new Response(body, {
     status: 410, // Gone — invite was once valid (or never)
     headers: {
@@ -617,12 +576,7 @@ function renderInviteError(kind: string, officeName: string | null): Response {
   });
 }
 
-function baseHtml(
-  title: string,
-  body: string,
-  og?: { title: string; description: string },
-  extraCss: string = "",
-): string {
+function baseHtml(title: string, body: string, og?: { title: string; description: string }, extraCss: string = ""): string {
   const ogMeta = og
     ? `
 <meta property="og:title" content="${escapeAttr(og.title)}" />
@@ -658,12 +612,7 @@ ${body}
 }
 
 function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 function escapeAttr(s: string): string {
   return escapeHtml(s);
