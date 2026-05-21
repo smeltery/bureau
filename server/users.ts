@@ -15,6 +15,133 @@ function persist() {
   saveUsers([...users.values()]);
 }
 
+// ---------------------------------------------------------------------------
+// Lookups used by the auth layer. None of these mutate; auth.ts holds the
+// mutex over write paths.
+
+export function getUserById(userId: string): UserRecord | null {
+  for (const u of users.values()) if (u.id === userId) return u;
+  return null;
+}
+
+export function getUserByName(name: string): UserRecord | null {
+  return users.get(normalizeUserKey(name)) ?? null;
+}
+
+export function hasOwner(): boolean {
+  for (const u of users.values()) if (u.role === "owner") return true;
+  return false;
+}
+
+export function countOwners(): number {
+  let n = 0;
+  for (const u of users.values()) if (u.role === "owner") n++;
+  return n;
+}
+
+// True if deleting `userId` would leave the office without any owner record
+// on disk. Used by the delete_user pre-check so a misclick can't lock the
+// office out.
+export function wouldDeleteLeaveNoOwner(userId: string): boolean {
+  const target = getUserById(userId);
+  if (!target || target.role !== "owner") return false;
+  return countOwners() <= 1;
+}
+
+// ---------------------------------------------------------------------------
+// Mutations used by the auth layer (invite acceptance, role promotion,
+// owner-claim, evict-after-delete). These bypass the WS-coupled lifecycle in
+// claimUser() below; they exist so auth.ts can mutate user records without
+// inventing a synthetic ws handle. Caller is responsible for holding the
+// auth mutex when ordering matters.
+
+// Create-or-noop a user record for a freshly accepted invite. `opts.role`
+// defaults to "member" if the office already has an owner; the first user
+// claimed implicitly becomes owner. `opts.allowedRooms` defaults to [] for
+// members and to the snapshot for owners — callers (auth.ts) pass the
+// snapshot at first-owner time so the new owner sees every existing room.
+export function claimUserByName(
+  name: string,
+  opts: { role?: UserRole; allowedRooms?: string[] } = {},
+): UserRecord {
+  const trimmed = name.trim().slice(0, 64) || "Boss";
+  const key = normalizeUserKey(trimmed);
+  const existing = users.get(key);
+  if (existing) return existing;
+  const role: UserRole = opts.role ?? (users.size === 0 ? "owner" : "member");
+  const id = generateUserId([...users.values()].map((u) => u.id));
+  const allowedRooms = opts.allowedRooms ?? [];
+  const created: UserRecord = {
+    id,
+    name: trimmed,
+    role,
+    allowedRooms,
+    defaultRoomId: allowedRooms[0] ?? null,
+    avatarColor: defaultGhostColorForUserId(id),
+    avatarVariant: "classic",
+    createdAt: Date.now(),
+  };
+  users.set(key, created);
+  persist();
+  return created;
+}
+
+export function setUserRoleById(userId: string, role: UserRole): void {
+  const target = getUserById(userId);
+  if (!target) return;
+  if (target.role === role) return;
+  const key = normalizeUserKey(target.name);
+  const next: UserRecord = { ...target, role };
+  users.set(key, next);
+  persist();
+}
+
+// Direct field update used by auth's bootstrap path. Validates allowedRooms
+// only insofar as it must be a string[]; the bootstrap caller already
+// snapshots from AgentManager so the values are known-good. Returns ok/err
+// so the caller can propagate disk failures (auth's rollback closure needs
+// to know whether to invoke).
+export function updateUserById(
+  userId: string,
+  changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "avatarColor" | "avatarVariant">>,
+): { ok: true; user: UserRecord } | { ok: false; error: string } {
+  const target = getUserById(userId);
+  if (!target) return { ok: false, error: `user ${userId} not found` };
+  const next: UserRecord = { ...target };
+  if (typeof changes.name === "string") {
+    const name = changes.name.trim().slice(0, 64);
+    if (name) next.name = name;
+  }
+  if (changes.role === "owner" || changes.role === "member") next.role = changes.role;
+  if (Array.isArray(changes.allowedRooms)) {
+    next.allowedRooms = changes.allowedRooms.filter((id): id is string => typeof id === "string");
+  }
+  if (changes.defaultRoomId !== undefined) {
+    next.defaultRoomId = typeof changes.defaultRoomId === "string" ? changes.defaultRoomId : null;
+  }
+  if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
+  if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;
+  users.delete(normalizeUserKey(target.name));
+  users.set(normalizeUserKey(next.name), next);
+  try {
+    persist();
+  } catch (err) {
+    // Roll the in-memory state back so the caller can retry, then surface.
+    users.delete(normalizeUserKey(next.name));
+    users.set(normalizeUserKey(target.name), target);
+    return { ok: false, error: (err as Error).message };
+  }
+  return { ok: true, user: next };
+}
+
+export function deleteUserById(userId: string): boolean {
+  const target = getUserById(userId);
+  if (!target) return false;
+  users.delete(normalizeUserKey(target.name));
+  persist();
+  return true;
+}
+
 function validRoomSet(roomIds: string[]): Set<string> {
   return new Set(roomIds);
 }
@@ -70,6 +197,15 @@ export function claimUser(ws: import("bun").ServerWebSocket<unknown>, username: 
 export function getWsUser(ws: import("bun").ServerWebSocket<unknown>): UserRecord | null {
   const user = wsUsers.get(ws);
   return user ?? null;
+}
+
+// Replace the random per-WS session prefix with the authoritative
+// auth-session prefix so the UI's "this is my row" check in the Access pane
+// uses the actual session id. Called from the WS-open path right after
+// claimUser binds the auth-session's user. No-op for loopback connections
+// that arrive without a session.
+export function setWsSessionPrefix(ws: import("bun").ServerWebSocket<unknown>, prefix: string) {
+  if (prefix) sessionPrefixes.set(ws, prefix);
 }
 
 export function clearWsUser(ws: import("bun").ServerWebSocket<unknown>) {
