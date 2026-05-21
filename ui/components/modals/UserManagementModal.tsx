@@ -6,6 +6,7 @@ import { GHOST_COLOR_PALETTE, GHOST_VARIANTS, type GhostVariant } from "../../..
 import { GhostGraphic } from "../../office/ghostVariants.tsx";
 import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
+import { AccessPane } from "../AccessPane.tsx";
 
 export function UserManagementModal({
   currentUsername,
@@ -20,7 +21,7 @@ export function UserManagementModal({
   onSwitchUser: (name: string) => void;
   onClose?: () => void;
 }) {
-  const { users, rooms, allRooms, sessionContext, activeSessions, activeSessionsLoaded } = useAppState();
+  const { users, rooms, allRooms, sessionContext } = useAppState();
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const isOwner = sessionContext?.role === "owner";
@@ -35,10 +36,6 @@ export function UserManagementModal({
     if (editIsDirtyRef.current && !window.confirm("Discard unsaved changes?")) return;
     onClose?.();
   }
-
-  useEffect(() => {
-    if (isOwner && !activeSessionsLoaded) send({ type: "list_active_sessions" });
-  }, [isOwner, activeSessionsLoaded]);
 
   useEffect(() => {
     if (initialUserId) setEditingId(initialUserId);
@@ -118,29 +115,23 @@ export function UserManagementModal({
         </button>
       </div>
 
-      {isOwner && (
+      {isOwner && <AccessPane />}
+
+      {sessionContext && (
         <div style={{ marginTop: 22 }}>
-          <h4 style={{ fontSize: 13, margin: 0, color: "var(--text-primary)" }}>Active sessions</h4>
-          <p style={{ fontSize: 11, margin: "5px 0 8px", color: "var(--text-ghost)" }}>Bureau tracks connected browser sessions for this runtime.</p>
-          {activeSessions.length === 0 ? (
-            <p style={{ fontSize: 11, color: "var(--text-hint)" }}>{activeSessionsLoaded ? "None." : "Loading..."}</p>
-          ) : (
-            <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-              {activeSessions.map((s) => (
-                <div key={s.sessionPrefix} style={{ display: "flex", gap: 10, alignItems: "center", padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", fontSize: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: "var(--text-primary)", fontWeight: 600 }}>{s.username}</div>
-                    <div style={{ color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
-                      {s.sessionPrefix} · last seen {new Date(s.lastSeenAt).toLocaleTimeString()}
-                    </div>
-                  </div>
-                  <button style={smallBtn} onClick={() => send({ type: "revoke_session", sessionPrefix: s.sessionPrefix })}>
-                    Revoke
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <h4 style={{ fontSize: 13, margin: 0, color: "var(--text-primary)" }}>Sign out</h4>
+          <p style={{ fontSize: 11, margin: "5px 0 8px", color: "var(--text-ghost)" }}>
+            Sign out of this device. Other devices for the same user stay signed in.
+          </p>
+          {/* HTML form POST so the browser sends the cookie and the server's
+              /auth/logout handler can apply the lockout-prevention check
+              before clearing it. The WS-side logout sets session_context to
+              null on success but doesn't itself clear the cookie. */}
+          <form method="POST" action="/auth/logout" style={{ margin: 0 }}>
+            <button type="submit" style={signOutBtn}>
+              Sign out
+            </button>
+          </form>
         </div>
       )}
 
@@ -154,6 +145,16 @@ export function UserManagementModal({
     </Modal>
   );
 }
+
+const signOutBtn: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 7,
+  border: "1px solid var(--border)",
+  background: "var(--btn-surface)",
+  color: "var(--text-primary)",
+  fontSize: 12,
+  cursor: "pointer",
+};
 
 function UserEditPanel({ user, rooms, canEditAccess, onClose, onDirtyChange }: { user: UserRecord; rooms: { id: string; name: string }[]; canEditAccess: boolean; onClose: () => void; onDirtyChange?: (dirty: boolean) => void }) {
   const [name, setName] = useState(user.name);
