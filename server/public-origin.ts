@@ -1,4 +1,14 @@
-import { loadOfficeConfig } from "./persistence/config/office-config.ts";
+// Thin compatibility shim. The authoritative public-origin policy lives in
+// server/auth/auth.ts (boot-frozen with cookie/bind semantics); this module
+// re-exposes it for callers that just want the effective origin string and
+// for the Origin-allowlist checks the HTTP/WebSocket entry points apply
+// before auth runs.
+
+import { buildPublicOrigin } from "./auth/auth.ts";
+
+export function getPublicOrigin(): string {
+  return buildPublicOrigin().origin;
+}
 
 function parseOrigin(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -11,16 +21,11 @@ function parseOrigin(value: string | null | undefined): string | null {
   }
 }
 
-export function getPublicOrigin(): string {
-  const envOrigin = parseOrigin(process.env.BUREAU_PUBLIC_ORIGIN);
-  if (envOrigin) return envOrigin;
-
-  const configOrigin = parseOrigin(loadOfficeConfig().publicOrigin);
-  if (configOrigin) return configOrigin;
-
-  return `http://localhost:${process.env.PORT || "4000"}`;
-}
-
+// Allow either the public origin OR the URL the request itself was made
+// against (so a same-host loopback hit keeps working when external access
+// is on with a non-loopback configured origin). Browsers always send Origin;
+// non-browser callers (agents on the same host) don't — those skip this
+// check via the loopback bypass at the auth layer.
 export function originAllowed(req: Request, requestUrl: URL): boolean {
   const origin = req.headers.get("Origin");
   if (!origin) return true;
