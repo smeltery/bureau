@@ -7,6 +7,7 @@ import { GhostGraphic } from "../../office/ghostVariants.tsx";
 import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 import { AccessPane } from "../AccessPane.tsx";
+import { MyDevicesPane } from "../MyDevicesPane.tsx";
 
 export function UserManagementModal({
   currentUsername,
@@ -125,7 +126,7 @@ export function UserManagementModal({
         </button>
       </div>
 
-      {isOwner && <AccessPane />}
+      {isOwner ? <AccessPane /> : sessionContext && <MyDevicesPane />}
 
       {sessionContext && (
         <div style={{ marginTop: 22 }}>

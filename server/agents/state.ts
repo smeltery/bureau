@@ -24,7 +24,7 @@ export interface ManagedAgent {
   // replacement). sendMessage awaits this so a follow-up message arriving in the gap
   // doesn't see session=null and amputate context by spinning up a fresh blank session.
   abortPromise: Promise<void> | null;
-  slashCommands: { name: string; description?: string }[];
+  slashCommands: { name: string; description?: string; aliasFor?: string }[];
   skills: SkillInfo[];
   sdkReportedCommands: string[]; // commands reported by SDK in system:init
   // Timing: track when phases start for duration_ms computation

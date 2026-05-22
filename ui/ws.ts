@@ -1,10 +1,12 @@
 import type { ServerMessage, ClientCommand } from "../shared/types.ts";
 
 type MessageHandler = (msg: ServerMessage) => void;
+type StatusHandler = (isConnected: boolean) => void;
 type RawHandler = (data: string) => void;
 
 let socket: WebSocket | null = null;
 let handler: MessageHandler | null = null;
+let statusHandler: StatusHandler | null = null;
 const rawListeners = new Set<RawHandler>();
 let socketGen = 0;
 let pongTimer: ReturnType<typeof setTimeout> | null = null;
@@ -98,8 +100,9 @@ function onVisible() {
   }, 3000);
 }
 
-export function connect(onMessage: MessageHandler) {
+export function connect(onMessage: MessageHandler, onStatusChange?: StatusHandler) {
   handler = onMessage;
+  if (onStatusChange) statusHandler = onStatusChange;
 
   // In shim mode, don't open a real WebSocket — fire onConnect callback instead
   if (shimHandler) {
@@ -149,6 +152,7 @@ export function connect(onMessage: MessageHandler) {
     clearPongTimer();
     clearReconnectTimer();
     clearHeartbeat();
+    statusHandler?.(false);
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       connect(onMessage);

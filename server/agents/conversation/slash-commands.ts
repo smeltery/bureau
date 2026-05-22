@@ -18,6 +18,40 @@ import { renderUsageReport } from "../usage.ts";
 
 type HandlerFn = (agentId: string, managed: ManagedAgent, args: string[], rawText: string, username?: string) => Promise<boolean>;
 
+// Collapse alias entries into their canonical for display. Each output group
+// carries the full name list (canonical + aliases) and a shared description.
+// Used by /help to render e.g. `/diff (or /bureau-diff)` instead of two
+// separate lines for the same handler.
+type AliasItem = { name: string; description?: string; aliasFor?: string };
+type AliasGroup = { names: string[]; description?: string };
+function groupByAlias(items: AliasItem[]): AliasGroup[] {
+  const canonicalIndex = new Map<string, AliasGroup>();
+  for (const it of items) {
+    if (it.aliasFor) continue;
+    canonicalIndex.set(it.name, { names: [it.name], description: it.description });
+  }
+  for (const it of items) {
+    if (!it.aliasFor) continue;
+    const target = canonicalIndex.get(it.aliasFor);
+    if (target) {
+      target.names.push(it.name);
+    } else {
+      canonicalIndex.set(it.name, { names: [it.name], description: it.description });
+    }
+  }
+  return Array.from(canonicalIndex.values());
+}
+
+// Render one alias group as a single bullet line. Shortest name leads
+// (friendlier shorthand reads first); the rest go in parens.
+function formatAliasGroup(names: string[], description?: string): string {
+  const sorted = [...names].sort((a, b) => a.length - b.length);
+  const primary = `\`/${sorted[0]}\``;
+  const others = sorted.slice(1).map((n) => `\`/${n}\``);
+  const head = others.length > 0 ? `${primary} (or ${others.join(", ")})` : primary;
+  return description ? `  ${head} — ${description}` : `  ${head}`;
+}
+
 const commandHandlers: Record<string, HandlerFn> = {
   async clear(agentId, managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
@@ -137,8 +171,10 @@ const commandHandlers: Record<string, HandlerFn> = {
     lines.push("Bureau is a multi-agent office manager for Claude Code. Learn more at https://");
     lines.push("");
 
-    // Commands
-    const cmdList = managed.slashCommands.map((c) => (c.description ? `  \`/${c.name}\`  — ${c.description}` : `  \`/${c.name}\``)).join("\n");
+    // Commands — collapse aliased entries (e.g. `/diff` aliasFor `/bureau-diff`)
+    // into a single line so the user doesn't see two lines for the same handler.
+    const cmdGroups = groupByAlias(managed.slashCommands.map((c) => ({ name: c.name, description: c.description, aliasFor: c.aliasFor })));
+    const cmdList = cmdGroups.map((g) => formatAliasGroup(g.names, g.description)).join("\n");
     lines.push(`**Commands:**\n${cmdList}`);
 
     // Skills grouped by origin
@@ -158,12 +194,8 @@ const commandHandlers: Record<string, HandlerFn> = {
     for (const origin of originOrder) {
       const skills = grouped.get(origin);
       if (!skills || skills.length === 0) continue;
-      const skillLines = skills
-        .map((s) => {
-          const desc = s.description ? ` — ${s.description}` : "";
-          return `  \`/${s.name}\`${desc}`;
-        })
-        .join("\n");
+      const skillGroups = groupByAlias(skills.map((s) => ({ name: s.name, description: s.description, aliasFor: s.aliasFor })));
+      const skillLines = skillGroups.map((g) => formatAliasGroup(g.names, g.description)).join("\n");
       lines.push(`\n**${originLabel[origin]}:**\n${skillLines}`);
     }
 

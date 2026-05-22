@@ -27,6 +27,9 @@ export interface AppState {
   logs: Map<string, LogEntry[]>; // agentId → entries
   focusedAgentId: string | null;
   connected: boolean;
+  // True once the first `full_state` message has been received. Distinct from
+  // `connected`, which is deliberately tied to full_state arrival.
+  hasReceivedInitialState: boolean;
   isMobile: boolean;
   mobileViewMode: "list" | "office"; // which view to show on mobile
   needsAttention: Set<string>; // agentIds with unread state changes
@@ -34,7 +37,7 @@ export interface AppState {
   soundTrigger: number; // increments when any agent finishes work (for sound regardless of focus)
   drafts: Map<string, string>; // agentId → unsent chat input
   recentCwds: string[]; // persisted recent working directories
-  slashCommands: Map<string, { commands: { name: string; description?: string }[]; skills: SkillInfo[] }>; // agentId → available commands
+  slashCommands: Map<string, { commands: { name: string; description?: string; aliasFor?: string }[]; skills: SkillInfo[] }>; // agentId → available commands
   stateChangedAt: Map<string, number>; // agentId → timestamp when agent state last changed
   office: OfficeSettings;
   rooms: RoomWire[];
@@ -104,9 +107,10 @@ type Action =
   | { type: "log_entry"; entry: LogEntry }
   | { type: "focus"; agentId: string | null }
   | { type: "connected" }
+  | { type: "disconnected" }
   | { type: "sessions_list"; agentId: string; sessions: SessionInfo[]; currentSessionId: string | null }
   | { type: "set_draft"; agentId: string; text: string }
-  | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string }[]; skills: SkillInfo[] }
+  | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string }[]; skills: SkillInfo[] }
   | { type: "clear_logs"; agentId: string }
   | { type: "set_mobile"; isMobile: boolean }
   | { type: "toggle_mobile_view" }
@@ -149,6 +153,7 @@ function reducer(state: AppState, action: Action): AppState {
         needsAttention: new Set(),
         slashCommands: new Map(),
         stateChangedAt: new Map(action.agents.filter((a) => a.state !== "idle" && a.state !== "stopped").map((a) => [a.id, Date.now()])),
+        hasReceivedInitialState: true,
       };
     case "session_context":
       // Reset both invite + session loaded flags on session_context so the
@@ -235,6 +240,8 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case "connected":
       return { ...state, connected: true };
+    case "disconnected":
+      return { ...state, connected: false };
     case "sessions_list": {
       const sessionsList = new Map(state.sessionsList);
       sessionsList.set(action.agentId, { sessions: action.sessions, currentSessionId: action.currentSessionId });
@@ -357,6 +364,7 @@ const initialState: AppState = {
   logs: new Map(),
   focusedAgentId: null,
   connected: false,
+  hasReceivedInitialState: false,
   isMobile: typeof window !== "undefined" ? window.innerWidth < 768 : false,
   mobileViewMode: typeof localStorage !== "undefined" && localStorage.getItem("bureau-mobile-view") === "list" ? "list" : "office",
   needsAttention: new Set(),
@@ -430,17 +438,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    connect((msg: ServerMessage) => {
-      dispatch(msg as Action);
-      if (msg.type === "full_state") dispatch({ type: "connected" });
-      // Server-initiated session invalidation (revoke / logout / expiry /
-      // delete-user fanout). The server sends `session_expired` immediately
-      // before force-closing the WS, so reload here lets the login wall take
-      // over instead of looping reconnect against a 401-returning upgrade.
-      if (msg.type === "session_expired") {
-        if (typeof window !== "undefined") window.location.reload();
-      }
-    });
+    connect(
+      (msg: ServerMessage) => {
+        dispatch(msg as Action);
+        if (msg.type === "full_state") dispatch({ type: "connected" });
+        // Server-initiated session invalidation (revoke / logout / expiry /
+        // delete-user fanout). The server sends `session_expired` immediately
+        // before force-closing the WS, so reload here lets the login wall take
+        // over instead of looping reconnect against a 401-returning upgrade.
+        if (msg.type === "session_expired") {
+          if (typeof window !== "undefined") window.location.reload();
+        }
+      },
+      (isConnected: boolean) => {
+        if (!isConnected) dispatch({ type: "disconnected" });
+      },
+    );
   }, []);
 
   // Track mobile viewport
