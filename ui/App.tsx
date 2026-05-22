@@ -12,6 +12,7 @@ import { RoomSettingsModal } from "./components/modals/RoomSettingsModal.tsx";
 import { TaskView } from "./task-view/TaskView.tsx";
 import { CronjobsView } from "./components/CronjobsView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
+import { ConnectionBanner } from "./components/ConnectionBanner.tsx";
 import { CSS } from "./styles.ts";
 import type { AgentInfo } from "../shared/types.ts";
 import { send } from "./ws.ts";
@@ -192,6 +193,7 @@ export function App() {
   return (
     <>
       <style>{CSS}</style>
+      <ConnectionBanner />
       {username === null && <UserManagementModal currentUsername={null} forceCreate onSwitchUser={setUsername} />}
       {editingUsername && username !== null && (
         <UserManagementModal

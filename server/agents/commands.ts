@@ -20,6 +20,13 @@ export type CommandConfig = {
   description?: string;
   /** Custom ephemeral message for unsupported commands (default is type-aware) */
   message?: string;
+  /**
+   * Marks this entry as an alias of another command. The other command is
+   * the canonical name; this one is a friendlier shorthand. /help groups
+   * canonicals + their aliases so the user sees a single line per command
+   * rather than one per name.
+   */
+  aliasFor?: string;
 };
 
 // Shorthand for the common unsupported-hardcoded pattern
@@ -156,7 +163,15 @@ export const commands: Record<string, CommandConfig> = {
   "rate-limit-options": { ...UNSUPPORTED_HARDCODED, description: "Rate limit configuration" },
 
   // --- Code & file operations ---
-  diff: { ...UNSUPPORTED_HARDCODED, description: "Interactive diff of all changes" },
+  diff: {
+    type: "hardcoded",
+    supported: true,
+    autocomplete: true,
+    overridable: false,
+    handler: "bureauDiff",
+    description: "Peek uncommitted changes in the agent's cwd (or pass a directory)",
+    aliasFor: "bureau-diff",
+  },
   rewind: { ...UNSUPPORTED_HARDCODED, description: "Undo changes and revert conversation" },
   checkpoint: { ...UNSUPPORTED_HARDCODED, description: "Undo changes and revert conversation" },
   copy: { ...UNSUPPORTED_HARDCODED, description: "Copy last response to clipboard" },
@@ -247,10 +262,14 @@ export const commands: Record<string, CommandConfig> = {
 // ---------------------------------------------------------------------------
 
 /** All command names that should appear in autocomplete from the config. */
-export function autocompleteCommands(): { name: string; description?: string }[] {
+export function autocompleteCommands(): { name: string; description?: string; aliasFor?: string }[] {
   return Object.entries(commands)
     .filter(([, cfg]) => cfg.autocomplete)
-    .map(([name, cfg]) => ({ name, description: cfg.description }));
+    .map(([name, cfg]) => ({
+      name,
+      description: cfg.description,
+      ...(cfg.aliasFor ? { aliasFor: cfg.aliasFor } : {}),
+    }));
 }
 
 /** Unsupported message for a command, with type-aware defaults. */

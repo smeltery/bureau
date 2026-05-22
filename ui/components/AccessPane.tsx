@@ -93,7 +93,7 @@ export function AccessPane() {
 
 // Render the cached rows whenever any are present, even while a refresh is
 // in flight — avoids a flicker to "Loading…" on every reconnect.
-function renderListSection<T>(rows: T[], loaded: boolean, renderTable: (rows: T[]) => React.ReactNode): React.ReactNode {
+export function renderListSection<T>(rows: T[], loaded: boolean, renderTable: (rows: T[]) => React.ReactNode): React.ReactNode {
   if (rows.length > 0) return renderTable(rows);
   if (!loaded) return <p style={hint}>Loading…</p>;
   return <p style={hint}>None.</p>;
@@ -494,7 +494,7 @@ export function MintedUrlBox({ url }: { url: string }) {
   );
 }
 
-function InvitesTable({ invites }: { invites: InviteWire[] }) {
+export function InvitesTable({ invites }: { invites: InviteWire[] }) {
   return (
     <table style={tableStyle}>
       <thead>
@@ -525,7 +525,7 @@ function InvitesTable({ invites }: { invites: InviteWire[] }) {
   );
 }
 
-function SessionsTable({ sessions }: { sessions: SessionWire[] }) {
+export function SessionsTable({ sessions }: { sessions: SessionWire[] }) {
   const { sessionContext } = useAppState();
   const currentPrefix = sessionContext?.currentSessionPrefix ?? null;
   return (
@@ -589,26 +589,26 @@ function formatExpiry(ts: number): string {
   return `${d}d`;
 }
 
-const sectionHeader: React.CSSProperties = {
+export const sectionHeader: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 700,
   margin: "0 0 4px",
   color: "var(--text-primary)",
 };
-const subsectionHeader: React.CSSProperties = {
+export const subsectionHeader: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 700,
   margin: "16px 0 6px",
   color: "var(--text-primary)",
 };
 const subLabel: React.CSSProperties = { ...dialogLabel, marginTop: 8 };
-const hint: React.CSSProperties = {
+export const hint: React.CSSProperties = {
   fontSize: 11,
   color: "var(--text-ghost)",
   lineHeight: 1.4,
   margin: "4px 0",
 };
-const cardStyle: React.CSSProperties = {
+export const cardStyle: React.CSSProperties = {
   border: "1px solid var(--border)",
   borderRadius: 8,
   padding: 12,
