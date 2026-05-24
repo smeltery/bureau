@@ -34,10 +34,7 @@ export type CiteSelection = {
  * `clearCite`. The hook does listen to window `resize` (no natural caller
  * path for that) to clear cached state when geometry changes globally.
  */
-export function useSelectionCite(
-  containerRef: React.RefObject<HTMLElement | null>,
-  enabled: boolean,
-): { cite: CiteSelection | null; clearCite: () => void } {
+export function useSelectionCite(containerRef: React.RefObject<HTMLElement | null>, enabled: boolean): { cite: CiteSelection | null; clearCite: () => void } {
   const [cite, setCite] = useState<CiteSelection | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -66,12 +63,7 @@ export function useSelectionCite(
       }
       const anchor = sel.anchorNode;
       const focus = sel.focusNode;
-      if (
-        !anchor ||
-        !focus ||
-        !container.contains(anchor) ||
-        !container.contains(focus)
-      ) {
+      if (!anchor || !focus || !container.contains(anchor) || !container.contains(focus)) {
         setCite(null);
         return;
       }
@@ -107,11 +99,7 @@ export function useSelectionCite(
       // selection covered by a sticky header or scrolled-off message doesn't
       // surface an orphan pill.
       const cr = container.getBoundingClientRect();
-      const visible =
-        lastRect.bottom > cr.top &&
-        lastRect.top < cr.bottom &&
-        lastRect.right > cr.left &&
-        lastRect.left < cr.right;
+      const visible = lastRect.bottom > cr.top && lastRect.top < cr.bottom && lastRect.right > cr.left && lastRect.left < cr.right;
       if (!visible) {
         setCite(null);
         return;
