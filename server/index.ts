@@ -1,7 +1,9 @@
 import type { ClientCommand, PresenceInfo, ServerMessage } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
-import { loadOfficeConfig, loadRecentCwds, saveOfficeConfig } from "./persistence.ts";
+import { loadEnabledPlugins, loadOfficeConfig, loadRecentCwds, saveOfficeConfig } from "./persistence.ts";
+import { loadPlugins } from "./plugins/registry.ts";
+import { join as joinPath } from "path";
 import { getUpdateStatus, onUpdateChange, startUpdateChecker } from "./update-checker.ts";
 import { getBackupStatus, startBackupScheduler } from "./backup.ts";
 import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
@@ -486,12 +488,39 @@ onUpdateChange((status) => {
 });
 startUpdateChecker();
 
-// Restore persisted agents on startup
-AgentManager.restoreAgents().then((restored) => {
+// Plugin load + agent restore are sequenced inside the same async boot so
+// RESTORED agents come up with the full plugin set already in place. A
+// fire-and-forget plugin load would race with restoreAgents — a slow
+// plugin import could let restored-agent turns dispatch with
+// getEnabledPlugins() empty.
+//
+// Caveat: `Bun.serve` above already bound the HTTP listener BEFORE this
+// IIFE started. A user who spawns a brand-new agent during the small
+// plugin-load window (typically <100ms; longer if a plugin's transitive
+// deps need fetching) and immediately sends them a message will see that
+// agent's first turn run without plugin hooks. We accept this for v0:
+// gating HTTP on plugin load would let a single broken local plugin stall
+// the whole UI, which is a worse failure mode than one plugin-less first
+// turn.
+//
+// Plugin load failures land in ~/.bureau/logs/plugins.jsonl + stderr and
+// don't block startup; we still proceed to restoreAgents on the catch path
+// so a broken plugin doesn't kill the server.
+void (async () => {
+  try {
+    // import.meta.dir points at server/, so go up one to get the repo root.
+    const bureauRoot = joinPath(import.meta.dir, "..");
+    const enabledPlugins = loadEnabledPlugins();
+    await loadPlugins({ bureauRoot, enabledPlugins });
+  } catch (err) {
+    console.error("[plugins] unexpected error during plugin load:", err);
+  }
+
+  const restored = await AgentManager.restoreAgents();
   if (restored.length > 0) {
     console.log(`Restored ${restored.length} agent(s): ${restored.map((a) => a.name).join(", ")}`);
   }
-});
+})();
 
 // Boot cronjob scheduler (loads configs, reconciles stale "running" rows, starts tick).
 CronjobManager.startCronjobScheduler();

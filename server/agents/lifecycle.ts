@@ -352,6 +352,8 @@ export async function spawn(
     sessionId: null,
     consumerPromise: null,
     pendingTurn: null,
+    afterTurnPromise: null,
+    turnCancelToken: 0,
     aborting: false,
     abortPromise: null,
     slashCommands: autocompleteCommands(),
@@ -403,6 +405,10 @@ export async function spawn(
 export async function kill(agentId: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
+  // Bump the cancel token so any concurrent runAgentTurn that hasn't yet
+  // installed pendingTurn (pre-send plugin retrieval) bails on its next
+  // await checkpoint instead of calling session.send on a dying session.
+  managed.turnCancelToken++;
   if (managed.pendingPermission) {
     try {
       managed.pendingPermission.resolve({ behavior: "deny", message: "Agent killed." });
@@ -483,6 +489,8 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         sessionId: p.lastSessionId,
         consumerPromise: null,
         pendingTurn: null,
+        afterTurnPromise: null,
+        turnCancelToken: 0,
         aborting: false,
         abortPromise: null,
         slashCommands: autocompleteCommands(),

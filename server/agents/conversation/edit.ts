@@ -1,8 +1,9 @@
 import { forkSession, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
 import type { LogEntry } from "../../../shared/types.ts";
 import { listAgentSessions, loadLog, loadSessionsMap, persistSessionFork } from "../../persistence.ts";
-import { addLogEntry, agents, beginTurn, emit, logCache, persistAll, updateState } from "../state.ts";
-import { SessionSwappedError, createSession, createTurnDeferred, replaceSession } from "../session/runtime.ts";
+import { addLogEntry, agents, emit, logCache, persistAll, updateState } from "../state.ts";
+import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
+import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
 
@@ -195,14 +196,24 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     managed.info.topicStale = true;
     emit({ type: "agent_updated", agentId, changes: { topic: oldTopic, topicStale: true } });
 
-    // 10. Send the edited message
-    beginTurn(agentId, { humanInput: true });
+    // 10. Send the edited message. The user_message log entry lands before
+    // runAgentTurn so it's part of the visible timeline; runAgentTurn's
+    // newLogEntries snapshot is taken AFTER, so the user_message is
+    // excluded from the slice plugins observe.
     addLogEntry(agentId, "user_message", newText, username ? { username } : undefined);
 
     const prefixedNew = username ? `[${username}] ${newText}` : newText;
-    const turn = createTurnDeferred(managed);
-    await managed.session!.send(prefixedNew);
-    await turn;
+    await runAgentTurn({
+      managed,
+      visibleText: newText,
+      // Raw replacement text is what the user actually wants the model to
+      // see; sender prefix is bureau routing applied below.
+      originalText: newText,
+      sdkText: prefixedNew,
+      username: username ?? null,
+      origin: "edit-fork",
+      humanInput: true,
+    });
 
     persistAll();
   } catch (err: any) {

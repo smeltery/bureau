@@ -6,13 +6,21 @@ import { generateTopic, persistCurrentSessionTopic, TOPIC_REGEN_THRESHOLD } from
 export async function abort(agentId: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
+  // Bump the cancel token unconditionally. Stop is always a cancellation
+  // event from the runAgentTurn pre-send window's perspective — whether
+  // the agent is mid-plugin-retrieval (no pendingTurn yet) or mid-real-
+  // turn (pendingTurn installed), the token bump is the signal that
+  // tells runAgentTurn to bail before session.send if it hasn't run yet.
+  // For the post-send path the existing pendingTurn rejection (below) is
+  // still the cancellation mechanism; the token bump is harmless there.
+  managed.turnCancelToken++;
   // If no turn is in flight, the SDK stream may have died (e.g. subprocess
-  // exited) while the UI still shows "thinking". Reset state so Stop is
-  // never a no-op.
+  // exited) OR runAgentTurn may be mid-plugin-retrieval. Either way reset
+  // state so Stop is never a no-op.
   if (!managed.pendingTurn) {
     if (managed.info.state === "thinking" || managed.info.state === "tool_executing") {
       updateState(agentId, "waiting_for_response");
-      addLogEntry(agentId, "system", "Agent interrupted (stream was already dead — state reset).");
+      addLogEntry(agentId, "system", "Agent interrupted.");
     }
     return;
   }

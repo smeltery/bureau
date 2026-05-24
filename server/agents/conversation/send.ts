@@ -2,9 +2,9 @@ import type { Attachment, QueuedMessage, QueuedSender } from "../../../shared/ty
 import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
 import { formatAgentSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
-import { addLogEntry, agents, beginTurn, emit, emitEphemeralLog, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
-import { buildUserMessage } from "../session/messages.ts";
-import { SessionSwappedError, createSession, createTurnDeferred, installSession, replaceSession } from "../session/runtime.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
+import { SessionSwappedError, createSession, installSession, replaceSession } from "../session/runtime.ts";
+import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { generateTopic, persistCurrentSessionTopic, shouldAutoRegenerateTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
 import { handleSlashCommand } from "./slash-commands.ts";
 
@@ -140,47 +140,76 @@ export async function flushQueue(agentId: string): Promise<void> {
     // Combine with sender-kind-specific prefixes so the agent can tell
     // human bosses from other agents apart.
     const promptParts: string[] = [];
+    // unprefixedParts mirrors promptParts but without the sender prefix per
+    // item. Plugins receive the joined unprefixed version as `originalText`
+    // so memory/audit see user intent without `[Nil]` noise that belongs
+    // to bureau's routing layer rather than the user's message.
+    const unprefixedParts: string[] = [];
     const allAttachments: Attachment[] = [];
     // If any items were queued while the agent was busy, prepend a single
     // coalesced note so the agent doesn't read them as reactions to its
     // most recent reply (the sender hadn't seen that reply yet).
     const busyCount = items.reduce((n, m) => (m.queuedDuringBusyTurn ? n + 1 : n), 0);
     if (busyCount > 0) {
-      promptParts.push(
+      const note =
         busyCount === 1
           ? `[Note: this message was queued while you were processing your previous turn — the sender had not seen your most recent reply when they sent it.]`
-          : `[Note: these messages were queued while you were processing your previous turn — the sender had not seen your most recent reply when they sent them.]`,
-      );
+          : `[Note: these messages were queued while you were processing your previous turn — the sender had not seen your most recent reply when they sent them.]`;
+      promptParts.push(note);
+      unprefixedParts.push(note);
     }
     for (const m of items) {
       // sdkText is set for pre-expanded slash commands (e.g. an
       // /bureau-peer-review queued while the agent was mid-turn): chat
       // shows m.text "/bureau-peer-review", but the SDK needs the full
       // skill prompt.
-      promptParts.push(`${senderPrefixText(m.sender)}${m.sdkText ?? m.text}`);
+      const body = m.sdkText ?? m.text;
+      promptParts.push(`${senderPrefixText(m.sender)}${body}`);
+      unprefixedParts.push(body);
       if (m.attachments) allAttachments.push(...m.attachments);
     }
     const prompt = promptParts.join("\n\n");
-    // Log each item separately so it shows up as its own chat bubble.
-    for (const m of items) {
-      // Carry sdkText into the log metadata so editMessage can match this
-      // entry against the SDK session (the SDK saw the expanded prompt,
-      // not m.text). Same shape executeSkill uses on the immediate path.
-      const base = senderMeta(m.sender);
-      const meta = m.sdkText ? { ...(base ?? {}), sdkText: m.sdkText } : base;
-      addLogEntry(agentId, "user_message", m.text, meta, m.attachments);
-    }
-    beginTurn(agentId, { humanInput: items.some((m) => m.sender.kind === "user") });
+    const originalText = unprefixedParts.join("\n\n");
+    // Username attribution: pick the first user sender's username (if any)
+    // for plugin context. Mixed user/agent flushes still surface the human
+    // boss as the attribution target; pure agent-to-agent flushes pass null.
+    const firstUserSender = items.find((m) => m.sender.kind === "user");
+    const flushUsername = firstUserSender && firstUserSender.sender.kind === "user" ? (firstUserSender.sender.username ?? null) : null;
+
     try {
-      const turn = createTurnDeferred(managed);
-      if (allAttachments.length > 0) {
-        const message = buildUserMessage(agentId, prompt, allAttachments);
-        await managed.session!.send(message);
-      } else {
-        await managed.session!.send(prompt);
-      }
-      await turn;
+      await runAgentTurn({
+        managed,
+        // No single "user-typed" string for a coalesced flush; the prompt
+        // composition is the closest approximation, and plugins generally
+        // use originalText (sender prefixes stripped) anyway.
+        visibleText: prompt,
+        originalText,
+        sdkText: prompt,
+        username: flushUsername,
+        attachments: allAttachments.length > 0 ? allAttachments : undefined,
+        origin: "queued",
+        humanInput: items.some((m) => m.sender.kind === "user"),
+        onSendAccepted: () => {
+          // Send accepted by the backend. Finalize: write per-message log
+          // entries (provenance). Runs synchronously inside runAgentTurn
+          // between session.send resolving and the newLogEntries snapshot,
+          // so these user_messages stay OUT of the afterTurn slice (they
+          // belong to "the prompt", not "the agent's response").
+          for (const m of items) {
+            // Carry sdkText into the log metadata so editMessage can match
+            // this entry against the SDK session (the SDK saw the expanded
+            // prompt, not m.text). Same shape executeSkill uses on the
+            // immediate path.
+            const base = senderMeta(m.sender);
+            const meta = m.sdkText ? { ...(base ?? {}), sdkText: m.sdkText } : base;
+            addLogEntry(agentId, "user_message", m.text, meta, m.attachments);
+          }
+        },
+      });
     } catch (err: any) {
+      // runAgentTurn re-throws whatever the underlying turn threw and has
+      // already cleaned up the pendingTurn deferred if session.send fell
+      // before await turn. Per-site error semantics remain here.
       if (err instanceof SessionSwappedError) return;
       addLogEntry(agentId, "error", `Error flushing queue: ${err.message}`);
       updateState(agentId, "error");
@@ -382,7 +411,6 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   }
 
   addLogEntry(agentId, "user_message", text, username ? { username } : undefined, attachments);
-  beginTurn(agentId, { humanInput: true });
 
   // First-message bootstrap (topic === null) OR drift-driven refresh after
   // resume/restart/long session (shouldAutoRegenerateTopic). The threshold
@@ -394,15 +422,23 @@ export async function sendMessage(agentId: string, text: string, username?: stri
 
   const prefixedText = username ? `[${username}] ${text}` : text;
   try {
-    const turn = createTurnDeferred(managed);
-    if (attachments && attachments.length > 0) {
-      const message = buildUserMessage(agentId, prefixedText, attachments);
-      await managed.session!.send(message);
-    } else {
-      await managed.session!.send(prefixedText);
-    }
-    await turn;
+    await runAgentTurn({
+      managed,
+      visibleText: text,
+      // sendMessage's raw user text is `text`; the sender prefix is
+      // applied above as `prefixedText` which becomes sdkText.
+      originalText: text,
+      sdkText: prefixedText,
+      username: username ?? null,
+      attachments,
+      origin: "user",
+      humanInput: true,
+    });
   } catch (err: any) {
+    // runAgentTurn re-throws whatever the underlying turn threw; it also
+    // handles the deferred-cleanup invariant (rejecting managed.pendingTurn
+    // if session.send threw before await turn ran). The per-call-site catch
+    // remains responsible for the distinct error semantics each path needs.
     if (err instanceof SessionSwappedError) return;
     console.error(`Agent ${agentId} send error:`, err.message);
     addLogEntry(agentId, "error", `Error: ${err.message}`);
