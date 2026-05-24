@@ -58,6 +58,11 @@ import { clampSchedule, computeNextFire } from "./schedule.ts";
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
 
+// Same rationale as agents/session/system-prompt.ts: hoist PORT once so a
+// non-default bureau (e.g. on PORT=4001) tells its cronjobs to POST to the
+// right port instead of the canonical 4000.
+const PORT = process.env.PORT || "4000";
+
 // ---------------------------------------------------------------------------
 // In-memory state
 // ---------------------------------------------------------------------------
@@ -259,12 +264,12 @@ The Bureau office consists of agents that have persistent identity and sit at de
 
 How to discover other office agents and their conversation logs: read ~/.bureau/agents-summary.json.
 
-How to use the task board (localhost:4000/tasks): only touch it if your prompt directs you to. When you do:
-  curl -s localhost:4000/tasks                                          # list active tasks (excludes done and backlog)
-  curl -s localhost:4000/tasks?status=all                               # include done and backlog
-  curl -s -X POST localhost:4000/tasks -H 'Content-Type: application/json' \\
+How to use the task board (localhost:${PORT}/tasks): only touch it if your prompt directs you to. When you do:
+  curl -s localhost:${PORT}/tasks                                          # list active tasks (excludes done and backlog)
+  curl -s localhost:${PORT}/tasks?status=all                               # include done and backlog
+  curl -s -X POST localhost:${PORT}/tasks -H 'Content-Type: application/json' \\
     -d '{"title":"...","createdBy":"${cronjob.name}"}'                  # create
-  curl -s -X POST localhost:4000/tasks/ID/done -d '{}'                  # mark done
+  curl -s -X POST localhost:${PORT}/tasks/ID/done -d '{}'                  # mark done
 
 How to show an image: read the image file with the Read tool — it renders inline in the conversation.
 

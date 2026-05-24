@@ -511,7 +511,7 @@ function MicHint({ onClose }: { onClose: () => void }) {
           lineHeight: 1.6,
         }}
       >
-        {`sudo tailscale set --operator=$USER\ntailscale serve --bg http://localhost:4000`}
+        {`sudo tailscale set --operator=$USER\ntailscale serve --bg http://localhost:${typeof window !== "undefined" ? window.location.port || "4000" : "4000"}`}
       </code>
       <div style={{ marginTop: 8, lineHeight: 1.5, color: "var(--text-muted)" }}>Restart bureau and reload this page. You'll be auto-redirected to HTTPS.</div>
       <button
