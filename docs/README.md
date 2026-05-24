@@ -30,6 +30,7 @@ Detailed subsystem documentation.
 | [Multi-Office Isolation](features/multi-office-design.md) | Multiple isolated workspaces |
 | [Per-Agent MCP Access](features/per-agent-mcp-access.md) | Controlling MCP integration access per agent |
 | [Plugin Management](features/plugin-management-design.md) | Plugin UI and lifecycle |
+| [Plugin System](features/plugin-system.md) | First-party `beforeTurn` / `afterTurn` hooks around the agent turn loop |
 | [Room Environment & Prompts](features/room-env-prompt-design.md) | Per-room env vars and prompt hierarchy |
 | [Task System](features/task-system-design.md) | Shared task board for humans and agents |
 | [Named Rooms](features/prompt-named-rooms.md) | Custom room names |

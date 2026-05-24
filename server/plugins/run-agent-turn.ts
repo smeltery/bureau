@@ -301,10 +301,7 @@ async function runOneBeforeTurn(p: BureauPlugin, ctx: PluginTurnContext, origin:
     }
   })();
 
-  const winner = await Promise.race([
-    work.then((r) => ({ kind: "ok" as const, r })),
-    new Promise<{ kind: "timeout" }>((res) => setTimeout(() => res({ kind: "timeout" }), BEFORE_TURN_TIMEOUT_MS)),
-  ]);
+  const winner = await Promise.race([work.then((r) => ({ kind: "ok" as const, r })), new Promise<{ kind: "timeout" }>((res) => setTimeout(() => res({ kind: "timeout" }), BEFORE_TURN_TIMEOUT_MS))]);
 
   if (winner.kind === "timeout") {
     timedOut = true;

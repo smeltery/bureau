@@ -388,6 +388,16 @@ In addition to dynamically fetching all these skills (except Enterprise), Bureau
 - `/bureau-all-hands`: shows what everyone is working on.
 - `/bureau-system-prompt`: dumps the full assembled system prompt so the user understands the agent's behavior.
 
+### Plugin hooks
+
+Several plausible integrations — memory layers, observability, redaction, audit — want to sit in the agent turn loop without each one needing a fork. Bureau exposes one extension point for that: a TypeScript plugin module exports `beforeTurn` and/or `afterTurn` hooks, and a central `runAgentTurn` helper fires them for every turn that comes out of `sendMessage`, the queue flush, a skill execution, or an `editMessage` fork resend.
+
+`beforeTurn` can return a `promptPrefix` string that the hook bus wraps in `--- begin plugin: <id> ---` / `--- end plugin: <id> ---` delimiters and prepends to the outgoing prompt. Multiple plugins' blocks concatenate in alphabetical id order. `afterTurn` observes the turn outcome (`completed` / `failed` / `interrupted`) along with the assistant's text and the slice of log entries produced during the turn. Per-plugin timeouts (5s before, 10s after) keep one slow plugin from blocking the chat.
+
+Plugins are enabled per office by listing them in `~/.bureau/office-config.json`'s `enabledPlugins` array — bare string ids for bundled plugins under `<bureauRoot>/plugins/<id>/`, and `{id, path}` objects for external plugins at an operator-controlled location. There is no directory scanning; the config is the trust boundary.
+
+The trigger use case is wiring a memory layer like mem0: `beforeTurn` queries the vector store with the user's text and prepends retrieved facts; `afterTurn` writes new facts extracted from the turn. The plugin system itself is the long-lived investment — any individual integration is throwaway.
+
 ### Voice prompting
 
 One advantage of the frontend being browser-based is that we can leverage the existing voice-to-text and text-to-speech APIs for prompts and responses, respectively.

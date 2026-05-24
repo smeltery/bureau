@@ -95,11 +95,6 @@ export interface PluginAfterTurnInput {
 export interface BureauPlugin {
   /** Must match the plugin directory name. `[a-z0-9_-]+`. */
   id: string;
-  beforeTurn?: (
-    ctx: PluginTurnContext,
-  ) => Promise<PluginBeforeTurnResult | void> | PluginBeforeTurnResult | void;
-  afterTurn?: (
-    ctx: PluginTurnContext,
-    input: PluginAfterTurnInput,
-  ) => Promise<void> | void;
+  beforeTurn?: (ctx: PluginTurnContext) => Promise<PluginBeforeTurnResult | void> | PluginBeforeTurnResult | void;
+  afterTurn?: (ctx: PluginTurnContext, input: PluginAfterTurnInput) => Promise<void> | void;
 }

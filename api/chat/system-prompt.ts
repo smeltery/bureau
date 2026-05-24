@@ -163,6 +163,15 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
   - Config protection: blocks writes to ~/.bureau/ (managed by the server)
 - The embedded terminal is handy when you need to run a blocked command manually
 
+### Plugins (extension points)
+- Plugin system: extend bureau without forking. TypeScript modules export \`beforeTurn\` and/or \`afterTurn\` hooks that run around every agent turn.
+- \`beforeTurn\` can prepend context to the outgoing prompt (e.g. retrieved memories from a vector store). Per-plugin output is delimiter-wrapped so prompt inspection stays possible.
+- \`afterTurn\` observes completed / failed / interrupted turns, with the assistant's text and the new log entries. Use for memory writes, audit logging, etc.
+- Enable per office by editing \`~/.bureau/office-config.json\` and adding to \`enabledPlugins\`: bare string \`"my-plugin"\` for bundled plugins under \`<bureauRoot>/plugins/<id>/\`, or \`{"id": "...", "path": "/abs/path"}\` for external plugins.
+- Plugin failures (throws, timeouts) land in \`~/.bureau/logs/plugins.jsonl\`; they never crash the turn. Per-plugin timeouts: 5s beforeTurn, 10s afterTurn.
+- In-process Bun/TypeScript only in v0. Plugins run with the same privileges as the bureau process — trust model is operator-installed local code.
+- Full doc: docs/features/plugin-system.md.
+
 ### Notifications
 - Sound notification when agent finishes and tab is unfocused
 - Activity badge on desk when attention needed
