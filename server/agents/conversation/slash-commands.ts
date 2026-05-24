@@ -164,8 +164,10 @@ const commandHandlers: Record<string, HandlerFn> = {
     // Tips first — a fresh user opening /help shouldn't have to scroll past
     // the command/skill inventory to find the actionable stuff.
     lines.push("**Tips:**");
-    lines.push("  • Agents can check on each other and message each other. Just ask naturally, or use `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`.");
-    lines.push("  • Type ahead while an agent is busy: messages queue and flush when it's idle. Hit \"Send now\" to interrupt and flush immediately.");
+    lines.push(
+      "  • Agents can check on each other and message each other. Just ask naturally, or use `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`.",
+    );
+    lines.push('  • Type ahead while an agent is busy: messages queue and flush when it\'s idle. Hit "Send now" to interrupt and flush immediately.');
     lines.push("  • Use voice-to-text for faster prompting. The shortcut is ctrl+space.");
     lines.push(
       "  • Bureau works on your phone. The easiest way is to connect it to the same VPN (e.g., Tailscale - free) as the machine running it. On mobile the terminal opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.",

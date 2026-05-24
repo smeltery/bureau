@@ -22,21 +22,10 @@ const PILL_EDGE_PAD = 4;
  *
  * Never touches scroll position or layout outside its own box.
  */
-export function CiteSelectionButton({
-  cite,
-  containerRect,
-  onClick,
-}: {
-  cite: CiteSelection;
-  containerRect: DOMRect;
-  onClick: () => void;
-}) {
+export function CiteSelectionButton({ cite, containerRect, onClick }: { cite: CiteSelection; containerRect: DOMRect; onClick: () => void }) {
   // Vertical placement: above the selection if room, else below.
   const aboveTop = cite.rect.top - PILL_HEIGHT - PILL_GAP;
-  const placement =
-    aboveTop >= containerRect.top
-      ? { top: aboveTop }
-      : { top: cite.rect.bottom + PILL_GAP };
+  const placement = aboveTop >= containerRect.top ? { top: aboveTop } : { top: cite.rect.bottom + PILL_GAP };
 
   // Horizontal: anchor pill's right edge to the selection's right edge, then
   // clamp inside the container so the pill stays visually attached to the
@@ -90,13 +79,7 @@ export function CiteSelectionButton({
           WebkitUserSelect: "none",
         }}
       >
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 16 16"
-          fill="currentColor"
-          aria-hidden="true"
-        >
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M3 3h4v4H5v3H3V3zm7 0h4v4h-2v3h-2V3z" />
         </svg>
         <span>Cite</span>

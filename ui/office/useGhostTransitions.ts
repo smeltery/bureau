@@ -62,21 +62,11 @@ function mapsEqual<K, V>(a: Map<K, V>, b: Map<K, V>): boolean {
 // their own avatar (only other devices / other users render). If the boss
 // is the only device connected, no ghost renders; other tabs/devices of
 // the same user appear as their own ghosts via their own connectionId.
-function computeNaturalPlacements(
-  presences: PresenceInfo[],
-  roomAgents: AgentInfo[],
-  currentRoom: number,
-  ownConnectionId: string | null,
-): GhostPlacement[] {
-  const visible = presences.filter(
-    (p) => p.currentRoom === currentRoom && p.connectionId !== ownConnectionId,
-  );
+function computeNaturalPlacements(presences: PresenceInfo[], roomAgents: AgentInfo[], currentRoom: number, ownConnectionId: string | null): GhostPlacement[] {
+  const visible = presences.filter((p) => p.currentRoom === currentRoom && p.connectionId !== ownConnectionId);
   const groups = new Map<string, PresenceInfo[]>();
   for (const p of visible) {
-    const agent =
-      p.focusedAgentId !== null
-        ? roomAgents.find((a) => a.id === p.focusedAgentId)
-        : undefined;
+    const agent = p.focusedAgentId !== null ? roomAgents.find((a) => a.id === p.focusedAgentId) : undefined;
     const key = agent ? `desk:${agent.desk}` : "lobby";
     const arr = groups.get(key);
     if (arr) arr.push(p);
@@ -161,12 +151,8 @@ export function useGhostTransitions(
   leftDoor: DoorCoord,
   rightDoor: DoorCoord,
 ): GhostPlacement[] {
-  const [entering, setEntering] = useState<Map<string, DoorCoord>>(
-    () => new Map(),
-  );
-  const [exiting, setExiting] = useState<Map<string, GhostPlacement>>(
-    () => new Map(),
-  );
+  const [entering, setEntering] = useState<Map<string, DoorCoord>>(() => new Map());
+  const [exiting, setExiting] = useState<Map<string, GhostPlacement>>(() => new Map());
   // `prevPresences` / `prevOwnRoom` are kept in STATE (not refs) so the
   // render-phase compare-and-update pattern is a pure function of state
   // and props. Refs would also work but would be a side-effect mutation
@@ -183,12 +169,8 @@ export function useGhostTransitions(
   }, [prevPresences]);
 
   // Effect-managed bookkeeping. Not read in render.
-  const exitTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map(),
-  );
-  const enteringRafsRef = useRef<
-    Map<string, { raf1: number; raf2: number | null }>
-  >(new Map());
+  const exitTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const enteringRafsRef = useRef<Map<string, { raf1: number; raf2: number | null }>>(new Map());
 
   // Render-phase derived-state pattern. When `presences` or `currentRoom`
   // change (compared by reference / value to the snapshot in state), detect
@@ -353,33 +335,17 @@ export function useGhostTransitions(
   // connectionId so React's child order stays stable across all the
   // merge variants. This is the invariant Ghost.tsx's two-layer split
   // relies on to keep inline CSS transitions from re-attach-restarting.
-  const naturalPlacements = useMemo(
-    () =>
-      computeNaturalPlacements(
-        presences,
-        roomAgents,
-        currentRoom,
-        ownConnectionId,
-      ),
-    [presences, roomAgents, currentRoom, ownConnectionId],
-  );
+  const naturalPlacements = useMemo(() => computeNaturalPlacements(presences, roomAgents, currentRoom, ownConnectionId), [presences, roomAgents, currentRoom, ownConnectionId]);
 
   return useMemo(() => {
     const byCid = new Map<string, GhostPlacement>();
     for (const p of naturalPlacements) {
       const override = entering.get(p.presence.connectionId);
-      byCid.set(
-        p.presence.connectionId,
-        override !== undefined
-          ? { ...p, left: override.left, top: override.top }
-          : p,
-      );
+      byCid.set(p.presence.connectionId, override !== undefined ? { ...p, left: override.left, top: override.top } : p);
     }
     for (const [cid, phantom] of exiting) {
       if (!byCid.has(cid)) byCid.set(cid, phantom);
     }
-    return Array.from(byCid.values()).sort((a, b) =>
-      a.presence.connectionId.localeCompare(b.presence.connectionId),
-    );
+    return Array.from(byCid.values()).sort((a, b) => a.presence.connectionId.localeCompare(b.presence.connectionId));
   }, [naturalPlacements, entering, exiting]);
 }
