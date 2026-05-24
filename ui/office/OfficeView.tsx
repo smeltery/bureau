@@ -6,7 +6,8 @@ import { RoomTabBar } from "./RoomTabBar.tsx";
 import { DeskUnit } from "./scene/DeskUnit.tsx";
 import { EmptySlot } from "./scene/EmptySlot.tsx";
 import { StatusLight } from "./scene/StatusLight.tsx";
-import { DESK_SLOTS, SCENE_W, SCENE_H, deskPixelPos } from "./grid.ts";
+import { SCENE_W, SCENE_H } from "./grid.ts";
+import { useGhostTransitions, type DoorCoord } from "./useGhostTransitions.ts";
 import { GhostBody, GhostTag } from "./Ghost.tsx";
 import { send } from "../ws.ts";
 import { SunIcon, MoonIcon } from "../components/controls/Icons.tsx";
@@ -16,41 +17,16 @@ import { WallPanelMenu, type WallPanelMenuItem } from "../components/overlays/Wa
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
 import { useViewport } from "./useViewport.ts";
 import { ZoomControls } from "./ZoomControls.tsx";
-import type { AgentInfo, PresenceInfo } from "../../shared/types.ts";
+import type { AgentInfo } from "../../shared/types.ts";
 
 const GHOST_SIZE = 40;
 
-function computeGhostPlacements(presences: PresenceInfo[], roomAgents: AgentInfo[], currentRoom: number, ownConnectionId: string | null) {
-  const visible = presences.filter((presence) => presence.currentRoom === currentRoom && presence.connectionId !== ownConnectionId);
-  const groups = new Map<string, PresenceInfo[]>();
-  for (const presence of visible) {
-    const agent = presence.focusedAgentId ? roomAgents.find((a) => a.id === presence.focusedAgentId) : undefined;
-    const key = agent ? `desk:${agent.desk}` : "lobby";
-    const list = groups.get(key) ?? [];
-    list.push(presence);
-    groups.set(key, list);
-  }
-  const rankByConnection = new Map<string, { key: string; index: number }>();
-  for (const [key, group] of groups) {
-    group.forEach((presence, index) => rankByConnection.set(presence.connectionId, { key, index }));
-  }
-  const placements: { presence: PresenceInfo; left: number; top: number; dimmed: boolean }[] = [];
-  for (const presence of visible) {
-    const rank = rankByConnection.get(presence.connectionId);
-    if (!rank) continue;
-    const { key, index } = rank;
-    if (key === "lobby") {
-      placements.push({ presence, left: 600 + index * 52, top: 590, dimmed: presence.viewMode === "away" });
-      continue;
-    }
-    const deskIndex = Number(key.slice("desk:".length));
-    const slot = DESK_SLOTS[deskIndex];
-    if (!slot) continue;
-    const pos = deskPixelPos(slot.row, slot.col);
-    placements.push({ presence, left: pos.left + 130 + index * 18, top: pos.top + 90 + index * 4, dimmed: presence.viewMode === "away" });
-  }
-  return placements;
-}
+// Pixel coords (scene-container space) where ghosts park when sliding
+// to/from a door on a room switch. Roughly centered horizontally on the
+// DoorDropZone with the ghost-box top placed so the body sits in front
+// of the door threshold. Module-level so the hook's effect deps stay stable.
+const LEFT_DOOR_COORD: DoorCoord = { left: 25, top: 270 };
+const RIGHT_DOOR_COORD: DoorCoord = { left: SCENE_W - 65, top: 270 };
 
 export interface ViewportControls {
   resetView: () => void;
@@ -247,6 +223,10 @@ export function OfficeView({
 
   // Filter agents to current room for rendering
   const roomAgents = agents.filter((a) => a.room === currentRoom);
+  // Final ghost placement list — natural desk/lobby positions plus door-slide
+  // overrides for ghosts whose presence just crossed into / out of our current
+  // room. The hook owns all per-ghost coordinate state; OfficeView just renders.
+  const ghostPlacements = useGhostTransitions(presences, roomAgents, currentRoom, sessionContext?.connectionId ?? null, LEFT_DOOR_COORD, RIGHT_DOOR_COORD);
   const [leftDoorDragOver, setLeftDoorDragOver] = useState(false);
   const [rightDoorDragOver, setRightDoorDragOver] = useState(false);
   const [leftDoorReject, setLeftDoorReject] = useState(false);
@@ -511,43 +491,45 @@ export function OfficeView({
                 />
               );
             })}
-            {(() => {
-              const ghostPlacements = computeGhostPlacements(presences, roomAgents, currentRoom, sessionContext?.connectionId ?? null);
-              return (
-                <>
-                  {ghostPlacements.map((p) => (
-                    <GhostBody
-                      key={`body-${p.presence.connectionId}`}
-                      left={p.left}
-                      top={p.top}
-                      size={GHOST_SIZE}
-                      variant={p.presence.avatarVariant}
-                      color={p.presence.avatarColor}
-                      username={p.presence.username}
-                      device={p.presence.device}
-                      userId={p.presence.userId}
-                      dimmed={p.dimmed}
-                      onClick={onOpenUserSettingsForUser}
-                    />
-                  ))}
-                  {ghostPlacements.map((p) => (
-                    <GhostTag
-                      key={`tag-${p.presence.connectionId}`}
-                      left={p.left}
-                      top={p.top}
-                      size={GHOST_SIZE}
-                      variant={p.presence.avatarVariant}
-                      color={p.presence.avatarColor}
-                      username={p.presence.username}
-                      device={p.presence.device}
-                      userId={p.presence.userId}
-                      dimmed={p.dimmed}
-                      onClick={onOpenUserSettingsForUser}
-                    />
-                  ))}
-                </>
-              );
-            })()}
+            {/* Two layers, two stable per-connection keys per layer. The body
+                and tag layers are independent React siblings, each iterating
+                placements in connectionId order. Body/tag never interleave in
+                the DOM, so a new arrival's body insertion can't shift an
+                existing ghost's tag (or vice versa). Combined with the
+                connectionId-sorted output from useGhostTransitions, no
+                existing ghost's DOM node moves when an unrelated anchor
+                changes — which keeps CSS transitions intact and prevents
+                browsers from re-attach-restarting any inline animations. */}
+            {ghostPlacements.map((p) => (
+              <GhostBody
+                key={`body-${p.presence.connectionId}`}
+                left={p.left}
+                top={p.top}
+                size={GHOST_SIZE}
+                variant={p.presence.avatarVariant}
+                color={p.presence.avatarColor}
+                username={p.presence.username}
+                device={p.presence.device}
+                userId={p.presence.userId}
+                dimmed={p.dimmed}
+                onClick={onOpenUserSettingsForUser}
+              />
+            ))}
+            {ghostPlacements.map((p) => (
+              <GhostTag
+                key={`tag-${p.presence.connectionId}`}
+                left={p.left}
+                top={p.top}
+                size={GHOST_SIZE}
+                variant={p.presence.avatarVariant}
+                color={p.presence.avatarColor}
+                username={p.presence.username}
+                device={p.presence.device}
+                userId={p.presence.userId}
+                dimmed={p.dimmed}
+                onClick={onOpenUserSettingsForUser}
+              />
+            ))}
           </div>
         </div>
 
