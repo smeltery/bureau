@@ -9,10 +9,20 @@ import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
 import { send, addRawListener, removeRawListener } from "../ws.ts";
 import { dialogSaveBtn } from "./modals/dialog-styles.ts";
-import { InvitesTable, SessionsTable, MintedUrlBox, renderListSection, sectionHeader, subsectionHeader, hint, cardStyle } from "./AccessPane.tsx";
+import {
+  InvitesTable,
+  SessionsTable,
+  MintedUrlBox,
+  renderListSection,
+  sectionHeader,
+  subsectionHeader,
+  hint,
+  cardStyle,
+} from "./AccessPane.tsx";
 
 export function MyDevicesPane() {
-  const { invitesList, invitesLoaded, activeSessions, activeSessionsLoaded } = useAppState();
+  const { invitesList, invitesLoaded, activeSessions, activeSessionsLoaded } =
+    useAppState();
 
   // Server-side lockout-prevention rejections (revoke_blocked) are
   // owner-relevant in practice — a member's session can't be the office's
@@ -52,7 +62,11 @@ export function MyDevicesPane() {
   return (
     <div style={{ marginTop: 24 }}>
       <h4 style={sectionHeader}>My devices</h4>
-      <p style={hint}>Generate a single-use link to sign another of your devices into your account. The link expires in 1 hour; generating a new one replaces the previous.</p>
+      <p style={hint}>
+        Generate a single-use link to sign another of your devices into your
+        account. The link expires in 1 hour; generating a new one replaces the
+        previous.
+      </p>
 
       {blockedNote && (
         <div
@@ -70,7 +84,18 @@ export function MyDevicesPane() {
           }}
         >
           <span style={{ flex: 1 }}>{blockedNote}</span>
-          <button onClick={() => setBlockedNote(null)} style={{ background: "transparent", border: "none", color: "#ff6b6b", cursor: "pointer", fontSize: 14, padding: 0 }} title="Dismiss">
+          <button
+            onClick={() => setBlockedNote(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#ff6b6b",
+              cursor: "pointer",
+              fontSize: 14,
+              padding: 0,
+            }}
+            title="Dismiss"
+          >
             ×
           </button>
         </div>
@@ -136,11 +161,22 @@ function GenerateDeviceLinkForm() {
 
   return (
     <div style={cardStyle}>
-      <p style={{ ...hint, marginTop: 0 }}>Anyone with the link can sign in as you until it expires or is used — treat it like a one-time password and only open it on your own device.</p>
-      <button onClick={generate} disabled={pending} style={{ ...dialogSaveBtn, opacity: pending ? 0.5 : 1 }}>
+      <p style={{ ...hint, marginTop: 0 }}>
+        Anyone with the link can sign in as you until it expires or is used —
+        treat it like a one-time password and only open it on your own device.
+      </p>
+      <button
+        onClick={generate}
+        disabled={pending}
+        style={{ ...dialogSaveBtn, opacity: pending ? 0.5 : 1 }}
+      >
         {pending ? "Generating…" : "Generate device link"}
       </button>
-      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{error}</p>}
+      {error && (
+        <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>
+          {error}
+        </p>
+      )}
       {mintedUrl && <MintedUrlBox url={mintedUrl} />}
     </div>
   );

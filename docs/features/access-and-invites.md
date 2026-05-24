@@ -6,9 +6,9 @@ How Bureau gates who can use an office, and how the invite-link flow works end-t
 
 - Bureau agents can run shell commands, so authenticated users effectively have shell access to the host. Only invite people you trust.
 - The server gates every browser request (HTTP + WebSocket) by a session cookie.
-- Sessions are created when an invitee opens an invite URL the office owner generated.
-- The first owner claims the office at `http://localhost:4000` on the host machine. Until that claim happens the server listens on the loopback interface only, so the form is only reachable from the host (or via an SSH tunnel from another machine).
-- Two roles exist: `owner` (can mint invites, revoke sessions, toggle external access) and `member` (can use the office). Both have full operational access — the role split exists to control who expands the trust boundary.
+- Two roles: `owner` (can toggle external access and mint invites for new identities) and `member` (can mint invites for their own additional devices). Both have full operational access once inside.
+- Sessions are created when someone opens an invite URL — issued by an owner for a new identity, or by a member for one of their own devices.
+- The first owner claims the office at `http://localhost:4000` on the host machine. Until that claim happens the server is only reachable from the host (or via an SSH tunnel).
 
 ## End-to-end flow
 
@@ -53,7 +53,15 @@ Owner-issued invite links expire 24h after issuing if unused; self-device links 
 
 Inviting a user who already exists requires the `Issue an additional invite` confirmation in the form. The framing is "additional invite for that identity" — it does not revoke their existing sessions, does not mutate their role. One user can have many simultaneous sessions (laptop + phone + tablet).
 
-### 4. Sign out
+### 4. Member self-invites
+
+Members can add more of their own devices without involving the owner. In `User Settings`, the `My devices` pane (which replaces the `Access` pane for non-owner roles) has a single `Generate device link` button — no role/target/TTL knobs. Click it; the URL appears once. Copy it, open it on the other device, you're in as the same identity.
+
+Self-device links are tighter than owner-issued invites by design: **1h TTL** and **at most one outstanding at a time** (generating a new one replaces the previous). The 1h window matches the legitimate flow ("both my devices are right here, click it now"). The role, target user, and TTL are all fixed server-side from the caller's session, so a tampered client can't extend the window, change the role, or mint for a different identity. The wire-level check rejects any such attempt.
+
+The `My devices` pane also lists the member's outstanding invites and active sessions, scoped to themselves — same tables as the owner's `Access` pane, filtered to one identity.
+
+### 5. Sign out
 
 `User Settings` → `Sign out` revokes the current device's session and reloads. Other devices for the same user stay signed in. If you're the office's last active owner session, sign-out is refused with a lockout-prevention message — mint another owner invite first, accept it on a second device, then retry.
 
