@@ -54,10 +54,7 @@ export function getEnabledPlugins(): LoadedPlugin[] {
 
 /** Resolve, validate, and load every entry in `enabledPlugins`. Call once
  *  at boot, after persistence init and before agent spawn. */
-export async function loadPlugins(opts: {
-  bureauRoot: string;
-  enabledPlugins: EnabledPluginEntry[];
-}): Promise<void> {
+export async function loadPlugins(opts: { bureauRoot: string; enabledPlugins: EnabledPluginEntry[] }): Promise<void> {
   // Entries were already deduped + format-validated by loadEnabledPlugins
   // in persistence; the loop here is straight-line per-entry.
   const byId = new Map<string, LoadedPlugin>();
@@ -231,8 +228,7 @@ export interface PluginFailureRecord {
 }
 
 export function logPluginFailure(rec: PluginFailureRecord): void {
-  const errorSummary =
-    rec.error instanceof Error ? `${rec.error.name}: ${rec.error.message}` : typeof rec.error === "string" ? rec.error : safeStringify(rec.error);
+  const errorSummary = rec.error instanceof Error ? `${rec.error.name}: ${rec.error.message}` : typeof rec.error === "string" ? rec.error : safeStringify(rec.error);
   const line = JSON.stringify({
     ts: Date.now(),
     pluginId: rec.pluginId,
