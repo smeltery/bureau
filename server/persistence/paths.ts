@@ -26,6 +26,11 @@ export const SESSIONS_FILE = join(BUREAU_DIR, "sessions.json");
 // boundary, so we keep this path next to the rest of ~/.bureau/.
 export const ADMIN_SOCKET_FILE = join(BUREAU_DIR, "admin.sock");
 
+// Plugin failure stream — hook failures (throws, timeouts) and load errors
+// land here as JSONL records so they don't pollute the per-agent chat log.
+// See server/plugins/plugins.ts and docs/features/plugin-system.md.
+export const PLUGINS_LOG_FILE = join(LOGS_DIR, "plugins.jsonl");
+
 // Cronjobs live under their own subtree mirroring agent logs (one extra level
 // of nesting: <jobId>/<runId>/...). See server/cronjobs and the design doc.
 export const CRONJOBS_DIR = join(BUREAU_DIR, "cronjobs");
