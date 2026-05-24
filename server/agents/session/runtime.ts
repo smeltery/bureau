@@ -264,6 +264,12 @@ export function installSession(agentId: string, managed: ManagedAgent, session: 
 // drain, install the new session + consumer. Rejects any in-flight turn so
 // callers awaiting sendMessage's deferred don't hang.
 export async function replaceSession(agentId: string, managed: ManagedAgent, newSession: ReturnType<typeof unstable_v2_createSession>) {
+  // Bump the cancel token first so any concurrent runAgentTurn in its
+  // pre-send plugin-retrieval window bails on the next await checkpoint —
+  // the in-flight `pendingTurn` rejection below only covers the post-send
+  // path. /clear, /resume, /model, edit-fork, and abort's slow path all
+  // funnel through here, so this single bump covers every swap.
+  managed.turnCancelToken++;
   managed.info = { ...managed.info, sessionSwapping: true };
   emit({ type: "agent_updated", agentId, changes: { sessionSwapping: true } });
   try {

@@ -3,11 +3,12 @@ import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
 import { computeBureauDiff, resolveDiffCwd } from "../../bureau-diff.ts";
 import { listAgentSessions } from "../../persistence.ts";
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
-import { addLogEntry, agents, beginTurn, emit, emitEphemeralLog, isAgentBusy, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, isAgentBusy, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { enqueueMessage } from "./send.ts";
 import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
-import { SessionSwappedError, createSession, createTurnDeferred, replaceSession } from "../session/runtime.ts";
+import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
+import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { renderUsageReport } from "../usage.ts";
 
@@ -491,13 +492,25 @@ async function executeSkill(agentId: string, managed: ManagedAgent, skillPrompt:
   }
 
   addLogEntry(agentId, "user_message", rawText, userMeta);
-  beginTurn(agentId, { humanInput: true });
   const prefixedSkillPrompt = username ? `[${username}] ${fullPrompt}` : fullPrompt;
   try {
-    const turn = createTurnDeferred(managed);
-    await managed.session!.send(prefixedSkillPrompt);
-    await turn;
+    await runAgentTurn({
+      managed,
+      visibleText: rawText,
+      // For skills, the expanded skill prompt (with user args spliced in)
+      // is the semantic user request — what the user effectively asked
+      // the model to do. The raw `/grill` invocation is captured in
+      // visibleText for display. Sender prefix is applied as sdkText.
+      originalText: fullPrompt,
+      sdkText: prefixedSkillPrompt,
+      username: username ?? null,
+      origin: "skill",
+      humanInput: true,
+    });
   } catch (err: any) {
+    // runAgentTurn re-throws whatever the underlying turn threw and has
+    // already cleaned up the pendingTurn deferred if session.send fell
+    // before await turn. Per-site error semantics remain here.
     if (err instanceof SessionSwappedError) return true;
     addLogEntry(agentId, "error", `Skill error: ${err.message}`);
     updateState(agentId, "error");
