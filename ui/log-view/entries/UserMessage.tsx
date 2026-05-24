@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Attachment } from "../../../shared/types.ts";
 import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { EditIcon } from "../../components/controls/Icons.tsx";
@@ -92,6 +92,10 @@ export function EditableUserMessage({
 }) {
   const [text, setText] = useState(content);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Use `pointer: coarse` instead of the viewport-based `isMobile` prop so
+  // narrow desktop windows (split-screen) with a hardware keyboard still
+  // send on Enter, matching the main composer in LogView.tsx.
+  const isTouchPrimary = useMemo(() => typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches, []);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -102,7 +106,7 @@ export function EditableUserMessage({
   }, []);
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !isTouchPrimary) {
       e.preventDefault();
       if (text.trim()) onSubmit?.(entryId, text.trim());
     }
