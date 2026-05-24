@@ -21,6 +21,21 @@ export interface OfficeConfig {
   officeName: string | null;
 }
 
+// A single entry in office-config.json's `enabledPlugins` array.
+//
+//   - Bare string ("safety-hooks") = a bundled first-party plugin, resolved
+//     under `<bureauRoot>/plugins/<id>/`.
+//   - Object ({ id, path }) = an external plugin at the explicit `path`. The
+//     plugin's exported `id` must match the entry's `id` (the path's basename
+//     does NOT have to match — e.g. a plugin could live at a directory called
+//     `bureau-mem0` but export id "mem0").
+//
+// The hybrid shape keeps bundled-plugin config clean (just a string id, no
+// machine-specific paths) while making external-plugin trust explicit:
+// the config file enumerates every directory whose code will be imported
+// into the bureau process.
+export type EnabledPluginEntry = string | { id: string; path: string };
+
 export function loadOfficeConfig(): OfficeConfig {
   try {
     if (existsSync(OFFICE_CONFIG_FILE)) {
@@ -64,4 +79,86 @@ export function saveOfficeConfig(config: OfficeConfig) {
   } catch (err) {
     console.error("Failed to save office config:", err);
   }
+}
+
+// Raw read of office-config.json — returns the parsed object verbatim without
+// filtering unknown keys. Used by loadEnabledPlugins so fields the OfficeConfig
+// shape doesn't know about (like `enabledPlugins`) survive the round trip.
+function readOfficeConfigRaw(): Record<string, unknown> {
+  try {
+    if (existsSync(OFFICE_CONFIG_FILE)) {
+      return JSON.parse(readFileSync(OFFICE_CONFIG_FILE, "utf-8")) as Record<string, unknown>;
+    }
+  } catch (err) {
+    console.error("Failed to read office config (raw):", err);
+  }
+  return {};
+}
+
+// Read `enabledPlugins` from office-config.json. Returns validated entries
+// (deduped by id, first occurrence wins). Goes through readOfficeConfigRaw
+// rather than loadOfficeConfig because `OfficeConfig` filters unknown keys
+// — `enabledPlugins` lives alongside `prompt` / `envFile` / `officeName` /
+// `publicOrigin` in the JSON but is not surfaced to the UI in v0 (operator
+// edits the file directly).
+//
+// Validation:
+// - Top-level must be an array; otherwise the field is dropped wholesale.
+// - String entries must match `[a-z0-9_-]+`.
+// - Object entries must have `id: string` matching the same regex AND
+//   `path: string` that's absolute (starts with `/`) or tilde-prefixed
+//   (starts with `~/`). Relative paths are rejected because they'd resolve
+//   against the server cwd which is brittle.
+// - Bad entries are logged to stderr and dropped — a malformed enable list
+//   should not silently broaden the trust boundary.
+export function loadEnabledPlugins(): EnabledPluginEntry[] {
+  const raw = readOfficeConfigRaw();
+  if (!("enabledPlugins" in raw)) return [];
+  const candidate = raw.enabledPlugins;
+  if (!Array.isArray(candidate)) {
+    console.error("[office-config] enabledPlugins in office-config.json is not an array; ignoring");
+    return [];
+  }
+  const idRe = /^[a-z0-9_-]+$/;
+  const result: EnabledPluginEntry[] = [];
+  const seenIds = new Set<string>();
+  for (const v of candidate) {
+    let entry: EnabledPluginEntry | null = null;
+    if (typeof v === "string") {
+      const id = v.trim();
+      if (!idRe.test(id)) {
+        console.error(`[office-config] enabledPlugins entry "${v}" is not a valid plugin id (need ${idRe}); ignoring`);
+        continue;
+      }
+      entry = id;
+    } else if (v && typeof v === "object" && !Array.isArray(v)) {
+      const obj = v as { id?: unknown; path?: unknown };
+      const rawId = typeof obj.id === "string" ? obj.id.trim() : "";
+      if (!rawId || !idRe.test(rawId)) {
+        console.error(`[office-config] enabledPlugins object entry has invalid id (need ${idRe}); ignoring:`, v);
+        continue;
+      }
+      const rawPath = typeof obj.path === "string" ? obj.path.trim() : "";
+      if (!rawPath) {
+        console.error(`[office-config] enabledPlugins object entry "${rawId}" is missing path; ignoring`);
+        continue;
+      }
+      if (!rawPath.startsWith("/") && !rawPath.startsWith("~/")) {
+        console.error(`[office-config] enabledPlugins entry "${rawId}" path "${rawPath}" is not absolute (must start with / or ~/); ignoring`);
+        continue;
+      }
+      entry = { id: rawId, path: rawPath };
+    } else {
+      console.error("[office-config] enabledPlugins entry is neither a string nor an {id, path} object; ignoring:", v);
+      continue;
+    }
+    const id = typeof entry === "string" ? entry : entry.id;
+    if (seenIds.has(id)) {
+      console.error(`[office-config] enabledPlugins has duplicate id "${id}"; keeping the first occurrence`);
+      continue;
+    }
+    seenIds.add(id);
+    result.push(entry);
+  }
+  return result;
 }
