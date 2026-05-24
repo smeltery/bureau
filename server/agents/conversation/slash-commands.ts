@@ -161,22 +161,37 @@ const commandHandlers: Record<string, HandlerFn> = {
 
     const lines: string[] = [];
 
-    // Agent metadata
-    const topicLine = managed.info.topic ? `  Topic: ${managed.info.topic}` : "";
-    lines.push(`**${managed.info.name}** — Room ${managed.info.room + 1}, Desk ${managed.info.desk + 1}`);
-    lines.push(`  cwd: \`${managed.info.cwd}\``);
-    if (topicLine) lines.push(topicLine);
-    lines.push("");
-
-    // Bureau description
-    lines.push("Bureau is a multi-agent office manager for Claude Code. Learn more at https://");
-    lines.push("");
+    // Tips first — a fresh user opening /help shouldn't have to scroll past
+    // the command/skill inventory to find the actionable stuff.
+    lines.push("**Tips:**");
+    lines.push("  • Agents can check on each other and message each other. Just ask naturally, or use `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`.");
+    lines.push("  • Type ahead while an agent is busy: messages queue and flush when it's idle. Hit \"Send now\" to interrupt and flush immediately.");
+    lines.push("  • Use voice-to-text for faster prompting. The shortcut is ctrl+space.");
+    lines.push(
+      "  • Bureau works on your phone. The easiest way is to connect it to the same VPN (e.g., Tailscale - free) as the machine running it. On mobile the terminal opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.",
+    );
+    lines.push(
+      "  • Once the office is reachable from outside your VPN (e.g. via Tailscale Funnel — see https://github.com/dotbrains/bureau/blob/master/docs/features/access-and-invites.md), the owner can open `User Settings → Access` and mint one-time invite URLs. Recipients click and are signed in — no accounts, no passwords.",
+    );
+    lines.push(
+      "  • The built-in side-panel terminal is useful for one-off situations where you need to run something manually, like auth flows. The file editor side panel (toggle next to the terminal button) opens any file with CodeMirror.",
+    );
+    lines.push(
+      "  • Agents can offer `[Open in editor]` and `[Copy to terminal]` cards in chat. Agents can also surface a file inline with POST /agents/:id/read-file — images render in-chat, others as a clickable chip.",
+    );
+    lines.push("  • Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Use `/bureau-usage` to see per-agent + per-room + per-cron-job lifetime cost.");
+    lines.push("  • The office view zooms and pans (pinch/scroll, drag, or `0`/`+`/`-` keys). Drag the splitter between chat and the side panel to resize it.");
+    lines.push(
+      "  • Pick a color theme from the header palette button — Dark, Light, Nord, Dracula, Solarized Dark, or Solarized Light. The moon/sun toggle bounces between your last-picked dark and light themes.",
+    );
+    lines.push("  • Schedule recurring work in the Cron Jobs page — daily, weekly, or by interval. Tasks have a Backlog status for deferred work.");
+    lines.push("  • Bureau ships safety pre-tool-call hooks to prevent destructive commands like `rm -rf /`. `~/.bureau/` is auto-tarballed daily to `~/bureau-backups/` (last 7 kept).");
 
     // Commands — collapse aliased entries (e.g. `/diff` aliasFor `/bureau-diff`)
     // into a single line so the user doesn't see two lines for the same handler.
     const cmdGroups = groupByAlias(managed.slashCommands.map((c) => ({ name: c.name, description: c.description, aliasFor: c.aliasFor })));
     const cmdList = cmdGroups.map((g) => formatAliasGroup(g.names, g.description)).join("\n");
-    lines.push(`**Commands:**\n${cmdList}`);
+    lines.push(`\n**Commands:**\n${cmdList}`);
 
     // Skills grouped by origin
     const originLabel: Record<SkillOrigin, string> = {
@@ -199,34 +214,6 @@ const commandHandlers: Record<string, HandlerFn> = {
       const skillLines = skillGroups.map((g) => formatAliasGroup(g.names, g.description)).join("\n");
       lines.push(`\n**${originLabel[origin]}:**\n${skillLines}`);
     }
-
-    // Tips
-    lines.push("\n**Tips:**");
-    lines.push("  \u2022 Bureau also works on your phone. The easiest way is to connect it to the same VPN (e.g., Tailscale - free) as the machine running it.");
-    lines.push(
-      "  \u2022 The built-in side-panel terminal is useful for one-off situations where you need to run something manually, like auth flows. On mobile it opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.",
-    );
-    lines.push("  \u2022 The file editor side panel (toggle next to the terminal button) opens any file with CodeMirror \u2014 tabs, syntax highlighting, and external-change detection.");
-    lines.push(
-      "  \u2022 Agents can offer `[Open in editor]` and `[Copy to terminal]` cards in chat (POST /agents/:id/edit-file and /terminal-command); click to open in the side panel. Agents can also surface a file inline with POST /agents/:id/read-file \u2014 images render in-chat, others as a clickable chip.",
-    );
-    lines.push("  \u2022 Drag the splitter between chat and the side panel to resize it. Widths persist per kind.");
-    lines.push("  \u2022 Sending a message while an agent is busy queues it as a chip above the input; it flushes when the agent idles. Click \u00d7 on the chip to cancel.");
-    lines.push("  \u2022 The office view zooms and pans: pinch or scroll to zoom, drag to pan, on-screen buttons in the bottom-right. Keyboard: `0` resets, `+`/`-` zoom.");
-    lines.push("  \u2022 Bureau comes with safety pre-tool-call hooks to prevent destructive commands, like `rm -rf /`.");
-    lines.push("  \u2022 Bureau agents can check what other agents are up to in real time. Just ask naturally.");
-    lines.push("  \u2022 Use voice-to-text for faster prompting. The shortcut is ctrl+space.");
-    lines.push(
-      "  \u2022 Use `/bureau-pair-programming` to walk through scoping, design review with a peer agent, and implementation review \u2014 escalates to the boss after 5 rounds or on architectural tradeoffs.",
-    );
-    lines.push("  \u2022 Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Agents can also POST /agents/:id/diff with a commit or range.");
-    lines.push(
-      "  \u2022 Pick a color theme from the header palette button \u2014 Dark, Light, Nord, Dracula, Solarized Dark, or Solarized Light. The moon/sun toggle bounces between your last-picked dark and light themes.",
-    );
-    lines.push("  \u2022 Use `/bureau-usage` to see per-agent + per-room + per-cron-job lifetime cost.");
-    lines.push("  \u2022 Schedule recurring work in the Cron Jobs page \u2014 daily, weekly, or by interval. Resume or edit-to-fork any past run.");
-    lines.push("  \u2022 Tasks have a Backlog status \u2014 use it to defer work without it cluttering the active list.");
-    lines.push("  \u2022 ~/.bureau/ is auto-tarballed daily to ~/bureau-backups/ (last 7 kept).");
 
     addLogEntry(agentId, "system", lines.join("\n"));
     updateState(agentId, "waiting_for_response");
