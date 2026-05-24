@@ -19,6 +19,8 @@ import { usePinnedUserMessage } from "./hooks/usePinnedUserMessage.ts";
 import { useSlashAutocomplete } from "./hooks/useSlashAutocomplete.ts";
 import { useVoiceInput } from "./hooks/useVoiceInput.ts";
 import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
+import { useSelectionCite } from "./useSelectionCite.ts";
+import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 
 const MODEL_TINT: Record<ModelFamily, { border: string; bg: string }> = {
   opus: { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
@@ -168,10 +170,26 @@ export function LogView({
   const vpHeight = useViewportHeight(isMobile, scrollRef);
   const { autoScroll, setAutoScroll, handleScroll: handleAutoScroll } = useAutoScroll(scrollRef, logs, agent.state);
   const { pinnedMessage, scrollToPinnedMessage, getUserMsgRefCb, recomputePinned } = usePinnedUserMessage(scrollRef, logs, agent.state);
+
+  // Cite-from-selection: when the boss highlights text in the chat log, show
+  // a floating "Cite" pill that inserts the selection into the draft as a
+  // triple-quoted block. Gated to pointer-fine devices for v1 — mobile
+  // scroll is already finicky and the selection layer makes it worse.
+  // The hook is a pure observer; the click handler below (handleCite) is
+  // the only place we mutate draft / focus / selection. Scroll-hide lives
+  // in handleScroll below — keeping the hook selection-only, with the
+  // chat's existing scroll path owning geometry invalidation.
+  const isTouchPrimary = useMemo(() => typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches, []);
+  const citeEnabled = !isTouchPrimary && !editingLogEntryId;
+  const { cite, clearCite } = useSelectionCite(scrollRef, citeEnabled);
+
   const handleScroll = useCallback(() => {
     handleAutoScroll();
     recomputePinned();
-  }, [handleAutoScroll, recomputePinned]);
+    // Hide cite pill when the chat scrolls — its cached viewport rect goes
+    // stale and `selectionchange` won't fire for a pure scroll.
+    if (cite) clearCite();
+  }, [handleAutoScroll, recomputePinned, cite, clearCite]);
   const autocomplete = useSlashAutocomplete(input, slashCommands.get(agent.id));
   const voice = useVoiceInput({
     inputRef,
@@ -287,6 +305,56 @@ export function LogView({
   }, [logs]);
 
   const getConversationText = useCallback(() => serializeEntries(logs), [logs]);
+
+  // Insert (or append) `text` into the draft as a triple-quoted "Cited text"
+  // block, then focus the textarea + position the caret after the insertion.
+  // Splits on caret-vs-no-caret because the boss might cite into a half-
+  // written prompt OR with no active focus on the composer at all.
+  const handleCite = useCallback(
+    (text: string) => {
+      const ta = textareaRef.current;
+      const current = inputRef.current;
+      const block = `Cited text:\n"""\n${text}\n"""\n`;
+
+      let newDraft: string;
+      let caretPos: number;
+
+      if (ta && document.activeElement === ta) {
+        const start = ta.selectionStart ?? current.length;
+        const end = ta.selectionEnd ?? current.length;
+        const before = current.slice(0, start);
+        const after = current.slice(end);
+        const leadSep = before === "" || before.endsWith("\n") ? "" : "\n";
+        const trailSep = after === "" || after.startsWith("\n") ? "" : "\n";
+        const insertion = leadSep + block + trailSep;
+        newDraft = before + insertion + after;
+        caretPos = before.length + insertion.length;
+      } else {
+        if (current === "") {
+          newDraft = block;
+        } else {
+          const sep = current.endsWith("\n\n") ? "" : current.endsWith("\n") ? "\n" : "\n\n";
+          newDraft = current + sep + block;
+        }
+        caretPos = newDraft.length;
+      }
+
+      setInput(newDraft);
+      // Collapse the chat selection so the pill goes away. selectionchange
+      // will null out the hook state too, but clearCite first for snappy
+      // feedback.
+      clearCite();
+      window.getSelection()?.removeAllRanges();
+      requestAnimationFrame(() => {
+        const ta2 = textareaRef.current;
+        if (!ta2) return;
+        ta2.focus({ preventScroll: true });
+        ta2.setSelectionRange(caretPos, caretPos);
+        autoResize(ta2);
+      });
+    },
+    [setInput, clearCite, autoResize],
+  );
 
   return (
     <div
@@ -570,6 +638,7 @@ export function LogView({
           <EditorPanel agentId={agent.id} initialPath={editorInitialPath} onClose={() => setEditorOpen(false)} onPathOpened={() => setEditorInitialPath(null)} mobile />
         </div>
       )}
+      {cite && scrollRef.current && <CiteSelectionButton cite={cite} containerRect={scrollRef.current.getBoundingClientRect()} onClick={() => handleCite(cite.text)} />}
     </div>
   );
 }
