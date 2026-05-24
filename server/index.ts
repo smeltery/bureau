@@ -570,8 +570,8 @@ if (isProcessPreClaim()) {
        (this machine reports ${detectedUser}@${detectedHost}; use whatever you actually SSH as)
     2. Open http://localhost:${port} in that browser.
 
-  After you claim, the Access pane lets you enable external
-  access so everyday use doesn't need the SSH tunnel.
+  After you claim, the Access pane (User Settings) lets you enable
+  external access so everyday use doesn't need the SSH tunnel.
 ================================================================
 `);
 }
