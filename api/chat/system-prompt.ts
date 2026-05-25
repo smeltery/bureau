@@ -170,7 +170,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Enable per office by editing \`~/.bureau/office-config.json\` and adding to \`enabledPlugins\`: bare string \`"my-plugin"\` for bundled plugins under \`<bureauRoot>/plugins/<id>/\`, or \`{"id": "...", "path": "/abs/path"}\` for external plugins.
 - Plugin failures (throws, timeouts) land in \`~/.bureau/logs/plugins.jsonl\`; they never crash the turn. Per-plugin timeouts: 5s beforeTurn, 10s afterTurn.
 - In-process Bun/TypeScript only in v0. Plugins run with the same privileges as the bureau process — trust model is operator-installed local code.
-- Reference plugin: bureau-mem0 (https://github.com/dotbrains/bureau-mem0) gives agents long-term memory across sessions via mem0 (https://mem0.ai). Demonstrates the contract end-to-end.
+- Reference plugin: bureau-dossier (https://github.com/dotbrains/bureau-dossier) gives agents long-term memory across sessions, backed by mem0 (https://mem0.ai). Demonstrates the contract end-to-end.
 - Full doc: docs/features/plugin-system.md.
 
 ### Notifications

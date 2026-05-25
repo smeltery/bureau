@@ -28,7 +28,8 @@ export interface OfficeConfig {
 //   - Object ({ id, path }) = an external plugin at the explicit `path`. The
 //     plugin's exported `id` must match the entry's `id` (the path's basename
 //     does NOT have to match — e.g. a plugin could live at a directory called
-//     `bureau-mem0` but export id "mem0").
+//     `bureau-dossier` and export id "dossier", but the names don't have to
+//     align).
 //
 // The hybrid shape keeps bundled-plugin config clean (just a string id, no
 // machine-specific paths) while making external-plugin trust explicit:

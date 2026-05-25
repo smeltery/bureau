@@ -8,7 +8,7 @@
  *      Resolved under `<bureauRoot>/plugins/<id>/index.ts`. No path needed
  *      because the location is part of the bureau distribution.
  *
- *   2. {id, path} object: `{ "id": "mem0", "path": "/home/nil/bureau-mem0" }`
+ *   2. {id, path} object: `{ "id": "dossier", "path": "/home/nil/bureau-dossier" }`
  *      — an external plugin at an operator-controlled location. The path
  *      must be absolute or `~/...` prefixed; basename(path) does NOT have
  *      to match `id` (the plugin's repo may be named differently than its

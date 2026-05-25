@@ -115,7 +115,7 @@ Defaults:
 No directory scanning. `office-config.json`'s `enabledPlugins` array is the authoritative trust boundary: any directory whose code will be imported into the bureau process must be listed there explicitly. Two entry shapes:
 
 1. **Bare string id** — `"safety-hooks"`. A bundled, first-party plugin. Resolved under `<bureauRoot>/plugins/<id>/index.ts`. No path needed; the location is part of the bureau distribution.
-2. **`{id, path}` object** — `{ "id": "mem0", "path": "/home/nil/bureau-mem0" }`. An external plugin at an operator-controlled location. `path` must be absolute (`/...`) or tilde-prefixed (`~/...`); relative paths are rejected because they'd resolve against the server cwd. `basename(path)` does NOT have to match `id` — a plugin repo named `bureau-mem0` can export id `"mem0"`.
+2. **`{id, path}` object** — `{ "id": "dossier", "path": "/home/nil/bureau-dossier" }`. An external plugin at an operator-controlled location. `path` must be absolute (`/...`) or tilde-prefixed (`~/...`); relative paths are rejected because they'd resolve against the server cwd. `basename(path)` does NOT have to match `id` — a plugin repo's directory name and its exported id are independent.
 
 For each entry:
 
@@ -137,7 +137,7 @@ Example:
 {
   "prompt": null,
   "envFile": null,
-  "enabledPlugins": [{ "id": "mem0", "path": "/home/nil/bureau-mem0" }]
+  "enabledPlugins": [{ "id": "dossier", "path": "/home/nil/bureau-dossier" }]
 }
 ```
 
@@ -162,7 +162,7 @@ For v0, no plugins are bundled in `<bureauRoot>/plugins/`. The directory is rese
 
 ## Reference plugin
 
-[**bureau-mem0**](https://github.com/dotbrains/bureau-mem0) — gives agents long-term memory across sessions via [mem0](https://mem0.ai). Demonstrates the contract end-to-end: `beforeTurn` retrieves relevant memories and prepends them as a prompt prefix; `afterTurn` ships the completed exchange to mem0 cloud for extraction and storage. Lives in a separate repo (per the trust path above) so the `mem0ai` dependency doesn't bleed into bureau's `bun.lock`.
+[**bureau-dossier**](https://github.com/dotbrains/bureau-dossier) — gives agents long-term memory across sessions, backed by [mem0](https://mem0.ai). Demonstrates the contract end-to-end: `beforeTurn` retrieves relevant memories and prepends them as a prompt prefix; `afterTurn` ships the completed exchange to mem0 cloud for extraction and storage. Lives in a separate repo (per the trust path above) so the `mem0ai` dependency doesn't bleed into bureau's `bun.lock`.
 
 ## Acknowledged v0 tradeoffs
 
