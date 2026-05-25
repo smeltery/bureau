@@ -160,6 +160,10 @@ Two trust paths, two enable shapes:
 
 For v0, no plugins are bundled in `<bureauRoot>/plugins/`. The directory is reserved for future first-party plugins.
 
+## Reference plugin
+
+[**bureau-mem0**](https://github.com/dotbrains/bureau-mem0) — gives agents long-term memory across sessions via [mem0](https://mem0.ai). Demonstrates the contract end-to-end: `beforeTurn` retrieves relevant memories and prepends them as a prompt prefix; `afterTurn` ships the completed exchange to mem0 cloud for extraction and storage. Lives in a separate repo (per the trust path above) so the `mem0ai` dependency doesn't bleed into bureau's `bun.lock`.
+
 ## Acknowledged v0 tradeoffs
 
 - **Latency on chained turns.** The `afterTurnPromise` gate means a queued message waits for the previous turn's `afterTurn` (plus timeout) before processing. Acceptable for v0. If it bites in practice, add an opt-out per plugin or per hook.
