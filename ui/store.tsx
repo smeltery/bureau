@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, useRef, useState, useCallback, type ReactNode, type Dispatch } from "react";
+import { createContext, useContext, useReducer, useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type Dispatch } from "react";
 import type {
   AgentInfo,
   Cronjob,
@@ -642,7 +642,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  return <ThemeCtx.Provider value={{ theme: resolved.id, mode: resolved.mode, setTheme, toggleTheme }}>{children}</ThemeCtx.Provider>;
+  const value = useMemo(() => ({ theme: resolved.id, mode: resolved.mode, setTheme, toggleTheme }), [resolved.id, resolved.mode, setTheme, toggleTheme]);
+
+  return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
 }
 
 export function useTheme() {
