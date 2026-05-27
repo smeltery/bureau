@@ -122,7 +122,7 @@ export function FeaturesSection() {
       icon: <Palette className="h-6 w-6" />,
       title: '6 Color Themes',
       description:
-        'Pick from Dark, Light, Nord, Dracula, Solarized Dark, and Solarized Light. The header toggle remembers your last pick in each mode, so a quick moon/sun flip swaps between your two favorites.',
+        'Pick from Dark, Light, Nord, Dracula, Solarized Dark, and Solarized Light. Follows your OS preference until you pick one explicitly; the header toggle then remembers your last pick in each mode so a quick moon/sun flip swaps between your two favorites.',
     },
   ];
 

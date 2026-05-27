@@ -161,9 +161,11 @@ const commandHandlers: Record<string, HandlerFn> = {
 
     const lines: string[] = [];
 
-    // Tips first — a fresh user opening /help shouldn't have to scroll past
-    // the command/skill inventory to find the actionable stuff.
-    lines.push("**Tips:**");
+    lines.push("**Docs:** https://github.com/dotbrains/bureau/tree/master/docs");
+
+    // Tips — surfaced first so a new user reading top-down hits the
+    // actionable stuff before the command/skill inventory.
+    lines.push("\n**Tips:**");
     lines.push(
       "  • Agents can check on each other and message each other. Just ask naturally, or use `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`.",
     );

@@ -514,9 +514,26 @@ const ThemeCtx = createContext<ThemeContextValue>({
   toggleTheme: () => {},
 });
 
+// Resolve the OS / browser color-scheme preference. Used as the default when
+// the user hasn't picked a theme yet (and when they switch back to following
+// system later, via the media-query listener below).
+function getSystemThemeId(): string {
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: light)").matches) {
+    return "light";
+  }
+  return DEFAULT_THEME_ID;
+}
+
+const USER_PICK_KEY = "bureau-theme";
+
+function hasUserPickedTheme(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return localStorage.getItem(USER_PICK_KEY) != null;
+}
+
 function getInitialThemeId(): string {
   if (typeof localStorage !== "undefined") {
-    const saved = localStorage.getItem("bureau-theme");
+    const saved = localStorage.getItem(USER_PICK_KEY);
     if (saved) {
       // If the stored id isn't a known theme, getThemeById falls back to
       // the default — return the canonical id so we don't keep round-
@@ -524,7 +541,8 @@ function getInitialThemeId(): string {
       return getThemeById(saved).id;
     }
   }
-  return DEFAULT_THEME_ID;
+  // No explicit user choice: follow the OS preference.
+  return getSystemThemeId();
 }
 
 const LAST_THEME_KEY = {
@@ -548,13 +566,20 @@ function getLastModeTheme(mode: ThemeMode): string {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [themeId, setThemeId] = useState<string>(getInitialThemeId);
+  // Track whether the current theme came from an explicit user pick or from
+  // the OS preference. While following the OS, we don't persist anything and
+  // we live-react to `prefers-color-scheme` changes. Once the user picks a
+  // theme (via ThemePicker or the moon/sun toggle), it sticks.
+  const [userPicked, setUserPicked] = useState<boolean>(hasUserPickedTheme);
   const resolved: Theme = getThemeById(themeId);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", resolved.id);
     document.documentElement.setAttribute("data-theme-mode", resolved.mode);
-    localStorage.setItem("bureau-theme", resolved.id);
-    localStorage.setItem(LAST_THEME_KEY[resolved.mode], resolved.id);
+    if (userPicked) {
+      localStorage.setItem(USER_PICK_KEY, resolved.id);
+      localStorage.setItem(LAST_THEME_KEY[resolved.mode], resolved.id);
+    }
     const color = resolved.vars["--bg-base"];
     let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     if (!meta) {
@@ -563,9 +588,44 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       document.head.appendChild(meta);
     }
     meta.content = color;
-  }, [resolved]);
+  }, [resolved, userPicked]);
+
+  // While we're following the OS preference (no explicit pick), swap the
+  // theme live if the system flips between dark and light. Stops listening
+  // once the user picks something explicit, since their choice should win.
+  useEffect(() => {
+    if (userPicked) return;
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = () => setThemeId(getSystemThemeId());
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [userPicked]);
+
+  // Cross-window sync. Fires when another window on the same origin writes
+  // to our localStorage key — covers the landing's theme toggle updating
+  // an embedded demo iframe (where the marketing site renders bureau), and
+  // the reverse (clicking the wall moon inside the demo updates the
+  // landing's palette).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function onStorage(e: StorageEvent) {
+      if (e.key !== USER_PICK_KEY && e.key !== null) return;
+      if (e.newValue) {
+        setUserPicked(true);
+        setThemeId(getThemeById(e.newValue).id);
+      } else {
+        // Key was cleared in another window — go back to following the OS.
+        setUserPicked(false);
+        setThemeId(getSystemThemeId());
+      }
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const setTheme = useCallback((id: string) => {
+    setUserPicked(true);
     setThemeId(getThemeById(id).id);
   }, []);
 
@@ -574,6 +634,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // mode rather than the canonical Dark/Light pair, so someone using Nord +
   // Solarized Light gets ferried between their two preferred themes.
   const toggleTheme = useCallback(() => {
+    setUserPicked(true);
     setThemeId((current) => {
       const currentMode = getThemeById(current).mode;
       const oppositeMode: ThemeMode = currentMode === "dark" ? "light" : "dark";
