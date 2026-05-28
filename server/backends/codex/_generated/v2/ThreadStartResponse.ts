@@ -10,28 +10,36 @@ import type { PermissionProfile } from "./PermissionProfile";
 import type { SandboxPolicy } from "./SandboxPolicy";
 import type { Thread } from "./Thread";
 
-export type ThreadStartResponse = { thread: Thread, model: string, modelProvider: string, serviceTier: string | null, cwd: AbsolutePathBuf,
-/**
- * Instruction source files currently loaded for this thread.
- */
-instructionSources: Array<AbsolutePathBuf>, approvalPolicy: AskForApproval,
-/**
- * Reviewer currently used for approval requests on this thread.
- */
-approvalsReviewer: ApprovalsReviewer,
-/**
- * Legacy sandbox policy retained for compatibility. Experimental clients
- * should prefer `permissionProfile` when they need exact runtime
- * permissions.
- */
-sandbox: SandboxPolicy,
-/**
- * Full active permissions for this thread. `activePermissionProfile`
- * carries display/provenance metadata for this runtime profile.
- */
-permissionProfile: PermissionProfile | null,
-/**
- * Named or implicit built-in profile that produced the active
- * permissions, when known.
- */
-activePermissionProfile: ActivePermissionProfile | null, reasoningEffort: ReasoningEffort | null, };
+export type ThreadStartResponse = {
+  thread: Thread;
+  model: string;
+  modelProvider: string;
+  serviceTier: string | null;
+  cwd: AbsolutePathBuf;
+  /**
+   * Instruction source files currently loaded for this thread.
+   */
+  instructionSources: Array<AbsolutePathBuf>;
+  approvalPolicy: AskForApproval;
+  /**
+   * Reviewer currently used for approval requests on this thread.
+   */
+  approvalsReviewer: ApprovalsReviewer;
+  /**
+   * Legacy sandbox policy retained for compatibility. Experimental clients
+   * should prefer `permissionProfile` when they need exact runtime
+   * permissions.
+   */
+  sandbox: SandboxPolicy;
+  /**
+   * Full active permissions for this thread. `activePermissionProfile`
+   * carries display/provenance metadata for this runtime profile.
+   */
+  permissionProfile: PermissionProfile | null;
+  /**
+   * Named or implicit built-in profile that produced the active
+   * permissions, when known.
+   */
+  activePermissionProfile: ActivePermissionProfile | null;
+  reasoningEffort: ReasoningEffort | null;
+};

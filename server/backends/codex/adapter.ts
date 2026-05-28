@@ -50,14 +50,7 @@ import type {
   TokenUsage,
 } from "../types.ts";
 
-import {
-  JsonRpcLiteClient,
-  PASS,
-  type JsonRpcId,
-  type JsonRpcLiteClientOptions,
-  type JsonRpcNotification,
-  type JsonRpcRequest,
-} from "./client.ts";
+import { JsonRpcLiteClient, PASS, type JsonRpcId, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
 import { getCodexLoginCommands, isCodexAuthenticated } from "./native-bin.ts";
 
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
@@ -99,8 +92,7 @@ Alternative: add \`OPENAI_API_KEY\` to your envFile (User Settings → Env File 
 // they need.
 const ALREADY_AUTHED_INSTRUCTIONS = `Codex is signed in. Type \`/clear\` to refresh this agent's session and pick up the new auth.`;
 
-const AUTH_ERROR_PATTERNS =
-  /unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|chatgpt.*login|openai_api_key|403|401/i;
+const AUTH_ERROR_PATTERNS = /unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|chatgpt.*login|openai_api_key|403|401/i;
 
 // Capability flags for the Codex backend. Match the spec's parity table.
 // hooks: false — Codex emits hook/* notifications but provides no
@@ -163,20 +155,10 @@ const MAX_INLINE_ATTACHMENT_BYTES = 64 * 1024;
 
 // Media-type allowlist for inlining attachment contents into the prompt.
 // Anything outside this list (binary blobs, unknown formats) gets a stub.
-const INLINE_TEXT_MEDIA_PREFIXES = [
-  "text/",
-  "application/json",
-  "application/xml",
-  "application/yaml",
-  "application/x-yaml",
-  "application/javascript",
-  "application/typescript",
-];
+const INLINE_TEXT_MEDIA_PREFIXES = ["text/", "application/json", "application/xml", "application/yaml", "application/x-yaml", "application/javascript", "application/typescript"];
 
 function isInlinableTextMedia(mediaType: string): boolean {
-  return INLINE_TEXT_MEDIA_PREFIXES.some((prefix) =>
-    mediaType.startsWith(prefix),
-  );
+  return INLINE_TEXT_MEDIA_PREFIXES.some((prefix) => mediaType.startsWith(prefix));
 }
 
 function formatWebSearchAction(action: unknown): string {
@@ -184,14 +166,8 @@ function formatWebSearchAction(action: unknown): string {
   const a = action as Record<string, unknown>;
   switch (a.type) {
     case "search": {
-      const queries = Array.isArray(a.queries)
-        ? a.queries.filter((q): q is string => typeof q === "string")
-        : [];
-      const query = queries.length
-        ? queries.join(" | ")
-        : typeof a.query === "string"
-          ? a.query
-          : "";
+      const queries = Array.isArray(a.queries) ? a.queries.filter((q): q is string => typeof q === "string") : [];
+      const query = queries.length ? queries.join(" | ") : typeof a.query === "string" ? a.query : "";
       return query ? `search: ${query}` : "search";
     }
     case "openPage": {
@@ -211,9 +187,7 @@ function formatWebSearchAction(action: unknown): string {
   }
 }
 
-function compactRecord(
-  record: Record<string, unknown>,
-): Record<string, unknown> {
+function compactRecord(record: Record<string, unknown>): Record<string, unknown> {
   // Display-only cleanup for approval context; downstream logic never
   // introspects this object.
   return Object.fromEntries(
@@ -241,14 +215,8 @@ interface RawTurn {
 // Single thread/read call returning the parent thread's turn list. Used by
 // both getSessionMessages (flattens to NormalizedMessage[]) and
 // forkSessionBeforeMessage (needs turn structure for rollback arithmetic).
-async function readThreadTurns(
-  client: JsonRpcLiteClient,
-  threadId: string,
-): Promise<RawTurn[]> {
-  const resp = await client.request<{ thread: { turns?: unknown[] } }>(
-    "thread/read",
-    { threadId, includeTurns: true },
-  );
+async function readThreadTurns(client: JsonRpcLiteClient, threadId: string): Promise<RawTurn[]> {
+  const resp = await client.request<{ thread: { turns?: unknown[] } }>("thread/read", { threadId, includeTurns: true });
   const rawTurns = resp.thread?.turns ?? [];
   return rawTurns.map((raw): RawTurn => {
     const t = raw as { id?: unknown; items?: unknown };
@@ -262,10 +230,7 @@ async function readThreadTurns(
 // Locate the turn (by index) whose items array contains an item with the
 // given id. Returns -1 if not found. Used by forkSessionBeforeMessage to
 // translate from item-level message uuid → turn-level rollback count.
-function findTurnIndexContainingItemId(
-  turns: RawTurn[],
-  itemId: string,
-): number {
+function findTurnIndexContainingItemId(turns: RawTurn[], itemId: string): number {
   for (let i = 0; i < turns.length; i++) {
     const items = turns[i].items;
     for (const item of items) {
@@ -409,9 +374,7 @@ class CodexSession implements BackendSession {
     this.client.onStderr((chunk) => this.handleStderr(chunk));
     this.client.onNotification((n) => this.handleNotification(n));
     this.client.onServerRequest((req) => this.handleServerRequest(req));
-    this.client.onExit((code, signal) =>
-      this.handleSubprocessExit(code, signal),
-    );
+    this.client.onExit((code, signal) => this.handleSubprocessExit(code, signal));
     this.bootstrapPromise = this.bootstrap();
   }
 
@@ -456,10 +419,7 @@ class CodexSession implements BackendSession {
       } else {
         // Start a new thread.
         const startParams = this.buildThreadStartParams();
-        const startResp = await this.client.request<{ thread: { id: string } }>(
-          "thread/start",
-          startParams,
-        );
+        const startResp = await this.client.request<{ thread: { id: string } }>("thread/start", startParams);
         this.threadId = startResp.thread.id;
       }
 
@@ -476,8 +436,7 @@ class CodexSession implements BackendSession {
       // system_init so the orchestrator transitions us to idle instead
       // of leaving the agent in pre-init; sessionId is unused for a
       // never-started thread (nothing to persist, nothing to resume).
-      this.bootstrapError =
-        err instanceof Error ? err : new Error(errMessage(err));
+      this.bootstrapError = err instanceof Error ? err : new Error(errMessage(err));
       this.enqueue({
         kind: "system_init",
         sessionId: "",
@@ -545,9 +504,7 @@ class CodexSession implements BackendSession {
       // that flips the agent to error state. The actionable text (auth prompt,
       // bundled-binary missing hint, etc.) is already in bootstrapError.message
       // and gets surfaced verbatim — no "Error:" wrapping.
-      throw new BackendNotConfiguredError(
-        this.bootstrapError?.message ?? "Codex bootstrap failed; cannot send",
-      );
+      throw new BackendNotConfiguredError(this.bootstrapError?.message ?? "Codex bootstrap failed; cannot send");
     }
 
     const input = buildCodexUserInput(text, attachments, this.opts.agentId);
@@ -578,9 +535,7 @@ class CodexSession implements BackendSession {
       // for this dead turn stays silent.
       const message = errMessage(err);
       if (AUTH_ERROR_PATTERNS.test(message)) {
-        this.enqueueAuthAwareSystemText(
-          `Codex auth error during turn start: ${message}`,
-        );
+        this.enqueueAuthAwareSystemText(`Codex auth error during turn start: ${message}`);
       }
       this.authSignalsAllowedThisTurn = false;
       this.authSignalEmittedThisTurn = false;
@@ -658,11 +613,7 @@ class CodexSession implements BackendSession {
     // frame unwinds and the promise frees.
     for (const [, pending] of this.pendingApprovals) {
       try {
-        this.client.respondWithError(
-          pending.jsonRpcId,
-          -32000,
-          "Session closed",
-        );
+        this.client.respondWithError(pending.jsonRpcId, -32000, "Session closed");
       } catch {}
       try {
         pending.reject(new Error("Session closed"));
@@ -679,20 +630,12 @@ class CodexSession implements BackendSession {
     // last-turn breakdown cached in the `thread/tokenUsage/updated` handler.
     // See the lastTurnBreakdown field comment for why `last.*` is the right
     // signal (vs `total.*`, which sums cache re-reads across turns).
-    if (
-      this.lastTurnBreakdown === null ||
-      this.modelContextWindow === null ||
-      this.modelContextWindow <= 0
-    ) {
+    if (this.lastTurnBreakdown === null || this.modelContextWindow === null || this.modelContextWindow <= 0) {
       return null;
     }
     const maxTokens = this.modelContextWindow;
     const b = this.lastTurnBreakdown;
-    const totalTokens =
-      b.inputNewTokens +
-      b.inputCachedTokens +
-      b.outputTokens +
-      b.reasoningOutputTokens;
+    const totalTokens = b.inputNewTokens + b.inputCachedTokens + b.outputTokens + b.reasoningOutputTokens;
     const percentage = Math.min(100, (totalTokens / maxTokens) * 100);
     const categories = [
       { name: "Input (new)", tokens: b.inputNewTokens },
@@ -759,12 +702,7 @@ class CodexSession implements BackendSession {
     try {
       const st = statSync(rawPath);
       if (!st.isFile()) return null;
-      return saveFile(
-        this.opts.agentId,
-        readFileSync(rawPath),
-        mimeTypeForFilename(rawPath),
-        basename(rawPath),
-      );
+      return saveFile(this.opts.agentId, readFileSync(rawPath), mimeTypeForFilename(rawPath), basename(rawPath));
     } catch {
       return null;
     }
@@ -792,11 +730,7 @@ class CodexSession implements BackendSession {
     // Per-thread filter: every notification carrying a threadId must match
     // ours. Sub-agent / review-mode child threads have their own ids.
     const eventThreadId = params?.threadId;
-    if (
-      eventThreadId !== undefined &&
-      this.threadId &&
-      eventThreadId !== this.threadId
-    ) {
+    if (eventThreadId !== undefined && this.threadId && eventThreadId !== this.threadId) {
       return;
     }
 
@@ -823,10 +757,7 @@ class CodexSession implements BackendSession {
         // fetches model/list per-auth, so this branch should be rare —
         // most commonly it'll fire when the user's auth tier changed since
         // the agent was created. Re-opening settings reloads the list.
-        if (
-          rawError &&
-          /model.*not supported|not supported.*model/i.test(rawError)
-        ) {
+        if (rawError && /model.*not supported|not supported.*model/i.test(rawError)) {
           this.enqueue({
             kind: "system_text",
             text: "This Codex model isn't available on your current login. Open the agent's settings to refresh the model list and pick one that is.",
@@ -844,14 +775,9 @@ class CodexSession implements BackendSession {
         // cause. The user still has the concrete 401 detail from the earlier
         // [codex stderr] system_text. Whole-string substitution (not
         // keyword-stripping) keeps the rewritten message readable.
-        const turnLevelAuthShaped =
-          !!rawError && AUTH_ERROR_PATTERNS.test(rawError);
-        const causedByAuth =
-          this.authSignalEmittedThisTurn &&
-          (wasSelfInterruptForAuth || turnLevelAuthShaped);
-        const error = causedByAuth
-          ? "Codex turn failed after an auth error; see the prior Codex auth notice."
-          : rawError;
+        const turnLevelAuthShaped = !!rawError && AUTH_ERROR_PATTERNS.test(rawError);
+        const causedByAuth = this.authSignalEmittedThisTurn && (wasSelfInterruptForAuth || turnLevelAuthShaped);
+        const error = causedByAuth ? "Codex turn failed after an auth error; see the prior Codex auth notice." : rawError;
         // Close the per-turn auth-coalescing gate now that the turn has
         // settled. Next user send opens it again in send().
         this.authSignalsAllowedThisTurn = false;
@@ -893,10 +819,7 @@ class CodexSession implements BackendSession {
         // Typed against the generated v2 schema so tsc catches future wire
         // drift — this handler was previously broken by exactly that kind of
         // schema mismatch (was reading `params.usage`, never existed in v2).
-        const notif = params as
-          | ThreadTokenUsageUpdatedNotification
-          | null
-          | undefined;
+        const notif = params as ThreadTokenUsageUpdatedNotification | null | undefined;
         const tu = notif?.tokenUsage;
         if (!tu) break;
         // `total` drives the cumulative usage_update event (lifetime billing).
@@ -911,19 +834,9 @@ class CodexSession implements BackendSession {
           cacheCreationInputTokens: 0,
         };
         const delta: TokenUsage = {
-          inputTokens: Math.max(
-            0,
-            cumulative.inputTokens - this.lastCumulativeUsage.inputTokens,
-          ),
-          outputTokens: Math.max(
-            0,
-            cumulative.outputTokens - this.lastCumulativeUsage.outputTokens,
-          ),
-          cacheReadInputTokens: Math.max(
-            0,
-            cumulative.cacheReadInputTokens -
-              this.lastCumulativeUsage.cacheReadInputTokens,
-          ),
+          inputTokens: Math.max(0, cumulative.inputTokens - this.lastCumulativeUsage.inputTokens),
+          outputTokens: Math.max(0, cumulative.outputTokens - this.lastCumulativeUsage.outputTokens),
+          cacheReadInputTokens: Math.max(0, cumulative.cacheReadInputTokens - this.lastCumulativeUsage.cacheReadInputTokens),
           cacheCreationInputTokens: 0,
         };
         this.lastCumulativeUsage = cumulative;
@@ -1021,12 +934,8 @@ class CodexSession implements BackendSession {
         break;
       }
       case "reasoning": {
-        const summary = Array.isArray(item.summary)
-          ? item.summary.join("\n")
-          : "";
-        const content = Array.isArray(item.content)
-          ? item.content.join("\n")
-          : "";
+        const summary = Array.isArray(item.summary) ? item.summary.join("\n") : "";
+        const content = Array.isArray(item.content) ? item.content.join("\n") : "";
         const joined = [summary, content].filter(Boolean).join("\n\n");
         if (joined) this.enqueue({ kind: "thinking", text: joined });
         break;
@@ -1044,9 +953,7 @@ class CodexSession implements BackendSession {
           name: "Bash",
           input: cwd ? { command, cwd } : { command },
         });
-        const content =
-          (aggregatedOutput ?? "") +
-          (exitCode != null ? `\n(exit code ${exitCode})` : "");
+        const content = (aggregatedOutput ?? "") + (exitCode != null ? `\n(exit code ${exitCode})` : "");
         this.enqueue({
           kind: "tool_result",
           toolUseId,
@@ -1059,9 +966,7 @@ class CodexSession implements BackendSession {
       case "fileChange": {
         const toolUseId = item.id as string;
         const changes = Array.isArray(item.changes) ? item.changes : [];
-        const summary = (changes as { path?: string; kind?: unknown }[])
-          .map((c) => `${c.path ?? "?"} (${formatPatchChangeKind(c.kind)})`)
-          .join("\n");
+        const summary = (changes as { path?: string; kind?: unknown }[]).map((c) => `${c.path ?? "?"} (${formatPatchChangeKind(c.kind)})`).join("\n");
         const status = item.status as string | undefined;
         this.enqueue({
           kind: "tool_call",
@@ -1073,8 +978,7 @@ class CodexSession implements BackendSession {
           kind: "tool_result",
           toolUseId,
           content: `${summary}\n\nstatus: ${status ?? "unknown"}`,
-          isError:
-            status != null && status !== "completed" && status !== "applied",
+          isError: status != null && status !== "completed" && status !== "applied",
         });
         break;
       }
@@ -1091,9 +995,7 @@ class CodexSession implements BackendSession {
         });
         const result = item.result;
         const error = item.error;
-        const content = error
-          ? `Error: ${JSON.stringify(error)}`
-          : JSON.stringify(result ?? {});
+        const content = error ? `Error: ${JSON.stringify(error)}` : JSON.stringify(result ?? {});
         this.enqueue({
           kind: "tool_result",
           toolUseId,
@@ -1145,10 +1047,7 @@ class CodexSession implements BackendSession {
       case "imageGeneration": {
         const att = this.attachmentFromPath(item.savedPath);
         if (att) {
-          const title =
-            typeof item.revisedPrompt === "string" && item.revisedPrompt.trim()
-              ? item.revisedPrompt
-              : att.originalName;
+          const title = typeof item.revisedPrompt === "string" && item.revisedPrompt.trim() ? item.revisedPrompt : att.originalName;
           this.enqueue({
             kind: "file_view",
             title,
@@ -1158,9 +1057,7 @@ class CodexSession implements BackendSession {
           const result = typeof item.result === "string" ? item.result : "";
           this.enqueue({
             kind: "system_text",
-            text: result
-              ? `Codex image generation failed: ${result}`
-              : `Codex image generation failed.`,
+            text: result ? `Codex image generation failed: ${result}` : `Codex image generation failed.`,
           });
         } else {
           this.enqueue({
@@ -1187,11 +1084,7 @@ class CodexSession implements BackendSession {
   private async handleServerRequest(req: JsonRpcRequest): Promise<unknown> {
     const params = req.params as Record<string, unknown> | null | undefined;
     // Per-thread filter on server requests that target a thread.
-    if (
-      params?.threadId !== undefined &&
-      this.threadId &&
-      params.threadId !== this.threadId
-    ) {
+    if (params?.threadId !== undefined && this.threadId && params.threadId !== this.threadId) {
       return PASS;
     }
 
@@ -1237,9 +1130,7 @@ class CodexSession implements BackendSession {
           kind: "system_text",
           text: `Auto-declined permissions request from codex (v1 doesn't expose permission-profile changes — use the spawn dialog to pick a different sandbox/approval policy).`,
         });
-        throw new Error(
-          "Permissions profile changes are not supported in Bureau v1.",
-        );
+        throw new Error("Permissions profile changes are not supported in Bureau v1.");
 
       // ---- Auto-decline (correct response shapes per server schema) ----
       case "item/tool/requestUserInput":
@@ -1250,9 +1141,7 @@ class CodexSession implements BackendSession {
           kind: "system_text",
           text: `Auto-declined structured tool-input request from codex (v1 doesn't support agent-issued Q&A).`,
         });
-        throw new Error(
-          "Bureau v1 does not implement item/tool/requestUserInput.",
-        );
+        throw new Error("Bureau v1 does not implement item/tool/requestUserInput.");
 
       case "mcpServer/elicitation/request":
         // Confirmed against the schema: { action: "accept" | "decline" | "cancel" }.
@@ -1272,9 +1161,7 @@ class CodexSession implements BackendSession {
           kind: "system_text",
           text: `Auto-declined dynamic tool call from codex (v1 doesn't expose dynamic tools).`,
         });
-        throw new Error(
-          "Bureau v1 does not implement item/tool/call (dynamic tools).",
-        );
+        throw new Error("Bureau v1 does not implement item/tool/call (dynamic tools).");
 
       // ---- Auth token refresh ----
       case "account/chatgptAuthTokens/refresh":
@@ -1312,10 +1199,7 @@ class CodexSession implements BackendSession {
     // Linux sandbox works" note, and the trusted-project line tells the
     // user how to opt into project-local config — neither is actionable
     // for Bureau users in the chat.
-    if (
-      /bubblewrap.*needs access to create user namespaces/i.test(text) ||
-      /until the project is trusted, but skills still load/i.test(text)
-    ) {
+    if (/bubblewrap.*needs access to create user namespaces/i.test(text) || /until the project is trusted, but skills still load/i.test(text)) {
       return;
     }
     // Route through the auth-aware gate so codex's websocket retry burst
@@ -1323,10 +1207,7 @@ class CodexSession implements BackendSession {
     this.enqueueAuthAwareSystemText(`[codex stderr] ${text}`);
   }
 
-  private handleSubprocessExit(
-    code: number | null,
-    signal: NodeJS.Signals | null,
-  ): void {
+  private handleSubprocessExit(code: number | null, signal: NodeJS.Signals | null): void {
     if (this.closed) return;
     // The per-turn auth-coalescing gate must close on subprocess death so an
     // unlikely-but-possible later stderr (e.g. drained late) doesn't sneak
@@ -1357,9 +1238,7 @@ class CodexSession implements BackendSession {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function mapTurnStatus(
-  status: string | undefined,
-): "completed" | "interrupted" | "failed" {
+function mapTurnStatus(status: string | undefined): "completed" | "interrupted" | "failed" {
   switch (status) {
     case "completed":
       return "completed";
@@ -1379,9 +1258,7 @@ function formatPatchChangeKind(kind: unknown): string {
   if (typeof type !== "string") return "modified";
   if (type !== "update") return type;
   const movePath = (kind as { move_path?: unknown }).move_path;
-  return typeof movePath === "string" && movePath.length > 0
-    ? `update -> ${movePath}`
-    : "update";
+  return typeof movePath === "string" && movePath.length > 0 ? `update -> ${movePath}` : "update";
 }
 
 // The approval response enums differ by method:
@@ -1396,10 +1273,7 @@ function formatPatchChangeKind(kind: unknown): string {
 // allow_once -> accept, deny -> decline. "cancel" is intentionally not used:
 // it interrupts the whole turn, which is harsher than the user typically
 // means by a single-tool deny.
-function mapApprovalDecision(
-  method: string,
-  decision: ApprovalDecision,
-): string {
+function mapApprovalDecision(method: string, decision: ApprovalDecision): string {
   if (method === "applyPatchApproval" || method === "execCommandApproval") {
     switch (decision.kind) {
       case "allow_persistent":
@@ -1451,12 +1325,8 @@ function inferApprovalTitle(method: string, rawParams: unknown): string {
     case "execCommandApproval":
     case "item/commandExecution/requestApproval": {
       const rawCommand = params?.command;
-      const cmd = Array.isArray(rawCommand)
-        ? rawCommand.join(" ")
-        : (rawCommand ?? params?.commandActions?.[0]?.command ?? "");
-      return cmd
-        ? `Codex wants to run: \`${cmd.slice(0, 80)}\``
-        : `Codex wants to run a command`;
+      const cmd = Array.isArray(rawCommand) ? rawCommand.join(" ") : (rawCommand ?? params?.commandActions?.[0]?.command ?? "");
+      return cmd ? `Codex wants to run: \`${cmd.slice(0, 80)}\`` : `Codex wants to run a command`;
     }
     case "item/permissions/requestApproval":
       return `Codex wants to change permissions`;
@@ -1465,29 +1335,18 @@ function inferApprovalTitle(method: string, rawParams: unknown): string {
   }
 }
 
-function inferApprovalDescription(
-  _method: string,
-  params: unknown,
-): string | undefined {
+function inferApprovalDescription(_method: string, params: unknown): string | undefined {
   const reason = (params as { reason?: unknown } | null | undefined)?.reason;
   if (typeof reason === "string" && reason.trim()) return reason;
   return undefined;
 }
 
-function extractApprovalInput(
-  method: string,
-  params: unknown,
-): Record<string, unknown> {
+function extractApprovalInput(method: string, params: unknown): Record<string, unknown> {
   if (!params || typeof params !== "object") return {};
   const p = params as Record<string, unknown>;
 
-  if (
-    method === "execCommandApproval" ||
-    method === "item/commandExecution/requestApproval"
-  ) {
-    const command = Array.isArray(p.command)
-      ? p.command.filter((part): part is string => typeof part === "string")
-      : p.command;
+  if (method === "execCommandApproval" || method === "item/commandExecution/requestApproval") {
+    const command = Array.isArray(p.command) ? p.command.filter((part): part is string => typeof part === "string") : p.command;
     return compactRecord({
       command: Array.isArray(command) ? command.join(" ") : command,
       cwd: p.cwd,
@@ -1521,11 +1380,7 @@ function extractApprovalInput(
 // v1 we pass text + localImage paths for image attachments; non-image
 // attachments (PDFs, text files) get inlined as a text description. This is
 // a UX simplification — richer attachment support is a follow-up.
-function buildCodexUserInput(
-  text: string,
-  attachments: AttachmentSpec[] | undefined,
-  agentId: string,
-): Array<Record<string, unknown>> {
+function buildCodexUserInput(text: string, attachments: AttachmentSpec[] | undefined, agentId: string): Array<Record<string, unknown>> {
   const inputs: Array<Record<string, unknown>> = [];
   if (text) {
     inputs.push({ type: "text", text, text_elements: [] });
@@ -1545,26 +1400,18 @@ function buildCodexUserInput(
         try {
           const size = statSync(filePath).size;
           if (size > MAX_INLINE_ATTACHMENT_BYTES) {
-            textChunks.push(
-              `Attached file "${att.originalName}" (${size} bytes; exceeds ${MAX_INLINE_ATTACHMENT_BYTES}-byte inline cap). Path: ${filePath}`,
-            );
+            textChunks.push(`Attached file "${att.originalName}" (${size} bytes; exceeds ${MAX_INLINE_ATTACHMENT_BYTES}-byte inline cap). Path: ${filePath}`);
           } else {
             const content = readFileSync(filePath, "utf-8");
-            textChunks.push(
-              `--- File: ${att.originalName} ---\n${content}\n---`,
-            );
+            textChunks.push(`--- File: ${att.originalName} ---\n${content}\n---`);
           }
         } catch {
-          textChunks.push(
-            `Attached file ${att.originalName} (could not read content) at ${filePath}`,
-          );
+          textChunks.push(`Attached file ${att.originalName} (could not read content) at ${filePath}`);
         }
       } else {
         // Unknown / binary media: don't inline. Hand codex the path so it can
         // open the file with a tool if it needs to.
-        textChunks.push(
-          `Attached file "${att.originalName}" (${att.mediaType}) at ${filePath}`,
-        );
+        textChunks.push(`Attached file "${att.originalName}" (${att.mediaType}) at ${filePath}`);
       }
     }
     if (textChunks.length > 0) {
@@ -1586,9 +1433,7 @@ function buildCodexUserInput(
 // the system consumes. We pick `model` (the wire slug) as `id` since that's
 // what gets passed to thread/start; `displayName` is the human label.
 function toBackendModel(m: CodexProtocolModel): BackendModel {
-  const supportedEfforts: BackendEffortOption[] = (
-    m.supportedReasoningEfforts ?? []
-  ).map((opt) => ({
+  const supportedEfforts: BackendEffortOption[] = (m.supportedReasoningEfforts ?? []).map((opt) => ({
     level: opt.reasoningEffort,
     description: opt.description,
   }));
@@ -1647,10 +1492,7 @@ export const codexBackend: Backend = {
           limit: null,
           includeHidden: opts.includeHidden ?? false,
         };
-        const resp = await client.request<ModelListResponse>(
-          "model/list",
-          params,
-        );
+        const resp = await client.request<ModelListResponse>("model/list", params);
         collected.push(...resp.data);
         if (!resp.nextCursor) break;
         cursor = resp.nextCursor;
@@ -1688,10 +1530,7 @@ export const codexBackend: Backend = {
     });
   },
 
-  async forkSessionBeforeMessage(
-    sessionId: string,
-    targetMessageId: string,
-  ): Promise<ForkSessionBeforeMessageResult> {
+  async forkSessionBeforeMessage(sessionId: string, targetMessageId: string): Promise<ForkSessionBeforeMessageResult> {
     // Strategy: fork-then-rollback. Codex 0.130's thread/fork copies whole
     // threads (no per-message granularity), so to preserve the parent and
     // produce a child rolled back to before the edited message we:
@@ -1723,42 +1562,29 @@ export const codexBackend: Backend = {
       });
 
       const turns = await readThreadTurns(client, sessionId);
-      const targetTurnIndex = findTurnIndexContainingItemId(
-        turns,
-        targetMessageId,
-      );
+      const targetTurnIndex = findTurnIndexContainingItemId(turns, targetMessageId);
       if (targetTurnIndex === -1) {
-        throw new Error(
-          "forkSessionBeforeMessage: target message not found in thread turns",
-        );
+        throw new Error("forkSessionBeforeMessage: target message not found in thread turns");
       }
       const numTurns = turns.length - targetTurnIndex;
       if (numTurns < 1) {
         // Defensive: target was found in turns so this shouldn't happen, but
         // bail before issuing a rollback rejected by the server (numTurns
         // must be >= 1 per the protocol).
-        throw new Error(
-          "forkSessionBeforeMessage: computed numTurns < 1 (programming error)",
-        );
+        throw new Error("forkSessionBeforeMessage: computed numTurns < 1 (programming error)");
       }
 
-      const forkResp = await client.request<{ thread: { id: string } }>(
-        "thread/fork",
-        {
-          threadId: sessionId,
-          excludeTurns: true,
-        },
-      );
+      const forkResp = await client.request<{ thread: { id: string } }>("thread/fork", {
+        threadId: sessionId,
+        excludeTurns: true,
+      });
       const childThreadId = forkResp.thread.id;
 
       const rollbackParams: ThreadRollbackParams = {
         threadId: childThreadId,
         numTurns,
       };
-      await client.request<ThreadRollbackResponse>(
-        "thread/rollback",
-        rollbackParams,
-      );
+      await client.request<ThreadRollbackResponse>("thread/rollback", rollbackParams);
 
       return {
         kind: "fork",
@@ -1804,18 +1630,12 @@ export const codexBackend: Backend = {
           if (item?.type === "userMessage" && typeof item.id === "string") {
             const text = Array.isArray(item.content)
               ? (item.content as { type?: string; text?: string }[])
-                  .filter(
-                    (c): c is { type: "text"; text: string } =>
-                      c.type === "text" && typeof c.text === "string",
-                  )
+                  .filter((c): c is { type: "text"; text: string } => c.type === "text" && typeof c.text === "string")
                   .map((c) => c.text)
                   .join("")
               : "";
             out.push({ uuid: item.id, role: "user", text });
-          } else if (
-            item?.type === "agentMessage" &&
-            typeof item.id === "string"
-          ) {
+          } else if (item?.type === "agentMessage" && typeof item.id === "string") {
             out.push({
               uuid: item.id,
               role: "assistant",
@@ -1848,18 +1668,15 @@ export const codexBackend: Backend = {
           optOutNotificationMethods: null,
         },
       });
-      const startResp = await client.request<{ thread: { id: string } }>(
-        "thread/start",
-        {
-          cwd: opts.cwd,
-          model: opts.modelFamily,
-          sandbox: "read-only",
-          approvalPolicy: "never",
-          ephemeral: true,
-          experimentalRawEvents: false,
-          persistExtendedHistory: false,
-        },
-      );
+      const startResp = await client.request<{ thread: { id: string } }>("thread/start", {
+        cwd: opts.cwd,
+        model: opts.modelFamily,
+        sandbox: "read-only",
+        approvalPolicy: "never",
+        ephemeral: true,
+        experimentalRawEvents: false,
+        persistExtendedHistory: false,
+      });
       const threadId = startResp.thread.id;
       let result = "";
       let resolved = false;
@@ -1873,23 +1690,14 @@ export const codexBackend: Backend = {
           const params = n.params as Record<string, unknown> | null | undefined;
           if (params?.threadId !== threadId) return;
           if (n.method === "item/completed") {
-            const item = params?.item as
-              | { type?: string; text?: string }
-              | undefined;
-            if (
-              item?.type === "agentMessage" &&
-              typeof item.text === "string"
-            ) {
+            const item = params?.item as { type?: string; text?: string } | undefined;
+            if (item?.type === "agentMessage" && typeof item.text === "string") {
               result = item.text;
             }
           } else if (n.method === "turn/completed") {
-            const turn = params?.turn as
-              | { status?: string; error?: { message?: string } | null }
-              | undefined;
+            const turn = params?.turn as { status?: string; error?: { message?: string } | null } | undefined;
             if (turn?.status && turn.status !== "completed") {
-              failure = new Error(
-                `Codex one-shot turn ${turn.status}: ${turn.error?.message ?? "no detail"}`,
-              );
+              failure = new Error(`Codex one-shot turn ${turn.status}: ${turn.error?.message ?? "no detail"}`);
             }
             if (!resolved) {
               resolved = true;
@@ -1897,9 +1705,7 @@ export const codexBackend: Backend = {
             }
           } else if (n.method === "error") {
             const msg = params?.message;
-            failure = new Error(
-              `Codex one-shot error: ${typeof msg === "string" ? msg : "unknown"}`,
-            );
+            failure = new Error(`Codex one-shot error: ${typeof msg === "string" ? msg : "unknown"}`);
             if (!resolved) {
               resolved = true;
               resolve();
@@ -1927,9 +1733,7 @@ export const codexBackend: Backend = {
     return AUTH_ERROR_PATTERNS.test(text);
   },
 
-  getLoginInstructions(opts?: {
-    env?: { [key: string]: string | undefined };
-  }): { text: string; commands?: string[] } {
+  getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): { text: string; commands?: string[] } {
     if (isCodexAuthenticated(opts?.env)) {
       return { text: ALREADY_AUTHED_INSTRUCTIONS };
     }

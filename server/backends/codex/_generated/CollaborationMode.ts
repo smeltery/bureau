@@ -7,4 +7,4 @@ import type { Settings } from "./Settings";
 /**
  * Collaboration mode for a Codex session.
  */
-export type CollaborationMode = { mode: ModeKind, settings: Settings, };
+export type CollaborationMode = { mode: ModeKind; settings: Settings };

@@ -17,13 +17,7 @@
 // internal-docs/isolation-design.md) are honored verbatim and override the
 // bureau default. The default only kicks in when no env source has set it.
 
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 
@@ -62,17 +56,10 @@ export function resolveCodexLauncherPath(): string {
   try {
     resolved = Bun.resolveSync("@openai/codex/bin/codex.js", BUREAU_ROOT);
   } catch (err) {
-    throw new Error(
-      `Bundled @openai/codex launcher could not be resolved (${errMessage(err)}). ` +
-        `Run \`bun install\` in the bureau checkout.`,
-      { cause: err },
-    );
+    throw new Error(`Bundled @openai/codex launcher could not be resolved (${errMessage(err)}). ` + `Run \`bun install\` in the bureau checkout.`, { cause: err });
   }
   if (!existsSync(resolved)) {
-    throw new Error(
-      `Bundled @openai/codex launcher missing at ${resolved}. ` +
-        `Run \`bun install\` in the bureau checkout.`,
-    );
+    throw new Error(`Bundled @openai/codex launcher missing at ${resolved}. ` + `Run \`bun install\` in the bureau checkout.`);
   }
   cachedLauncherPath = resolved;
   // Happy-path resolve is silent — users don't need a per-boot
@@ -81,9 +68,7 @@ export function resolveCodexLauncherPath(): string {
   // debugging whether a stray global codex is shadowing the bundled one.
   if (process.env.BUREAU_CODEX_LAUNCHER_LOG === "1") {
     try {
-      console.log(
-        `[codex] using bundled launcher: ${resolved} (pinned ${getCodexPinnedVersion()})`,
-      );
+      console.log(`[codex] using bundled launcher: ${resolved} (pinned ${getCodexPinnedVersion()})`);
     } catch {}
   }
   return resolved;
@@ -100,9 +85,7 @@ export function getCodexPinnedVersion(): string {
   };
   const spec = pkg.dependencies?.["@openai/codex"];
   if (!spec) {
-    throw new Error(
-      "Could not find @openai/codex in package.json dependencies",
-    );
+    throw new Error("Could not find @openai/codex in package.json dependencies");
   }
   // Strip leading ^/~/= so callers get a bare semver. `bun add` writes
   // an exact pin by default (no ^), but tolerate both forms.
@@ -115,9 +98,7 @@ export function getCodexPinnedVersion(): string {
 // Per-user envFile or process env entries that set CODEX_HOME (e.g. for
 // per-user billing isolation) are honored verbatim. `undefined` values pass
 // through as-is — child_process.spawn skips them.
-export function withBureauCodexHome(
-  baseEnv: { [key: string]: string | undefined } | undefined,
-): { [key: string]: string | undefined } {
+export function withBureauCodexHome(baseEnv: { [key: string]: string | undefined } | undefined): { [key: string]: string | undefined } {
   const merged = { ...(baseEnv ?? process.env) };
   if (!merged.CODEX_HOME) {
     ensureBureauCodexHomeExists();
@@ -146,9 +127,7 @@ export function withBureauCodexHome(
 // the full sign-in walkthrough on any auth-error, because the helper
 // couldn't see their envFile-set key. Threading the merged env in closes
 // that gap.
-export function isCodexAuthenticated(env?: {
-  [key: string]: string | undefined;
-}): boolean {
+export function isCodexAuthenticated(env?: { [key: string]: string | undefined }): boolean {
   const effective = env ?? process.env;
   if (effective.OPENAI_API_KEY) return true;
   const codexHome = effective.CODEX_HOME ?? BUREAU_CODEX_HOME;
@@ -210,10 +189,7 @@ exec ${shellSingleQuote(process.execPath)} ${shellSingleQuote(launcher)} "$@"
 // CODEX_HOME is unset.
 export function getCodexLoginCommands(): string[] {
   ensureCodexWrapperScript();
-  return [
-    "~/.bureau/bin/codex login",
-    "~/.bureau/bin/codex login --device-auth",
-  ];
+  return ["~/.bureau/bin/codex login", "~/.bureau/bin/codex login --device-auth"];
 }
 
 function shellSingleQuote(s: string): string {

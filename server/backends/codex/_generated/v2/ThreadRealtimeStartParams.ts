@@ -8,9 +8,15 @@ import type { ThreadRealtimeStartTransport } from "./ThreadRealtimeStartTranspor
 /**
  * EXPERIMENTAL - start a thread-scoped realtime session.
  */
-export type ThreadRealtimeStartParams = { threadId: string,
-/**
- * Selects text or audio output for the realtime session. Transport and voice stay
- * independent so clients can choose how they connect separately from what the model emits.
- */
-outputModality: RealtimeOutputModality, prompt?: string | null | null, realtimeSessionId?: string | null, transport?: ThreadRealtimeStartTransport | null, voice?: RealtimeVoice | null, };
+export type ThreadRealtimeStartParams = {
+  threadId: string;
+  /**
+   * Selects text or audio output for the realtime session. Transport and voice stay
+   * independent so clients can choose how they connect separately from what the model emits.
+   */
+  outputModality: RealtimeOutputModality;
+  prompt?: string | null | null;
+  realtimeSessionId?: string | null;
+  transport?: ThreadRealtimeStartTransport | null;
+  voice?: RealtimeVoice | null;
+};

@@ -101,9 +101,7 @@ export type NotificationHandler = (notification: JsonRpcNotification) => void;
 export const PASS: unique symbol = Symbol("PASS");
 // Returning the PASS symbol (which is `unknown`-typed) declines the request
 // and lets the next handler in registration order respond.
-export type ServerRequestHandler = (
-  request: JsonRpcRequest,
-) => Promise<unknown>;
+export type ServerRequestHandler = (request: JsonRpcRequest) => Promise<unknown>;
 
 type Pending = {
   resolve: (value: unknown) => void;
@@ -129,9 +127,7 @@ export class JsonRpcLiteClient {
   private notificationHandlers = new Set<NotificationHandler>();
   private serverRequestHandlers: ServerRequestHandler[] = [];
   private stderrHandlers = new Set<(chunk: string) => void>();
-  private exitHandlers = new Set<
-    (code: number | null, signal: NodeJS.Signals | null) => void
-  >();
+  private exitHandlers = new Set<(code: number | null, signal: NodeJS.Signals | null) => void>();
   private closeHandlers = new Set<() => void>();
 
   constructor(private readonly opts: JsonRpcLiteClientOptions = {}) {}
@@ -201,9 +197,7 @@ export class JsonRpcLiteClient {
     this.child.on("exit", (code, signal) => {
       this.exitInfo = { code, signal };
       this.closed = true;
-      this.failAllPending(
-        `codex subprocess exited${code != null ? ` with code ${code}` : ""}${signal ? ` (signal ${signal})` : ""}`,
-      );
+      this.failAllPending(`codex subprocess exited${code != null ? ` with code ${code}` : ""}${signal ? ` (signal ${signal})` : ""}`);
       for (const h of this.exitHandlers) {
         try {
           h(code, signal);
@@ -225,10 +219,7 @@ export class JsonRpcLiteClient {
     if (this.initialized) {
       throw new Error("initialize() called twice on the same client");
     }
-    const response = await this.request<InitializeResponse>(
-      "initialize",
-      params,
-    );
+    const response = await this.request<InitializeResponse>("initialize", params);
     this.initialized = true;
     // Per the protocol: client sends `initialized` notification after the
     // handshake response.
@@ -324,12 +315,7 @@ export class JsonRpcLiteClient {
     } catch {}
   }
 
-  respondWithError(
-    id: JsonRpcId,
-    code: number,
-    message: string,
-    data?: unknown,
-  ): void {
+  respondWithError(id: JsonRpcId, code: number, message: string, data?: unknown): void {
     if (this.closed || !this.child) return;
     const frame: JsonRpcErrorResponse = {
       id,
@@ -373,9 +359,7 @@ export class JsonRpcLiteClient {
     };
   }
 
-  onExit(
-    handler: (code: number | null, signal: NodeJS.Signals | null) => void,
-  ): () => void {
+  onExit(handler: (code: number | null, signal: NodeJS.Signals | null) => void): () => void {
     this.exitHandlers.add(handler);
     return () => {
       this.exitHandlers.delete(handler);
@@ -431,9 +415,7 @@ export class JsonRpcLiteClient {
       // Malformed frame — surface via stderr handlers for visibility.
       for (const h of this.stderrHandlers) {
         try {
-          h(
-            `[codex client] JSON parse error: ${errMessage(err)}\nframe: ${line.slice(0, 200)}\n`,
-          );
+          h(`[codex client] JSON parse error: ${errMessage(err)}\nframe: ${line.slice(0, 200)}\n`);
         } catch {}
       }
       return;
@@ -463,9 +445,7 @@ export class JsonRpcLiteClient {
         } catch (err) {
           for (const sh of this.stderrHandlers) {
             try {
-              sh(
-                `[codex client] notification handler error: ${errMessage(err)}\n`,
-              );
+              sh(`[codex client] notification handler error: ${errMessage(err)}\n`);
             } catch {}
           }
         }
@@ -487,14 +467,7 @@ export class JsonRpcLiteClient {
       this.pending.delete(id);
       if (f.error) {
         const err = f.error;
-        pending.reject(
-          Object.assign(
-            new Error(
-              `${err.message ?? "JSON-RPC error"} (code ${err.code ?? "?"})`,
-            ),
-            { code: err.code, data: err.data },
-          ),
-        );
+        pending.reject(Object.assign(new Error(`${err.message ?? "JSON-RPC error"} (code ${err.code ?? "?"})`), { code: err.code, data: err.data }));
       } else {
         pending.resolve("result" in f ? f.result : undefined);
       }
@@ -516,20 +489,12 @@ export class JsonRpcLiteClient {
         this.respond(request.id, result);
         return;
       } catch (err) {
-        this.respondWithError(
-          request.id,
-          JSONRPC_INTERNAL_ERROR,
-          errMessage(err, "handler threw"),
-        );
+        this.respondWithError(request.id, JSONRPC_INTERNAL_ERROR, errMessage(err, "handler threw"));
         return;
       }
     }
     // No handler claimed it.
-    this.respondWithError(
-      request.id,
-      JSONRPC_METHOD_NOT_FOUND,
-      `No client handler for method "${request.method}"`,
-    );
+    this.respondWithError(request.id, JSONRPC_METHOD_NOT_FOUND, `No client handler for method "${request.method}"`);
   }
 
   private failAllPending(reason: string | Error): void {

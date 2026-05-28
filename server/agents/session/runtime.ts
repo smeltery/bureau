@@ -277,7 +277,13 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       const callStart = managed?.toolCallTimestamps.get(ev.toolUseId);
       const duration_ms = ev.durationMs ?? (callStart ? Date.now() - callStart : undefined);
       if (managed && callStart) managed.toolCallTimestamps.delete(ev.toolUseId);
-      addLogEntry(agentId, "tool_result", ev.content.slice(0, 10000), { toolUseId: ev.toolUseId, ...(duration_ms != null ? { duration_ms } : {}), ...(ev.isError != null ? { isError: ev.isError } : {}) }, ev.attachments);
+      addLogEntry(
+        agentId,
+        "tool_result",
+        ev.content.slice(0, 10000),
+        { toolUseId: ev.toolUseId, ...(duration_ms != null ? { duration_ms } : {}), ...(ev.isError != null ? { isError: ev.isError } : {}) },
+        ev.attachments,
+      );
       break;
     }
     case "turn_completed": {
@@ -338,7 +344,15 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       if (!managed) break;
       const lines = [`**${ev.title ?? `Wants to use ${ev.toolName}`}**`];
       if (ev.description) lines.push(ev.description);
-      lines.push("", "Reply:", "  1. Allow — and don't ask again for similar calls this session", "  2. Allow — just this time", "  3. Deny", "", "Or type any other message to deny with that as the reason.");
+      lines.push(
+        "",
+        "Reply:",
+        "  1. Allow — and don't ask again for similar calls this session",
+        "  2. Allow — just this time",
+        "  3. Deny",
+        "",
+        "Or type any other message to deny with that as the reason.",
+      );
       emitEphemeralLog(agentId, "system", lines.join("\n"));
       managed.pendingPermission = { approvalId: ev.approvalId, toolName: ev.toolName };
       updateState(agentId, "waiting_for_response");

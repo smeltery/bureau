@@ -21,32 +21,19 @@ import {
   type EffortLevel,
 } from "../shared/types.ts";
 
-export function validatePermissionMode(
-  agentType: AgentBackendType,
-  raw: AgentPermissionMode | undefined,
-): AgentPermissionMode {
+export function validatePermissionMode(agentType: AgentBackendType, raw: AgentPermissionMode | undefined): AgentPermissionMode {
   if (agentType === "codex") {
     // "on-failure" is deprecated in codex 0.130 (warns on use); migrate
     // to "on-request" at the boundary so we never persist the legacy value.
     if (raw === "on-failure") return "on-request";
-    if (raw === "untrusted" || raw === "on-request" || raw === "never")
-      return raw;
+    if (raw === "untrusted" || raw === "on-request" || raw === "never") return raw;
     return "on-request";
   }
-  if (
-    raw === "default" ||
-    raw === "acceptEdits" ||
-    raw === "bypassPermissions" ||
-    raw === "auto"
-  )
-    return raw;
+  if (raw === "default" || raw === "acceptEdits" || raw === "bypassPermissions" || raw === "auto") return raw;
   return "auto";
 }
 
-export function validateModelFamily(
-  agentType: AgentBackendType,
-  raw: string | undefined,
-): string {
+export function validateModelFamily(agentType: AgentBackendType, raw: string | undefined): string {
   if (agentType === "codex") {
     // Pass-through: the picker is fed by Codex's model/list RPC which
     // returns auth-appropriate slugs that aren't necessarily in our
@@ -61,23 +48,12 @@ export function validateModelFamily(
   return "opus";
 }
 
-export function validateCodexSandbox(
-  raw: CodexSandboxMode | undefined,
-): CodexSandboxMode | undefined {
-  if (
-    raw === "read-only" ||
-    raw === "workspace-write" ||
-    raw === "danger-full-access"
-  )
-    return raw;
+export function validateCodexSandbox(raw: CodexSandboxMode | undefined): CodexSandboxMode | undefined {
+  if (raw === "read-only" || raw === "workspace-write" || raw === "danger-full-access") return raw;
   return undefined;
 }
 
-export function validateEffort(
-  agentType: AgentBackendType,
-  modelFamily: string,
-  raw: EffortLevel | undefined,
-): EffortLevel {
+export function validateEffort(agentType: AgentBackendType, modelFamily: string, raw: EffortLevel | undefined): EffortLevel {
   if (agentType === "codex") {
     // Pass-through for Codex: the per-model supportedReasoningEfforts from
     // model/list is the real allow-list, and it can include values outside
@@ -86,8 +62,7 @@ export function validateEffort(
     if (raw && typeof raw === "string" && raw.length > 0) return raw;
     return DEFAULT_EFFORT;
   }
-  if (!raw || !EFFORT_LEVELS.some((e) => e.level === raw))
-    return DEFAULT_EFFORT;
+  if (!raw || !EFFORT_LEVELS.some((e) => e.level === raw)) return DEFAULT_EFFORT;
   // Claude family-level rules: "minimal" is Codex-only; "max" is opus-only.
   if (raw === "minimal") return DEFAULT_EFFORT;
   if (raw === "max" && modelFamily !== "opus") return DEFAULT_EFFORT;
@@ -103,10 +78,7 @@ export function validateEffort(
 // Claude "auto" is explicitly excluded — ClaudeSession always installs
 // canUseTool, and cron's normalized consumer can't resolve approval_request
 // events. A stale client sending `auto` is migrated to `bypassPermissions`.
-export function validateCronjobPermissionMode(
-  agentType: AgentBackendType,
-  raw: string | undefined,
-): CronjobPermissionMode {
+export function validateCronjobPermissionMode(agentType: AgentBackendType, raw: string | undefined): CronjobPermissionMode {
   if (agentType === "codex") return "bypassPermissions";
   // Claude: only "bypassPermissions" is unattended-safe with the Backend
   // abstraction. Migrate legacy "auto" up to "bypassPermissions".
