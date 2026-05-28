@@ -375,7 +375,7 @@ graph BT
     P2["2. Enterprise skills"]
     P3["3. User skills<br/>~/.claude/skills/"]
     P4["4. Project skills<br/>.claude/skills/ (cwd-based)"]
-    P45["4.5. Bureau bundled skills<br/>/bureau-peer-review, /bureau-all-hands"]
+    P45["4.5. Bureau bundled skills<br/>/bureau-peer-review, /bureau-subagent-review, /bureau-all-hands"]
     P5["5. Claude Code bundled skills<br/>/review, /simplify, /loop"]
 
     P1 --> P2 --> P3 --> P4 --> P45 --> P5
@@ -385,8 +385,10 @@ graph BT
 In addition to dynamically fetching all these skills (except Enterprise), Bureau adds its own tier of **bureau-bundled skills**:
 
 - `/bureau-peer-review`: tells the agent to read the ongoing conversation with another agent and give feedback.
+- `/bureau-subagent-review`: spawns a subagent to review uncommitted changes for bugs and principled-vs-hacky before committing.
 - `/bureau-all-hands`: shows what everyone is working on.
-- `/bureau-system-prompt`: dumps the full assembled system prompt so the user understands the agent's behavior.
+- `/bureau-system-prompt` and `/bureau-cronjob-system-prompt`: dump the full assembled system prompt for the agent (or a named cron job) so the user understands what behavior the office has actually been wired up to produce.
+- `/bureau-edit <path>`: pops a file open in the editor side panel — relative to the agent's cwd, absolute, or `~/...`. Agents can offer the same card via `POST /agents/:id/edit-file`.
 
 ### Plugin hooks
 
