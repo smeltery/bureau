@@ -251,7 +251,7 @@ export function getRunTranscript(jobId: string, runId: string): { run: CronjobRu
 // System prompt for cronjobs
 // ---------------------------------------------------------------------------
 
-function buildCronjobSystemPrompt(cronjob: Cronjob, jobId: string, _runId: string): string {
+export function buildCronjobSystemPrompt(cronjob: Cronjob, jobId: string, _runId: string): string {
   // humanizeSchedule produces sentence-case ("Daily at 09:00"); lowercase the
   // first letter so it reads as a sentence fragment ("You run daily at 09:00").
   // Only the first letter — keeps weekday abbreviations like "Mon" capitalized.
