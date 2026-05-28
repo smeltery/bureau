@@ -1,5 +1,5 @@
 import type { AgentInfo, AgentOutfit, TaskItem, TaskPriority, TaskStatus, RoomWire, OfficeSettings } from "./types.ts";
-import { generateTaskId, generateRoomId, isValidStatus, isValidPriority } from "./types.ts";
+import { DEFAULT_AGENT_CAPABILITIES, generateTaskId, generateRoomId, isValidStatus, isValidPriority } from "./types.ts";
 import { SHIRT_COLORS, HAIR_COLORS, SKIN_COLORS, HAIR_STYLES, BEARDS, HATS, ACCESSORIES } from "./outfit-options.ts";
 
 // Domain events — callers translate these to ServerMessage
@@ -146,6 +146,8 @@ export class OfficeState {
       outfit: generateOutfit(),
       permissionMode: opts.permissionMode,
       modelFamily: "opus",
+      agentType: "claude",
+      capabilities: DEFAULT_AGENT_CAPABILITIES,
       state: "idle",
       topic: null,
       topicStale: false,

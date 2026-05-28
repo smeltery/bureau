@@ -1,13 +1,14 @@
-import { unstable_v2_createSession, unstable_v2_resumeSession, type CanUseTool, type PermissionResult } from "@anthropic-ai/claude-agent-sdk";
-import { FAMILY_TO_MODEL } from "../../../shared/types.ts";
+import type { AgentState } from "../../../shared/types.ts";
 import { existsSync } from "fs";
 import { join } from "path";
-import { readEnvFile, rollSessionUsageOnResume } from "../../persistence.ts";
-import { createSafetyHooks } from "./safety/index.ts";
-import { addLogEntry, agents, emit, emitEphemeralLog, officeConfig, rooms, updateState, type ManagedAgent } from "../state.ts";
+import { accumulateSessionUsage, appendSessionUsageSnapshot, readEnvFile, rollSessionUsageOnResume, loadLogWithAncestors, appendLog } from "../../persistence.ts";
+import { addLogEntry, agents, emit, emitEphemeralLog, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
-import { LOGIN_INSTRUCTIONS, isAuthError, processMessage } from "./messages.ts";
+import { autocompleteCommands } from "../commands.ts";
+import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
+import { getBackend } from "../../backends/index.ts";
+import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 
 // ---------------------------------------------------------------------------
 // Claude CLI native binary resolution
@@ -74,53 +75,6 @@ export function createTurnDeferred(managed: ManagedAgent): Promise<void> {
   });
   managed.pendingTurn = { resolve, reject };
   return promise;
-}
-
-// ---------------------------------------------------------------------------
-// Permission prompts (bypass-mode canUseTool callback)
-// ---------------------------------------------------------------------------
-
-function requestPermission(managed: ManagedAgent, toolName: string, input: Record<string, unknown>, opts: Parameters<CanUseTool>[2]): Promise<PermissionResult> {
-  const agentId = managed.info.id;
-  return new Promise<PermissionResult>((resolve) => {
-    const title = opts.title ?? `Claude wants to use ${toolName}`;
-    const lines: string[] = [`**${title}**`];
-    if (opts.description) lines.push(opts.description);
-    if (opts.decisionReason) lines.push(`\n_${opts.decisionReason}_`);
-    lines.push("");
-    lines.push("Reply:");
-    lines.push("  1. Allow — and don't ask again for similar calls this session");
-    lines.push("  2. Allow — just this time");
-    lines.push("  3. Deny");
-    lines.push("");
-    lines.push("Or type any other message to deny with that as the reason.");
-    emitEphemeralLog(agentId, "system", lines.join("\n"));
-
-    // If a prior pending permission was never resolved, deny it now so we don't leak.
-    if (managed.pendingPermission) {
-      try {
-        managed.pendingPermission.resolve({ behavior: "deny", message: "Superseded by newer request." });
-      } catch {}
-    }
-    managed.pendingPermission = {
-      toolUseID: opts.toolUseID,
-      input,
-      suggestions: opts.suggestions,
-      resolve,
-    };
-    updateState(agentId, "waiting_for_response");
-
-    opts.signal.addEventListener(
-      "abort",
-      () => {
-        if (managed.pendingPermission?.toolUseID === opts.toolUseID) {
-          managed.pendingPermission = null;
-          resolve({ behavior: "deny", message: "Request aborted." });
-        }
-      },
-      { once: true },
-    );
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +149,24 @@ function envForHints(managed: ManagedAgent): { [key: string]: string | undefined
   }
 }
 
+function isAuthErrorForAgent(managed: ManagedAgent | undefined, text: string): boolean {
+  if (!managed) return false;
+  return getBackend(managed.info.agentType).detectAuthError(text);
+}
+
+function emitLoginInstructions(agentId: string, managed: ManagedAgent | undefined) {
+  if (!managed) return;
+  const instructions = getBackend(managed.info.agentType).getLoginInstructions({ env: envForHints(managed) });
+  emitEphemeralLog(agentId, "system", instructions.text);
+  for (const command of instructions.commands ?? []) {
+    addLogEntry(agentId, "terminal-command", command, undefined, undefined, { terminal: { command } });
+  }
+}
+
+function emitLoginInstructionsIfAuth(agentId: string, managed: ManagedAgent | undefined, text: string) {
+  if (managed && isAuthErrorForAgent(managed, text)) emitLoginInstructions(agentId, managed);
+}
+
 // ---------------------------------------------------------------------------
 // Session lifecycle: runConsumer / installSession / replaceSession / createSession
 // ---------------------------------------------------------------------------
@@ -207,55 +179,177 @@ function envForHints(managed: ManagedAgent): { [key: string]: string | undefined
 // Bound to a specific session instance: loop exits when `managed.session` is
 // swapped out (abort / resume / fork / etc.) — `session.close()` unblocks the
 // parked `stream()` generator.
-async function runConsumer(agentId: string, managed: ManagedAgent, boundSession: ReturnType<typeof unstable_v2_createSession>) {
-  while (agents.has(agentId) && managed.session === boundSession) {
-    try {
-      for await (const msg of boundSession.stream()) {
-        // After an abort/resume/fork the dying session may keep yielding
-        // messages for several seconds before its stream() generator finally
-        // ends (the SDK's close() doesn't interrupt mid-chunk). We must keep
-        // draining so the inner generator terminates, but we drop the events
-        // — otherwise the user sees model output continuing after Ctrl+C.
-        if (managed.session !== boundSession) continue;
-        processMessage(agentId, msg);
+async function runConsumer(agentId: string, managed: ManagedAgent, boundSession: BackendSession) {
+  try {
+    for await (const ev of boundSession.stream()) {
+      if (managed.session !== boundSession) continue;
+      if (managed.aborting && ev.kind !== "turn_completed" && ev.kind !== "error") continue;
+      processNormalizedEvent(agentId, ev);
+    }
+  } catch (err: any) {
+    if (managed.aborting || managed.session !== boundSession) return;
+    const turn = managed.pendingTurn;
+    managed.pendingTurn = null;
+    if (turn) turn.reject(err);
+    const errorText = `Stream error: ${err.message ?? String(err)}`;
+    addLogEntry(agentId, "error", errorText);
+    if (managed.info.agentType === "claude") {
+      const hints = diagnoseProcessExit(managed);
+      if (hints) emitEphemeralLog(agentId, "system", hints);
+    }
+    emitLoginInstructionsIfAuth(agentId, managed, errorText);
+    updateState(agentId, isAuthErrorForAgent(managed, errorText) ? "waiting_for_response" : "error");
+  }
+}
+
+function deriveStateFromEvent(ev: NormalizedEvent): AgentState | null {
+  switch (ev.kind) {
+    case "assistant_text":
+    case "thinking":
+      return "thinking";
+    case "tool_call":
+      return "tool_executing";
+    case "turn_completed":
+      return ev.status === "completed" ? "waiting_for_response" : null;
+    default:
+      return null;
+  }
+}
+
+function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
+  const newState = deriveStateFromEvent(ev);
+  if (newState) {
+    const currentState = agents.get(agentId)?.info.state;
+    if (!(currentState === "tool_executing" && newState === "thinking")) updateState(agentId, newState);
+  }
+
+  switch (ev.kind) {
+    case "system_init": {
+      const managed = agents.get(agentId);
+      if (managed && ev.sessionId) {
+        const hadPreviousSession = !!managed.sessionId;
+        if (!managed.sessionId) {
+          const history = loadLogWithAncestors(agentId, ev.sessionId);
+          for (const entry of history) emit({ type: "log_entry", entry });
+        }
+        if (hadPreviousSession && ev.sessionId !== managed.sessionId) {
+          emit({ type: "clear_logs", agentId } as any);
+          addLogEntry(agentId, "system", "Conversation cleared.");
+        }
+        managed.sessionId = ev.sessionId;
+        if (!hadPreviousSession) {
+          for (const entry of logCache.get(agentId) ?? []) appendLog(agentId, ev.sessionId, entry);
+        }
+        persistAll();
       }
-      // Inner generator ended: either the turn's `result` arrived, or the
-      // session was closed from underneath us. Resolve any pending turn; the
-      // outer loop re-calls stream() which blocks until the next event.
-      const turn = managed.pendingTurn;
-      if (turn && managed.session === boundSession) {
+      const filteredSdkCommands = (ev.slashCommands ?? []).filter((c) => !c.startsWith("mcp__"));
+      if (managed) {
+        managed.sdkReportedCommands = filteredSdkCommands;
+        managed.slashCommands = autocompleteCommands();
+        managed.skills = deduplicateSkills([...discoverUserSkills(), ...discoverProjectSkills(managed.info.cwd), ...discoverPluginSkills(), ...discoverBundledSkills()]);
+        emit({ type: "slash_commands", agentId, commands: managed.slashCommands, skills: managed.skills } as any);
+      }
+      break;
+    }
+    case "assistant_text":
+      addLogEntry(agentId, "text", ev.text);
+      break;
+    case "system_text": {
+      addLogEntry(agentId, "system", ev.text);
+      const managed = agents.get(agentId);
+      emitLoginInstructionsIfAuth(agentId, managed, ev.text);
+      break;
+    }
+    case "thinking": {
+      const managed = agents.get(agentId);
+      const duration_ms = ev.durationMs ?? (managed?.thinkingStartedAt ? Date.now() - managed.thinkingStartedAt : undefined);
+      addLogEntry(agentId, "thinking", ev.text, duration_ms != null ? { duration_ms } : undefined);
+      break;
+    }
+    case "tool_call": {
+      const managed = agents.get(agentId);
+      if (managed) managed.toolCallTimestamps.set(ev.toolUseId, Date.now());
+      addLogEntry(agentId, "tool_call", ev.name, { toolId: ev.toolUseId, input: ev.input });
+      break;
+    }
+    case "tool_result": {
+      const managed = agents.get(agentId);
+      const callStart = managed?.toolCallTimestamps.get(ev.toolUseId);
+      const duration_ms = ev.durationMs ?? (callStart ? Date.now() - callStart : undefined);
+      if (managed && callStart) managed.toolCallTimestamps.delete(ev.toolUseId);
+      addLogEntry(agentId, "tool_result", ev.content.slice(0, 10000), { toolUseId: ev.toolUseId, ...(duration_ms != null ? { duration_ms } : {}), ...(ev.isError != null ? { isError: ev.isError } : {}) }, ev.attachments);
+      break;
+    }
+    case "turn_completed": {
+      const managed = agents.get(agentId);
+      if (managed?.sessionId && ev.usage) {
+        const cumulative = accumulateSessionUsage(agentId, managed.sessionId, ev.usage, ev.cost ?? 0);
+        if (managed.lastWrittenEntryId) appendSessionUsageSnapshot(agentId, managed.sessionId, managed.lastWrittenEntryId, cumulative);
+      }
+      if (managed && ev.status !== "completed") {
+        const isInterrupted = managed.aborting && ev.status === "interrupted";
+        if (!isInterrupted) {
+          const errorText = ev.error ?? `Agent stopped: ${ev.status}.`;
+          addLogEntry(agentId, "error", errorText);
+          const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, errorText);
+          if (ev.causedByAuth !== true && auth) emitLoginInstructions(agentId, managed);
+          updateState(agentId, auth ? "waiting_for_response" : "error");
+        }
+      }
+      const turn = managed?.pendingTurn;
+      if (managed && turn) {
         managed.pendingTurn = null;
         turn.resolve();
       }
-    } catch (err: any) {
-      if (managed.aborting || managed.session !== boundSession) {
-        // Expected: abort() or a session swap closed us. The swap path
-        // already nulled + rejected pendingTurn with SessionSwappedError.
-        return;
+      break;
+    }
+    case "usage_update": {
+      const managed = agents.get(agentId);
+      if (managed?.sessionId) {
+        const cumulative = accumulateSessionUsage(agentId, managed.sessionId, ev.tokenUsage, 0);
+        if (managed.lastWrittenEntryId) appendSessionUsageSnapshot(agentId, managed.sessionId, managed.lastWrittenEntryId, cumulative);
       }
-
-      const turn = managed.pendingTurn;
-      managed.pendingTurn = null;
-      if (turn) turn.reject(err);
-
-      console.error(`Agent ${agentId} stream error:`, err.message);
-      const errorText = `Stream error: ${err.message}`;
-      addLogEntry(agentId, "error", errorText);
-      // The SDK's "process exited with code 1" is opaque; diagnose common causes.
-      const hints = diagnoseProcessExit(managed);
-      if (hints) emitEphemeralLog(agentId, "system", hints);
-      if (isAuthError(errorText)) {
-        emitEphemeralLog(agentId, "system", LOGIN_INSTRUCTIONS);
+      break;
+    }
+    case "compacted":
+      addLogEntry(agentId, "system", ev.summary ? `Context compacted: ${ev.summary}` : "Context compacted.");
+      break;
+    case "file_view":
+      addLogEntry(agentId, "file-view", ev.title, undefined, ev.attachments);
+      break;
+    case "error": {
+      const managed = agents.get(agentId);
+      addLogEntry(agentId, "error", ev.message);
+      if (managed?.info.agentType === "claude") {
+        const hints = diagnoseProcessExit(managed);
+        if (hints) emitEphemeralLog(agentId, "system", hints);
       }
-      updateState(agentId, "error");
-      return;
+      emitLoginInstructionsIfAuth(agentId, managed, ev.message);
+      const turn = managed?.pendingTurn;
+      if (managed && turn) {
+        managed.pendingTurn = null;
+        turn.reject(new Error(ev.message));
+      }
+      updateState(agentId, managed && isAuthErrorForAgent(managed, ev.message) ? "waiting_for_response" : "error");
+      break;
+    }
+    case "approval_request": {
+      const managed = agents.get(agentId);
+      if (!managed) break;
+      const lines = [`**${ev.title ?? `Wants to use ${ev.toolName}`}**`];
+      if (ev.description) lines.push(ev.description);
+      lines.push("", "Reply:", "  1. Allow — and don't ask again for similar calls this session", "  2. Allow — just this time", "  3. Deny", "", "Or type any other message to deny with that as the reason.");
+      emitEphemeralLog(agentId, "system", lines.join("\n"));
+      managed.pendingPermission = { approvalId: ev.approvalId, toolName: ev.toolName };
+      updateState(agentId, "waiting_for_response");
+      break;
     }
   }
 }
 
 // Install a freshly-created session on managed and spawn its consumer. Caller
 // is responsible for having closed/awaited any previous session first.
-export function installSession(agentId: string, managed: ManagedAgent, session: ReturnType<typeof unstable_v2_createSession>) {
+export function installSession(agentId: string, managed: ManagedAgent, session: BackendSession) {
   managed.session = session;
   managed.consumerPromise = runConsumer(agentId, managed, session);
 }
@@ -263,7 +357,7 @@ export function installSession(agentId: string, managed: ManagedAgent, session: 
 // Swap the agent's session: close the current one, await its consumer to
 // drain, install the new session + consumer. Rejects any in-flight turn so
 // callers awaiting sendMessage's deferred don't hang.
-export async function replaceSession(agentId: string, managed: ManagedAgent, newSession: ReturnType<typeof unstable_v2_createSession>) {
+export async function replaceSession(agentId: string, managed: ManagedAgent, newSession: BackendSession) {
   // Bump the cancel token first so any concurrent runAgentTurn in its
   // pre-send plugin-retrieval window bails on the next await checkpoint —
   // the in-flight `pendingTurn` rejection below only covers the post-send
@@ -301,9 +395,6 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   // Drop any pending permission prompt from a prior (now-closed) session so the
   // next user message isn't swallowed by a dead request.
   if (managed.pendingPermission) {
-    try {
-      managed.pendingPermission.resolve({ behavior: "deny", message: "Session restarted." });
-    } catch {}
     managed.pendingPermission = null;
   }
   // Preflight checks so failures surface as readable errors instead of the SDK's
@@ -316,7 +407,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   // Compute env once — both the resume preflight (Claude sessions dir lookup
   // honors CLAUDE_CONFIG_DIR) and the session opts use it.
   const env = buildSessionEnv(managed);
-  if (resumeSessionId && !claudeSessionFileExists(managed.info.cwd, resumeSessionId, env)) {
+  if (managed.info.agentType === "claude" && resumeSessionId && !claudeSessionFileExists(managed.info.cwd, resumeSessionId, env)) {
     throw new Error(
       `Cannot resume session ${resumeSessionId.slice(0, 8)}…: its file is missing from ${claudeProjectDir(managed.info.cwd, env)}. ` +
         `Most commonly this happens after the agent's cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd. ` +
@@ -329,22 +420,22 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   // inject --append-system-prompt via executableArgs. When
   // pathToClaudeCodeExecutable is a native binary, executableArgs are prepended
   // to the CLI args verbatim (verified against SDK 0.2.116 sdk.mjs).
-  const opts: any = {
-    model: FAMILY_TO_MODEL[managed.info.modelFamily],
+  const opts = {
+    agentId: managed.info.id,
+    modelFamily: managed.info.modelFamily,
+    effort: managed.info.effort ?? "xhigh",
     permissionMode: managed.info.permissionMode,
-    pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
-    executableArgs: ["--append-system-prompt", systemPrompt],
+    sandbox: managed.info.codexSandbox,
+    systemPrompt,
     cwd: managed.info.cwd,
-    hooks: createSafetyHooks(),
-    canUseTool: ((toolName, input, options) => requestPermission(managed, toolName, input, options)) as CanUseTool,
   };
-  if (env) opts.env = env;
+  if (env) (opts as any).env = env;
   if (resumeSessionId) {
-    opts.resume = resumeSessionId;
     // The SDK reports cost cumulative-per-process, so a resumed session's
     // counter starts from zero. Roll the current-run usage into the
     // prior-runs accumulator so lifetime cost survives the reset.
     rollSessionUsageOnResume(managed.info.id, resumeSessionId);
   }
-  return resumeSessionId ? unstable_v2_resumeSession(resumeSessionId, opts) : unstable_v2_createSession(opts);
+  const backend = getBackend(managed.info.agentType);
+  return resumeSessionId ? backend.resumeSession(resumeSessionId, opts) : backend.createSession(opts);
 }

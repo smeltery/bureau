@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { AgentInfo, AgentOutfit, ClientCommand, ModelFamily } from "../../../shared/types.ts";
-import { MODEL_FAMILIES, modelVersionLabel } from "../../../shared/types.ts";
+import type { AgentBackendType, AgentInfo, AgentOutfit, ClientCommand } from "../../../shared/types.ts";
+import { CODEX_MODELS, MODEL_FAMILIES, modelVersionLabel } from "../../../shared/types.ts";
 import { SHIRT_COLORS, HAIR_COLORS, SKIN_COLORS, HAIR_STYLES, BEARDS, HATS, ACCESSORIES } from "../../../shared/outfit-options.ts";
 import { Character } from "../../office/scene/Character.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
@@ -56,12 +56,13 @@ function makeRandomOutfit(): AgentOutfit {
 
 type EditAgentDialogProps = {
   onClose: () => void;
-} & ({ agent: AgentInfo; deskIndex?: undefined; room?: undefined; defaultCwd?: undefined } | { agent?: undefined; deskIndex: number; room: number; defaultCwd: string });
+} & ({ agent: AgentInfo; deskIndex?: undefined; room?: undefined; defaultCwd?: undefined; agentType?: undefined } | { agent?: undefined; deskIndex: number; room: number; defaultCwd: string; agentType: AgentBackendType });
 
 export function EditAgentDialog(props: EditAgentDialogProps) {
   const { onClose } = props;
   const isSpawn = !props.agent;
   const agent = props.agent;
+  const agentType = agent?.agentType ?? props.agentType ?? "claude";
 
   const { recentCwds: allRecentCwds, isMobile, agents, rooms } = useAppState();
   const roomCount = rooms.length;
@@ -69,7 +70,8 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
   const [cwd, setCwd] = useState(agent?.cwd ?? props.defaultCwd ?? "~");
   const [outfit, setOutfit] = useState<AgentOutfit>(agent ? { ...agent.outfit } : makeRandomOutfit);
   const [customInstructions, setCustomInstructions] = useState(agent?.customInstructions ?? "");
-  const [modelFamily, setModelFamily] = useState<ModelFamily>(agent?.modelFamily ?? MODEL_FAMILIES[0].family);
+  const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
+  const [modelFamily, setModelFamily] = useState<string>(agent?.modelFamily ?? modelOptions[0].family);
   const initialPermissionMode: AgentInfo["permissionMode"] =
     agent?.permissionMode === "auto" && (agent?.modelFamily ?? MODEL_FAMILIES[0].family) !== "opus" ? "bypassPermissions" : (agent?.permissionMode ?? "auto");
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
@@ -139,6 +141,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
         outfit,
         customInstructions: customInstructions.trim() || undefined,
         modelFamily,
+        agentType,
       });
     } else {
       const cmd: Extract<ClientCommand, { type: "edit_agent" }> = { type: "edit_agent", agentId: agent!.id };
@@ -251,15 +254,15 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
           <select
             value={modelFamily}
             onChange={(e) => {
-              const next = e.target.value as ModelFamily;
+              const next = e.target.value;
               setModelFamily(next);
               if (next !== "opus" && permissionMode === "auto") setPermissionMode("bypassPermissions");
             }}
             style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
           >
-            {MODEL_FAMILIES.map((m) => (
+            {modelOptions.map((m) => (
               <option key={m.family} value={m.family}>
-                {m.label} ({modelVersionLabel(m.family)})
+                {agentType === "claude" ? `${m.label} (${modelVersionLabel(m.family as any)})` : m.label}
               </option>
             ))}
           </select>

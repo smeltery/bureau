@@ -1,7 +1,7 @@
-import type { unstable_v2_createSession, PermissionResult, PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentInfo, AgentState, Attachment, LogEntry, OfficeSettings, RoomWire, SkillInfo } from "../../shared/types.ts";
-import { FAMILY_TO_MODEL, generateRoomId } from "../../shared/types.ts";
+import { DEFAULT_AGENT_CAPABILITIES, FAMILY_TO_MODEL, generateRoomId } from "../../shared/types.ts";
 import { appendLog, loadAgentHistory, loadOfficeConfig, saveAgentHistory, saveAgents, writeManifest, type AgentHistory, type OfficeConfig, type PersistedAgent, type Room } from "../persistence.ts";
+import type { BackendSession } from "../backends/types.ts";
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -10,7 +10,7 @@ import { appendLog, loadAgentHistory, loadOfficeConfig, saveAgentHistory, saveAg
 // Internal agent state
 export interface ManagedAgent {
   info: AgentInfo;
-  session: ReturnType<typeof unstable_v2_createSession> | null;
+  session: BackendSession | null;
   sessionId: string | null;
   // Persistent consumer loop iterating `session.stream()` for the session's
   // lifetime. See docs/held-back-messages-investigation.md — without this,
@@ -58,10 +58,8 @@ export interface ManagedAgent {
   pendingModelPick: boolean;
   // Auto-mode permission prompt two-step state
   pendingPermission: {
-    toolUseID: string;
-    input: Record<string, unknown>;
-    suggestions?: PermissionUpdate[];
-    resolve: (r: PermissionResult) => void;
+    approvalId: string;
+    toolName: string;
   } | null;
   // Terminal PTY sidecar (spawned on demand via Node.js)
   ptySidecar: import("bun").Subprocess | null;
@@ -293,7 +291,7 @@ export function updateManifest() {
       topic: a.info.topic,
       cwd: a.info.cwd,
       modelFamily: a.info.modelFamily,
-      model: FAMILY_TO_MODEL[a.info.modelFamily],
+      model: FAMILY_TO_MODEL[a.info.modelFamily as keyof typeof FAMILY_TO_MODEL] ?? a.info.modelFamily,
     })),
   );
 }
@@ -331,6 +329,9 @@ export function persistAll() {
         outfit: a.info.outfit,
         permissionMode: a.info.permissionMode,
         modelFamily: a.info.modelFamily,
+        agentType: a.info.agentType,
+        codexSandbox: a.info.codexSandbox,
+        effort: a.info.effort,
         lastSessionId: a.sessionId,
         topic: a.info.topic,
         customInstructions: a.info.customInstructions,

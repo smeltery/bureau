@@ -297,19 +297,17 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     emitEphemeralLog(agentId, "user_message", text, userMeta);
     const trimmed = text.trim();
     if (trimmed === "1") {
-      // Scope suggested rules to this session only so they don't leak across sessions.
-      const sessionScoped = pending.suggestions?.map((s) => ({ ...s, destination: "session" as const }));
       emitEphemeralLog(agentId, "system", "Permission granted (rule added for this session).");
-      pending.resolve({ behavior: "allow", updatedInput: pending.input, updatedPermissions: sessionScoped });
+      await managed.session?.approve(pending.approvalId, { kind: "allow_persistent" });
     } else if (trimmed === "2") {
       emitEphemeralLog(agentId, "system", "Permission granted (once).");
-      pending.resolve({ behavior: "allow", updatedInput: pending.input });
+      await managed.session?.approve(pending.approvalId, { kind: "allow_once" });
     } else if (trimmed === "3") {
       emitEphemeralLog(agentId, "system", "Permission denied.");
-      pending.resolve({ behavior: "deny", message: "User denied." });
+      await managed.session?.approve(pending.approvalId, { kind: "deny", reason: "User denied." });
     } else {
       emitEphemeralLog(agentId, "system", "Permission denied with reason forwarded to agent.");
-      pending.resolve({ behavior: "deny", message: text });
+      await managed.session?.approve(pending.approvalId, { kind: "deny", reason: text });
     }
     return;
   }

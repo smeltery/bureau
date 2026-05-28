@@ -1,6 +1,6 @@
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
-import type { AgentInfo, ClaudeModel, ModelFamily } from "../../../shared/types.ts";
+import type { AgentInfo, ClaudeModel } from "../../../shared/types.ts";
 import { familyFromLegacyModel, generateRoomId } from "../../../shared/types.ts";
 import { AGENTS_FILE, atomicWriteFileSync, LOGS_DIR, MANIFEST_FILE } from "../paths.ts";
 
@@ -12,7 +12,10 @@ export interface PersistedAgent {
   cwd: string;
   outfit: AgentInfo["outfit"];
   permissionMode: AgentInfo["permissionMode"];
-  modelFamily?: ModelFamily;
+  modelFamily?: string;
+  agentType?: AgentInfo["agentType"];
+  codexSandbox?: AgentInfo["codexSandbox"];
+  effort?: AgentInfo["effort"];
   lastSessionId: string | null;
   topic: string | null;
   customInstructions: string | null;
@@ -87,7 +90,7 @@ export function saveAgents(rooms: Room[]) {
   }
 }
 
-export function writeManifest(agents: { id: string; name: string; desk: number; room: number; roomName: string; topic: string | null; cwd: string; modelFamily: ModelFamily; model: ClaudeModel }[]) {
+export function writeManifest(agents: { id: string; name: string; desk: number; room: number; roomName: string; topic: string | null; cwd: string; modelFamily: string; model: ClaudeModel }[]) {
   try {
     const manifest = agents.map((a) => ({
       id: a.id,

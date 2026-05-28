@@ -5,6 +5,7 @@ import { LogView } from "./log-view/LogView.tsx";
 import { AgentListView } from "./components/overlays/AgentListView.tsx";
 import { ContextMenu } from "./components/overlays/ContextMenu.tsx";
 import { EditAgentDialog } from "./components/modals/EditAgentDialog.tsx";
+import { EngineChooserDialog } from "./components/modals/EngineChooserDialog.tsx";
 import { UserManagementModal } from "./components/modals/UserManagementModal.tsx";
 import { DeviceSettingsModal } from "./components/modals/DeviceSettingsModal.tsx";
 import { OfficePromptModal } from "./components/modals/OfficePromptModal.tsx";
@@ -14,7 +15,7 @@ import { CronjobsView } from "./components/CronjobsView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
 import { ConnectionBanner } from "./components/ConnectionBanner.tsx";
 import { CSS } from "./styles.ts";
-import type { AgentInfo } from "../shared/types.ts";
+import type { AgentBackendType, AgentInfo } from "../shared/types.ts";
 import { send } from "./ws.ts";
 import { getDevice } from "./device-settings.ts";
 
@@ -40,6 +41,7 @@ export function App() {
   const roomCount = rooms.length;
   const dispatch = useDispatch();
   const [spawnDesk, setSpawnDesk] = useState<number | null>(null);
+  const [spawnAgentType, setSpawnAgentType] = useState<AgentBackendType | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; agent: AgentInfo } | null>(null);
   const [editAgent, setEditAgent] = useState<AgentInfo | null>(null);
   const [username, setUsername] = useState<string | null>(() => {
@@ -274,7 +276,12 @@ export function App() {
           viewportControlsRef={viewportControlsRef}
         />
       )}
-      {spawnDesk !== null && <EditAgentDialog deskIndex={spawnDesk} defaultCwd="~" onClose={() => setSpawnDesk(null)} room={currentRoom} />}
+      {spawnDesk !== null && spawnAgentType === null && (
+        <EngineChooserDialog onPick={(agentType) => setSpawnAgentType(agentType)} onCancel={() => setSpawnDesk(null)} />
+      )}
+      {spawnDesk !== null && spawnAgentType !== null && (
+        <EditAgentDialog deskIndex={spawnDesk} defaultCwd="~" agentType={spawnAgentType} onClose={() => { setSpawnDesk(null); setSpawnAgentType(null); }} room={currentRoom} />
+      )}
       {ctxMenu && (
         <ContextMenu
           x={ctxMenu.x}

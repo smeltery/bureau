@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import type { AgentInfo, ModelFamily } from "../../../shared/types.ts";
+import type { AgentInfo } from "../../../shared/types.ts";
 import { DeskSprite } from "./DeskSprite.tsx";
 import { Character } from "./Character.tsx";
 import { StatusLight } from "./StatusLight.tsx";
 import { deskPixelPos, DESK_SLOTS } from "../grid.ts";
 
-const MODEL_TINT: Record<ModelFamily, { border: string; bg: string }> = {
+const MODEL_TINT: Record<string, { border: string; bg: string }> = {
   opus: { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
   sonnet: { border: "rgba(218,165,32,0.80)", bg: "rgba(218,165,32,0.32)" },
   haiku: { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
