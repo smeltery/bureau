@@ -40,7 +40,6 @@ import type { BureauPlugin, PluginAfterTurnInput, PluginTurnContext } from "../.
 import type { ManagedAgent } from "../agents/state.ts";
 import { beginTurn, logCache, rooms } from "../agents/state.ts";
 import { SessionSwappedError, createTurnDeferred } from "../agents/session/runtime.ts";
-import { buildUserMessage } from "../agents/session/messages.ts";
 import { getEnabledPlugins, logPluginFailure } from "./registry.ts";
 
 const BEFORE_TURN_TIMEOUT_MS = 5000;
@@ -195,12 +194,7 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
     if (!managed.session) {
       throw new Error("Cannot send: agent has no session.");
     }
-    if (attachments && attachments.length > 0) {
-      const message = buildUserMessage(agentId, finalText, attachments);
-      await managed.session.send(message);
-    } else {
-      await managed.session.send(finalText);
-    }
+    await managed.session.send(finalText, attachments);
     if (onSendAccepted) {
       try {
         onSendAccepted();

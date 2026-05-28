@@ -14,6 +14,35 @@ export interface AgentOutfit {
   accessory: "glasses" | "headphones" | "bow_tie" | "tie" | "earrings" | null;
 }
 
+export type AgentBackendType = "claude" | "codex";
+
+export type ClaudePermissionMode = "default" | "acceptEdits" | "bypassPermissions" | "auto";
+export type CodexApprovalPolicy = "untrusted" | "on-request" | "on-failure" | "never";
+export type CodexSandboxMode = "read-only" | "workspace-write" | "danger-full-access";
+export type AgentPermissionMode = ClaudePermissionMode | CodexApprovalPolicy;
+
+export interface AgentCapabilities {
+  fork: boolean;
+  hooks: boolean;
+  skills: boolean;
+  oneShot: boolean;
+  canUseTool: boolean;
+  topicGen: boolean;
+  edit: boolean;
+  mcp: boolean;
+}
+
+export const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
+  fork: true,
+  hooks: true,
+  skills: true,
+  oneShot: true,
+  canUseTool: true,
+  topicGen: true,
+  edit: true,
+  mcp: true,
+};
+
 // Model families — what users pick ("I want Opus"). Exact versions are an
 // implementation detail that the system bumps centrally in FAMILY_TO_MODEL.
 export type ModelFamily = "opus" | "sonnet" | "haiku";
@@ -39,8 +68,35 @@ export function modelVersionLabel(family: ModelFamily): string {
   return match ? `${match[1]}.${match[2]}` : exact;
 }
 
-// "Opus 4.7"
-export function familyDisplayLabel(family: ModelFamily): string {
+export type EffortLevel = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
+export const EFFORT_LEVELS: { level: EffortLevel; label: string }[] = [
+  { level: "minimal", label: "Minimal (Codex only)" },
+  { level: "low", label: "Low" },
+  { level: "medium", label: "Medium" },
+  { level: "high", label: "High" },
+  { level: "xhigh", label: "Extra high" },
+  { level: "max", label: "Max (Opus only)" },
+];
+
+export const DEFAULT_EFFORT: EffortLevel = "xhigh";
+
+export const CODEX_MODELS: { value: string; label: string }[] = [
+  { value: "gpt-5.5", label: "GPT-5.5" },
+  { value: "gpt-5.4", label: "GPT-5.4" },
+  { value: "gpt-5.4-mini", label: "GPT-5.4 mini" },
+  { value: "gpt-5.3-codex", label: "GPT-5.3 Codex" },
+  { value: "gpt-5.2", label: "GPT-5.2" },
+];
+
+export function isClaudeFamily(s: string): s is ModelFamily {
+  return s === "opus" || s === "sonnet" || s === "haiku";
+}
+
+export function familyDisplayLabel(family: string): string {
+  if (!isClaudeFamily(family)) {
+    return CODEX_MODELS.find((m) => m.value === family)?.label ?? family;
+  }
   const base = MODEL_FAMILIES.find((m) => m.family === family)?.label ?? family;
   return `${base} ${modelVersionLabel(family)}`;
 }
@@ -62,8 +118,12 @@ export interface AgentInfo {
   room: number; // 0-based room index
   cwd: string;
   outfit: AgentOutfit;
-  permissionMode: "default" | "acceptEdits" | "bypassPermissions" | "auto";
-  modelFamily: ModelFamily;
+  permissionMode: AgentPermissionMode;
+  modelFamily: string;
+  agentType: AgentBackendType;
+  capabilities: AgentCapabilities;
+  codexSandbox?: CodexSandboxMode;
+  effort?: EffortLevel;
   state: AgentState;
   topic: string | null;
   topicStale: boolean;
@@ -523,7 +583,10 @@ export type ClientCommand =
       roomId?: string;
       customInstructions?: string;
       outfit?: AgentOutfit;
-      modelFamily?: ModelFamily;
+      modelFamily?: string;
+      agentType?: AgentBackendType;
+      codexSandbox?: CodexSandboxMode;
+      effort?: EffortLevel;
     }
   | { type: "kill"; agentId: string }
   | { type: "abort"; agentId: string }
@@ -539,8 +602,10 @@ export type ClientCommand =
       cwd?: string;
       outfit?: AgentOutfit;
       customInstructions?: string;
-      modelFamily?: ModelFamily;
+      modelFamily?: string;
       permissionMode?: AgentInfo["permissionMode"];
+      codexSandbox?: CodexSandboxMode;
+      effort?: EffortLevel;
     }
   | { type: "swap_desks"; deskA: number; deskB: number; roomId: string }
   | { type: "set_topic"; agentId: string; topic: string }

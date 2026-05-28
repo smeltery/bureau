@@ -1,7 +1,8 @@
 import { homedir } from "os";
 import { basename, join } from "path";
 import { existsSync, readFileSync, rmSync, statSync } from "fs";
-import type { AgentInfo, AgentOutfit, LogEntry, ModelFamily, SkillInfo } from "../../shared/types.ts";
+import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, SkillInfo } from "../../shared/types.ts";
+import { DEFAULT_AGENT_CAPABILITIES } from "../../shared/types.ts";
 import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
 import { listAgentSessions, loadAgents, loadLogWithAncestors, saveFile as savePersistedFile } from "../persistence.ts";
 import { mimeTypeForFilename } from "../mime-types.ts";
@@ -13,6 +14,7 @@ import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discove
 import { openFile as openFileImpl, saveFile as saveFileImpl, resolveEditorPath, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
 import { moveClaudeSessionFiles, resolveCwd } from "./session/paths.ts";
 import { buildSessionEnv, createSession, installSession, replaceSession } from "./session/runtime.ts";
+import { getBackend } from "../backends/index.ts";
 import { findRoomIndex, updateState } from "./state.ts";
 import { sidecarSend } from "./terminal.ts";
 import { BUREAU_DIR } from "../persistence/paths.ts";
@@ -222,7 +224,7 @@ export function emitAgentDiff(agentId: string, dir?: string, commit?: string): {
 
 export async function editAgent(
   agentId: string,
-  changes: { name?: string; cwd?: string; outfit?: AgentInfo["outfit"]; customInstructions?: string; modelFamily?: ModelFamily; permissionMode?: AgentInfo["permissionMode"] },
+  changes: { name?: string; cwd?: string; outfit?: AgentInfo["outfit"]; customInstructions?: string; modelFamily?: string; permissionMode?: AgentInfo["permissionMode"]; codexSandbox?: AgentInfo["codexSandbox"]; effort?: AgentInfo["effort"] },
 ) {
   const managed = agents.get(agentId);
   if (!managed) return;
@@ -252,7 +254,7 @@ export async function editAgent(
     }
     managed.info.cwd = resolveCwd(changes.cwd);
     updated.cwd = managed.info.cwd;
-    moveClaudeSessionFiles(agentId, oldCwd, managed.info.cwd, env);
+    if (managed.info.agentType === "claude") moveClaudeSessionFiles(agentId, oldCwd, managed.info.cwd, env);
   }
   if (changes.outfit) {
     managed.info.outfit = changes.outfit;
@@ -270,6 +272,14 @@ export async function editAgent(
     managed.info.permissionMode = changes.permissionMode;
     updated.permissionMode = changes.permissionMode;
   }
+  if (changes.codexSandbox && changes.codexSandbox !== managed.info.codexSandbox) {
+    managed.info.codexSandbox = changes.codexSandbox;
+    updated.codexSandbox = changes.codexSandbox;
+  }
+  if (changes.effort && changes.effort !== managed.info.effort) {
+    managed.info.effort = changes.effort;
+    updated.effort = changes.effort;
+  }
 
   if (Object.keys(updated).length === 0) return;
 
@@ -277,7 +287,7 @@ export async function editAgent(
   // customInstructions changes automatically apply to the next conversation.
 
   // Recreate session if model or permission mode changed so it takes effect immediately
-  if (updated.modelFamily || updated.permissionMode) {
+  if (updated.modelFamily || updated.permissionMode || updated.codexSandbox || updated.effort) {
     const sessionId = managed.sessionId;
     const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
     await replaceSession(agentId, managed, newSession);
@@ -299,7 +309,10 @@ export async function spawn(
   customInstructions?: string,
   roomId?: string,
   outfit?: AgentOutfit,
-  modelFamily?: ModelFamily,
+  modelFamily?: string,
+  agentType: AgentBackendType = "claude",
+  codexSandbox?: AgentInfo["codexSandbox"],
+  effort?: AgentInfo["effort"],
 ): Promise<AgentInfo | null> {
   // Reject duplicate names across all rooms
   const nameLower = name.trim().toLowerCase();
@@ -339,6 +352,10 @@ export async function spawn(
     outfit: outfit ?? generateOutfit(),
     permissionMode,
     modelFamily: modelFamily ?? "opus",
+    agentType,
+    capabilities: getBackend(agentType).capabilities ?? DEFAULT_AGENT_CAPABILITIES,
+    ...(codexSandbox ? { codexSandbox } : {}),
+    ...(effort ? { effort } : {}),
     state: "idle",
     topic: null,
     topicStale: false,
@@ -387,7 +404,7 @@ export async function spawn(
   // Create V2 session
   try {
     installSession(id, managed, createSession(managed));
-    addLogEntry(id, "system", `Agent "${name}" ready. Working in ${resolvedCwd}. Permission mode: ${permissionMode}.`);
+    addLogEntry(id, "system", `${agentType === "codex" ? "Codex" : "Claude"} agent "${name}" ready. Working in ${resolvedCwd}. Permission mode: ${permissionMode}.`);
     // First stream() will deliver system/init + response to the first send().
   } catch (err: any) {
     console.error(`Failed to create session for ${name}:`, err.message);
@@ -410,9 +427,6 @@ export async function kill(agentId: string) {
   // await checkpoint instead of calling session.send on a dying session.
   managed.turnCancelToken++;
   if (managed.pendingPermission) {
-    try {
-      managed.pendingPermission.resolve({ behavior: "deny", message: "Agent killed." });
-    } catch {}
     managed.pendingPermission = null;
   }
   const turn = managed.pendingTurn;
@@ -473,6 +487,10 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         outfit: p.outfit,
         permissionMode: p.permissionMode,
         modelFamily: p.modelFamily ?? "opus",
+        agentType: p.agentType ?? "claude",
+        capabilities: getBackend(p.agentType ?? "claude").capabilities ?? DEFAULT_AGENT_CAPABILITIES,
+        ...(p.codexSandbox ? { codexSandbox: p.codexSandbox } : {}),
+        ...(p.effort ? { effort: p.effort } : {}),
         state: p.lastSessionId ? "waiting_for_response" : "idle",
         topic: p.topic ?? null,
         // Stale-on-load is determined by the textCount scan below (after

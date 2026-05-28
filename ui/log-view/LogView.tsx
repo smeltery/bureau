@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefCallback } from "react";
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
-import { type ModelFamily } from "../../shared/types.ts";
 import { send } from "../ws.ts";
 import { useAppState, useDispatch, useFeatures } from "../store.tsx";
 import { Character } from "../office/scene/Character.tsx";
@@ -22,7 +21,7 @@ import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
 import { useSelectionCite } from "./useSelectionCite.ts";
 import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 
-const MODEL_TINT: Record<ModelFamily, { border: string; bg: string }> = {
+const MODEL_TINT: Record<string, { border: string; bg: string }> = {
   opus: { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
   sonnet: { border: "rgba(218,165,32,0.80)", bg: "rgba(218,165,32,0.32)" },
   haiku: { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
