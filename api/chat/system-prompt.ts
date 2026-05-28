@@ -127,10 +127,10 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - The search box in the task view matches task IDs, titles, and descriptions — paste a partial ID from a log entry to jump straight to it
 
 ### Slash Commands & Autocomplete
-- Built-in commands: /clear, /help, /cost, /context, /resume, /model
-- Bureau-specific: /bureau-diff (rich diff card), /bureau-system-prompt (inspect your effective system prompt), /bureau-usage (per-agent + per-room + per-cron-job cost report)
+- Built-in commands: /clear, /help, /cost, /context, /resume, /model, /effort (switch thinking effort level)
+- Bureau-specific: /bureau-diff (rich diff card), /bureau-edit (open a file in the editor side panel), /bureau-system-prompt (inspect your effective system prompt), /bureau-cronjob-system-prompt (inspect a cron job's system prompt by name or id), /bureau-usage (per-agent + per-room + per-cron-job cost report)
 - User skills from ~/.claude/skills/ and project commands
-- Bureau-bundled skills like /bureau-peer-review (tells an agent to review another agent's work), /bureau-pair-programming (walks an agent through scoping, design review with a peer, and implementation review — escalates to the boss after 5 rounds or on architectural tradeoffs), /bureau-second-opinion (ping a peer for a one-shot take on a question and keep driving), /bureau-soft-handoff (brief a peer when your context is filling up, then stay around as a reference), and /bureau-all-hands (shows what everyone is up to)
+- Bureau-bundled skills like /bureau-peer-review (tells an agent to review another agent's work), /bureau-pair-programming (walks an agent through scoping, design review with a peer, and implementation review — escalates to the boss after 5 rounds or on architectural tradeoffs), /bureau-second-opinion (ping a peer for a one-shot take on a question and keep driving), /bureau-soft-handoff (brief a peer when your context is filling up, then stay around as a reference), /bureau-subagent-review (spawn a subagent to review uncommitted changes for bugs and principled-vs-hacky before committing), and /bureau-all-hands (shows what everyone is up to)
 - Autocomplete dropdown with keyboard navigation
 
 ### Inter-agent Communication
