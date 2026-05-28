@@ -186,7 +186,9 @@ const commandHandlers: Record<string, HandlerFn> = {
     lines.push(
       "  • Agents can offer `[Open in editor]` and `[Copy to terminal]` cards in chat. Agents can also surface a file inline with POST /agents/:id/read-file — images render in-chat, others as a clickable chip.",
     );
-    lines.push("  • Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Use `/bureau-edit <path>` to open a file in the editor side panel. Use `/bureau-usage` to see per-agent + per-room + per-cron-job lifetime cost.");
+    lines.push(
+      "  • Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Use `/bureau-edit <path>` to open a file in the editor side panel. Use `/bureau-usage` to see per-agent + per-room + per-cron-job lifetime cost.",
+    );
     lines.push("  • The office view zooms and pans (pinch/scroll, drag, or `0`/`+`/`-` keys). Drag the splitter between chat and the side panel to resize it.");
     lines.push(
       "  • Pick a color theme from the header palette button — Dark, Light, Nord, Dracula, Solarized Dark, or Solarized Light. The moon/sun toggle bounces between your last-picked dark and light themes.",
