@@ -56,7 +56,10 @@ function makeRandomOutfit(): AgentOutfit {
 
 type EditAgentDialogProps = {
   onClose: () => void;
-} & ({ agent: AgentInfo; deskIndex?: undefined; room?: undefined; defaultCwd?: undefined; agentType?: undefined } | { agent?: undefined; deskIndex: number; room: number; defaultCwd: string; agentType: AgentBackendType });
+} & (
+  | { agent: AgentInfo; deskIndex?: undefined; room?: undefined; defaultCwd?: undefined; agentType?: undefined }
+  | { agent?: undefined; deskIndex: number; room: number; defaultCwd: string; agentType: AgentBackendType }
+);
 
 export function EditAgentDialog(props: EditAgentDialogProps) {
   const { onClose } = props;

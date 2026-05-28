@@ -276,11 +276,18 @@ export function App() {
           viewportControlsRef={viewportControlsRef}
         />
       )}
-      {spawnDesk !== null && spawnAgentType === null && (
-        <EngineChooserDialog onPick={(agentType) => setSpawnAgentType(agentType)} onCancel={() => setSpawnDesk(null)} />
-      )}
+      {spawnDesk !== null && spawnAgentType === null && <EngineChooserDialog onPick={(agentType) => setSpawnAgentType(agentType)} onCancel={() => setSpawnDesk(null)} />}
       {spawnDesk !== null && spawnAgentType !== null && (
-        <EditAgentDialog deskIndex={spawnDesk} defaultCwd="~" agentType={spawnAgentType} onClose={() => { setSpawnDesk(null); setSpawnAgentType(null); }} room={currentRoom} />
+        <EditAgentDialog
+          deskIndex={spawnDesk}
+          defaultCwd="~"
+          agentType={spawnAgentType}
+          onClose={() => {
+            setSpawnDesk(null);
+            setSpawnAgentType(null);
+          }}
+          room={currentRoom}
+        />
       )}
       {ctxMenu && (
         <ContextMenu

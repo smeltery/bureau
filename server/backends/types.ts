@@ -169,10 +169,7 @@ export type NormalizedEvent =
 // updates; the Codex backend treats `allow_persistent` and `allow_once`
 // identically (binary allow/deny semantics).
 
-export type ApprovalDecision =
-  | { kind: "allow_persistent" }
-  | { kind: "allow_once" }
-  | { kind: "deny"; reason?: string };
+export type ApprovalDecision = { kind: "allow_persistent" } | { kind: "allow_once" } | { kind: "deny"; reason?: string };
 
 // ---------------------------------------------------------------------------
 // NormalizedMessage — backend-agnostic view of an on-disk session transcript
@@ -304,9 +301,7 @@ export interface BackendModel {
 // system_init to fill the id, just like newConversation). agent-manager
 // branches on `kind`: fork → createSession(managed, sessionId) +
 // persistSessionFork; fresh → createSession(managed) + skip fork metadata.
-export type ForkSessionBeforeMessageResult =
-  | { kind: "fork"; sessionId: string; forkedFromSessionId: string }
-  | { kind: "fresh" };
+export type ForkSessionBeforeMessageResult = { kind: "fork"; sessionId: string; forkedFromSessionId: string } | { kind: "fresh" };
 
 export interface Backend {
   readonly capabilities: BackendCapabilities;
@@ -330,14 +325,8 @@ export interface Backend {
   //   - Claude: middle → SDK forkSession at predecessor; first → fresh session
   //   - Codex: thread/fork parent + thread/rollback child to before target's
   //     turn (always linked, including first-message — gives /resume parity)
-  forkSessionBeforeMessage(
-    sessionId: string,
-    targetMessageId: string,
-  ): Promise<ForkSessionBeforeMessageResult>;
-  getSessionMessages(
-    sessionId: string,
-    cwd: string,
-  ): Promise<NormalizedMessage[]>;
+  forkSessionBeforeMessage(sessionId: string, targetMessageId: string): Promise<ForkSessionBeforeMessageResult>;
+  getSessionMessages(sessionId: string, cwd: string): Promise<NormalizedMessage[]>;
 
   // Single-prompt operation used by topic generation. Returns the assistant
   // text. Throws on failure.
@@ -358,7 +347,5 @@ export interface Backend {
   // envFile + user envFile, in that override order). Backends that detect
   // env-var auth (e.g. Codex's OPENAI_API_KEY) check it to avoid telling a
   // user to "sign in" when their envFile already authenticates them.
-  getLoginInstructions(opts?: {
-    env?: { [key: string]: string | undefined };
-  }): { text: string; commands?: string[] };
+  getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): { text: string; commands?: string[] };
 }

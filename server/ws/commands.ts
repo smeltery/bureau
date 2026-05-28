@@ -567,7 +567,19 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         break;
       }
       saveRecentCwd(cmd.cwd);
-      await AgentManager.spawn(cmd.name, cmd.cwd, cmd.permissionMode, cmd.desk, cmd.customInstructions, cmd.roomId, cmd.outfit, cmd.modelFamily, cmd.agentType ?? "claude", cmd.codexSandbox, cmd.effort);
+      await AgentManager.spawn(
+        cmd.name,
+        cmd.cwd,
+        cmd.permissionMode,
+        cmd.desk,
+        cmd.customInstructions,
+        cmd.roomId,
+        cmd.outfit,
+        cmd.modelFamily,
+        cmd.agentType ?? "claude",
+        cmd.codexSandbox,
+        cmd.effort,
+      );
       if (cmd.requestId) {
         ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
       }

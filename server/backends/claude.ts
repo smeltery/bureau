@@ -76,7 +76,10 @@ class ClaudeBackendSession implements BackendSession {
   private pendingApprovals = new Map<string, { input: Record<string, unknown>; suggestions?: PermissionUpdate[]; resolve: (r: PermissionResult) => void }>();
   private readonly session: ReturnType<typeof unstable_v2_createSession>;
 
-  constructor(private readonly opts: CreateSessionOptions, resumeSessionId?: string) {
+  constructor(
+    private readonly opts: CreateSessionOptions,
+    resumeSessionId?: string,
+  ) {
     const sdkOpts: any = {
       model: FAMILY_TO_MODEL[opts.modelFamily as ModelFamily] ?? opts.modelFamily,
       permissionMode: opts.permissionMode,
@@ -192,7 +195,7 @@ function normalizeClaudeMessage(msg: SDKMessage): NormalizedEvent[] {
         {
           kind: "turn_completed",
           status: m.subtype === "success" ? "completed" : "failed",
-          error: m.subtype === "success" ? undefined : m.error ?? m.subtype,
+          error: m.subtype === "success" ? undefined : (m.error ?? m.subtype),
           cost: m.total_cost_usd,
           usage: m.usage
             ? {

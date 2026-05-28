@@ -224,7 +224,16 @@ export function emitAgentDiff(agentId: string, dir?: string, commit?: string): {
 
 export async function editAgent(
   agentId: string,
-  changes: { name?: string; cwd?: string; outfit?: AgentInfo["outfit"]; customInstructions?: string; modelFamily?: string; permissionMode?: AgentInfo["permissionMode"]; codexSandbox?: AgentInfo["codexSandbox"]; effort?: AgentInfo["effort"] },
+  changes: {
+    name?: string;
+    cwd?: string;
+    outfit?: AgentInfo["outfit"];
+    customInstructions?: string;
+    modelFamily?: string;
+    permissionMode?: AgentInfo["permissionMode"];
+    codexSandbox?: AgentInfo["codexSandbox"];
+    effort?: AgentInfo["effort"];
+  },
 ) {
   const managed = agents.get(agentId);
   if (!managed) return;
