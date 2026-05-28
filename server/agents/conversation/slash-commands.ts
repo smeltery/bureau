@@ -1,12 +1,14 @@
 import type { SkillInfo, SkillOrigin } from "../../../shared/types.ts";
-import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
+import { MODEL_FAMILIES, EFFORT_LEVELS, familyDisplayLabel, effortDisplayLabel } from "../../../shared/types.ts";
 import { computeBureauDiff, resolveDiffCwd } from "../../bureau-diff.ts";
+import { resolveEditorPath, openFile as openEditorFile } from "../../file-editor.ts";
 import { listAgentSessions } from "../../persistence.ts";
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, isAgentBusy, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { enqueueMessage } from "./send.ts";
 import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
+import { listCronjobs, buildCronjobSystemPrompt } from "../../cronjobs/index.ts";
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
@@ -76,6 +78,7 @@ const commandHandlers: Record<string, HandlerFn> = {
     managed.pendingResume = false;
     managed.pendingResumeSessions = [];
     managed.pendingModelPick = false;
+    managed.pendingEffortPick = false;
     if (managed.messageQueue.length > 0) {
       managed.messageQueue = [];
       emit({ type: "agent_updated", agentId, changes: { queue: [] } });
@@ -280,6 +283,23 @@ const commandHandlers: Record<string, HandlerFn> = {
     return true;
   },
 
+  async effort(agentId, managed, _args, rawText, username) {
+    const userMeta = username ? { username } : undefined;
+    emitEphemeralLog(agentId, "user_message", rawText, userMeta);
+    const currentLabel = effortDisplayLabel(managed.info.effort);
+    const lines: string[] = [`Switch thinking effort (current: **${currentLabel}**):\n`];
+    for (let i = 0; i < EFFORT_LEVELS.length; i++) {
+      const e = EFFORT_LEVELS[i];
+      const marker = e.level === managed.info.effort ? " (current)" : "";
+      lines.push(`  ${i + 1}. ${effortDisplayLabel(e.level)}${marker}`);
+    }
+    lines.push("\nReply with a number to switch, or anything else to cancel.");
+    emitEphemeralLog(agentId, "system", lines.join("\n"));
+    managed.pendingEffortPick = true;
+    updateState(agentId, "waiting_for_response");
+    return true;
+  },
+
   async bureauAllHands(agentId, _managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
     addLogEntry(agentId, "user_message", rawText, userMeta);
@@ -335,6 +355,88 @@ const commandHandlers: Record<string, HandlerFn> = {
     const fence = "`".repeat(Math.max(3, longestRun + 1));
     const header = "**Full system prompt** *(reflects current settings; takes effect on next conversation)*";
     addLogEntry(agentId, "system", `${header}\n\n${fence}plaintext\n${prompt}\n${fence}`);
+    updateState(agentId, "waiting_for_response");
+    return true;
+  },
+
+  async bureauCronjobSystemPrompt(agentId, _managed, args, rawText, username) {
+    const userMeta = username ? { username } : undefined;
+    addLogEntry(agentId, "user_message", rawText, userMeta);
+
+    const query = args.join(" ").trim();
+    const all = listCronjobs();
+
+    if (!query) {
+      const lines = ["Usage: `/bureau-cronjob-system-prompt <name-or-id>`"];
+      if (all.length === 0) {
+        lines.push("\nNo cron jobs are configured.");
+      } else {
+        lines.push("\nKnown cron jobs:");
+        for (const c of all) lines.push(`  \`${c.id}\`  ${c.name}`);
+      }
+      addLogEntry(agentId, "system", lines.join("\n"));
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
+
+    const byId = all.find((c) => c.id === query);
+    const byNameMatches = byId ? [] : all.filter((c) => c.name === query);
+    const target = byId ?? (byNameMatches.length === 1 ? byNameMatches[0] : null);
+
+    if (!target) {
+      if (byNameMatches.length > 1) {
+        const lines = [`Multiple cron jobs are named "${query}". Re-run with the id:`];
+        for (const c of byNameMatches) lines.push(`  \`${c.id}\``);
+        addLogEntry(agentId, "system", lines.join("\n"));
+      } else {
+        addLogEntry(agentId, "system", `No cron job matches \`${query}\`. Try \`/bureau-cronjob-system-prompt\` with no argument to list cron jobs.`);
+      }
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
+
+    // The cronjob receives the system prompt + the configured prompt as its
+    // first user message, so display both — that's the full initial input.
+    const systemPrompt = buildCronjobSystemPrompt(target, target.id, "");
+    const combined = `${systemPrompt}\n\n----\nFirst user message:\n\n${target.prompt}`;
+    const longestRun = (combined.match(/`+/g) ?? []).reduce((m, s) => Math.max(m, s.length), 0);
+    const fence = "`".repeat(Math.max(3, longestRun + 1));
+    const header = `**System prompt + first user message for cron job "${target.name}"** *(reflects current settings; takes effect on next run)*`;
+    addLogEntry(agentId, "system", `${header}\n\n${fence}plaintext\n${combined}\n${fence}`);
+    updateState(agentId, "waiting_for_response");
+    return true;
+  },
+
+  async bureauEdit(agentId, managed, args, rawText, username) {
+    const userMeta = username ? { username } : undefined;
+    addLogEntry(agentId, "user_message", rawText, userMeta);
+
+    const rawPath = args[0];
+    if (!rawPath) {
+      addLogEntry(agentId, "system", `Usage: \`/bureau-edit <path>\`. Path can be relative (resolves against ${managed.info.cwd}), absolute, or \`~/...\`.`);
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
+    const resolved = resolveEditorPath(rawPath, managed.info.cwd);
+    if (resolved.kind === "bad_path") {
+      addLogEntry(agentId, "system", `Empty path.`);
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
+    const probe = openEditorFile(resolved.path);
+    if (probe.kind === "not_found") {
+      addLogEntry(agentId, "system", `\`${resolved.path}\` does not exist.`);
+    } else if (probe.kind === "not_file") {
+      addLogEntry(agentId, "system", `\`${resolved.path}\` is not a file.`);
+    } else if (probe.kind === "binary") {
+      addLogEntry(agentId, "system", `\`${resolved.path}\` is a binary file — the editor panel only supports text.`);
+    } else if (probe.kind === "too_large") {
+      addLogEntry(agentId, "system", `\`${resolved.path}\` is ${(probe.size / 1024).toFixed(1)} KB — too large for the editor panel (1 MB limit).`);
+    } else if (probe.kind === "io_error") {
+      addLogEntry(agentId, "system", `Failed to open \`${resolved.path}\`: ${probe.message}`);
+    } else {
+      addLogEntry(agentId, "edit-request", resolved.path, undefined, undefined, { file: { path: resolved.path } });
+    }
     updateState(agentId, "waiting_for_response");
     return true;
   },
@@ -469,7 +571,7 @@ async function executeSkill(agentId: string, managed: ManagedAgent, skillPrompt:
   // /bureau-diff, but wrong for skills that actually run the model.
   // Multi-step pending flows still take the immediate path: the user's
   // reply during /resume etc. is a pick, not a skill.
-  const inMultiStep = !!(managed.pendingPermission || managed.pendingResume || managed.pendingModelPick);
+  const inMultiStep = !!(managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick);
   if (isAgentBusy(managed.info.state) && !inMultiStep) {
     const result = enqueueMessage(agentId, {
       sender: { kind: "user", username },

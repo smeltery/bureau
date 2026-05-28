@@ -56,6 +56,8 @@ export interface ManagedAgent {
   pendingResumeSessions: { sessionId: string; lastModified: number; topic: string | null; topicMessageCount: number }[];
   // /model two-step state
   pendingModelPick: boolean;
+  // /effort two-step state
+  pendingEffortPick: boolean;
   // Auto-mode permission prompt two-step state
   pendingPermission: {
     approvalId: string;

@@ -58,6 +58,7 @@ export async function newConversation(agentId: string) {
   managed.pendingResume = false;
   managed.pendingResumeSessions = [];
   managed.pendingModelPick = false;
+  managed.pendingEffortPick = false;
   persistCurrentSessionTopic(agentId, managed);
 
   try {
@@ -89,6 +90,7 @@ export async function resume(agentId: string, sessionId: string) {
   managed.pendingResume = false;
   managed.pendingResumeSessions = [];
   managed.pendingModelPick = false;
+  managed.pendingEffortPick = false;
   persistCurrentSessionTopic(agentId, managed);
 
   try {

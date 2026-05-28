@@ -119,6 +119,14 @@ export const commands: Record<string, CommandConfig> = {
     handler: "bureauSystemPrompt",
     description: "Show the full system prompt this agent receives",
   },
+  "bureau-cronjob-system-prompt": {
+    type: "hardcoded",
+    supported: true,
+    autocomplete: true,
+    overridable: false,
+    handler: "bureauCronjobSystemPrompt",
+    description: "Show the system prompt a cron job receives (pass name or id)",
+  },
   "bureau-diff": {
     type: "hardcoded",
     supported: true,
@@ -126,6 +134,14 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "bureauDiff",
     description: "Peek uncommitted changes in the agent's cwd (or pass a directory)",
+  },
+  "bureau-edit": {
+    type: "hardcoded",
+    supported: true,
+    autocomplete: true,
+    overridable: false,
+    handler: "bureauEdit",
+    description: "Open a file in the editor side panel (relative to cwd, absolute, or ~/...)",
   },
 
   // =========================================================================
@@ -145,7 +161,7 @@ export const commands: Record<string, CommandConfig> = {
   // --- Model & performance ---
   model: { type: "hardcoded", supported: true, autocomplete: true, overridable: false, handler: "model", description: "Switch model" },
   fast: { ...UNSUPPORTED_HARDCODED, description: "Toggle speed-optimized mode" },
-  effort: { ...UNSUPPORTED_HARDCODED, description: "Set thinking effort level" },
+  effort: { type: "hardcoded", supported: true, autocomplete: true, overridable: false, handler: "effort", description: "Set thinking effort level" },
   advisor: { ...UNSUPPORTED_HARDCODED, description: "Toggle advisor mode" },
 
   // --- Cost & usage ---

@@ -81,6 +81,11 @@ export const EFFORT_LEVELS: { level: EffortLevel; label: string }[] = [
 
 export const DEFAULT_EFFORT: EffortLevel = "xhigh";
 
+export function effortDisplayLabel(level: EffortLevel | undefined): string {
+  const resolved = level ?? DEFAULT_EFFORT;
+  return EFFORT_LEVELS.find((e) => e.level === resolved)?.label ?? resolved;
+}
+
 export const CODEX_MODELS: { value: string; label: string }[] = [
   { value: "gpt-5.5", label: "GPT-5.5" },
   { value: "gpt-5.4", label: "GPT-5.4" },

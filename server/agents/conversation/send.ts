@@ -1,5 +1,5 @@
 import type { Attachment, QueuedMessage, QueuedSender } from "../../../shared/types.ts";
-import { MODEL_FAMILIES, familyDisplayLabel } from "../../../shared/types.ts";
+import { MODEL_FAMILIES, EFFORT_LEVELS, familyDisplayLabel, effortDisplayLabel } from "../../../shared/types.ts";
 import { formatAgentSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
@@ -38,7 +38,7 @@ export function enqueueMessage(receiverId: string, msg: { sender: QueuedSender; 
     return { ok: false, error: `queue full (limit ${QUEUE_MAX})`, status: 429 };
   }
   const id = generateQueuedId(managed.messageQueue);
-  const canFlushNow = !isAgentBusy(state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick;
+  const canFlushNow = !isAgentBusy(state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick && !managed.pendingEffortPick;
   managed.messageQueue.push({
     id,
     sender: msg.sender,
@@ -110,7 +110,7 @@ export async function flushQueue(agentId: string): Promise<void> {
   if (managed.flushInProgress) return;
   if (managed.messageQueue.length === 0) return;
   if (isAgentBusy(managed.info.state)) return;
-  if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick) return;
+  if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick) return;
 
   managed.flushInProgress = true;
   try {
@@ -236,7 +236,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   // Queue the message if the agent is busy. Multi-step prompts (pendingResume
   // / model pick / permission) bypass the queue: the boss expects their input
   // to flow into the prompt immediately.
-  if (isAgentBusy(managed.info.state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick) {
+  if (isAgentBusy(managed.info.state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick && !managed.pendingEffortPick) {
     const queued = enqueueUserMessage(agentId, managed, text, username, attachments);
     if (!queued) {
       addLogEntry(agentId, "error", `Message queue is full (limit ${QUEUE_MAX}). Try again after the agent finishes.`);
@@ -398,6 +398,33 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       return;
     } else {
       emitEphemeralLog(agentId, "system", "Model selection cancelled.");
+    }
+  }
+
+  // Handle /effort two-step: if pendingEffortPick, check if input is a number pick
+  if (managed.pendingEffortPick) {
+    managed.pendingEffortPick = false;
+    const trimmed = text.trim();
+    const num = parseInt(trimmed, 10);
+    if (!isNaN(num) && num >= 1 && num <= EFFORT_LEVELS.length) {
+      const userMeta = username ? { username } : undefined;
+      emitEphemeralLog(agentId, "user_message", text, userMeta);
+      const picked = EFFORT_LEVELS[num - 1];
+      const label = effortDisplayLabel(picked.level);
+      if (picked.level === managed.info.effort) {
+        emitEphemeralLog(agentId, "system", `Already using ${label}.`);
+      } else {
+        managed.info.effort = picked.level;
+        const sessionId = managed.sessionId;
+        const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
+        await replaceSession(agentId, managed, newSession);
+        emit({ type: "agent_updated", agentId, changes: { effort: picked.level } });
+        persistAll();
+        addLogEntry(agentId, "system", `Thinking effort set to ${label}.`);
+      }
+      return;
+    } else {
+      emitEphemeralLog(agentId, "system", "Effort selection cancelled.");
     }
   }
 
