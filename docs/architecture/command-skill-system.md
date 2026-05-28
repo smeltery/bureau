@@ -8,27 +8,30 @@ Bureau manages slash commands and skills from multiple sources, each with differ
 
 Commands with Bureau-side handlers. Defined in the `commands` registry with `type: "hardcoded"` and `supported: true`:
 
-| Command                 | Handler              | Description                                     |
-| ----------------------- | -------------------- | ----------------------------------------------- |
-| `/clear`                | `clear`              | Wipe conversation history                       |
-| `/context`              | `context`            | Visualize context window usage                  |
-| `/help`                 | `help`               | List all available commands                     |
-| `/bureau-usage`         | `bureauUsage`        | Per-agent / per-room / per-cron-job token spend |
-| `/resume`               | `resume`             | Pick up a previous session                      |
-| `/usage`                | `usage`              | Where to check subscription and office usage    |
-| `/model`                | `model`              | Switch model                                    |
-| `/bureau-all-hands`     | `bureauAllHands`     | Summary of all agents                           |
-| `/bureau-system-prompt` | `bureauSystemPrompt` | Show the full system prompt                     |
-| `/bureau-diff`          | `bureauDiff`         | Peek uncommitted changes in cwd                 |
-| `/reset`                | `clear`              | Alias for `/clear`                              |
-| `/new`                  | `clear`              | Alias for `/clear`                              |
+| Command                          | Handler                       | Description                                            |
+| -------------------------------- | ----------------------------- | ------------------------------------------------------ |
+| `/clear`                         | `clear`                       | Wipe conversation history                              |
+| `/context`                       | `context`                     | Visualize context window usage                         |
+| `/help`                          | `help`                        | List all available commands                            |
+| `/bureau-usage`                  | `bureauUsage`                 | Per-agent / per-room / per-cron-job token spend        |
+| `/resume`                        | `resume`                      | Pick up a previous session                             |
+| `/usage`                         | `usage`                       | Where to check subscription and office usage           |
+| `/model`                         | `model`                       | Switch model                                           |
+| `/effort`                        | `effort`                      | Switch thinking effort level                           |
+| `/bureau-all-hands`              | `bureauAllHands`              | Summary of all agents                                  |
+| `/bureau-system-prompt`          | `bureauSystemPrompt`          | Show the full system prompt                            |
+| `/bureau-cronjob-system-prompt`  | `bureauCronjobSystemPrompt`   | Show the system prompt a cron job receives             |
+| `/bureau-diff`                   | `bureauDiff`                  | Peek uncommitted changes in cwd                        |
+| `/bureau-edit`                   | `bureauEdit`                  | Open a file in the editor side panel                   |
+| `/reset`                         | `clear`                       | Alias for `/clear`                                     |
+| `/new`                           | `clear`                       | Alias for `/clear`                                     |
 
 ### Unsupported Hardcoded Commands
 
 Claude Code commands that Bureau doesn't implement. These return type-aware "not supported" messages:
 
 - **Session**: `/compact`, `/branch`, `/fork`, `/export`, `/plan`, `/rename`
-- **Model**: `/fast`, `/effort`, `/advisor`
+- **Model**: `/fast`, `/advisor`
 - **Cost**: `/cost` (API-only, Bureau uses subscription), `/stats`
 - **Files**: `/diff`, `/rewind`, `/checkpoint`, `/copy`, `/files`, `/add-dir`
 - **Config**: `/config`, `/settings`, `/hooks`, `/permissions`, `/memory`, `/mcp`, `/agents`, `/skills`, `/sandbox`
