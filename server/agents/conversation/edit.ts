@@ -3,7 +3,7 @@ import type { LogEntry } from "../../../shared/types.ts";
 import { listAgentSessions, loadLog, loadSessionsMap, persistSessionFork } from "../../persistence.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, updateState } from "../state.ts";
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
-import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
+import { runAgentTurn, stripPluginPrefix } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
 
@@ -67,7 +67,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
         .filter((b: any) => b.type === "text")
         .map((b: any) => b.text)
         .join("");
-      if (msgContent === prefixedContent) {
+      if (stripPluginPrefix(msgContent) === prefixedContent) {
         if (matchCount === occurrenceIndex) {
           targetIdx = i;
           break;

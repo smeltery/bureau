@@ -1,55 +1,63 @@
 # Bureau Documentation
 
 Welcome to the Bureau documentation. This is your starting point for understanding the system.
+
 ## Articles
 
 Long-form, narrative reading.
 
-| Document | Description |
-|----------|-------------|
+| Document                                                                                                     | Description                                                |
+| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
 | [Punching In: Building an Office for AI Agents](../articles/punching-in-building-an-office-for-ai-agents.md) | Deep dive: SDK, agent lifecycle, WebSocket layer, frontend |
+
 ## Architecture
 
 Detailed subsystem documentation.
 
-| Document | Description |
-|----------|-------------|
-| [Server Architecture](architecture/server-architecture.md) | HTTP routing, WebSocket protocol, command dispatch, file serving |
-| [Agent Lifecycle](architecture/agent-lifecycle.md) | SDK session management, consumer loop, session swapping, state machine |
-| [Persistence Layer](architecture/persistence-layer.md) | File system layout, JSONL logs, session metadata, usage accounting |
-| [Safety Hooks](architecture/safety-hooks.md) | PreToolUse hooks: git safety, filesystem, secrets, config protection |
-| [Frontend Architecture](architecture/frontend-architecture.md) | Redux-like store, SVG scene, components, mobile, terminal |
-| [Command & Skill System](architecture/command-skill-system.md) | Slash command registry, skill discovery, priority hierarchy |
+| Document                                                       | Description                                                            |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [Server Architecture](architecture/server-architecture.md)     | HTTP routing, WebSocket protocol, command dispatch, file serving       |
+| [Agent Lifecycle](architecture/agent-lifecycle.md)             | SDK session management, consumer loop, session swapping, state machine |
+| [Persistence Layer](architecture/persistence-layer.md)         | File system layout, JSONL logs, session metadata, usage accounting     |
+| [Safety Hooks](architecture/safety-hooks.md)                   | PreToolUse hooks: git safety, filesystem, secrets, config protection   |
+| [Frontend Architecture](architecture/frontend-architecture.md) | Redux-like store, SVG scene, components, mobile, terminal              |
+| [Command & Skill System](architecture/command-skill-system.md) | Slash command registry, skill discovery, priority hierarchy            |
+
 ## Feature Design Docs
 
-| Document | Description |
-|----------|-------------|
-| [Access & Invites](features/access-and-invites.md) | Invite-link auth, sessions, external access toggle, owner-login CLI |
-| [Conversation Branching](features/conversation-branching-design.md) | Edit past messages to fork conversations |
-| [Cronjob System](features/cronjob-system-design.md) | Scheduled SDK sessions; per-run transcripts; Cronjobs page |
-| [Multi-Office Isolation](features/multi-office-design.md) | Multiple isolated workspaces |
-| [Per-Agent MCP Access](features/per-agent-mcp-access.md) | Controlling MCP integration access per agent |
-| [Plugin Management](features/plugin-management-design.md) | Plugin UI and lifecycle |
-| [Plugin System](features/plugin-system.md) | First-party `beforeTurn` / `afterTurn` hooks around the agent turn loop |
-| [Room Environment & Prompts](features/room-env-prompt-design.md) | Per-room env vars and prompt hierarchy |
-| [Task System](features/task-system-design.md) | Shared task board for humans and agents |
-| [Named Rooms](features/prompt-named-rooms.md) | Custom room names |
+| Document                                                            | Description                                                             |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [Access & Invites](features/access-and-invites.md)                  | Invite-link auth, sessions, external access toggle, owner-login CLI     |
+| [Conversation Branching](features/conversation-branching-design.md) | Edit past messages to fork conversations                                |
+| [Cronjob System](features/cronjob-system-design.md)                 | Scheduled SDK sessions; per-run transcripts; Cronjobs page              |
+| [Full Feature List](features/full-feature-list.md)                  | Consolidated operator-facing feature inventory                          |
+| [Multi-Office Isolation](features/multi-office-design.md)           | Multiple isolated workspaces                                            |
+| [Per-Agent MCP Access](features/per-agent-mcp-access.md)            | Controlling MCP integration access per agent                            |
+| [Plugin Management](features/plugin-management-design.md)           | Plugin UI and lifecycle                                                 |
+| [Plugin System](features/plugin-system.md)                          | First-party `beforeTurn` / `afterTurn` hooks around the agent turn loop |
+| [Room Environment & Prompts](features/room-env-prompt-design.md)    | Per-room env vars and prompt hierarchy                                  |
+| [Task System](features/task-system-design.md)                       | Shared task board for humans and agents                                 |
+| [Named Rooms](features/prompt-named-rooms.md)                       | Custom room names                                                       |
+
 ## Investigations & Research
 
 Deep dives into bugs, SDK behavior, and architectural decisions.
 
-| Document | Description |
-|----------|-------------|
-| [Held-Back Messages Bug](investigations/held-back-messages-investigation.md) | Persistent consumer loop fix |
-| [SDK Investigation](investigations/sdk-investigation.md) | SDK v0.2.85 research and findings |
-| [SDK Upgrade Assessment](investigations/sdk-upgrade-assessment.md) | v0.2.86 → v0.2.92 upgrade notes |
-| [Skills Investigation](investigations/skills-investigation.md) | Claude Code slash command architecture |
+| Document                                                                     | Description                                                             |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [Held-Back Messages Bug](investigations/held-back-messages-investigation.md) | Persistent consumer loop fix                                            |
+| [SDK Investigation](investigations/sdk-investigation.md)                     | SDK v0.2.85 research and findings                                       |
+| [SDK Upgrade Assessment](investigations/sdk-upgrade-assessment.md)           | v0.2.86 → v0.2.92 upgrade notes                                         |
+| [Security Audit](security-audit.md)                                          | Invite-link auth, session, CSRF/CSWSH, and external-access threat model |
+| [Skills Investigation](investigations/skills-investigation.md)               | Claude Code slash command architecture                                  |
+
 ## Contributing & Development
 
-| Document | Description |
-|----------|-------------|
-| [Development Guide](contributing/development.md) | Quality gate (typecheck / oxlint / prettier / tests / build) and branch protection setup |
-| [CLAUDE.md](../CLAUDE.md) | Developer & agent guide to the codebase — includes the "Shipping a user-visible feature" checklist |
+| Document                                         | Description                                                                                        |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| [Development Guide](contributing/development.md) | Quality gate (typecheck / oxlint / prettier / tests / build) and branch protection setup           |
+| [Self-Hosted Setup](contributing/self-hosted.md) | Keep Bureau running, expose it safely, and install it on mobile                                    |
+| [CLAUDE.md](../CLAUDE.md)                        | Developer & agent guide to the codebase — includes the "Shipping a user-visible feature" checklist |
 
 ---
 

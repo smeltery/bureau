@@ -6,6 +6,7 @@
     "dev": "bash scripts/dev-watch.sh",
     "dev:manual": "bun run build:ui && bun run server/index.ts",
     "build:ui": "bash scripts/build.sh",
+    "gen:codex-schemas": "bun run scripts/gen-codex-schemas.ts",
     "demo:build": "bash scripts/build-demo.sh",
     "demo": "bun run demo:build && PORT=${PORT:-4001} bun run server/index.ts",
     "build:ui:watch": "bun build ui/index.tsx --outdir ui/dist --production --watch",
