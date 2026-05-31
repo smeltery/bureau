@@ -260,6 +260,19 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   }
 }
 
+export function stripPluginPrefix(text: string): string {
+  if (!text.startsWith("--- begin plugin: ")) return text;
+  let offset = 0;
+  while (text.startsWith("--- begin plugin: ", offset)) {
+    const endMatch = text.slice(offset).match(/\n--- end plugin: [^\n]+ ---\n\n/);
+    if (!endMatch || endMatch.index === undefined) return text;
+    offset += endMatch.index + endMatch[0].length;
+  }
+  const marker = "User message:\n";
+  if (!text.startsWith(marker, offset)) return text;
+  return text.slice(offset + marker.length);
+}
+
 // ---------------------------------------------------------------------------
 // beforeTurn — per-plugin race with timeout
 // ---------------------------------------------------------------------------

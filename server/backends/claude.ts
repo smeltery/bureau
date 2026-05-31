@@ -17,6 +17,7 @@ import { join } from "path";
 import { FAMILY_TO_MODEL, MODEL_FAMILIES, type ModelFamily } from "../../shared/types.ts";
 import { getFilePath } from "../persistence.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
+import { isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
 import type {
   ApprovalDecision,
   AttachmentSpec,
@@ -35,7 +36,27 @@ import type {
   PermissionModeOption,
 } from "./types.ts";
 
-const AUTH_ERROR_PATTERNS = /unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|403|401/i;
+const LOGIN_INSTRUCTIONS = `To authenticate Claude Code:
+1. Open the built-in terminal
+2. Run \`claude\`
+3. Type \`/login\`
+4. Follow the auth flow
+
+Once complete, type \`/clear\` in this conversation.`;
+
+const ALREADY_AUTHED_INSTRUCTIONS = `Claude Code is signed in. Type \`/clear\` to refresh this agent's session and pick up the new auth.`;
+
+const CLAUDE_CODE_NOT_INSTALLED_MESSAGE = `To install Claude Code, click [Copy to terminal] on the card below:
+
+\`curl -fsSL https://claude.ai/install.sh | bash\`
+
+macOS users with Homebrew can alternatively run \`brew install --cask claude-code\`.
+
+After install, open a new shell and run \`claude\` to sign in. If \`claude\` is not found, make sure \`~/.local/bin\` is on your PATH.
+
+Alternative: add \`ANTHROPIC_API_KEY\` to your envFile (User Settings -> Env File Path, then \`/clear\`).`;
+
+const AUTH_ERROR_PATTERNS = /unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|not logged in|run \/login|403|401/i;
 
 const CLAUDE_NATIVE_BIN = resolveClaudeNativeBinary();
 
@@ -273,10 +294,16 @@ export const claudeBackend: Backend = {
   detectAuthError(text: string) {
     return AUTH_ERROR_PATTERNS.test(text);
   },
-  getLoginInstructions() {
+  getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }) {
+    if (isClaudeCodeAuthenticated(opts?.env)) {
+      return { text: ALREADY_AUTHED_INSTRUCTIONS };
+    }
+    if (isClaudeCodeInstalled()) {
+      return { text: LOGIN_INSTRUCTIONS, commands: ["claude"] };
+    }
     return {
-      text: "To authenticate Claude Code:\n1. Open the built-in terminal\n2. Run `claude`\n3. Type `/login`\n4. Follow the auth flow\n\nOnce complete, type `/clear` in this conversation.",
-      commands: ["claude"],
+      text: CLAUDE_CODE_NOT_INSTALLED_MESSAGE,
+      commands: ["curl -fsSL https://claude.ai/install.sh | bash"],
     };
   },
 };
