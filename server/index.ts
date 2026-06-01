@@ -1,4 +1,5 @@
-import type { ClientCommand, PresenceInfo, ServerMessage } from "../shared/types.ts";
+import type { ClientCommand, KilledAgentSummary, PresenceInfo, ServerMessage } from "../shared/types.ts";
+import { KILLED_AGENT_CHIP_CAP } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
 import { loadEnabledPlugins, loadOfficeConfig, loadRecentCwds, saveOfficeConfig } from "./persistence.ts";
@@ -234,6 +235,19 @@ AgentManager.onEvent((event) => {
     sendToVisibleAgent(event.agentId, event as ServerMessage);
     return;
   }
+  if (event.type === "killed_agent_added") {
+    const lastRoomId = event.agent.lastRoomId;
+    for (const ws of browsers) {
+      if (canSeeRoom(getWsUser(ws), lastRoomId)) ws.send(JSON.stringify(event as ServerMessage));
+    }
+    return;
+  }
+  if (event.type === "killed_agent_removed") {
+    for (const ws of browsers) {
+      if (canSeeRoom(getWsUser(ws), event.lastRoomId)) ws.send(JSON.stringify(event as ServerMessage));
+    }
+    return;
+  }
   if (
     event.type === "agent_removed" ||
     event.type === "room_created" ||
@@ -285,6 +299,17 @@ interface WsData {
   session: SessionLookup | null;
 }
 
+// ACL-filtered + capped killed-agent chips for a session. Filters by the room
+// each agent was killed in (its history `lastRoomId`) so a member never sees a
+// revive chip for an agent in a room they can't access; the cap is applied
+// AFTER filtering so a restricted session still fills up to the cap.
+function killedAgentsFor(ws: import("bun").ServerWebSocket<unknown>): KilledAgentSummary[] {
+  const user = getWsUser(ws);
+  return AgentManager.getKilledAgentSummaries()
+    .filter((k) => canSeeRoom(user, k.lastRoomId))
+    .slice(0, KILLED_AGENT_CHIP_CAP);
+}
+
 export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
   const user = getWsUser(ws);
   const rooms = AgentManager.getRooms();
@@ -299,6 +324,7 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
       office: AgentManager.getOfficeSettings(),
       rooms: projectedRooms,
       allRooms: user?.role === "owner" ? rooms : undefined,
+      killedAgents: killedAgentsFor(ws),
     } as ServerMessage),
   );
   ws.send(JSON.stringify({ type: "users_list", users: listUsers(rooms) } as ServerMessage));

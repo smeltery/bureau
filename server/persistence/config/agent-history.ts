@@ -1,14 +1,28 @@
 import { readFileSync, existsSync } from "fs";
 import { AGENT_HISTORY_FILE, atomicWriteFileSync } from "../paths.ts";
+import type { AgentInfo, EffortLevel } from "../../../shared/types.ts";
 
-// Agent history: per-agent last-known name + last-known room (id + name).
-// Used by /usage to attribute killed agents to the room they were in, and to
-// label the room as "(deleted)" if it no longer exists. Entries are never
-// removed — killed agents keep contributing to lifetime spend forever.
+// Per-agent last-known snapshot. Entries are never removed.
+// Consumers: /usage (attribution — killed agents keep contributing to
+// lifetime spend forever) and the spawn menu's revive chips (config
+// rehydration). `killedAt: null` means currently-alive (or a legacy
+// pre-revive entry); the revive-payload fields are optional for backward
+// compat with the existing on-disk file.
 export interface AgentHistoryEntry {
   name: string;
   lastRoomId: string;
   lastRoomName: string;
+  killedAt?: number | null;
+  cwd?: string;
+  outfit?: AgentInfo["outfit"];
+  permissionMode?: AgentInfo["permissionMode"];
+  modelFamily?: string;
+  effort?: EffortLevel;
+  agentType?: AgentInfo["agentType"];
+  codexSandbox?: AgentInfo["codexSandbox"];
+  lastSessionId?: string | null;
+  topic?: string | null;
+  customInstructions?: string | null;
 }
 export type AgentHistory = Record<string, AgentHistoryEntry>;
 

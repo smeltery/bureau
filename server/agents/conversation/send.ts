@@ -1,4 +1,5 @@
-import type { Attachment, QueuedMessage, QueuedSender } from "../../../shared/types.ts";
+import type { AgentState, Attachment, QueuedMessage, QueuedSender } from "../../../shared/types.ts";
+import type { ApprovalDecision } from "../../backends/types.ts";
 import { MODEL_FAMILIES, EFFORT_LEVELS, familyDisplayLabel, effortDisplayLabel } from "../../../shared/types.ts";
 import { formatAgentSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
@@ -296,18 +297,44 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     const userMeta = username ? { username } : undefined;
     emitEphemeralLog(agentId, "user_message", text, userMeta);
     const trimmed = text.trim();
+    let decision: ApprovalDecision;
+    let resumeState: AgentState;
     if (trimmed === "1") {
       emitEphemeralLog(agentId, "system", "Permission granted (rule added for this session).");
-      await managed.session?.approve(pending.approvalId, { kind: "allow_persistent" });
+      decision = { kind: "allow_persistent" };
+      resumeState = "tool_executing";
     } else if (trimmed === "2") {
       emitEphemeralLog(agentId, "system", "Permission granted (once).");
-      await managed.session?.approve(pending.approvalId, { kind: "allow_once" });
+      decision = { kind: "allow_once" };
+      resumeState = "tool_executing";
     } else if (trimmed === "3") {
       emitEphemeralLog(agentId, "system", "Permission denied.");
-      await managed.session?.approve(pending.approvalId, { kind: "deny", reason: "User denied." });
+      decision = { kind: "deny", reason: "User denied." };
+      resumeState = "thinking";
     } else {
       emitEphemeralLog(agentId, "system", "Permission denied with reason forwarded to agent.");
-      await managed.session?.approve(pending.approvalId, { kind: "deny", reason: text });
+      decision = { kind: "deny", reason: text };
+      resumeState = "thinking";
+    }
+    // The reply hands the turn back to the agent, so flip out of the
+    // `waiting_for_response` state the prompt parked us in and back to a busy
+    // state. Without this the activity indicator stays blank — `waiting_for_response`
+    // has no STATE_LABELS entry — so the agent looks frozen while the backend
+    // resumes (`tool_result` is deliberately state-neutral, so the blank window
+    // otherwise lasts until the model's next thinking/text/tool_call event).
+    // Allow → tool_executing (the blocked tool is about to run); deny → thinking
+    // (the model resumes to handle the denial).
+    //
+    // This MUST precede `await session.approve()`: Codex's approve() awaits its
+    // bootstrap promise, and while that's pending `pendingPermission` has already
+    // been cleared. If we were still at `waiting_for_response` (a queue-idle
+    // state) an inbound message could race into the active turn and skip the queue.
+    updateState(agentId, resumeState);
+    try {
+      await managed.session?.approve(pending.approvalId, decision);
+    } catch (err: any) {
+      emitEphemeralLog(agentId, "error", `Failed to resolve permission: ${err?.message ?? String(err)}`);
+      updateState(agentId, "error");
     }
     return;
   }

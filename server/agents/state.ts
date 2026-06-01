@@ -1,4 +1,4 @@
-import type { AgentInfo, AgentState, Attachment, LogEntry, OfficeSettings, RoomWire, SkillInfo } from "../../shared/types.ts";
+import type { AgentInfo, AgentState, Attachment, KilledAgentSummary, LogEntry, OfficeSettings, RoomWire, SkillInfo } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES, FAMILY_TO_MODEL, generateRoomId } from "../../shared/types.ts";
 import { appendLog, loadAgentHistory, loadOfficeConfig, saveAgentHistory, saveAgents, writeManifest, type AgentHistory, type OfficeConfig, type PersistedAgent, type Room } from "../persistence.ts";
 import type { BackendSession } from "../backends/types.ts";
@@ -82,6 +82,14 @@ export type AgentEvent =
   | { type: "agent_added"; agent: AgentInfo }
   | { type: "agent_removed"; agentId: string }
   | { type: "agent_updated"; agentId: string; changes: Partial<AgentInfo> }
+  // Killed-agent chip lifecycle. Emitted by kill() and revive() in
+  // lifecycle.ts. Routed through the onEvent handler in server/index.ts with
+  // per-session ACL filtering on both variants: drop the event if the agent's
+  // `lastRoomId` isn't in the session's visible set. Carrying lastRoomId on
+  // both ends keeps the route filter symmetric and closes a minor info-leak
+  // on the removed variant.
+  | { type: "killed_agent_added"; agent: KilledAgentSummary }
+  | { type: "killed_agent_removed"; agentId: string; lastRoomId: string }
   | { type: "log_entry"; entry: LogEntry }
   | { type: "room_created"; room: RoomWire }
   | { type: "room_closed"; roomId: string }
@@ -298,16 +306,33 @@ export function updateManifest() {
   );
 }
 
-// Track each live agent's current name + room so /usage can attribute killed
-// agents (and agents whose rooms were later deleted) to the right bucket.
-// Entries are never removed; they just stop getting refreshed once the agent
-// is killed, which is exactly the behavior we want.
+// Snapshot live agents into history. The loop only iterates the live `agents`
+// map, so killed entries are preserved as-is (their `killedAt` and revive
+// payload stamped by kill() survive). Two consumers: /usage attribution for
+// killed agents, and the spawn menu's revive chips (which read the snapshot to
+// rehydrate config). Entries are never removed; live agents keep `killedAt:
+// null`, kill() stamps the kill time.
 export function updateAgentHistory() {
   const history: AgentHistory = loadAgentHistory();
   for (const a of agents.values()) {
     const room = rooms[a.info.room];
     if (!room) continue;
-    history[a.info.id] = { name: a.info.name, lastRoomId: room.id, lastRoomName: room.name };
+    history[a.info.id] = {
+      name: a.info.name,
+      lastRoomId: room.id,
+      lastRoomName: room.name,
+      killedAt: null,
+      cwd: a.info.cwd,
+      outfit: a.info.outfit,
+      permissionMode: a.info.permissionMode,
+      modelFamily: a.info.modelFamily,
+      effort: a.info.effort,
+      agentType: a.info.agentType,
+      codexSandbox: a.info.codexSandbox,
+      lastSessionId: a.sessionId,
+      topic: a.info.topic,
+      customInstructions: a.info.customInstructions,
+    };
   }
   saveAgentHistory(history);
 }
