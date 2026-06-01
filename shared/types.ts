@@ -16,6 +16,26 @@ export interface AgentOutfit {
 
 export type AgentBackendType = "claude" | "codex";
 
+// Summary of a killed agent shown as a "revive" chip in the spawn menu.
+// Carries only what the chip needs to render plus the id + lastRoomId for
+// ACL filtering on the wire (cwd / customInstructions stay server-side and
+// are loaded from agent-history at revive time). Sorted by killedAt desc in
+// the UI; the server applies per-session ACL filtering before sending.
+export interface KilledAgentSummary {
+  id: string;
+  name: string;
+  agentType: AgentBackendType;
+  lastRoomId: string;
+  lastRoomName: string;
+  topic: string | null;
+  killedAt: number; // ms timestamp
+}
+
+// Max revive chips delivered to a session, applied AFTER ACL filtering so a
+// session with restricted room access still sees up to this many visible
+// chips. Imported by both server (cap) and UI (defensive re-slice).
+export const KILLED_AGENT_CHIP_CAP = 12;
+
 export type ClaudePermissionMode = "default" | "acceptEdits" | "bypassPermissions" | "auto";
 export type CodexApprovalPolicy = "untrusted" | "on-request" | "on-failure" | "never";
 export type CodexSandboxMode = "read-only" | "workspace-write" | "danger-full-access";
@@ -500,7 +520,7 @@ export interface CwdValidationResponse {
 
 // Server → Browser messages
 export type ServerMessage =
-  | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[] }
+  | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[]; killedAgents: KilledAgentSummary[] }
   | { type: "session_context"; context: SessionContext | null }
   | { type: "presence_list"; entries: PresenceInfo[]; totalOnlineUsers: number }
   | { type: "users_list"; users: UserRecord[] }
@@ -544,6 +564,14 @@ export type ServerMessage =
   | { type: "agent_added"; agent: AgentInfo }
   | { type: "agent_removed"; agentId: string }
   | { type: "agent_updated"; agentId: string; changes: Partial<AgentInfo> }
+  // Killed-agent chip lifecycle. ACL-filtered server-side: both variants are
+  // delivered only to sessions whose visible rooms include the agent's
+  // `lastRoomId` (the room it was killed in, captured in the history
+  // snapshot). Carrying `lastRoomId` on the removed variant closes a tiny
+  // info-leak: an unfiltered removed-event would tell a session a hidden
+  // killed-agent id became alive again, even though it never saw the add.
+  | { type: "killed_agent_added"; agent: KilledAgentSummary }
+  | { type: "killed_agent_removed"; agentId: string; lastRoomId: string }
   | { type: "log_entry"; entry: LogEntry }
   | { type: "sessions_list"; agentId: string; sessions: SessionInfo[]; currentSessionId: string | null }
   | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string }[]; skills: SkillInfo[] }
@@ -594,6 +622,17 @@ export type ClientCommand =
       effort?: EffortLevel;
     }
   | { type: "kill"; agentId: string }
+  | {
+      // Revive a killed agent. Restores its config from agent-history
+      // (cwd / outfit / model / etc.) at the target desk in the caller's
+      // current room. Same id as the original — log history and any
+      // resumable lastSessionId continue from where they left off.
+      type: "revive";
+      requestId?: string;
+      agentId: string;
+      desk: number;
+      roomId: string;
+    }
   | { type: "abort"; agentId: string }
   | { type: "send_message"; agentId: string; text: string; username?: string; attachments?: Attachment[] }
   | { type: "new_conversation"; agentId: string }
