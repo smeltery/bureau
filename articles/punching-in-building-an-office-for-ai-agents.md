@@ -520,6 +520,28 @@ graph TD
 
 Getting "cumulative at the fork point" means looking up the snapshot right before the fork point, so we save a snapshot after every turn for exactly this.
 
+## Reproducible Toolchain with Flox
+
+A single-Bun-process project sounds like it has no toolchain to speak of — install Bun, `bun install`, done. But "install Bun" hides a version, and the moment CI runs a different Bun than your laptop, you get the classic "works on my machine" failures: a formatter that disagrees by a Bun release, a test that passes locally and flakes in CI. There's also one native dependency hiding in the tree — `node-pty`, which powers the embedded terminal — and it compiles a C++ addon on `bun install`, so it quietly needs Python, make, and a compiler present.
+
+So Bureau pins its whole toolchain with a [Flox](https://flox.dev) environment, checked into the repo at `.flox/env/manifest.toml`. Flox is a Nix-backed environment manager: the manifest declares exactly what's on `PATH`, and a lockfile freezes it across macOS and Linux, arm64 and x86.
+
+```toml
+[install]
+bun.pkg-path = "bun"
+bun.version = "1.3.13"          # one version, locked for local *and* CI
+python3.pkg-path = "python3"     # so bun install can build node-pty
+gnumake.pkg-path = "gnumake"
+gcc.pkg-path = "gcc"
+gcc.systems = ["aarch64-linux", "x86_64-linux"]
+```
+
+`flox activate` drops you into a shell with that exact toolchain (and an on-activate hook runs `bun install` on first entry). There's also a `bureau` service, so `flox activate --start-services` brings up the full `bun run dev` watch loop.
+
+The part that actually pays off is CI. The five-job quality gate used to install Bun with a `setup-bun` action pinned to `latest` — a moving target that could drift from whatever each developer happened to have. Now every job runs `flox activate -- bun run …`, so CI and your laptop execute byte-identical tooling. There's no second place to bump the version; you edit one line in the manifest, re-lock, and both follow.
+
+The one tax is that activating a Nix environment in CI means materializing its closure — Bun, the compiler, their dependencies. The fix is the same trick the rest of the system leans on: cache it. The Nix store is cached keyed on the environment lockfile, and `node_modules` keyed on the Bun lockfile, so a warm run restores the toolchain instead of re-downloading it and self-invalidates the instant either lock changes.
+
 ## Final Thoughts
 
 It's great to have your own malleable orchestration tool. Oh, you don't like Claude Code's plan mode? No problem, you can roll out your own version.
