@@ -23,9 +23,19 @@ Friction going from 1 Claude Code to 4+? Bureau is a browser-based office where 
 
 ## Quick Start
 
+The project ships a [Flox](https://flox.dev) environment that pins Bun and the
+native-build toolchain, so local and CI run an identical setup:
+
 ```sh
 git clone https://github.com/dotbrains/bureau.git
 cd bureau
+flox activate              # installs the pinned toolchain + deps on first run
+bun run dev                # or: flox activate --start-services
+```
+
+No Flox? Bring your own Bun:
+
+```sh
 bun install
 bun run dev
 ```

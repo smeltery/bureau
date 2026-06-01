@@ -6,6 +6,7 @@ Read the [design and architecture article](articles/punching-in-building-an-offi
 
 ## How to develop
 
+- **Toolchain:** pinned via a Flox env (`.flox/env/manifest.toml`) — Bun + node-pty build deps, locked so local matches CI. `flox activate` enters it (and `bun install`s on first run); commands can run through it with `flox activate -- <cmd>`. Plain `bun` works too if you have a matching version. See `docs/contributing/development.md`.
 - **Auto-reload dev mode:** `bun run dev`. This runs UI watch-build + server watch-restart together, and live-refreshes local browser tabs on UI rebuilds.
 - **Manual fallback:** `bun run dev:manual` (single build + server run).
 - **Rebuild UI only:** `bun run build:ui`. This bundles JS, copies `index.html`, and copies `xterm.css` into `ui/dist/`. The server reads from `ui/dist/` on each request — no restart needed. **Do NOT build to `ui/index.js`; that path is not served.**
