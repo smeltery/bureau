@@ -7,6 +7,11 @@ name: CI
 # Bun is provided by the project's Flox environment (.flox/env/manifest.toml),
 # pinned to the same version developers run locally — no separate setup-bun
 # version to drift. Each job activates the env and runs through it.
+#
+# Two caches keep the Flox overhead off the hot path:
+#   * the Nix store (cache-nix-action), keyed on the env lock, so the pinned
+#     toolchain closure is restored instead of re-downloaded each run;
+#   * node_modules, keyed on the Bun lockfile.
 on:
   pull_request:
   push:
@@ -28,6 +33,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: flox/install-flox-action@v2
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 5G
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: flox activate -- bun install --frozen-lockfile
       - run: flox activate -- bun run typecheck
 
@@ -37,6 +52,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: flox/install-flox-action@v2
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 5G
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: flox activate -- bun install --frozen-lockfile
       - run: flox activate -- bun run lint
 
@@ -46,6 +71,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: flox/install-flox-action@v2
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 5G
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: flox activate -- bun install --frozen-lockfile
       - run: flox activate -- bun run format:check
 
@@ -55,6 +90,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: flox/install-flox-action@v2
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 5G
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: flox activate -- bun install --frozen-lockfile
       - run: flox activate -- bun run test
 
@@ -64,6 +109,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: flox/install-flox-action@v2
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 5G
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: flox activate -- bun install --frozen-lockfile
       # UI bundle (production-ish; equivalent to scripts/build.sh inputs).
       - run: flox activate -- bun build ui/index.tsx --outdir ui/dist --production
