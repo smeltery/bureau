@@ -276,7 +276,9 @@ export function App() {
           viewportControlsRef={viewportControlsRef}
         />
       )}
-      {spawnDesk !== null && spawnAgentType === null && <EngineChooserDialog onPick={(agentType) => setSpawnAgentType(agentType)} onCancel={() => setSpawnDesk(null)} />}
+      {spawnDesk !== null && spawnAgentType === null && rooms[currentRoom] && (
+        <EngineChooserDialog deskIndex={spawnDesk} roomId={rooms[currentRoom].id} onPick={(agentType) => setSpawnAgentType(agentType)} onCancel={() => setSpawnDesk(null)} />
+      )}
       {spawnDesk !== null && spawnAgentType !== null && (
         <EditAgentDialog
           deskIndex={spawnDesk}

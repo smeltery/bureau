@@ -23,6 +23,8 @@ export {
   resolveEditorPathForAgent,
   spawn,
   kill,
+  revive,
+  getKilledAgentSummaries,
   restoreAgents,
 } from "./lifecycle.ts";
 export { sendMessage, dequeueMessage, enqueueMessage } from "./conversation/send.ts";
