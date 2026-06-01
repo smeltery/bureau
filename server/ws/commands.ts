@@ -589,6 +589,17 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       if (!canUseAgent(ws, cmd.agentId)) break;
       await AgentManager.kill(cmd.agentId);
       break;
+    case "revive": {
+      // Gate on the TARGET room (where the agent is being placed). revive()
+      // re-validates the original room's existence server-side, so a member
+      // can only revive into a room they can access.
+      if (!canUseRoom(ws, cmd.roomId)) break;
+      const result = await AgentManager.revive(cmd.agentId, cmd.roomId, cmd.desk);
+      if (cmd.requestId) {
+        ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: result.ok, error: result.ok ? undefined : result.error } as ServerMessage));
+      }
+      break;
+    }
     case "abort":
       if (!canUseAgent(ws, cmd.agentId)) break;
       await AgentManager.abort(cmd.agentId);

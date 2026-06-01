@@ -424,6 +424,15 @@ export function handleCommand(cmd: ClientCommand) {
       emitEvents(state.kill(cmd.agentId));
       break;
     }
+    case "revive": {
+      // The demo never populates killedAgents, so the chip never renders and
+      // this is unreachable in practice. The stub keeps the ClientCommand
+      // union type-covered and reports a clean failure on hand-crafted commands.
+      if (cmd.requestId) {
+        shimEmit({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: "Revive is not available in the demo." });
+      }
+      break;
+    }
     case "edit_agent": {
       emitEvents(state.editAgent(cmd.agentId, {
         name: cmd.name,
@@ -664,7 +673,7 @@ export function sendInitialState() {
   ensureSeeded();
   seedUsers();
   const s = state.getState();
-  shimEmit({ type: "full_state", agents: s.agents, recentCwds: s.recentCwds, office: s.office, rooms: s.rooms, allRooms: s.rooms });
+  shimEmit({ type: "full_state", agents: s.agents, recentCwds: s.recentCwds, office: s.office, rooms: s.rooms, allRooms: s.rooms, killedAgents: [] });
   shimEmit({ type: "tasks", tasks: s.tasks });
   shimEmit({ type: "cronjobs_state", cronjobs: [...cronjobs], cronjobsPrompt });
   shimEmit({ type: "users_list", users: [...users.values()] });
