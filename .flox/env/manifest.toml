@@ -1,0 +1,63 @@
+schema-version = "1.12.0"
+
+
+## Install Packages --------------------------------------------------
+## Bun is the whole runtime: server, UI bundler, package manager, test
+## runner. Everything else here exists so `bun install` can compile the
+## one native dependency (node-pty) reproducibly.
+## -------------------------------------------------------------------
+[install]
+# Pinned so local and CI run byte-identical Bun. Bump deliberately.
+bun.pkg-path = "bun"
+bun.version = "1.3.13"
+
+# node-pty builds a native addon via node-gyp on `bun install`, which needs
+# Python + make + a C/C++ compiler. Python and make are cross-platform; the
+# compiler is split per-system because nixpkgs `gcc` is the right toolchain on
+# Linux, while macOS node-gyp builds against the system clang toolchain (Flox
+# keeps the host PATH, so the Command Line Tools clang stays reachable).
+python3.pkg-path = "python3"
+gnumake.pkg-path = "gnumake"
+gcc.pkg-path = "gcc"
+gcc.systems = ["aarch64-linux", "x86_64-linux"]
+
+
+## Activation Hook ---------------------------------------------------
+## Runs on every `flox activate`. Keeps node_modules in sync without
+## making the developer remember `bun install`, but stays quiet and fast
+## when the install is already current.
+## -------------------------------------------------------------------
+[hook]
+on-activate = '''
+  if [ ! -d "$FLOX_ENV_PROJECT/node_modules" ]; then
+    echo "bureau: installing dependencies (first activation)…" >&2
+    (cd "$FLOX_ENV_PROJECT" && bun install --frozen-lockfile)
+  fi
+'''
+
+
+## Profile script ----------------------------------------------------
+## Sourced by the interactive shell. A one-line nudge toward the dev loop.
+## -------------------------------------------------------------------
+[profile]
+common = '''
+  echo "bureau dev env (bun $(bun --version)) — 'bun run dev' or 'flox activate --start-services'" >&2
+'''
+
+
+## Services ---------------------------------------------------------
+## `flox activate --start-services` (or `flox services start`) runs the
+## full auto-reload dev loop: UI watch-build + server watch-restart.
+## ------------------------------------------------------------------
+[services]
+bureau.command = "bun run dev"
+
+
+## Other Environment Options -----------------------------------------
+[options]
+systems = [
+  "aarch64-darwin",
+  "aarch64-linux",
+  "x86_64-darwin",
+  "x86_64-linux",
+]
