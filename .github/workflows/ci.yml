@@ -3,6 +3,10 @@ name: CI
 # Quality gate for every PR and every push to master.
 # All five checks must pass before a PR can merge (enforced via branch
 # protection — see docs/contributing/development.md for the one-time setup).
+#
+# Bun is provided by the project's Flox environment (.flox/env/manifest.toml),
+# pinned to the same version developers run locally — no separate setup-bun
+# version to drift. Each job activates the env and runs through it.
 on:
   pull_request:
   push:
@@ -23,57 +27,47 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run typecheck
+      - uses: flox/install-flox-action@v2
+      - run: flox activate -- bun install --frozen-lockfile
+      - run: flox activate -- bun run typecheck
 
   lint:
     name: oxlint
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run lint
+      - uses: flox/install-flox-action@v2
+      - run: flox activate -- bun install --frozen-lockfile
+      - run: flox activate -- bun run lint
 
   format:
     name: format
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run format:check
+      - uses: flox/install-flox-action@v2
+      - run: flox activate -- bun install --frozen-lockfile
+      - run: flox activate -- bun run format:check
 
   test:
     name: unit tests
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run test
+      - uses: flox/install-flox-action@v2
+      - run: flox activate -- bun install --frozen-lockfile
+      - run: flox activate -- bun run test
 
   build:
     name: build
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
+      - uses: flox/install-flox-action@v2
+      - run: flox activate -- bun install --frozen-lockfile
       # UI bundle (production-ish; equivalent to scripts/build.sh inputs).
-      - run: bun build ui/index.tsx --outdir ui/dist --production
+      - run: flox activate -- bun build ui/index.tsx --outdir ui/dist --production
       # Server typechecks/imports — `bun build` with --target bun catches
       # missing imports, circular deps, and bad type-only re-exports without
       # actually starting the server.
-      - run: bun build server/index.ts --target bun --outdir /tmp/bureau-server-build
+      - run: flox activate -- bun build server/index.ts --target bun --outdir /tmp/bureau-server-build

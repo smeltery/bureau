@@ -1,8 +1,29 @@
 # Development
 
+## Toolchain (Flox)
+
+The project pins its toolchain with a [Flox](https://flox.dev) environment at
+`.flox/env/manifest.toml` — Bun (the runtime, bundler, package manager, and
+test runner) plus the native-build deps `bun install` needs to compile
+`node-pty` (Python, make, and a C/C++ compiler on Linux). The version is locked
+in `.flox/env/manifest.lock`, so local and CI run byte-identical tooling.
+
+```sh
+flox activate                   # enter the env; first run installs deps via the hook
+flox activate -- bun run dev    # or run a single command through the env
+flox activate --start-services  # run the `bureau` service (= bun run dev)
+```
+
+Bump Bun by editing `bun.version` in the manifest and re-locking with
+`flox edit -f .flox/env/manifest.toml`; commit the updated `manifest.lock`.
+
+Flox is the supported path but not required — any matching Bun works with the
+plain `bun install` / `bun run dev` flow.
+
 ## Quality gate
 
-Every PR runs a CI workflow with five jobs (`.github/workflows/ci.yml`):
+Every PR runs a CI workflow with five jobs (`.github/workflows/ci.yml`), each
+activating the Flox environment so CI runs the same pinned Bun as local:
 
 | Job          | Command                | What it checks                                |
 | ------------ | ---------------------- | --------------------------------------------- |
