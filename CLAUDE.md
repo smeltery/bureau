@@ -27,7 +27,8 @@ Read the [design and architecture article](articles/punching-in-building-an-offi
 - Agents persist across restarts. Auto-resume last conversation on startup.
 - Default model: Opus 4.6. No per-agent model selection.
 - SDK spawns CLI subprocesses which inherit the user's global Claude skills and MCP config.
-- Not in scope: agent-to-agent communication (but they can see each other's logs), remote agents (we support remote connections via Tailscale instead), a CLI bureau tool.
+- Agents can message each other (`POST /agents/:id/message`, queue-aware — flushes when the target is idle; also the `/bureau-message` command and the handoff/peer skills) and read each other's logs. There is no separate comm bus; messages land in the target's normal chat.
+- Not in scope: remote agents (we support remote connections via Tailscale instead), a CLI bureau tool.
 
 ## Project layout
 

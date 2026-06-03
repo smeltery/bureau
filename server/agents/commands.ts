@@ -143,6 +143,14 @@ export const commands: Record<string, CommandConfig> = {
     handler: "bureauEdit",
     description: "Open a file in the editor side panel (relative to cwd, absolute, or ~/...)",
   },
+  "bureau-message": {
+    type: "hardcoded",
+    supported: true,
+    autocomplete: true,
+    overridable: false,
+    handler: "bureauMessage",
+    description: "Send a message to another agent's chat (queues if busy)",
+  },
 
   // =========================================================================
   // Unsupported hardcoded commands (non-overridable)

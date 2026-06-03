@@ -45,7 +45,11 @@ export function LogEntryCard({
   switch (entry.kind) {
     case "user_message": {
       const username = entry.metadata?.username as string | undefined;
-      if (isEditing) {
+      const agentName = entry.metadata?.sender_agent_name as string | undefined;
+      const agentRoom = entry.metadata?.sender_agent_room as string | undefined;
+      // Agent-sent messages aren't editable: "edit & branch" rewrites the
+      // human's own prompt, not a peer-attributed message.
+      if (isEditing && !agentName) {
         return <EditableUserMessage content={entry.content} entryId={entry.id} isMobile={isMobile} username={username} onCancel={onCancelEdit} onSubmit={onSubmitEdit} />;
       }
       return (
@@ -53,9 +57,11 @@ export function LogEntryCard({
           content={entry.content}
           isMobile={isMobile}
           username={username}
+          agentName={agentName}
+          agentRoom={agentRoom}
           attachments={entry.attachments}
           agentId={entry.agentId}
-          canEdit={canEdit}
+          canEdit={canEdit && !agentName}
           onEdit={onStartEdit ? () => onStartEdit(entry.id) : undefined}
         />
       );

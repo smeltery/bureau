@@ -8,6 +8,8 @@ export function UserMessage({
   content,
   isMobile,
   username,
+  agentName,
+  agentRoom,
   attachments,
   agentId,
   canEdit,
@@ -16,6 +18,8 @@ export function UserMessage({
   content: string;
   isMobile?: boolean;
   username?: string;
+  agentName?: string;
+  agentRoom?: string;
   attachments?: Attachment[];
   agentId?: string;
   canEdit?: boolean;
@@ -23,10 +27,25 @@ export function UserMessage({
 }) {
   const getText = useCallback(() => content, [content]);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  // Messages sent from another agent (a2a) get a distinct dashed treatment so
+  // they don't read as the human's own typing. Mirrors the dashed agent style
+  // QueueChips uses for queued agent messages.
+  const isAgent = !!agentName;
+  const label = isAgent ? `${agentName} · agent · Room "${agentRoom ?? "?"}"` : (username ?? "You");
   return (
-    <div style={{ margin: "12px 0", padding: "10px 14px", paddingRight: 40, borderRadius: 10, background: "var(--user-msg-bg)", borderLeft: "3px solid var(--accent)", position: "relative" }}>
-      <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: "var(--accent)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-        {(username ?? "You").toUpperCase()}
+    <div
+      style={{
+        margin: "12px 0",
+        padding: "10px 14px",
+        paddingRight: 40,
+        borderRadius: 10,
+        background: "var(--user-msg-bg)",
+        borderLeft: `3px ${isAgent ? "dashed" : "solid"} var(--accent)`,
+        position: "relative",
+      }}
+    >
+      <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: isAgent ? "var(--text-muted)" : "var(--accent)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        {label.toUpperCase()}
       </div>
       {content && (
         <div
