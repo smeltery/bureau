@@ -170,7 +170,7 @@ const commandHandlers: Record<string, HandlerFn> = {
     // actionable stuff before the command/skill inventory.
     lines.push("\n**Tips:**");
     lines.push(
-      "  • Agents can check on each other and message each other. Just ask naturally, or use `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`.",
+      "  • Agents can check on each other and message each other. Just ask naturally, or use `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`. Use `/bureau-message <agent> <text>` to drop a message straight into another agent's chat.",
     );
     lines.push('  • Type ahead while an agent is busy: messages queue and flush when it\'s idle. Hit "Send now" to interrupt and flush immediately.');
     lines.push("  • Use voice-to-text for faster prompting. The shortcut is ctrl+space.");
@@ -438,6 +438,63 @@ const commandHandlers: Record<string, HandlerFn> = {
       addLogEntry(agentId, "system", `Failed to open \`${resolved.path}\`: ${probe.message}`);
     } else {
       addLogEntry(agentId, "edit-request", resolved.path, undefined, undefined, { file: { path: resolved.path } });
+    }
+    updateState(agentId, "waiting_for_response");
+    return true;
+  },
+
+  async bureauMessage(agentId, managed, args, rawText, username) {
+    const userMeta = username ? { username } : undefined;
+    addLogEntry(agentId, "user_message", rawText, userMeta);
+
+    const targetArg = args[0];
+    const text = args.slice(1).join(" ").trim();
+    const others = [...agents.values()].filter((a) => a.info.id !== agentId);
+
+    if (!targetArg || !text) {
+      const lines = ["Usage: `/bureau-message <agent-name-or-id> <message>`"];
+      if (others.length === 0) {
+        lines.push("\nNo other agents to message.");
+      } else {
+        lines.push("\nOther agents:");
+        for (const a of others) lines.push(`  **${a.info.name}**  \`${a.info.id}\``);
+      }
+      addLogEntry(agentId, "system", lines.join("\n"));
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
+
+    // Reject self-send up front (matched against the live agent, not `others`).
+    const self = managed.info;
+    if (targetArg === self.id || targetArg.toLocaleLowerCase() === self.name.toLocaleLowerCase()) {
+      addLogEntry(agentId, "system", "You can't message yourself.");
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
+
+    // Exact id match wins; otherwise case-insensitive name match.
+    const byId = others.find((a) => a.info.id === targetArg);
+    const byName = byId ? [] : others.filter((a) => a.info.name.toLocaleLowerCase() === targetArg.toLocaleLowerCase());
+    const target = byId ?? (byName.length === 1 ? byName[0] : null);
+
+    if (!target) {
+      if (byName.length > 1) {
+        const lines = [`Multiple agents are named "${targetArg}". Re-run with the id:`];
+        for (const a of byName) lines.push(`  \`${a.info.id}\``);
+        addLogEntry(agentId, "system", lines.join("\n"));
+      } else {
+        addLogEntry(agentId, "system", `No agent matches \`${targetArg}\`. Run \`/bureau-message\` with no arguments to list agents.`);
+      }
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
+
+    const sender = { kind: "agent" as const, agentId, agentName: managed.info.name, roomName: rooms[managed.info.room]!.name };
+    const result = enqueueMessage(target.info.id, { sender, text });
+    if (result.ok) {
+      addLogEntry(agentId, "system", result.queued ? `Queued for **${target.info.name}** (busy — will flush when idle).` : `Delivered to **${target.info.name}**.`);
+    } else {
+      addLogEntry(agentId, "system", `Could not message **${target.info.name}**: ${result.error}`);
     }
     updateState(agentId, "waiting_for_response");
     return true;
