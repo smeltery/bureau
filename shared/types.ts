@@ -70,7 +70,7 @@ export type ModelFamily = "opus" | "sonnet" | "haiku";
 export type ClaudeModel = string;
 
 export const FAMILY_TO_MODEL: Record<ModelFamily, ClaudeModel> = {
-  opus: "claude-opus-4-7",
+  opus: "claude-opus-4-8",
   sonnet: "claude-sonnet-4-6",
   haiku: "claude-haiku-4-5-20251001",
 };
@@ -81,7 +81,7 @@ export const MODEL_FAMILIES: { family: ModelFamily; label: string }[] = [
   { family: "haiku", label: "Haiku" },
 ];
 
-// Extract "4.7" from "claude-opus-4-7" for display
+// Extract "4.8" from "claude-opus-4-8" for display
 export function modelVersionLabel(family: ModelFamily): string {
   const exact = FAMILY_TO_MODEL[family];
   const match = exact.match(/-(\d+)-(\d+)/);
