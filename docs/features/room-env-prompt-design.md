@@ -68,7 +68,7 @@ Spawn path:
 1. Read office env file (if configured) → parse dotenv → `officeEnv`
 2. Read room env file (if configured) → parse dotenv → `roomEnv`
 3. Merge: `{ ...process.env, ...officeEnv, ...roomEnv }`
-4. Pass to `unstable_v2_createSession({ env: mergedEnv, ... })`
+4. Pass as `query` options to a new `RawClaudeSession({ env: mergedEnv, ... })`
 
 ### Spawn-time failure mode
 

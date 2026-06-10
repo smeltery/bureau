@@ -19,7 +19,7 @@ Read the [design and architecture article](articles/punching-in-building-an-offi
 ## Key decisions (do not revisit)
 
 - Single Bun process (no Node) — serves UI, manages agents in-process via SDK, talks to browser over WebSocket.
-- Agent SDK V2 (`unstable_v2_createSession`) with subscription auth. High risk tolerance on alpha API.
+- Agent SDK stable `query()` API (streaming-input mode), wrapped by `RawClaudeSession` in `server/backends/claude.ts` to expose a `send()`/`stream()`/`close()` session shape. Subscription auth. Migrated from the alpha `unstable_v2_*` surface when the SDK reached 0.3.x — `query()` consumes a push-able `AsyncIterable<SDKUserMessage>` prompt for the session's lifetime; each pushed message drives one turn.
 - Primarily WebSocket. Lightweight HTTP endpoints exist where needed (e.g. task board API).
 - React/SVG for rendering. No Vite. Bun's bundler, manual refresh.
 - No database. In-memory state, flat file logs, `agents.json` for persistence.

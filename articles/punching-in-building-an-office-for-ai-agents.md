@@ -75,37 +75,34 @@ A single user message can trigger a stream that lasts minutes. The SDK exposes t
 
 Sessions have an ID. If your application crashes or restarts, you can resume a session by its ID and the conversation history carries over.
 
-### V1 vs V2
+### One-shot vs. persistent sessions
 
-As of April 2026, the SDK has two versions. V1 (`query()`) is a fire-and-forget async call: you send a message and it runs to completion. There's no handle to grab, so there's no way to interrupt it.
+The SDK exposes a single entry point, `query()`, that runs in two modes depending on the shape of its `prompt`. Pass a **string** and it's fire-and-forget: the call runs one turn to completion and the returned generator finishes. Pass an **async iterable of user messages** (streaming-input mode) and `query()` keeps the session alive for as long as you keep the iterable open — each message you push drives another assistant turn.
 
-V2 (`unstable_v2_createSession`) gives you a persistent session object with `send()`, `stream()`, and `close()`.
+The streaming-input `query()` returns a `Query` object that is itself the event stream (an `AsyncGenerator` of SDK messages) and also exposes control methods like `interrupt()`, `setModel()`, and `setPermissionMode()`. That's what makes abort possible: `interrupt()` cuts off an in-flight turn, and closing the input iterable lets the generator finish so you can resume that same conversation later by passing `resume: sessionId`.
 
-This makes abort possible: call `close()` to kill the stream, then `resumeSession(sessionId)` to resume that same stream again, perhaps with a new user message at the end.
-
-Bureau needs the ability to abort agents (e.g., the user does Ctrl+C to add, "Sorry, I meant..."), so it uses V2 even though it's in alpha.
+Bureau needs the ability to abort agents (e.g., the user does Ctrl+C to add, "Sorry, I meant..."), and it wants a long-lived per-agent conversation. So it wraps the streaming-input `query()` in a small `RawClaudeSession` class that restores a familiar persistent-session shape — `send()`, `stream()`, and `close()` — on top of the SDK's push-based input model. A push-able input queue feeds `query()`; `send()` enqueues a user message, `stream()` is the `Query` generator, and `close()` ends the queue and calls `interrupt()`.
 
 ```mermaid
 sequenceDiagram
     participant App as Bureau
-    participant V1 as SDK V1 (query)
-    participant V2 as SDK V2 (createSession)
+    participant OneShot as query (string prompt)
+    participant Session as RawClaudeSession (streaming query)
 
-    Note over App,V1: V1 — fire-and-forget
-    App->>V1: query(message)
-    V1-->>App: runs to completion
-    Note over App,V1: No handle. Cannot abort.
+    Note over App,OneShot: One-shot — fire-and-forget
+    App->>OneShot: query(message)
+    OneShot-->>App: runs one turn to completion
 
-    Note over App,V2: V2 — persistent session
-    App->>V2: createSession(opts)
-    V2-->>App: session {send, stream, close}
-    App->>V2: send(message)
-    V2-->>App: stream events (thinking, tool, done)
-    App->>V2: close() — abort stream
-    App->>V2: resumeSession(id) — continue later
+    Note over App,Session: Streaming input — persistent session
+    App->>Session: new RawClaudeSession(opts)
+    Session-->>App: {send, stream, close} over query()
+    App->>Session: send(message)
+    Session-->>App: stream events (thinking, tool, done)
+    App->>Session: close() — end input + interrupt()
+    App->>Session: query({resume: id}) — continue later
 ```
 
-For now, V2 seems a bit buggy. Sometimes, the message order gets fumbled. SDK bugs are investigated and worked around as they appear.
+Bureau moved to the stable `query()` API after the alpha `unstable_v2_*` session API it originally targeted was removed; the `RawClaudeSession` wrapper keeps the rest of the codebase unchanged. SDK bugs are investigated and worked around as they appear.
 
 ## The Agent Lifecycle
 
@@ -131,7 +128,7 @@ sequenceDiagram
     UI->>WS: spawn {name, cwd, model, prompt}
     WS->>AM: create agent
     AM->>FS: persist to agents.json
-    AM->>SDK: unstable_v2_createSession(opts)
+    AM->>SDK: query({prompt, options}) (streaming input)
     SDK-->>AM: session ID + stream
     AM->>WS: emit agent_added event
     WS->>UI: broadcast agent_added
@@ -141,26 +138,27 @@ sequenceDiagram
 1. Initializes the SDK session,
 2. Emits an `agent_added` event to all browsers.
 
-Claude SDK's V2 `SDKSessionOptions` doesn't expose a field for `appendSystemPrompt`. Bureau works around this by smuggling the flag through `executableArgs`, which the SDK prepends to the Claude binary's argv:
+The SDK's `Options` don't expose a field for `appendSystemPrompt`. Bureau works around this by smuggling the flag through `executableArgs`, which the SDK prepends to the Claude binary's argv:
 
 ```typescript
-// server/agent-manager.ts
-function createSession(managed, resumeSessionId) {
-  const opts = {
-    model: managed.info.model,
-    cwd: managed.info.cwd,
-    permissionMode: managed.info.permissionMode,
+// server/backends/claude.ts
+function createSession(opts, resumeSessionId) {
+  const options = {
+    model: opts.model,
+    cwd: opts.cwd,
+    permissionMode: opts.permissionMode,
     pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
     executableArgs: ["--append-system-prompt", buildSystemPrompt(...)],
     hooks: createSafetyHooks(),
+    // resuming a prior conversation is just an option to query()
+    ...(resumeSessionId ? { resume: resumeSessionId } : {}),
   };
-  return resumeSessionId
-    ? unstable_v2_resumeSession(resumeSessionId, opts)
-    : unstable_v2_createSession(opts);
+  // RawClaudeSession wraps query({ prompt, options }) in streaming-input mode
+  return new RawClaudeSession(options);
 }
 ```
 
-The system prompt is rebuilt on every `createSession` call, so office/room/agent prompt edits automatically land on the next conversation.
+The system prompt is rebuilt on every session, so office/room/agent prompt edits automatically land on the next conversation.
 
 ### Agent identity
 
@@ -420,7 +418,7 @@ On the office view, agents needing attention get a pulsing indicator. Combined w
 
 Each agent displays a short topic below its nametag, like "Fixing auth middleware tests" or "Refactoring WebSocket layer."
 
-What's interesting is how they're generated. When the first user message comes in, the server fires off a `unstable_v2_prompt()` call behind the scenes. It builds a context snippet from the first user message (and the last few, if the topic is regenerated later) and then asks for a topic in 8 words or less.
+What's interesting is how they're generated. When the first user message comes in, the server fires off a one-shot `query()` (via the `runClaudeOneShot` helper) behind the scenes. It builds a context snippet from the first user message (and the last few, if the topic is regenerated later) and then asks for a topic in 8 words or less.
 
 Orchestration tools should be mindful with server-initiated prompts like this. They spend user tokens doing something that's not directly answering the user.
 

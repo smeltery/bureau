@@ -1,12 +1,12 @@
 import {
   forkSession as sdkForkSession,
   getSessionMessages as sdkGetSessionMessages,
-  unstable_v2_createSession,
-  unstable_v2_prompt,
-  unstable_v2_resumeSession,
+  query,
   type CanUseTool,
+  type Options,
   type PermissionResult,
   type PermissionUpdate,
+  type Query,
   type SDKMessage,
   type SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
@@ -93,33 +93,114 @@ const PERMISSION_MODES: PermissionModeOption[] = [
   { value: "auto", label: "Ask in Bureau" },
 ];
 
+// Push-able async iterable of user turns. In 0.3.x the SDK consumes a
+// streaming-input prompt (AsyncIterable<SDKUserMessage>) for the session's
+// lifetime — each pushed message drives one assistant turn. Replaces the
+// 0.2.x interactive session's `.send()`. Closing the queue completes the
+// prompt iterable, which lets the query() generator finish and unblocks the
+// parked stream() consumer.
+const QUEUE_DONE = Symbol("queue-done");
+
+class InputQueue implements AsyncIterable<SDKUserMessage> {
+  private pending: SDKUserMessage[] = [];
+  private waiter: ((v: SDKUserMessage | typeof QUEUE_DONE) => void) | null = null;
+  private closed = false;
+
+  push(msg: SDKUserMessage): void {
+    if (this.closed) return;
+    if (this.waiter) {
+      const w = this.waiter;
+      this.waiter = null;
+      w(msg);
+    } else {
+      this.pending.push(msg);
+    }
+  }
+
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    if (this.waiter) {
+      const w = this.waiter;
+      this.waiter = null;
+      w(QUEUE_DONE);
+    }
+  }
+
+  async *[Symbol.asyncIterator](): AsyncIterator<SDKUserMessage> {
+    while (true) {
+      if (this.pending.length > 0) {
+        yield this.pending.shift()!;
+        continue;
+      }
+      if (this.closed) return;
+      const next = await new Promise<SDKUserMessage | typeof QUEUE_DONE>((resolve) => {
+        this.waiter = resolve;
+      });
+      if (next === QUEUE_DONE) return;
+      yield next;
+    }
+  }
+}
+
+// Low-level wrapper over query() that restores the 0.2.x interactive-session
+// shape (stream / send / close) on top of 0.3.x's streaming-input model. The
+// cronjob runner consumes this directly (raw SDKMessage stream); the agent
+// path wraps it in ClaudeBackendSession for event normalization + approvals.
+export class RawClaudeSession {
+  private readonly input = new InputQueue();
+  readonly query: Query;
+  private closed = false;
+
+  constructor(options: Options) {
+    this.query = query({ prompt: this.input, options });
+  }
+
+  // The query generator yields every SDKMessage across all turns until close.
+  stream(): AsyncIterable<SDKMessage> {
+    return this.query;
+  }
+
+  async send(msg: string | SDKUserMessage): Promise<void> {
+    this.input.push(typeof msg === "string" ? ({ type: "user", message: { role: "user", content: msg }, parent_tool_use_id: null } as SDKUserMessage) : msg);
+  }
+
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    // End the input stream (completes the query generator) and interrupt any
+    // in-flight turn. interrupt() rejects if the query already finished, so
+    // swallow — close() is idempotent and must not throw.
+    this.input.close();
+    void this.query.interrupt().catch(() => {});
+  }
+}
+
 class ClaudeBackendSession implements BackendSession {
   private pendingApprovals = new Map<string, { input: Record<string, unknown>; suggestions?: PermissionUpdate[]; resolve: (r: PermissionResult) => void }>();
-  private readonly session: ReturnType<typeof unstable_v2_createSession>;
+  private readonly raw: RawClaudeSession;
 
   constructor(
     private readonly opts: CreateSessionOptions,
     resumeSessionId?: string,
   ) {
-    const sdkOpts: any = {
+    const options: Options = {
       model: FAMILY_TO_MODEL[opts.modelFamily as ModelFamily] ?? opts.modelFamily,
-      permissionMode: opts.permissionMode,
+      permissionMode: opts.permissionMode as Options["permissionMode"],
       pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
       executableArgs: ["--append-system-prompt", opts.systemPrompt],
       cwd: opts.cwd,
       hooks: createSafetyHooks(),
-      canUseTool: ((toolName, input, options) => this.requestPermission(toolName, input, options)) as CanUseTool,
+      canUseTool: ((toolName, input, callbackOpts) => this.requestPermission(toolName, input, callbackOpts)) as CanUseTool,
+      ...(opts.env ? { env: opts.env } : {}),
+      ...(resumeSessionId ? { resume: resumeSessionId } : {}),
     };
-    if (opts.env) sdkOpts.env = opts.env;
-    if (resumeSessionId) sdkOpts.resume = resumeSessionId;
-    this.session = resumeSessionId ? unstable_v2_resumeSession(resumeSessionId, sdkOpts) : unstable_v2_createSession(sdkOpts);
+    this.raw = new RawClaudeSession(options);
   }
 
   async *stream(): AsyncIterable<NormalizedEvent> {
-    while (true) {
-      for await (const msg of this.session.stream()) {
-        for (const ev of normalizeClaudeMessage(msg)) yield ev;
-      }
+    for await (const msg of this.raw.stream()) {
+      for (const ev of normalizeClaudeMessage(msg)) yield ev;
     }
   }
 
@@ -128,11 +209,7 @@ class ClaudeBackendSession implements BackendSession {
   }
 
   async send(text: string, attachments?: AttachmentSpec[]): Promise<void> {
-    if (attachments && attachments.length > 0) {
-      await this.session.send(buildUserMessage(this.opts.agentId, text, attachments));
-    } else {
-      await this.session.send(text);
-    }
+    await this.raw.send(buildUserMessage(this.opts.agentId, text, attachments ?? []));
   }
 
   async approve(approvalId: string, decision: ApprovalDecision): Promise<void> {
@@ -156,7 +233,7 @@ class ClaudeBackendSession implements BackendSession {
   }
 
   close(): void {
-    this.session.close();
+    this.raw.close();
   }
 
   private requestPermission(toolName: string, input: Record<string, unknown>, opts: Parameters<CanUseTool>[2]): Promise<PermissionResult> {
@@ -251,7 +328,26 @@ function buildUserMessage(agentId: string, text: string, attachments: Attachment
       content.push({ type: "text", text: `\n\n[Attached file: ${att.originalName}, ${att.mediaType}, ${st.size} bytes]\n${data.toString("utf8")}` });
     }
   }
-  return { type: "user", message: { role: "user", content } } as SDKUserMessage;
+  return { type: "user", message: { role: "user", content }, parent_tool_use_id: null } as SDKUserMessage;
+}
+
+// Run a single stateless prompt to completion and return the terminal result.
+// Centralizes native-binary resolution and the drain-to-result loop so both
+// the backend's oneShotPrompt and topic-label generation share one path. A
+// string prompt (vs. a streaming iterable) makes query() run exactly one turn
+// and complete after the result message.
+export async function runClaudeOneShot(prompt: string, options: Options): Promise<{ subtype: "success" | "error"; result: string }> {
+  const q = query({
+    prompt,
+    options: { pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN, ...options },
+  });
+  let out: { subtype: "success" | "error"; result: string } = { subtype: "error", result: "" };
+  for await (const msg of q) {
+    if (msg.type === "result") {
+      out = msg.subtype === "success" ? { subtype: "success", result: msg.result } : { subtype: "error", result: "" };
+    }
+  }
+  return out;
 }
 
 export const claudeBackend: Backend = {
@@ -284,11 +380,11 @@ export const claudeBackend: Backend = {
     }));
   },
   async oneShotPrompt(prompt: string, opts: OneShotOptions): Promise<string> {
-    const result = await unstable_v2_prompt(prompt, {
+    const result = await runClaudeOneShot(prompt, {
       model: FAMILY_TO_MODEL[opts.modelFamily as ModelFamily] ?? FAMILY_TO_MODEL.sonnet,
-      pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
+      ...(opts.systemPrompt ? { systemPrompt: opts.systemPrompt } : {}),
       ...(opts.env ? { env: opts.env } : {}),
-    } as any);
+    });
     return result.subtype === "success" ? result.result : "";
   },
   detectAuthError(text: string) {
