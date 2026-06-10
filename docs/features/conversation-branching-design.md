@@ -7,7 +7,7 @@ Design doc for editing a past user message to branch the conversation from that 
 All required APIs exist in `@anthropic-ai/claude-agent-sdk@0.2.86`:
 
 - **`forkSession(sessionId, { upToMessageId, dir?, title? })`** — copies transcript up to a specific message UUID, remaps UUIDs, returns `{ sessionId }`. The new session is immediately resumable.
-- **`unstable_v2_resumeSession(sessionId, opts)`** — resumes a forked (or any) session. Accepts `resumeSessionAt` option to resume only up to a specific message UUID.
+- **`query({ options: { resume: sessionId } })`** — resumes a forked (or any) session (wrapped by `RawClaudeSession`). The `options` also accept a `resumeSessionAt` field to resume only up to a specific message UUID.
 - **`getSessionMessages(sessionId, { dir?, limit?, offset? })`** — reads the transcript JSONL, returns `SessionMessage[]` with `{ type, uuid, session_id, message, parent_tool_use_id }`.
 - **`session.send(string | SDKUserMessage)`** — sends a message. Returns `Promise<void>` (no UUID returned). `SDKUserMessage` has an optional `uuid` field.
 - **`enableFileCheckpointing` / `query.rewindFiles()`** — exist but ruled out (see below).
