@@ -65,7 +65,7 @@ export const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
 
 // Model families — what users pick ("I want Opus"). Exact versions are an
 // implementation detail that the system bumps centrally in FAMILY_TO_MODEL.
-export type ModelFamily = "opus" | "sonnet" | "haiku";
+export type ModelFamily = "opus" | "sonnet" | "haiku" | "fable";
 
 export type ClaudeModel = string;
 
@@ -73,19 +73,24 @@ export const FAMILY_TO_MODEL: Record<ModelFamily, ClaudeModel> = {
   opus: "claude-opus-4-8",
   sonnet: "claude-sonnet-4-6",
   haiku: "claude-haiku-4-5-20251001",
+  fable: "claude-fable-5",
 };
 
 export const MODEL_FAMILIES: { family: ModelFamily; label: string }[] = [
   { family: "opus", label: "Opus" },
   { family: "sonnet", label: "Sonnet" },
   { family: "haiku", label: "Haiku" },
+  { family: "fable", label: "Fable" },
 ];
 
-// Extract "4.8" from "claude-opus-4-8" for display
+// Extract "4.8" from "claude-opus-4-8" for display. Single-number slugs like
+// "claude-fable-5" have no minor segment, so fall back to the trailing number.
 export function modelVersionLabel(family: ModelFamily): string {
   const exact = FAMILY_TO_MODEL[family];
-  const match = exact.match(/-(\d+)-(\d+)/);
-  return match ? `${match[1]}.${match[2]}` : exact;
+  const twoPart = exact.match(/-(\d+)-(\d+)/);
+  if (twoPart) return `${twoPart[1]}.${twoPart[2]}`;
+  const onePart = exact.match(/-(\d+)$/);
+  return onePart ? onePart[1] : exact;
 }
 
 export type EffortLevel = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
@@ -96,7 +101,7 @@ export const EFFORT_LEVELS: { level: EffortLevel; label: string }[] = [
   { level: "medium", label: "Medium" },
   { level: "high", label: "High" },
   { level: "xhigh", label: "Extra high" },
-  { level: "max", label: "Max (Opus only)" },
+  { level: "max", label: "Max (Opus/Fable only)" },
 ];
 
 export const DEFAULT_EFFORT: EffortLevel = "xhigh";
@@ -115,7 +120,13 @@ export const CODEX_MODELS: { value: string; label: string }[] = [
 ];
 
 export function isClaudeFamily(s: string): s is ModelFamily {
-  return s === "opus" || s === "sonnet" || s === "haiku";
+  return s === "opus" || s === "sonnet" || s === "haiku" || s === "fable";
+}
+
+// The classifier-backed "auto" permission mode is only offered for the
+// higher-capability families that drive the safe-action classifier well.
+export function familyAllowsAutoPermission(family: string | undefined): boolean {
+  return family === "opus" || family === "fable";
 }
 
 export function familyDisplayLabel(family: string): string {
@@ -132,6 +143,7 @@ export function familyFromLegacyModel(model: string | undefined): ModelFamily {
   if (model.includes("opus")) return "opus";
   if (model.includes("sonnet")) return "sonnet";
   if (model.includes("haiku")) return "haiku";
+  if (model.includes("fable")) return "fable";
   return "opus";
 }
 
