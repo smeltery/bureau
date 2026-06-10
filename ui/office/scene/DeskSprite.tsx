@@ -301,6 +301,21 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily }: { state: 
             </g>
           );
         })()}
+      {modelFamily === "fable" && (
+        <g transform="translate(99, 72) scale(0.78)">
+          {/* Rolled scroll — storytelling motif for Fable */}
+          <path d="M0 2 L24 -10 L29 -7.5 L5 4.5 Z" fill="rgba(0,0,0,0.12)" />
+          <path d="M0 0 L24 -12 L29 -9.5 L5 2.5 Z" fill="#EAE0C6" />
+          <path d="M0 0 L5 2.5 L5 4 L0 1.5 Z" fill="#D2C29C" />
+          <path d="M5 2.5 L29 -9.5 L29 -8 L5 4 Z" fill="#DCCEA8" />
+          {/* Roll ends */}
+          <ellipse cx="1.2" cy="0.6" rx="1.3" ry="2.6" fill="#D2C29C" transform="rotate(-26.5 1.2 0.6)" />
+          <ellipse cx="27" cy="-11.4" rx="1.3" ry="2.6" fill="#F2EAD4" transform="rotate(-26.5 27 -11.4)" />
+          {/* Text lines on the parchment — parallel to the scroll */}
+          <line x1="7" y1="-1.4" x2="22" y2="-8.9" stroke="#9c7a4a" strokeWidth="0.8" strokeLinecap="round" />
+          <line x1="9" y1="-0.4" x2="21" y2="-6.4" stroke="#9c7a4a" strokeWidth="0.6" strokeLinecap="round" />
+        </g>
+      )}
 
       {/* Desk lamp — south corner */}
       <g transform="translate(72, 78)">

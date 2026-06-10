@@ -90,15 +90,21 @@ describe("model family helpers", () => {
     expect(modelVersionLabel("opus")).toMatch(/^\d+\.\d+$/);
   });
 
+  test("modelVersionLabel falls back to a single trailing number (e.g. Fable)", () => {
+    expect(modelVersionLabel("fable")).toBe("5");
+  });
+
   test("familyDisplayLabel formats as '<Family> <X.Y>'", () => {
     expect(familyDisplayLabel("opus")).toMatch(/^Opus \d+\.\d+$/);
     expect(familyDisplayLabel("sonnet")).toMatch(/^Sonnet \d+\.\d+$/);
+    expect(familyDisplayLabel("fable")).toMatch(/^Fable \d+$/);
   });
 
   test("familyFromLegacyModel recognises substrings", () => {
     expect(familyFromLegacyModel("claude-opus-4-6")).toBe("opus");
     expect(familyFromLegacyModel("claude-sonnet-4-2")).toBe("sonnet");
     expect(familyFromLegacyModel("claude-haiku-4-1")).toBe("haiku");
+    expect(familyFromLegacyModel("claude-fable-5")).toBe("fable");
   });
 
   test("familyFromLegacyModel falls back to opus for unknown / undefined input", () => {

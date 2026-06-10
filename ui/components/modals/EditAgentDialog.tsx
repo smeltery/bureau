@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentBackendType, AgentInfo, AgentOutfit, ClientCommand } from "../../../shared/types.ts";
-import { CODEX_MODELS, MODEL_FAMILIES, modelVersionLabel } from "../../../shared/types.ts";
+import { CODEX_MODELS, familyAllowsAutoPermission, MODEL_FAMILIES, modelVersionLabel } from "../../../shared/types.ts";
 import { SHIRT_COLORS, HAIR_COLORS, SKIN_COLORS, HAIR_STYLES, BEARDS, HATS, ACCESSORIES } from "../../../shared/outfit-options.ts";
 import { Character } from "../../office/scene/Character.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
@@ -76,7 +76,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
   const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
   const [modelFamily, setModelFamily] = useState<string>(agent?.modelFamily ?? modelOptions[0].family);
   const initialPermissionMode: AgentInfo["permissionMode"] =
-    agent?.permissionMode === "auto" && (agent?.modelFamily ?? MODEL_FAMILIES[0].family) !== "opus" ? "bypassPermissions" : (agent?.permissionMode ?? "auto");
+    agent?.permissionMode === "auto" && !familyAllowsAutoPermission(agent?.modelFamily ?? MODEL_FAMILIES[0].family) ? "bypassPermissions" : (agent?.permissionMode ?? "auto");
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
   const [saving, setSaving] = useState(false);
   const [cwdError, setCwdError] = useState<string | null>(null);
@@ -247,7 +247,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
 
           <label style={{ ...labelStyle, marginTop: 12 }}>Permission Mode</label>
           <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as AgentInfo["permissionMode"])} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-            {modelFamily === "opus" && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
+            {familyAllowsAutoPermission(modelFamily) && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
             <option value="default">Default (ask for everything)</option>
             <option value="acceptEdits">Accept Edits (auto-approve file changes)</option>
             <option value="bypassPermissions">Bypass (auto-approve all)</option>
@@ -259,7 +259,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
             onChange={(e) => {
               const next = e.target.value;
               setModelFamily(next);
-              if (next !== "opus" && permissionMode === "auto") setPermissionMode("bypassPermissions");
+              if (!familyAllowsAutoPermission(next) && permissionMode === "auto") setPermissionMode("bypassPermissions");
             }}
             style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
           >
