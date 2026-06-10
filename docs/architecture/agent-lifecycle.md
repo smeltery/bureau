@@ -42,7 +42,7 @@ All agents live in a single `Map<string, ManagedAgent>`.
 
 ## Session Creation
 
-Sessions are created via `unstable_v2_createSession()` (SDK V2). The V2 API was chosen over V1 because it provides a session handle that can be closed — essential for abort functionality.
+Sessions are created via the SDK's `query()` API in streaming-input mode, wrapped in bureau's `RawClaudeSession` class (`server/backends/claude.ts`). Streaming-input mode is used over a one-shot string prompt because it keeps a long-lived conversation open and returns a `Query` handle exposing `interrupt()` — essential for abort functionality. `RawClaudeSession` restores the familiar `send()` / `stream()` / `close()` shape on top of `query()`'s push-based input model.
 
 ### Session Options
 
@@ -57,14 +57,14 @@ const opts = {
 };
 ```
 
-The system prompt is built from four hierarchical layers (baseline → office → room → agent-specific) and injected via `--append-system-prompt`. Since `SDKSessionOptions` doesn't expose `appendSystemPrompt` directly, it's smuggled through `executableArgs`.
+These `options` are passed to `query({ prompt, options })`, where `prompt` is the push-able input queue. The system prompt is built from four hierarchical layers (baseline → office → room → agent-specific) and injected via `--append-system-prompt`. Since `Options` doesn't expose `appendSystemPrompt` directly, it's smuggled through `executableArgs`.
 
 The native binary path is resolved explicitly to avoid the SDK's musl/glibc auto-resolver bug on Linux.
 
 ### Resume vs Create
 
-- **New session**: `unstable_v2_createSession(opts)`
-- **Resume session**: `unstable_v2_resumeSession(sessionId, opts)`
+- **New session**: `new RawClaudeSession(options)` → `query({ prompt, options })`
+- **Resume session**: same, with `resume: sessionId` added to `options` (i.e. `query({ prompt, options: { resume: sessionId } })`)
 
 On startup, agents are restored from `agents.json` and their last session is resumed.
 
@@ -86,7 +86,7 @@ async function runConsumer(agentId, managed, boundSession) {
 
 ### Why a persistent loop?
 
-The V2 SDK's `stream()` yields events for one turn, then pauses. Between turns, background processes (like long-running bash) can emit `task_notification` events. Without a persistent loop, these would sit buffered until the next user turn — causing delayed log entries. See [Held-Back Messages Investigation](../investigations/held-back-messages-investigation.md).
+The `Query` generator (exposed as `stream()`) yields events for one turn, then pauses awaiting the next pushed input. Between turns, background processes (like long-running bash) can emit `task_notification` events. Without a persistent loop, these would sit buffered until the next user turn — causing delayed log entries. See [Held-Back Messages Investigation](../investigations/held-back-messages-investigation.md).
 
 ### Turn Coordination
 
@@ -144,7 +144,7 @@ idle ──send_message──> thinking ──tool_use──> tool_executing
 
 ## Topic Generation
 
-On the first user message (and when regenerated), a background `unstable_v2_prompt()` call generates a short topic:
+On the first user message (and when regenerated), a background one-shot `query()` (via the `runClaudeOneShot` helper in `server/backends/claude.ts`) generates a short topic:
 
 - Uses `claude-sonnet-4-20250514` (cheaper model).
 - Context: first user message + last 5 text entries.
@@ -182,7 +182,7 @@ On the first user message (and when regenerated), a background `unstable_v2_prom
 1. List available sessions from disk.
 2. User picks session ID.
 3. Close current session.
-4. Resume selected session via `unstable_v2_resumeSession()`.
+4. Resume selected session via a new `RawClaudeSession` with `resume: sessionId` in its options.
 5. Install consumer, emit log history.
 
 ### Edit Agent

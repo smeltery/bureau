@@ -10,7 +10,7 @@
 // broadcasts log entries to the UI via the existing event bus. The synthetic
 // "stream id" used for log routing is `cronjobRunStreamId(runId)`.
 
-import { unstable_v2_createSession, unstable_v2_resumeSession, forkSession, getSessionMessages, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { forkSession, getSessionMessages, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import {
   FAMILY_TO_MODEL,
   generateCronjobId,
@@ -49,6 +49,7 @@ import {
   saveFile,
   type PersistedUsage,
 } from "../persistence.ts";
+import { RawClaudeSession } from "../backends/claude.ts";
 import { CLAUDE_NATIVE_BIN } from "../agents/session/runtime.ts";
 import { claudeProjectDir, claudeSessionFileExists, resolveCwd, validateCwd } from "../agents/session/paths.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
@@ -71,7 +72,7 @@ interface ActiveRun {
   jobId: string;
   runId: string;
   streamId: string;
-  session: ReturnType<typeof unstable_v2_createSession>;
+  session: RawClaudeSession;
   sessionId: string | null; // assigned on first system:init
   rootSessionId: string; // the run row's rootSessionId (placeholder until init)
   consumerPromise: Promise<void>;
@@ -533,9 +534,9 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
     cwd: job.cwd,
     hooks: createSafetyHooks(),
   };
-  let session: ReturnType<typeof unstable_v2_createSession>;
+  let session: RawClaudeSession;
   try {
-    session = unstable_v2_createSession(opts);
+    session = new RawClaudeSession(opts);
   } catch (err: any) {
     const updated = updateRun(jobId, runId, {
       status: "failed",
@@ -712,7 +713,7 @@ function buildRunResumeOpts(run: CronjobRun, resumeSessionId: string): any {
 // Wire up an ActiveRun around an SDK session (resumed or freshly forked).
 // Marks the run row "running", starts the consumer + hard timeout, and
 // returns the active so callers can persist log entries / call session.send.
-function installResumedActive(run: CronjobRun, session: ReturnType<typeof unstable_v2_resumeSession>, sessionId: string): ActiveRun {
+function installResumedActive(run: CronjobRun, session: RawClaudeSession, sessionId: string): ActiveRun {
   const streamId = cronjobRunStreamId(run.id);
   const active: ActiveRun = {
     jobId: run.cronjobId,
@@ -792,9 +793,9 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
 
   startingRuns.add(runId);
   try {
-    let session: ReturnType<typeof unstable_v2_resumeSession>;
+    let session: RawClaudeSession;
     try {
-      session = unstable_v2_resumeSession(leaf, buildRunResumeOpts(run, leaf));
+      session = new RawClaudeSession(buildRunResumeOpts(run, leaf));
     } catch (err: any) {
       emitRunErrorEntry(jobId, runId, `Failed to resume: ${err.message || String(err)}`);
       return;
@@ -943,9 +944,9 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
 
   // 4. Try to resume the new fork. If this fails, do NOT update currentSessionId
   //    — leave the run pointing at the old leaf so a retry can start over.
-  let session: ReturnType<typeof unstable_v2_resumeSession>;
+  let session: RawClaudeSession;
   try {
-    session = unstable_v2_resumeSession(newSessionId, buildRunResumeOpts(run, newSessionId));
+    session = new RawClaudeSession(buildRunResumeOpts(run, newSessionId));
   } catch (err: any) {
     emitRunErrorEntry(jobId, runId, `Failed to start fork: ${err.message || String(err)}`);
     return;

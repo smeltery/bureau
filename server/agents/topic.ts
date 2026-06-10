@@ -1,4 +1,4 @@
-import { unstable_v2_prompt } from "@anthropic-ai/claude-agent-sdk";
+import { runClaudeOneShot } from "../backends/claude.ts";
 import { persistSessionTopic } from "../persistence.ts";
 import { agents, emit, logCache, persistAll, updateManifest, type ManagedAgent } from "./state.ts";
 
@@ -78,14 +78,14 @@ export async function generateTopic(agentId: string) {
     // prevents the caller's cwd from leaking git/dir context into the
     // prompt (which made the model occasionally label with an unrelated
     // recent commit).
-    const result = await unstable_v2_prompt(prompt, {
+    const result = await runClaudeOneShot(prompt, {
       model: "claude-sonnet-4-20250514",
       tools: [],
       thinking: { type: "disabled" },
       settingSources: [],
       cwd: "/tmp",
       systemPrompt: topicSystemPrompt,
-    } as any);
+    });
     if (result.subtype === "success" && agents.has(agentId)) {
       const topic = result.result.trim().slice(0, 80);
       managed.info.topic = topic;

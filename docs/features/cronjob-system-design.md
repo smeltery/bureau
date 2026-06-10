@@ -10,7 +10,7 @@ Example use case: a daily 09:00 cronjob with prompt "look at what every agent ac
 
 ## Architecture
 
-- Each scheduled fire creates a fresh SDK V2 session via `unstable_v2_createSession` (same SDK already used by `server/agents/session/runtime.ts`). No `ManagedAgent` wrapper, no PTY, no desk.
+- Each scheduled fire creates a fresh SDK session via `new RawClaudeSession(...)` (a wrapper over the SDK's streaming-input `query()`, the same primitive used by `server/agents/session/runtime.ts`). No `ManagedAgent` wrapper, no PTY, no desk.
 - Each run is one session lineage: a root session plus any forks the user creates. This mirrors the agent log structure exactly.
 - A single server-side scheduler tick runs every 60s, checks every enabled cronjob's `nextFireAt`, and fires any whose time has passed. Same pattern as `update-checker.ts`.
 - Live SDK message stream is broadcast over the existing log-broadcast WebSocket channel, so any UI viewing a currently-running run gets a live tail.
