@@ -61,9 +61,9 @@ function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     hooks: createSafetyHooks(),
   };
   // ...existing logic...
-  const session = resumeSessionId
-    ? unstable_v2_resumeSession(resumeSessionId, opts)
-    : unstable_v2_createSession(opts);
+  // Resume is just an option to query(); RawClaudeSession wraps query({ prompt, options }).
+  if (resumeSessionId) opts.resume = resumeSessionId;
+  const session = new RawClaudeSession(opts);
 
   // Apply per-agent MCP restrictions
   for (const name of managed.info.disabledIntegrations ?? []) {
