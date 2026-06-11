@@ -20,6 +20,7 @@ export const editorWatchers = new WeakMap<import("bun").ServerWebSocket<unknown>
 import { handleLiveReloadRequest, startLiveReloadWatcher } from "./http/live-reload.ts";
 import { handleTasksRequest } from "./http/tasks.ts";
 import { handleCronjobsRequest } from "./http/cronjobs.ts";
+import { handlePluginsRequest } from "./http/plugins.ts";
 import { handleFilesRequest } from "./http/files.ts";
 import { handleAgentsRequest } from "./http/agents.ts";
 import { handleStaticRequest } from "./http/static.ts";
@@ -418,6 +419,9 @@ const server = Bun.serve<WsData>({
 
     const cronjobsResp = await handleCronjobsRequest(req, url);
     if (cronjobsResp) return cronjobsResp;
+
+    const pluginsResp = await handlePluginsRequest(req, url);
+    if (pluginsResp) return pluginsResp;
 
     const filesResp = await handleFilesRequest(req, url);
     if (filesResp) return filesResp;

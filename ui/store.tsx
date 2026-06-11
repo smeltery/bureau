@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer, useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type Dispatch } from "react";
 import type {
   AgentInfo,
+  CCPluginsState,
   Cronjob,
   CronjobRun,
   InviteWire,
@@ -64,6 +65,10 @@ export interface AppState {
   cronjobsPrompt: string | null;
   cronjobRunsByJob: Map<string, CronjobRun[]>;
   cronjobRunsLoaded: boolean;
+  // Claude Code plugin catalog (installed + available + marketplaces). null
+  // until the Plugins panel first fetches it; server broadcasts keep every
+  // open browser in sync after mutations.
+  ccPlugins: CCPluginsState | null;
   updateAvailable: boolean;
   updateCurrent: { sha: string; message: string; date: string };
   updateLatest: { sha: string; message: string; date: string };
@@ -136,6 +141,7 @@ type Action =
   | { type: "room_renamed"; roomId: string; name: string }
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "rooms_reordered"; order: string[] }
+  | { type: "cc_plugins_state"; plugins: CCPluginsState }
   | { type: "cronjobs_state"; cronjobs: Cronjob[]; cronjobsPrompt: string | null }
   | { type: "cronjob_added"; cronjob: Cronjob }
   | { type: "cronjob_updated"; cronjob: Cronjob }
@@ -326,6 +332,8 @@ function reducer(state: AppState, action: Action): AppState {
       const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, prompt: action.prompt, envFile: action.envFile } : r));
       return { ...state, rooms: newRooms };
     }
+    case "cc_plugins_state":
+      return { ...state, ccPlugins: action.plugins };
     case "cronjobs_state":
       return { ...state, cronjobs: action.cronjobs, cronjobsPrompt: action.cronjobsPrompt, cronjobsLoaded: true };
     case "cronjob_added":
@@ -418,6 +426,7 @@ const initialState: AppState = {
   cronjobsPrompt: null,
   cronjobRunsByJob: new Map(),
   cronjobRunsLoaded: false,
+  ccPlugins: null,
   updateAvailable: false,
   updateCurrent: { sha: "", message: "", date: "" },
   updateLatest: { sha: "", message: "", date: "" },

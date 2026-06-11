@@ -12,6 +12,7 @@ import { OfficePromptModal } from "./components/modals/OfficePromptModal.tsx";
 import { RoomSettingsModal } from "./components/modals/RoomSettingsModal.tsx";
 import { TaskView } from "./task-view/TaskView.tsx";
 import { CronjobsView } from "./components/CronjobsView.tsx";
+import { PluginsView } from "./components/PluginsView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
 import { ConnectionBanner } from "./components/ConnectionBanner.tsx";
 import { CSS } from "./styles.ts";
@@ -57,6 +58,7 @@ export function App() {
   const [editingRoomSettings, setEditingRoomSettings] = useState<string | null>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [cronjobsOpen, setCronjobsOpen] = useState(false);
+  const [pluginsOpen, setPluginsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
 
   const viewportControlsRef = useRef<ViewportControls | null>(null);
@@ -67,7 +69,7 @@ export function App() {
   }, [username, connected]);
 
   const anyModalOpen = editingUsername || editingDeviceSettings || editingOfficePrompt || editingRoomSettings !== null || updateOpen;
-  const viewMode: "office" | "log" | "away" = tasksOpen || cronjobsOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
+  const viewMode: "office" | "log" | "away" = tasksOpen || cronjobsOpen || pluginsOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
   const presenceRoom = focusedAgent?.room ?? currentRoom;
   useEffect(() => {
     if (!sessionContext) return;
@@ -107,6 +109,7 @@ export function App() {
       // Safety fallback — shouldn't happen, but don't break if it does
       setTasksOpen(false);
       setCronjobsOpen(false);
+      setPluginsOpen(false);
       dispatch({ type: "focus", agentId: null });
     }
   }, [dispatch]);
@@ -167,7 +170,7 @@ export function App() {
   }, [dispatch, goHome, focusedAgentId, agents, drafts, currentRoom, roomCount]);
 
   // Sync history stack with view state
-  const isDeep = tasksOpen || cronjobsOpen || focusedAgentId !== null;
+  const isDeep = tasksOpen || cronjobsOpen || pluginsOpen || focusedAgentId !== null;
   useEffect(() => {
     if (isDeep && !deepRef.current) {
       window.history.pushState({ bureau: true }, "");
@@ -186,6 +189,7 @@ export function App() {
       deepRef.current = false;
       setTasksOpen(false);
       setCronjobsOpen(false);
+      setPluginsOpen(false);
       dispatch({ type: "focus", agentId: null });
     }
     window.addEventListener("popstate", handlePopState);
@@ -209,7 +213,9 @@ export function App() {
           }}
         />
       )}
-      {cronjobsOpen ? (
+      {pluginsOpen ? (
+        <PluginsView onClose={goHome} />
+      ) : cronjobsOpen ? (
         <CronjobsView username={username ?? ""} onClose={goHome} />
       ) : tasksOpen ? (
         <TaskView
@@ -270,6 +276,7 @@ export function App() {
           }}
           onOpenTasks={() => setTasksOpen(true)}
           onOpenCronjobs={() => setCronjobsOpen(true)}
+          onOpenPlugins={() => setPluginsOpen(true)}
           onOpenUpdate={() => setUpdateOpen(true)}
           onSwipeLeft={swipeRoomNext}
           onSwipeRight={swipeRoomPrev}
