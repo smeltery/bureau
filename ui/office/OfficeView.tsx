@@ -75,6 +75,16 @@ function ClockIcon() {
   );
 }
 
+function PlugIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5.5 2v3M10.5 2v3" />
+      <path d="M4 5h8v2.5a4 4 0 0 1-8 0V5z" />
+      <path d="M8 11.5V14" />
+    </svg>
+  );
+}
+
 function UserIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
@@ -163,6 +173,7 @@ export function OfficeView({
   onEditRoomSettings,
   onOpenTasks,
   onOpenCronjobs,
+  onOpenPlugins,
   onOpenUpdate,
   onSwipeLeft,
   onSwipeRight,
@@ -178,6 +189,7 @@ export function OfficeView({
   onEditRoomSettings?: () => void;
   onOpenTasks: () => void;
   onOpenCronjobs?: () => void;
+  onOpenPlugins?: () => void;
   onOpenUpdate: () => void;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
@@ -342,6 +354,7 @@ export function OfficeView({
           <div style={{ display: "flex", alignItems: "center", gap: 8, justifySelf: "end" }}>
             <HeaderButton icon={<TasksIcon />} label="Tasks" onClick={onOpenTasks} />
             {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label="Cron jobs" title="Cron jobs" onClick={onOpenCronjobs} />}
+            {onOpenPlugins && <HeaderButton icon={<PlugIcon />} label="Plugins" title="Manage Claude Code plugins" onClick={onOpenPlugins} />}
             <HeaderButton icon={<UserIcon />} label="User" title={username || "User settings"} onClick={onEditUsername} />
             <HeaderButton icon={<DeviceIcon />} label="Device" title="Device settings" onClick={onOpenDeviceSettings} />
             <HeaderButton icon={<BuildingIcon />} label="Office" title="Office settings" onClick={onEditOfficePrompt} />

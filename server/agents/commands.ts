@@ -256,9 +256,9 @@ export const commands: Record<string, CommandConfig> = {
   upgrade: { ...UNSUPPORTED_HARDCODED, description: "Upgrade Claude Code" },
   plugin: {
     ...UNSUPPORTED_HARDCODED,
-    description: "Manage plugins",
+    description: "Manage plugins (use the Plugins panel)",
     message:
-      "Plugin management requires the Claude Code CLI directly.\n\nTo manage plugins:\n1. Open the built-in terminal (click the terminal icon on the agent's desk)\n2. Run `claude`\n3. Type `/plugin` to browse, install, enable, or disable plugins\n\nUseful commands:\n- `/plugin` — interactive plugin manager (browse, install, enable/disable)\n- `/plugin add <name>` — install a plugin by name\n- `/plugin marketplace add owner/repo` — add a community marketplace\n\nAfter installing a plugin, run `/reload-plugins` inside the Claude session to activate it.",
+      "Plugin management lives in the Plugins panel — click **Plugins** in the office toolbar to browse, install, enable, disable, or remove Claude Code plugins and marketplaces.\n\nNewly installed plugins activate when an agent's next session starts (restart or `/resume` running agents to pick them up).",
   },
 
   // =========================================================================
