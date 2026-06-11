@@ -21,6 +21,8 @@ import type {
 } from "../shared/types.ts";
 import { KILLED_AGENT_CHIP_CAP } from "../shared/types.ts";
 import { connect } from "./ws.ts";
+import { shouldNotifyRoom } from "../shared/notifications.ts";
+import { showDesktopNotification, markAttention } from "./notifications.ts";
 import { type Features, PRODUCTION_FEATURES } from "../shared/features.ts";
 import { DEFAULT_THEME_ID, getThemeById, THEMES, type Theme, type ThemeMode } from "./themes.ts";
 
@@ -36,7 +38,9 @@ export interface AppState {
   mobileViewMode: "list" | "office"; // which view to show on mobile
   needsAttention: Set<string>; // agentIds with unread state changes
   sessionsList: Map<string, { sessions: SessionInfo[]; currentSessionId: string | null }>; // agentId → available sessions
-  soundTrigger: number; // increments when any agent finishes work (for sound regardless of focus)
+  // Bumped when any agent finishes work. Carries the finishing agent's room
+  // (for per-room notification gating) and identity (for the desktop toast).
+  soundTrigger: { seq: number; roomId: string | null; agentId: string | null; agentName: string | null };
   drafts: Map<string, string>; // agentId → unsent chat input
   recentCwds: string[]; // persisted recent working directories
   slashCommands: Map<string, { commands: { name: string; description?: string; aliasFor?: string }[]; skills: SkillInfo[] }>; // agentId → available commands
@@ -227,7 +231,8 @@ function reducer(state: AppState, action: Action): AppState {
           // another, the receiver answers and idles) stays silent — see
           // turnHadHumanInput on the server side.
           if (prevAgent.turnHadHumanInput) {
-            soundTrigger = state.soundTrigger + 1;
+            const roomId = state.rooms[prevAgent.room]?.id ?? null;
+            soundTrigger = { seq: state.soundTrigger.seq + 1, roomId, agentId: prevAgent.id, agentName: prevAgent.name };
           }
           // Badge: only when not viewing this agent. Set regardless of input
           // source — the dot is a "this agent stopped, you might want to
@@ -389,7 +394,7 @@ const initialState: AppState = {
   mobileViewMode: typeof localStorage !== "undefined" && localStorage.getItem("bureau-mobile-view") === "list" ? "list" : "office",
   needsAttention: new Set(),
   sessionsList: new Map(),
-  soundTrigger: 0,
+  soundTrigger: { seq: 0, roomId: null, agentId: null, agentName: null },
   drafts: new Map(),
   recentCwds: [],
   slashCommands: new Map(),
@@ -493,14 +498,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Sound notification when tab is hidden and any agent finishes work
-  const prevSoundTrigger = useRef(0);
+  // When the tab is hidden and an agent finishes work, alert the user — gated
+  // by their per-room notification preference (server-stored notifRooms). The
+  // sound is the in-tab cue; the desktop toast + title/favicon badge reach the
+  // user when the tab isn't even visible.
+  const prevSoundTriggerSeq = useRef(0);
   useEffect(() => {
-    if (state.soundTrigger > prevSoundTrigger.current && document.hidden) {
-      playNotificationSound();
+    const trigger = state.soundTrigger;
+    if (trigger.seq > prevSoundTriggerSeq.current && document.hidden) {
+      const me = state.sessionContext ? state.users.get(state.sessionContext.username.trim().toLocaleLowerCase()) : undefined;
+      const notifRooms = me?.notifRooms ?? [];
+      if (shouldNotifyRoom(trigger.roomId, notifRooms)) {
+        playNotificationSound();
+        markAttention();
+        if (trigger.agentId) {
+          const agentId = trigger.agentId;
+          showDesktopNotification({
+            title: `${trigger.agentName ?? "An agent"} is done`,
+            body: "Ready for your reply in Bureau.",
+            tag: agentId,
+            onClick: () => dispatch({ type: "focus", agentId }),
+          });
+        }
+      }
     }
-    prevSoundTrigger.current = state.soundTrigger;
-  }, [state.soundTrigger]);
+    prevSoundTriggerSeq.current = trigger.seq;
+  }, [state.soundTrigger, state.sessionContext, state.users]);
 
   return (
     <StateCtx.Provider value={state}>
