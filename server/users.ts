@@ -74,6 +74,7 @@ export function claimUserByName(name: string, opts: { role?: UserRole; allowedRo
     role,
     allowedRooms,
     defaultRoomId: allowedRooms[0] ?? null,
+    notifRooms: [...allowedRooms],
     avatarColor: defaultGhostColorForUserId(id),
     avatarVariant: "classic",
     createdAt: Date.now(),
@@ -100,7 +101,7 @@ export function setUserRoleById(userId: string, role: UserRole): void {
 // to know whether to invoke).
 export function updateUserById(
   userId: string,
-  changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "avatarColor" | "avatarVariant">>,
+  changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
 ): { ok: true; user: UserRecord } | { ok: false; error: string } {
   const target = getUserById(userId);
   if (!target) return { ok: false, error: `user ${userId} not found` };
@@ -115,6 +116,9 @@ export function updateUserById(
   }
   if (changes.defaultRoomId !== undefined) {
     next.defaultRoomId = typeof changes.defaultRoomId === "string" ? changes.defaultRoomId : null;
+  }
+  if (Array.isArray(changes.notifRooms)) {
+    next.notifRooms = changes.notifRooms.filter((id): id is string => typeof id === "string" && next.allowedRooms.includes(id));
   }
   if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
   if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;
@@ -175,6 +179,7 @@ export function claimUser(ws: import("bun").ServerWebSocket<unknown>, username: 
       role,
       allowedRooms: allRoomIds,
       defaultRoomId: allRoomIds[0] ?? null,
+      notifRooms: [...allRoomIds],
       avatarColor: defaultGhostColorForUserId(id),
       avatarVariant: "classic",
       createdAt: Date.now(),
@@ -233,7 +238,7 @@ export function listUsers(rooms: RoomWire[]): UserRecord[] {
 export function updateUser(
   actor: UserRecord | null,
   userId: string,
-  changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "avatarColor" | "avatarVariant">>,
+  changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
   rooms: RoomWire[],
 ): UserRecord | null {
   if (!actor) return null;
@@ -254,9 +259,16 @@ export function updateUser(
   if (changes.defaultRoomId !== undefined) {
     next.defaultRoomId = typeof changes.defaultRoomId === "string" && next.allowedRooms.includes(changes.defaultRoomId) ? changes.defaultRoomId : null;
   }
+  // notifRooms is a self-editable preference (owner or self, already gated by
+  // canEdit above). Keep it within the rooms the user can actually see.
+  if (Array.isArray(changes.notifRooms)) {
+    next.notifRooms = changes.notifRooms.filter((id): id is string => typeof id === "string" && next.allowedRooms.includes(id));
+  }
   if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
   if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;
   if (next.role === "owner" && next.allowedRooms.length === 0) next.allowedRooms = allRoomIds;
+  // Drop any notifRooms that fell outside a shrunken allowedRooms set.
+  next.notifRooms = next.notifRooms.filter((id) => next.allowedRooms.includes(id));
   users.delete(normalizeUserKey(target.name));
   users.set(normalizeUserKey(next.name), next);
   persist();

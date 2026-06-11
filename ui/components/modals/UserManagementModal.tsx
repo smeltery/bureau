@@ -8,6 +8,7 @@ import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 import { AccessPane } from "../AccessPane.tsx";
 import { MyDevicesPane } from "../MyDevicesPane.tsx";
+import { notificationPermission, requestNotificationPermission, type NotifPermission } from "../../notifications.ts";
 
 export function UserManagementModal({
   currentUsername,
@@ -182,9 +183,11 @@ function UserEditPanel({
   const [role, setRole] = useState<UserRole>(user.role);
   const [allowedRooms, setAllowedRooms] = useState(() => new Set(user.allowedRooms));
   const [defaultRoomId, setDefaultRoomId] = useState<string | null>(user.defaultRoomId ?? user.allowedRooms[0] ?? rooms[0]?.id ?? null);
+  const [notifRooms, setNotifRooms] = useState(() => new Set(user.notifRooms ?? []));
   const [avatarColor, setAvatarColor] = useState(user.avatarColor);
   const [avatarVariant, setAvatarVariant] = useState<GhostVariant>(user.avatarVariant);
   const allAllowed = allowedRooms.size === rooms.length;
+  const userNotif = user.notifRooms ?? [];
 
   const isDirty =
     name !== user.name ||
@@ -193,14 +196,19 @@ function UserEditPanel({
     avatarVariant !== user.avatarVariant ||
     (defaultRoomId ?? null) !== (user.defaultRoomId ?? null) ||
     allowedRooms.size !== user.allowedRooms.length ||
-    user.allowedRooms.some((id) => !allowedRooms.has(id));
+    user.allowedRooms.some((id) => !allowedRooms.has(id)) ||
+    notifRooms.size !== userNotif.length ||
+    userNotif.some((id) => !notifRooms.has(id));
   useEffect(() => {
     onDirtyChange?.(isDirty);
     return () => onDirtyChange?.(false);
   }, [isDirty, onDirtyChange]);
 
   function save() {
-    send({ type: "update_user", userId: user.id, changes: { name: name.trim(), role, allowedRooms: [...allowedRooms], defaultRoomId, avatarColor, avatarVariant } });
+    // Keep notifRooms within the (possibly just-edited) allowed set — the
+    // server enforces this too, but trimming here keeps the wire honest.
+    const notif = [...notifRooms].filter((id) => allowedRooms.has(id));
+    send({ type: "update_user", userId: user.id, changes: { name: name.trim(), role, allowedRooms: [...allowedRooms], defaultRoomId, notifRooms: notif, avatarColor, avatarVariant } });
     onClose();
   }
   function cancel() {
@@ -275,6 +283,12 @@ function UserEditPanel({
                     else next.delete(room.id);
                     setAllowedRooms(next);
                     if (!next.has(defaultRoomId ?? "")) setDefaultRoomId(next.values().next().value ?? null);
+                    // A room you can't see can't notify you — drop it.
+                    if (!e.target.checked && notifRooms.has(room.id)) {
+                      const nextNotif = new Set(notifRooms);
+                      nextNotif.delete(room.id);
+                      setNotifRooms(nextNotif);
+                    }
                   }}
                 />
                 {room.name}
@@ -294,6 +308,7 @@ function UserEditPanel({
           ) : null;
         })}
       </select>
+      <NotificationPrefs rooms={rooms.filter((r) => allowedRooms.has(r.id))} notifRooms={notifRooms} onChange={setNotifRooms} />
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
         <button style={dialogCancelBtn} onClick={cancel}>
           Cancel
@@ -303,6 +318,64 @@ function UserEditPanel({
         </button>
       </div>
     </div>
+  );
+}
+
+// Per-room notification preferences + the browser permission affordance.
+// notifRooms is an allowlist of rooms whose agents alert this user (sound +
+// desktop toast) when they finish while the tab is backgrounded.
+function NotificationPrefs({ rooms, notifRooms, onChange }: { rooms: { id: string; name: string }[]; notifRooms: Set<string>; onChange: (next: Set<string>) => void }) {
+  const [perm, setPerm] = useState<NotifPermission>(() => notificationPermission());
+  const allOn = rooms.length > 0 && rooms.every((r) => notifRooms.has(r.id));
+
+  function toggle(id: string, on: boolean) {
+    const next = new Set(notifRooms);
+    if (on) next.add(id);
+    else next.delete(id);
+    onChange(next);
+  }
+
+  async function enableDesktop() {
+    setPerm(await requestNotificationPermission());
+  }
+
+  return (
+    <>
+      <label style={{ ...dialogLabel, marginTop: 12 }}>Notify me about</label>
+      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "0 0 6px", lineHeight: 1.4 }}>
+        Play a sound and (if enabled) show a desktop alert when an agent in these rooms finishes while this tab is in the background.
+      </p>
+      {rooms.length === 0 ? (
+        <div style={{ fontSize: 11, color: "var(--text-hint)" }}>No rooms available.</div>
+      ) : (
+        <>
+          <button type="button" style={smallBtn} onClick={() => onChange(allOn ? new Set() : new Set(rooms.map((r) => r.id)))}>
+            {allOn ? "Mute all" : "Notify for all"}
+          </button>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 6, marginTop: 8 }}>
+            {rooms.map((room) => (
+              <label key={room.id} style={{ display: "flex", gap: 7, alignItems: "center", fontSize: 12, color: "var(--text-primary)" }}>
+                <input type="checkbox" checked={notifRooms.has(room.id)} onChange={(e) => toggle(room.id, e.target.checked)} />
+                {room.name}
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+      <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-ghost)" }}>
+        {perm === "unsupported" ? (
+          "Desktop notifications aren't supported in this browser."
+        ) : perm === "granted" ? (
+          "Desktop notifications enabled."
+        ) : perm === "denied" ? (
+          "Desktop notifications blocked — re-enable them in your browser's site settings."
+        ) : (
+          <button type="button" style={smallBtn} onClick={enableDesktop}>
+            Enable desktop notifications
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 

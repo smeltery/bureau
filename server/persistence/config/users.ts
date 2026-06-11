@@ -19,16 +19,24 @@ export function loadUsers(): UserRecord[] {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((u): u is UserRecord => u && typeof u === "object" && typeof u.id === "string" && typeof u.name === "string")
-      .map((u) => ({
-        id: u.id,
-        name: u.name,
-        role: u.role === "owner" ? "owner" : "member",
-        allowedRooms: Array.isArray(u.allowedRooms) ? u.allowedRooms.filter((id): id is string => typeof id === "string") : [],
-        defaultRoomId: typeof u.defaultRoomId === "string" ? u.defaultRoomId : null,
-        avatarColor: isHexColor(u.avatarColor) ? normalizeHexColor(u.avatarColor) : defaultGhostColorForUserId(u.id),
-        avatarVariant: isGhostVariant(u.avatarVariant) ? u.avatarVariant : "classic",
-        createdAt: typeof u.createdAt === "number" ? u.createdAt : Date.now(),
-      }));
+      .map((u) => {
+        const allowedRooms = Array.isArray(u.allowedRooms) ? u.allowedRooms.filter((id): id is string => typeof id === "string") : [];
+        // Legacy records predate notifRooms — default to a snapshot of the
+        // user's allowed rooms (notify everywhere they can see) and keep only
+        // ids that are still in the allowed set.
+        const notifRooms = Array.isArray(u.notifRooms) ? u.notifRooms.filter((id): id is string => typeof id === "string" && allowedRooms.includes(id)) : [...allowedRooms];
+        return {
+          id: u.id,
+          name: u.name,
+          role: u.role === "owner" ? "owner" : "member",
+          allowedRooms,
+          defaultRoomId: typeof u.defaultRoomId === "string" ? u.defaultRoomId : null,
+          notifRooms,
+          avatarColor: isHexColor(u.avatarColor) ? normalizeHexColor(u.avatarColor) : defaultGhostColorForUserId(u.id),
+          avatarVariant: isGhostVariant(u.avatarVariant) ? u.avatarVariant : "classic",
+          createdAt: typeof u.createdAt === "number" ? u.createdAt : Date.now(),
+        };
+      });
   } catch (err) {
     console.error("Failed to load users:", err);
     return [];
