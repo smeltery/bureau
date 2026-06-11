@@ -172,6 +172,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - In-process Bun/TypeScript only in v0. Plugins run with the same privileges as the bureau process — trust model is operator-installed local code.
 - Reference plugin: bureau-dossier (https://github.com/dotbrains/bureau-dossier) gives agents long-term memory across sessions, backed by mem0 (https://mem0.ai). Demonstrates the contract end-to-end.
 - Full doc: docs/features/plugin-system.md.
+- Separately, bureau has a Plugins panel (office toolbar) for managing Claude Code plugins — the CLI's ecosystem of skills/hooks/MCP servers that agents inherit. Browse and search marketplace plugins, install (user/project/local scope), enable/disable, update, remove, and add/remove marketplaces. Newly installed plugins activate on an agent's next session.
 
 ### Notifications
 - Sound notification when agent finishes and tab is unfocused
