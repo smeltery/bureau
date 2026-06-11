@@ -439,6 +439,11 @@ export interface UserRecord {
   // Strict list of room IDs this user can see and act in. Owners can edit it.
   allowedRooms: string[];
   defaultRoomId: string | null;
+  // Rooms this user gets notification sounds / desktop alerts for. Strict
+  // string[] of roomIds — no "all" sentinel. New users get a snapshot of
+  // their allowed rooms (notify everywhere by default); they can pare it
+  // down in User Settings. See shouldNotifyRoom in shared/notifications.ts.
+  notifRooms: string[];
   avatarColor: string;
   avatarVariant: GhostVariant;
   createdAt: number;
@@ -709,7 +714,7 @@ export type ClientCommand =
   | { type: "send_cronjob_run_message"; cronjobId: string; runId: string; text: string; username?: string }
   | { type: "edit_cronjob_run_message"; cronjobId: string; runId: string; logEntryId: string; newText: string; username?: string }
   | { type: "claim_user"; username: string }
-  | { type: "update_user"; userId: string; changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "avatarColor" | "avatarVariant">> }
+  | { type: "update_user"; userId: string; changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">> }
   | { type: "delete_user"; userId: string }
   | { type: "list_active_sessions" }
   | { type: "revoke_session"; sessionPrefix: string }
