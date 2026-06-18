@@ -1,7 +1,7 @@
 import type { AgentState } from "../../../shared/types.ts";
 import { existsSync } from "fs";
 import { join } from "path";
-import { accumulateSessionUsage, appendSessionUsageSnapshot, readEnvFile, rollSessionUsageOnResume, loadLogWithAncestors, appendLog } from "../../persistence.ts";
+import { accumulateSessionUsage, appendSessionUsageSnapshot, readEnvFile, rollSessionUsageOnResume, loadLogWithAncestors, appendLog, ensureSessionCwd } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
@@ -237,6 +237,11 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
           addLogEntry(agentId, "system", "Conversation cleared.");
         }
         managed.sessionId = ev.sessionId;
+        // Record the cwd this session was born in (source of truth for
+        // per-session cwd). Idempotent: a fork already stamped its cwd via
+        // persistSessionFork so this no-ops there; a plain fresh session
+        // (spawn / new conversation) gets the agent's current mirror cwd here.
+        ensureSessionCwd(agentId, ev.sessionId, managed.info.cwd);
         if (!hadPreviousSession) {
           for (const entry of logCache.get(agentId) ?? []) appendLog(agentId, ev.sessionId, entry);
         }
