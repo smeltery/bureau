@@ -152,7 +152,9 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
           parentTopicMessageCount++;
         }
       }
-      persistSessionFork(agentId, newSessionId, forkFromSessionId, logEntryId, oldTopic, parentTopicMessageCount, parentBase);
+      // Fork inherits the active session's cwd (cwd is per-session), so the new
+      // branch keeps working in the same directory.
+      persistSessionFork(agentId, newSessionId, forkFromSessionId, logEntryId, oldTopic, parentTopicMessageCount, managed.info.cwd, parentBase);
     }
 
     // 5. Create new session from fork (or fresh session for first-message edit), then close old
