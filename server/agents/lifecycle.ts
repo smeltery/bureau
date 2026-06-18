@@ -4,7 +4,17 @@ import { existsSync, readFileSync, rmSync, statSync } from "fs";
 import type { AgentBackendType, AgentInfo, AgentOutfit, KilledAgentSummary, LogEntry, SkillInfo } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES, KILLED_AGENT_CHIP_CAP } from "../../shared/types.ts";
 import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
-import { listAgentSessions, loadAgents, loadAgentHistory, loadLogWithAncestors, saveAgentHistory, saveFile as savePersistedFile, type AgentHistoryEntry } from "../persistence.ts";
+import {
+  listAgentSessions,
+  loadAgents,
+  loadAgentHistory,
+  loadLogWithAncestors,
+  saveAgentHistory,
+  saveFile as savePersistedFile,
+  getSessionCwd,
+  persistSessionCwd,
+  type AgentHistoryEntry,
+} from "../persistence.ts";
 import { mimeTypeForFilename } from "../mime-types.ts";
 import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
@@ -12,7 +22,7 @@ import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
 import { openFile as openFileImpl, saveFile as saveFileImpl, resolveEditorPath, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
-import { moveClaudeSessionFiles, resolveCwd, validateCwd } from "./session/paths.ts";
+import { moveClaudeSessionFile, resolveCwd, validateCwd } from "./session/paths.ts";
 import { buildSessionEnv, createSession, installSession, replaceSession } from "./session/runtime.ts";
 import { getBackend } from "../backends/index.ts";
 import { findRoomIndex, updateState } from "./state.ts";
@@ -249,21 +259,30 @@ export async function editAgent(
       updated.name = changes.name;
     }
   }
-  if (changes.cwd && changes.cwd !== managed.info.cwd) {
-    const oldCwd = managed.info.cwd;
-    // Build env BEFORE mutating cwd so the move targets the same
-    // CLAUDE_CONFIG_DIR the spawn was using. Best-effort: if the office/room
-    // envFile is broken, fall through to the default ~/.claude — losing the
-    // move silently is worse than failing the cwd edit on a config error.
-    let env: { [key: string]: string | undefined } | undefined;
-    try {
-      env = buildSessionEnv(managed);
-    } catch {
-      env = undefined;
+  // cwd is a property of the session: changing it retargets the agent's active
+  // session. The live backend process's cwd is fixed at spawn, so the actual
+  // work — the Claude file move, the Codex thread drop, the stored-cwd stamp —
+  // is deferred into the replace block below (which always runs for a cwd
+  // change) so it can resume the relocated session in one step. Here we only
+  // capture the pre-mutation cwd + env and switch the mirror. Build env BEFORE
+  // mutating cwd so the move targets the CLAUDE_CONFIG_DIR the spawn was using;
+  // best-effort, since a broken envFile shouldn't block the edit on a config error.
+  let cwdChanging = false;
+  let oldCwd = managed.info.cwd;
+  let cwdMoveEnv: { [key: string]: string | undefined } | undefined;
+  if (changes.cwd) {
+    const resolvedNew = resolveCwd(changes.cwd);
+    if (resolvedNew !== managed.info.cwd) {
+      cwdChanging = true;
+      oldCwd = managed.info.cwd;
+      try {
+        cwdMoveEnv = buildSessionEnv(managed);
+      } catch {
+        cwdMoveEnv = undefined;
+      }
+      managed.info.cwd = resolvedNew;
+      updated.cwd = resolvedNew;
     }
-    managed.info.cwd = resolveCwd(changes.cwd);
-    updated.cwd = managed.info.cwd;
-    if (managed.info.agentType === "claude") moveClaudeSessionFiles(agentId, oldCwd, managed.info.cwd, env);
   }
   if (changes.outfit) {
     managed.info.outfit = changes.outfit;
@@ -292,14 +311,67 @@ export async function editAgent(
 
   if (Object.keys(updated).length === 0) return;
 
-  // System prompt + cwd are passed into every createSession, so name/cwd/
-  // customInstructions changes automatically apply to the next conversation.
+  // System prompt is passed into every createSession, so name/customInstructions
+  // changes automatically apply to the next conversation.
 
-  // Recreate session if model or permission mode changed so it takes effect immediately
-  if (updated.modelFamily || updated.permissionMode || updated.codexSandbox || updated.effort) {
-    const sessionId = managed.sessionId;
-    const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
+  const isClaude = managed.info.agentType === "claude";
+  const settingsReplace = !!(updated.modelFamily || updated.permissionMode || updated.codexSandbox || updated.effort);
+  // A cwd change retargets the active session — the live backend process's cwd
+  // is fixed at spawn, so it must be replaced. Settings changes (model /
+  // permission / sandbox / effort) replace regardless so they take effect now.
+  const needReplace = settingsReplace || cwdChanging;
+
+  if (needReplace) {
+    const codexCwdChange = cwdChanging && !isClaude;
+
+    // Claude cwd change: relocate the active session's files to the new project
+    // dir BEFORE the resume so createSession finds them there. A failed move
+    // means Claude can't locate the .jsonl, so abort the cwd change (roll the
+    // mirror back, reverse any partial move) rather than stamp the session into
+    // a cwd it can't be resumed from.
+    if (cwdChanging && isClaude && managed.sessionId) {
+      const target = managed.info.cwd;
+      const moved = moveClaudeSessionFile(managed.sessionId, oldCwd, target, cwdMoveEnv);
+      if (!moved.ok) {
+        managed.info.cwd = oldCwd;
+        delete updated.cwd;
+        let reversed = true;
+        if (moved.moved) reversed = moveClaudeSessionFile(managed.sessionId, target, oldCwd, cwdMoveEnv).ok;
+        throw new Error(
+          `Failed to move session files to ${target}: ${moved.error}. ` +
+            (reversed
+              ? `cwd change aborted; the session stays in ${oldCwd}.`
+              : `cwd change aborted, but the session files could not be moved back and now live in ${target}; resume may fail until they are restored.`),
+        );
+      }
+    }
+
+    // Codex can't carry a cwd across a resume (thread/resume ignores cwd), so a
+    // cwd change abandons the thread and starts a fresh one in the new cwd. Wipe
+    // the prior conversation (mirrors newConversation) so the fresh thread
+    // doesn't inherit stale log history bound to the old cwd. The old thread's
+    // rollout stays on disk, resumable via /resume.
+    if (codexCwdChange) {
+      managed.sessionId = null;
+      logCache.set(agentId, []);
+      emit({ type: "clear_logs", agentId } as any);
+      managed.topicMessageCount = 0;
+      managed.info.topic = null;
+      managed.info.topicStale = false;
+      updated.topic = null;
+      updated.topicStale = false;
+    }
+
+    const resumeId = managed.sessionId;
+    const newSession = resumeId ? createSession(managed, resumeId) : createSession(managed);
     await replaceSession(agentId, managed, newSession);
+
+    // Stamp the active Claude session's new cwd as source of truth. Fresh
+    // sessions (the Codex cwd change, or a from-scratch session) get stamped by
+    // system_init's ensureSessionCwd instead.
+    if (cwdChanging && isClaude && managed.sessionId) {
+      persistSessionCwd(agentId, managed.sessionId, managed.info.cwd);
+    }
   }
 
   persistAll();
@@ -620,6 +692,21 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
   let resumeFromSession: string | null = entry.lastSessionId ?? null;
   if (!resumeFromSession) {
     resumeFromSession = listAgentSessions(agentId)[0]?.sessionId ?? null;
+  }
+
+  // cwd is a property of the session: if the resumed session recorded its own
+  // cwd, prefer it over the killed-agent history snapshot (resolved above) so
+  // the agent revives in the directory that session actually ran in. Keep the
+  // snapshot fallback when the stored cwd is gone/invalid.
+  if (resumeFromSession) {
+    const sessionCwd = getSessionCwd(agentId, resumeFromSession);
+    if (sessionCwd) {
+      try {
+        resolvedCwd = validateCwd(sessionCwd);
+      } catch {
+        // Stored session cwd unavailable — keep the step-6 fallback.
+      }
+    }
   }
 
   const agentType: AgentBackendType = entry.agentType ?? "claude";

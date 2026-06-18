@@ -10,6 +10,7 @@ import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
 import { listCronjobs, buildCronjobSystemPrompt } from "../../cronjobs/index.ts";
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
+import { tildifyCwd } from "../session/paths.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { renderUsageReport } from "../usage.ts";
@@ -247,10 +248,14 @@ const commandHandlers: Record<string, HandlerFn> = {
       const rawLabel = s.topic || s.sessionId.slice(0, 8) + "...";
       const label = s.forked ? `↳ ${rawLabel}` : rawLabel;
       const suffix = s.branched ? "  (branched)" : "";
+      // cwd is a property of the session \u2014 surface it so the user sees which
+      // directory each session will resume into (it can differ per session).
+      // Abbreviate the home prefix to `~` to save horizontal space.
+      const cwdStr = s.cwd ? `  ${tildifyCwd(s.cwd)}` : "";
       if (s.sessionId === managed.sessionId) {
-        lines.push(`  \u25cf ${label}  ${dateStr}  (current)`);
+        lines.push(`  \u25cf ${label}  ${dateStr}${cwdStr}  (current)`);
       } else {
-        lines.push(`  ${num}. ${label}  ${dateStr}${suffix}`);
+        lines.push(`  ${num}. ${label}  ${dateStr}${cwdStr}${suffix}`);
         pickable.push(s);
         num++;
       }
