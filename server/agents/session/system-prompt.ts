@@ -45,7 +45,9 @@ How to offer the boss to run a command in their terminal side panel: call POST l
 How to send a message to another agent's chat: call POST localhost:${PORT}/agents/<receiver-id>/message. If the receiver is busy, your message is queued and delivered with the receiver's next turn; if idle, it's delivered right away. The receiver decides whether to reply — replies are just another POST in the opposite direction; there is no automatic back-and-forth. Find the receiver's id in ~/.bureau/agents-summary.json.
   curl -s -X POST localhost:${PORT}/agents/<receiver-id>/message -H 'Content-Type: application/json' -d '{"text":"...","senderAgentId":"${agentId}"}'
 
-How to answer questions about Bureau itself: the source lives at https://github.com/dotbrains/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.`;
+How to answer questions about Bureau itself: the source lives at https://github.com/dotbrains/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.
+
+Pipe every command that touches secret-bearing surfaces (env vars, .env files, credential configs) through a sed redaction so API keys, tokens, and other credentials never leak into chat output or transcripts.`;
   if (officePrompt) systemPrompt += `\n\n## Office Instructions\n\n${officePrompt}`;
   if (roomPrompt) systemPrompt += `\n\n## Instructions For Your Room: ${roomName}\n\n${roomPrompt}`;
   if (customInstructions) systemPrompt += `\n\n## Personal Instructions For You: ${agentName}\n\n${customInstructions}`;
