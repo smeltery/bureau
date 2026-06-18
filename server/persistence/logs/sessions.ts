@@ -37,6 +37,12 @@ type SessionsMap = Record<
     // existed — treated as 0 (regenerate aggressively).
     topicMessageCount?: number;
     lastModified: number;
+    // The cwd this session runs in. Source of truth for per-session cwd; the
+    // agent's `cwd` field is a denormalized mirror of the *active* session's
+    // value (and the seed for the next new session). Absent on sessions
+    // persisted before this field existed — callers backfill from the agent
+    // cwd then (see getSessionCwd / ensureSessionCwd).
+    cwd?: string;
     forkedFrom?: string;
     forkMessageId?: string;
     usage?: PersistedUsage;
@@ -73,10 +79,51 @@ export function persistSessionTopic(agentId: string, sessionId: string, topic: s
   saveSessionsMap(agentId, map);
 }
 
-export function persistSessionFork(agentId: string, sessionId: string, forkedFrom: string, forkMessageId: string, topic: string | null, topicMessageCount: number, forkBaseUsage?: PersistedUsage) {
+// Persist the cwd a session runs in. Source of truth for per-session cwd; the
+// agent's mirror is updated separately by the caller. Merges into the existing
+// entry so topic/usage/fork fields aren't clobbered.
+export function persistSessionCwd(agentId: string, sessionId: string, cwd: string) {
   const map = loadSessionsMap(agentId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
-  map[sessionId] = { ...existing, topic, topicMessageCount, lastModified: Date.now(), forkedFrom, forkMessageId, ...(forkBaseUsage ? { forkBaseUsage } : {}) };
+  map[sessionId] = { ...existing, cwd, lastModified: Date.now() };
+  saveSessionsMap(agentId, map);
+}
+
+// Read a session's stored cwd. Returns null when the session has no recorded
+// cwd (legacy sessions persisted before per-session cwd, or sessions with no
+// metadata entry at all). Callers fall back to the agent's mirror cwd.
+export function getSessionCwd(agentId: string, sessionId: string): string | null {
+  const map = loadSessionsMap(agentId);
+  return map[sessionId]?.cwd ?? null;
+}
+
+// Stamp a session's cwd only if it doesn't already have one, returning the
+// effective cwd. Backfills legacy sessions and records a fresh session's cwd at
+// birth without overwriting an existing value. `fallbackCwd` is the agent's
+// current mirror cwd. A pure backfill preserves the existing lastModified so it
+// doesn't reorder the resume picker; a brand-new entry stamps lastModified now.
+export function ensureSessionCwd(agentId: string, sessionId: string, fallbackCwd: string): string {
+  const map = loadSessionsMap(agentId);
+  const existing = map[sessionId];
+  if (existing?.cwd) return existing.cwd;
+  map[sessionId] = { ...(existing ?? { topic: null, lastModified: 0 }), cwd: fallbackCwd, lastModified: existing?.lastModified ?? Date.now() };
+  saveSessionsMap(agentId, map);
+  return fallbackCwd;
+}
+
+export function persistSessionFork(
+  agentId: string,
+  sessionId: string,
+  forkedFrom: string,
+  forkMessageId: string,
+  topic: string | null,
+  topicMessageCount: number,
+  cwd: string,
+  forkBaseUsage?: PersistedUsage,
+) {
+  const map = loadSessionsMap(agentId);
+  const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
+  map[sessionId] = { ...existing, topic, topicMessageCount, cwd, lastModified: Date.now(), forkedFrom, forkMessageId, ...(forkBaseUsage ? { forkBaseUsage } : {}) };
   saveSessionsMap(agentId, map);
 }
 
@@ -138,7 +185,9 @@ export function appendSessionUsageSnapshot(agentId: string, sessionId: string, e
 }
 
 // List all sessions for an agent (sorted by most recent first), with topics from sessions.json
-export function listAgentSessions(agentId: string): { sessionId: string; lastModified: number; topic: string | null; topicMessageCount: number; branched?: boolean; forked?: boolean }[] {
+export function listAgentSessions(
+  agentId: string,
+): { sessionId: string; lastModified: number; topic: string | null; topicMessageCount: number; cwd: string | null; branched?: boolean; forked?: boolean }[] {
   try {
     const agentDir = join(LOGS_DIR, agentId);
     if (!existsSync(agentDir)) return [];
@@ -160,6 +209,7 @@ export function listAgentSessions(agentId: string): { sessionId: string; lastMod
           lastModified: entry?.lastModified ?? Bun.file(join(agentDir, f)).lastModified,
           topic: entry?.topic ?? null,
           topicMessageCount: entry?.topicMessageCount ?? 0,
+          cwd: entry?.cwd ?? null,
           ...(branchedFromIds.has(sid) ? { branched: true as const } : {}),
           ...(entry?.forkedFrom ? { forked: true as const } : {}),
         };
