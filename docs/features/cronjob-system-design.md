@@ -234,8 +234,8 @@ Header button on the Cronjobs page → modal with one textarea for `cronjobsProm
 - `ui/App.tsx` — `cronjobsOpen` state, conditional render, history-stack integration.
 - `ui/office/OfficeView.tsx` — Cronjobs nav button.
 
-## Notes vs upstream isomux
+## Implementation notes
 
-- bureau does not currently expose a `--effort` thinking-effort field on agents; the cronjob port omits it (no `EffortLevel` import, no `--effort` flag in `executableArgs`).
-- bureau's `permissionMode` union is wider than isomux's; the cronjob picker still restricts to `bypassPermissions | auto`.
-- bureau persistence already lives under `server/persistence/`; cronjob persistence slots in alongside `logs/` and `config/` rather than as a sibling top-level file.
+- Cronjobs do not expose a `--effort` thinking-effort field (no `EffortLevel` import, no `--effort` flag in `executableArgs`).
+- The cronjob picker restricts `permissionMode` to `bypassPermissions | auto`, narrower than the full agent union.
+- Cronjob persistence lives under `server/persistence/`, alongside `logs/` and `config/`, rather than as a sibling top-level file.
