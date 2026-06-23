@@ -8,7 +8,7 @@ import { LOGS_DIR } from "./paths.ts";
 // File storage (unified files/ directory with SHA256 dedup)
 // ---------------------------------------------------------------------------
 
-export const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB
+export const MAX_FILE_BYTES = 200 * 1024 * 1024; // 200MB
 
 export const MIME_TO_EXTENSION: Record<string, string> = {
   "image/jpeg": "jpg",

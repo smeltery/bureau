@@ -356,6 +356,10 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
 }
 
 const server = Bun.serve<WsData>({
+  // Bun's default is ~128MB, below our 200MB per-file / 400MB per-upload limits,
+  // so a large upload would 413 at the HTTP layer before reaching the handler.
+  // Keep this above MAX_TOTAL (see server/http/files.ts).
+  maxRequestBodySize: 512 * 1024 * 1024, // 512MB
   // Bind decision is locked to the boot-frozen externalAccess: loopback-only
   // pre-claim OR when external access is off; widened to all interfaces
   // (host: undefined → Bun's default 0.0.0.0) only when the office has been
