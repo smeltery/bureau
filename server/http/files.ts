@@ -35,9 +35,9 @@ async function uploadHandler(req: Request, url: URL): Promise<Response> {
   try {
     const formData = await req.formData();
     const attachments: Attachment[] = [];
-    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+    const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
     const MAX_FILES = 5;
-    const MAX_TOTAL = 40 * 1024 * 1024; // 40MB
+    const MAX_TOTAL = 400 * 1024 * 1024; // 400MB
     let totalSize = 0;
     let fileCount = 0;
 
@@ -51,14 +51,14 @@ async function uploadHandler(req: Request, url: URL): Promise<Response> {
         });
       }
       if (value.size > MAX_FILE_SIZE) {
-        return new Response(JSON.stringify({ error: `File "${value.name}" exceeds 20MB limit` }), {
+        return new Response(JSON.stringify({ error: `File "${value.name}" exceeds 200MB limit` }), {
           status: 400,
           headers: JSON_HEADERS,
         });
       }
       totalSize += value.size;
       if (totalSize > MAX_TOTAL) {
-        return new Response(JSON.stringify({ error: "Total upload exceeds 40MB limit" }), {
+        return new Response(JSON.stringify({ error: "Total upload exceeds 400MB limit" }), {
           status: 400,
           headers: JSON_HEADERS,
         });
