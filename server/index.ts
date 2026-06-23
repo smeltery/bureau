@@ -159,8 +159,8 @@ setOnSessionsChanged(() => {
 // First-claim hook: seed the office at the moment the first owner is
 // created (tokenless claim form or legacy bootstrap-invite accept). Bureau
 // starts empty (the first agent is spawned by the user on demand), so this
-// hook is intentionally a no-op for now. The hook exists for parity with
-// isomux's welcome-agents flow and as the supported extension point.
+// hook is intentionally a no-op for now. It exists as the supported extension
+// point for seeding welcome agents into a freshly claimed office.
 setOnOwnerCreated(async ({ username }) => {
   void username;
 });

@@ -18,8 +18,8 @@ import type { PersistedUsage } from "./logs/sessions.ts";
 
 // Cronjobs system prompt — owned by the cronjob manager and stored in its own
 // file, not folded into office-config.json. Two managers writing the same
-// JSON with stale in-memory copies would silently clobber each other (one
-// of the v1 review blockers in upstream isomux).
+// JSON with stale in-memory copies would silently clobber each other, so the
+// cronjob prompt is deliberately kept in a separate file.
 export function loadCronjobsPrompt(): string | null {
   try {
     if (!existsSync(CRONJOBS_PROMPT_FILE)) return null;
