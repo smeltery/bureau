@@ -438,6 +438,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   const memoryPrompt = memoryStore.renderForPromptMulti([
     { scope: "office", scopeId: null, label: "Office-wide" },
     { scope: "room", scopeId: room.id, label: `Room "${room.name}"` },
+    ...(managed.info.userId ? [{ scope: "boss" as const, scopeId: managed.info.userId, label: "Your boss" }] : []),
     { scope: "agent", scopeId: managed.info.id, label: `Agent "${managed.info.name}"` },
   ]);
   const systemPrompt = buildSystemPrompt(managed.info.name, managed.info.id, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions, memoryPrompt);

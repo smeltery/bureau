@@ -8,7 +8,7 @@ import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
 export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClose: () => void; username: string; onSaveUsername: (name: string) => void }) {
-  const { office } = useAppState();
+  const { office, sessionContext } = useAppState();
   const [text, setText] = useState(office.prompt ?? "");
   const [envFile, setEnvFile] = useState(office.envFile ?? "");
   const [name, setName] = useState(username);
@@ -17,6 +17,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const requestIdRef = useRef<string>("");
   const officeMemory = useMemoryEditor("office", null);
+  const bossMemory = useMemoryEditor("boss", sessionContext?.userId ?? null, !!sessionContext?.userId);
 
   // Ask the server to re-validate the stored env file on open
   useEffect(() => {
@@ -47,6 +48,11 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
     const memoryResult = await officeMemory.save();
     if (!memoryResult.ok) {
       setStatus({ kind: "error", message: memoryResult.message });
+      return;
+    }
+    const bossMemoryResult = await bossMemory.save();
+    if (!bossMemoryResult.ok) {
+      setStatus({ kind: "error", message: bossMemoryResult.message });
       return;
     }
     const reqId = `office-save-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -123,6 +129,11 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for all agents)</span>
       </label>
       <textarea value={officeMemory.memory} onChange={(e) => officeMemory.setMemory(e.target.value)} rows={5} style={{ ...inputStyle, resize: "vertical" }} disabled={!officeMemory.loaded} />
+
+      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
+        My Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for agents you spawn)</span>
+      </label>
+      <textarea value={bossMemory.memory} onChange={(e) => bossMemory.setMemory(e.target.value)} rows={5} style={{ ...inputStyle, resize: "vertical" }} disabled={!bossMemory.loaded} />
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
         <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>

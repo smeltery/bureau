@@ -394,6 +394,7 @@ export async function spawn(
   agentType: AgentBackendType = "claude",
   codexSandbox?: AgentInfo["codexSandbox"],
   effort?: AgentInfo["effort"],
+  userId?: string | null,
 ): Promise<AgentInfo | null> {
   // Reject duplicate names across all rooms
   const nameLower = name.trim().toLowerCase();
@@ -427,6 +428,7 @@ export async function spawn(
   const info: AgentInfo = {
     id,
     name,
+    userId: userId ?? null,
     desk,
     room: targetRoom,
     cwd: resolvedCwd,

@@ -579,6 +579,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         cmd.agentType ?? "claude",
         cmd.codexSandbox,
         cmd.effort,
+        getWsUser(ws)?.id ?? null,
       );
       if (cmd.requestId) {
         ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
