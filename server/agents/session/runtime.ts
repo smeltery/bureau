@@ -4,6 +4,7 @@ import { join } from "path";
 import { accumulateSessionUsage, appendSessionUsageSnapshot, readEnvFile, rollSessionUsageOnResume, loadLogWithAncestors, appendLog, ensureSessionCwd } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
+import { memoryStore } from "../../memory-store.ts";
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
 import { autocompleteCommands } from "../commands.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
@@ -434,7 +435,12 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     );
   }
   const room = rooms[managed.info.room]!;
-  const systemPrompt = buildSystemPrompt(managed.info.name, managed.info.id, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions);
+  const memoryPrompt = memoryStore.renderForPromptMulti([
+    { scope: "office", scopeId: null, label: "Office-wide" },
+    { scope: "room", scopeId: room.id, label: `Room "${room.name}"` },
+    { scope: "agent", scopeId: managed.info.id, label: `Agent "${managed.info.name}"` },
+  ]);
+  const systemPrompt = buildSystemPrompt(managed.info.name, managed.info.id, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions, memoryPrompt);
   // V2 SDKSessionOptions still doesn't expose systemPrompt / extraArgs, so we
   // inject --append-system-prompt via executableArgs. When
   // pathToClaudeCodeExecutable is a native binary, executableArgs are prepended

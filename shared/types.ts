@@ -285,6 +285,17 @@ export interface TaskItem {
   createdAt: number;
 }
 
+export type MemoryScope = "office" | "room" | "agent" | "boss";
+
+export interface MemoryItem {
+  scope: MemoryScope;
+  scopeId: string | null;
+  author: string;
+  date: string;
+  text: string;
+  raw: string;
+}
+
 // Generate a unique 8-char hex ID, avoiding collisions with `existing`.
 function generateHexId(existing?: string[]): string {
   const ids = existing ? new Set(existing) : undefined;

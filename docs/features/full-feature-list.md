@@ -16,6 +16,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   topics, and status.
 - Shared `agents-summary.json` discovery manifest for inter-agent awareness.
 - Agents can read other agents' logs and send messages to one another.
+- Durable shared memory with office, room, and agent scopes. Agents can append
+  attributed facts through the local API, users can curate raw memory in
+  settings dialogs, and relevant notes load into future agent prompts.
 - `/bureau-message <agent> <text>` drops a message straight into another
   agent's chat (attributed to the sending desk; queues if the target is busy).
 - Messages from humans and agents share one receiver queue while an agent is

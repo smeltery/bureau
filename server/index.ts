@@ -23,6 +23,7 @@ import { handleCronjobsRequest } from "./http/cronjobs.ts";
 import { handlePluginsRequest } from "./http/plugins.ts";
 import { handleFilesRequest } from "./http/files.ts";
 import { handleAgentsRequest } from "./http/agents.ts";
+import { handleMemoryRequest } from "./http/memory.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
 import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
@@ -432,6 +433,9 @@ const server = Bun.serve<WsData>({
 
     const agentsResp = await handleAgentsRequest(req, url);
     if (agentsResp) return agentsResp;
+
+    const memoryResp = await handleMemoryRequest(req, url);
+    if (memoryResp) return memoryResp;
 
     // SPA shell — auth-gated; an unauthenticated visitor lands on the
     // login page (or the claim form pre-claim).

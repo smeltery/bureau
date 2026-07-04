@@ -3,6 +3,7 @@ import { useAppState } from "../../store.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
 import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts";
+import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
@@ -14,6 +15,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const roomMemory = useMemoryEditor("room", roomId, !!room);
 
   // Ask the server to re-validate the stored env file on open
   useEffect(() => {
@@ -39,7 +41,12 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     return () => removeRawListener(listener);
   }, [room?.envFile, roomId]);
 
-  function handleSave() {
+  async function handleSave() {
+    const memoryResult = await roomMemory.save();
+    if (!memoryResult.ok) {
+      setStatus({ kind: "error", message: memoryResult.message });
+      return;
+    }
     const reqId = `room-save-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     setSaving(true);
     const listener = (data: string) => {
@@ -106,6 +113,11 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
         style={{ ...inputStyle, resize: "vertical" }}
       />
       <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>
+
+      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
+        Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for this room)</span>
+      </label>
+      <textarea value={roomMemory.memory} onChange={(e) => roomMemory.setMemory(e.target.value)} rows={5} style={{ ...inputStyle, resize: "vertical" }} disabled={!roomMemory.loaded} />
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
         <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>
