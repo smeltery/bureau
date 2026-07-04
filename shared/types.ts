@@ -151,6 +151,7 @@ export function familyFromLegacyModel(model: string | undefined): ModelFamily {
 export interface AgentInfo {
   id: string;
   name: string;
+  userId?: string | null;
   desk: number; // 0-7
   room: number; // 0-based room index
   cwd: string;
