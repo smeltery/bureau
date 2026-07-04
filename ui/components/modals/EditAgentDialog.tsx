@@ -5,6 +5,7 @@ import { SHIRT_COLORS, HAIR_COLORS, SKIN_COLORS, HAIR_STYLES, BEARDS, HATS, ACCE
 import { Character } from "../../office/scene/Character.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
 import { useAppState } from "../../store.tsx";
+import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 
 const HAIR_STYLE_LABELS: Record<AgentOutfit["hairStyle"], string> = {
@@ -82,6 +83,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
   const [cwdError, setCwdError] = useState<string | null>(null);
   const pendingListener = useRef<((data: string) => void) | null>(null);
   const recentCwds = allRecentCwds.filter((c) => c !== cwd);
+  const agentMemory = useMemoryEditor("agent", agent?.id ?? null, !isSpawn && !!agent);
 
   useEffect(() => {
     return () => {
@@ -109,7 +111,14 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     return () => removeRawListener(listener);
   }, [isSpawn, agent?.id]);
 
-  function handleSave() {
+  async function handleSave() {
+    if (!isSpawn) {
+      const memoryResult = await agentMemory.save();
+      if (!memoryResult.ok) {
+        setCwdError(memoryResult.message);
+        return;
+      }
+    }
     const reqId = `agent-save-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const listener = (data: string) => {
       try {
@@ -403,6 +412,15 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
             Run <code>/bureau-system-prompt</code> in a chat to see the agent's full system prompt.
             {!isSpawn && " Changes take effect on next conversation."}
           </p>
+
+          {!isSpawn && (
+            <>
+              <label style={{ ...labelStyle, marginTop: 14 }}>
+                Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for this agent)</span>
+              </label>
+              <textarea value={agentMemory.memory} onChange={(e) => agentMemory.setMemory(e.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} disabled={!agentMemory.loaded} />
+            </>
+          )}
 
           {/* Move to Room — only show when multiple rooms exist and editing */}
           {!isSpawn && roomCount > 1 && (
