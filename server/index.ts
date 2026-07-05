@@ -441,7 +441,7 @@ const server = Bun.serve<WsData>({
     const filesResp = await handleFilesRequest(req, url);
     if (filesResp) return filesResp;
 
-    const agentsResp = await handleAgentsRequest(req, url);
+    const agentsResp = await handleAgentsRequest(req, url, httpAuth);
     if (agentsResp) return agentsResp;
 
     const memoryResp = await handleMemoryRequest(req, url);
