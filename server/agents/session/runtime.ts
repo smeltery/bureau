@@ -10,6 +10,7 @@ import { autocompleteCommands } from "../commands.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
 import { getBackend } from "../../backends/index.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
+import { getUserById } from "../../users.ts";
 
 export function buildMemoryPromptForAgent(managed: ManagedAgent): string | null {
   const room = rooms[managed.info.room];
@@ -20,6 +21,10 @@ export function buildMemoryPromptForAgent(managed: ManagedAgent): string | null 
     ...(managed.info.userId ? [{ scope: "boss" as const, scopeId: managed.info.userId, label: "Your boss" }] : []),
     { scope: "agent", scopeId: managed.info.id, label: `Agent "${managed.info.name}"` },
   ]);
+}
+
+export function managerNameForAgent(managed: ManagedAgent): string | null {
+  return managed.info.userId ? (getUserById(managed.info.userId)?.name ?? null) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -447,7 +452,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   }
   const room = rooms[managed.info.room]!;
   const memoryPrompt = buildMemoryPromptForAgent(managed);
-  const systemPrompt = buildSystemPrompt(managed.info.name, managed.info.id, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions, memoryPrompt);
+  const systemPrompt = buildSystemPrompt(managed.info.name, managed.info.id, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions, memoryPrompt, managerNameForAgent(managed));
   // V2 SDKSessionOptions still doesn't expose systemPrompt / extraArgs, so we
   // inject --append-system-prompt via executableArgs. When
   // pathToClaudeCodeExecutable is a native binary, executableArgs are prepended

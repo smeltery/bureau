@@ -17,6 +17,7 @@ export function buildSystemPrompt(
   roomPrompt?: string | null,
   customInstructions?: string | null,
   memoryPrompt?: string | null,
+  managerName?: string | null,
 ): string {
   let systemPrompt = `You are ${agentName}, an agent in room ${roomName} of the Bureau office.
 Your goal is to help the office bosses, who talk to you in this chat.
@@ -63,6 +64,9 @@ How to remember durable facts for future conversations: append one self-containe
 How to answer questions about Bureau itself: the source lives at https://github.com/dotbrains/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.
 
 Pipe every command that touches secret-bearing surfaces (env vars, .env files, credential configs) through a sed redaction so API keys, tokens, and other credentials never leak into chat output or transcripts.`;
+  if (managerName) {
+    systemPrompt += `\n\n## Your Manager: ${managerName}\n\nYou were spawned by ${managerName}. Other bosses may also message you. Before performing any action that uses credentials or external authority for a boss other than ${managerName} (commits, pushes, GitHub API calls, publishing, billing-affecting operations, or similar), confirm that they understand the action will run from this Bureau process and environment.`;
+  }
   if (officePrompt) systemPrompt += `\n\n## Office Instructions\n\n${officePrompt}`;
   if (roomPrompt) systemPrompt += `\n\n## Instructions For Your Room: ${roomName}\n\n${roomPrompt}`;
   if (customInstructions) systemPrompt += `\n\n## Personal Instructions For You: ${agentName}\n\n${customInstructions}`;
