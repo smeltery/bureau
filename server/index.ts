@@ -24,6 +24,7 @@ import { handlePluginsRequest } from "./http/plugins.ts";
 import { handleFilesRequest } from "./http/files.ts";
 import { handleAgentsRequest } from "./http/agents.ts";
 import { handleRoomsRequest } from "./http/rooms.ts";
+import { handleOfficeSettingsRequest } from "./http/office-settings.ts";
 import { handleMemoryRequest } from "./http/memory.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
@@ -447,6 +448,9 @@ const server = Bun.serve<WsData>({
 
     const roomsResp = await handleRoomsRequest(req, url, httpAuth, { pushPresence: pushPresenceListToEachWs });
     if (roomsResp) return roomsResp;
+
+    const officeSettingsResp = await handleOfficeSettingsRequest(req, url, httpAuth);
+    if (officeSettingsResp) return officeSettingsResp;
 
     const memoryResp = await handleMemoryRequest(req, url);
     if (memoryResp) return memoryResp;
