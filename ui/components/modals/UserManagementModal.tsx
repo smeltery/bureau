@@ -182,6 +182,7 @@ function UserEditPanel({
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState<UserRole>(user.role);
   const [allowedRooms, setAllowedRooms] = useState(() => new Set(user.allowedRooms));
+  const [hiddenRooms, setHiddenRooms] = useState(() => new Set(user.hidden ?? []));
   const [defaultRoomId, setDefaultRoomId] = useState<string | null>(user.defaultRoomId ?? user.allowedRooms[0] ?? rooms[0]?.id ?? null);
   const [notifRooms, setNotifRooms] = useState(() => new Set(user.notifRooms ?? []));
   const [envFile, setEnvFile] = useState(user.envFile ?? "");
@@ -190,6 +191,7 @@ function UserEditPanel({
   const [avatarVariant, setAvatarVariant] = useState<GhostVariant>(user.avatarVariant);
   const allAllowed = allowedRooms.size === rooms.length;
   const userNotif = user.notifRooms ?? [];
+  const userHidden = user.hidden ?? [];
 
   const isDirty =
     name !== user.name ||
@@ -201,6 +203,8 @@ function UserEditPanel({
     (defaultRoomId ?? null) !== (user.defaultRoomId ?? null) ||
     allowedRooms.size !== user.allowedRooms.length ||
     user.allowedRooms.some((id) => !allowedRooms.has(id)) ||
+    hiddenRooms.size !== userHidden.length ||
+    userHidden.some((id) => !hiddenRooms.has(id)) ||
     notifRooms.size !== userNotif.length ||
     userNotif.some((id) => !notifRooms.has(id));
   useEffect(() => {
@@ -211,7 +215,8 @@ function UserEditPanel({
   function save() {
     // Keep notifRooms within the (possibly just-edited) allowed set — the
     // server enforces this too, but trimming here keeps the wire honest.
-    const notif = [...notifRooms].filter((id) => allowedRooms.has(id));
+    const shownRooms = [...allowedRooms].filter((id) => !hiddenRooms.has(id));
+    const notif = [...notifRooms].filter((id) => shownRooms.includes(id));
     send({
       type: "update_user",
       userId: user.id,
@@ -219,6 +224,8 @@ function UserEditPanel({
         name: name.trim(),
         role,
         allowedRooms: [...allowedRooms],
+        hidden: [...hiddenRooms].filter((id) => allowedRooms.has(id)),
+        order: (user.order ?? []).filter((id) => allowedRooms.has(id)),
         defaultRoomId,
         notifRooms: notif,
         envFile: envFile.trim() || null,
@@ -297,9 +304,14 @@ function UserEditPanel({
                   checked={allowedRooms.has(room.id)}
                   onChange={(e) => {
                     const next = new Set(allowedRooms);
+                    const nextHidden = new Set(hiddenRooms);
                     if (e.target.checked) next.add(room.id);
-                    else next.delete(room.id);
+                    else {
+                      next.delete(room.id);
+                      nextHidden.delete(room.id);
+                    }
                     setAllowedRooms(next);
+                    setHiddenRooms(nextHidden);
                     if (!next.has(defaultRoomId ?? "")) setDefaultRoomId(next.values().next().value ?? null);
                     // A room you can't see can't notify you — drop it.
                     if (!e.target.checked && notifRooms.has(room.id)) {
@@ -315,18 +327,49 @@ function UserEditPanel({
           </div>
         </>
       )}
+      <label style={{ ...dialogLabel, marginTop: 12 }}>Shown rooms</label>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 6, marginTop: 8 }}>
+        {rooms
+          .filter((room) => allowedRooms.has(room.id))
+          .map((room) => (
+            <label key={room.id} style={{ display: "flex", gap: 7, alignItems: "center", fontSize: 12, color: "var(--text-primary)" }}>
+              <input
+                type="checkbox"
+                checked={!hiddenRooms.has(room.id)}
+                onChange={(e) => {
+                  const nextHidden = new Set(hiddenRooms);
+                  if (e.target.checked) nextHidden.delete(room.id);
+                  else nextHidden.add(room.id);
+                  setHiddenRooms(nextHidden);
+                  if (!e.target.checked && defaultRoomId === room.id) {
+                    const nextDefault = [...allowedRooms].find((id) => id !== room.id && !nextHidden.has(id)) ?? null;
+                    setDefaultRoomId(nextDefault);
+                  }
+                  if (!e.target.checked && notifRooms.has(room.id)) {
+                    const nextNotif = new Set(notifRooms);
+                    nextNotif.delete(room.id);
+                    setNotifRooms(nextNotif);
+                  }
+                }}
+              />
+              {room.name}
+            </label>
+          ))}
+      </div>
       <label style={{ ...dialogLabel, marginTop: 12 }}>Default room</label>
       <select value={defaultRoomId ?? ""} onChange={(e) => setDefaultRoomId(e.target.value || null)} style={dialogInput}>
-        {[...allowedRooms].map((id) => {
-          const room = rooms.find((r) => r.id === id);
-          return room ? (
-            <option key={id} value={id}>
-              {room.name}
-            </option>
-          ) : null;
-        })}
+        {[...allowedRooms]
+          .filter((id) => !hiddenRooms.has(id))
+          .map((id) => {
+            const room = rooms.find((r) => r.id === id);
+            return room ? (
+              <option key={id} value={id}>
+                {room.name}
+              </option>
+            ) : null;
+          })}
       </select>
-      <NotificationPrefs rooms={rooms.filter((r) => allowedRooms.has(r.id))} notifRooms={notifRooms} onChange={setNotifRooms} />
+      <NotificationPrefs rooms={rooms.filter((r) => allowedRooms.has(r.id) && !hiddenRooms.has(r.id))} notifRooms={notifRooms} onChange={setNotifRooms} />
       <label style={{ ...dialogLabel, marginTop: 12 }}>Env file path</label>
       <input value={envFile} onChange={(e) => setEnvFile(e.target.value)} placeholder="/absolute/path/to/.env" style={dialogInput} />
       <label style={{ ...dialogLabel, marginTop: 12 }}>Personal context</label>

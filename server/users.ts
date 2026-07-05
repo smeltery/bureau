@@ -75,6 +75,8 @@ export function claimUserByName(name: string, opts: { role?: UserRole; allowedRo
     envFile: null,
     memberPrompt: null,
     allowedRooms,
+    hidden: [],
+    order: [],
     defaultRoomId: allowedRooms[0] ?? null,
     notifRooms: [...allowedRooms],
     avatarColor: defaultGhostColorForUserId(id),
@@ -103,7 +105,7 @@ export function setUserRoleById(userId: string, role: UserRole): void {
 // to know whether to invoke).
 export function updateUserById(
   userId: string,
-  changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
+  changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
 ): { ok: true; user: UserRecord } | { ok: false; error: string } {
   const target = getUserById(userId);
   if (!target) return { ok: false, error: `user ${userId} not found` };
@@ -115,6 +117,12 @@ export function updateUserById(
   if (changes.role === "owner" || changes.role === "member") next.role = changes.role;
   if (Array.isArray(changes.allowedRooms)) {
     next.allowedRooms = changes.allowedRooms.filter((id): id is string => typeof id === "string");
+  }
+  if (Array.isArray(changes.hidden)) {
+    next.hidden = changes.hidden.filter((id): id is string => typeof id === "string");
+  }
+  if (Array.isArray(changes.order)) {
+    next.order = changes.order.filter((id): id is string => typeof id === "string");
   }
   if (changes.defaultRoomId !== undefined) {
     next.defaultRoomId = typeof changes.defaultRoomId === "string" ? changes.defaultRoomId : null;
@@ -166,9 +174,25 @@ function normalizeAllowedRooms(value: unknown, allRoomIds: string[]): string[] {
 function ensureUserRooms(user: UserRecord, allRoomIds: string[]): UserRecord {
   const allowedRooms = normalizeAllowedRooms(user.allowedRooms, allRoomIds);
   const nextAllowed = user.role === "owner" && allowedRooms.length === 0 ? allRoomIds : allowedRooms;
-  const defaultRoomId = user.defaultRoomId && nextAllowed.includes(user.defaultRoomId) ? user.defaultRoomId : (nextAllowed[0] ?? null);
-  if (nextAllowed.length === user.allowedRooms.length && nextAllowed.every((id, i) => id === user.allowedRooms[i]) && defaultRoomId === user.defaultRoomId) return user;
-  const next = { ...user, allowedRooms: nextAllowed, defaultRoomId };
+  const hidden = Array.isArray(user.hidden) ? user.hidden.filter((id) => nextAllowed.includes(id)) : [];
+  const hiddenSet = new Set(hidden);
+  const order = Array.isArray(user.order) ? user.order.filter((id, index, arr) => nextAllowed.includes(id) && arr.indexOf(id) === index) : [];
+  const shownRooms = nextAllowed.filter((id) => !hiddenSet.has(id));
+  const defaultRoomId = user.defaultRoomId && shownRooms.includes(user.defaultRoomId) ? user.defaultRoomId : (shownRooms[0] ?? null);
+  const notifRooms = (user.notifRooms ?? []).filter((id) => shownRooms.includes(id));
+  if (
+    nextAllowed.length === user.allowedRooms.length &&
+    nextAllowed.every((id, i) => id === user.allowedRooms[i]) &&
+    hidden.length === (user.hidden ?? []).length &&
+    hidden.every((id, i) => id === (user.hidden ?? [])[i]) &&
+    order.length === (user.order ?? []).length &&
+    order.every((id, i) => id === (user.order ?? [])[i]) &&
+    defaultRoomId === user.defaultRoomId &&
+    notifRooms.length === user.notifRooms.length &&
+    notifRooms.every((id, i) => id === user.notifRooms[i])
+  )
+    return user;
+  const next = { ...user, allowedRooms: nextAllowed, hidden, order, defaultRoomId, notifRooms };
   users.set(normalizeUserKey(next.name), next);
   persist();
   return next;
@@ -190,6 +214,8 @@ export function claimUser(ws: import("bun").ServerWebSocket<unknown>, username: 
       envFile: null,
       memberPrompt: null,
       allowedRooms: allRoomIds,
+      hidden: [],
+      order: [],
       defaultRoomId: allRoomIds[0] ?? null,
       notifRooms: [...allRoomIds],
       avatarColor: defaultGhostColorForUserId(id),
@@ -250,7 +276,7 @@ export function listUsers(rooms: RoomWire[]): UserRecord[] {
 export function updateUser(
   actor: UserRecord | null,
   userId: string,
-  changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
+  changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
   rooms: RoomWire[],
 ): UserRecord | null {
   if (!actor) return null;
@@ -268,13 +294,33 @@ export function updateUser(
     if (changes.role === "owner" || changes.role === "member") next.role = changes.role;
     if (changes.allowedRooms) next.allowedRooms = normalizeAllowedRooms(changes.allowedRooms, allRoomIds);
   }
+  const accessRooms = next.role === "owner" ? allRoomIds : next.allowedRooms;
+  if (Array.isArray(changes.hidden)) {
+    next.hidden = changes.hidden.filter((id): id is string => typeof id === "string" && accessRooms.includes(id));
+  } else {
+    next.hidden = (next.hidden ?? []).filter((id) => accessRooms.includes(id));
+  }
+  if (Array.isArray(changes.order)) {
+    const seen = new Set<string>();
+    next.order = changes.order.filter((id): id is string => {
+      if (typeof id !== "string" || !accessRooms.includes(id) || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  } else {
+    next.order = (next.order ?? []).filter((id) => accessRooms.includes(id));
+  }
+  const hiddenSet = new Set(next.hidden);
+  const shownRooms = accessRooms.filter((id) => !hiddenSet.has(id));
   if (changes.defaultRoomId !== undefined) {
-    next.defaultRoomId = typeof changes.defaultRoomId === "string" && next.allowedRooms.includes(changes.defaultRoomId) ? changes.defaultRoomId : null;
+    next.defaultRoomId = typeof changes.defaultRoomId === "string" && shownRooms.includes(changes.defaultRoomId) ? changes.defaultRoomId : null;
+  } else if (next.defaultRoomId && !shownRooms.includes(next.defaultRoomId)) {
+    next.defaultRoomId = shownRooms[0] ?? null;
   }
   // notifRooms is a self-editable preference (owner or self, already gated by
   // canEdit above). Keep it within the rooms the user can actually see.
   if (Array.isArray(changes.notifRooms)) {
-    next.notifRooms = changes.notifRooms.filter((id): id is string => typeof id === "string" && next.allowedRooms.includes(id));
+    next.notifRooms = changes.notifRooms.filter((id): id is string => typeof id === "string" && shownRooms.includes(id));
   }
   if (changes.envFile !== undefined) {
     const envFile = typeof changes.envFile === "string" ? changes.envFile.trim() : "";
@@ -287,8 +333,8 @@ export function updateUser(
   if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
   if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;
   if (next.role === "owner" && next.allowedRooms.length === 0) next.allowedRooms = allRoomIds;
-  // Drop any notifRooms that fell outside a shrunken allowedRooms set.
-  next.notifRooms = next.notifRooms.filter((id) => next.allowedRooms.includes(id));
+  // Drop any notifRooms that fell outside a shrunken shown-room set.
+  next.notifRooms = next.notifRooms.filter((id) => shownRooms.includes(id));
   users.delete(normalizeUserKey(target.name));
   users.set(normalizeUserKey(next.name), next);
   persist();
@@ -311,14 +357,30 @@ export function canSeeRoom(user: UserRecord | null, roomId: string): boolean {
 }
 
 export function projectRooms(user: UserRecord | null, rooms: RoomWire[]): RoomWire[] {
-  if (!user || user.role === "owner") return rooms;
-  return rooms.filter((r) => user.allowedRooms.includes(r.id));
+  if (!user) return rooms;
+  const accessible = user.role === "owner" ? rooms : rooms.filter((r) => user.allowedRooms.includes(r.id));
+  const hidden = new Set(user.hidden ?? []);
+  const orderRank = new Map<string, number>();
+  for (const id of user.order ?? []) {
+    if (!orderRank.has(id)) orderRank.set(id, orderRank.size);
+  }
+  return accessible
+    .filter((r) => !hidden.has(r.id))
+    .map((room, officeIndex) => ({ room, officeIndex }))
+    .sort((a, b) => {
+      const ar = orderRank.get(a.room.id) ?? Infinity;
+      const br = orderRank.get(b.room.id) ?? Infinity;
+      return ar === br ? a.officeIndex - b.officeIndex : ar - br;
+    })
+    .map(({ room }) => room);
 }
 
 export function projectAgents(user: UserRecord | null, agents: AgentInfo[], rooms: RoomWire[]): AgentInfo[] {
-  if (!user || user.role === "owner") return agents;
-  const visibleRoomIds = new Set(user.allowedRooms);
-  const projectedIndex = new Map(projectRooms(user, rooms).map((room, index) => [room.id, index]));
+  if (!user) return agents;
+  const projectedRooms = projectRooms(user, rooms);
+  const visibleRoomIds = new Set(projectedRooms.map((room) => room.id));
+  if (user.role === "owner" && projectedRooms.length === rooms.length && projectedRooms.every((room, index) => room.id === rooms[index]?.id)) return agents;
+  const projectedIndex = new Map(projectedRooms.map((room, index) => [room.id, index]));
   return agents
     .filter((agent) => visibleRoomIds.has(rooms[agent.room]?.id ?? ""))
     .map((agent) => {
