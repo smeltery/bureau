@@ -46,6 +46,7 @@ import {
   findUsageAtForkRun,
   rollRunSessionUsageOnResume,
   listAllCronjobIdsOnDisk,
+  readEnvFile,
   saveFile,
   type PersistedUsage,
 } from "../persistence.ts";
@@ -70,19 +71,32 @@ export { computeNextFire };
 // right port instead of the canonical 4000.
 const PORT = process.env.PORT || "4000";
 
+function buildCronjobEnv(): { [key: string]: string | undefined } | undefined {
+  const officeEnvFile = officeConfig.envFile;
+  if (!officeEnvFile) return undefined;
+  return { ...process.env, ...readEnvFile(officeEnvFile) };
+}
+
 function cronRunBackend(run: CronjobRun) {
   return getBackend(run.agentTypeSnapshot ?? "claude");
 }
 
 function checkCronRunSessionFile(run: CronjobRun, leaf: string, action: "resume" | "edit"): boolean {
   if ((run.agentTypeSnapshot ?? "claude") !== "claude") return true;
-  if (claudeSessionFileExists(run.cwdSnapshot, leaf)) return true;
+  let env: { [key: string]: string | undefined } | undefined;
+  try {
+    env = buildCronjobEnv();
+  } catch (err: any) {
+    emitRunErrorEntry(run.cronjobId, run.id, `Cannot ${action}: env file is invalid: ${err.message || String(err)}`);
+    return false;
+  }
+  if (claudeSessionFileExists(run.cwdSnapshot, leaf, env)) return true;
 
   const prefix = action === "resume" ? `Cannot resume session ${leaf.slice(0, 8)}…` : `Cannot edit: session ${leaf.slice(0, 8)}…`;
   emitRunErrorEntry(
     run.cronjobId,
     run.id,
-    `${prefix}: its file is missing from ${claudeProjectDir(run.cwdSnapshot)}. ` +
+    `${prefix}: its file is missing from ${claudeProjectDir(run.cwdSnapshot, env)}. ` +
       `Most commonly this happens after the cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd.`,
   );
   return false;
@@ -617,11 +631,13 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
   // run rather than an opaque SDK exit.
   let cwdValid = true;
   let cwdError: string | null = null;
+  let env: { [key: string]: string | undefined } | undefined;
   try {
     validateCwd(job.cwd);
+    env = buildCronjobEnv();
   } catch (err: any) {
     cwdValid = false;
-    cwdError = err.message || "Invalid cwd";
+    cwdError = err.message || "Invalid cronjob environment";
   }
 
   const runId = generateCronjobRunId();
@@ -661,7 +677,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
     return run;
   }
 
-  const opts = buildRunSessionOptions(job, jobId, runId);
+  const opts = buildRunSessionOptions(job, jobId, runId, env);
   let session: BackendSession;
   try {
     session = getBackend(job.agentType).createSession(opts);
@@ -723,7 +739,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
   return run;
 }
 
-function buildRunSessionOptions(job: Cronjob, jobId: string, runId: string): CreateSessionOptions {
+function buildRunSessionOptions(job: Cronjob, jobId: string, runId: string, env: { [key: string]: string | undefined } | undefined): CreateSessionOptions {
   const systemPrompt = buildCronjobSystemPrompt(job, jobId, runId, buildCronjobMemoryPrompt());
   return {
     agentId: cronjobRunStreamId(runId),
@@ -731,6 +747,7 @@ function buildRunSessionOptions(job: Cronjob, jobId: string, runId: string): Cre
     effort: job.effort,
     permissionMode: job.permissionMode,
     sandbox: job.codexSandbox,
+    env,
     systemPrompt,
     cwd: job.cwd,
   };
@@ -840,12 +857,14 @@ function buildRunResumeOptions(run: CronjobRun, resumeSessionId: string): Create
   // pick up any office/cronjobs prompt edits. For deleted cronjobs, use an
   // empty append instead of synthesizing a partial prompt.
   const job = cronjobs.find((c) => c.id === run.cronjobId);
+  const env = buildCronjobEnv();
   return {
     agentId: cronjobRunStreamId(run.id),
     modelFamily: run.modelFamilySnapshot,
     effort: run.effortSnapshot,
     permissionMode: run.permissionModeSnapshot,
     sandbox: run.codexSandboxSnapshot,
+    env,
     systemPrompt: job ? buildCronjobSystemPrompt(job, run.cronjobId, run.id, buildCronjobMemoryPrompt()) : "",
     cwd: run.cwdSnapshot,
   };
