@@ -735,7 +735,7 @@ const server = Bun.serve<WsData>({
     const httpAuth = authenticate(req, server, { allowLoopback: true, officeName: getOfficeName() });
     if (httpAuth.kind === "rejected") return httpAuth.response;
 
-    const tasksResp = await handleTasksRequest(req, url);
+    const tasksResp = await handleTasksRequest(req, url, httpAuth);
     if (tasksResp) return tasksResp;
 
     const cronjobsResp = await handleCronjobsRequest(req, url);

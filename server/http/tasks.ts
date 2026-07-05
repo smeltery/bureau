@@ -1,7 +1,10 @@
 import type { ServerMessage, TaskItem } from "../../shared/types.ts";
 import { generateTaskId, isValidPriority, isValidStatus } from "../../shared/types.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
+import * as AgentManager from "../agent-manager.ts";
+import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveTasks } from "../persistence.ts";
+import { getUserById } from "../users.ts";
 import { broadcast, tasks } from "../ws/broadcast.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
@@ -10,7 +13,7 @@ const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "appli
  * Handle every /tasks and /api/tasks request. Returns null for unrelated URLs
  * so the caller can fall through to the next router.
  */
-export async function handleTasksRequest(req: Request, url: URL): Promise<Response | null> {
+export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResult): Promise<Response | null> {
   // CORS preflight
   if (req.method === "OPTIONS" && (url.pathname.startsWith("/tasks") || url.pathname.startsWith("/api/tasks"))) {
     return new Response(null, {
@@ -25,18 +28,14 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
   const parts = taskRouteParts(url.pathname);
   if (!parts) return null;
   const rawBearer = readBearerToken(req);
-  if (rawBearer && !resolveAgentToken(rawBearer)) {
+  const bearer = resolveAgentToken(rawBearer);
+  if (rawBearer && !bearer) {
     return new Response(JSON.stringify({ error: "invalid bearer token" }), { status: 401, headers: corsHeaders });
   }
 
   // ["tasks"] or ["tasks", id] or ["tasks", id, action]
   const taskId = parts[1];
   const action = parts[2]; // "claim" or "done"
-
-  // DELETE blocked at HTTP level
-  if (req.method === "DELETE") {
-    return new Response(JSON.stringify({ error: "DELETE not allowed via HTTP" }), { status: 405, headers: corsHeaders });
-  }
 
   // GET /tasks — list (excludes done and backlog by default)
   if (req.method === "GET" && !taskId) {
@@ -68,14 +67,16 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
 
   // POST /tasks — create
   if (req.method === "POST" && !taskId) {
+    const createdBy = taskAttribution(bearer, auth);
+    if (!createdBy) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     let body: Record<string, unknown>;
     try {
       body = (await req.json()) as Record<string, unknown>;
     } catch {
       return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: corsHeaders });
     }
-    if (!body.title || !body.createdBy) {
-      return new Response(JSON.stringify({ error: "title and createdBy required" }), { status: 400, headers: corsHeaders });
+    if (!body.title) {
+      return new Response(JSON.stringify({ error: "title is required" }), { status: 400, headers: corsHeaders });
     }
     if (body.priority !== undefined && !isValidPriority(body.priority)) {
       return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3" }), { status: 400, headers: corsHeaders });
@@ -87,7 +88,7 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
       priority: body.priority as TaskItem["priority"],
       status: "open",
       assignee: body.assignee ? String(body.assignee) : undefined,
-      createdBy: String(body.createdBy),
+      createdBy,
       createdAt: Date.now(),
     };
     tasks.push(task);
@@ -98,6 +99,7 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
 
   // PATCH /tasks/:id — update
   if (req.method === "PATCH" && taskId && !action) {
+    if (!taskAttribution(bearer, auth)) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     let body: Record<string, unknown>;
@@ -124,6 +126,7 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
 
   // POST /tasks/:id/claim
   if (req.method === "POST" && taskId && action === "claim") {
+    if (!taskAttribution(bearer, auth)) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     let body: Record<string, unknown>;
@@ -141,6 +144,7 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
 
   // POST /tasks/:id/done
   if (req.method === "POST" && taskId && action === "done") {
+    if (!taskAttribution(bearer, auth)) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     // Agents send `curl -d '{}'` — consume the body so Bun doesn't warn
@@ -153,7 +157,24 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
     return new Response(JSON.stringify(task), { headers: corsHeaders });
   }
 
+  // DELETE /tasks/:id
+  if (req.method === "DELETE" && taskId && !action) {
+    if (!taskAttribution(bearer, auth)) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
+    const index = tasks.findIndex((t) => t.id === taskId);
+    if (index === -1) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+    tasks.splice(index, 1);
+    saveTasks(tasks);
+    broadcast({ type: "tasks", tasks } as ServerMessage);
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+}
+
+function taskAttribution(bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined): string | null {
+  if (bearer) return AgentManager.getAgentDisplay(bearer.agentId)?.name ?? bearer.agentId;
+  if (auth?.kind === "ok") return getUserById(auth.session.userId)?.name ?? auth.session.username;
+  return null;
 }
 
 function taskRouteParts(pathname: string): string[] | null {

@@ -1,5 +1,18 @@
 import { describe, expect, test } from "bun:test";
+import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { handleTasksRequest } from "../tasks.ts";
+
+const auth: AuthResult = {
+  kind: "ok",
+  session: {
+    sessionIdHash: "hash",
+    sessionPrefix: "sess",
+    userId: "user-1",
+    username: "Boss",
+    role: "owner",
+    needsRolling: false,
+  },
+};
 
 describe("handleTasksRequest", () => {
   test("accepts /api/tasks as an alias for task list reads", async () => {
@@ -26,5 +39,46 @@ describe("handleTasksRequest", () => {
 
     expect(res?.status).toBe(401);
     expect(await res?.json()).toEqual({ error: "invalid bearer token" });
+  });
+
+  test("requires an authenticated caller to create tasks", async () => {
+    const req = new Request("http://local.test/api/tasks", {
+      method: "POST",
+      body: JSON.stringify({ title: "Write tests", createdBy: "spoofed" }),
+    });
+
+    const res = await handleTasksRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "authenticated caller required" });
+  });
+
+  test("creates tasks using authenticated user attribution", async () => {
+    const req = new Request("http://local.test/api/tasks", {
+      method: "POST",
+      body: JSON.stringify({ title: "Write tests", createdBy: "spoofed" }),
+    });
+
+    const res = await handleTasksRequest(req, new URL(req.url), auth);
+    const body = await res?.json();
+
+    expect(res?.status).toBe(201);
+    expect(body.createdBy).toBe("Boss");
+
+    const cleanup = new Request(`http://local.test/api/tasks/${body.id}`, { method: "DELETE" });
+    await handleTasksRequest(cleanup, new URL(cleanup.url), auth);
+  });
+
+  test("deletes tasks over the api", async () => {
+    const createReq = new Request("http://local.test/api/tasks", {
+      method: "POST",
+      body: JSON.stringify({ title: "Delete me" }),
+    });
+    const created = await (await handleTasksRequest(createReq, new URL(createReq.url), auth))?.json();
+    const deleteReq = new Request(`http://local.test/api/tasks/${created.id}`, { method: "DELETE" });
+
+    const res = await handleTasksRequest(deleteReq, new URL(deleteReq.url), auth);
+
+    expect(res?.status).toBe(204);
   });
 });
