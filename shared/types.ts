@@ -547,6 +547,7 @@ export interface PresenceInfo {
   device: string | null;
   avatarColor: string;
   avatarVariant: GhostVariant;
+  currentRoomId?: string | null;
   currentRoom: number | null;
   focusedAgentId: string | null;
   viewMode: "office" | "log" | "away";
@@ -834,7 +835,7 @@ export type ClientCommand =
       publicOrigin: string | null;
       officeName?: string | null;
     }
-  | { type: "presence_update"; currentRoom: number | null; focusedAgentId: string | null; viewMode: "office" | "log" | "away"; device?: string | null }
+  | { type: "presence_update"; currentRoom: number | null; currentRoomId?: string | null; focusedAgentId: string | null; viewMode: "office" | "log" | "away"; device?: string | null }
   | { type: "ping" };
 
 // Generate a stable 8-char hex room ID (used at room creation and during migration)

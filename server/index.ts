@@ -203,6 +203,7 @@ function buildPresenceListFor(ws: import("bun").ServerWebSocket<unknown>): Prese
       device: presence.device,
       avatarColor: presence.avatarColor,
       avatarVariant: presence.avatarVariant,
+      currentRoomId: presence.currentRoomId,
       currentRoom,
       focusedAgentId: presence.focusedAgentId,
       viewMode: presence.viewMode,
