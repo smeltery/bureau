@@ -11,6 +11,7 @@ function cronjob(): Cronjob {
     cwd: "/tmp",
     agentType: "claude",
     modelFamily: "opus",
+    effort: "xhigh",
     permissionMode: "bypassPermissions",
     enabled: true,
     createdBy: "Boss",
