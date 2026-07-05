@@ -193,7 +193,7 @@ const commandHandlers: Record<string, HandlerFn> = {
       "  • The built-in side-panel terminal is useful for one-off situations where you need to run something manually, like auth flows. The file editor side panel (toggle next to the terminal button) opens any file with CodeMirror.",
     );
     lines.push(
-      "  • Agents can offer `[Open in editor]` and `[Copy to terminal]` cards in chat. Agents can also surface a file inline with POST /agents/:id/read-file — images render in-chat, others as a clickable chip.",
+      "  • Agents can offer `[Open in editor]` and `[Copy to terminal]` cards in chat. Agents can also surface a file inline with POST /api/agents/:id/read-file — images render in-chat, others as a clickable chip.",
     );
     lines.push(
       "  • Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Use `/bureau-edit <path>` to open a file in the editor side panel. Use `/bureau-usage` to see per-agent + per-room + per-cron-job lifetime cost.",

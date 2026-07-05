@@ -1,7 +1,7 @@
 // Identity formatting helpers shared between server and UI.
 // `username` is the human boss who sent the message; agent senders use a
 // distinct format so the receiving agent can tell the two apart and (for
-// agent-to-agent traffic) reply via the same /agents/:id/message endpoint.
+// agent-to-agent traffic) reply via the same /api/agents/:id/message endpoint.
 
 export function formatUserPrefix(username: string | undefined): string {
   if (!username) return "";

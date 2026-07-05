@@ -21,7 +21,7 @@ function generateQueuedId(existing: QueuedMessage[]): string {
 }
 
 // Single entry point for both human (textarea via sendMessage) and agent
-// (HTTP POST /agents/:id/message) senders. Decides whether to queue or
+// (HTTP POST /api/agents/:id/message) senders. Decides whether to queue or
 // flush-immediately based on the receiver's state. Rejects `error` /
 // `stopped` agents with 409. The textarea path (sendMessage) is more
 // permissive — it has its own session-recovery branch — but agents
