@@ -35,6 +35,14 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain('"createdBy":"<boss-name>"');
     expect(prompt).toContain('If you can\'t tell, use "A".');
   });
+
+  test("documents the agent manager before configurable instructions", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room", "OFFICE-MARK", "ROOM-MARK", "AGENT-MARK", "MEMORY-MARK", "Boss One");
+
+    expect(prompt).toContain("## Your Manager: Boss One");
+    expect(prompt).toContain("Other bosses may also message you.");
+    expect(prompt.indexOf("## Your Manager: Boss One")).toBeLessThan(prompt.indexOf("OFFICE-MARK"));
+  });
 });
 
 describe("memorySection", () => {
