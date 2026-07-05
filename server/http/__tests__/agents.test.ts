@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import { handleAgentsRequest } from "../agents.ts";
 
@@ -16,6 +17,30 @@ function request(path: string, init: RequestInit = {}): Request {
     },
   });
 }
+
+const ownerAuth: AuthResult = {
+  kind: "ok",
+  session: {
+    sessionIdHash: "hash",
+    sessionPrefix: "sess",
+    userId: "owner-1",
+    username: "Owner",
+    role: "owner",
+    needsRolling: false,
+  },
+};
+
+const memberAuth: AuthResult = {
+  kind: "ok",
+  session: {
+    sessionIdHash: "hash",
+    sessionPrefix: "sess",
+    userId: "member-1",
+    username: "Member",
+    role: "member",
+    needsRolling: false,
+  },
+};
 
 describe("handleAgentsRequest", () => {
   test("accepts /api/agents affordance routes", async () => {
@@ -93,5 +118,48 @@ describe("handleAgentsRequest", () => {
     const req = request("/api/tasks");
 
     await expect(handleAgentsRequest(req, new URL(req.url))).resolves.toBeNull();
+  });
+
+  test("requires a browser session to spawn agents", async () => {
+    const req = request("/api/agents", {
+      body: JSON.stringify({ name: "A", cwd: process.cwd(), roomId: "room-1", desk: 0 }),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "unauthenticated" });
+  });
+
+  test("validates spawn bodies before creating agents", async () => {
+    const req = request("/api/agents", {
+      body: JSON.stringify({ cwd: process.cwd(), roomId: "room-1", desk: 0 }),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(422);
+    expect(await res?.json()).toEqual({ error: "name is required" });
+  });
+
+  test("routes agent lifecycle mutations under /api/agents", async () => {
+    const req = request("/api/agents/missing/abort", { body: JSON.stringify({}) });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(404);
+    expect(await res?.json()).toEqual({ error: "agent not found" });
+  });
+
+  test("requires owners for privilege changes", async () => {
+    const req = request("/api/agents/missing/privileged", {
+      method: "PUT",
+      body: JSON.stringify({ privileged: true }),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), memberAuth);
+
+    expect(res?.status).toBe(404);
+    expect(await res?.json()).toEqual({ error: "agent not found" });
   });
 });
