@@ -9,6 +9,7 @@ function cronjob(): Cronjob {
     schedule: { type: "daily", hour: 9, minute: 0 },
     prompt: "Summarize the day.",
     cwd: "/tmp",
+    agentType: "claude",
     modelFamily: "opus",
     permissionMode: "bypassPermissions",
     enabled: true,

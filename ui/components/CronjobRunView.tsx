@@ -228,7 +228,7 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
             <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>PROMPT</div>
             <div style={{ whiteSpace: "pre-wrap" }}>{run.promptSnapshot}</div>
             <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-ghost)" }}>
-              cwd: {run.cwdSnapshot} · model: {run.modelFamilySnapshot} · permission: {run.permissionModeSnapshot}
+              cwd: {run.cwdSnapshot} · backend: {run.agentTypeSnapshot} · model: {run.modelFamilySnapshot} · permission: {run.permissionModeSnapshot}
             </div>
             {run.errorReason && <div style={{ marginTop: 8, fontSize: 11, color: "var(--red)" }}>Error: {run.errorReason}</div>}
           </div>

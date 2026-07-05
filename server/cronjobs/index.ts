@@ -155,6 +155,7 @@ export interface AddCronjobInput {
   schedule: Schedule;
   prompt: string;
   cwd: string;
+  agentType?: Cronjob["agentType"];
   modelFamily: Cronjob["modelFamily"];
   permissionMode: CronjobPermissionMode;
   username: string;
@@ -170,8 +171,9 @@ export function addCronjob(input: AddCronjobInput): Cronjob {
     schedule,
     prompt: input.prompt,
     cwd: resolveCwd(input.cwd),
+    agentType: input.agentType ?? "claude",
     modelFamily: input.modelFamily,
-    permissionMode: validateCronjobPermissionMode("claude", input.permissionMode),
+    permissionMode: validateCronjobPermissionMode(input.agentType ?? "claude", input.permissionMode),
     enabled: true,
     createdBy: input.username,
     device: input.device ?? null,
@@ -198,7 +200,7 @@ export function updateCronjob(id: string, changes: Partial<Pick<Cronjob, "name" 
   if (changes.prompt !== undefined) next.prompt = changes.prompt;
   if (changes.cwd !== undefined) next.cwd = resolveCwd(changes.cwd);
   if (changes.modelFamily !== undefined) next.modelFamily = changes.modelFamily;
-  if (changes.permissionMode !== undefined) next.permissionMode = validateCronjobPermissionMode("claude", changes.permissionMode);
+  if (changes.permissionMode !== undefined) next.permissionMode = validateCronjobPermissionMode(next.agentType, changes.permissionMode);
   if (changes.enabled !== undefined) next.enabled = changes.enabled;
   if (changes.schedule !== undefined) {
     next.schedule = clampSchedule(changes.schedule);
@@ -597,6 +599,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
     endedAt: cwdValid ? null : now,
     errorReason: cwdError,
     promptSnapshot: job.prompt,
+    agentTypeSnapshot: job.agentType,
     modelFamilySnapshot: job.modelFamily,
     cwdSnapshot: job.cwd,
     permissionModeSnapshot: job.permissionMode,
@@ -621,7 +624,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
   const opts = buildRunSessionOptions(job, jobId, runId);
   let session: BackendSession;
   try {
-    session = getBackend("claude").createSession(opts);
+    session = getBackend(job.agentType).createSession(opts);
   } catch (err: any) {
     const updated = updateRun(jobId, runId, {
       status: "failed",
@@ -710,6 +713,7 @@ function recordSkippedRun(job: Cronjob): CronjobRun {
     endedAt: now,
     errorReason: "previous scheduled run still in flight",
     promptSnapshot: job.prompt,
+    agentTypeSnapshot: job.agentType,
     modelFamilySnapshot: job.modelFamily,
     cwdSnapshot: job.cwd,
     permissionModeSnapshot: job.permissionMode,
@@ -888,7 +892,7 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
   try {
     let session: BackendSession;
     try {
-      session = getBackend("claude").resumeSession(leaf, buildRunResumeOptions(run, leaf));
+      session = getBackend(run.agentTypeSnapshot ?? "claude").resumeSession(leaf, buildRunResumeOptions(run, leaf));
     } catch (err: any) {
       emitRunErrorEntry(jobId, runId, `Failed to resume: ${err.message || String(err)}`);
       return;
@@ -1039,7 +1043,7 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
   //    — leave the run pointing at the old leaf so a retry can start over.
   let session: BackendSession;
   try {
-    session = getBackend("claude").resumeSession(newSessionId, buildRunResumeOptions(run, newSessionId));
+    session = getBackend(run.agentTypeSnapshot ?? "claude").resumeSession(newSessionId, buildRunResumeOptions(run, newSessionId));
   } catch (err: any) {
     emitRunErrorEntry(jobId, runId, `Failed to start fork: ${err.message || String(err)}`);
     return;

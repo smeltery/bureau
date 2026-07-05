@@ -12,7 +12,7 @@
 //         <sessionId>.jsonl            append-only log
 import { join } from "path";
 import { mkdirSync, readFileSync, existsSync, appendFileSync, readdirSync } from "fs";
-import type { Cronjob, CronjobRun, LogEntry } from "../../shared/types.ts";
+import type { AgentBackendType, Cronjob, CronjobRun, LogEntry } from "../../shared/types.ts";
 import { validateCronjobPermissionMode } from "../agent-validators.ts";
 import { atomicWriteFileSync, CRONJOBS_DIR, CRONJOBS_FILE, CRONJOB_HISTORY_FILE, CRONJOBS_PROMPT_FILE } from "./paths.ts";
 import type { PersistedUsage } from "./logs/sessions.ts";
@@ -52,12 +52,17 @@ export function loadCronjobs(): Cronjob[] {
       .filter((c): c is Cronjob => c && typeof c === "object" && typeof c.id === "string")
       .map((c) => ({
         ...c,
-        permissionMode: validateCronjobPermissionMode("claude", (c as { permissionMode?: string }).permissionMode),
+        agentType: normalizeCronjobAgentType((c as { agentType?: unknown }).agentType),
+        permissionMode: validateCronjobPermissionMode(normalizeCronjobAgentType((c as { agentType?: unknown }).agentType), (c as { permissionMode?: string }).permissionMode),
       }));
   } catch (err) {
     console.error("Failed to load cronjobs:", err);
     return [];
   }
+}
+
+function normalizeCronjobAgentType(value: unknown): AgentBackendType {
+  return value === "codex" ? "codex" : "claude";
 }
 
 export function saveCronjobs(cronjobs: Cronjob[]) {
@@ -115,7 +120,18 @@ export function loadRuns(jobId: string): CronjobRun[] {
   try {
     const file = runsFile(jobId);
     if (!existsSync(file)) return [];
-    return JSON.parse(readFileSync(file, "utf-8")) as CronjobRun[];
+    const parsed = JSON.parse(readFileSync(file, "utf-8"));
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((r): r is CronjobRun => r && typeof r === "object" && typeof r.id === "string")
+      .map((r) => ({
+        ...r,
+        agentTypeSnapshot: normalizeCronjobAgentType((r as { agentTypeSnapshot?: unknown }).agentTypeSnapshot),
+        permissionModeSnapshot: validateCronjobPermissionMode(
+          normalizeCronjobAgentType((r as { agentTypeSnapshot?: unknown }).agentTypeSnapshot),
+          (r as { permissionModeSnapshot?: string }).permissionModeSnapshot,
+        ),
+      }));
   } catch (err) {
     console.error(`Failed to load runs for ${jobId}:`, err);
     return [];
