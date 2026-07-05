@@ -319,6 +319,7 @@ export function updateAgentHistory() {
     if (!room) continue;
     history[a.info.id] = {
       name: a.info.name,
+      userId: a.info.userId ?? null,
       lastRoomId: room.id,
       lastRoomName: room.name,
       killedAt: null,
@@ -351,6 +352,7 @@ export function persistAll() {
       persistedRooms[room].agents.push({
         id: a.info.id,
         name: a.info.name,
+        userId: a.info.userId ?? null,
         desk: a.info.desk,
         cwd: a.info.cwd,
         outfit: a.info.outfit,

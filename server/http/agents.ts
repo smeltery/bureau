@@ -1,4 +1,5 @@
 import * as AgentManager from "../agent-manager.ts";
+import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 
 const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -19,8 +20,13 @@ export async function handleAgentsRequest(req: Request, url: URL): Promise<Respo
 
   if (req.method === "POST") {
     const parts = url.pathname.split("/").filter(Boolean);
+    const identity = resolveAgentToken(readBearerToken(req));
+    if (!identity) {
+      return new Response(JSON.stringify({ error: "missing or invalid bearer token" }), { status: 401, headers: JSON_HEADERS });
+    }
     if (parts.length === 3 && parts[2] === "diff") {
       const agentId = parts[1]!;
+      if (identity.agentId !== agentId) return new Response(JSON.stringify({ error: "token does not match agent" }), { status: 403, headers: JSON_HEADERS });
       let dir: string | undefined;
       let commit: string | undefined;
       try {
@@ -34,6 +40,7 @@ export async function handleAgentsRequest(req: Request, url: URL): Promise<Respo
     }
     if (parts.length === 3 && parts[2] === "edit-file") {
       const agentId = parts[1]!;
+      if (identity.agentId !== agentId) return new Response(JSON.stringify({ error: "token does not match agent" }), { status: 403, headers: JSON_HEADERS });
       let path: string | undefined;
       try {
         const body = (await req.json()) as Record<string, unknown> | null;
@@ -46,6 +53,7 @@ export async function handleAgentsRequest(req: Request, url: URL): Promise<Respo
     }
     if (parts.length === 3 && parts[2] === "read-file") {
       const agentId = parts[1]!;
+      if (identity.agentId !== agentId) return new Response(JSON.stringify({ error: "token does not match agent" }), { status: 403, headers: JSON_HEADERS });
       let path: string | undefined;
       try {
         const body = (await req.json()) as Record<string, unknown> | null;
@@ -58,6 +66,7 @@ export async function handleAgentsRequest(req: Request, url: URL): Promise<Respo
     }
     if (parts.length === 3 && parts[2] === "terminal-command") {
       const agentId = parts[1]!;
+      if (identity.agentId !== agentId) return new Response(JSON.stringify({ error: "token does not match agent" }), { status: 403, headers: JSON_HEADERS });
       let command: string | undefined;
       try {
         const body = (await req.json()) as Record<string, unknown> | null;
@@ -82,6 +91,9 @@ export async function handleAgentsRequest(req: Request, url: URL): Promise<Respo
       const senderAgentId = typeof body.senderAgentId === "string" ? body.senderAgentId : null;
       if (!text || !senderAgentId) {
         return new Response(JSON.stringify({ error: "required: text, senderAgentId" }), { status: 400, headers: JSON_HEADERS });
+      }
+      if (identity.agentId !== senderAgentId) {
+        return new Response(JSON.stringify({ error: "token does not match senderAgentId" }), { status: 403, headers: JSON_HEADERS });
       }
       if (senderAgentId === receiverId) {
         return new Response(JSON.stringify({ error: "cannot send to self" }), { status: 400, headers: JSON_HEADERS });

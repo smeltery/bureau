@@ -28,6 +28,7 @@ import { getBackend } from "../backends/index.ts";
 import { findRoomIndex, updateState } from "./state.ts";
 import { sidecarSend } from "./terminal.ts";
 import { BUREAU_DIR, LOGS_DIR } from "../persistence/paths.ts";
+import { mintAgentToken, revokeAgentToken } from "./tokens.ts";
 
 // ---------------------------------------------------------------------------
 // Public read-only getters used by server/index.ts
@@ -475,6 +476,7 @@ export async function spawn(
     lastWrittenEntryId: null,
   };
   agents.set(id, managed);
+  mintAgentToken(id, info.userId ?? null);
   emit({ type: "agent_added", agent: info });
   // Send commands immediately so autocomplete works before SDK init
   emit({
@@ -518,6 +520,7 @@ export async function kill(agentId: string) {
       const history = loadAgentHistory();
       history[agentId] = {
         name: managed.info.name,
+        userId: managed.info.userId ?? null,
         lastRoomId: room.id,
         lastRoomName: room.name,
         killedAt: Date.now(),
@@ -556,6 +559,7 @@ export async function kill(agentId: string) {
   managed.session = null;
   // Remove from the map so the consumer's outer `agents.has(agentId)` guard exits.
   agents.delete(agentId);
+  revokeAgentToken(agentId);
   logCache.delete(agentId);
   if (oldConsumer) {
     try {
@@ -715,6 +719,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
   const info: AgentInfo = {
     id: agentId,
     name: entry.name,
+    userId: entry.userId ?? null,
     desk,
     room: roomIdx,
     cwd: resolvedCwd,
@@ -761,6 +766,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
     flushInProgress: false,
     lastWrittenEntryId: null,
   };
+  mintAgentToken(agentId, info.userId ?? null);
   agents.set(agentId, managed);
 
   // Load log history into cache so the historical conversation stays visible
@@ -784,6 +790,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
     installSession(agentId, managed, session);
   } catch (err: any) {
     agents.delete(agentId);
+    revokeAgentToken(agentId);
     logCache.delete(agentId);
     return { ok: false, error: `Failed to revive: ${err?.message ?? String(err)}` };
   }
@@ -823,6 +830,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
       const info: AgentInfo = {
         id: p.id,
         name: p.name,
+        userId: p.userId ?? null,
         desk: p.desk,
         room: roomIdx,
         cwd: p.cwd,
@@ -843,6 +851,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         customInstructions: p.customInstructions ?? null,
         queue: [],
       };
+      mintAgentToken(p.id, info.userId ?? null);
       const managed: ManagedAgent = {
         info,
         session: null,
