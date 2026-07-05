@@ -31,6 +31,7 @@ import { handleBackendsRequest } from "./http/backends.ts";
 import { handleMemoryRequest } from "./http/memory.ts";
 import { handleViewRequest, type ViewChangeInput } from "./http/view.ts";
 import { handleSystemRequest } from "./http/system.ts";
+import { handleSessionsRequest, type SessionRevokeResult } from "./http/sessions.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
 import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
@@ -48,8 +49,14 @@ import {
   unregisterSocket,
   validateSession,
   listActiveSessions,
+  listActiveSessionsForUserId,
   listInvites,
+  logoutBySessionHash,
+  resolveSessionHashByPrefix,
+  revokeActiveSessionByPrefixForUserId,
+  revokeSessionByPrefix,
   type SessionLookup,
+  wouldRevokeLeaveOfficeUnreachable,
 } from "./auth/auth.ts";
 import { startAdminSocket } from "./auth/admin-socket.ts";
 import { normalizePublicOrigin } from "../shared/public-origin.ts";
@@ -372,6 +379,45 @@ function usersForRecipient(recipient: ReturnType<typeof getWsUser>, rooms: Retur
   return users.map((listed) => (listed.id === recipient.id ? listed : { ...listed, envFile: null, memberPrompt: null, hidden: [], order: [] }));
 }
 
+function pushSessionsListToEachWs() {
+  for (const browser of browsers) {
+    const user = getWsUser(browser);
+    if (!user) continue;
+    const sessions = user.role === "owner" ? listActiveSessions() : listActiveSessionsForUserId(user.id);
+    browser.send(JSON.stringify({ type: "sessions_active_list", sessions } as ServerMessage));
+  }
+}
+
+function broadcastToOwners(msg: ServerMessage) {
+  const data = JSON.stringify(msg);
+  for (const ws of browsers) {
+    if (getWsUser(ws)?.role === "owner") ws.send(data);
+  }
+}
+
+async function revokeSessionForApi(userId: string, role: "owner" | "member", sessionPrefix: string): Promise<SessionRevokeResult> {
+  if (role === "owner") {
+    const targetHash = resolveSessionHashByPrefix(sessionPrefix);
+    if (targetHash && wouldRevokeLeaveOfficeUnreachable(targetHash)) return "would_strand_office";
+    const result = await revokeSessionByPrefix(sessionPrefix);
+    if (result === "ok") {
+      broadcastToOwners({ type: "session_revoked", sessionPrefix } as ServerMessage);
+      pushSessionsListToEachWs();
+    }
+    return result;
+  }
+  const result = await revokeActiveSessionByPrefixForUserId(sessionPrefix, userId);
+  if (result === "ok") pushSessionsListToEachWs();
+  return result;
+}
+
+async function logoutSessionForApi(sessionIdHash: string): Promise<SessionRevokeResult> {
+  if (wouldRevokeLeaveOfficeUnreachable(sessionIdHash)) return "would_strand_office";
+  const ok = await logoutBySessionHash(sessionIdHash);
+  if (ok) pushSessionsListToEachWs();
+  return ok ? "ok" : "not_found";
+}
+
 function applyViewPreference(userId: string, change: ViewChangeInput): boolean {
   const actor = getUserById(userId);
   const updated = updateUser(actor, userId, change, AgentManager.getRooms());
@@ -523,6 +569,13 @@ const server = Bun.serve<WsData>({
 
     const systemResp = handleSystemRequest(req, url, httpAuth, { getBackupStatus });
     if (systemResp) return systemResp;
+
+    const sessionsResp = await handleSessionsRequest(req, url, httpAuth, {
+      list: (userId, role) => (role === "owner" ? listActiveSessions() : listActiveSessionsForUserId(userId)),
+      revoke: revokeSessionForApi,
+      logout: logoutSessionForApi,
+    });
+    if (sessionsResp) return sessionsResp;
 
     const viewResp = await handleViewRequest(req, url, httpAuth, { applyView: applyViewPreference });
     if (viewResp) return viewResp;
