@@ -39,6 +39,11 @@ import { resolveCodexLauncherPath, withBureauCodexHome } from "./native-bin.ts";
 // that the user forgot to install something.
 const CODEX_LAUNCH_FAILED_MESSAGE = `Bureau's bundled Codex CLI failed to launch. Run \`bun install\` in the bureau checkout, then \`/clear\` this conversation to retry.`;
 
+// Grace period between SIGTERM and the SIGKILL escalation when closing a codex
+// subprocess group. Long enough for a healthy process to flush and exit, short
+// enough that a hung mid-turn process is reclaimed promptly.
+const CODEX_KILL_GRACE_MS = 2000;
+
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import type { InitializeResponse } from "./_generated/InitializeResponse.ts";
 
@@ -118,6 +123,10 @@ export class JsonRpcLiteClient {
   private pending = new Map<JsonRpcId, Pending>();
   private stdoutBuffer = "";
   private closed = false;
+  // Guards the OS-process kill in close(), tracked separately from `closed`
+  // which may be set by error/exit handlers while the child is still alive.
+  private killed = false;
+  private killTimer: ReturnType<typeof setTimeout> | null = null;
   private exitInfo: {
     code: number | null;
     signal: NodeJS.Signals | null;
@@ -168,6 +177,10 @@ export class JsonRpcLiteClient {
       cwd: this.opts.cwd,
       env: withBureauCodexHome(this.opts.env),
       stdio: ["pipe", "pipe", "pipe"],
+      // Make the launcher its own process-group leader so close() can signal
+      // the launcher and native codex child together. The JS launcher does not
+      // reliably forward signals on its own.
+      detached: true,
     });
 
     this.child.stdout.setEncoding("utf8");
@@ -197,6 +210,10 @@ export class JsonRpcLiteClient {
     this.child.on("exit", (code, signal) => {
       this.exitInfo = { code, signal };
       this.closed = true;
+      if (this.killTimer) {
+        clearTimeout(this.killTimer);
+        this.killTimer = null;
+      }
       this.failAllPending(`codex subprocess exited${code != null ? ` with code ${code}` : ""}${signal ? ` (signal ${signal})` : ""}`);
       for (const h of this.exitHandlers) {
         try {
@@ -229,19 +246,27 @@ export class JsonRpcLiteClient {
 
   // Close the subprocess and resolve cleanup. Idempotent.
   async close(): Promise<void> {
-    if (this.closed) return;
-    this.closed = true;
-    if (this.child && !this.child.killed) {
-      try {
-        this.child.stdin.end();
-      } catch {}
-      // Give the subprocess a moment to exit cleanly; SIGKILL if it doesn't.
-      // We don't actually wait long here — callers depending on the exit
-      // handler get notified independently.
-      try {
-        this.child.kill("SIGTERM");
-      } catch {}
+    if (!this.killed) {
+      this.killed = true;
+      const child = this.child;
+      if (child && child.pid !== undefined && !child.killed) {
+        try {
+          child.stdin.end();
+        } catch {}
+        const pgid = child.pid;
+        try {
+          process.kill(-pgid, "SIGTERM");
+        } catch {}
+        const timer = setTimeout(() => {
+          try {
+            process.kill(-pgid, "SIGKILL");
+          } catch {}
+        }, CODEX_KILL_GRACE_MS);
+        timer.unref?.();
+        this.killTimer = timer;
+      }
     }
+    this.closed = true;
     this.failAllPending("client closed");
   }
 
