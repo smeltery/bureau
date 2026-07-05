@@ -25,6 +25,7 @@ import { handleFilesRequest } from "./http/files.ts";
 import { handleAgentsRequest } from "./http/agents.ts";
 import { handleRoomsRequest } from "./http/rooms.ts";
 import { handleOfficeSettingsRequest } from "./http/office-settings.ts";
+import { handleValidateRequest } from "./http/validate.ts";
 import { handleMemoryRequest } from "./http/memory.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
@@ -451,6 +452,9 @@ const server = Bun.serve<WsData>({
 
     const officeSettingsResp = await handleOfficeSettingsRequest(req, url, httpAuth);
     if (officeSettingsResp) return officeSettingsResp;
+
+    const validateResp = await handleValidateRequest(req, url, httpAuth);
+    if (validateResp) return validateResp;
 
     const memoryResp = await handleMemoryRequest(req, url);
     if (memoryResp) return memoryResp;
