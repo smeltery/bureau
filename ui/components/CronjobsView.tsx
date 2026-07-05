@@ -415,8 +415,8 @@ function CronjobsTable({
               <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{runs.length}</td>
               {!isMobile && (
                 <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
-                  {c.createdBy}
-                  {c.device && c.device !== c.createdBy ? ` (${c.device})` : ""}
+                  {c.username && c.username !== c.createdBy ? `${c.createdBy} · for ${c.username}` : c.createdBy}
+                  {c.device && c.device !== c.createdBy && c.device !== c.username ? ` (${c.device})` : ""}
                 </td>
               )}
               <td style={{ padding: cellPad, whiteSpace: "nowrap", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
