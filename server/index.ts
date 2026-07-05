@@ -34,6 +34,7 @@ import { handleViewRequest, type ViewChangeInput } from "./http/view.ts";
 import { handleSystemRequest } from "./http/system.ts";
 import { handleSessionsRequest, type SessionRevokeResult } from "./http/sessions.ts";
 import { handleInvitesRequest, type InviteMintResult, type InviteRevokeResult } from "./http/invites.ts";
+import { handleAccessRequest, type AccessSettingsWire, type SetAccessResult } from "./http/access.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
 import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
@@ -51,6 +52,7 @@ import {
   unregisterSocket,
   validateSession,
   buildPublicOrigin,
+  isProcessBoundLoopback,
   listActiveSessions,
   listActiveSessionsForUserId,
   listInvites,
@@ -483,6 +485,79 @@ function wireInvite(invite: {
   };
 }
 
+function readAccessSettingsForApi(): AccessSettingsWire {
+  const cfg = loadOfficeConfig();
+  const envRaw = process.env.BUREAU_PUBLIC_ORIGIN?.trim() ?? "";
+  const envOrigin = envRaw ? normalizePublicOrigin(envRaw) : null;
+  const effectiveExternal = cfg.externalAccess !== null ? cfg.externalAccess : cfg.publicOrigin !== null || envOrigin !== null;
+  return {
+    externalAccess: effectiveExternal,
+    publicOrigin: cfg.publicOrigin,
+    envOriginSet: envRaw.length > 0,
+    envOrigin,
+    boundLoopback: isProcessBoundLoopback(),
+    officeName: cfg.officeName,
+  };
+}
+
+async function saveAccessSettingsForApi(actorUserId: string, input: { externalAccess: boolean; publicOrigin: string }): Promise<SetAccessResult> {
+  const rawOrigin = input.publicOrigin.trim();
+  const publicOrigin = rawOrigin ? normalizePublicOrigin(rawOrigin) : null;
+  if (rawOrigin && !publicOrigin) {
+    return { ok: false, status: 400, error: "Public URL must be https://<host> or http://localhost (no path, query, or fragment)." };
+  }
+  if (input.externalAccess && !publicOrigin) {
+    return { ok: false, status: 400, error: "Enabling external access requires a public URL." };
+  }
+
+  const envRaw = process.env.BUREAU_PUBLIC_ORIGIN?.trim() ?? "";
+  const envOrigin = envRaw ? normalizePublicOrigin(envRaw) : null;
+  if (input.externalAccess && envOrigin && publicOrigin && envOrigin !== publicOrigin) {
+    return {
+      ok: false,
+      status: 409,
+      error: `BUREAU_PUBLIC_ORIGIN is still set to ${envOrigin}. Remove it from the service environment or set the Public URL to the same value, then save again.`,
+      envOrigin,
+    };
+  }
+
+  const prevCfg = loadOfficeConfig();
+  try {
+    saveOfficeConfig({
+      prompt: prevCfg.prompt,
+      envFile: prevCfg.envFile,
+      publicOrigin,
+      externalAccess: input.externalAccess,
+      officeName: prevCfg.officeName,
+    });
+  } catch (err) {
+    return { ok: false, status: 500, error: err instanceof Error ? err.message : "failed to save access settings" };
+  }
+
+  let signInUrl: string | null = null;
+  if (input.externalAccess && publicOrigin) {
+    const actor = getUserById(actorUserId);
+    if (actor) {
+      const minted = await mintInvite({
+        username: actor.name,
+        role: actor.role,
+        createdBy: actor.name,
+        allowExisting: true,
+        replacePriorForUsername: true,
+      });
+      if (minted.ok) {
+        signInUrl = `${publicOrigin}/i/${minted.rawToken}`;
+        pushInvitesListToEachWs();
+      } else {
+        console.warn(`[auth] access settings self-invite mint failed: ${minted.error}`);
+      }
+    }
+  }
+
+  setOfficeName(prevCfg.officeName);
+  return { ok: true, signInUrl, restartRequired: true };
+}
+
 function applyViewPreference(userId: string, change: ViewChangeInput): boolean {
   const actor = getUserById(userId);
   const updated = updateUser(actor, userId, change, AgentManager.getRooms());
@@ -649,6 +724,15 @@ const server = Bun.serve<WsData>({
       revoke: revokeInviteForApi,
     });
     if (invitesResp) return invitesResp;
+
+    const accessResp = await handleAccessRequest(req, url, httpAuth, {
+      get: readAccessSettingsForApi,
+      set: (input) => {
+        if (httpAuth.kind !== "ok") return Promise.resolve({ ok: false, status: 401, error: "authenticated browser session required" });
+        return saveAccessSettingsForApi(httpAuth.session.userId, input);
+      },
+    });
+    if (accessResp) return accessResp;
 
     const viewResp = await handleViewRequest(req, url, httpAuth, { applyView: applyViewPreference });
     if (viewResp) return viewResp;
