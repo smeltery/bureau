@@ -2,12 +2,22 @@ import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
-import type { Attachment, UserRecord } from "../../shared/types.ts";
+import { saveRecentCwd } from "../persistence.ts";
+import type { AgentBackendType, AgentInfo, Attachment, UserRecord } from "../../shared/types.ts";
 
 const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
 /**
  * Handle agent-scoped HTTP routes:
+ *   POST /api/agents                     — spawn an agent.
+ *   DELETE /api/agents/:id               — kill an agent.
+ *   PATCH /api/agents/:id                — edit agent metadata/session settings.
+ *   POST /api/agents/:id/revive          — revive a killed agent.
+ *   POST /api/agents/:id/abort           — abort the active agent run.
+ *   PUT  /api/agents/:id/privileged      — toggle privileged agent tokens.
+ *   POST /api/agents/:id/move            — move an agent to another room.
+ *   PUT  /api/agents/:id/topic           — set an agent topic.
+ *   DELETE /api/agents/:id/topic         — reset an agent topic.
  *   POST /api/agents/:id/diff             — emit a styled diff card (optional body: { dir, commit }).
  *   POST /api/agents/:id/edit-file        — emit an [Open in editor] card (body: { path }).
  *   POST /api/agents/:id/read-file        — copy a file into the agent's files dir and
@@ -31,8 +41,150 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
   const parts = agentRouteParts(url.pathname);
   if (!parts) return null;
 
-  if (parts[0] === "agents" && parts.length >= 3) {
+  if (parts[0] === "agents" && parts.length === 1 && req.method === "POST") {
+    const denied = requireUserSession(auth);
+    if (denied) return denied;
+    const body = await readJsonBody(req);
+    if (!body) return jsonError(400, "invalid JSON body");
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const cwd = typeof body.cwd === "string" ? body.cwd : "";
+    const roomId = typeof body.roomId === "string" ? body.roomId : "";
+    const desk = typeof body.desk === "number" ? body.desk : undefined;
+    if (!name) return jsonError(422, "name is required");
+    if (!cwd) return jsonError(422, "cwd is required");
+    if (!roomId) return jsonError(422, "roomId is required");
+    if (desk === undefined) return jsonError(422, "desk is required");
+    const roomDenied = requireUserRoomAccess(auth, roomId);
+    if (roomDenied) return roomDenied;
+    try {
+      AgentManager.validateCwd(cwd);
+    } catch (err) {
+      return jsonError(422, err instanceof Error ? err.message : "invalid directory");
+    }
+    saveRecentCwd(cwd);
+    const agentType = parseAgentType(body.agentType) ?? "claude";
+    const agent = await AgentManager.spawn(
+      name,
+      cwd,
+      (body.permissionMode as AgentInfo["permissionMode"] | undefined) ?? "default",
+      desk,
+      typeof body.customInstructions === "string" ? body.customInstructions : undefined,
+      roomId,
+      typeof body.outfit === "object" && body.outfit !== null && !Array.isArray(body.outfit) ? (body.outfit as AgentInfo["outfit"]) : undefined,
+      typeof body.modelFamily === "string" ? body.modelFamily : undefined,
+      agentType,
+      typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
+      typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
+      auth?.kind === "ok" ? auth.session.userId : null,
+    );
+    if (!agent) return jsonError(409, "agent name is taken or desk is unavailable");
+    return new Response(JSON.stringify({ agent }), { status: 201, headers: JSON_HEADERS });
+  }
+
+  if (parts[0] === "agents" && parts.length >= 2) {
     const agentId = parts[1]!;
+    if (req.method === "DELETE" && parts.length === 2) {
+      const denied = requireUserAgentAccess(auth, agentId);
+      if (denied) return denied;
+      await AgentManager.kill(agentId);
+      return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+
+    if (req.method === "PATCH" && parts.length === 2) {
+      const denied = requireUserAgentAccess(auth, agentId);
+      if (denied) return denied;
+      const body = await readJsonBody(req);
+      if (!body) return jsonError(400, "invalid JSON body");
+      const cwd = typeof body.cwd === "string" ? body.cwd : undefined;
+      if (cwd) {
+        try {
+          AgentManager.validateCwd(cwd);
+        } catch (err) {
+          return jsonError(422, err instanceof Error ? err.message : "invalid directory");
+        }
+        saveRecentCwd(cwd);
+      }
+      try {
+        await AgentManager.editAgent(agentId, {
+          name: typeof body.name === "string" ? body.name : undefined,
+          cwd,
+          outfit: typeof body.outfit === "object" && body.outfit !== null && !Array.isArray(body.outfit) ? (body.outfit as AgentInfo["outfit"]) : undefined,
+          customInstructions: typeof body.customInstructions === "string" ? body.customInstructions : undefined,
+          modelFamily: typeof body.modelFamily === "string" ? body.modelFamily : undefined,
+          permissionMode: typeof body.permissionMode === "string" ? (body.permissionMode as AgentInfo["permissionMode"]) : undefined,
+          codexSandbox: typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
+          effort: typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
+        });
+      } catch (err) {
+        return jsonError(422, err instanceof Error ? err.message : "agent update failed");
+      }
+      const agent = AgentManager.getAgent(agentId);
+      if (!agent) return jsonError(404, "agent not found");
+      return new Response(JSON.stringify({ agent }), { headers: JSON_HEADERS });
+    }
+
+    if (req.method === "POST" && parts.length === 3 && parts[2] === "revive") {
+      const body = await readJsonBody(req);
+      if (!body) return jsonError(400, "invalid JSON body");
+      const roomId = typeof body.roomId === "string" ? body.roomId : "";
+      const desk = typeof body.desk === "number" ? body.desk : undefined;
+      if (!roomId) return jsonError(422, "roomId is required");
+      if (desk === undefined) return jsonError(422, "desk is required");
+      const denied = requireUserRoomAccess(auth, roomId);
+      if (denied) return denied;
+      const result = await AgentManager.revive(agentId, roomId, desk);
+      if (!result.ok) return jsonError(422, result.error);
+      return new Response(JSON.stringify({ agent: result.agent }), { status: 201, headers: JSON_HEADERS });
+    }
+
+    if (req.method === "POST" && parts.length === 3 && parts[2] === "abort") {
+      const denied = requireUserAgentAccess(auth, agentId);
+      if (denied) return denied;
+      await AgentManager.abort(agentId);
+      return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+
+    if (req.method === "PUT" && parts.length === 3 && parts[2] === "privileged") {
+      const denied = requireOwnerAgentAccess(auth, agentId);
+      if (denied) return denied;
+      const body = await readJsonBody(req);
+      if (!body || typeof body.privileged !== "boolean") return jsonError(422, "privileged is required");
+      const agent = await AgentManager.setAgentPrivileged(agentId, body.privileged);
+      if (!agent) return jsonError(404, "agent not found");
+      return new Response(JSON.stringify({ agent }), { headers: JSON_HEADERS });
+    }
+
+    if (req.method === "POST" && parts.length === 3 && parts[2] === "move") {
+      const denied = requireUserAgentAccess(auth, agentId);
+      if (denied) return denied;
+      const body = await readJsonBody(req);
+      const targetRoomId = typeof body?.targetRoomId === "string" ? body.targetRoomId : "";
+      if (!targetRoomId) return jsonError(422, "targetRoomId is required");
+      const roomDenied = requireUserRoomAccess(auth, targetRoomId);
+      if (roomDenied) return roomDenied;
+      if (!AgentManager.moveAgent(agentId, targetRoomId)) return jsonError(409, "agent could not be moved");
+      const agent = AgentManager.getAgent(agentId);
+      if (!agent) return jsonError(404, "agent not found");
+      return new Response(JSON.stringify({ agent }), { headers: JSON_HEADERS });
+    }
+
+    if (req.method === "PUT" && parts.length === 3 && parts[2] === "topic") {
+      const denied = requireUserAgentAccess(auth, agentId);
+      if (denied) return denied;
+      const body = await readJsonBody(req);
+      const topic = typeof body?.topic === "string" ? body.topic : null;
+      if (topic === null) return jsonError(422, "topic is required");
+      AgentManager.setTopic(agentId, topic);
+      return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+
+    if (req.method === "DELETE" && parts.length === 3 && parts[2] === "topic") {
+      const denied = requireUserAgentAccess(auth, agentId);
+      if (denied) return denied;
+      AgentManager.resetTopic(agentId);
+      return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+
     if (req.method === "GET" && parts.length === 3 && parts[2] === "sessions") {
       const denied = requireUserAgentAccess(auth, agentId);
       if (denied) return denied;
@@ -239,6 +391,31 @@ function requireUserAgentAccess(auth: AuthResult | undefined, agentId: string): 
   const roomId = AgentManager.getRooms()[agent.room]?.id;
   if (!roomId || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
   return null;
+}
+
+function requireUserSession(auth: AuthResult | undefined): Response | null {
+  if (auth?.kind === "ok") return null;
+  return jsonError(401, "unauthenticated");
+}
+
+function requireUserRoomAccess(auth: AuthResult | undefined, roomId: string): Response | null {
+  const denied = requireUserSession(auth);
+  if (denied) return denied;
+  const user = sessionUser(auth);
+  if (!user || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
+  return null;
+}
+
+function requireOwnerAgentAccess(auth: AuthResult | undefined, agentId: string): Response | null {
+  const denied = requireUserAgentAccess(auth, agentId);
+  if (denied) return denied;
+  const user = sessionUser(auth);
+  if (!user || user.role !== "owner") return jsonError(403, "owner access required");
+  return null;
+}
+
+function parseAgentType(value: unknown): AgentBackendType | null {
+  return value === "claude" || value === "codex" ? value : null;
 }
 
 function agentRouteParts(pathname: string): string[] | null {
