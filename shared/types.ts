@@ -154,6 +154,7 @@ export interface AgentInfo {
   userId?: string | null;
   desk: number; // 0-7
   room: number; // 0-based room index
+  roomId?: string; // stable room id for clients that should not rely on projected room indexes
   cwd: string;
   outfit: AgentOutfit;
   permissionMode: AgentPermissionMode;
