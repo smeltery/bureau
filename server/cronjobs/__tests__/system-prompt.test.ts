@@ -37,4 +37,12 @@ describe("buildCronjobSystemPrompt", () => {
     expect(prompt).toContain("inline HTML");
     expect(prompt).toContain("var(--accent)");
   });
+
+  test("documents run-level file and diff affordances", () => {
+    const prompt = buildCronjobSystemPrompt(cronjob(), "cron-1", "run-1");
+
+    expect(prompt).toContain("/cronjobs/cron-1/runs/run-1/read-file");
+    expect(prompt).toContain("/cronjobs/cron-1/runs/run-1/diff");
+    expect(prompt).toContain("clickable file chip");
+  });
 });
