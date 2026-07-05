@@ -166,7 +166,7 @@ function isAuthErrorForAgent(managed: ManagedAgent | undefined, text: string): b
   return getBackend(managed.info.agentType).detectAuthError(text);
 }
 
-function emitLoginInstructions(agentId: string, managed: ManagedAgent | undefined) {
+export function emitLoginInstructions(agentId: string, managed: ManagedAgent | undefined) {
   if (!managed) return;
   const instructions = getBackend(managed.info.agentType).getLoginInstructions({ env: envForHints(managed) });
   emitEphemeralLog(agentId, "system", instructions.text);

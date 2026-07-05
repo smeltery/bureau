@@ -9,7 +9,7 @@ import { enqueueMessage } from "./send.ts";
 import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
 import { listCronjobs, buildCronjobSystemPrompt } from "../../cronjobs/index.ts";
-import { SessionSwappedError, buildMemoryPromptForAgent, createSession, replaceSession } from "../session/runtime.ts";
+import { SessionSwappedError, buildMemoryPromptForAgent, createSession, emitLoginInstructions, replaceSession } from "../session/runtime.ts";
 import { tildifyCwd } from "../session/paths.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
@@ -97,6 +97,14 @@ const commandHandlers: Record<string, HandlerFn> = {
     emitEphemeralLog(agentId, "system", "Conversation cleared.");
     updateState(agentId, "idle");
     persistAll();
+    return true;
+  },
+
+  async login(agentId, managed, _args, rawText, username) {
+    const userMeta = username ? { username } : undefined;
+    addLogEntry(agentId, "user_message", rawText, userMeta);
+    emitLoginInstructions(agentId, managed);
+    updateState(agentId, "waiting_for_response");
     return true;
   },
 
