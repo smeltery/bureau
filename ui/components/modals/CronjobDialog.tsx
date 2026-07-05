@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../../store.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
-import { familyAllowsAutoPermission, MODEL_FAMILIES, modelVersionLabel, type Cronjob, type CronjobPermissionMode, type ModelFamily, type Schedule } from "../../../shared/types.ts";
+import { MODEL_FAMILIES, modelVersionLabel, type Cronjob, type CronjobPermissionMode, type ModelFamily, type Schedule } from "../../../shared/types.ts";
 import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 
 const WEEKDAYS: { value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }[] = [
@@ -43,9 +43,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
   const [prompt, setPrompt] = useState(cronjob?.prompt ?? "");
   const [cwd, setCwd] = useState(cronjob?.cwd ?? "~");
   const [modelFamily, setModelFamily] = useState<ModelFamily>(cronjob?.modelFamily ?? "opus");
-  const initialPermission: CronjobPermissionMode =
-    cronjob?.permissionMode === "auto" && !familyAllowsAutoPermission(cronjob?.modelFamily ?? "opus") ? "bypassPermissions" : (cronjob?.permissionMode ?? "bypassPermissions");
-  const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(initialPermission);
+  const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(cronjob?.permissionMode ?? "bypassPermissions");
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
 
   const [saving, setSaving] = useState(false);
@@ -273,7 +271,6 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
             onChange={(e) => {
               const next = e.target.value as ModelFamily;
               setModelFamily(next);
-              if (!familyAllowsAutoPermission(next) && permissionMode === "auto") setPermissionMode("bypassPermissions");
             }}
             style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
           >
@@ -286,7 +283,6 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Permission Mode</label>
           <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as CronjobPermissionMode)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-            {familyAllowsAutoPermission(modelFamily) && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
             <option value="bypassPermissions">Bypass (auto-approve all)</option>
           </select>
           <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Cron jobs run unattended — modes that require human approval are not available.</p>

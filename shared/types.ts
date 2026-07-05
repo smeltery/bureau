@@ -331,9 +331,9 @@ export function generateCronjobRunId(existing?: string[]): string {
 
 export type Schedule = { type: "daily"; hour: number; minute: number } | { type: "weekly"; weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6; hour: number; minute: number } | { type: "interval"; minutes: number };
 
-// Permission modes available for cronjobs. Subset of agent options:
-// "default" / "acceptEdits" / "plan" would block forever in an unattended run.
-export type CronjobPermissionMode = "bypassPermissions" | "auto";
+// Permission mode available for cronjobs. Modes that can block on human
+// approval would hang forever in an unattended run.
+export type CronjobPermissionMode = "bypassPermissions";
 
 export interface Cronjob {
   id: string; // 8-char hex

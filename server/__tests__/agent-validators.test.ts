@@ -1,0 +1,17 @@
+import { describe, expect, test } from "bun:test";
+import { validateCronjobPermissionMode } from "../agent-validators.ts";
+
+describe("validateCronjobPermissionMode", () => {
+  test("keeps the unattended cron mode", () => {
+    expect(validateCronjobPermissionMode("claude", "bypassPermissions")).toBe("bypassPermissions");
+  });
+
+  test("coerces legacy auto cron records to bypass", () => {
+    expect(validateCronjobPermissionMode("claude", "auto")).toBe("bypassPermissions");
+  });
+
+  test("coerces unknown cron modes to bypass", () => {
+    expect(validateCronjobPermissionMode("claude", "default")).toBe("bypassPermissions");
+    expect(validateCronjobPermissionMode("claude", undefined)).toBe("bypassPermissions");
+  });
+});
