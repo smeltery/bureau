@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../../store.tsx";
-import { send } from "../../ws.ts";
+import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import type { UserRecord, UserRole } from "../../../shared/types.ts";
 import { GHOST_COLOR_PALETTE, GHOST_VARIANTS, type GhostVariant } from "../../../shared/avatar.ts";
 import { GhostGraphic } from "../../office/ghostVariants.tsx";
@@ -9,6 +9,8 @@ import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dial
 import { AccessPane } from "../AccessPane.tsx";
 import { MyDevicesPane } from "../MyDevicesPane.tsx";
 import { notificationPermission, requestNotificationPermission, type NotifPermission } from "../../notifications.ts";
+
+type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
 export function UserManagementModal({
   currentUsername,
@@ -189,6 +191,7 @@ function UserEditPanel({
   const [memberPrompt, setMemberPrompt] = useState(user.memberPrompt ?? "");
   const [avatarColor, setAvatarColor] = useState(user.avatarColor);
   const [avatarVariant, setAvatarVariant] = useState<GhostVariant>(user.avatarVariant);
+  const [envStatus, setEnvStatus] = useState<ValidationStatus>({ kind: "idle" });
   const allAllowed = allowedRooms.size === rooms.length;
   const userNotif = user.notifRooms ?? [];
   const userHidden = user.hidden ?? [];
@@ -239,6 +242,28 @@ function UserEditPanel({
   function cancel() {
     if (isDirty && !window.confirm("Discard unsaved changes?")) return;
     onClose();
+  }
+  function validateEnv() {
+    const reqId = `user-env-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setEnvStatus({ kind: "pending" });
+    const listener = (data: string) => {
+      try {
+        const msg = JSON.parse(data);
+        if (msg.type === "settings_validation" && msg.requestId === reqId) {
+          if (msg.ok) setEnvStatus({ kind: "ok", keyCount: msg.keyCount });
+          else setEnvStatus({ kind: "error", message: msg.error || "Invalid env file" });
+          removeRawListener(listener);
+        }
+      } catch {}
+    };
+    addRawListener(listener);
+    send({
+      type: "request_settings_validation",
+      requestId: reqId,
+      scope: "user",
+      userId: user.id,
+      envFile: envFile.trim() || null,
+    });
   }
 
   return (
@@ -371,7 +396,21 @@ function UserEditPanel({
       </select>
       <NotificationPrefs rooms={rooms.filter((r) => allowedRooms.has(r.id) && !hiddenRooms.has(r.id))} notifRooms={notifRooms} onChange={setNotifRooms} />
       <label style={{ ...dialogLabel, marginTop: 12 }}>Env file path</label>
-      <input value={envFile} onChange={(e) => setEnvFile(e.target.value)} placeholder="/absolute/path/to/.env" style={dialogInput} />
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input
+          value={envFile}
+          onChange={(e) => {
+            setEnvFile(e.target.value);
+            setEnvStatus({ kind: "idle" });
+          }}
+          placeholder="/absolute/path/to/.env"
+          style={{ ...dialogInput, flex: 1 }}
+        />
+        <button type="button" style={{ ...smallBtn, height: 30 }} onClick={validateEnv} disabled={envStatus.kind === "pending"}>
+          {envStatus.kind === "pending" ? "Checking..." : "Validate"}
+        </button>
+      </div>
+      <ValidationLine status={envStatus} />
       <label style={{ ...dialogLabel, marginTop: 12 }}>Personal context</label>
       <textarea
         value={memberPrompt}
@@ -390,6 +429,20 @@ function UserEditPanel({
       </div>
     </div>
   );
+}
+
+function ValidationLine({ status }: { status: ValidationStatus }) {
+  if (status.kind === "idle") return null;
+  if (status.kind === "pending") return <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "4px 0 0" }}>Checking...</p>;
+  if (status.kind === "ok") {
+    if (status.keyCount === undefined) return <p style={{ fontSize: 10, color: "var(--accent)", margin: "4px 0 0" }}>No env file configured.</p>;
+    return (
+      <p style={{ fontSize: 10, color: "var(--accent)", margin: "4px 0 0" }}>
+        Loaded {status.keyCount} variable{status.keyCount === 1 ? "" : "s"}.
+      </p>
+    );
+  }
+  return <p style={{ fontSize: 10, color: "#ff6b6b", margin: "4px 0 0" }}>{status.message}</p>;
 }
 
 // Per-room notification preferences + the browser permission affordance.
