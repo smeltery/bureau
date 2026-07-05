@@ -426,10 +426,8 @@ const server = Bun.serve<WsData>({
     // Task / cronjob / files / agents HTTP APIs. Loopback-allowed because
     // local agents legitimately hit them; non-loopback callers need a
     // session cookie.
-    {
-      const auth = authenticate(req, server, { allowLoopback: true, officeName: getOfficeName() });
-      if (auth.kind === "rejected") return auth.response;
-    }
+    const httpAuth = authenticate(req, server, { allowLoopback: true, officeName: getOfficeName() });
+    if (httpAuth.kind === "rejected") return httpAuth.response;
 
     const tasksResp = await handleTasksRequest(req, url);
     if (tasksResp) return tasksResp;
