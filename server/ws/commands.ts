@@ -942,6 +942,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         schedule: cmd.schedule,
         prompt: cmd.prompt,
         cwd: cmd.cwd,
+        agentType: cmd.agentType,
         modelFamily: cmd.modelFamily,
         permissionMode: cmd.permissionMode,
         username: cmd.username,
