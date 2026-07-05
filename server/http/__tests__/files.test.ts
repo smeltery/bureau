@@ -52,6 +52,17 @@ describe("handleFilesRequest", () => {
     expect(await res?.json()).toEqual({ error: "agent not found" });
   });
 
+  test("requires a browser session for legacy upload paths", async () => {
+    const req = new Request("http://local.test/api/upload/missing", {
+      method: "POST",
+    });
+
+    const res = await handleFilesRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "unauthenticated" });
+  });
+
   test("keeps legacy file-serving paths working", async () => {
     const req = new Request("http://local.test/api/files/missing/example.txt");
 
@@ -59,5 +70,14 @@ describe("handleFilesRequest", () => {
 
     expect(res?.status).toBe(404);
     expect(await res?.text()).toBe("Not found");
+  });
+
+  test("requires a browser session for legacy file-serving paths", async () => {
+    const req = new Request("http://local.test/api/files/missing/example.txt");
+
+    const res = await handleFilesRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "unauthenticated" });
   });
 });

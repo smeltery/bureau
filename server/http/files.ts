@@ -26,11 +26,15 @@ export async function handleFilesRequest(req: Request, url: URL, auth?: AuthResu
 
   // Upload
   if (url.pathname.startsWith("/api/upload/") && req.method === "POST") {
+    const denied = requireBrowserSession(auth);
+    if (denied) return denied;
     return uploadHandler(req, url.pathname.split("/")[3]);
   }
 
   // Serve
   if (url.pathname.startsWith("/api/files/") || url.pathname.startsWith("/api/images/")) {
+    const denied = requireBrowserSession(auth);
+    if (denied) return denied;
     const parts = url.pathname.split("/").filter(Boolean); // ["api", "files"|"images", agentId, filename]
     return serveHandler(parts[2], parts[3]);
   }
@@ -103,6 +107,11 @@ function serveHandler(agentId: string | undefined, filename: string | undefined)
       "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
+}
+
+function requireBrowserSession(auth: AuthResult | undefined): Response | null {
+  if (auth?.kind === "ok") return null;
+  return new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401, headers: JSON_HEADERS });
 }
 
 function requireUserAgentAccess(auth: AuthResult | undefined, agentId: string): Response | null {
