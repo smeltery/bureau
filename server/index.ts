@@ -738,7 +738,7 @@ const server = Bun.serve<WsData>({
     const tasksResp = await handleTasksRequest(req, url, httpAuth);
     if (tasksResp) return tasksResp;
 
-    const cronjobsResp = await handleCronjobsRequest(req, url);
+    const cronjobsResp = await handleCronjobsRequest(req, url, httpAuth);
     if (cronjobsResp) return cronjobsResp;
 
     const pluginsResp = await handlePluginsRequest(req, url);
