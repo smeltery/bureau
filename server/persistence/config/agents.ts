@@ -92,11 +92,29 @@ export function saveAgents(rooms: Room[]) {
   }
 }
 
-export function writeManifest(agents: { id: string; name: string; desk: number; room: number; roomName: string; topic: string | null; cwd: string; modelFamily: string; model: ClaudeModel }[]) {
+export function writeManifest(
+  agents: {
+    id: string;
+    name: string;
+    userId: string | null;
+    managerName: string | null;
+    privileged: boolean;
+    desk: number;
+    room: number;
+    roomName: string;
+    topic: string | null;
+    cwd: string;
+    modelFamily: string;
+    model: ClaudeModel;
+  }[],
+) {
   try {
     const manifest = agents.map((a) => ({
       id: a.id,
       name: a.name,
+      userId: a.userId,
+      managerName: a.managerName,
+      privileged: a.privileged,
       desk: a.desk,
       room: a.room + 1, // 1-based for human readability
       roomName: a.roomName,
