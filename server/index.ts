@@ -11,7 +11,22 @@ import { getBackupStatus, startBackupScheduler } from "./backup.ts";
 import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
 import { handleCommand } from "./ws/commands.ts";
 import { stopWatch, watchFile, type FileWatcher } from "./file-editor.ts";
-import { canSeeRoom, claimUser, clearWsUser, getSessionContext, getUserById, getWsUser, listUsers, projectAgents, projectRooms, setWsSessionPrefix, updateUser } from "./users.ts";
+import {
+  canSeeRoom,
+  claimUser,
+  clearWsUser,
+  deleteUserById,
+  getSessionContext,
+  getUserById,
+  getUserByName,
+  getWsUser,
+  listUsers,
+  projectAgents,
+  projectRooms,
+  setWsSessionPrefix,
+  updateUser,
+  wouldDeleteLeaveNoOwner,
+} from "./users.ts";
 import { listAllPresence, refreshPresenceForUser, removePresence } from "./presence.ts";
 
 // Per-WS editor file watchers. Each open file gets one fs.watch handle keyed
@@ -35,6 +50,7 @@ import { handleSystemRequest } from "./http/system.ts";
 import { handleSessionsRequest, type SessionRevokeResult } from "./http/sessions.ts";
 import { handleInvitesRequest, type InviteMintResult, type InviteRevokeResult } from "./http/invites.ts";
 import { handleAccessRequest, type AccessSettingsWire, type SetAccessResult } from "./http/access.ts";
+import { handleUsersRequest, type UserDeleteResult, type UserMutationResult, type UserRecordChanges } from "./http/users.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
 import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
@@ -52,6 +68,7 @@ import {
   unregisterSocket,
   validateSession,
   buildPublicOrigin,
+  evictSessionsForUserId,
   isProcessBoundLoopback,
   listActiveSessions,
   listActiveSessionsForUserId,
@@ -568,6 +585,51 @@ function applyViewPreference(userId: string, change: ViewChangeInput): boolean {
   return true;
 }
 
+async function updateUserForApi(actorUserId: string, actorRole: "owner" | "member", username: string, changes: UserRecordChanges): Promise<UserMutationResult> {
+  const actor = getUserById(actorUserId);
+  const target = getUserByName(username);
+  if (!actor || !target) return { ok: false, status: 404, error: "user not found" };
+  if (actorRole !== "owner" && actor.id !== target.id) return { ok: false, status: 403, error: "forbidden" };
+  if (typeof changes.envFile === "string" && changes.envFile.trim()) {
+    try {
+      AgentManager.validateEnvPath(changes.envFile.trim());
+    } catch (err) {
+      return { ok: false, status: 422, error: err instanceof Error ? err.message : "invalid env file" };
+    }
+  }
+  const updated = updateUser(actor, target.id, changes, AgentManager.getRooms());
+  if (!updated) return { ok: false, status: 404, error: "user not found" };
+  for (const browser of browsers) sendInitialPayload(browser);
+  refreshPresenceForUser(updated.id, { name: updated.name, avatarColor: updated.avatarColor, avatarVariant: updated.avatarVariant }, new Set(updated.allowedRooms));
+  pushPresenceListToEachWs();
+  return { ok: true, user: updated };
+}
+
+async function setUserAccessForApi(actorUserId: string, username: string, allowedRooms: string[]): Promise<UserMutationResult> {
+  const actor = getUserById(actorUserId);
+  const target = getUserByName(username);
+  if (!actor || actor.role !== "owner") return { ok: false, status: 403, error: "owner access required" };
+  if (!target) return { ok: false, status: 404, error: "user not found" };
+  const updated = updateUser(actor, target.id, { allowedRooms }, AgentManager.getRooms());
+  if (!updated) return { ok: false, status: 404, error: "user not found" };
+  for (const browser of browsers) sendInitialPayload(browser);
+  refreshPresenceForUser(updated.id, { name: updated.name, avatarColor: updated.avatarColor, avatarVariant: updated.avatarVariant }, new Set(updated.allowedRooms));
+  pushPresenceListToEachWs();
+  return { ok: true, user: updated };
+}
+
+async function deleteUserForApi(actorUserId: string, actorRole: "owner" | "member", username: string): Promise<UserDeleteResult> {
+  const target = getUserByName(username);
+  if (!target) return { ok: false, status: 404, error: "user not found" };
+  if (actorRole !== "owner" && actorUserId !== target.id) return { ok: false, status: 403, error: "forbidden" };
+  if (actorRole === "owner" && actorUserId === target.id) return { ok: false, status: 409, error: "owners cannot delete their own user record" };
+  if (wouldDeleteLeaveNoOwner(target.id)) return { ok: false, status: 409, error: "would leave office without an owner" };
+  if (!deleteUserById(target.id)) return { ok: false, status: 404, error: "user not found" };
+  for (const browser of browsers) sendInitialPayload(browser);
+  await evictSessionsForUserId(target.id);
+  return { ok: true };
+}
+
 export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
   const user = getWsUser(ws);
   const rooms = AgentManager.getRooms();
@@ -733,6 +795,13 @@ const server = Bun.serve<WsData>({
       },
     });
     if (accessResp) return accessResp;
+
+    const usersResp = await handleUsersRequest(req, url, httpAuth, {
+      update: updateUserForApi,
+      setAccess: setUserAccessForApi,
+      delete: deleteUserForApi,
+    });
+    if (usersResp) return usersResp;
 
     const viewResp = await handleViewRequest(req, url, httpAuth, { applyView: applyViewPreference });
     if (viewResp) return viewResp;
