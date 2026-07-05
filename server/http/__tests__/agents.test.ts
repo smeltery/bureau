@@ -68,6 +68,27 @@ describe("handleAgentsRequest", () => {
     expect(await res?.json()).toEqual({ error: "token does not match agent" });
   });
 
+  test("rejects invalid bearer tokens on conversation message routes", async () => {
+    const req = request("/api/agents/agent-1/messages", {
+      headers: { Authorization: "Bearer missing" },
+      body: JSON.stringify({ text: "hello" }),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "missing or invalid bearer token" });
+  });
+
+  test("handles conversation session routes under /api/agents", async () => {
+    const req = new Request("http://local.test/api/agents/missing/sessions");
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(404);
+    expect(await res?.json()).toEqual({ error: "agent not found" });
+  });
+
   test("returns null for unrelated /api routes", async () => {
     const req = request("/api/tasks");
 
