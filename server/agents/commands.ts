@@ -94,9 +94,12 @@ export const commands: Record<string, CommandConfig> = {
     description: "Pick up a previous session",
   },
   login: {
-    ...UNSUPPORTED_HARDCODED,
+    type: "hardcoded",
+    supported: true,
+    autocomplete: true,
+    overridable: false,
+    handler: "login",
     description: "Log in to your Anthropic account",
-    message: "To authenticate:\n1. Open the built-in terminal\n2. Run `claude`\n3. Type `/login`\n4. Follow the auth flow\n\nOnce complete, it takes effect immediately for all Bureau agents.",
   },
   logout: {
     ...UNSUPPORTED_HARDCODED,
