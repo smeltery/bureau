@@ -202,7 +202,9 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
               <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
                 {new Date(run.startedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
               </span>
-              <span style={{ fontSize: 11, color: "var(--text-ghost)", fontFamily: "'JetBrains Mono',monospace" }}>{run.trigger === "manual" ? "manual" : "scheduled"}</span>
+              <span style={{ fontSize: 11, color: "var(--text-ghost)", fontFamily: "'JetBrains Mono',monospace" }}>
+                {run.trigger === "manual" ? `manual${run.triggeredBy ? ` · ${run.triggeredBy}` : ""}` : "scheduled"}
+              </span>
             </div>
           )
         ) : (

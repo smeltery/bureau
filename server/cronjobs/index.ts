@@ -624,7 +624,7 @@ function finalizeRun(active: ActiveRun, status: CronjobRun["status"], errorReaso
   // nextFireAt at fire time — no further schedule update needed here.
 }
 
-function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
+function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string): CronjobRun | null {
   const jobId = job.id;
 
   // Validate cwd before spawning so a moved directory surfaces as a failed
@@ -662,6 +662,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
     rootSessionId: placeholderSessionId,
     currentSessionId: placeholderSessionId,
     previewText: cwdError ?? "",
+    ...(triggeredBy ? { triggeredBy } : {}),
   };
   appendRun(jobId, run);
   eventHandler({ type: "cronjob_run_updated", run });
@@ -820,10 +821,11 @@ function tick() {
 // Manual trigger
 // ---------------------------------------------------------------------------
 
-export function runCronjobNow(id: string, _username: string, _device?: string): CronjobRun | null {
+export function runCronjobNow(id: string, username: string, device?: string): CronjobRun | null {
   const job = cronjobs.find((c) => c.id === id);
   if (!job) return null;
-  return fire(job, "manual");
+  const triggeredBy = device && device !== username ? `${username} (${device})` : username;
+  return fire(job, "manual", triggeredBy);
 }
 
 // ---------------------------------------------------------------------------

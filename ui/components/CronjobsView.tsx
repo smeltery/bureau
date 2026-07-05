@@ -530,7 +530,7 @@ function RunsTable({
               <td style={{ padding: cellPad, color: STATUS_COLOR[r.status], fontSize: 14, textAlign: "center" }} title={r.status}>
                 {STATUS_ICON[r.status]}
               </td>
-              <td style={{ padding: cellPad, color: "var(--text-muted)", fontSize: 12, textAlign: "center" }} title={r.trigger}>
+              <td style={{ padding: cellPad, color: "var(--text-muted)", fontSize: 12, textAlign: "center" }} title={r.trigger === "manual" && r.triggeredBy ? `manual · ${r.triggeredBy}` : r.trigger}>
                 {r.trigger === "manual" ? "▶" : "⏲"}
               </td>
               <td style={{ padding: cellPad, fontSize: 12, fontWeight: 600 }}>
