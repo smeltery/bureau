@@ -1,4 +1,5 @@
 import { readBearerToken } from "../agents/tokens.ts";
+import type { AuthResult } from "../auth/auth-middleware.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import { resolveRunToken } from "../cronjobs/tokens.ts";
 
@@ -8,16 +9,30 @@ const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "appli
  * Handle every /cronjobs and /api/cronjobs request. Returns null for unrelated
  * URLs so the caller can fall through to the next router.
  */
-export async function handleCronjobsRequest(req: Request, url: URL): Promise<Response | null> {
+export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthResult): Promise<Response | null> {
   // CORS preflight
-  if (req.method === "OPTIONS" && (url.pathname.startsWith("/cronjobs") || url.pathname.startsWith("/api/cronjobs") || url.pathname === "/api/cron-runs")) {
+  if (req.method === "OPTIONS" && (url.pathname.startsWith("/cronjobs") || url.pathname.startsWith("/api/cronjobs") || url.pathname === "/api/cron-runs" || url.pathname === "/api/cron-prompt")) {
     return new Response(null, {
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
         "Access-Control-Allow-Headers": "Authorization, Content-Type",
       },
     });
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/cron-prompt") {
+    if (auth?.kind !== "ok") return new Response(JSON.stringify({ error: "authenticated browser session required" }), { status: 401, headers: corsHeaders });
+    if (auth.session.role !== "owner") return new Response(JSON.stringify({ error: "owner access required" }), { status: 403, headers: corsHeaders });
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: corsHeaders });
+    }
+    const value = typeof body.value === "string" && body.value.trim() ? body.value : null;
+    CronjobManager.setCronjobsPrompt(value);
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method === "GET" && url.pathname === "/api/cron-runs") {
