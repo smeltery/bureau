@@ -54,6 +54,8 @@ export function loadCronjobs(): Cronjob[] {
         ...c,
         agentType: normalizeCronjobAgentType((c as { agentType?: unknown }).agentType),
         permissionMode: validateCronjobPermissionMode(normalizeCronjobAgentType((c as { agentType?: unknown }).agentType), (c as { permissionMode?: string }).permissionMode),
+        userId: typeof (c as { userId?: unknown }).userId === "string" ? (c as { userId: string }).userId : null,
+        username: normalizeCronjobUsername(c),
       }));
   } catch (err) {
     console.error("Failed to load cronjobs:", err);
@@ -63,6 +65,14 @@ export function loadCronjobs(): Cronjob[] {
 
 function normalizeCronjobAgentType(value: unknown): AgentBackendType {
   return value === "codex" ? "codex" : "claude";
+}
+
+function normalizeCronjobUsername(value: unknown): string | null {
+  const record = value as { username?: unknown; createdBy?: unknown; device?: unknown };
+  if (typeof record.username === "string") return record.username;
+  if (typeof record.createdBy === "string") return record.createdBy;
+  if (typeof record.device === "string") return record.device;
+  return null;
 }
 
 export function saveCronjobs(cronjobs: Cronjob[]) {

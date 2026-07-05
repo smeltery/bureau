@@ -346,6 +346,8 @@ export interface Cronjob {
   permissionMode: CronjobPermissionMode;
   enabled: boolean;
   createdBy: string;
+  userId: string | null;
+  username: string | null;
   device: string | null;
   createdAt: number;
   lastFireAt: number | null;

@@ -14,6 +14,8 @@ function cronjob(): Cronjob {
     permissionMode: "bypassPermissions",
     enabled: true,
     createdBy: "Boss",
+    userId: null,
+    username: "Boss",
     device: null,
     createdAt: 1,
     lastFireAt: null,

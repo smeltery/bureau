@@ -946,6 +946,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         modelFamily: cmd.modelFamily,
         permissionMode: cmd.permissionMode,
         username: cmd.username,
+        userId: getWsUser(ws)?.id ?? null,
         device: cmd.device,
       });
       if (cmd.requestId) {

@@ -59,6 +59,7 @@ import { memoryStore } from "../memory-store.ts";
 import { validateCronjobPermissionMode, validateModelFamily } from "../agent-validators.ts";
 import { getBackend } from "../backends/index.ts";
 import type { BackendSession, CreateSessionOptions, NormalizedEvent, NormalizedMessage } from "../backends/types.ts";
+import { getUserByName } from "../users.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
@@ -176,6 +177,7 @@ export interface AddCronjobInput {
   modelFamily: Cronjob["modelFamily"];
   permissionMode: CronjobPermissionMode;
   username: string;
+  userId?: string | null;
   device?: string;
 }
 
@@ -194,6 +196,8 @@ export function addCronjob(input: AddCronjobInput): Cronjob {
     permissionMode: validateCronjobPermissionMode(agentType, input.permissionMode),
     enabled: true,
     createdBy: input.username,
+    userId: input.userId ?? (input.username ? (getUserByName(input.username)?.id ?? null) : null),
+    username: input.username,
     device: input.device ?? null,
     createdAt: now,
     lastFireAt: null,
@@ -1122,6 +1126,13 @@ export function startCronjobScheduler() {
   const now = Date.now();
   let dirty = false;
   for (const job of cronjobs) {
+    if (!job.userId && job.username) {
+      const owner = getUserByName(job.username);
+      if (owner) {
+        job.userId = owner.id;
+        dirty = true;
+      }
+    }
     const schedule = clampSchedule(job.schedule);
     const anchor = job.lastFireAt ?? job.createdAt;
     const next = computeNextFire(schedule, anchor, now);
