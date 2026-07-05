@@ -4,8 +4,7 @@ const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "appli
 
 /**
  * Handle every /cronjobs request. Returns null for any non-cronjobs URL so the
- * caller can fall through to the next router. Mutations are not exposed over
- * HTTP (mirroring tasks): they go through the WebSocket only.
+ * caller can fall through to the next router.
  */
 export async function handleCronjobsRequest(req: Request, url: URL): Promise<Response | null> {
   // CORS preflight
@@ -13,7 +12,7 @@ export async function handleCronjobsRequest(req: Request, url: URL): Promise<Res
     return new Response(null, {
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
       },
     });
@@ -21,16 +20,12 @@ export async function handleCronjobsRequest(req: Request, url: URL): Promise<Res
 
   if (!url.pathname.startsWith("/cronjobs")) return null;
 
-  if (req.method !== "GET") {
-    return new Response(JSON.stringify({ error: "method not allowed" }), { status: 405, headers: corsHeaders });
-  }
-
   // ["cronjobs"] | ["cronjobs", id] | ["cronjobs", id, "runs"] | ["cronjobs", id, "runs", runId]
   const parts = url.pathname.split("/").filter(Boolean);
   const cronjobs = CronjobManager.listCronjobs();
 
   // GET /cronjobs
-  if (parts.length === 1) {
+  if (req.method === "GET" && parts.length === 1) {
     return new Response(JSON.stringify(cronjobs), { headers: corsHeaders });
   }
 
@@ -39,19 +34,47 @@ export async function handleCronjobsRequest(req: Request, url: URL): Promise<Res
   if (!cronjob) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
 
   // GET /cronjobs/:id
-  if (parts.length === 2) {
+  if (req.method === "GET" && parts.length === 2) {
     return new Response(JSON.stringify(cronjob), { headers: corsHeaders });
   }
   // GET /cronjobs/:id/runs
-  if (parts[2] === "runs" && parts.length === 3) {
+  if (req.method === "GET" && parts[2] === "runs" && parts.length === 3) {
     const runs = CronjobManager.getRunsForCronjob(jobId);
     return new Response(JSON.stringify(runs), { headers: corsHeaders });
   }
   // GET /cronjobs/:id/runs/:runId
-  if (parts[2] === "runs" && parts.length === 4) {
+  if (req.method === "GET" && parts[2] === "runs" && parts.length === 4) {
     const { run, entries } = CronjobManager.getRunTranscript(jobId, parts[3]);
     if (!run) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     return new Response(JSON.stringify({ run, entries }), { headers: corsHeaders });
+  }
+  // POST /cronjobs/:id/runs/:runId/read-file
+  if (req.method === "POST" && parts[2] === "runs" && parts.length === 5 && parts[4] === "read-file") {
+    let path: string | undefined;
+    try {
+      const body = (await req.json()) as Record<string, unknown> | null;
+      if (body && typeof body.path === "string") path = body.path;
+    } catch {}
+    if (!path) return new Response(JSON.stringify({ error: "missing path" }), { status: 400, headers: corsHeaders });
+    const result = CronjobManager.emitRunReadFile(jobId, parts[3]!, path);
+    if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: corsHeaders });
+    return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
+  }
+  // POST /cronjobs/:id/runs/:runId/diff
+  if (req.method === "POST" && parts[2] === "runs" && parts.length === 5 && parts[4] === "diff") {
+    let dir: string | undefined;
+    let commit: string | undefined;
+    try {
+      const body = (await req.json()) as Record<string, unknown> | null;
+      if (body && typeof body.dir === "string") dir = body.dir;
+      if (body && typeof body.commit === "string") commit = body.commit;
+    } catch {}
+    const result = CronjobManager.emitRunDiff(jobId, parts[3]!, dir, commit);
+    if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: corsHeaders });
+    return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
+  }
+  if (req.method !== "GET" && req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "method not allowed" }), { status: 405, headers: corsHeaders });
   }
   return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
 }
