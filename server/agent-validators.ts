@@ -72,8 +72,9 @@ export function validateEffort(agentType: AgentBackendType, modelFamily: string,
 // Cron-specific permission narrowing. The full agent permission set includes
 // modes that block on human approval (Claude "default"/"acceptEdits"/"auto",
 // Codex "untrusted"/"on-request"); those would hang forever in an unattended
-// run because cron has no /resolve responder. Falls back to the safest
-// per-backend default that runs without prompts.
+// run because cron has no /resolve responder. Bureau's cron runner is still
+// Claude-backed, so persisted cron records normalize to the single unattended
+// mode it can run safely.
 //
 // Claude "auto" is explicitly excluded — ClaudeSession always installs
 // canUseTool, and cron's normalized consumer can't resolve approval_request

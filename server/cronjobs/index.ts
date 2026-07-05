@@ -61,6 +61,7 @@ import { createSafetyHooks } from "../agents/session/safety/index.ts";
 import { memorySection } from "../agents/session/system-prompt.ts";
 import { officeConfig } from "../agents/state.ts";
 import { memoryStore } from "../memory-store.ts";
+import { validateCronjobPermissionMode } from "../agent-validators.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
@@ -172,7 +173,7 @@ export function addCronjob(input: AddCronjobInput): Cronjob {
     prompt: input.prompt,
     cwd: resolveCwd(input.cwd),
     modelFamily: input.modelFamily,
-    permissionMode: input.permissionMode,
+    permissionMode: validateCronjobPermissionMode("claude", input.permissionMode),
     enabled: true,
     createdBy: input.username,
     device: input.device ?? null,
@@ -199,7 +200,7 @@ export function updateCronjob(id: string, changes: Partial<Pick<Cronjob, "name" 
   if (changes.prompt !== undefined) next.prompt = changes.prompt;
   if (changes.cwd !== undefined) next.cwd = resolveCwd(changes.cwd);
   if (changes.modelFamily !== undefined) next.modelFamily = changes.modelFamily;
-  if (changes.permissionMode !== undefined) next.permissionMode = changes.permissionMode;
+  if (changes.permissionMode !== undefined) next.permissionMode = validateCronjobPermissionMode("claude", changes.permissionMode);
   if (changes.enabled !== undefined) next.enabled = changes.enabled;
   if (changes.schedule !== undefined) {
     next.schedule = clampSchedule(changes.schedule);

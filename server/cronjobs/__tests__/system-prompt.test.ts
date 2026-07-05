@@ -10,7 +10,7 @@ function cronjob(): Cronjob {
     prompt: "Summarize the day.",
     cwd: "/tmp",
     modelFamily: "opus",
-    permissionMode: "auto",
+    permissionMode: "bypassPermissions",
     enabled: true,
     createdBy: "Boss",
     device: null,

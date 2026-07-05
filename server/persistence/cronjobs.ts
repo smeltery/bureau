@@ -13,6 +13,7 @@
 import { join } from "path";
 import { mkdirSync, readFileSync, existsSync, appendFileSync, readdirSync } from "fs";
 import type { Cronjob, CronjobRun, LogEntry } from "../../shared/types.ts";
+import { validateCronjobPermissionMode } from "../agent-validators.ts";
 import { atomicWriteFileSync, CRONJOBS_DIR, CRONJOBS_FILE, CRONJOB_HISTORY_FILE, CRONJOBS_PROMPT_FILE } from "./paths.ts";
 import type { PersistedUsage } from "./logs/sessions.ts";
 
@@ -45,7 +46,14 @@ export function saveCronjobsPrompt(value: string | null) {
 export function loadCronjobs(): Cronjob[] {
   try {
     if (!existsSync(CRONJOBS_FILE)) return [];
-    return JSON.parse(readFileSync(CRONJOBS_FILE, "utf-8")) as Cronjob[];
+    const parsed = JSON.parse(readFileSync(CRONJOBS_FILE, "utf-8"));
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((c): c is Cronjob => c && typeof c === "object" && typeof c.id === "string")
+      .map((c) => ({
+        ...c,
+        permissionMode: validateCronjobPermissionMode("claude", (c as { permissionMode?: string }).permissionMode),
+      }));
   } catch (err) {
     console.error("Failed to load cronjobs:", err);
     return [];
