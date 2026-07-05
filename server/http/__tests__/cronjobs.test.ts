@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
+import * as CronjobManager from "../../cronjobs/index.ts";
 import { handleCronjobsRequest } from "../cronjobs.ts";
 
 const ownerAuth: AuthResult = {
@@ -52,6 +53,84 @@ describe("handleCronjobsRequest", () => {
     });
 
     const res = await handleCronjobsRequest(req, new URL(req.url));
+
+    expect(res?.status).toBe(404);
+    expect(await res?.json()).toEqual({ error: "not found" });
+  });
+
+  test("creates, updates, and deletes cronjobs over the api", async () => {
+    const createReq = new Request("http://local.test/api/cronjobs", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Daily check",
+        schedule: { type: "daily", hour: 9, minute: 0 },
+        prompt: "Check the queue",
+        cwd: process.cwd(),
+        agentType: "codex",
+        modelFamily: "gpt-5",
+        effort: "medium",
+        permissionMode: "never",
+        codexSandbox: "workspace-write",
+      }),
+    });
+
+    const createdRes = await handleCronjobsRequest(createReq, new URL(createReq.url), ownerAuth);
+    const created = await createdRes?.json();
+
+    expect(createdRes?.status).toBe(201);
+    expect(created.name).toBe("Daily check");
+
+    const updateReq = new Request(`http://local.test/api/cronjobs/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: false }),
+    });
+    const updatedRes = await handleCronjobsRequest(updateReq, new URL(updateReq.url), ownerAuth);
+    const updated = await updatedRes?.json();
+
+    expect(updatedRes?.status).toBe(200);
+    expect(updated.enabled).toBe(false);
+
+    const deleteReq = new Request(`http://local.test/api/cronjobs/${created.id}`, { method: "DELETE" });
+    const deletedRes = await handleCronjobsRequest(deleteReq, new URL(deleteReq.url), ownerAuth);
+
+    expect(deletedRes?.status).toBe(204);
+  });
+
+  test("requires owner or creator access for cronjob mutations", async () => {
+    const cronjob = CronjobManager.addCronjob({
+      name: "Member owned",
+      schedule: { type: "daily", hour: 9, minute: 0 },
+      prompt: "Check",
+      cwd: process.cwd(),
+      agentType: "codex",
+      modelFamily: "gpt-5",
+      effort: "medium",
+      permissionMode: "never",
+      codexSandbox: "workspace-write",
+      username: "Other",
+      userId: "other-user",
+    });
+
+    const req = new Request(`http://local.test/api/cronjobs/${cronjob.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: false }),
+    });
+
+    const res = await handleCronjobsRequest(req, new URL(req.url), memberAuth);
+
+    expect(res?.status).toBe(403);
+    expect(await res?.json()).toEqual({ error: "owner access required" });
+
+    CronjobManager.deleteCronjob(cronjob.id);
+  });
+
+  test("returns not found for missing cron run message routes", async () => {
+    const req = new Request("http://local.test/api/cronjobs/cron-1/runs/missing/messages", {
+      method: "POST",
+      body: JSON.stringify({ text: "Follow up" }),
+    });
+
+    const res = await handleCronjobsRequest(req, new URL(req.url), ownerAuth);
 
     expect(res?.status).toBe(404);
     expect(await res?.json()).toEqual({ error: "not found" });
