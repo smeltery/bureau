@@ -1,4 +1,5 @@
 import * as AgentManager from "../agent-manager.ts";
+import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { isSafeScopeId, memoryStore } from "../memory-store.ts";
 import { listUsers } from "../users.ts";
 import type { MemoryScope } from "../../shared/types.ts";
@@ -48,12 +49,48 @@ function authorFromRequest(req: Request): string {
   return "Bureau";
 }
 
+type AgentMemoryIdentity = NonNullable<ReturnType<typeof resolveAgentToken>>;
+
+function resolveMemoryBearer(req: Request): AgentMemoryIdentity | Response | null {
+  const raw = readBearerToken(req);
+  if (!raw) return null;
+  const identity = resolveAgentToken(raw);
+  if (!identity) return error(401, "invalid_token", "invalid bearer token");
+  return identity;
+}
+
+function authorizeBearerMemory(identity: AgentMemoryIdentity | null, target: { scope: MemoryScope; scopeId: string | null }): Response | null {
+  if (!identity) return null;
+  if (identity.privileged) return null;
+
+  if (target.scope === "agent" && target.scopeId === identity.agentId) return null;
+
+  if (target.scope === "boss" && identity.userId && target.scopeId === identity.userId) return null;
+
+  if (target.scope === "room") {
+    const agent = AgentManager.getAllAgents().find((a) => a.id === identity.agentId);
+    const roomId = agent ? AgentManager.getRooms()[agent.room]?.id : null;
+    if (roomId && target.scopeId === roomId) return null;
+  }
+
+  return error(403, "forbidden", "agent token cannot access this memory scope");
+}
+
+function authorFromBearer(identity: AgentMemoryIdentity | null, fallback: string): string {
+  if (!identity) return fallback;
+  return AgentManager.getAllAgents().find((a) => a.id === identity.agentId)?.name ?? fallback;
+}
+
 export async function handleMemoryRequest(req: Request, url: URL): Promise<Response | null> {
   if (url.pathname !== "/api/memory" && url.pathname !== "/memory") return null;
+  const bearer = resolveMemoryBearer(req);
+  if (bearer instanceof Response) return bearer;
 
   if (req.method === "GET") {
     const target = resolveTarget(parseScope(url.searchParams.get("scope") ?? "agent"), url.searchParams.get("scopeId") ?? undefined);
     if (target instanceof Response) return target;
+    const denied = authorizeBearerMemory(bearer, target);
+    if (denied) return denied;
     return json(memoryStore.read(target.scope, target.scopeId));
   }
 
@@ -70,9 +107,11 @@ export async function handleMemoryRequest(req: Request, url: URL): Promise<Respo
     if (!text) return error(400, "invalid_text", "text must not be blank");
     const target = resolveTarget(parseScope(body.scope), body.scopeId);
     if (target instanceof Response) return target;
+    const denied = authorizeBearerMemory(bearer, target);
+    if (denied) return denied;
     const duplicate = memoryStore.findDuplicate(target.scope, target.scopeId, text);
     if (duplicate) return error(409, "duplicate_memory", "a matching memory already exists in this scope", { matched: { text: duplicate.text } });
-    return json(memoryStore.append({ scope: target.scope, scopeId: target.scopeId, author: authorFromRequest(req), text }), 201);
+    return json(memoryStore.append({ scope: target.scope, scopeId: target.scopeId, author: authorFromBearer(bearer, authorFromRequest(req)), text }), 201);
   }
 
   if (req.method === "PUT") {
@@ -86,7 +125,9 @@ export async function handleMemoryRequest(req: Request, url: URL): Promise<Respo
     if (typeof body.version !== "string" || body.version.length === 0) return error(400, "invalid_version", "version is required");
     const target = resolveTarget(parseScope(body.scope), body.scopeId);
     if (target instanceof Response) return target;
-    const result = memoryStore.replace({ scope: target.scope, scopeId: target.scopeId, text: body.text, author: authorFromRequest(req), expectedVersion: body.version });
+    const denied = authorizeBearerMemory(bearer, target);
+    if (denied) return denied;
+    const result = memoryStore.replace({ scope: target.scope, scopeId: target.scopeId, text: body.text, author: authorFromBearer(bearer, authorFromRequest(req)), expectedVersion: body.version });
     if (!result.ok) return error(409, "memory_conflict", "memory changed since it was read", { version: result.version });
     return json({ version: result.version });
   }
