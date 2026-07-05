@@ -80,13 +80,14 @@ export function RoomTabBar() {
   const presencesByRoom = useMemo(() => {
     const buckets = new Map<number, PresenceInfo[]>();
     for (const presence of presences) {
-      if (presence.currentRoom === null) continue;
-      const list = buckets.get(presence.currentRoom);
+      const roomIdx = presence.currentRoomId ? rooms.findIndex((room) => room.id === presence.currentRoomId) : presence.currentRoom;
+      if (roomIdx === null || roomIdx < 0) continue;
+      const list = buckets.get(roomIdx);
       if (list) list.push(presence);
-      else buckets.set(presence.currentRoom, [presence]);
+      else buckets.set(roomIdx, [presence]);
     }
     return buckets;
-  }, [presences]);
+  }, [presences, rooms]);
 
   // Focus input when editing starts — must be before any early returns (rules of hooks)
   useEffect(() => {

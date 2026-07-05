@@ -71,10 +71,11 @@ export function App() {
   const anyModalOpen = editingUsername || editingDeviceSettings || editingOfficePrompt || editingRoomSettings !== null || updateOpen;
   const viewMode: "office" | "log" | "away" = tasksOpen || cronjobsOpen || pluginsOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
   const presenceRoom = focusedAgent?.room ?? currentRoom;
+  const presenceRoomId = rooms[presenceRoom]?.id ?? null;
   useEffect(() => {
     if (!sessionContext) return;
-    send({ type: "presence_update", currentRoom: presenceRoom, focusedAgentId, viewMode, device: getDevice() });
-  }, [sessionContext, presenceRoom, focusedAgentId, viewMode]);
+    send({ type: "presence_update", currentRoom: presenceRoom, currentRoomId: presenceRoomId, focusedAgentId, viewMode, device: getDevice() });
+  }, [sessionContext, presenceRoom, presenceRoomId, focusedAgentId, viewMode]);
 
   const swipeRoomNext = useCallback(() => {
     if (roomCount <= 1) return;

@@ -543,7 +543,13 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       if (!user) break;
       const rooms = AgentManager.getRooms();
       const visibleRooms = user.role === "owner" ? rooms : rooms.filter((r) => user.allowedRooms.includes(r.id));
-      const roomId = cmd.currentRoom !== null && Number.isInteger(cmd.currentRoom) ? (visibleRooms[cmd.currentRoom]?.id ?? null) : null;
+      const visibleRoomIds = new Set(visibleRooms.map((r) => r.id));
+      const roomId =
+        cmd.currentRoomId && visibleRoomIds.has(cmd.currentRoomId)
+          ? cmd.currentRoomId
+          : cmd.currentRoom !== null && Number.isInteger(cmd.currentRoom)
+            ? (visibleRooms[cmd.currentRoom]?.id ?? null)
+            : null;
       let focusedAgentId: string | null = null;
       if (roomId && cmd.focusedAgentId) {
         const agent = AgentManager.getAllAgents().find((a) => a.id === cmd.focusedAgentId);
