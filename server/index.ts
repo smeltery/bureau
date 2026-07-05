@@ -175,8 +175,13 @@ function sendToVisibleAgent(agentId: string, msg: ServerMessage) {
       if (msg.type === "agent_updated" && typeof msg.changes.room === "number" && user?.role === "member") {
         const projectedRooms = projectRooms(user, AgentManager.getRooms());
         const projectedRoom = projectedRooms.findIndex((r) => r.id === roomId);
-        ws.send(JSON.stringify({ ...msg, changes: { ...msg.changes, room: projectedRoom } } as ServerMessage));
+        ws.send(JSON.stringify({ ...msg, changes: { ...msg.changes, room: projectedRoom, roomId } } as ServerMessage));
+      } else if (msg.type === "agent_updated" && typeof msg.changes.room === "number") {
+        ws.send(JSON.stringify({ ...msg, changes: { ...msg.changes, roomId } } as ServerMessage));
       } else if (msg.type === "agent_added" && user?.role === "member") {
+        const projected = projectAgents(user, [msg.agent], AgentManager.getRooms())[0];
+        if (projected) ws.send(JSON.stringify({ ...msg, agent: projected } as ServerMessage));
+      } else if (msg.type === "agent_added") {
         const projected = projectAgents(user, [msg.agent], AgentManager.getRooms())[0];
         if (projected) ws.send(JSON.stringify({ ...msg, agent: projected } as ServerMessage));
       } else {

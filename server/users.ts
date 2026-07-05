@@ -376,12 +376,13 @@ export function projectRooms(user: UserRecord | null, rooms: RoomWire[]): RoomWi
 }
 
 export function projectAgents(user: UserRecord | null, agents: AgentInfo[], rooms: RoomWire[]): AgentInfo[] {
-  if (!user) return agents;
+  const withRoomIds = agents.map((agent) => ({ ...agent, roomId: rooms[agent.room]?.id }));
+  if (!user) return withRoomIds;
   const projectedRooms = projectRooms(user, rooms);
   const visibleRoomIds = new Set(projectedRooms.map((room) => room.id));
-  if (user.role === "owner" && projectedRooms.length === rooms.length && projectedRooms.every((room, index) => room.id === rooms[index]?.id)) return agents;
+  if (user.role === "owner" && projectedRooms.length === rooms.length && projectedRooms.every((room, index) => room.id === rooms[index]?.id)) return withRoomIds;
   const projectedIndex = new Map(projectedRooms.map((room, index) => [room.id, index]));
-  return agents
+  return withRoomIds
     .filter((agent) => visibleRoomIds.has(rooms[agent.room]?.id ?? ""))
     .map((agent) => {
       const roomId = rooms[agent.room]?.id;
