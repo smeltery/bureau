@@ -8,7 +8,7 @@ import { addLogEntry, agents, emit, emitEphemeralLog, isAgentBusy, logCache, off
 import { enqueueMessage } from "./send.ts";
 import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
-import { listCronjobs, buildCronjobSystemPrompt } from "../../cronjobs/index.ts";
+import { listCronjobs, buildCronjobMemoryPrompt, buildCronjobSystemPrompt } from "../../cronjobs/index.ts";
 import { SessionSwappedError, buildMemoryPromptForAgent, createSession, emitLoginInstructions, replaceSession } from "../session/runtime.ts";
 import { tildifyCwd } from "../session/paths.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
@@ -412,7 +412,7 @@ const commandHandlers: Record<string, HandlerFn> = {
 
     // The cronjob receives the system prompt + the configured prompt as its
     // first user message, so display both — that's the full initial input.
-    const systemPrompt = buildCronjobSystemPrompt(target, target.id, "");
+    const systemPrompt = buildCronjobSystemPrompt(target, target.id, "", buildCronjobMemoryPrompt());
     const combined = `${systemPrompt}\n\n----\nFirst user message:\n\n${target.prompt}`;
     const longestRun = (combined.match(/`+/g) ?? []).reduce((m, s) => Math.max(m, s.length), 0);
     const fence = "`".repeat(Math.max(3, longestRun + 1));
