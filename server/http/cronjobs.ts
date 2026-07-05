@@ -1,4 +1,6 @@
+import { readBearerToken } from "../agents/tokens.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
+import { resolveRunToken } from "../cronjobs/tokens.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -13,7 +15,7 @@ export async function handleCronjobsRequest(req: Request, url: URL): Promise<Res
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",
       },
     });
   }
@@ -50,6 +52,8 @@ export async function handleCronjobsRequest(req: Request, url: URL): Promise<Res
   }
   // POST /cronjobs/:id/runs/:runId/read-file
   if (req.method === "POST" && parts[2] === "runs" && parts.length === 5 && parts[4] === "read-file") {
+    const denied = requireRunBearer(req, jobId, parts[3]!);
+    if (denied) return denied;
     let path: string | undefined;
     try {
       const body = (await req.json()) as Record<string, unknown> | null;
@@ -62,6 +66,8 @@ export async function handleCronjobsRequest(req: Request, url: URL): Promise<Res
   }
   // POST /cronjobs/:id/runs/:runId/diff
   if (req.method === "POST" && parts[2] === "runs" && parts.length === 5 && parts[4] === "diff") {
+    const denied = requireRunBearer(req, jobId, parts[3]!);
+    if (denied) return denied;
     let dir: string | undefined;
     let commit: string | undefined;
     try {
@@ -77,4 +83,15 @@ export async function handleCronjobsRequest(req: Request, url: URL): Promise<Res
     return new Response(JSON.stringify({ error: "method not allowed" }), { status: 405, headers: corsHeaders });
   }
   return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+}
+
+function requireRunBearer(req: Request, jobId: string, runId: string): Response | null {
+  const identity = resolveRunToken(readBearerToken(req));
+  if (!identity) {
+    return new Response(JSON.stringify({ error: "missing or invalid bearer token" }), { status: 401, headers: corsHeaders });
+  }
+  if (identity.cronjobId !== jobId || identity.runId !== runId) {
+    return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: corsHeaders });
+  }
+  return null;
 }

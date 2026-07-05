@@ -62,6 +62,7 @@ import { getBackend } from "../backends/index.ts";
 import type { BackendSession, CreateSessionOptions, NormalizedEvent, NormalizedMessage } from "../backends/types.ts";
 import { getUserById, getUserByName } from "../users.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
+import { mintRunToken, revokeRunToken } from "./tokens.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
@@ -79,6 +80,10 @@ function buildCronjobEnv(userId?: string | null): { [key: string]: string | unde
   if (officeEnvFile) Object.assign(merged, readEnvFile(officeEnvFile));
   if (userEnvFile) Object.assign(merged, readEnvFile(userEnvFile));
   return merged;
+}
+
+function withRunTokenEnv(env: { [key: string]: string | undefined } | undefined, token: string): { [key: string]: string | undefined } {
+  return { ...(env ?? process.env), BUREAU_AGENT_TOKEN: token };
 }
 
 function cronRunBackend(run: CronjobRun) {
@@ -347,11 +352,11 @@ On create, set createdBy to the boss name from your prompt or a follow-up messag
 How to show an image: read the image file with the Read tool — it renders inline in the conversation.
 
 How to surface a file in the run transcript (images render inline; other files render as a clickable file chip): call POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/read-file with body {"path":"..."}. The path can be relative to your cwd, absolute, or \`~/...\`. Use this when you've produced or want to surface a file (a plot, screenshot, generated PDF, log snippet) for whoever reviews the run.
-  curl -s -X POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/read-file -H 'Content-Type: application/json' -d '{"path":"plot.png"}'
+  curl -s -X POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/read-file -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"path":"plot.png"}'
 
 How to show a styled code diff in the run transcript: call POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/diff. Optional body fields: {"dir":"..."} targets a different directory (defaults to your cwd); {"commit":"..."} shows a specific commit, tag/branch, or range such as "main..feature" or "HEAD~3..HEAD" instead of uncommitted changes.
-  curl -s -X POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/diff -d '{}'                                                # uncommitted in your cwd
-  curl -s -X POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/diff -H 'Content-Type: application/json' -d '{"commit":"HEAD~1"}'   # a specific commit
+  curl -s -X POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/diff -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'                                                # uncommitted in your cwd
+  curl -s -X POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/diff -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"commit":"HEAD~1"}'   # a specific commit
 
 How to show diagrams and visual elements: run transcripts render GitHub-flavored Markdown and inline HTML. Use a fenced \`\`\`mermaid block for flowcharts, sequence diagrams, and dependency graphs that benefit from auto-layout. For compact custom visuals, inline HTML and SVG are okay; prefer Bureau theme variables such as var(--bg-subtle), var(--bg-code), var(--border), var(--border-light), var(--text-primary), var(--text-secondary), var(--text-dim), and var(--accent).
 
@@ -617,6 +622,7 @@ function finalizeRun(active: ActiveRun, status: CronjobRun["status"], errorReaso
   try {
     active.session.close();
   } catch {}
+  revokeRunToken(active.runId);
   const previewText = (active.lastAssistantText || "").trim().replace(/\s+/g, " ").slice(0, 120);
   const updated = updateRun(active.jobId, active.runId, {
     status,
@@ -683,11 +689,13 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string
     return run;
   }
 
-  const opts = buildRunSessionOptions(job, jobId, runId, env);
+  const runToken = mintRunToken(jobId, runId, job.userId ?? null);
+  const opts = buildRunSessionOptions(job, jobId, runId, withRunTokenEnv(env, runToken));
   let session: BackendSession;
   try {
     session = getBackend(job.agentType).createSession(opts);
   } catch (err: any) {
+    revokeRunToken(runId);
     const updated = updateRun(jobId, runId, {
       status: "failed",
       endedAt: Date.now(),
@@ -864,7 +872,9 @@ function buildRunResumeOptions(run: CronjobRun, resumeSessionId: string): Create
   // pick up any office/cronjobs prompt edits. For deleted cronjobs, use an
   // empty append instead of synthesizing a partial prompt.
   const job = cronjobs.find((c) => c.id === run.cronjobId);
-  const env = buildCronjobEnv(job?.userId ?? null);
+  const baseEnv = buildCronjobEnv(job?.userId ?? null);
+  const runToken = mintRunToken(run.cronjobId, run.id, job?.userId ?? null);
+  const env = withRunTokenEnv(baseEnv, runToken);
   return {
     agentId: cronjobRunStreamId(run.id),
     modelFamily: run.modelFamilySnapshot,
@@ -954,6 +964,7 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
     try {
       session = cronRunBackend(run).resumeSession(leaf, buildRunResumeOptions(run, leaf));
     } catch (err: any) {
+      revokeRunToken(runId);
       emitRunErrorEntry(jobId, runId, `Failed to resume: ${err.message || String(err)}`);
       return;
     }
@@ -1097,6 +1108,7 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
   try {
     session = backend.resumeSession(newSessionId, buildRunResumeOptions(run, newSessionId));
   } catch (err: any) {
+    revokeRunToken(runId);
     emitRunErrorEntry(jobId, runId, `Failed to start fork: ${err.message || String(err)}`);
     return;
   }
