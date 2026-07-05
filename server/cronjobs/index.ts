@@ -341,12 +341,12 @@ The Bureau office consists of agents that have persistent identity and sit at de
 
 How to discover other office agents and their conversation logs: read ~/.bureau/agents-summary.json.
 
-How to use the task board (localhost:${PORT}/tasks): only touch it if your prompt directs you to. When you do:
-  curl -s localhost:${PORT}/tasks                                          # list active tasks (excludes done and backlog)
-  curl -s localhost:${PORT}/tasks?status=all                               # include done and backlog
-  curl -s -X POST localhost:${PORT}/tasks -H 'Content-Type: application/json' \\
+How to use the task board (localhost:${PORT}/api/tasks): only touch it if your prompt directs you to. When you do:
+  curl -s localhost:${PORT}/api/tasks                                          # list active tasks (excludes done and backlog)
+  curl -s localhost:${PORT}/api/tasks?status=all                               # include done and backlog
+  curl -s -X POST localhost:${PORT}/api/tasks -H 'Content-Type: application/json' \\
     -d '{"title":"...","createdBy":"<boss-name>"}'                      # create
-  curl -s -X POST localhost:${PORT}/tasks/ID/done -d '{}'                  # mark done
+  curl -s -X POST localhost:${PORT}/api/tasks/ID/done -d '{}'                  # mark done
 On create, set createdBy to the boss name from your prompt or a follow-up message when you can tell who requested the task. If you can't tell, use "${cronjob.name}".
 
 How to show an image: read the image file with the Read tool — it renders inline in the conversation.
