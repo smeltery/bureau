@@ -161,6 +161,7 @@ export interface AgentInfo {
   modelFamily: string;
   agentType: AgentBackendType;
   capabilities: AgentCapabilities;
+  privileged?: boolean;
   codexSandbox?: CodexSandboxMode;
   effort?: EffortLevel;
   state: AgentState;
@@ -754,6 +755,12 @@ export type ClientCommand =
       permissionMode?: AgentInfo["permissionMode"];
       codexSandbox?: CodexSandboxMode;
       effort?: EffortLevel;
+    }
+  | {
+      type: "set_agent_privileged";
+      requestId?: string;
+      agentId: string;
+      privileged: boolean;
     }
   | { type: "swap_desks"; deskA: number; deskB: number; roomId: string }
   | { type: "set_topic"; agentId: string; topic: string }

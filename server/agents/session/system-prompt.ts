@@ -19,6 +19,7 @@ export function buildSystemPrompt(
   memoryPrompt?: string | null,
   managerName?: string | null,
   memberPrompt?: string | null,
+  privileged: boolean = false,
 ): string {
   let systemPrompt = `You are ${agentName}, an agent in room ${roomName} of the Bureau office.
 Your goal is to help the office bosses, who talk to you in this chat.
@@ -72,6 +73,9 @@ Pipe every command that touches secret-bearing surfaces (env vars, .env files, c
   if (managerName && memberPrompt) systemPrompt += `\n\n## Special Instructions For ${managerName}\n\n${memberPrompt}`;
   if (roomPrompt) systemPrompt += `\n\n## Instructions For Your Room: ${roomName}\n\n${roomPrompt}`;
   if (customInstructions) systemPrompt += `\n\n## Personal Instructions For You: ${agentName}\n\n${customInstructions}`;
+  if (privileged) {
+    systemPrompt += `\n\n## Privileged Operator Context\n\nYour agent token is marked as privileged for server-side authorization decisions. Use that authority only when a boss explicitly asks, and never try to change privilege settings for yourself or another agent.`;
+  }
   systemPrompt += memorySection(memoryPrompt);
   return systemPrompt;
 }

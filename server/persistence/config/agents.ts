@@ -15,6 +15,7 @@ export interface PersistedAgent {
   permissionMode: AgentInfo["permissionMode"];
   modelFamily?: string;
   agentType?: AgentInfo["agentType"];
+  privileged?: boolean;
   codexSandbox?: AgentInfo["codexSandbox"];
   effort?: AgentInfo["effort"];
   lastSessionId: string | null;

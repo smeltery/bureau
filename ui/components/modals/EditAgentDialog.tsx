@@ -68,7 +68,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
   const agent = props.agent;
   const agentType = agent?.agentType ?? props.agentType ?? "claude";
 
-  const { recentCwds: allRecentCwds, isMobile, agents, rooms } = useAppState();
+  const { recentCwds: allRecentCwds, isMobile, agents, rooms, sessionContext } = useAppState();
   const roomCount = rooms.length;
   const [name, setName] = useState(agent?.name ?? "");
   const [cwd, setCwd] = useState(agent?.cwd ?? props.defaultCwd ?? "~");
@@ -79,9 +79,12 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
   const initialPermissionMode: AgentInfo["permissionMode"] =
     agent?.permissionMode === "auto" && !familyAllowsAutoPermission(agent?.modelFamily ?? MODEL_FAMILIES[0].family) ? "bypassPermissions" : (agent?.permissionMode ?? "auto");
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
+  const [privileged, setPrivileged] = useState(agent?.privileged ?? false);
+  const canTogglePrivileged = !isSpawn && sessionContext?.role === "owner";
   const [saving, setSaving] = useState(false);
   const [cwdError, setCwdError] = useState<string | null>(null);
   const pendingListener = useRef<((data: string) => void) | null>(null);
+  const savePhase = useRef<"edit" | "privileged" | null>(null);
   const recentCwds = allRecentCwds.filter((c) => c !== cwd);
   const agentMemory = useMemoryEditor("agent", agent?.id ?? null, !isSpawn && !!agent);
 
@@ -124,12 +127,19 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
       try {
         const msg = JSON.parse(data);
         if (msg.type === "agent_save_response" && msg.requestId === reqId) {
+          if (msg.ok && savePhase.current === "edit" && canTogglePrivileged && privileged !== (agent!.privileged ?? false)) {
+            savePhase.current = "privileged";
+            send({ type: "set_agent_privileged", requestId: reqId, agentId: agent!.id, privileged });
+            return;
+          }
           removeRawListener(listener);
           pendingListener.current = null;
           setSaving(false);
           if (msg.ok) {
+            savePhase.current = null;
             onClose();
           } else {
+            savePhase.current = null;
             setCwdError(msg.error || "Save failed");
           }
         }
@@ -164,16 +174,31 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
       if (trimmedInstructions !== (agent!.customInstructions ?? "")) cmd.customInstructions = trimmedInstructions;
       if (modelFamily !== agent!.modelFamily) cmd.modelFamily = modelFamily;
       if (permissionMode !== agent!.permissionMode) cmd.permissionMode = permissionMode;
-      if (!(cmd.name || cmd.cwd || cmd.outfit || cmd.customInstructions !== undefined || cmd.modelFamily || cmd.permissionMode)) {
+      const privilegedChanged = canTogglePrivileged && privileged !== (agent!.privileged ?? false);
+      const hasAgentChanges = !!(cmd.name || cmd.cwd || cmd.outfit || cmd.customInstructions !== undefined || cmd.modelFamily || cmd.permissionMode);
+      if (!hasAgentChanges && !privilegedChanged) {
         onClose();
         return;
       }
       setCwdError(null);
-      // Only round-trip through the server when we need cwd validation; other
-      // edits have no failure mode worth blocking the dialog on.
-      if (cmd.cwd) {
+      if (privilegedChanged) {
+        setSaving(true);
+        addRawListener(listener);
+        pendingListener.current = listener;
+        if (hasAgentChanges) {
+          cmd.requestId = reqId;
+          savePhase.current = "edit";
+          send(cmd);
+        } else {
+          savePhase.current = "privileged";
+          send({ type: "set_agent_privileged", requestId: reqId, agentId: agent!.id, privileged });
+        }
+      } else if (cmd.cwd) {
+        // Only round-trip through the server when we need cwd validation; other
+        // edits have no failure mode worth blocking the dialog on.
         cmd.requestId = reqId;
         setSaving(true);
+        savePhase.current = "edit";
         addRawListener(listener);
         pendingListener.current = listener;
         send(cmd);
@@ -261,6 +286,13 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
             <option value="acceptEdits">Accept Edits (auto-approve file changes)</option>
             <option value="bypassPermissions">Bypass (auto-approve all)</option>
           </select>
+
+          {canTogglePrivileged && (
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
+              <input type="checkbox" checked={privileged} onChange={(e) => setPrivileged(e.target.checked)} style={{ width: 14, height: 14, accentColor: "var(--accent)" }} />
+              Privileged operator token
+            </label>
+          )}
 
           <label style={{ ...labelStyle, marginTop: 12 }}>Model</label>
           <select

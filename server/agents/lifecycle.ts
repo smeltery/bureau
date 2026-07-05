@@ -379,6 +379,32 @@ export async function editAgent(
   emit({ type: "agent_updated", agentId, changes: updated });
 }
 
+export async function setAgentPrivileged(agentId: string, privileged: boolean): Promise<AgentInfo | null> {
+  const managed = agents.get(agentId);
+  if (!managed) return null;
+  const previous = managed.info.privileged ?? false;
+  if (previous === privileged) return managed.info;
+
+  managed.info.privileged = privileged;
+  mintAgentToken(agentId, managed.info.userId ?? null, privileged);
+
+  try {
+    if (managed.session) {
+      const resumeId = managed.sessionId;
+      const newSession = resumeId ? createSession(managed, resumeId) : createSession(managed);
+      await replaceSession(agentId, managed, newSession);
+    }
+  } catch (err) {
+    managed.info.privileged = previous;
+    mintAgentToken(agentId, managed.info.userId ?? null, previous);
+    throw err;
+  }
+
+  persistAll();
+  emit({ type: "agent_updated", agentId, changes: { privileged } });
+  return managed.info;
+}
+
 // ---------------------------------------------------------------------------
 // spawn — create a new agent
 // ---------------------------------------------------------------------------
@@ -438,6 +464,7 @@ export async function spawn(
     modelFamily: modelFamily ?? "opus",
     agentType,
     capabilities: getBackend(agentType).capabilities ?? DEFAULT_AGENT_CAPABILITIES,
+    privileged: false,
     ...(codexSandbox ? { codexSandbox } : {}),
     ...(effort ? { effort } : {}),
     state: "idle",
@@ -476,7 +503,7 @@ export async function spawn(
     lastWrittenEntryId: null,
   };
   agents.set(id, managed);
-  mintAgentToken(id, info.userId ?? null);
+  mintAgentToken(id, info.userId ?? null, info.privileged ?? false);
   emit({ type: "agent_added", agent: info });
   // Send commands immediately so autocomplete works before SDK init
   emit({
@@ -530,6 +557,7 @@ export async function kill(agentId: string) {
         modelFamily: managed.info.modelFamily,
         effort: managed.info.effort,
         agentType: managed.info.agentType,
+        privileged: managed.info.privileged ?? false,
         codexSandbox: managed.info.codexSandbox,
         lastSessionId: managed.sessionId,
         topic: managed.info.topic,
@@ -728,6 +756,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
     modelFamily: entry.modelFamily ?? "opus",
     agentType,
     capabilities: getBackend(agentType).capabilities ?? DEFAULT_AGENT_CAPABILITIES,
+    privileged: entry.privileged ?? false,
     ...(entry.codexSandbox ? { codexSandbox: entry.codexSandbox } : {}),
     ...(entry.effort ? { effort: entry.effort } : {}),
     state: resumeFromSession ? "waiting_for_response" : "idle",
@@ -766,7 +795,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
     flushInProgress: false,
     lastWrittenEntryId: null,
   };
-  mintAgentToken(agentId, info.userId ?? null);
+  mintAgentToken(agentId, info.userId ?? null, info.privileged ?? false);
   agents.set(agentId, managed);
 
   // Load log history into cache so the historical conversation stays visible
@@ -839,6 +868,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         modelFamily: p.modelFamily ?? "opus",
         agentType: p.agentType ?? "claude",
         capabilities: getBackend(p.agentType ?? "claude").capabilities ?? DEFAULT_AGENT_CAPABILITIES,
+        privileged: p.privileged ?? false,
         ...(p.codexSandbox ? { codexSandbox: p.codexSandbox } : {}),
         ...(p.effort ? { effort: p.effort } : {}),
         state: p.lastSessionId ? "waiting_for_response" : "idle",
@@ -851,7 +881,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         customInstructions: p.customInstructions ?? null,
         queue: [],
       };
-      mintAgentToken(p.id, info.userId ?? null);
+      mintAgentToken(p.id, info.userId ?? null, info.privileged ?? false);
       const managed: ManagedAgent = {
         info,
         session: null,
