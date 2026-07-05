@@ -25,12 +25,16 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     });
   }
 
-  const parts = taskRouteParts(url.pathname);
-  if (!parts) return null;
+  const route = taskRouteParts(url.pathname);
+  if (!route) return null;
+  const { parts, api } = route;
   const rawBearer = readBearerToken(req);
   const bearer = resolveAgentToken(rawBearer);
   if (rawBearer && !bearer) {
     return new Response(JSON.stringify({ error: "invalid bearer token" }), { status: 401, headers: corsHeaders });
+  }
+  if (api && !taskAttribution(bearer, auth)) {
+    return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
   }
 
   // ["tasks"] or ["tasks", id] or ["tasks", id, action]
@@ -67,14 +71,13 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
 
   // POST /tasks — create
   if (req.method === "POST" && !taskId) {
-    const createdBy = taskAttribution(bearer, auth);
-    if (!createdBy) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     let body: Record<string, unknown>;
     try {
       body = (await req.json()) as Record<string, unknown>;
     } catch {
       return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: corsHeaders });
     }
+    const createdBy = taskAttribution(bearer, auth) ?? legacyCreatedBy(body);
     if (!body.title) {
       return new Response(JSON.stringify({ error: "title is required" }), { status: 400, headers: corsHeaders });
     }
@@ -177,9 +180,13 @@ function taskAttribution(bearer: ReturnType<typeof resolveAgentToken>, auth: Aut
   return null;
 }
 
-function taskRouteParts(pathname: string): string[] | null {
+function legacyCreatedBy(body: Record<string, unknown>): string {
+  return typeof body.createdBy === "string" && body.createdBy.trim() ? body.createdBy.trim() : "Bureau";
+}
+
+function taskRouteParts(pathname: string): { parts: string[]; api: boolean } | null {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] === "tasks") return parts;
-  if (parts[0] === "api" && parts[1] === "tasks") return parts.slice(1);
+  if (parts[0] === "tasks") return { parts, api: false };
+  if (parts[0] === "api" && parts[1] === "tasks") return { parts: parts.slice(1), api: true };
   return null;
 }

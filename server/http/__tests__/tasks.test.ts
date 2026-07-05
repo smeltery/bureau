@@ -15,10 +15,19 @@ const auth: AuthResult = {
 };
 
 describe("handleTasksRequest", () => {
-  test("accepts /api/tasks as an alias for task list reads", async () => {
+  test("requires an authenticated caller for api task reads", async () => {
     const req = new Request("http://local.test/api/tasks");
 
-    const res = await handleTasksRequest(req, new URL(req.url));
+    const res = await handleTasksRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "authenticated caller required" });
+  });
+
+  test("keeps legacy task reads available to loopback callers", async () => {
+    const req = new Request("http://local.test/tasks");
+
+    const res = await handleTasksRequest(req, new URL(req.url), { kind: "loopback" });
 
     expect(res?.status).toBe(200);
     expect(Array.isArray(await res?.json())).toBe(true);
@@ -51,6 +60,22 @@ describe("handleTasksRequest", () => {
 
     expect(res?.status).toBe(401);
     expect(await res?.json()).toEqual({ error: "authenticated caller required" });
+  });
+
+  test("keeps legacy task creates available to loopback callers", async () => {
+    const req = new Request("http://local.test/tasks", {
+      method: "POST",
+      body: JSON.stringify({ title: "Legacy create", createdBy: "Scheduler" }),
+    });
+
+    const res = await handleTasksRequest(req, new URL(req.url), { kind: "loopback" });
+    const body = await res?.json();
+
+    expect(res?.status).toBe(201);
+    expect(body.createdBy).toBe("Scheduler");
+
+    const cleanup = new Request(`http://local.test/tasks/${body.id}`, { method: "DELETE" });
+    await handleTasksRequest(cleanup, new URL(cleanup.url), { kind: "loopback" });
   });
 
   test("creates tasks using authenticated user attribution", async () => {
