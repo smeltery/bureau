@@ -141,7 +141,7 @@ export function emitAgentEditFile(agentId: string, rawPath: string): { ok: true 
   return { ok: true };
 }
 
-// Display cap for POST /agents/:id/read-file. Independent from the editor
+// Display cap for POST /api/agents/:id/read-file. Independent from the editor
 // panel's text cap — this one bounds binary/image display payloads served
 // through /api/files.
 const MAX_READ_FILE_BYTES = 20 * 1024 * 1024;
@@ -197,7 +197,7 @@ export function emitAgentReadFile(agentId: string, rawPath: string): { ok: true 
 }
 
 // Emit a styled diff card into an agent's chat. Mirrors the /bureau-diff slash
-// command but driven by HTTP — agents call POST /agents/:id/diff to surface a
+// command but driven by HTTP — agents call POST /api/agents/:id/diff to surface a
 // diff when the boss asks for their changes in plain English.
 export function emitAgentDiff(agentId: string, dir?: string, commit?: string): { ok: true } | { ok: false; status: number; error: string } {
   const managed = agents.get(agentId);

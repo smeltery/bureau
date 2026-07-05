@@ -5,21 +5,23 @@ const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "appl
 
 /**
  * Handle agent-scoped HTTP routes:
- *   POST /agents/:id/diff             — emit a styled diff card (optional body: { dir, commit }).
- *   POST /agents/:id/edit-file        — emit an [Open in editor] card (body: { path }).
- *   POST /agents/:id/read-file        — copy a file into the agent's files dir and
- *                                       emit a `file-view` card (body: { path }).
- *   POST /agents/:id/terminal-command — emit a [Copy to terminal] card (body: { command }).
- *   POST /agents/:id/message          — queue an agent-to-agent message into the
- *                                       receiver's chat (body: { text, senderAgentId }).
+ *   POST /api/agents/:id/diff             — emit a styled diff card (optional body: { dir, commit }).
+ *   POST /api/agents/:id/edit-file        — emit an [Open in editor] card (body: { path }).
+ *   POST /api/agents/:id/read-file        — copy a file into the agent's files dir and
+ *                                           emit a `file-view` card (body: { path }).
+ *   POST /api/agents/:id/terminal-command — emit a [Copy to terminal] card (body: { command }).
+ *   POST /api/agents/:id/message          — queue an agent-to-agent message into the
+ *                                           receiver's chat (body: { text, senderAgentId }).
+ *
+ * Legacy /agents/:id/... aliases stay accepted for older agent prompts.
  *
  * Returns null for any other URL so the caller can fall through.
  */
 export async function handleAgentsRequest(req: Request, url: URL): Promise<Response | null> {
-  if (!url.pathname.startsWith("/agents/")) return null;
+  const parts = agentRouteParts(url.pathname);
+  if (!parts) return null;
 
   if (req.method === "POST") {
-    const parts = url.pathname.split("/").filter(Boolean);
     const identity = resolveAgentToken(readBearerToken(req));
     if (!identity) {
       return new Response(JSON.stringify({ error: "missing or invalid bearer token" }), { status: 401, headers: JSON_HEADERS });
@@ -113,5 +115,12 @@ export async function handleAgentsRequest(req: Request, url: URL): Promise<Respo
     }
   }
 
+  return null;
+}
+
+function agentRouteParts(pathname: string): string[] | null {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] === "agents") return parts;
+  if (parts[0] === "api" && parts[1] === "agents") return parts.slice(1);
   return null;
 }

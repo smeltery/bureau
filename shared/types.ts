@@ -187,7 +187,7 @@ export interface AgentInfo {
 
 // A pending message waiting for the agent to finish its current turn.
 // Senders can be human bosses (typed at the textarea) or other agents
-// (POST /agents/:id/message); both go through the same queue and flush
+// (POST /api/agents/:id/message); both go through the same queue and flush
 // together. The receiver sees one chat bubble per item with the right
 // kind of prefix so it can tell them apart.
 export type QueuedSender = { kind: "user"; username?: string } | { kind: "agent"; agentId: string; agentName: string; roomName: string };
@@ -245,14 +245,14 @@ export interface DiffPayload {
 }
 
 // Structured payload attached to LogEntry when kind === "edit-request".
-// Emitted by POST /agents/:id/edit-file. The card surfaces an
+// Emitted by POST /api/agents/:id/edit-file. The card surfaces an
 // [Open in editor] button that opens the file in the editor side panel.
 export interface FilePayload {
   path: string; // resolved absolute path
 }
 
 // Structured payload attached to LogEntry when kind === "terminal-command".
-// Emitted by POST /agents/:id/terminal-command. The card surfaces a
+// Emitted by POST /api/agents/:id/terminal-command. The card surfaces a
 // [Copy to terminal] button that opens the terminal side panel and types
 // the command at the prompt without executing it (boss presses Enter).
 export interface TerminalCommandPayload {
