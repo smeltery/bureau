@@ -28,14 +28,14 @@ Messages are prefixed with the boss's name in brackets.
 How to discover other office agents and their conversation logs: read ~/.bureau/agents-summary.json.
 
 How to use the task board (localhost:${PORT}/tasks): only touch it when the boss asks. When you do:
-  curl -s localhost:${PORT}/tasks                                          # list active tasks (excludes done and backlog)
-  curl -s localhost:${PORT}/tasks?status=all                               # include done and backlog
-  curl -s localhost:${PORT}/tasks?status=backlog                           # only backlog tasks
-  curl -s -X POST localhost:${PORT}/tasks -H 'Content-Type: application/json' \\
+  curl -s localhost:${PORT}/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                                          # list active tasks (excludes done and backlog)
+  curl -s localhost:${PORT}/tasks?status=all -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                               # include done and backlog
+  curl -s localhost:${PORT}/tasks?status=backlog -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                           # only backlog tasks
+  curl -s -X POST localhost:${PORT}/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' \\
     -d '{"title":"...","createdBy":"<boss-name>"}'                      # create
-  curl -s -X POST localhost:${PORT}/tasks/ID/claim -H 'Content-Type: application/json' \\
+  curl -s -X POST localhost:${PORT}/tasks/ID/claim -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' \\
     -d '{"assignee":"${agentName}"}'                                    # claim
-  curl -s -X POST localhost:${PORT}/tasks/ID/done -d '{}'                  # mark done
+  curl -s -X POST localhost:${PORT}/tasks/ID/done -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'                  # mark done
 Optional fields on create/update: description, priority (P0-P3), assignee.
 On create, set createdBy to the boss name in brackets when you can tell who asked (for example, "[Nil] add task X" means createdBy:"Nil"). If you can't tell, use "${agentName}".
 

@@ -1,5 +1,6 @@
 import type { ServerMessage, TaskItem } from "../../shared/types.ts";
 import { generateTaskId, isValidPriority, isValidStatus } from "../../shared/types.ts";
+import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { saveTasks } from "../persistence.ts";
 import { broadcast, tasks } from "../ws/broadcast.ts";
 
@@ -16,12 +17,16 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",
       },
     });
   }
 
   if (!url.pathname.startsWith("/tasks")) return null;
+  const rawBearer = readBearerToken(req);
+  if (rawBearer && !resolveAgentToken(rawBearer)) {
+    return new Response(JSON.stringify({ error: "invalid bearer token" }), { status: 401, headers: corsHeaders });
+  }
 
   const parts = url.pathname.split("/").filter(Boolean); // ["tasks"] or ["tasks", id] or ["tasks", id, action]
   const taskId = parts[1];
