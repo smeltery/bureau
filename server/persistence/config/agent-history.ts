@@ -10,6 +10,7 @@ import type { AgentInfo, EffortLevel } from "../../../shared/types.ts";
 // compat with the existing on-disk file.
 export interface AgentHistoryEntry {
   name: string;
+  userId?: string | null;
   lastRoomId: string;
   lastRoomName: string;
   killedAt?: number | null;

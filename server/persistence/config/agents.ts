@@ -8,6 +8,7 @@ import { AGENTS_FILE, atomicWriteFileSync, LOGS_DIR, MANIFEST_FILE } from "../pa
 export interface PersistedAgent {
   id: string;
   name: string;
+  userId?: string | null;
   desk: number;
   cwd: string;
   outfit: AgentInfo["outfit"];

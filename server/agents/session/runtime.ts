@@ -11,6 +11,7 @@ import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discove
 import { getBackend } from "../../backends/index.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { getUserById } from "../../users.ts";
+import { getAgentToken } from "../tokens.ts";
 
 export function buildMemoryPromptForAgent(managed: ManagedAgent): string | null {
   const room = rooms[managed.info.room];
@@ -107,7 +108,8 @@ export function buildSessionEnv(managed: ManagedAgent): { [key: string]: string 
   const roomEnvFile = room?.envFile ?? null;
   const officeEnvFile = officeConfig.envFile;
   const userEnvFile = managed.info.userId ? (getUserById(managed.info.userId)?.envFile ?? null) : null;
-  if (!roomEnvFile && !officeEnvFile && !userEnvFile) return undefined;
+  const agentToken = getAgentToken(managed.info.id);
+  if (!roomEnvFile && !officeEnvFile && !userEnvFile && !agentToken) return undefined;
 
   // Intentional: inherit parent process.env so agents see HOME/PATH/etc. Office
   // room, and user files override individual keys but cannot unset inherited ones.
@@ -124,6 +126,7 @@ export function buildSessionEnv(managed: ManagedAgent): { [key: string]: string 
     const userEnv = readEnvFile(userEnvFile);
     Object.assign(merged, userEnv);
   }
+  if (agentToken) merged.BUREAU_AGENT_TOKEN = agentToken;
   return merged;
 }
 
