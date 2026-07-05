@@ -114,6 +114,15 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       break;
     }
     case "update_user": {
+      const envFile = cmd.changes.envFile;
+      if (typeof envFile === "string" && envFile.trim()) {
+        try {
+          AgentManager.validateEnvPath(envFile.trim());
+        } catch (err) {
+          console.warn(`[users] rejected envFile update: ${(err as Error).message}`);
+          break;
+        }
+      }
       const updated = updateUser(getWsUser(ws), cmd.userId, cmd.changes, AgentManager.getRooms());
       for (const browser of browsers) {
         sendInitialPayload(browser);

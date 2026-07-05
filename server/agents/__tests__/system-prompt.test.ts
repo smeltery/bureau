@@ -43,6 +43,15 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("Other bosses may also message you.");
     expect(prompt.indexOf("## Your Manager: Boss One")).toBeLessThan(prompt.indexOf("OFFICE-MARK"));
   });
+
+  test("injects personal context after office instructions", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room", "OFFICE-MARK", "ROOM-MARK", "AGENT-MARK", "MEMORY-MARK", "Boss One", "PREFERS-TEST-FIRST");
+
+    expect(prompt).toContain("## Special Instructions For Boss One");
+    expect(prompt).toContain("PREFERS-TEST-FIRST");
+    expect(prompt.indexOf("OFFICE-MARK")).toBeLessThan(prompt.indexOf("PREFERS-TEST-FIRST"));
+    expect(prompt.indexOf("PREFERS-TEST-FIRST")).toBeLessThan(prompt.indexOf("ROOM-MARK"));
+  });
 });
 
 describe("memorySection", () => {

@@ -60,7 +60,7 @@ import { memoryStore } from "../memory-store.ts";
 import { validateCodexSandbox, validateCronjobPermissionMode, validateEffort, validateModelFamily } from "../agent-validators.ts";
 import { getBackend } from "../backends/index.ts";
 import type { BackendSession, CreateSessionOptions, NormalizedEvent, NormalizedMessage } from "../backends/types.ts";
-import { getUserByName } from "../users.ts";
+import { getUserById, getUserByName } from "../users.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
@@ -71,10 +71,14 @@ export { computeNextFire };
 // right port instead of the canonical 4000.
 const PORT = process.env.PORT || "4000";
 
-function buildCronjobEnv(): { [key: string]: string | undefined } | undefined {
+function buildCronjobEnv(userId?: string | null): { [key: string]: string | undefined } | undefined {
   const officeEnvFile = officeConfig.envFile;
-  if (!officeEnvFile) return undefined;
-  return { ...process.env, ...readEnvFile(officeEnvFile) };
+  const userEnvFile = userId ? (getUserById(userId)?.envFile ?? null) : null;
+  if (!officeEnvFile && !userEnvFile) return undefined;
+  const merged: { [key: string]: string | undefined } = { ...process.env };
+  if (officeEnvFile) Object.assign(merged, readEnvFile(officeEnvFile));
+  if (userEnvFile) Object.assign(merged, readEnvFile(userEnvFile));
+  return merged;
 }
 
 function cronRunBackend(run: CronjobRun) {
@@ -85,7 +89,8 @@ function checkCronRunSessionFile(run: CronjobRun, leaf: string, action: "resume"
   if ((run.agentTypeSnapshot ?? "claude") !== "claude") return true;
   let env: { [key: string]: string | undefined } | undefined;
   try {
-    env = buildCronjobEnv();
+    const job = cronjobs.find((c) => c.id === run.cronjobId);
+    env = buildCronjobEnv(job?.userId ?? null);
   } catch (err: any) {
     emitRunErrorEntry(run.cronjobId, run.id, `Cannot ${action}: env file is invalid: ${err.message || String(err)}`);
     return false;
@@ -634,7 +639,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string
   let env: { [key: string]: string | undefined } | undefined;
   try {
     validateCwd(job.cwd);
-    env = buildCronjobEnv();
+    env = buildCronjobEnv(job.userId);
   } catch (err: any) {
     cwdValid = false;
     cwdError = err.message || "Invalid cronjob environment";
@@ -859,7 +864,7 @@ function buildRunResumeOptions(run: CronjobRun, resumeSessionId: string): Create
   // pick up any office/cronjobs prompt edits. For deleted cronjobs, use an
   // empty append instead of synthesizing a partial prompt.
   const job = cronjobs.find((c) => c.id === run.cronjobId);
-  const env = buildCronjobEnv();
+  const env = buildCronjobEnv(job?.userId ?? null);
   return {
     agentId: cronjobRunStreamId(run.id),
     modelFamily: run.modelFamilySnapshot,

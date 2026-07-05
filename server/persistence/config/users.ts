@@ -29,6 +29,8 @@ export function loadUsers(): UserRecord[] {
           id: u.id,
           name: u.name,
           role: u.role === "owner" ? "owner" : "member",
+          envFile: typeof u.envFile === "string" && u.envFile ? u.envFile : null,
+          memberPrompt: typeof u.memberPrompt === "string" && u.memberPrompt.trim() ? u.memberPrompt.trim() : null,
           allowedRooms,
           defaultRoomId: typeof u.defaultRoomId === "string" ? u.defaultRoomId : null,
           notifRooms,
