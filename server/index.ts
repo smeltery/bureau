@@ -9,7 +9,7 @@ import { getUpdateStatus, onUpdateChange, startUpdateChecker } from "./update-ch
 import { getBackupStatus, startBackupScheduler } from "./backup.ts";
 import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
 import { handleCommand } from "./ws/commands.ts";
-import { stopWatch, type FileWatcher } from "./file-editor.ts";
+import { stopWatch, watchFile, type FileWatcher } from "./file-editor.ts";
 import { canSeeRoom, claimUser, clearWsUser, getSessionContext, getWsUser, listUsers, projectAgents, projectRooms, setWsSessionPrefix } from "./users.ts";
 import { listAllPresence, removePresence } from "./presence.ts";
 
@@ -23,6 +23,7 @@ import { handleCronjobsRequest } from "./http/cronjobs.ts";
 import { handlePluginsRequest } from "./http/plugins.ts";
 import { handleFilesRequest } from "./http/files.ts";
 import { handleAgentsRequest } from "./http/agents.ts";
+import { handleEditorRequest } from "./http/editor.ts";
 import { handleRoomsRequest } from "./http/rooms.ts";
 import { handleOfficeSettingsRequest } from "./http/office-settings.ts";
 import { handleValidateRequest } from "./http/validate.ts";
@@ -229,6 +230,47 @@ function countTotalOnlineUsers(): number {
 export function pushPresenceListToEachWs() {
   for (const ws of browsers) {
     ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws), totalOnlineUsers: countTotalOnlineUsers() } as ServerMessage));
+  }
+}
+
+function editorKey(agentId: string, path: string): string {
+  return `${agentId}\0${path}`;
+}
+
+function findBrowserConnection(connectionId: string, sessionIdHash: string): import("bun").ServerWebSocket<unknown> | null {
+  for (const ws of browsers) {
+    const session = (ws.data as WsData | undefined)?.session ?? null;
+    if (session?.sessionIdHash !== sessionIdHash) continue;
+    if (getSessionContext(ws)?.connectionId === connectionId) return ws;
+  }
+  return null;
+}
+
+function watchEditorFile(agentId: string, absPath: string, connectionId: string) {
+  for (const ws of browsers) {
+    if (getSessionContext(ws)?.connectionId !== connectionId) continue;
+    const map = editorWatchers.get(ws) ?? new Map<string, FileWatcher>();
+    editorWatchers.set(ws, map);
+    const key = editorKey(agentId, absPath);
+    const old = map.get(key);
+    if (old) stopWatch(old);
+    const watcher = watchFile(absPath, agentId, (mtime) => {
+      ws.send(JSON.stringify({ type: "editor_external_change", agentId, path: absPath, mtime } as ServerMessage));
+    });
+    if (watcher) map.set(key, watcher);
+    return;
+  }
+}
+
+function closeEditorWatch(agentId: string, absPath: string, connectionId: string) {
+  for (const ws of browsers) {
+    if (getSessionContext(ws)?.connectionId !== connectionId) continue;
+    const map = editorWatchers.get(ws);
+    const watcher = map?.get(editorKey(agentId, absPath));
+    if (!watcher) return;
+    stopWatch(watcher);
+    map!.delete(editorKey(agentId, absPath));
+    return;
   }
 }
 
@@ -447,6 +489,13 @@ const server = Bun.serve<WsData>({
 
     const agentsResp = await handleAgentsRequest(req, url, httpAuth);
     if (agentsResp) return agentsResp;
+
+    const editorResp = await handleEditorRequest(req, url, httpAuth, {
+      verifyConnection: (connectionId, sessionIdHash) => findBrowserConnection(connectionId, sessionIdHash) !== null,
+      watchFile: watchEditorFile,
+      closeWatch: closeEditorWatch,
+    });
+    if (editorResp) return editorResp;
 
     const roomsResp = await handleRoomsRequest(req, url, httpAuth, { pushPresence: pushPresenceListToEachWs });
     if (roomsResp) return roomsResp;
