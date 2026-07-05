@@ -382,6 +382,7 @@ export interface CronjobRun {
   // backwards compatibility with runs persisted before resume support landed.
   currentSessionId?: string;
   previewText: string; // last assistant text block, truncated ~120 chars
+  triggeredBy?: string; // manual runs only
 }
 
 // Cronjob runs piggy-back on the LogEntry.agentId routing by using a
