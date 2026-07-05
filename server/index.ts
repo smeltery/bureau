@@ -26,6 +26,7 @@ import { handleAgentsRequest } from "./http/agents.ts";
 import { handleRoomsRequest } from "./http/rooms.ts";
 import { handleOfficeSettingsRequest } from "./http/office-settings.ts";
 import { handleValidateRequest } from "./http/validate.ts";
+import { handleBackendsRequest } from "./http/backends.ts";
 import { handleMemoryRequest } from "./http/memory.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
@@ -455,6 +456,9 @@ const server = Bun.serve<WsData>({
 
     const validateResp = await handleValidateRequest(req, url, httpAuth);
     if (validateResp) return validateResp;
+
+    const backendsResp = await handleBackendsRequest(req, url, httpAuth);
+    if (backendsResp) return backendsResp;
 
     const memoryResp = await handleMemoryRequest(req, url);
     if (memoryResp) return memoryResp;
