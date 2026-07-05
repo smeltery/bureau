@@ -484,7 +484,7 @@ const server = Bun.serve<WsData>({
     const pluginsResp = await handlePluginsRequest(req, url);
     if (pluginsResp) return pluginsResp;
 
-    const filesResp = await handleFilesRequest(req, url);
+    const filesResp = await handleFilesRequest(req, url, httpAuth);
     if (filesResp) return filesResp;
 
     const agentsResp = await handleAgentsRequest(req, url, httpAuth);
