@@ -56,7 +56,7 @@ import { claudeProjectDir, claudeSessionFileExists, resolveCwd, validateCwd } fr
 import { memorySection } from "../agents/session/system-prompt.ts";
 import { officeConfig } from "../agents/state.ts";
 import { memoryStore } from "../memory-store.ts";
-import { validateCronjobPermissionMode, validateModelFamily } from "../agent-validators.ts";
+import { validateCodexSandbox, validateCronjobPermissionMode, validateEffort, validateModelFamily } from "../agent-validators.ts";
 import { getBackend } from "../backends/index.ts";
 import type { BackendSession, CreateSessionOptions, NormalizedEvent, NormalizedMessage } from "../backends/types.ts";
 import { getUserByName } from "../users.ts";
@@ -175,7 +175,9 @@ export interface AddCronjobInput {
   cwd: string;
   agentType?: Cronjob["agentType"];
   modelFamily: Cronjob["modelFamily"];
+  effort?: Cronjob["effort"];
   permissionMode: CronjobPermissionMode;
+  codexSandbox?: Cronjob["codexSandbox"];
   username: string;
   userId?: string | null;
   device?: string;
@@ -185,6 +187,9 @@ export function addCronjob(input: AddCronjobInput): Cronjob {
   const schedule = clampSchedule(input.schedule);
   const now = Date.now();
   const agentType = input.agentType ?? "claude";
+  const modelFamily = validateModelFamily(agentType, input.modelFamily);
+  const effort = validateEffort(agentType, modelFamily, input.effort);
+  const codexSandbox = agentType === "codex" ? validateCodexSandbox(input.codexSandbox) : undefined;
   const cronjob: Cronjob = {
     id: generateCronjobId(cronjobs.map((c) => c.id)),
     name: input.name.trim() || "Untitled cron job",
@@ -192,8 +197,10 @@ export function addCronjob(input: AddCronjobInput): Cronjob {
     prompt: input.prompt,
     cwd: resolveCwd(input.cwd),
     agentType,
-    modelFamily: validateModelFamily(agentType, input.modelFamily),
+    modelFamily,
+    effort,
     permissionMode: validateCronjobPermissionMode(agentType, input.permissionMode),
+    ...(codexSandbox ? { codexSandbox } : {}),
     enabled: true,
     createdBy: input.username,
     userId: input.userId ?? (input.username ? (getUserByName(input.username)?.id ?? null) : null),
@@ -213,7 +220,10 @@ export function addCronjob(input: AddCronjobInput): Cronjob {
   return cronjob;
 }
 
-export function updateCronjob(id: string, changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "permissionMode" | "enabled">>): Cronjob | null {
+export function updateCronjob(
+  id: string,
+  changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "effort" | "permissionMode" | "codexSandbox" | "enabled">>,
+): Cronjob | null {
   const idx = cronjobs.findIndex((c) => c.id === id);
   if (idx < 0) return null;
   const prev = cronjobs[idx];
@@ -221,8 +231,14 @@ export function updateCronjob(id: string, changes: Partial<Pick<Cronjob, "name" 
   if (changes.name !== undefined) next.name = changes.name.trim() || prev.name;
   if (changes.prompt !== undefined) next.prompt = changes.prompt;
   if (changes.cwd !== undefined) next.cwd = resolveCwd(changes.cwd);
-  if (changes.modelFamily !== undefined) next.modelFamily = changes.modelFamily;
+  if (changes.modelFamily !== undefined) next.modelFamily = validateModelFamily(next.agentType, changes.modelFamily);
+  if (changes.effort !== undefined || changes.modelFamily !== undefined) next.effort = validateEffort(next.agentType, next.modelFamily, changes.effort ?? next.effort);
   if (changes.permissionMode !== undefined) next.permissionMode = validateCronjobPermissionMode(next.agentType, changes.permissionMode);
+  if (changes.codexSandbox !== undefined) {
+    const sandbox = next.agentType === "codex" ? validateCodexSandbox(changes.codexSandbox) : undefined;
+    if (sandbox) next.codexSandbox = sandbox;
+    else delete next.codexSandbox;
+  }
   if (changes.enabled !== undefined) next.enabled = changes.enabled;
   if (changes.schedule !== undefined) {
     next.schedule = clampSchedule(changes.schedule);
@@ -623,8 +639,10 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
     promptSnapshot: job.prompt,
     agentTypeSnapshot: job.agentType,
     modelFamilySnapshot: job.modelFamily,
+    effortSnapshot: job.effort,
     cwdSnapshot: job.cwd,
     permissionModeSnapshot: job.permissionMode,
+    ...(job.codexSandbox ? { codexSandboxSnapshot: job.codexSandbox } : {}),
     rootSessionId: placeholderSessionId,
     currentSessionId: placeholderSessionId,
     previewText: cwdError ?? "",
@@ -710,8 +728,9 @@ function buildRunSessionOptions(job: Cronjob, jobId: string, runId: string): Cre
   return {
     agentId: cronjobRunStreamId(runId),
     modelFamily: job.modelFamily,
-    effort: "xhigh",
+    effort: job.effort,
     permissionMode: job.permissionMode,
+    sandbox: job.codexSandbox,
     systemPrompt,
     cwd: job.cwd,
   };
@@ -737,8 +756,10 @@ function recordSkippedRun(job: Cronjob): CronjobRun {
     promptSnapshot: job.prompt,
     agentTypeSnapshot: job.agentType,
     modelFamilySnapshot: job.modelFamily,
+    effortSnapshot: job.effort,
     cwdSnapshot: job.cwd,
     permissionModeSnapshot: job.permissionMode,
+    ...(job.codexSandbox ? { codexSandboxSnapshot: job.codexSandbox } : {}),
     rootSessionId: `skipped-${runId}`,
     previewText: "",
   };
@@ -822,8 +843,9 @@ function buildRunResumeOptions(run: CronjobRun, resumeSessionId: string): Create
   return {
     agentId: cronjobRunStreamId(run.id),
     modelFamily: run.modelFamilySnapshot,
-    effort: "xhigh",
+    effort: run.effortSnapshot,
     permissionMode: run.permissionModeSnapshot,
+    sandbox: run.codexSandboxSnapshot,
     systemPrompt: job ? buildCronjobSystemPrompt(job, run.cronjobId, run.id, buildCronjobMemoryPrompt()) : "",
     cwd: run.cwdSnapshot,
   };

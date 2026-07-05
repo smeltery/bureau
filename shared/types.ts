@@ -343,7 +343,9 @@ export interface Cronjob {
   cwd: string;
   agentType: AgentBackendType;
   modelFamily: string;
+  effort: EffortLevel;
   permissionMode: CronjobPermissionMode;
+  codexSandbox?: CodexSandboxMode;
   enabled: boolean;
   createdBy: string;
   userId: string | null;
@@ -369,8 +371,10 @@ export interface CronjobRun {
   promptSnapshot: string;
   agentTypeSnapshot: AgentBackendType;
   modelFamilySnapshot: string;
+  effortSnapshot: EffortLevel;
   cwdSnapshot: string;
   permissionModeSnapshot: CronjobPermissionMode;
+  codexSandboxSnapshot?: CodexSandboxMode;
   rootSessionId: string; // first session id created at fire time
   // Leaf of the fork chain — equals rootSessionId for un-forked runs. Tracked
   // separately from rootSessionId so loadRunLogWithAncestors can walk back from
@@ -771,11 +775,18 @@ export type ClientCommand =
       cwd: string;
       agentType?: AgentBackendType;
       modelFamily: string;
+      effort?: EffortLevel;
       permissionMode: CronjobPermissionMode;
+      codexSandbox?: CodexSandboxMode;
       username: string;
       device?: string;
     }
-  | { type: "update_cronjob"; requestId?: string; id: string; changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "permissionMode" | "enabled">> }
+  | {
+      type: "update_cronjob";
+      requestId?: string;
+      id: string;
+      changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "effort" | "permissionMode" | "codexSandbox" | "enabled">>;
+    }
   | { type: "delete_cronjob"; id: string }
   | { type: "run_cronjob_now"; id: string; username: string; device?: string }
   | { type: "update_cronjobs_prompt"; requestId: string; value: string | null }

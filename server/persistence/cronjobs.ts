@@ -12,8 +12,8 @@
 //         <sessionId>.jsonl            append-only log
 import { join } from "path";
 import { mkdirSync, readFileSync, existsSync, appendFileSync, readdirSync } from "fs";
-import type { AgentBackendType, Cronjob, CronjobRun, LogEntry } from "../../shared/types.ts";
-import { validateCronjobPermissionMode } from "../agent-validators.ts";
+import type { AgentBackendType, CodexSandboxMode, Cronjob, CronjobRun, EffortLevel, LogEntry } from "../../shared/types.ts";
+import { validateCodexSandbox, validateCronjobPermissionMode, validateEffort } from "../agent-validators.ts";
 import { atomicWriteFileSync, CRONJOBS_DIR, CRONJOBS_FILE, CRONJOB_HISTORY_FILE, CRONJOBS_PROMPT_FILE } from "./paths.ts";
 import type { PersistedUsage } from "./logs/sessions.ts";
 
@@ -54,6 +54,12 @@ export function loadCronjobs(): Cronjob[] {
         ...c,
         agentType: normalizeCronjobAgentType((c as { agentType?: unknown }).agentType),
         permissionMode: validateCronjobPermissionMode(normalizeCronjobAgentType((c as { agentType?: unknown }).agentType), (c as { permissionMode?: string }).permissionMode),
+        effort: validateEffort(
+          normalizeCronjobAgentType((c as { agentType?: unknown }).agentType),
+          normalizeCronjobModelFamily((c as { modelFamily?: unknown }).modelFamily),
+          (c as { effort?: EffortLevel }).effort,
+        ),
+        codexSandbox: normalizeCronjobAgentType((c as { agentType?: unknown }).agentType) === "codex" ? validateCodexSandbox((c as { codexSandbox?: CodexSandboxMode }).codexSandbox) : undefined,
         userId: typeof (c as { userId?: unknown }).userId === "string" ? (c as { userId: string }).userId : null,
         username: normalizeCronjobUsername(c),
       }));
@@ -65,6 +71,10 @@ export function loadCronjobs(): Cronjob[] {
 
 function normalizeCronjobAgentType(value: unknown): AgentBackendType {
   return value === "codex" ? "codex" : "claude";
+}
+
+function normalizeCronjobModelFamily(value: unknown): string {
+  return typeof value === "string" && value.length > 0 ? value : "opus";
 }
 
 function normalizeCronjobUsername(value: unknown): string | null {
@@ -141,6 +151,15 @@ export function loadRuns(jobId: string): CronjobRun[] {
           normalizeCronjobAgentType((r as { agentTypeSnapshot?: unknown }).agentTypeSnapshot),
           (r as { permissionModeSnapshot?: string }).permissionModeSnapshot,
         ),
+        effortSnapshot: validateEffort(
+          normalizeCronjobAgentType((r as { agentTypeSnapshot?: unknown }).agentTypeSnapshot),
+          normalizeCronjobModelFamily((r as { modelFamilySnapshot?: unknown }).modelFamilySnapshot),
+          (r as { effortSnapshot?: EffortLevel }).effortSnapshot,
+        ),
+        codexSandboxSnapshot:
+          normalizeCronjobAgentType((r as { agentTypeSnapshot?: unknown }).agentTypeSnapshot) === "codex"
+            ? validateCodexSandbox((r as { codexSandboxSnapshot?: CodexSandboxMode }).codexSandboxSnapshot)
+            : undefined,
       }));
   } catch (err) {
     console.error(`Failed to load runs for ${jobId}:`, err);

@@ -1,7 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../../store.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
-import { CODEX_MODELS, MODEL_FAMILIES, modelVersionLabel, type AgentBackendType, type Cronjob, type CronjobPermissionMode, type ModelFamily, type Schedule } from "../../../shared/types.ts";
+import {
+  CODEX_MODELS,
+  DEFAULT_EFFORT,
+  EFFORT_LEVELS,
+  MODEL_FAMILIES,
+  modelVersionLabel,
+  type AgentBackendType,
+  type CodexSandboxMode,
+  type Cronjob,
+  type CronjobPermissionMode,
+  type EffortLevel,
+  type ModelFamily,
+  type Schedule,
+} from "../../../shared/types.ts";
 import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 
 const WEEKDAYS: { value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }[] = [
@@ -45,7 +58,10 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
   const [agentType, setAgentType] = useState<AgentBackendType>(cronjob?.agentType ?? "claude");
   const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
   const [modelFamily, setModelFamily] = useState<string>(cronjob?.modelFamily ?? modelOptions[0].family);
+  const [effort, setEffort] = useState<EffortLevel>(cronjob?.effort ?? DEFAULT_EFFORT);
+  const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(cronjob?.codexSandbox ?? "workspace-write");
   const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(cronjob?.permissionMode ?? "bypassPermissions");
+  const effortOptions = agentType === "codex" ? EFFORT_LEVELS : EFFORT_LEVELS.filter((e) => e.level !== "minimal" && (e.level !== "max" || modelFamily === "opus" || modelFamily === "fable"));
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
 
   const [saving, setSaving] = useState(false);
@@ -116,7 +132,9 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           prompt,
           cwd,
           modelFamily,
+          effort,
           permissionMode,
+          codexSandbox,
           enabled,
         },
       });
@@ -129,7 +147,9 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
         prompt,
         cwd,
         modelFamily,
+        effort,
         permissionMode,
+        codexSandbox,
         username,
         agentType,
       });
@@ -275,6 +295,8 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
               const next = e.target.value as AgentBackendType;
               setAgentType(next);
               setModelFamily(next === "codex" ? CODEX_MODELS[0].value : MODEL_FAMILIES[0].family);
+              setEffort(DEFAULT_EFFORT);
+              setCodexSandbox("workspace-write");
               setPermissionMode(next === "codex" ? "never" : "bypassPermissions");
             }}
             disabled={isEdit}
@@ -288,7 +310,9 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           <select
             value={modelFamily}
             onChange={(e) => {
-              setModelFamily(e.target.value);
+              const next = e.target.value;
+              setModelFamily(next);
+              if (effort === "max" && next !== "opus" && next !== "fable") setEffort(DEFAULT_EFFORT);
             }}
             style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
           >
@@ -298,6 +322,26 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
               </option>
             ))}
           </select>
+
+          <label style={{ ...labelStyle, marginTop: 14 }}>Effort</label>
+          <select value={effort} onChange={(e) => setEffort(e.target.value as EffortLevel)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+            {effortOptions.map((e) => (
+              <option key={e.level} value={e.level}>
+                {e.label}
+              </option>
+            ))}
+          </select>
+
+          {agentType === "codex" && (
+            <>
+              <label style={{ ...labelStyle, marginTop: 14 }}>Sandbox</label>
+              <select value={codexSandbox} onChange={(e) => setCodexSandbox(e.target.value as CodexSandboxMode)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+                <option value="workspace-write">Workspace write</option>
+                <option value="read-only">Read only</option>
+                <option value="danger-full-access">Danger full access</option>
+              </select>
+            </>
+          )}
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Permission Mode</label>
           <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as CronjobPermissionMode)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
