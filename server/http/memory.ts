@@ -19,7 +19,7 @@ function parseScope(raw: unknown): MemoryScope | null {
   return raw === "office" || raw === "room" || raw === "agent" || raw === "boss" ? raw : null;
 }
 
-function resolveTarget(scope: MemoryScope | null, rawScopeId: unknown): { scope: MemoryScope; scopeId: string | null } | Response {
+function resolveTarget(scope: MemoryScope | null, rawScopeId: unknown, bearer: AgentMemoryIdentity | null, auth: AuthResult | undefined): { scope: MemoryScope; scopeId: string | null } | Response {
   if (!scope) return error(400, "unsupported_scope", "scope must be office, room, agent, or boss");
 
   if (scope === "office") {
@@ -27,6 +27,16 @@ function resolveTarget(scope: MemoryScope | null, rawScopeId: unknown): { scope:
       return error(400, "invalid_scope_id", "office memory takes no scopeId");
     }
     return { scope, scopeId: null };
+  }
+
+  if ((rawScopeId === undefined || rawScopeId === null || rawScopeId === "") && scope === "agent" && bearer) {
+    return { scope, scopeId: bearer.agentId };
+  }
+
+  if ((rawScopeId === undefined || rawScopeId === null || rawScopeId === "") && scope === "boss") {
+    const userId = bearer?.userId ?? (auth?.kind === "ok" ? auth.session.userId : null);
+    if (userId) return { scope, scopeId: userId };
+    return error(400, "invalid_scope_id", "boss memory requires a scopeId");
   }
 
   if (typeof rawScopeId !== "string" || !isSafeScopeId(rawScopeId)) {
@@ -60,23 +70,6 @@ function resolveMemoryBearer(req: Request): AgentMemoryIdentity | Response | nul
   return identity;
 }
 
-function authorizeBearerMemory(identity: AgentMemoryIdentity | null, target: { scope: MemoryScope; scopeId: string | null }): Response | null {
-  if (!identity) return null;
-  if (identity.privileged) return null;
-
-  if (target.scope === "agent" && target.scopeId === identity.agentId) return null;
-
-  if (target.scope === "boss" && identity.userId && target.scopeId === identity.userId) return null;
-
-  if (target.scope === "room") {
-    const agent = AgentManager.getAllAgents().find((a) => a.id === identity.agentId);
-    const roomId = agent ? AgentManager.getRooms()[agent.room]?.id : null;
-    if (roomId && target.scopeId === roomId) return null;
-  }
-
-  return error(403, "forbidden", "agent token cannot access this memory scope");
-}
-
 function authorFromBearer(identity: AgentMemoryIdentity | null, fallback: string): string {
   if (!identity) return fallback;
   return AgentManager.getAllAgents().find((a) => a.id === identity.agentId)?.name ?? fallback;
@@ -101,10 +94,8 @@ export async function handleMemoryRequest(req: Request, url: URL, auth?: AuthRes
   if (unauthenticated) return unauthenticated;
 
   if (req.method === "GET") {
-    const target = resolveTarget(parseScope(url.searchParams.get("scope") ?? "agent"), url.searchParams.get("scopeId") ?? undefined);
+    const target = resolveTarget(parseScope(url.searchParams.get("scope") ?? "agent"), url.searchParams.get("scopeId") ?? undefined, bearer, auth);
     if (target instanceof Response) return target;
-    const denied = authorizeBearerMemory(bearer, target);
-    if (denied) return denied;
     return json(memoryStore.read(target.scope, target.scopeId));
   }
 
@@ -119,10 +110,8 @@ export async function handleMemoryRequest(req: Request, url: URL, auth?: AuthRes
     if (/[\r\n]/.test(body.text)) return error(400, "invalid_text", "text must be a single line");
     const text = body.text.trim();
     if (!text) return error(400, "invalid_text", "text must not be blank");
-    const target = resolveTarget(parseScope(body.scope), body.scopeId);
+    const target = resolveTarget(parseScope(body.scope), body.scopeId, bearer, auth);
     if (target instanceof Response) return target;
-    const denied = authorizeBearerMemory(bearer, target);
-    if (denied) return denied;
     const duplicate = memoryStore.findDuplicate(target.scope, target.scopeId, text);
     if (duplicate) return error(409, "duplicate_memory", "a matching memory already exists in this scope", { matched: { text: duplicate.text } });
     return json(memoryStore.append({ scope: target.scope, scopeId: target.scopeId, author: authorFromCaller(bearer, auth, authorFromRequest(req)), text }), 201);
@@ -137,10 +126,8 @@ export async function handleMemoryRequest(req: Request, url: URL, auth?: AuthRes
     }
     if (typeof body.text !== "string") return error(400, "invalid_text", "text is required");
     if (typeof body.version !== "string" || body.version.length === 0) return error(400, "invalid_version", "version is required");
-    const target = resolveTarget(parseScope(body.scope), body.scopeId);
+    const target = resolveTarget(parseScope(body.scope), body.scopeId, bearer, auth);
     if (target instanceof Response) return target;
-    const denied = authorizeBearerMemory(bearer, target);
-    if (denied) return denied;
     const result = memoryStore.replace({
       scope: target.scope,
       scopeId: target.scopeId,
