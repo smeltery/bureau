@@ -1,6 +1,7 @@
 import type { AgentInfo, AgentState, Attachment, KilledAgentSummary, LogEntry, OfficeSettings, RoomWire, SkillInfo } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES, FAMILY_TO_MODEL, generateRoomId } from "../../shared/types.ts";
 import { appendLog, loadAgentHistory, loadOfficeConfig, saveAgentHistory, saveAgents, writeManifest, type AgentHistory, type OfficeConfig, type PersistedAgent, type Room } from "../persistence.ts";
+import { getUserById } from "../users.ts";
 import type { BackendSession } from "../backends/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -295,6 +296,9 @@ export function updateManifest() {
     [...agents.values()].map((a) => ({
       id: a.info.id,
       name: a.info.name,
+      userId: a.info.userId ?? null,
+      managerName: a.info.userId ? (getUserById(a.info.userId)?.name ?? null) : null,
+      privileged: a.info.privileged ?? false,
       desk: a.info.desk,
       room: a.info.room,
       roomName: rooms[a.info.room]?.name ?? `Room ${a.info.room + 1}`,
