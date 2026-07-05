@@ -11,6 +11,17 @@ import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discove
 import { getBackend } from "../../backends/index.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 
+export function buildMemoryPromptForAgent(managed: ManagedAgent): string | null {
+  const room = rooms[managed.info.room];
+  if (!room) return null;
+  return memoryStore.renderForPromptMulti([
+    { scope: "office", scopeId: null, label: "Office-wide" },
+    { scope: "room", scopeId: room.id, label: `Room "${room.name}"` },
+    ...(managed.info.userId ? [{ scope: "boss" as const, scopeId: managed.info.userId, label: "Your boss" }] : []),
+    { scope: "agent", scopeId: managed.info.id, label: `Agent "${managed.info.name}"` },
+  ]);
+}
+
 // ---------------------------------------------------------------------------
 // Claude CLI native binary resolution
 // ---------------------------------------------------------------------------
@@ -435,12 +446,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     );
   }
   const room = rooms[managed.info.room]!;
-  const memoryPrompt = memoryStore.renderForPromptMulti([
-    { scope: "office", scopeId: null, label: "Office-wide" },
-    { scope: "room", scopeId: room.id, label: `Room "${room.name}"` },
-    ...(managed.info.userId ? [{ scope: "boss" as const, scopeId: managed.info.userId, label: "Your boss" }] : []),
-    { scope: "agent", scopeId: managed.info.id, label: `Agent "${managed.info.name}"` },
-  ]);
+  const memoryPrompt = buildMemoryPromptForAgent(managed);
   const systemPrompt = buildSystemPrompt(managed.info.name, managed.info.id, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions, memoryPrompt);
   // V2 SDKSessionOptions still doesn't expose systemPrompt / extraArgs, so we
   // inject --append-system-prompt via executableArgs. When

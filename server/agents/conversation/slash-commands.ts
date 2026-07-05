@@ -9,7 +9,7 @@ import { enqueueMessage } from "./send.ts";
 import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
 import { listCronjobs, buildCronjobSystemPrompt } from "../../cronjobs/index.ts";
-import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
+import { SessionSwappedError, buildMemoryPromptForAgent, createSession, replaceSession } from "../session/runtime.ts";
 import { tildifyCwd } from "../session/paths.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
@@ -355,7 +355,7 @@ const commandHandlers: Record<string, HandlerFn> = {
     const userMeta = username ? { username } : undefined;
     addLogEntry(agentId, "user_message", rawText, userMeta);
     const room = rooms[managed.info.room]!;
-    const prompt = buildSystemPrompt(managed.info.name, agentId, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions);
+    const prompt = buildSystemPrompt(managed.info.name, agentId, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions, buildMemoryPromptForAgent(managed));
     // Pick a fence longer than any backtick run inside the prompt so the block
     // renders verbatim regardless of what office/room/agent prompts contain.
     const longestRun = (prompt.match(/`+/g) ?? []).reduce((m, s) => Math.max(m, s.length), 0);
