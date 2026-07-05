@@ -72,6 +72,8 @@ export function claimUserByName(name: string, opts: { role?: UserRole; allowedRo
     id,
     name: trimmed,
     role,
+    envFile: null,
+    memberPrompt: null,
     allowedRooms,
     defaultRoomId: allowedRooms[0] ?? null,
     notifRooms: [...allowedRooms],
@@ -101,7 +103,7 @@ export function setUserRoleById(userId: string, role: UserRole): void {
 // to know whether to invoke).
 export function updateUserById(
   userId: string,
-  changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
+  changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
 ): { ok: true; user: UserRecord } | { ok: false; error: string } {
   const target = getUserById(userId);
   if (!target) return { ok: false, error: `user ${userId} not found` };
@@ -119,6 +121,14 @@ export function updateUserById(
   }
   if (Array.isArray(changes.notifRooms)) {
     next.notifRooms = changes.notifRooms.filter((id): id is string => typeof id === "string" && next.allowedRooms.includes(id));
+  }
+  if (changes.envFile !== undefined) {
+    const envFile = typeof changes.envFile === "string" ? changes.envFile.trim() : "";
+    next.envFile = envFile || null;
+  }
+  if (changes.memberPrompt !== undefined) {
+    const memberPrompt = typeof changes.memberPrompt === "string" ? changes.memberPrompt.trim() : "";
+    next.memberPrompt = memberPrompt || null;
   }
   if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
   if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;
@@ -177,6 +187,8 @@ export function claimUser(ws: import("bun").ServerWebSocket<unknown>, username: 
       id,
       name,
       role,
+      envFile: null,
+      memberPrompt: null,
       allowedRooms: allRoomIds,
       defaultRoomId: allRoomIds[0] ?? null,
       notifRooms: [...allRoomIds],
@@ -238,7 +250,7 @@ export function listUsers(rooms: RoomWire[]): UserRecord[] {
 export function updateUser(
   actor: UserRecord | null,
   userId: string,
-  changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
+  changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
   rooms: RoomWire[],
 ): UserRecord | null {
   if (!actor) return null;
@@ -263,6 +275,14 @@ export function updateUser(
   // canEdit above). Keep it within the rooms the user can actually see.
   if (Array.isArray(changes.notifRooms)) {
     next.notifRooms = changes.notifRooms.filter((id): id is string => typeof id === "string" && next.allowedRooms.includes(id));
+  }
+  if (changes.envFile !== undefined) {
+    const envFile = typeof changes.envFile === "string" ? changes.envFile.trim() : "";
+    next.envFile = envFile || null;
+  }
+  if (changes.memberPrompt !== undefined) {
+    const memberPrompt = typeof changes.memberPrompt === "string" ? changes.memberPrompt.trim() : "";
+    next.memberPrompt = memberPrompt || null;
   }
   if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
   if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;

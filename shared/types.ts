@@ -510,6 +510,10 @@ export interface UserRecord {
   id: string;
   name: string;
   role: UserRole;
+  // Optional dotenv file applied to agents and cronjobs owned by this user.
+  envFile: string | null;
+  // User-authored context injected into agents owned by this user.
+  memberPrompt: string | null;
   // Strict list of room IDs this user can see and act in. Owners can edit it.
   allowedRooms: string[];
   defaultRoomId: string | null;
@@ -797,7 +801,11 @@ export type ClientCommand =
   | { type: "send_cronjob_run_message"; cronjobId: string; runId: string; text: string; username?: string }
   | { type: "edit_cronjob_run_message"; cronjobId: string; runId: string; logEntryId: string; newText: string; username?: string }
   | { type: "claim_user"; username: string }
-  | { type: "update_user"; userId: string; changes: Partial<Pick<UserRecord, "name" | "role" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">> }
+  | {
+      type: "update_user";
+      userId: string;
+      changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>;
+    }
   | { type: "delete_user"; userId: string }
   | { type: "list_active_sessions" }
   | { type: "revoke_session"; sessionPrefix: string }

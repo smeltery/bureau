@@ -184,6 +184,8 @@ function UserEditPanel({
   const [allowedRooms, setAllowedRooms] = useState(() => new Set(user.allowedRooms));
   const [defaultRoomId, setDefaultRoomId] = useState<string | null>(user.defaultRoomId ?? user.allowedRooms[0] ?? rooms[0]?.id ?? null);
   const [notifRooms, setNotifRooms] = useState(() => new Set(user.notifRooms ?? []));
+  const [envFile, setEnvFile] = useState(user.envFile ?? "");
+  const [memberPrompt, setMemberPrompt] = useState(user.memberPrompt ?? "");
   const [avatarColor, setAvatarColor] = useState(user.avatarColor);
   const [avatarVariant, setAvatarVariant] = useState<GhostVariant>(user.avatarVariant);
   const allAllowed = allowedRooms.size === rooms.length;
@@ -192,6 +194,8 @@ function UserEditPanel({
   const isDirty =
     name !== user.name ||
     role !== user.role ||
+    envFile !== (user.envFile ?? "") ||
+    memberPrompt !== (user.memberPrompt ?? "") ||
     avatarColor !== user.avatarColor ||
     avatarVariant !== user.avatarVariant ||
     (defaultRoomId ?? null) !== (user.defaultRoomId ?? null) ||
@@ -208,7 +212,21 @@ function UserEditPanel({
     // Keep notifRooms within the (possibly just-edited) allowed set — the
     // server enforces this too, but trimming here keeps the wire honest.
     const notif = [...notifRooms].filter((id) => allowedRooms.has(id));
-    send({ type: "update_user", userId: user.id, changes: { name: name.trim(), role, allowedRooms: [...allowedRooms], defaultRoomId, notifRooms: notif, avatarColor, avatarVariant } });
+    send({
+      type: "update_user",
+      userId: user.id,
+      changes: {
+        name: name.trim(),
+        role,
+        allowedRooms: [...allowedRooms],
+        defaultRoomId,
+        notifRooms: notif,
+        envFile: envFile.trim() || null,
+        memberPrompt: memberPrompt.trim() || null,
+        avatarColor,
+        avatarVariant,
+      },
+    });
     onClose();
   }
   function cancel() {
@@ -309,6 +327,16 @@ function UserEditPanel({
         })}
       </select>
       <NotificationPrefs rooms={rooms.filter((r) => allowedRooms.has(r.id))} notifRooms={notifRooms} onChange={setNotifRooms} />
+      <label style={{ ...dialogLabel, marginTop: 12 }}>Env file path</label>
+      <input value={envFile} onChange={(e) => setEnvFile(e.target.value)} placeholder="/absolute/path/to/.env" style={dialogInput} />
+      <label style={{ ...dialogLabel, marginTop: 12 }}>Personal context</label>
+      <textarea
+        value={memberPrompt}
+        onChange={(e) => setMemberPrompt(e.target.value)}
+        rows={4}
+        placeholder="Context injected into agents you own"
+        style={{ ...dialogInput, resize: "vertical", minHeight: 86 }}
+      />
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
         <button style={dialogCancelBtn} onClick={cancel}>
           Cancel

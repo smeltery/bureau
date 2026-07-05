@@ -1,4 +1,4 @@
-import type { ClientCommand, KilledAgentSummary, PresenceInfo, ServerMessage } from "../shared/types.ts";
+import type { ClientCommand, KilledAgentSummary, PresenceInfo, ServerMessage, UserRecord } from "../shared/types.ts";
 import { KILLED_AGENT_CHIP_CAP } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
@@ -312,6 +312,12 @@ function killedAgentsFor(ws: import("bun").ServerWebSocket<unknown>): KilledAgen
     .slice(0, KILLED_AGENT_CHIP_CAP);
 }
 
+function usersForRecipient(recipient: ReturnType<typeof getWsUser>, rooms: ReturnType<typeof AgentManager.getRooms>): UserRecord[] {
+  const users = listUsers(rooms);
+  if (!recipient || recipient.role === "owner") return users;
+  return users.map((listed) => (listed.id === recipient.id ? listed : { ...listed, envFile: null, memberPrompt: null }));
+}
+
 export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
   const user = getWsUser(ws);
   const rooms = AgentManager.getRooms();
@@ -329,7 +335,7 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
       killedAgents: killedAgentsFor(ws),
     } as ServerMessage),
   );
-  ws.send(JSON.stringify({ type: "users_list", users: listUsers(rooms) } as ServerMessage));
+  ws.send(JSON.stringify({ type: "users_list", users: usersForRecipient(user, rooms) } as ServerMessage));
   ws.send(JSON.stringify({ type: "session_context", context: getSessionContext(ws) } as ServerMessage));
   ws.send(JSON.stringify({ type: "tasks", tasks } as ServerMessage));
   ws.send(

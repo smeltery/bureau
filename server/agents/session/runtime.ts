@@ -95,21 +95,22 @@ export function createTurnDeferred(managed: ManagedAgent): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Environment merging for sessions (office + room dotenv layering)
+// Environment merging for sessions (office + room + user dotenv layering)
 // ---------------------------------------------------------------------------
 
-// Merge process.env with office and room env files.
-// Room overrides office; office overrides process.env. Spawn-time failure mode:
+// Merge process.env with office, room, and user env files.
+// User overrides room, room overrides office, office overrides process.env. Spawn-time failure mode:
 // if a configured env file is missing or fails to parse, throw — the caller is
 // responsible for surfacing the error to the agent log.
 export function buildSessionEnv(managed: ManagedAgent): { [key: string]: string | undefined } | undefined {
   const room = rooms[managed.info.room];
   const roomEnvFile = room?.envFile ?? null;
   const officeEnvFile = officeConfig.envFile;
-  if (!roomEnvFile && !officeEnvFile) return undefined;
+  const userEnvFile = managed.info.userId ? (getUserById(managed.info.userId)?.envFile ?? null) : null;
+  if (!roomEnvFile && !officeEnvFile && !userEnvFile) return undefined;
 
   // Intentional: inherit parent process.env so agents see HOME/PATH/etc. Office
-  // and room files override individual keys but cannot unset inherited ones.
+  // room, and user files override individual keys but cannot unset inherited ones.
   const merged: { [key: string]: string | undefined } = { ...process.env };
   if (officeEnvFile) {
     const officeEnv = readEnvFile(officeEnvFile);
@@ -118,6 +119,10 @@ export function buildSessionEnv(managed: ManagedAgent): { [key: string]: string 
   if (roomEnvFile) {
     const roomEnv = readEnvFile(roomEnvFile);
     Object.assign(merged, roomEnv);
+  }
+  if (userEnvFile) {
+    const userEnv = readEnvFile(userEnvFile);
+    Object.assign(merged, userEnv);
   }
   return merged;
 }
@@ -452,7 +457,18 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   }
   const room = rooms[managed.info.room]!;
   const memoryPrompt = buildMemoryPromptForAgent(managed);
-  const systemPrompt = buildSystemPrompt(managed.info.name, managed.info.id, room.name, officeConfig.prompt, room.prompt, managed.info.customInstructions, memoryPrompt, managerNameForAgent(managed));
+  const owner = managed.info.userId ? getUserById(managed.info.userId) : null;
+  const systemPrompt = buildSystemPrompt(
+    managed.info.name,
+    managed.info.id,
+    room.name,
+    officeConfig.prompt,
+    room.prompt,
+    managed.info.customInstructions,
+    memoryPrompt,
+    owner?.name ?? null,
+    owner?.memberPrompt ?? null,
+  );
   // V2 SDKSessionOptions still doesn't expose systemPrompt / extraArgs, so we
   // inject --append-system-prompt via executableArgs. When
   // pathToClaudeCodeExecutable is a native binary, executableArgs are prepended
