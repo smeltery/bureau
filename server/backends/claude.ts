@@ -15,7 +15,7 @@ import { existsSync, readFileSync, statSync } from "fs";
 import { join } from "path";
 
 import { FAMILY_TO_MODEL, MODEL_FAMILIES, type ModelFamily } from "../../shared/types.ts";
-import { getFilePath } from "../persistence.ts";
+import { getFilePath, saveFile } from "../persistence.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
 import { isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
 import type {
@@ -145,8 +145,7 @@ class InputQueue implements AsyncIterable<SDKUserMessage> {
 
 // Low-level wrapper over query() that restores the 0.2.x interactive-session
 // shape (stream / send / close) on top of 0.3.x's streaming-input model. The
-// cronjob runner consumes this directly (raw SDKMessage stream); the agent
-// path wraps it in ClaudeBackendSession for event normalization + approvals.
+// ClaudeBackendSession wraps this in normalized backend events and approvals.
 export class RawClaudeSession {
   private readonly input = new InputQueue();
   readonly query: Query;
@@ -200,7 +199,7 @@ class ClaudeBackendSession implements BackendSession {
 
   async *stream(): AsyncIterable<NormalizedEvent> {
     for await (const msg of this.raw.stream()) {
-      for (const ev of normalizeClaudeMessage(msg)) yield ev;
+      for (const ev of normalizeClaudeMessage(msg, this.opts.agentId)) yield ev;
     }
   }
 
@@ -253,7 +252,7 @@ class ClaudeBackendSession implements BackendSession {
   }
 }
 
-function normalizeClaudeMessage(msg: SDKMessage): NormalizedEvent[] {
+function normalizeClaudeMessage(msg: SDKMessage, agentId: string): NormalizedEvent[] {
   switch (msg.type) {
     case "system": {
       const m = msg as any;
@@ -280,12 +279,24 @@ function normalizeClaudeMessage(msg: SDKMessage): NormalizedEvent[] {
       if (!Array.isArray(content)) return [];
       return content
         .filter((block: any) => block.type === "tool_result")
-        .map((block: any) => ({
-          kind: "tool_result" as const,
-          toolUseId: block.tool_use_id,
-          content: typeof block.content === "string" ? block.content : JSON.stringify(block.content),
-          isError: block.is_error,
-        }));
+        .map((block: any) => {
+          const text =
+            typeof block.content === "string"
+              ? block.content
+              : Array.isArray(block.content)
+                ? block.content
+                    .filter((c: any) => c.type === "text")
+                    .map((c: any) => c.text)
+                    .join("\n") || JSON.stringify(block.content)
+                : JSON.stringify(block.content);
+          return {
+            kind: "tool_result" as const,
+            toolUseId: block.tool_use_id,
+            content: text,
+            attachments: attachmentsFromClaudeToolResult(agentId, block.content),
+            isError: block.is_error,
+          };
+        });
     }
     case "result": {
       const m = msg as any;
@@ -309,6 +320,19 @@ function normalizeClaudeMessage(msg: SDKMessage): NormalizedEvent[] {
     default:
       return [];
   }
+}
+
+function attachmentsFromClaudeToolResult(agentId: string, content: unknown): AttachmentSpec[] | undefined {
+  if (!Array.isArray(content)) return undefined;
+  const attachments: AttachmentSpec[] = [];
+  for (const block of content as any[]) {
+    if (block.type !== "image" || block.source?.type !== "base64") continue;
+    const mediaType = typeof block.source.media_type === "string" ? block.source.media_type : "image/png";
+    const extension = mediaType.split("/")[1] || "png";
+    const att = saveFile(agentId, Buffer.from(block.source.data, "base64"), mediaType, `image.${extension}`);
+    if (att) attachments.push(att);
+  }
+  return attachments.length > 0 ? attachments : undefined;
 }
 
 function buildUserMessage(agentId: string, text: string, attachments: AttachmentSpec[]): SDKUserMessage {

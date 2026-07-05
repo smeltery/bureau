@@ -1,20 +1,19 @@
-// Cronjob scheduler + per-run SDK session lifecycle.
+// Cronjob scheduler + per-run backend session lifecycle.
 //
 // Scheduler tick: every 60s, looks at every enabled cronjob and fires those
 // whose nextFireAt has passed. Overlap rule: if a *scheduled* run is still
 // in flight for the same cronjob, write a "skipped" row instead of firing.
 // Manual "Run now" bypasses the overlap rule.
 //
-// Each fire creates a fresh V2 SDK session, sends the cronjob's prompt as the
-// first user message, streams the SDK output to a per-run JSONL log, and
+// Each fire creates a fresh backend session, sends the cronjob's prompt as the
+// first user message, streams normalized output to a per-run JSONL log, and
 // broadcasts log entries to the UI via the existing event bus. The synthetic
 // "stream id" used for log routing is `cronjobRunStreamId(runId)`.
 
-import { forkSession, getSessionMessages, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { forkSession, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
 import { basename } from "path";
 import { existsSync, readFileSync, statSync } from "fs";
 import {
-  FAMILY_TO_MODEL,
   generateCronjobId,
   generateCronjobRunId,
   cronjobRunStreamId,
@@ -51,17 +50,16 @@ import {
   saveFile,
   type PersistedUsage,
 } from "../persistence.ts";
-import { RawClaudeSession } from "../backends/claude.ts";
 import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
 import { resolveEditorPath } from "../file-editor.ts";
 import { mimeTypeForFilename } from "../mime-types.ts";
-import { CLAUDE_NATIVE_BIN } from "../agents/session/runtime.ts";
 import { claudeProjectDir, claudeSessionFileExists, resolveCwd, validateCwd } from "../agents/session/paths.ts";
-import { createSafetyHooks } from "../agents/session/safety/index.ts";
 import { memorySection } from "../agents/session/system-prompt.ts";
 import { officeConfig } from "../agents/state.ts";
 import { memoryStore } from "../memory-store.ts";
 import { validateCronjobPermissionMode } from "../agent-validators.ts";
+import { getBackend } from "../backends/index.ts";
+import type { BackendSession, CreateSessionOptions, NormalizedEvent } from "../backends/types.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
@@ -80,8 +78,8 @@ interface ActiveRun {
   jobId: string;
   runId: string;
   streamId: string;
-  session: RawClaudeSession;
-  sessionId: string | null; // assigned on first system:init
+  session: BackendSession;
+  sessionId: string | null; // assigned on first system_init
   rootSessionId: string; // the run row's rootSessionId (placeholder until init)
   consumerPromise: Promise<void>;
   hardTimeoutTimer: ReturnType<typeof setTimeout> | null;
@@ -89,12 +87,12 @@ interface ActiveRun {
   lastAssistantText: string; // for previewText computation
   trigger: CronjobRun["trigger"];
   killed: boolean;
-  // Buffer entries created before SDK init assigns a sessionId. Without this,
+  // Buffer entries created before backend init assigns a sessionId. Without this,
   // pre-init errors (e.g. "Failed to send prompt") get broadcast to clients
   // but never persisted to disk, so they vanish on reload.
   pendingEntries: LogEntry[];
   // True for follow-up turns on a previously-finalized run (resumed or
-  // edit-forked). On resume the SDK reuses the existing sessionId, so init
+  // edit-forked). On resume the backend reuses the existing sessionId, so init
   // must NOT clobber rootSessionId — only currentSessionId tracks the leaf.
   isResume: boolean;
 }
@@ -310,119 +308,84 @@ How to read prior runs of this cronjob: ~/.bureau/cronjobs/${jobId}/runs.json li
 // Run lifecycle
 // ---------------------------------------------------------------------------
 
-function processCronjobMessage(active: ActiveRun, msg: SDKMessage) {
-  switch (msg.type) {
-    case "system": {
-      const subtype = (msg as any).subtype;
-      if (subtype === "init") {
-        const sessionId = (msg as any).session_id as string | undefined;
-        if (sessionId && !active.sessionId) {
-          active.sessionId = sessionId;
-          // If the SDK assigned a different id than rootSessionId, update the
-          // run row so the transcript loads correctly. On resume the SDK keeps
-          // the same id, so this branch only fires for fresh-fire init or a
-          // forked-then-resumed leaf where currentSessionId is already in sync.
-          if (sessionId !== active.rootSessionId) {
-            // Only sync rootSessionId on the initial fire. For resumed/forked
-            // runs the root is fixed history; the leaf is currentSessionId.
-            const patch: Partial<CronjobRun> = active.isResume ? { currentSessionId: sessionId } : { rootSessionId: sessionId, currentSessionId: sessionId };
-            const updated = updateRun(active.jobId, active.runId, patch);
-            if (updated) {
-              if (!active.isResume) active.rootSessionId = sessionId;
-              eventHandler({ type: "cronjob_run_updated", run: updated });
-            }
+function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent) {
+  switch (ev.kind) {
+    case "system_init": {
+      const sessionId = ev.sessionId;
+      if (sessionId && !active.sessionId) {
+        active.sessionId = sessionId;
+        if (sessionId !== active.rootSessionId) {
+          const patch: Partial<CronjobRun> = active.isResume ? { currentSessionId: sessionId } : { rootSessionId: sessionId, currentSessionId: sessionId };
+          const updated = updateRun(active.jobId, active.runId, patch);
+          if (updated) {
+            if (!active.isResume) active.rootSessionId = sessionId;
+            eventHandler({ type: "cronjob_run_updated", run: updated });
           }
-          // Flush any pre-init log entries (errors, etc.) to the now-known
-          // session's JSONL so they survive a reload.
-          for (const entry of active.pendingEntries) {
-            appendRunLog(active.jobId, active.runId, sessionId, entry);
-            active.lastWrittenEntryId = entry.id;
-          }
-          active.pendingEntries = [];
         }
+        for (const entry of active.pendingEntries) {
+          appendRunLog(active.jobId, active.runId, sessionId, entry);
+          active.lastWrittenEntryId = entry.id;
+        }
+        active.pendingEntries = [];
       }
       break;
     }
-    case "assistant": {
-      const content = (msg as any).message?.content;
-      if (!Array.isArray(content)) break;
-      for (const block of content) {
-        if (block.type === "text" && block.text) {
-          active.lastAssistantText = block.text;
-          writeLog(active, "text", block.text);
-        } else if (block.type === "tool_use") {
-          writeLog(active, "tool_call", block.name, { toolId: block.id, input: block.input });
-        } else if (block.type === "thinking" && block.thinking) {
-          writeLog(active, "thinking", block.thinking);
-        }
-      }
+    case "assistant_text":
+      active.lastAssistantText = ev.text;
+      writeLog(active, "text", ev.text);
       break;
-    }
-    case "user": {
-      const content = (msg as any).message?.content;
-      if (!Array.isArray(content)) break;
-      for (const block of content) {
-        if (block.type === "tool_result") {
-          const resultText =
-            typeof block.content === "string"
-              ? block.content
-              : Array.isArray(block.content)
-                ? block.content
-                    .filter((c: any) => c.type === "text")
-                    .map((c: any) => c.text)
-                    .join("\n")
-                : JSON.stringify(block.content);
-          // Extract image attachments from tool_result blocks (e.g. from the
-          // Read tool reading an image). Files are saved under the cronjob run
-          // stream id so the existing /api/files/<agentId>/... route resolves
-          // them; this couples cronjob attachments to the agent storage tree
-          // (~/.bureau/logs/cronrun-<runId>/files/) — see follow-up task to
-          // plumb parseStreamId through file-route resolution.
-          let resultAttachments: Attachment[] | undefined;
-          if (Array.isArray(block.content)) {
-            const atts: Attachment[] = [];
-            for (const c of block.content as any[]) {
-              if (c.type === "image" && c.source?.type === "base64") {
-                const decoded = Buffer.from(c.source.data, "base64");
-                const att = saveFile(active.streamId, decoded, c.source.media_type, `image.${c.source.media_type.split("/")[1] ?? "png"}`);
-                if (att) atts.push(att);
-              }
-            }
-            if (atts.length > 0) resultAttachments = atts;
-          }
-          writeLog(active, "tool_result", resultText.slice(0, 10000), { toolUseId: block.tool_use_id, ...(block.is_error === true ? { isError: true } : {}) }, resultAttachments);
-        }
-      }
+    case "system_text":
+      writeLog(active, "system", ev.text);
       break;
-    }
-    case "result": {
-      const subtype = (msg as any).subtype;
-      const usageField = (msg as any).usage;
-      if (active.sessionId && usageField) {
-        const cost = (msg as any).total_cost_usd ?? 0;
-        const cumulative: PersistedUsage = accumulateRunSessionUsage(
-          active.jobId,
-          active.runId,
-          active.sessionId,
-          {
-            inputTokens: usageField.input_tokens ?? 0,
-            outputTokens: usageField.output_tokens ?? 0,
-            cacheReadInputTokens: usageField.cache_read_input_tokens ?? 0,
-            cacheCreationInputTokens: usageField.cache_creation_input_tokens ?? 0,
-          },
-          cost,
-        );
+    case "thinking":
+      writeLog(active, "thinking", ev.text, ev.durationMs != null ? { duration_ms: ev.durationMs } : undefined);
+      break;
+    case "tool_call":
+      writeLog(active, "tool_call", ev.name, { toolId: ev.toolUseId, input: ev.input });
+      break;
+    case "tool_result":
+      writeLog(
+        active,
+        "tool_result",
+        ev.content.slice(0, 10000),
+        { toolUseId: ev.toolUseId, ...(ev.durationMs != null ? { duration_ms: ev.durationMs } : {}), ...(ev.isError != null ? { isError: ev.isError } : {}) },
+        ev.attachments,
+      );
+      break;
+    case "file_view":
+      writeLog(active, "file-view", ev.title, undefined, ev.attachments);
+      break;
+    case "turn_completed": {
+      if (active.sessionId && ev.usage) {
+        const cumulative = accumulateRunSessionUsage(active.jobId, active.runId, active.sessionId, ev.usage, ev.cost ?? 0);
         if (active.lastWrittenEntryId) {
           appendRunSessionUsageSnapshot(active.jobId, active.runId, active.sessionId, active.lastWrittenEntryId, cumulative);
         }
       }
-      if (subtype !== "success") {
-        const errors = (msg as any).errors;
-        const errorText = `Run stopped: ${subtype}. ${errors?.join(", ") || ""}`;
+      if (ev.status !== "completed") {
+        const errorText = ev.error ?? `Run stopped: ${ev.status}.`;
         writeLog(active, "error", errorText);
       }
       break;
     }
+    case "usage_update": {
+      if (active.sessionId) {
+        const cumulative = accumulateRunSessionUsage(active.jobId, active.runId, active.sessionId, ev.tokenUsage, 0);
+        if (active.lastWrittenEntryId) {
+          appendRunSessionUsageSnapshot(active.jobId, active.runId, active.sessionId, active.lastWrittenEntryId, cumulative);
+        }
+      }
+      break;
+    }
+    case "compacted":
+      writeLog(active, "system", ev.summary ? `Context compacted: ${ev.summary}` : "Context compacted.");
+      break;
+    case "approval_request":
+      writeLog(active, "system", `Approval requested for ${ev.toolName}; cron jobs run unattended, so this run may wait until the hard timeout.`);
+      break;
+    case "error":
+      writeLog(active, "error", ev.message);
+      break;
   }
 }
 
@@ -534,7 +497,7 @@ function writeLog(
     appendRunLog(active.jobId, active.runId, active.sessionId, entry);
     active.lastWrittenEntryId = entry.id;
   } else {
-    // Pre-init: buffer until processCronjobMessage(system/init) flushes us.
+    // Pre-init: buffer until system_init flushes us.
     active.pendingEntries.push(entry);
   }
   eventHandler({ type: "log_entry", entry });
@@ -542,11 +505,22 @@ function writeLog(
 
 async function runConsumer(active: ActiveRun) {
   try {
-    for await (const msg of active.session.stream()) {
-      processCronjobMessage(active, msg);
+    for await (const ev of active.session.stream()) {
+      processNormalizedEvent(active, ev);
+      if (ev.kind === "turn_completed") {
+        const status: CronjobRun["status"] = ev.status === "completed" ? "completed" : "failed";
+        const errorReason = ev.status === "completed" ? null : (ev.error ?? `Run stopped: ${ev.status}`);
+        finalizeRun(active, status, errorReason);
+        return;
+      }
+      if (ev.kind === "error") {
+        finalizeRun(active, "failed", ev.message);
+        return;
+      }
     }
-    // Stream ended cleanly — terminal `result` arrived.
-    finalizeRun(active, "completed");
+    if (activeRuns.has(active.runId)) {
+      finalizeRun(active, "failed", "stream ended before turn completed");
+    }
   } catch (err: any) {
     if (active.killed) return; // hard timeout already handled
     console.error(`Cronjob run ${active.runId} stream error:`, err.message);
@@ -578,9 +552,9 @@ function finalizeRun(active: ActiveRun, status: CronjobRun["status"], errorReaso
     }
     active.pendingEntries = [];
   }
-  // Release the underlying Claude subprocess. The V2 SDK's stream() ends per
-  // turn (not per session), so a successful run reaches finalizeRun with the
-  // session still alive — without close() it would leak until process exit.
+  // Release the underlying backend subprocess. Streams are persistent across
+  // turns, so a successful run reaches finalizeRun with the session still
+  // alive — without close() it would leak until process exit.
   try {
     active.session.close();
   } catch {}
@@ -644,18 +618,10 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
     return run;
   }
 
-  const systemPrompt = buildCronjobSystemPrompt(job, jobId, runId, buildCronjobMemoryPrompt());
-  const opts: any = {
-    model: FAMILY_TO_MODEL[job.modelFamily],
-    permissionMode: job.permissionMode,
-    pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
-    executableArgs: ["--append-system-prompt", systemPrompt],
-    cwd: job.cwd,
-    hooks: createSafetyHooks(),
-  };
-  let session: RawClaudeSession;
+  const opts = buildRunSessionOptions(job, jobId, runId);
+  let session: BackendSession;
   try {
-    session = new RawClaudeSession(opts);
+    session = getBackend("claude").createSession(opts);
   } catch (err: any) {
     const updated = updateRun(jobId, runId, {
       status: "failed",
@@ -712,6 +678,18 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
   })();
 
   return run;
+}
+
+function buildRunSessionOptions(job: Cronjob, jobId: string, runId: string): CreateSessionOptions {
+  const systemPrompt = buildCronjobSystemPrompt(job, jobId, runId, buildCronjobMemoryPrompt());
+  return {
+    agentId: cronjobRunStreamId(runId),
+    modelFamily: job.modelFamily,
+    effort: "xhigh",
+    permissionMode: job.permissionMode,
+    systemPrompt,
+    cwd: job.cwd,
+  };
 }
 
 function recordSkippedRun(job: Cronjob): CronjobRun {
@@ -806,33 +784,29 @@ function emitRunErrorEntry(jobId: string, runId: string, message: string) {
   eventHandler({ type: "log_entry", entry });
 }
 
-function buildRunResumeOpts(run: CronjobRun, resumeSessionId: string): any {
+function buildRunResumeOptions(run: CronjobRun, resumeSessionId: string): CreateSessionOptions {
   // Roll the current-run usage into priorRunsUsage so the SDK's per-process
   // cost counter resetting to zero (which it does on every resume) doesn't
   // wipe lifetime accounting. Mirrors agent-manager's createSession.
   rollRunSessionUsageOnResume(run.cronjobId, run.id, resumeSessionId);
   // Re-pass the system prompt when the cronjob still exists so resumed runs
-  // pick up any office/cronjobs prompt edits. For deleted cronjobs the saved
-  // session preserves the original prompt — skip --append-system-prompt
-  // entirely rather than synthesize a partial one.
+  // pick up any office/cronjobs prompt edits. For deleted cronjobs, use an
+  // empty append instead of synthesizing a partial prompt.
   const job = cronjobs.find((c) => c.id === run.cronjobId);
-  const systemPrompt = job ? buildCronjobSystemPrompt(job, run.cronjobId, run.id, buildCronjobMemoryPrompt()) : null;
-  const executableArgs = systemPrompt ? ["--append-system-prompt", systemPrompt] : [];
   return {
-    model: FAMILY_TO_MODEL[run.modelFamilySnapshot],
+    agentId: cronjobRunStreamId(run.id),
+    modelFamily: run.modelFamilySnapshot,
+    effort: "xhigh",
     permissionMode: run.permissionModeSnapshot,
-    pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
-    executableArgs,
+    systemPrompt: job ? buildCronjobSystemPrompt(job, run.cronjobId, run.id, buildCronjobMemoryPrompt()) : "",
     cwd: run.cwdSnapshot,
-    hooks: createSafetyHooks(),
-    resume: resumeSessionId,
   };
 }
 
-// Wire up an ActiveRun around an SDK session (resumed or freshly forked).
+// Wire up an ActiveRun around a backend session (resumed or freshly forked).
 // Marks the run row "running", starts the consumer + hard timeout, and
 // returns the active so callers can persist log entries / call session.send.
-function installResumedActive(run: CronjobRun, session: RawClaudeSession, sessionId: string): ActiveRun {
+function installResumedActive(run: CronjobRun, session: BackendSession, sessionId: string): ActiveRun {
   const streamId = cronjobRunStreamId(run.id);
   const active: ActiveRun = {
     jobId: run.cronjobId,
@@ -912,9 +886,9 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
 
   startingRuns.add(runId);
   try {
-    let session: RawClaudeSession;
+    let session: BackendSession;
     try {
-      session = new RawClaudeSession(buildRunResumeOpts(run, leaf));
+      session = getBackend("claude").resumeSession(leaf, buildRunResumeOptions(run, leaf));
     } catch (err: any) {
       emitRunErrorEntry(jobId, runId, `Failed to resume: ${err.message || String(err)}`);
       return;
@@ -1063,9 +1037,9 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
 
   // 4. Try to resume the new fork. If this fails, do NOT update currentSessionId
   //    — leave the run pointing at the old leaf so a retry can start over.
-  let session: RawClaudeSession;
+  let session: BackendSession;
   try {
-    session = new RawClaudeSession(buildRunResumeOpts(run, newSessionId));
+    session = getBackend("claude").resumeSession(newSessionId, buildRunResumeOptions(run, newSessionId));
   } catch (err: any) {
     emitRunErrorEntry(jobId, runId, `Failed to start fork: ${err.message || String(err)}`);
     return;
