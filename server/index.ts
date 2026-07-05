@@ -806,7 +806,7 @@ const server = Bun.serve<WsData>({
     const viewResp = await handleViewRequest(req, url, httpAuth, { applyView: applyViewPreference });
     if (viewResp) return viewResp;
 
-    const memoryResp = await handleMemoryRequest(req, url);
+    const memoryResp = await handleMemoryRequest(req, url, httpAuth);
     if (memoryResp) return memoryResp;
 
     // SPA shell — auth-gated; an unauthenticated visitor lands on the

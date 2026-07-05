@@ -1,7 +1,8 @@
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
+import type { AuthResult } from "../auth/auth-middleware.ts";
 import { isSafeScopeId, memoryStore } from "../memory-store.ts";
-import { listUsers } from "../users.ts";
+import { getUserById, listUsers } from "../users.ts";
 import type { MemoryScope } from "../../shared/types.ts";
 
 const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
@@ -81,10 +82,23 @@ function authorFromBearer(identity: AgentMemoryIdentity | null, fallback: string
   return AgentManager.getAllAgents().find((a) => a.id === identity.agentId)?.name ?? fallback;
 }
 
-export async function handleMemoryRequest(req: Request, url: URL): Promise<Response | null> {
+function authorFromCaller(identity: AgentMemoryIdentity | null, auth: AuthResult | undefined, fallback: string): string {
+  if (identity) return authorFromBearer(identity, fallback);
+  if (auth?.kind === "ok") return getUserById(auth.session.userId)?.name ?? auth.session.username;
+  return fallback;
+}
+
+function requireMemoryCaller(identity: AgentMemoryIdentity | null, auth: AuthResult | undefined): Response | null {
+  if (identity || auth?.kind === "ok") return null;
+  return error(401, "unauthenticated", "authenticated caller required");
+}
+
+export async function handleMemoryRequest(req: Request, url: URL, auth?: AuthResult): Promise<Response | null> {
   if (url.pathname !== "/api/memory" && url.pathname !== "/memory") return null;
   const bearer = resolveMemoryBearer(req);
   if (bearer instanceof Response) return bearer;
+  const unauthenticated = requireMemoryCaller(bearer, auth);
+  if (unauthenticated) return unauthenticated;
 
   if (req.method === "GET") {
     const target = resolveTarget(parseScope(url.searchParams.get("scope") ?? "agent"), url.searchParams.get("scopeId") ?? undefined);
@@ -111,7 +125,7 @@ export async function handleMemoryRequest(req: Request, url: URL): Promise<Respo
     if (denied) return denied;
     const duplicate = memoryStore.findDuplicate(target.scope, target.scopeId, text);
     if (duplicate) return error(409, "duplicate_memory", "a matching memory already exists in this scope", { matched: { text: duplicate.text } });
-    return json(memoryStore.append({ scope: target.scope, scopeId: target.scopeId, author: authorFromBearer(bearer, authorFromRequest(req)), text }), 201);
+    return json(memoryStore.append({ scope: target.scope, scopeId: target.scopeId, author: authorFromCaller(bearer, auth, authorFromRequest(req)), text }), 201);
   }
 
   if (req.method === "PUT") {
@@ -127,7 +141,13 @@ export async function handleMemoryRequest(req: Request, url: URL): Promise<Respo
     if (target instanceof Response) return target;
     const denied = authorizeBearerMemory(bearer, target);
     if (denied) return denied;
-    const result = memoryStore.replace({ scope: target.scope, scopeId: target.scopeId, text: body.text, author: authorFromBearer(bearer, authorFromRequest(req)), expectedVersion: body.version });
+    const result = memoryStore.replace({
+      scope: target.scope,
+      scopeId: target.scopeId,
+      text: body.text,
+      author: authorFromCaller(bearer, auth, authorFromRequest(req)),
+      expectedVersion: body.version,
+    });
     if (!result.ok) return error(409, "memory_conflict", "memory changed since it was read", { version: result.version });
     return json({ version: result.version });
   }
