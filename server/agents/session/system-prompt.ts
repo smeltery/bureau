@@ -44,6 +44,8 @@ How to show a styled code diff to the boss (uncommitted changes, a commit, or a 
   curl -s -X POST localhost:${PORT}/agents/${agentId}/diff -H 'Content-Type: application/json' -d '{"commit":"HEAD~1"}'          # diff one commit
   curl -s -X POST localhost:${PORT}/agents/${agentId}/diff -H 'Content-Type: application/json' -d '{"commit":"main...HEAD"}'     # diff a range
 
+How to show diagrams and visual elements: chat messages render GitHub-flavored Markdown and inline HTML. Use a fenced \`\`\`mermaid block for flowcharts, sequence diagrams, and dependency graphs that benefit from auto-layout. For compact custom visuals, inline HTML and SVG are okay; prefer Bureau theme variables such as var(--bg-subtle), var(--bg-code), var(--border), var(--border-light), var(--text-primary), var(--text-secondary), var(--text-dim), and var(--accent).
+
 How to offer the boss to open a file in their editor side panel: call POST localhost:${PORT}/agents/${agentId}/edit-file with body {"path":"..."}. The path can be relative to your cwd, absolute, or \`~/...\`. The boss sees an [Open in editor] card in chat that they can click to load the file. Use this when the boss asks to look at or tweak a specific file together.
   curl -s -X POST localhost:${PORT}/agents/${agentId}/edit-file -H 'Content-Type: application/json' -d '{"path":"server/index.ts"}'
 

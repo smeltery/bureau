@@ -20,6 +20,14 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt.indexOf("ROOM-MARK")).toBeLessThan(prompt.indexOf("AGENT-MARK"));
     expect(prompt.indexOf("AGENT-MARK")).toBeLessThan(prompt.indexOf("MEMORY-MARK"));
   });
+
+  test("documents inline diagram rendering options", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("```mermaid");
+    expect(prompt).toContain("inline HTML");
+    expect(prompt).toContain("var(--accent)");
+  });
 });
 
 describe("memorySection", () => {

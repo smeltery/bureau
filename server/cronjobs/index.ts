@@ -280,6 +280,8 @@ How to use the task board (localhost:${PORT}/tasks): only touch it if your promp
 
 How to show an image: read the image file with the Read tool — it renders inline in the conversation.
 
+How to show diagrams and visual elements: run transcripts render GitHub-flavored Markdown and inline HTML. Use a fenced \`\`\`mermaid block for flowcharts, sequence diagrams, and dependency graphs that benefit from auto-layout. For compact custom visuals, inline HTML and SVG are okay; prefer Bureau theme variables such as var(--bg-subtle), var(--bg-code), var(--border), var(--border-light), var(--text-primary), var(--text-secondary), var(--text-dim), and var(--accent).
+
 How to read prior runs of this cronjob: ~/.bureau/cronjobs/${jobId}/runs.json lists every run (newest last) with startedAt, status, and rootSessionId. The transcript for a run lives at ~/.bureau/cronjobs/${jobId}/<runId>/<rootSessionId>.jsonl.`;
 
   if (officeConfig.prompt) prompt += `\n\n## Office Instructions\n\n${officeConfig.prompt}`;

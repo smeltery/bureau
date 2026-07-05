@@ -29,4 +29,12 @@ describe("buildCronjobSystemPrompt", () => {
     expect(prompt).toContain("Office memory:");
     expect(prompt.indexOf("How to read prior runs")).toBeLessThan(prompt.indexOf("## Durable Memory"));
   });
+
+  test("documents inline diagram rendering options", () => {
+    const prompt = buildCronjobSystemPrompt(cronjob(), "cron-1", "run-1");
+
+    expect(prompt).toContain("```mermaid");
+    expect(prompt).toContain("inline HTML");
+    expect(prompt).toContain("var(--accent)");
+  });
 });
