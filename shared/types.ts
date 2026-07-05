@@ -516,6 +516,11 @@ export interface UserRecord {
   memberPrompt: string | null;
   // Strict list of room IDs this user can see and act in. Owners can edit it.
   allowedRooms: string[];
+  // Per-user view preferences layered on top of access. Hidden rooms remain
+  // accessible; they are only omitted from this user's room list. Order is a
+  // sparse room-id list; any visible rooms not listed keep office order after it.
+  hidden: string[];
+  order: string[];
   defaultRoomId: string | null;
   // Rooms this user gets notification sounds / desktop alerts for. Strict
   // string[] of roomIds — no "all" sentinel. New users get a snapshot of
@@ -804,7 +809,7 @@ export type ClientCommand =
   | {
       type: "update_user";
       userId: string;
-      changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>;
+      changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>;
     }
   | { type: "delete_user"; userId: string }
   | { type: "list_active_sessions" }

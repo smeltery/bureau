@@ -21,6 +21,8 @@ export function loadUsers(): UserRecord[] {
       .filter((u): u is UserRecord => u && typeof u === "object" && typeof u.id === "string" && typeof u.name === "string")
       .map((u) => {
         const allowedRooms = Array.isArray(u.allowedRooms) ? u.allowedRooms.filter((id): id is string => typeof id === "string") : [];
+        const hidden = Array.isArray(u.hidden) ? u.hidden.filter((id): id is string => typeof id === "string") : [];
+        const order = Array.isArray(u.order) ? u.order.filter((id): id is string => typeof id === "string") : [];
         // Legacy records predate notifRooms — default to a snapshot of the
         // user's allowed rooms (notify everywhere they can see) and keep only
         // ids that are still in the allowed set.
@@ -32,6 +34,8 @@ export function loadUsers(): UserRecord[] {
           envFile: typeof u.envFile === "string" && u.envFile ? u.envFile : null,
           memberPrompt: typeof u.memberPrompt === "string" && u.memberPrompt.trim() ? u.memberPrompt.trim() : null,
           allowedRooms,
+          hidden,
+          order,
           defaultRoomId: typeof u.defaultRoomId === "string" ? u.defaultRoomId : null,
           notifRooms,
           avatarColor: isHexColor(u.avatarColor) ? normalizeHexColor(u.avatarColor) : defaultGhostColorForUserId(u.id),

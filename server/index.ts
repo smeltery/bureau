@@ -315,7 +315,7 @@ function killedAgentsFor(ws: import("bun").ServerWebSocket<unknown>): KilledAgen
 function usersForRecipient(recipient: ReturnType<typeof getWsUser>, rooms: ReturnType<typeof AgentManager.getRooms>): UserRecord[] {
   const users = listUsers(rooms);
   if (!recipient || recipient.role === "owner") return users;
-  return users.map((listed) => (listed.id === recipient.id ? listed : { ...listed, envFile: null, memberPrompt: null }));
+  return users.map((listed) => (listed.id === recipient.id ? listed : { ...listed, envFile: null, memberPrompt: null, hidden: [], order: [] }));
 }
 
 export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
