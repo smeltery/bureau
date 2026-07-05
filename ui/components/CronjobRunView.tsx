@@ -192,7 +192,7 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
                 <span>{new Date(run.startedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-                <span style={{ color: "var(--text-ghost)" }}>{run.trigger === "manual" ? "manual" : "scheduled"}</span>
+                <span style={{ color: "var(--text-ghost)" }}>{run.trigger === "manual" ? `manual${run.triggeredBy ? ` · ${run.triggeredBy}` : ""}` : "scheduled"}</span>
               </div>
             </div>
           ) : (
@@ -230,7 +230,8 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
             <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>PROMPT</div>
             <div style={{ whiteSpace: "pre-wrap" }}>{run.promptSnapshot}</div>
             <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-ghost)" }}>
-              cwd: {run.cwdSnapshot} · backend: {run.agentTypeSnapshot} · model: {run.modelFamilySnapshot} · permission: {run.permissionModeSnapshot}
+              cwd: {run.cwdSnapshot} · backend: {run.agentTypeSnapshot} · model: {run.modelFamilySnapshot} · effort: {run.effortSnapshot} · permission: {run.permissionModeSnapshot}
+              {run.codexSandboxSnapshot ? ` · sandbox: ${run.codexSandboxSnapshot}` : ""}
             </div>
             {run.errorReason && <div style={{ marginTop: 8, fontSize: 11, color: "var(--red)" }}>Error: {run.errorReason}</div>}
           </div>
