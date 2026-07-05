@@ -30,6 +30,7 @@ import { handleValidateRequest } from "./http/validate.ts";
 import { handleBackendsRequest } from "./http/backends.ts";
 import { handleMemoryRequest } from "./http/memory.ts";
 import { handleViewRequest, type ViewChangeInput } from "./http/view.ts";
+import { handleSystemRequest } from "./http/system.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
 import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
@@ -519,6 +520,9 @@ const server = Bun.serve<WsData>({
 
     const backendsResp = await handleBackendsRequest(req, url, httpAuth);
     if (backendsResp) return backendsResp;
+
+    const systemResp = handleSystemRequest(req, url, httpAuth, { getBackupStatus });
+    if (systemResp) return systemResp;
 
     const viewResp = await handleViewRequest(req, url, httpAuth, { applyView: applyViewPreference });
     if (viewResp) return viewResp;
