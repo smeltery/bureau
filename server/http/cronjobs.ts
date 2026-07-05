@@ -5,12 +5,12 @@ import { resolveRunToken } from "../cronjobs/tokens.ts";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
 /**
- * Handle every /cronjobs request. Returns null for any non-cronjobs URL so the
- * caller can fall through to the next router.
+ * Handle every /cronjobs and /api/cronjobs request. Returns null for unrelated
+ * URLs so the caller can fall through to the next router.
  */
 export async function handleCronjobsRequest(req: Request, url: URL): Promise<Response | null> {
   // CORS preflight
-  if (req.method === "OPTIONS" && url.pathname.startsWith("/cronjobs")) {
+  if (req.method === "OPTIONS" && (url.pathname.startsWith("/cronjobs") || url.pathname.startsWith("/api/cronjobs") || url.pathname === "/api/cron-runs")) {
     return new Response(null, {
       headers: {
         "Access-Control-Allow-Origin": "*",
@@ -20,10 +20,19 @@ export async function handleCronjobsRequest(req: Request, url: URL): Promise<Res
     });
   }
 
-  if (!url.pathname.startsWith("/cronjobs")) return null;
+  if (req.method === "GET" && url.pathname === "/api/cron-runs") {
+    return new Response(
+      JSON.stringify({
+        jobs: CronjobManager.getAllRunsByJob().map((j) => ({ cronjobId: j.jobId, runs: j.runs })),
+      }),
+      { headers: corsHeaders },
+    );
+  }
+
+  const parts = cronjobRouteParts(url.pathname);
+  if (!parts) return null;
 
   // ["cronjobs"] | ["cronjobs", id] | ["cronjobs", id, "runs"] | ["cronjobs", id, "runs", runId]
-  const parts = url.pathname.split("/").filter(Boolean);
   const cronjobs = CronjobManager.listCronjobs();
 
   // GET /cronjobs
@@ -93,5 +102,12 @@ function requireRunBearer(req: Request, jobId: string, runId: string): Response 
   if (identity.cronjobId !== jobId || identity.runId !== runId) {
     return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: corsHeaders });
   }
+  return null;
+}
+
+function cronjobRouteParts(pathname: string): string[] | null {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] === "cronjobs") return parts;
+  if (parts[0] === "api" && parts[1] === "cronjobs") return parts.slice(1);
   return null;
 }

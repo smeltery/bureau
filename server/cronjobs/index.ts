@@ -351,12 +351,12 @@ On create, set createdBy to the boss name from your prompt or a follow-up messag
 
 How to show an image: read the image file with the Read tool — it renders inline in the conversation.
 
-How to surface a file in the run transcript (images render inline; other files render as a clickable file chip): call POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/read-file with body {"path":"..."}. The path can be relative to your cwd, absolute, or \`~/...\`. Use this when you've produced or want to surface a file (a plot, screenshot, generated PDF, log snippet) for whoever reviews the run.
-  curl -s -X POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/read-file -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"path":"plot.png"}'
+How to surface a file in the run transcript (images render inline; other files render as a clickable file chip): call POST localhost:${PORT}/api/cronjobs/${jobId}/runs/${runIdForUrl}/read-file with body {"path":"..."}. The path can be relative to your cwd, absolute, or \`~/...\`. Use this when you've produced or want to surface a file (a plot, screenshot, generated PDF, log snippet) for whoever reviews the run.
+  curl -s -X POST localhost:${PORT}/api/cronjobs/${jobId}/runs/${runIdForUrl}/read-file -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"path":"plot.png"}'
 
-How to show a styled code diff in the run transcript: call POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/diff. Optional body fields: {"dir":"..."} targets a different directory (defaults to your cwd); {"commit":"..."} shows a specific commit, tag/branch, or range such as "main..feature" or "HEAD~3..HEAD" instead of uncommitted changes.
-  curl -s -X POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/diff -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'                                                # uncommitted in your cwd
-  curl -s -X POST localhost:${PORT}/cronjobs/${jobId}/runs/${runIdForUrl}/diff -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"commit":"HEAD~1"}'   # a specific commit
+How to show a styled code diff in the run transcript: call POST localhost:${PORT}/api/cronjobs/${jobId}/runs/${runIdForUrl}/diff. Optional body fields: {"dir":"..."} targets a different directory (defaults to your cwd); {"commit":"..."} shows a specific commit, tag/branch, or range such as "main..feature" or "HEAD~3..HEAD" instead of uncommitted changes.
+  curl -s -X POST localhost:${PORT}/api/cronjobs/${jobId}/runs/${runIdForUrl}/diff -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'                                                # uncommitted in your cwd
+  curl -s -X POST localhost:${PORT}/api/cronjobs/${jobId}/runs/${runIdForUrl}/diff -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"commit":"HEAD~1"}'   # a specific commit
 
 How to show diagrams and visual elements: run transcripts render GitHub-flavored Markdown and inline HTML. Use a fenced \`\`\`mermaid block for flowcharts, sequence diagrams, and dependency graphs that benefit from auto-layout. For compact custom visuals, inline HTML and SVG are okay; prefer Bureau theme variables such as var(--bg-subtle), var(--bg-code), var(--border), var(--border-light), var(--text-primary), var(--text-secondary), var(--text-dim), and var(--accent).
 
