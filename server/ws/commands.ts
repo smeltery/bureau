@@ -650,18 +650,45 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
         }
         saveRecentCwd(cmd.cwd);
       }
-      AgentManager.editAgent(cmd.agentId, {
-        name: cmd.name,
-        cwd: cmd.cwd,
-        outfit: cmd.outfit,
-        customInstructions: cmd.customInstructions,
-        modelFamily: cmd.modelFamily,
-        permissionMode: cmd.permissionMode,
-        codexSandbox: cmd.codexSandbox,
-        effort: cmd.effort,
-      });
-      if (cmd.requestId) {
-        ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
+      try {
+        await AgentManager.editAgent(cmd.agentId, {
+          name: cmd.name,
+          cwd: cmd.cwd,
+          outfit: cmd.outfit,
+          customInstructions: cmd.customInstructions,
+          modelFamily: cmd.modelFamily,
+          permissionMode: cmd.permissionMode,
+          codexSandbox: cmd.codexSandbox,
+          effort: cmd.effort,
+        });
+        if (cmd.requestId) {
+          ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
+        }
+      } catch (err) {
+        if (cmd.requestId) {
+          ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: err instanceof Error ? err.message : "Save failed" } as ServerMessage));
+        }
+      }
+      break;
+    }
+    case "set_agent_privileged": {
+      if (!isOwner(ws) || !canUseAgent(ws, cmd.agentId)) break;
+      try {
+        await AgentManager.setAgentPrivileged(cmd.agentId, cmd.privileged);
+        if (cmd.requestId) {
+          ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
+        }
+      } catch (err) {
+        if (cmd.requestId) {
+          ws.send(
+            JSON.stringify({
+              type: "agent_save_response",
+              requestId: cmd.requestId,
+              ok: false,
+              error: err instanceof Error ? err.message : "Failed to update agent privilege",
+            } as ServerMessage),
+          );
+        }
       }
       break;
     }

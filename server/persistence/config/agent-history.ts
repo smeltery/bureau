@@ -20,6 +20,7 @@ export interface AgentHistoryEntry {
   modelFamily?: string;
   effort?: EffortLevel;
   agentType?: AgentInfo["agentType"];
+  privileged?: boolean;
   codexSandbox?: AgentInfo["codexSandbox"];
   lastSessionId?: string | null;
   topic?: string | null;

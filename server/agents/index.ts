@@ -14,6 +14,7 @@ export {
   listSessions,
   getCurrentSessionId,
   editAgent,
+  setAgentPrivileged,
   emitAgentDiff,
   emitAgentEditFile,
   emitAgentReadFile,

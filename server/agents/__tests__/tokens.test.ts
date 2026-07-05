@@ -10,7 +10,7 @@ describe("agent bearer tokens", () => {
     const raw = mintAgentToken("agent-1", "user-1");
 
     expect(getAgentToken("agent-1")).toBe(raw);
-    expect(resolveAgentToken(raw)).toEqual({ agentId: "agent-1", userId: "user-1" });
+    expect(resolveAgentToken(raw)).toEqual({ agentId: "agent-1", userId: "user-1", privileged: false });
   });
 
   test("minting rotates the previous token", () => {
@@ -19,7 +19,13 @@ describe("agent bearer tokens", () => {
 
     expect(second).not.toBe(first);
     expect(resolveAgentToken(first)).toBeNull();
-    expect(resolveAgentToken(second)).toEqual({ agentId: "agent-1", userId: "user-1" });
+    expect(resolveAgentToken(second)).toEqual({ agentId: "agent-1", userId: "user-1", privileged: false });
+  });
+
+  test("minted tokens carry privileged metadata", () => {
+    const raw = mintAgentToken("agent-1", "user-1", true);
+
+    expect(resolveAgentToken(raw)).toEqual({ agentId: "agent-1", userId: "user-1", privileged: true });
   });
 
   test("revoking removes a token", () => {

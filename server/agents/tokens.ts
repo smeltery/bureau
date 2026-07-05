@@ -6,6 +6,7 @@ interface StoredAgentToken {
   hash: string;
   raw: string;
   userId: string | null;
+  privileged: boolean;
 }
 
 const byAgentId = new Map<string, StoredAgentToken>();
@@ -26,10 +27,10 @@ function safeHashEq(a: string, b: string): boolean {
   return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
-export function mintAgentToken(agentId: string, userId: string | null): string {
+export function mintAgentToken(agentId: string, userId: string | null, privileged = false): string {
   revokeAgentToken(agentId);
   const { raw, hash } = newToken();
-  byAgentId.set(agentId, { hash, raw, userId });
+  byAgentId.set(agentId, { hash, raw, userId, privileged });
   agentIdByHash.set(hash, agentId);
   return raw;
 }
@@ -54,14 +55,14 @@ export function readBearerToken(req: Request): string | null {
   return token.length ? token : null;
 }
 
-export function resolveAgentToken(raw: string | null): { agentId: string; userId: string | null } | null {
+export function resolveAgentToken(raw: string | null): { agentId: string; userId: string | null; privileged: boolean } | null {
   if (!raw) return null;
   const hash = hashToken(raw);
   const agentId = agentIdByHash.get(hash);
   if (!agentId) return null;
   const stored = byAgentId.get(agentId);
   if (!stored || !safeHashEq(stored.hash, hash)) return null;
-  return { agentId, userId: stored.userId };
+  return { agentId, userId: stored.userId, privileged: stored.privileged };
 }
 
 export function redactAgentTokens(text: string): string {

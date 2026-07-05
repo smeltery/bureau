@@ -372,6 +372,8 @@ const commandHandlers: Record<string, HandlerFn> = {
       managed.info.customInstructions,
       buildMemoryPromptForAgent(managed),
       managerNameForAgent(managed),
+      null,
+      managed.info.privileged ?? false,
     );
     // Pick a fence longer than any backtick run inside the prompt so the block
     // renders verbatim regardless of what office/room/agent prompts contain.
