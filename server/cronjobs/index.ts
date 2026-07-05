@@ -53,7 +53,9 @@ import { RawClaudeSession } from "../backends/claude.ts";
 import { CLAUDE_NATIVE_BIN } from "../agents/session/runtime.ts";
 import { claudeProjectDir, claudeSessionFileExists, resolveCwd, validateCwd } from "../agents/session/paths.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
+import { memorySection } from "../agents/session/system-prompt.ts";
 import { officeConfig } from "../agents/state.ts";
+import { memoryStore } from "../memory-store.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
@@ -252,7 +254,11 @@ export function getRunTranscript(jobId: string, runId: string): { run: CronjobRu
 // System prompt for cronjobs
 // ---------------------------------------------------------------------------
 
-export function buildCronjobSystemPrompt(cronjob: Cronjob, jobId: string, _runId: string): string {
+export function buildCronjobMemoryPrompt(): string | null {
+  return memoryStore.renderForPromptMulti([{ scope: "office", scopeId: null, label: "Office memory" }]);
+}
+
+export function buildCronjobSystemPrompt(cronjob: Cronjob, jobId: string, _runId: string, memoryPrompt?: string | null): string {
   // humanizeSchedule produces sentence-case ("Daily at 09:00"); lowercase the
   // first letter so it reads as a sentence fragment ("You run daily at 09:00").
   // Only the first letter — keeps weekday abbreviations like "Mon" capitalized.
@@ -278,6 +284,7 @@ How to read prior runs of this cronjob: ~/.bureau/cronjobs/${jobId}/runs.json li
 
   if (officeConfig.prompt) prompt += `\n\n## Office Instructions\n\n${officeConfig.prompt}`;
   if (cronjobsPrompt) prompt += `\n\n## Cron Jobs Instructions\n\n${cronjobsPrompt}`;
+  prompt += memorySection(memoryPrompt);
   return prompt;
 }
 
@@ -525,7 +532,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"]): CronjobRun | null {
     return run;
   }
 
-  const systemPrompt = buildCronjobSystemPrompt(job, jobId, runId);
+  const systemPrompt = buildCronjobSystemPrompt(job, jobId, runId, buildCronjobMemoryPrompt());
   const opts: any = {
     model: FAMILY_TO_MODEL[job.modelFamily],
     permissionMode: job.permissionMode,
@@ -697,7 +704,7 @@ function buildRunResumeOpts(run: CronjobRun, resumeSessionId: string): any {
   // session preserves the original prompt — skip --append-system-prompt
   // entirely rather than synthesize a partial one.
   const job = cronjobs.find((c) => c.id === run.cronjobId);
-  const systemPrompt = job ? buildCronjobSystemPrompt(job, run.cronjobId, run.id) : null;
+  const systemPrompt = job ? buildCronjobSystemPrompt(job, run.cronjobId, run.id, buildCronjobMemoryPrompt()) : null;
   const executableArgs = systemPrompt ? ["--append-system-prompt", systemPrompt] : [];
   return {
     model: FAMILY_TO_MODEL[run.modelFamilySnapshot],
