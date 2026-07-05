@@ -45,4 +45,11 @@ describe("buildCronjobSystemPrompt", () => {
     expect(prompt).toContain("/cronjobs/cron-1/runs/run-1/diff");
     expect(prompt).toContain("clickable file chip");
   });
+
+  test("documents boss attribution when creating tasks", () => {
+    const prompt = buildCronjobSystemPrompt(cronjob(), "cron-1", "run-1");
+
+    expect(prompt).toContain('"createdBy":"<boss-name>"');
+    expect(prompt).toContain('If you can\'t tell, use "Daily report".');
+  });
 });

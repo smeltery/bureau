@@ -28,6 +28,13 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("inline HTML");
     expect(prompt).toContain("var(--accent)");
   });
+
+  test("documents boss attribution when creating tasks", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain('"createdBy":"<boss-name>"');
+    expect(prompt).toContain('If you can\'t tell, use "A".');
+  });
 });
 
 describe("memorySection", () => {

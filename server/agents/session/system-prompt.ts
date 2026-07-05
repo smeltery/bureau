@@ -29,11 +29,12 @@ How to use the task board (localhost:${PORT}/tasks): only touch it when the boss
   curl -s localhost:${PORT}/tasks?status=all                               # include done and backlog
   curl -s localhost:${PORT}/tasks?status=backlog                           # only backlog tasks
   curl -s -X POST localhost:${PORT}/tasks -H 'Content-Type: application/json' \\
-    -d '{"title":"...","createdBy":"${agentName}"}'                     # create
+    -d '{"title":"...","createdBy":"<boss-name>"}'                      # create
   curl -s -X POST localhost:${PORT}/tasks/ID/claim -H 'Content-Type: application/json' \\
     -d '{"assignee":"${agentName}"}'                                    # claim
   curl -s -X POST localhost:${PORT}/tasks/ID/done -d '{}'                  # mark done
 Optional fields on create/update: description, priority (P0-P3), assignee.
+On create, set createdBy to the boss name in brackets when you can tell who asked (for example, "[Nil] add task X" means createdBy:"Nil"). If you can't tell, use "${agentName}".
 
 How to show a file to the boss (images render inline; other files render as a clickable file chip): call POST localhost:${PORT}/agents/${agentId}/read-file with body {"path":"..."}. The path can be relative to your cwd, absolute, or \`~/...\`. Use this when you've produced or want to surface a file (a plot, screenshot, generated PDF, log snippet) to the boss.
   curl -s -X POST localhost:${PORT}/agents/${agentId}/read-file -H 'Content-Type: application/json' -d '{"path":"plot.png"}'
