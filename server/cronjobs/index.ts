@@ -10,7 +10,6 @@
 // broadcasts log entries to the UI via the existing event bus. The synthetic
 // "stream id" used for log routing is `cronjobRunStreamId(runId)`.
 
-import { forkSession, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
 import { basename } from "path";
 import { existsSync, readFileSync, statSync } from "fs";
 import {
@@ -57,9 +56,9 @@ import { claudeProjectDir, claudeSessionFileExists, resolveCwd, validateCwd } fr
 import { memorySection } from "../agents/session/system-prompt.ts";
 import { officeConfig } from "../agents/state.ts";
 import { memoryStore } from "../memory-store.ts";
-import { validateCronjobPermissionMode } from "../agent-validators.ts";
+import { validateCronjobPermissionMode, validateModelFamily } from "../agent-validators.ts";
 import { getBackend } from "../backends/index.ts";
-import type { BackendSession, CreateSessionOptions, NormalizedEvent } from "../backends/types.ts";
+import type { BackendSession, CreateSessionOptions, NormalizedEvent, NormalizedMessage } from "../backends/types.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
@@ -69,6 +68,24 @@ export { computeNextFire };
 // non-default bureau (e.g. on PORT=4001) tells its cronjobs to POST to the
 // right port instead of the canonical 4000.
 const PORT = process.env.PORT || "4000";
+
+function cronRunBackend(run: CronjobRun) {
+  return getBackend(run.agentTypeSnapshot ?? "claude");
+}
+
+function checkCronRunSessionFile(run: CronjobRun, leaf: string, action: "resume" | "edit"): boolean {
+  if ((run.agentTypeSnapshot ?? "claude") !== "claude") return true;
+  if (claudeSessionFileExists(run.cwdSnapshot, leaf)) return true;
+
+  const prefix = action === "resume" ? `Cannot resume session ${leaf.slice(0, 8)}…` : `Cannot edit: session ${leaf.slice(0, 8)}…`;
+  emitRunErrorEntry(
+    run.cronjobId,
+    run.id,
+    `${prefix}: its file is missing from ${claudeProjectDir(run.cwdSnapshot)}. ` +
+      `Most commonly this happens after the cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd.`,
+  );
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // In-memory state
@@ -165,15 +182,16 @@ export interface AddCronjobInput {
 export function addCronjob(input: AddCronjobInput): Cronjob {
   const schedule = clampSchedule(input.schedule);
   const now = Date.now();
+  const agentType = input.agentType ?? "claude";
   const cronjob: Cronjob = {
     id: generateCronjobId(cronjobs.map((c) => c.id)),
     name: input.name.trim() || "Untitled cron job",
     schedule,
     prompt: input.prompt,
     cwd: resolveCwd(input.cwd),
-    agentType: input.agentType ?? "claude",
-    modelFamily: input.modelFamily,
-    permissionMode: validateCronjobPermissionMode(input.agentType ?? "claude", input.permissionMode),
+    agentType,
+    modelFamily: validateModelFamily(agentType, input.modelFamily),
+    permissionMode: validateCronjobPermissionMode(agentType, input.permissionMode),
     enabled: true,
     createdBy: input.username,
     device: input.device ?? null,
@@ -867,7 +885,7 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
   }
   const leaf = run.currentSessionId ?? run.rootSessionId;
   if (leaf.startsWith("pending-") || leaf.startsWith("skipped-")) {
-    emitRunErrorEntry(jobId, runId, "Cannot resume: the original run never reached SDK init.");
+    emitRunErrorEntry(jobId, runId, "Cannot resume: the original run never reached backend init.");
     return;
   }
   try {
@@ -876,23 +894,13 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
     emitRunErrorEntry(jobId, runId, `Cannot resume: cwd is invalid: ${err.message || String(err)}`);
     return;
   }
-  // Mirror agent-manager's claudeSessionFileExists preflight so a moved or
-  // renamed cwd surfaces a readable error instead of "process exited with 1".
-  if (!claudeSessionFileExists(run.cwdSnapshot, leaf)) {
-    emitRunErrorEntry(
-      jobId,
-      runId,
-      `Cannot resume session ${leaf.slice(0, 8)}…: its file is missing from ${claudeProjectDir(run.cwdSnapshot)}. ` +
-        `Most commonly this happens after the cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd.`,
-    );
-    return;
-  }
+  if (!checkCronRunSessionFile(run, leaf, "resume")) return;
 
   startingRuns.add(runId);
   try {
     let session: BackendSession;
     try {
-      session = getBackend(run.agentTypeSnapshot ?? "claude").resumeSession(leaf, buildRunResumeOptions(run, leaf));
+      session = cronRunBackend(run).resumeSession(leaf, buildRunResumeOptions(run, leaf));
     } catch (err: any) {
       emitRunErrorEntry(jobId, runId, `Failed to resume: ${err.message || String(err)}`);
       return;
@@ -922,8 +930,8 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
 }
 
 // Edit-to-fork a user message in a finalized run. Mirrors agent-manager's
-// editMessage: forks the SDK session at the predecessor of the target
-// message, persists fork lineage in the run's sessions.json, then resumes
+// editMessage: forks the backend session before the target message, persists
+// fork lineage in the run's sessions.json, then resumes
 // the new leaf and sends the edited text.
 export async function editRunMessage(jobId: string, runId: string, logEntryId: string, newText: string, username?: string): Promise<void> {
   const run = findRun(jobId, runId);
@@ -937,7 +945,7 @@ export async function editRunMessage(jobId: string, runId: string, logEntryId: s
   }
   const leaf = run.currentSessionId ?? run.rootSessionId;
   if (leaf.startsWith("pending-") || leaf.startsWith("skipped-")) {
-    emitRunErrorEntry(jobId, runId, "Cannot edit: the original run never reached SDK init.");
+    emitRunErrorEntry(jobId, runId, "Cannot edit: the original run never reached backend init.");
     return;
   }
   try {
@@ -946,15 +954,7 @@ export async function editRunMessage(jobId: string, runId: string, logEntryId: s
     emitRunErrorEntry(jobId, runId, `Cannot edit: cwd is invalid: ${err.message || String(err)}`);
     return;
   }
-  if (!claudeSessionFileExists(run.cwdSnapshot, leaf)) {
-    emitRunErrorEntry(
-      jobId,
-      runId,
-      `Cannot edit: session ${leaf.slice(0, 8)}… is missing from ${claudeProjectDir(run.cwdSnapshot)}. ` +
-        `Most commonly this happens after the cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd.`,
-    );
-    return;
-  }
+  if (!checkCronRunSessionFile(run, leaf, "edit")) return;
 
   startingRuns.add(runId);
   try {
@@ -976,11 +976,12 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
     return;
   }
 
-  // 2. Match the target to a position in the SDK session's message list. Mirror
-  //    agent-manager's content + occurrence-index strategy.
-  let sdkMessages: Awaited<ReturnType<typeof getSessionMessages>>;
+  // 2. Match the target to a position in the backend session's message list.
+  //    Mirror agent-manager's content + occurrence-index strategy.
+  const backend = cronRunBackend(run);
+  let sessionMessages: NormalizedMessage[];
   try {
-    sdkMessages = await getSessionMessages(leaf);
+    sessionMessages = await backend.getSessionMessages(leaf, run.cwdSnapshot);
   } catch (err: any) {
     emitRunErrorEntry(jobId, runId, `Failed to load session messages: ${err.message || String(err)}`);
     return;
@@ -999,22 +1000,16 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
       occurrenceIndex++;
     }
   }
-  // Skip the cronjob's original prompt: it's the SDK's first user message but
+  // Skip the cronjob's original prompt: it's the backend's first user message but
   // not a LogEntry, so its content will never match. occurrenceIndex therefore
   // counts from the first post-prompt user message.
-  const cronjobPromptIsFirstSdkUser = sdkMessages[0]?.type === "user";
+  const cronjobPromptIsFirstSdkUser = sessionMessages[0]?.role === "user";
   let matchCount = 0;
   let targetIdx = -1;
-  for (let i = cronjobPromptIsFirstSdkUser ? 1 : 0; i < sdkMessages.length; i++) {
-    const m = sdkMessages[i];
-    if (m.type !== "user") continue;
-    const msg = (m as any).message;
-    const contentBlocks = Array.isArray(msg?.content) ? msg.content : Array.isArray(msg) ? msg : typeof msg === "string" ? [{ type: "text", text: msg }] : [];
-    const msgContent = contentBlocks
-      .filter((b: any) => b.type === "text")
-      .map((b: any) => b.text)
-      .join("");
-    if (msgContent === prefixedContent) {
+  for (let i = cronjobPromptIsFirstSdkUser ? 1 : 0; i < sessionMessages.length; i++) {
+    const message = sessionMessages[i];
+    if (message.role !== "user") continue;
+    if (message.text === prefixedContent) {
       if (matchCount === occurrenceIndex) {
         targetIdx = i;
         break;
@@ -1023,17 +1018,22 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
     }
   }
   if (targetIdx <= 0) {
-    emitRunErrorEntry(jobId, runId, "Cannot edit: could not locate message in SDK session.");
+    emitRunErrorEntry(jobId, runId, "Cannot edit: could not locate message in backend session.");
     return;
   }
 
-  // 3. Fork the SDK session at the predecessor (inclusive) so the original
-  //    target message is excluded from the fork.
-  const predecessorUuid = (sdkMessages[targetIdx - 1] as any).uuid;
+  // 3. Fork before the target message so the original message is excluded from
+  //    the new leaf. Each backend handles its own predecessor semantics.
   let newSessionId: string;
+  let forkFromBackendSessionId = leaf;
   try {
-    const forkResult = await forkSession(leaf, { upToMessageId: predecessorUuid });
+    const forkResult = await backend.forkSessionBeforeMessage(leaf, sessionMessages[targetIdx].uuid);
+    if (forkResult.kind === "fresh") {
+      emitRunErrorEntry(jobId, runId, "Cannot edit: backend returned a fresh fork without a session id.");
+      return;
+    }
     newSessionId = forkResult.sessionId;
+    forkFromBackendSessionId = forkResult.forkedFromSessionId;
   } catch (err: any) {
     emitRunErrorEntry(jobId, runId, `Fork failed: ${err.message || String(err)}`);
     return;
@@ -1043,7 +1043,7 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
   //    — leave the run pointing at the old leaf so a retry can start over.
   let session: BackendSession;
   try {
-    session = getBackend(run.agentTypeSnapshot ?? "claude").resumeSession(newSessionId, buildRunResumeOptions(run, newSessionId));
+    session = backend.resumeSession(newSessionId, buildRunResumeOptions(run, newSessionId));
   } catch (err: any) {
     emitRunErrorEntry(jobId, runId, `Failed to start fork: ${err.message || String(err)}`);
     return;
@@ -1053,7 +1053,7 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
   //    forked before). Walk back to find which JSONL actually contains it,
   //    and point forkedFrom at that ancestor — keeps loadRunLogWithAncestors
   //    cutting at the right level.
-  let forkFromSessionId = leaf;
+  let forkFromSessionId = forkFromBackendSessionId;
   const leafEntries = loadRunLog(jobId, runId, leaf);
   if (!leafEntries.some((e) => e.id === logEntryId)) {
     const sessMap = loadRunSessionsMap(jobId, runId);

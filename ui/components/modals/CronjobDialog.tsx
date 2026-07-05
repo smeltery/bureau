@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../../store.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
-import { MODEL_FAMILIES, modelVersionLabel, type Cronjob, type CronjobPermissionMode, type ModelFamily, type Schedule } from "../../../shared/types.ts";
+import { CODEX_MODELS, MODEL_FAMILIES, modelVersionLabel, type AgentBackendType, type Cronjob, type CronjobPermissionMode, type ModelFamily, type Schedule } from "../../../shared/types.ts";
 import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 
 const WEEKDAYS: { value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }[] = [
@@ -42,7 +42,9 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
   }
   const [prompt, setPrompt] = useState(cronjob?.prompt ?? "");
   const [cwd, setCwd] = useState(cronjob?.cwd ?? "~");
-  const [modelFamily, setModelFamily] = useState<ModelFamily>(cronjob?.modelFamily ?? "opus");
+  const [agentType, setAgentType] = useState<AgentBackendType>(cronjob?.agentType ?? "claude");
+  const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
+  const [modelFamily, setModelFamily] = useState<string>(cronjob?.modelFamily ?? modelOptions[0].family);
   const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(cronjob?.permissionMode ?? "bypassPermissions");
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
 
@@ -129,6 +131,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
         modelFamily,
         permissionMode,
         username,
+        agentType,
       });
     }
   }
@@ -265,25 +268,40 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
             </div>
           )}
 
+          <label style={{ ...labelStyle, marginTop: 14 }}>Backend</label>
+          <select
+            value={agentType}
+            onChange={(e) => {
+              const next = e.target.value as AgentBackendType;
+              setAgentType(next);
+              setModelFamily(next === "codex" ? CODEX_MODELS[0].value : MODEL_FAMILIES[0].family);
+              setPermissionMode(next === "codex" ? "never" : "bypassPermissions");
+            }}
+            disabled={isEdit}
+            style={{ ...inputStyle, appearance: "none", cursor: isEdit ? "default" : "pointer", opacity: isEdit ? 0.85 : 1 }}
+          >
+            <option value="claude">Claude</option>
+            <option value="codex">Codex</option>
+          </select>
+
           <label style={{ ...labelStyle, marginTop: 14 }}>Model</label>
           <select
             value={modelFamily}
             onChange={(e) => {
-              const next = e.target.value as ModelFamily;
-              setModelFamily(next);
+              setModelFamily(e.target.value);
             }}
             style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
           >
-            {MODEL_FAMILIES.map((m) => (
+            {modelOptions.map((m) => (
               <option key={m.family} value={m.family}>
-                {m.label} ({modelVersionLabel(m.family)})
+                {agentType === "claude" ? `${m.label} (${modelVersionLabel(m.family as ModelFamily)})` : m.label}
               </option>
             ))}
           </select>
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Permission Mode</label>
           <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as CronjobPermissionMode)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-            <option value="bypassPermissions">Bypass (auto-approve all)</option>
+            {agentType === "claude" ? <option value="bypassPermissions">Bypass (auto-approve all)</option> : <option value="never">Never ask (unattended)</option>}
           </select>
           <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Cron jobs run unattended — modes that require human approval are not available.</p>
 

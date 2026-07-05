@@ -342,7 +342,7 @@ export interface Cronjob {
   prompt: string; // first user message at each fire
   cwd: string;
   agentType: AgentBackendType;
-  modelFamily: ModelFamily;
+  modelFamily: string;
   permissionMode: CronjobPermissionMode;
   enabled: boolean;
   createdBy: string;
@@ -366,7 +366,7 @@ export interface CronjobRun {
   errorReason: string | null;
   promptSnapshot: string;
   agentTypeSnapshot: AgentBackendType;
-  modelFamilySnapshot: ModelFamily;
+  modelFamilySnapshot: string;
   cwdSnapshot: string;
   permissionModeSnapshot: CronjobPermissionMode;
   rootSessionId: string; // first session id created at fire time
@@ -767,7 +767,8 @@ export type ClientCommand =
       schedule: Schedule;
       prompt: string;
       cwd: string;
-      modelFamily: ModelFamily;
+      agentType?: AgentBackendType;
+      modelFamily: string;
       permissionMode: CronjobPermissionMode;
       username: string;
       device?: string;
