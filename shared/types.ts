@@ -594,8 +594,9 @@ export interface SettingsSaveResponse {
 export interface SettingsValidationResponse {
   type: "settings_validation";
   requestId: string;
-  scope: "office" | "room";
+  scope: "office" | "room" | "user";
   roomId?: string;
+  userId?: string;
   envFile: string | null;
   ok: boolean;
   keyCount?: number;
@@ -764,7 +765,7 @@ export type ClientCommand =
   | { type: "editor_close"; agentId: string; path: string }
   | { type: "update_office_settings"; requestId: string; prompt: string | null; envFile: string | null }
   | { type: "update_room_settings"; requestId: string; roomId: string; prompt: string | null; envFile: string | null }
-  | { type: "request_settings_validation"; requestId: string; scope: "office" | "room"; roomId?: string }
+  | { type: "request_settings_validation"; requestId: string; scope: "office" | "room" | "user"; roomId?: string; userId?: string; envFile?: string | null }
   | { type: "request_cwd_validation"; requestId: string; cwd: string }
   | { type: "add_task"; title: string; description?: string; priority?: TaskPriority; assignee?: string; username: string }
   | { type: "update_task"; id: string; changes: Partial<Pick<TaskItem, "title" | "description" | "priority" | "status" | "assignee">> }

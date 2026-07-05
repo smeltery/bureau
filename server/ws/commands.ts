@@ -843,19 +843,39 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
     }
     case "request_settings_validation": {
       let envFile: string | null = null;
+      let userId: string | undefined;
       if (cmd.scope === "office") {
         envFile = AgentManager.getOfficeSettings().envFile;
       } else if (cmd.scope === "room" && cmd.roomId) {
         const room = AgentManager.getRooms().find((r) => r.id === cmd.roomId);
         envFile = room?.envFile ?? null;
+      } else if (cmd.scope === "user") {
+        const actor = getWsUser(ws);
+        const target = cmd.userId ? getUserById(cmd.userId) : actor;
+        if (!actor || !target || (actor.role !== "owner" && actor.id !== target.id)) {
+          ws.send(
+            JSON.stringify({
+              type: "settings_validation",
+              requestId: cmd.requestId,
+              scope: cmd.scope,
+              userId: cmd.userId,
+              envFile: null,
+              ok: false,
+              error: "User env validation is not allowed.",
+            } as ServerMessage),
+          );
+          break;
+        }
+        userId = target.id;
+        envFile = cmd.envFile !== undefined ? cmd.envFile?.trim() || null : (target.envFile ?? null);
       }
       if (!envFile) {
-        ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, envFile: null, ok: true } as ServerMessage));
+        ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, userId, envFile: null, ok: true } as ServerMessage));
         break;
       }
       try {
         const keyCount = AgentManager.validateEnvPath(envFile);
-        ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, envFile, ok: true, keyCount } as ServerMessage));
+        ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, userId, envFile, ok: true, keyCount } as ServerMessage));
       } catch (err: any) {
         ws.send(
           JSON.stringify({
@@ -863,6 +883,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
             requestId: cmd.requestId,
             scope: cmd.scope,
             roomId: cmd.roomId,
+            userId,
             envFile,
             ok: false,
             error: err.message || "Invalid env file",
