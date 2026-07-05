@@ -7,12 +7,12 @@ import { broadcast, tasks } from "../ws/broadcast.ts";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
 /**
- * Handle every /tasks request. Returns null for any non-tasks URL so the
- * caller can fall through to the next router.
+ * Handle every /tasks and /api/tasks request. Returns null for unrelated URLs
+ * so the caller can fall through to the next router.
  */
 export async function handleTasksRequest(req: Request, url: URL): Promise<Response | null> {
   // CORS preflight
-  if (req.method === "OPTIONS" && url.pathname.startsWith("/tasks")) {
+  if (req.method === "OPTIONS" && (url.pathname.startsWith("/tasks") || url.pathname.startsWith("/api/tasks"))) {
     return new Response(null, {
       headers: {
         "Access-Control-Allow-Origin": "*",
@@ -22,13 +22,14 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
     });
   }
 
-  if (!url.pathname.startsWith("/tasks")) return null;
+  const parts = taskRouteParts(url.pathname);
+  if (!parts) return null;
   const rawBearer = readBearerToken(req);
   if (rawBearer && !resolveAgentToken(rawBearer)) {
     return new Response(JSON.stringify({ error: "invalid bearer token" }), { status: 401, headers: corsHeaders });
   }
 
-  const parts = url.pathname.split("/").filter(Boolean); // ["tasks"] or ["tasks", id] or ["tasks", id, action]
+  // ["tasks"] or ["tasks", id] or ["tasks", id, action]
   const taskId = parts[1];
   const action = parts[2]; // "claim" or "done"
 
@@ -153,4 +154,11 @@ export async function handleTasksRequest(req: Request, url: URL): Promise<Respon
   }
 
   return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+}
+
+function taskRouteParts(pathname: string): string[] | null {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] === "tasks") return parts;
+  if (parts[0] === "api" && parts[1] === "tasks") return parts.slice(1);
+  return null;
 }
