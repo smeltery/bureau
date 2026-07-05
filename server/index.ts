@@ -10,8 +10,8 @@ import { getBackupStatus, startBackupScheduler } from "./backup.ts";
 import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
 import { handleCommand } from "./ws/commands.ts";
 import { stopWatch, watchFile, type FileWatcher } from "./file-editor.ts";
-import { canSeeRoom, claimUser, clearWsUser, getSessionContext, getWsUser, listUsers, projectAgents, projectRooms, setWsSessionPrefix } from "./users.ts";
-import { listAllPresence, removePresence } from "./presence.ts";
+import { canSeeRoom, claimUser, clearWsUser, getSessionContext, getUserById, getWsUser, listUsers, projectAgents, projectRooms, setWsSessionPrefix, updateUser } from "./users.ts";
+import { listAllPresence, refreshPresenceForUser, removePresence } from "./presence.ts";
 
 // Per-WS editor file watchers. Each open file gets one fs.watch handle keyed
 // by `${agentId}\0${absPath}` so the same path can be watched independently
@@ -29,6 +29,7 @@ import { handleOfficeSettingsRequest } from "./http/office-settings.ts";
 import { handleValidateRequest } from "./http/validate.ts";
 import { handleBackendsRequest } from "./http/backends.ts";
 import { handleMemoryRequest } from "./http/memory.ts";
+import { handleViewRequest, type ViewChangeInput } from "./http/view.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
 import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
@@ -370,6 +371,16 @@ function usersForRecipient(recipient: ReturnType<typeof getWsUser>, rooms: Retur
   return users.map((listed) => (listed.id === recipient.id ? listed : { ...listed, envFile: null, memberPrompt: null, hidden: [], order: [] }));
 }
 
+function applyViewPreference(userId: string, change: ViewChangeInput): boolean {
+  const actor = getUserById(userId);
+  const updated = updateUser(actor, userId, change, AgentManager.getRooms());
+  if (!updated) return false;
+  for (const browser of browsers) sendInitialPayload(browser);
+  refreshPresenceForUser(updated.id, { name: updated.name, avatarColor: updated.avatarColor, avatarVariant: updated.avatarVariant }, new Set(updated.allowedRooms));
+  pushPresenceListToEachWs();
+  return true;
+}
+
 export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
   const user = getWsUser(ws);
   const rooms = AgentManager.getRooms();
@@ -508,6 +519,9 @@ const server = Bun.serve<WsData>({
 
     const backendsResp = await handleBackendsRequest(req, url, httpAuth);
     if (backendsResp) return backendsResp;
+
+    const viewResp = await handleViewRequest(req, url, httpAuth, { applyView: applyViewPreference });
+    if (viewResp) return viewResp;
 
     const memoryResp = await handleMemoryRequest(req, url);
     if (memoryResp) return memoryResp;
