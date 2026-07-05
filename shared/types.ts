@@ -325,15 +325,15 @@ export function generateCronjobRunId(existing?: string[]): string {
 // ---------------------------------------------------------------------------
 // Cronjobs
 // ---------------------------------------------------------------------------
-// Cronjobs are scheduled SDK sessions. They are NOT agents — no desk, no room,
-// no persistent identity. Each scheduled fire creates a fresh session whose
-// transcript becomes a "run" row.
+// Cronjobs are scheduled backend sessions. They are NOT agents — no desk, no
+// room, no persistent identity. Each scheduled fire creates a fresh session
+// whose transcript becomes a "run" row.
 
 export type Schedule = { type: "daily"; hour: number; minute: number } | { type: "weekly"; weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6; hour: number; minute: number } | { type: "interval"; minutes: number };
 
-// Permission mode available for cronjobs. Modes that can block on human
+// Permission modes available for cronjobs. Modes that can block on human
 // approval would hang forever in an unattended run.
-export type CronjobPermissionMode = "bypassPermissions";
+export type CronjobPermissionMode = "bypassPermissions" | "never";
 
 export interface Cronjob {
   id: string; // 8-char hex
@@ -341,6 +341,7 @@ export interface Cronjob {
   schedule: Schedule;
   prompt: string; // first user message at each fire
   cwd: string;
+  agentType: AgentBackendType;
   modelFamily: ModelFamily;
   permissionMode: CronjobPermissionMode;
   enabled: boolean;
@@ -364,6 +365,7 @@ export interface CronjobRun {
   endedAt: number | null;
   errorReason: string | null;
   promptSnapshot: string;
+  agentTypeSnapshot: AgentBackendType;
   modelFamilySnapshot: ModelFamily;
   cwdSnapshot: string;
   permissionModeSnapshot: CronjobPermissionMode;

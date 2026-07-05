@@ -14,4 +14,9 @@ describe("validateCronjobPermissionMode", () => {
     expect(validateCronjobPermissionMode("claude", "default")).toBe("bypassPermissions");
     expect(validateCronjobPermissionMode("claude", undefined)).toBe("bypassPermissions");
   });
+
+  test("uses never for unattended codex cron records", () => {
+    expect(validateCronjobPermissionMode("codex", "on-request")).toBe("never");
+    expect(validateCronjobPermissionMode("codex", undefined)).toBe("never");
+  });
 });
