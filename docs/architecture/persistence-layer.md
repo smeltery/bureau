@@ -70,17 +70,23 @@ A lightweight version of agent info injected into every agent's system prompt fo
     "name": "PersonalSiteAgent",
     "desk": 7,
     "room": 2,
+    "roomId": "a1b2c3d4",
     "roomName": "Side Projects",
     "topic": "Write technical blog post",
     "cwd": "~/my-project",
+    "agentType": "claude",
+    "capabilities": { "fork": true, "hooks": true, "skills": true, "oneShot": true, "canUseTool": true, "topicGen": true, "edit": true, "mcp": true },
     "modelFamily": "opus",
     "model": "claude-opus-4-7",
+    "lastSessionId": "session-abc123",
     "logDir": "~/.bureau/logs/agent-1774819851476-qmpf"
   }
 ]
 ```
 
-Agents read this file to discover other agents and their conversation logs.
+Agents read this file to discover other agents, their backend affordances, their
+stable room identity, and their conversation logs without parsing the full
+server-owned `agents.json`.
 
 ## Conversation Logs (JSONL)
 

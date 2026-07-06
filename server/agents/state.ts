@@ -301,11 +301,15 @@ export function updateManifest() {
       privileged: a.info.privileged ?? false,
       desk: a.info.desk,
       room: a.info.room,
+      roomId: rooms[a.info.room]?.id ?? a.info.roomId ?? "",
       roomName: rooms[a.info.room]?.name ?? `Room ${a.info.room + 1}`,
       topic: a.info.topic,
       cwd: a.info.cwd,
+      agentType: a.info.agentType,
+      capabilities: a.info.capabilities,
       modelFamily: a.info.modelFamily,
       model: FAMILY_TO_MODEL[a.info.modelFamily as keyof typeof FAMILY_TO_MODEL] ?? a.info.modelFamily,
+      lastSessionId: a.sessionId,
     })),
   );
 }

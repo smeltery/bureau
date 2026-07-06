@@ -1,6 +1,6 @@
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
-import type { AgentInfo, ClaudeModel } from "../../../shared/types.ts";
+import type { AgentCapabilities, AgentInfo, ClaudeModel } from "../../../shared/types.ts";
 import { familyFromLegacyModel, generateRoomId } from "../../../shared/types.ts";
 import { AGENTS_FILE, atomicWriteFileSync, LOGS_DIR, MANIFEST_FILE } from "../paths.ts";
 
@@ -101,31 +101,61 @@ export function writeManifest(
     privileged: boolean;
     desk: number;
     room: number;
+    roomId: string;
     roomName: string;
     topic: string | null;
     cwd: string;
+    agentType: AgentInfo["agentType"];
+    capabilities: AgentCapabilities;
     modelFamily: string;
     model: ClaudeModel;
+    lastSessionId: string | null;
   }[],
 ) {
   try {
-    const manifest = agents.map((a) => ({
-      id: a.id,
-      name: a.name,
-      userId: a.userId,
-      managerName: a.managerName,
-      privileged: a.privileged,
-      desk: a.desk,
-      room: a.room + 1, // 1-based for human readability
-      roomName: a.roomName,
-      topic: a.topic,
-      cwd: a.cwd,
-      modelFamily: a.modelFamily,
-      model: a.model,
-      logDir: join(LOGS_DIR, a.id),
-    }));
-    atomicWriteFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2));
+    atomicWriteFileSync(MANIFEST_FILE, JSON.stringify(buildAgentsManifest(agents), null, 2));
   } catch (err) {
     console.error("Failed to write manifest:", err);
   }
+}
+
+export function buildAgentsManifest(
+  agents: {
+    id: string;
+    name: string;
+    userId: string | null;
+    managerName: string | null;
+    privileged: boolean;
+    desk: number;
+    room: number;
+    roomId: string;
+    roomName: string;
+    topic: string | null;
+    cwd: string;
+    agentType: AgentInfo["agentType"];
+    capabilities: AgentCapabilities;
+    modelFamily: string;
+    model: ClaudeModel;
+    lastSessionId: string | null;
+  }[],
+) {
+  return agents.map((a) => ({
+    id: a.id,
+    name: a.name,
+    userId: a.userId,
+    managerName: a.managerName,
+    privileged: a.privileged,
+    desk: a.desk,
+    room: a.room + 1, // 1-based for human readability
+    roomId: a.roomId,
+    roomName: a.roomName,
+    topic: a.topic,
+    cwd: a.cwd,
+    agentType: a.agentType,
+    capabilities: a.capabilities,
+    modelFamily: a.modelFamily,
+    model: a.model,
+    lastSessionId: a.lastSessionId,
+    logDir: join(LOGS_DIR, a.id),
+  }));
 }
