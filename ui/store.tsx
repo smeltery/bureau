@@ -26,6 +26,7 @@ import { shouldNotifyRoom } from "../shared/notifications.ts";
 import { showDesktopNotification, markAttention } from "./notifications.ts";
 import { type Features, PRODUCTION_FEATURES } from "../shared/features.ts";
 import { DEFAULT_THEME_ID, getThemeById, THEMES, type Theme, type ThemeMode } from "./themes.ts";
+import { applyRoomClose, resolveSelectedRoomId, roomIndexById } from "./roomSelection.ts";
 
 export interface AppState {
   agents: AgentInfo[];
@@ -160,7 +161,9 @@ const ATTENTION_STATES = new Set(["idle", "error", "waiting_for_response"]);
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case "full_state":
+    case "full_state": {
+      const currentRoomId = state.rooms[state.currentRoom]?.id ?? null;
+      const nextRoomId = resolveSelectedRoomId(action.rooms, currentRoomId);
       return {
         ...state,
         agents: action.agents,
@@ -168,7 +171,7 @@ function reducer(state: AppState, action: Action): AppState {
         office: action.office,
         rooms: action.rooms,
         allRooms: action.allRooms ?? action.rooms,
-        currentRoom: Math.min(state.currentRoom, Math.max(0, action.rooms.length - 1)),
+        currentRoom: roomIndexById(action.rooms, nextRoomId),
         logs: new Map(),
         needsAttention: new Set(),
         slashCommands: new Map(),
@@ -176,6 +179,7 @@ function reducer(state: AppState, action: Action): AppState {
         killedAgents: action.killedAgents,
         hasReceivedInitialState: true,
       };
+    }
     case "session_context":
       // Reset both invite + session loaded flags on session_context so the
       // Access pane re-fetches across WS reconnects. The new context could
@@ -315,14 +319,10 @@ function reducer(state: AppState, action: Action): AppState {
     case "update_status":
       return { ...state, updateAvailable: action.updateAvailable, updateCurrent: action.current, updateLatest: action.latest };
     case "room_closed": {
-      const idx = state.rooms.findIndex((r) => r.id === action.roomId);
-      if (idx < 0) return state;
-      const newRooms = [...state.rooms];
-      newRooms.splice(idx, 1);
-      let currentRoom = state.currentRoom;
-      if (currentRoom === idx) currentRoom = 0;
-      else if (currentRoom > idx) currentRoom--;
-      return { ...state, rooms: newRooms, currentRoom };
+      const currentRoomId = state.rooms[state.currentRoom]?.id ?? null;
+      const result = applyRoomClose(state.rooms, action.roomId, currentRoomId);
+      if (!result) return state;
+      return { ...state, rooms: result.rooms, currentRoom: roomIndexById(result.rooms, result.currentRoomId) };
     }
     case "room_renamed": {
       const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, name: action.name } : r));
@@ -376,7 +376,7 @@ function reducer(state: AppState, action: Action): AppState {
       const newRooms = action.order.map((id) => state.rooms[idToOldIdx.get(id)!]).filter(Boolean);
       // Recompute currentRoom: find where the previously-current room landed
       const prevId = state.rooms[state.currentRoom]?.id;
-      const newCurrentRoom = prevId ? Math.max(0, action.order.indexOf(prevId)) : 0;
+      const newCurrentRoom = roomIndexById(newRooms, resolveSelectedRoomId(newRooms, prevId ?? null));
       // Remap agents' numeric room index to the new positions
       const idToNewIdx = new Map(newRooms.map((r, i) => [r.id, i]));
       const newAgents = state.agents.map((a) => {
