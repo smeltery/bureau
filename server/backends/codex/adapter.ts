@@ -34,7 +34,6 @@ import type {
   ApprovalDecision,
   AttachmentSpec,
   Backend,
-  BackendCapabilities,
   BackendModel,
   BackendSession,
   ContextUsage,
@@ -50,99 +49,15 @@ import type {
 } from "../types.ts";
 
 import { JsonRpcLiteClient, PASS, type JsonRpcId, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
-import { getCodexLoginCommands, isCodexAuthenticated } from "./native-bin.ts";
 import { extractApprovalInput, inferApprovalDescription, inferApprovalTitle, inferToolNameFromApproval, mapApprovalDecision } from "./approvals.ts";
 import { mapTurnStatus } from "./protocol-format.ts";
 import { buildCodexUserInput } from "./user-input.ts";
 import { translateCompletedItem } from "./completed-items.ts";
 import { CLIENT_INFO_NAME, CLIENT_INFO_VERSION, forkCodexSessionBeforeMessage, getCodexSessionMessages, initializeCodexClient, listCodexModels, oneShotCodexPrompt } from "./backend-ops.ts";
+import { AUTH_ERROR_PATTERNS, CAPABILITIES, DEFAULT_SANDBOX_MODE, LOGIN_INSTRUCTIONS, MODEL_OPTIONS, PERMISSION_MODES, getCodexLoginInstructions, modelDisplayLabel } from "./config.ts";
 
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/ThreadTokenUsageUpdatedNotification.ts";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-// Bureau runs codex against its own isolated CODEX_HOME (~/.bureau/codex-home/
-// by default), separate from the user's interactive `~/.codex/`. That means
-// the user needs a one-time `codex login` against bureau's CODEX_HOME — the
-// [Copy to terminal] card alongside this message has the exact command.
-//
-// Two [Copy to terminal] cards follow: browser OAuth (default) and
-// `--device-auth` (remote / headless). Both target the default
-// `~/.bureau/codex-home/`. Users with a per-user envFile `CODEX_HOME`
-// (e.g. `~/.bureau-users/<name>/.codex` for billing isolation, see
-// internal-docs/isolation-design.md) need to prefix the pasted command
-// with their own `CODEX_HOME=<path>` before pressing Enter — the wrapper's
-// default only kicks in when CODEX_HOME is unset.
-const LOGIN_INSTRUCTIONS = `To sign in to Codex, click [Copy to terminal] on one of the cards below:
-
-- \`~/.bureau/bin/codex login\`: if running bureau locally
-- \`~/.bureau/bin/codex login --device-auth\`: for remote or headless hosts (e.g. a Mac mini or Linux box you reach over a VPN)
-
-Press Enter to run, follow the prompts, then \`/clear\` this conversation to apply the new auth. Other codex agents apply on their next \`/clear\`.
-
-Alternative: add \`OPENAI_API_KEY\` to your envFile (User Settings → Env File Path, then \`/clear\`). For envFile users with a custom CODEX_HOME: prefix the login commands above with \`CODEX_HOME=<your value>\` first.`;
-
-// Surfaced when an auth-error fires but the office already has a valid
-// codex auth (auth.json present, or OPENAI_API_KEY in env). The user's
-// signed in; their session just predates the login, so a /clear is all
-// they need.
-const ALREADY_AUTHED_INSTRUCTIONS = `Codex is signed in. Type \`/clear\` to refresh this agent's session and pick up the new auth.`;
-
-const AUTH_ERROR_PATTERNS = /unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|chatgpt.*login|openai_api_key|403|401/i;
-
-// Capability flags for the Codex backend. Match the spec's parity table.
-// hooks: false — Codex emits hook/* notifications but provides no
-// programmatic register-from-client surface at 0.130 (v1).
-// edit: true — implemented via fork-then-rollback: thread/fork the parent
-// (preserves it), then thread/rollback the child by the number of turns to
-// drop. Matches Claude's preserved-parent UX without per-message fork
-// support upstream. See forkSessionBeforeMessage below.
-const CAPABILITIES: BackendCapabilities = {
-  fork: false,
-  hooks: false,
-  skills: true,
-  oneShot: true,
-  canUseTool: true,
-  topicGen: true,
-  edit: true,
-  mcp: true,
-};
-
-// Model options. Hardcoded at v1 — known limitation: model/list (Codex RPC)
-// would return the auth-appropriate subset (ChatGPT-login vs API-key users
-// see different sets, and each model declares its own
-// supportedReasoningEfforts). Wiring model/list at session bootstrap +
-// per-model effort picker is task 3929f8ec. Slugs verified against `codex
-// debug models` on codex-cli 0.130.0 (2026-05-11); mirror of CODEX_MODELS
-// in shared/types.ts.
-const MODEL_OPTIONS: ModelOption[] = [
-  { value: "gpt-5.5", label: "GPT-5.5" },
-  { value: "gpt-5.4", label: "GPT-5.4" },
-  { value: "gpt-5.4-mini", label: "GPT-5.4 mini" },
-  { value: "gpt-5.3-codex", label: "GPT-5.3 Codex" },
-  { value: "gpt-5.2", label: "GPT-5.2" },
-];
-
-function modelDisplayLabel(slug: string): string {
-  return MODEL_OPTIONS.find((m) => m.value === slug)?.label ?? slug;
-}
-
-// Permission/approval mode options. AskForApproval enum minus the deprecated
-// "on-failure" variant (codex 0.130 emits a deprecation warning on use). The
-// granular variant is gated behind experimentalApi but deferred to v1.x per
-// the spec.
-const PERMISSION_MODES: PermissionModeOption[] = [
-  { value: "untrusted", label: "Untrusted — ask on every tool" },
-  { value: "on-request", label: "On request — ask when model asks" },
-  { value: "never", label: "Never ask (use with sandbox)" },
-];
-
-// Default sandbox if the caller doesn't pass one. workspace-write is the
-// "Claude-equivalent default" preset from the spec's reference mapping.
-const DEFAULT_SANDBOX_MODE = "workspace-write";
 
 // ---------------------------------------------------------------------------
 // CodexSession
@@ -1050,9 +965,6 @@ export const codexBackend: Backend = {
   },
 
   getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): { text: string; commands?: string[] } {
-    if (isCodexAuthenticated(opts?.env)) {
-      return { text: ALREADY_AUTHED_INSTRUCTIONS };
-    }
-    return { text: LOGIN_INSTRUCTIONS, commands: getCodexLoginCommands() };
+    return getCodexLoginInstructions(opts);
   },
 };
