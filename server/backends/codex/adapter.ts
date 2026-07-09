@@ -46,14 +46,15 @@ import type {
   PermissionModeOption,
 } from "../types.ts";
 
-import { JsonRpcLiteClient, PASS, type JsonRpcId, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
-import { extractApprovalInput, inferApprovalDescription, inferApprovalTitle, inferToolNameFromApproval, mapApprovalDecision } from "./approvals.ts";
+import { JsonRpcLiteClient, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
+import { mapApprovalDecision } from "./approvals.ts";
 import { mapTurnStatus } from "./protocol-format.ts";
 import { buildCodexUserInput } from "./user-input.ts";
 import { translateCompletedItem } from "./completed-items.ts";
 import { CLIENT_INFO_NAME, CLIENT_INFO_VERSION, forkCodexSessionBeforeMessage, getCodexSessionMessages, listCodexModels, oneShotCodexPrompt } from "./backend-ops.ts";
-import { AUTH_ERROR_PATTERNS, CAPABILITIES, DEFAULT_SANDBOX_MODE, LOGIN_INSTRUCTIONS, MODEL_OPTIONS, PERMISSION_MODES, getCodexLoginInstructions } from "./config.ts";
+import { AUTH_ERROR_PATTERNS, CAPABILITIES, DEFAULT_SANDBOX_MODE, MODEL_OPTIONS, PERMISSION_MODES, getCodexLoginInstructions } from "./config.ts";
 import { CodexUsageTracker } from "./session-usage.ts";
+import { handleCodexServerRequest, type PendingApproval } from "./session-requests.ts";
 
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/ThreadTokenUsageUpdatedNotification.ts";
@@ -78,23 +79,6 @@ import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/Thread
 //
 // Stream output is buffered exactly like ClaudeSession: enqueue + wake the
 // stream's parked promise; stream() yields from buffer.
-
-interface PendingApproval {
-  jsonRpcId: JsonRpcId;
-  toolName: string;
-  // The server-request method that issued this approval. Different methods
-  // have different response enums (legacy ReviewDecision vs v2
-  // CommandExecutionApprovalDecision vs v2 FileChangeApprovalDecision); we
-  // keep the method here so approve() can pick the right wire shape.
-  method: string;
-  // Settles the JsonRpcLiteClient handler-chain promise that's anchoring this
-  // approval. Resolving it lets the client auto-respond with the payload and
-  // releases the parked handler frame; rejecting unwinds the await. Without
-  // these the handler held a `new Promise(() => {})` that never settled, so
-  // each approval leaked one parked handler frame for the life of the session.
-  resolve: (response: unknown) => void;
-  reject: (err: unknown) => void;
-}
 
 interface CodexSessionInitOpts {
   agentId: string;
@@ -669,106 +653,11 @@ class CodexSession implements BackendSession {
   // -------------------------------------------------------------------------
 
   private async handleServerRequest(req: JsonRpcRequest): Promise<unknown> {
-    const params = req.params as Record<string, unknown> | null | undefined;
-    // Per-thread filter on server requests that target a thread.
-    if (params?.threadId !== undefined && this.threadId && params.threadId !== this.threadId) {
-      return PASS;
-    }
-
-    switch (req.method) {
-      // ---- Approvals routed through orchestrator (binary allow/deny UX) ----
-      // item/permissions/requestApproval has a richer response shape
-      // (GrantedPermissionProfile + scope + strictAutoReview) that doesn't
-      // map cleanly to our 3-option /resolve UX — auto-decline at v1.
-      case "applyPatchApproval":
-      case "execCommandApproval":
-      case "item/commandExecution/requestApproval":
-      case "item/fileChange/requestApproval": {
-        const approvalId = String(req.id);
-        const toolName = inferToolNameFromApproval(req.method);
-        const title = inferApprovalTitle(req.method, params);
-        const description = inferApprovalDescription(req.method, params);
-        // The promise we return is what the JsonRpcLiteClient's handler chain
-        // awaits. session.approve() resolves it with the right enum-variant
-        // response shape, the client auto-responds, and the handler frame
-        // frees. close() rejects any still-pending entries.
-        return new Promise<unknown>((resolve, reject) => {
-          this.pendingApprovals.set(approvalId, {
-            jsonRpcId: req.id,
-            toolName,
-            method: req.method,
-            resolve,
-            reject,
-          });
-          this.enqueue({
-            kind: "approval_request",
-            approvalId,
-            toolName,
-            input: extractApprovalInput(req.method, params),
-            title,
-            description,
-          });
-        });
-      }
-
-      // ---- Permissions request: auto-decline with JSON-RPC error ----
-      case "item/permissions/requestApproval":
-        this.enqueue({
-          kind: "system_text",
-          text: `Auto-declined permissions request from codex (v1 doesn't expose permission-profile changes — use the spawn dialog to pick a different sandbox/approval policy).`,
-        });
-        throw new Error("Permissions profile changes are not supported in Bureau v1.");
-
-      // ---- Auto-decline (correct response shapes per server schema) ----
-      case "item/tool/requestUserInput":
-        // ToolRequestUserInputResponse shape is { answers: HashMap<...> }, no
-        // canceled/decline field. Sending a JSON-RPC error is the correct
-        // way to say "the client can't answer this."
-        this.enqueue({
-          kind: "system_text",
-          text: `Auto-declined structured tool-input request from codex (v1 doesn't support agent-issued Q&A).`,
-        });
-        throw new Error("Bureau v1 does not implement item/tool/requestUserInput.");
-
-      case "mcpServer/elicitation/request":
-        // Confirmed against the schema: { action: "accept" | "decline" | "cancel" }.
-        this.enqueue({
-          kind: "system_text",
-          text: `Auto-declined MCP elicitation request (v1 doesn't surface MCP elicitation UX).`,
-        });
-        return { action: "decline" };
-
-      case "item/tool/call":
-        // DynamicToolCallResponse shape is { contentItems, success }, no
-        // canceled field. We could synthesize a "tool not implemented"
-        // failure response, but a JSON-RPC error is clearer for v1: the
-        // agent sees the tool call failed at the protocol level rather than
-        // as an opaque "tool returned this" reply.
-        this.enqueue({
-          kind: "system_text",
-          text: `Auto-declined dynamic tool call from codex (v1 doesn't expose dynamic tools).`,
-        });
-        throw new Error("Bureau v1 does not implement item/tool/call (dynamic tools).");
-
-      // ---- Auth token refresh ----
-      case "account/chatgptAuthTokens/refresh":
-        // We don't have a token store; respond with an error so codex falls
-        // back to user-facing login flow.
-        this.enqueue({
-          kind: "error",
-          message: `Codex requested a ChatGPT auth token refresh, but Bureau has no token store. ${LOGIN_INSTRUCTIONS}`,
-        });
-        throw new Error(`No token store: ${LOGIN_INSTRUCTIONS}`);
-
-      // Untested at v1: attestation/generate (codex requests an attestation
-      // token for upstream OpenAI calls). Falls to method-not-found via PASS
-      // below. If codex hard-fails on missing attestation in some flows,
-      // wire a real handler here. Subprocess-death synthesis covers the
-      // worst-case (hung turn) regardless.
-      default:
-        // Unknown server request — let the client respond method-not-found.
-        return PASS;
-    }
+    return handleCodexServerRequest(req, {
+      threadId: this.threadId,
+      pendingApprovals: this.pendingApprovals,
+      enqueue: (event) => this.enqueue(event),
+    });
   }
 
   // -------------------------------------------------------------------------
