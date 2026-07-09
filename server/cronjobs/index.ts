@@ -23,15 +23,11 @@ import {
   findRun,
   appendRunLog,
   loadRunLogWithAncestors,
-  rollRunSessionUsageOnResume,
   listAllCronjobIdsOnDisk,
-  readEnvFile,
 } from "../persistence.ts";
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "../agents/session/paths.ts";
-import { officeConfig } from "../agents/state.ts";
-import { getBackend } from "../backends/index.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
-import { getUserById, getUserByName } from "../users.ts";
+import { getUserByName } from "../users.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 import { mintRunToken, revokeRunToken } from "./tokens.ts";
 import { buildCronjobMemoryPrompt, buildCronjobSystemPrompt as buildCronjobSystemPromptWithInstructions } from "./system-prompt.ts";
@@ -40,28 +36,18 @@ import { readCronjobLifetimeUsage as readCronjobLifetimeUsageFromDisk } from "./
 import { processNormalizedEvent, writeLog, type ActiveRun } from "./run-events.ts";
 import { addCronjobDefinition, deleteCronjobDefinition, updateCronjobDefinition, type AddCronjobInput, type UpdateCronjobChanges } from "./definitions.ts";
 import { editRunMessageWithDeps } from "./run-edit.ts";
+import {
+  buildCronjobEnv,
+  buildRunResumeOptions as buildRunResumeOptionsWithDeps,
+  buildRunSessionOptions as buildRunSessionOptionsWithDeps,
+  cronjobBackend,
+  cronRunBackend,
+  withRunTokenEnv,
+} from "./session-options.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
 export { buildCronjobMemoryPrompt };
-
-function buildCronjobEnv(userId?: string | null): { [key: string]: string | undefined } | undefined {
-  const officeEnvFile = officeConfig.envFile;
-  const userEnvFile = userId ? (getUserById(userId)?.envFile ?? null) : null;
-  if (!officeEnvFile && !userEnvFile) return undefined;
-  const merged: { [key: string]: string | undefined } = { ...process.env };
-  if (officeEnvFile) Object.assign(merged, readEnvFile(officeEnvFile));
-  if (userEnvFile) Object.assign(merged, readEnvFile(userEnvFile));
-  return merged;
-}
-
-function withRunTokenEnv(env: { [key: string]: string | undefined } | undefined, token: string): { [key: string]: string | undefined } {
-  return { ...(env ?? process.env), BUREAU_AGENT_TOKEN: token };
-}
-
-function cronRunBackend(run: CronjobRun) {
-  return getBackend(run.agentTypeSnapshot ?? "claude");
-}
 
 function checkCronRunSessionFile(run: CronjobRun, leaf: string, action: "resume" | "edit"): boolean {
   if ((run.agentTypeSnapshot ?? "claude") !== "claude") return true;
@@ -344,7 +330,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string
   const opts = buildRunSessionOptions(job, jobId, runId, withRunTokenEnv(env, runToken));
   let session: BackendSession;
   try {
-    session = getBackend(job.agentType).createSession(opts);
+    session = cronjobBackend(job).createSession(opts);
   } catch (err: any) {
     revokeRunToken(runId);
     const updated = updateRun(jobId, runId, {
@@ -405,17 +391,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string
 }
 
 function buildRunSessionOptions(job: Cronjob, jobId: string, runId: string, env: { [key: string]: string | undefined } | undefined): CreateSessionOptions {
-  const systemPrompt = buildCronjobSystemPrompt(job, jobId, runId, buildCronjobMemoryPrompt());
-  return {
-    agentId: cronjobRunStreamId(runId),
-    modelFamily: job.modelFamily,
-    effort: job.effort,
-    permissionMode: job.permissionMode,
-    sandbox: job.codexSandbox,
-    env,
-    systemPrompt,
-    cwd: job.cwd,
-  };
+  return buildRunSessionOptionsWithDeps({ job, jobId, runId, env, buildSystemPrompt: buildCronjobSystemPrompt });
 }
 
 function recordSkippedRun(job: Cronjob): CronjobRun {
@@ -515,27 +491,15 @@ function emitRunErrorEntry(jobId: string, runId: string, message: string) {
 }
 
 function buildRunResumeOptions(run: CronjobRun, resumeSessionId: string): CreateSessionOptions {
-  // Roll the current-run usage into priorRunsUsage so the SDK's per-process
-  // cost counter resetting to zero (which it does on every resume) doesn't
-  // wipe lifetime accounting. Mirrors agent-manager's createSession.
-  rollRunSessionUsageOnResume(run.cronjobId, run.id, resumeSessionId);
-  // Re-pass the system prompt when the cronjob still exists so resumed runs
-  // pick up any office/cronjobs prompt edits. For deleted cronjobs, use an
-  // empty append instead of synthesizing a partial prompt.
   const job = cronjobs.find((c) => c.id === run.cronjobId);
-  const baseEnv = buildCronjobEnv(job?.userId ?? null);
   const runToken = mintRunToken(run.cronjobId, run.id, job?.userId ?? null);
-  const env = withRunTokenEnv(baseEnv, runToken);
-  return {
-    agentId: cronjobRunStreamId(run.id),
-    modelFamily: run.modelFamilySnapshot,
-    effort: run.effortSnapshot,
-    permissionMode: run.permissionModeSnapshot,
-    sandbox: run.codexSandboxSnapshot,
-    env,
-    systemPrompt: job ? buildCronjobSystemPrompt(job, run.cronjobId, run.id, buildCronjobMemoryPrompt()) : "",
-    cwd: run.cwdSnapshot,
-  };
+  return buildRunResumeOptionsWithDeps({
+    run,
+    resumeSessionId,
+    cronjobs,
+    runToken,
+    buildSystemPrompt: buildCronjobSystemPrompt,
+  });
 }
 
 // Wire up an ActiveRun around a backend session (resumed or freshly forked).
