@@ -4,14 +4,38 @@ name: App CI
 # website-ci.yml so npm/Next checks do not overlap with this job.
 on:
   pull_request:
-    paths-ignore:
-      - "website/**"
-      - "vercel.json"
+    paths:
+      - "api/**"
+      - "demo/**"
+      - "scripts/**"
+      - "server/**"
+      - "shared/**"
+      - "skills/**"
+      - "ui/**"
+      - ".flox/**"
+      - ".github/actions/setup-bun-flox/**"
+      - ".github/workflows/ci.yml"
+      - ".githooks/**"
+      - "bun.lock"
+      - "package.json"
+      - "tsconfig.json"
   push:
     branches: [master]
-    paths-ignore:
-      - "website/**"
-      - "vercel.json"
+    paths:
+      - "api/**"
+      - "demo/**"
+      - "scripts/**"
+      - "server/**"
+      - "shared/**"
+      - "skills/**"
+      - "ui/**"
+      - ".flox/**"
+      - ".github/actions/setup-bun-flox/**"
+      - ".github/workflows/ci.yml"
+      - ".githooks/**"
+      - "bun.lock"
+      - "package.json"
+      - "tsconfig.json"
 
 # Cancel in-flight runs for the same PR / branch when a new commit lands.
 concurrency:
