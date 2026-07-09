@@ -1,14 +1,13 @@
-import type { ClientCommand, KilledAgentSummary, PresenceInfo, ServerMessage, UserRecord } from "../shared/types.ts";
+import type { ClientCommand, ServerMessage } from "../shared/types.ts";
 import type { InviteWire } from "../shared/types.ts";
-import { KILLED_AGENT_CHIP_CAP } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
-import { loadEnabledPlugins, loadOfficeConfig, loadRecentCwds, saveOfficeConfig } from "./persistence.ts";
+import { loadEnabledPlugins, loadOfficeConfig, saveOfficeConfig } from "./persistence.ts";
 import { loadPlugins } from "./plugins/registry.ts";
 import { join as joinPath } from "path";
-import { getUpdateStatus, onUpdateChange, startUpdateChecker } from "./update-checker.ts";
+import { onUpdateChange, startUpdateChecker } from "./update-checker.ts";
 import { getBackupStatus, startBackupScheduler } from "./backup.ts";
-import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
+import { broadcast, browsers } from "./ws/broadcast.ts";
 import { handleCommand } from "./ws/commands.ts";
 import {
   canSeeRoom,
@@ -19,16 +18,17 @@ import {
   getUserById,
   getUserByName,
   getWsUser,
-  listUsers,
   projectAgents,
   projectRooms,
   setWsSessionPrefix,
   updateUser,
   wouldDeleteLeaveNoOwner,
 } from "./users.ts";
-import { listAllPresence, refreshPresenceForUser, removePresence } from "./presence.ts";
+import { refreshPresenceForUser, removePresence } from "./presence.ts";
 import { closeEditorWatch, closeEditorWatchesFor, findBrowserConnection, watchEditorFile } from "./editor-watchers.ts";
 export { editorWatchers } from "./editor-watchers.ts";
+import { pushPresenceListToEachWs, sendInitialPayload } from "./ws-initial-payload.ts";
+export { pushPresenceListToEachWs, sendInitialPayload } from "./ws-initial-payload.ts";
 import { handleLiveReloadRequest, startLiveReloadWatcher } from "./http/live-reload.ts";
 import { handleTasksRequest } from "./http/tasks.ts";
 import { handleCronjobsRequest } from "./http/cronjobs.ts";
@@ -163,43 +163,6 @@ function sendToVisibleAgent(agentId: string, msg: ServerMessage) {
   }
 }
 
-function buildPresenceListFor(ws: import("bun").ServerWebSocket<unknown>): PresenceInfo[] {
-  const user = getWsUser(ws);
-  const rooms = AgentManager.getRooms();
-  const projectedRooms = projectRooms(user, rooms);
-  const visibleIndexById = new Map(projectedRooms.map((room, index) => [room.id, index]));
-  const entries: PresenceInfo[] = [];
-  for (const presence of listAllPresence()) {
-    if (!presence.currentRoomId) continue;
-    const currentRoom = visibleIndexById.get(presence.currentRoomId);
-    if (currentRoom === undefined) continue;
-    entries.push({
-      connectionId: presence.connectionId,
-      userId: presence.userId,
-      username: presence.username,
-      device: presence.device,
-      avatarColor: presence.avatarColor,
-      avatarVariant: presence.avatarVariant,
-      currentRoomId: presence.currentRoomId,
-      currentRoom,
-      focusedAgentId: presence.focusedAgentId,
-      viewMode: presence.viewMode,
-    });
-  }
-  entries.sort((a, b) => a.connectionId.localeCompare(b.connectionId));
-  return entries;
-}
-
-function countTotalOnlineUsers(): number {
-  return new Set(listAllPresence().map((presence) => presence.userId)).size;
-}
-
-export function pushPresenceListToEachWs() {
-  for (const ws of browsers) {
-    ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws), totalOnlineUsers: countTotalOnlineUsers() } as ServerMessage));
-  }
-}
-
 // Wire AgentManager events to WebSocket broadcasts, filtering agent-scoped
 // events through each connection's room access.
 AgentManager.onEvent((event) => {
@@ -277,23 +240,6 @@ process.env.PORT = String(PORT);
 // same host) skip auth and run with `session === null`.
 interface WsData {
   session: SessionLookup | null;
-}
-
-// ACL-filtered + capped killed-agent chips for a session. Filters by the room
-// each agent was killed in (its history `lastRoomId`) so a member never sees a
-// revive chip for an agent in a room they can't access; the cap is applied
-// AFTER filtering so a restricted session still fills up to the cap.
-function killedAgentsFor(ws: import("bun").ServerWebSocket<unknown>): KilledAgentSummary[] {
-  const user = getWsUser(ws);
-  return AgentManager.getKilledAgentSummaries()
-    .filter((k) => canSeeRoom(user, k.lastRoomId))
-    .slice(0, KILLED_AGENT_CHIP_CAP);
-}
-
-function usersForRecipient(recipient: ReturnType<typeof getWsUser>, rooms: ReturnType<typeof AgentManager.getRooms>): UserRecord[] {
-  const users = listUsers(rooms);
-  if (!recipient || recipient.role === "owner") return users;
-  return users.map((listed) => (listed.id === recipient.id ? listed : { ...listed, envFile: null, memberPrompt: null, hidden: [], order: [] }));
 }
 
 function pushSessionsListToEachWs() {
@@ -519,50 +465,6 @@ async function deleteUserForApi(actorUserId: string, actorRole: "owner" | "membe
   for (const browser of browsers) sendInitialPayload(browser);
   await evictSessionsForUserId(target.id);
   return { ok: true };
-}
-
-export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
-  const user = getWsUser(ws);
-  const rooms = AgentManager.getRooms();
-  const agents = AgentManager.getAllAgents();
-  const projectedRooms = projectRooms(user, rooms);
-  const projectedAgents = projectAgents(user, agents, rooms);
-  ws.send(
-    JSON.stringify({
-      type: "full_state",
-      agents: projectedAgents,
-      recentCwds: loadRecentCwds(),
-      office: AgentManager.getOfficeSettings(),
-      rooms: projectedRooms,
-      allRooms: user?.role === "owner" ? rooms : undefined,
-      killedAgents: killedAgentsFor(ws),
-    } as ServerMessage),
-  );
-  ws.send(JSON.stringify({ type: "users_list", users: usersForRecipient(user, rooms) } as ServerMessage));
-  ws.send(JSON.stringify({ type: "session_context", context: getSessionContext(ws) } as ServerMessage));
-  ws.send(JSON.stringify({ type: "tasks", tasks } as ServerMessage));
-  ws.send(
-    JSON.stringify({
-      type: "cronjobs_state",
-      cronjobs: CronjobManager.listCronjobs(),
-      cronjobsPrompt: CronjobManager.getCronjobsPrompt(),
-    } as ServerMessage),
-  );
-  const update = getUpdateStatus();
-  if (update.updateAvailable) {
-    ws.send(JSON.stringify({ type: "update_status", updateAvailable: true, current: update.current, latest: update.latest } as ServerMessage));
-  }
-  for (const agent of projectedAgents) {
-    const logs = AgentManager.getAgentLogs(agent.id);
-    for (const entry of logs) {
-      ws.send(JSON.stringify({ type: "log_entry", entry } as ServerMessage));
-    }
-    const cmds = AgentManager.getAgentCommands(agent.id);
-    if (cmds.commands.length > 0 || cmds.skills.length > 0) {
-      ws.send(JSON.stringify({ type: "slash_commands", agentId: agent.id, commands: cmds.commands, skills: cmds.skills } as ServerMessage));
-    }
-  }
-  ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws), totalOnlineUsers: countTotalOnlineUsers() } as ServerMessage));
 }
 
 const server = Bun.serve<WsData>({
