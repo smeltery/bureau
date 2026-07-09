@@ -1,12 +1,11 @@
 name: CI
 
 # Quality gate for every PR and every push to master.
-# All five checks must pass before a PR can merge (enforced via branch
-# protection — see docs/contributing/development.md for the one-time setup).
 #
 # Bun is provided by the project's Flox environment (.flox/env/manifest.toml),
 # pinned to the same version developers run locally — no separate setup-bun
-# version to drift. Each job activates the env and runs through it.
+# version to drift. The job activates the env once, installs dependencies once,
+# then runs the complete root `ci` script.
 #
 # Two caches keep the Flox overhead off the hot path:
 #   * the Nix store (cache-nix-action), keyed on the env lock, so the pinned
@@ -22,93 +21,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Lock down default permissions; specific jobs opt in below if they need more.
+# Lock down default permissions; this workflow only needs read access.
 permissions:
   contents: read
 
 jobs:
-  typecheck:
-    name: typecheck
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: flox/install-flox-action@v2
-      - uses: nix-community/cache-nix-action@v6
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 5G
-      - uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-      - run: flox activate -- bun install --frozen-lockfile
-      - run: flox activate -- bun run typecheck
-
-  lint:
-    name: oxlint
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: flox/install-flox-action@v2
-      - uses: nix-community/cache-nix-action@v6
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 5G
-      - uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-      - run: flox activate -- bun install --frozen-lockfile
-      - run: flox activate -- bun run lint
-
-  format:
-    name: format
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: flox/install-flox-action@v2
-      - uses: nix-community/cache-nix-action@v6
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 5G
-      - uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-      - run: flox activate -- bun install --frozen-lockfile
-      - run: flox activate -- bun run format:check
-
-  test:
-    name: unit tests
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: flox/install-flox-action@v2
-      - uses: nix-community/cache-nix-action@v6
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 5G
-      - uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-      - run: flox activate -- bun install --frozen-lockfile
-      - run: flox activate -- bun run test
-
-  build:
-    name: build
+  ci:
+    name: ci
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
     steps:
@@ -125,9 +44,4 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: bun-${{ runner.os }}-
       - run: flox activate -- bun install --frozen-lockfile
-      # UI bundle (production-ish; equivalent to scripts/build.sh inputs).
-      - run: flox activate -- bun build ui/index.tsx --outdir ui/dist --production
-      # Server typechecks/imports — `bun build` with --target bun catches
-      # missing imports, circular deps, and bad type-only re-exports without
-      # actually starting the server.
-      - run: flox activate -- bun build server/index.ts --target bun --outdir /tmp/bureau-server-build
+      - run: flox activate -- bun run ci

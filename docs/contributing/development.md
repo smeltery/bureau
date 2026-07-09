@@ -22,27 +22,34 @@ plain `bun install` / `bun run dev` flow.
 
 ## Quality gate
 
-Every PR runs a CI workflow with five jobs (`.github/workflows/ci.yml`), each
-activating the Flox environment so CI runs the same pinned Bun as local:
+Every PR runs one CI job (`.github/workflows/ci.yml`) that activates the Flox
+environment once, installs dependencies once, then runs the same root `ci`
+script developers can run locally:
 
-| Job          | Command                | What it checks                                |
-| ------------ | ---------------------- | --------------------------------------------- |
-| `typecheck`  | `bun run typecheck`    | `tsc --noEmit` across server / shared / ui    |
-| `oxlint`     | `bun run lint`         | `oxlint` on server / shared / ui              |
-| `format`     | `bun run format:check` | `prettier --check` on server / shared / ui    |
-| `unit tests` | `bun run test`         | `bun test` (cronjob scheduler + shared types) |
-| `build`      | `bun build …`          | UI + server bundle, catches import errors     |
+| Script                 | What it checks                                      |
+| ---------------------- | --------------------------------------------------- |
+| `bun run typecheck`    | `tsc --noEmit` across server / shared / ui / api    |
+| `bun run lint`         | `oxlint` on server / shared / ui                    |
+| `bun run format:check` | `prettier --check` on server / shared / ui          |
+| `bun run test`         | `bun test`                                          |
+| `bun run build:ui`     | Production UI bundle plus static asset copy         |
+| `bun run build:server` | Server bundle/import check with Bun's server target |
 
-All five must pass before a PR can merge.
+All checks in the `ci` job must pass before a PR can merge.
 
-Run them all locally before pushing:
+Run the full CI gate locally before pushing:
+
+```sh
+bun run ci
+```
+
+For a faster pre-push loop that skips the build steps, run:
 
 ```sh
 bun run check
 ```
 
-That script chains `typecheck → lint → format:check → test`. The CI also runs
-the `build` job on top.
+That script chains `typecheck → lint → format:check → test`.
 
 ## Tooling notes
 
@@ -75,26 +82,22 @@ loads the SDK or reads the filesystem on import.
 
 ## Branch protection (one-time setup)
 
-The CI workflow is the gate, but GitHub only *enforces* it once branch
-protection requires the checks. To enable on `master`:
+The CI workflow is the gate, but GitHub only _enforces_ it once branch
+protection requires the `ci` check. To enable on `master`:
 
 ```sh
 # Replace OWNER/REPO and run from a checkout with `gh` authenticated.
 gh api -X PUT repos/dotbrains/bureau/branches/master/protection \
   -F required_status_checks.strict=true \
-  -F 'required_status_checks.contexts[]=typecheck' \
-  -F 'required_status_checks.contexts[]=oxlint' \
-  -F 'required_status_checks.contexts[]=format' \
-  -F 'required_status_checks.contexts[]=unit tests' \
-  -F 'required_status_checks.contexts[]=build' \
+  -F 'required_status_checks.contexts[]=ci' \
   -F enforce_admins=false \
   -F required_pull_request_reviews.required_approving_review_count=0 \
   -F restrictions=
 ```
 
 Or via the UI: **Settings → Branches → Add branch protection rule** for
-`master`, tick *Require status checks to pass before merging*, and add the
-five jobs above (`typecheck`, `oxlint`, `format`, `unit tests`, `build`).
+`master`, tick _Require status checks to pass before merging_, and add the
+`ci` job.
 
 After the rule exists, GitHub disables the merge button on any PR with a
 failing or pending check.
