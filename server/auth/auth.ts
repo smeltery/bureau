@@ -8,14 +8,16 @@
 // the docs/features/access-and-invites.md and docs/security-audit.md.
 
 import { existsSync, readFileSync } from "fs";
-import type { UserRole, UserRecord, InviteWire, SessionWire, SessionContext } from "../../shared/types.ts";
+import type { UserRole, InviteWire, SessionWire, SessionContext } from "../../shared/types.ts";
 import { atomicWriteFileSync, INVITES_FILE, SESSIONS_FILE } from "../persistence/paths.ts";
 import { lowercaseKey } from "../../shared/identity.ts";
-import { claimUserByName, deleteUserById, getUserById, getUserByName, hasOwner, setUserRoleById, updateUserById } from "../users.ts";
+import { claimUserByName, getUserById, getUserByName, hasOwner } from "../users.ts";
 import { hashOf, randomToken, safeHashEq } from "./tokens.ts";
 import { setHasOwnerProvider } from "./http-env.ts";
 export { forceExpireSocketsForSession, registerSocket, unregisterSocket } from "./session-sockets.ts";
 import { forceExpireSocketsForSession } from "./session-sockets.ts";
+export { setRoomsSnapshotProvider } from "./bootstrap-owner.ts";
+import { commitBootstrapOwnerUser, snapshotRoomIds } from "./bootstrap-owner.ts";
 
 setHasOwnerProvider(hasOwner);
 export {
@@ -31,19 +33,6 @@ export {
   setOfficeName,
   setPublicOriginFallback,
 } from "./http-env.ts";
-
-// Injected by server/index.ts at boot. New owners need a snapshot of every
-// current room id as their initial allowedRooms (the strict string[] model
-// has no "all" sentinel, so "owners see every room" has to be materialized
-// at creation time). auth.ts is intentionally kept free of agent-manager
-// dependencies; the provider sidesteps a cycle.
-let roomsSnapshotProvider: (() => string[]) | null = null;
-export function setRoomsSnapshotProvider(fn: () => string[]): void {
-  roomsSnapshotProvider = fn;
-}
-function snapshotRoomIds(): string[] {
-  return roomsSnapshotProvider ? roomsSnapshotProvider() : [];
-}
 
 // ---------------------------------------------------------------------------
 // On-disk record shapes (hashed). Raw tokens never persist.
@@ -377,84 +366,6 @@ function markAllUnconsumedBootstrapInvitesConsumed(): void {
     }
     console.error(`[auth] failed to sweep ${stale.length} stale bootstrap invite(s); they will be retried on the next owner-creating accept`, err);
   }
-}
-
-// Owner-creation core used by both the tokenless claim form (claimOwnership)
-// and the legacy bootstrap-invite acceptance path (acceptInvite bootstrap
-// branch). Mutates user state so the named user becomes an owner with full
-// allowedRooms, then returns the resulting user record alongside a
-// `rollback` closure that restores the prior state.
-//
-// The caller MUST invoke rollback if any subsequent persistence step
-// (invite-consumed write, session create+persist) throws.
-function commitBootstrapOwnerUser(chosenName: string): {
-  user: UserRecord;
-  rollback: () => void;
-} {
-  const existing = getUserByName(chosenName);
-  if (!existing) {
-    const created = claimUserByName(chosenName, {
-      role: "owner",
-      allowedRooms: snapshotRoomIds(),
-    });
-    const createdId = created.id;
-    return {
-      user: created,
-      rollback: () => {
-        try {
-          deleteUserById(createdId);
-        } catch (err) {
-          console.error(
-            `[auth] catastrophic: bootstrap rollback could not delete just-created user ${createdId}; the office is now stranded with an owner record but no session. Once the underlying disk issue is fixed, try the owner-login recovery CLI ('bun run server/index.ts owner-login --name <chosen-name>') against the running server; if the partial record is malformed, remove ${createdId} from users.json by hand and re-open the claim form.`,
-            err,
-          );
-        }
-      },
-    };
-  }
-  // Existing user — snapshot the prior state and build a single rollback
-  // closure BEFORE any mutation. Every post-allowedRooms failure path
-  // (setUserRoleById throws, the getUserById sanity check finds the row
-  // gone, or the caller hits a downstream persist failure and invokes
-  // rollback explicitly) reuses the same closure.
-  const prevRole = existing.role;
-  const prevAllowedRooms = [...existing.allowedRooms];
-  const userId = existing.id;
-  const restorePriorState = () => {
-    try {
-      setUserRoleById(userId, prevRole);
-    } catch (err) {
-      console.error(`[auth] bootstrap rollback: setUserRoleById restore to ${prevRole} threw for ${userId}`, err);
-    }
-    try {
-      const rr = updateUserById(userId, { allowedRooms: prevAllowedRooms });
-      if (!rr.ok) {
-        console.error(`[auth] bootstrap rollback: allowedRooms restore returned not-ok for ${userId}: ${rr.error}`);
-      }
-    } catch (err) {
-      console.error(`[auth] bootstrap rollback: allowedRooms restore threw for ${userId}`, err);
-    }
-  };
-
-  const snapshot = snapshotRoomIds();
-  const r = updateUserById(userId, { allowedRooms: snapshot });
-  if (!r.ok) {
-    throw new Error(`bootstrap owner promotion: allowedRooms write failed for ${existing.name}: ${r.error}`);
-  }
-  if (existing.role !== "owner") {
-    try {
-      setUserRoleById(userId, "owner");
-    } catch (err) {
-      restorePriorState();
-      throw err;
-    }
-  }
-  const updated = getUserById(userId);
-  if (!updated) {
-    restorePriorState();
-    throw new Error(`bootstrap owner promotion: user ${userId} vanished mid-flow; rolled allowedRooms/role back to prior state`);
-  }
-  return { user: updated, rollback: restorePriorState };
 }
 
 // Accept an invite token. If the invite has a pre-set username, that username
