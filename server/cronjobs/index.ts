@@ -37,8 +37,6 @@ import {
   loadRunLog,
   loadRunLogWithAncestors,
   loadRunSessionsMap,
-  accumulateRunSessionUsage,
-  appendRunSessionUsageSnapshot,
   persistRunSessionFork,
   findUsageAtForkRun,
   rollRunSessionUsageOnResume,
@@ -49,13 +47,14 @@ import { claudeProjectDir, claudeSessionFileExists, resolveCwd, validateCwd } fr
 import { officeConfig } from "../agents/state.ts";
 import { validateCodexSandbox, validateCronjobPermissionMode, validateEffort, validateModelFamily } from "../agent-validators.ts";
 import { getBackend } from "../backends/index.ts";
-import type { BackendSession, CreateSessionOptions, NormalizedEvent, NormalizedMessage } from "../backends/types.ts";
+import type { BackendSession, CreateSessionOptions, NormalizedMessage } from "../backends/types.ts";
 import { getUserById, getUserByName } from "../users.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 import { mintRunToken, revokeRunToken } from "./tokens.ts";
 import { buildCronjobMemoryPrompt, buildCronjobSystemPrompt as buildCronjobSystemPromptWithInstructions } from "./system-prompt.ts";
 import { emitRunDiffWithDeps, emitRunReadFileWithDeps, type AffordanceActiveRun, type RunAffordanceResult } from "./run-affordances.ts";
 import { readCronjobLifetimeUsage as readCronjobLifetimeUsageFromDisk } from "./usage.ts";
+import { processNormalizedEvent, writeLog, type ActiveRun } from "./run-events.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
@@ -104,29 +103,6 @@ function checkCronRunSessionFile(run: CronjobRun, leaf: string, action: "resume"
 // ---------------------------------------------------------------------------
 // In-memory state
 // ---------------------------------------------------------------------------
-
-interface ActiveRun {
-  jobId: string;
-  runId: string;
-  streamId: string;
-  session: BackendSession;
-  sessionId: string | null; // assigned on first system_init
-  rootSessionId: string; // the run row's rootSessionId (placeholder until init)
-  consumerPromise: Promise<void>;
-  hardTimeoutTimer: ReturnType<typeof setTimeout> | null;
-  lastWrittenEntryId: string | null;
-  lastAssistantText: string; // for previewText computation
-  trigger: CronjobRun["trigger"];
-  killed: boolean;
-  // Buffer entries created before backend init assigns a sessionId. Without this,
-  // pre-init errors (e.g. "Failed to send prompt") get broadcast to clients
-  // but never persisted to disk, so they vanish on reload.
-  pendingEntries: LogEntry[];
-  // True for follow-up turns on a previously-finalized run (resumed or
-  // edit-forked). On resume the backend reuses the existing sessionId, so init
-  // must NOT clobber rootSessionId — only currentSessionId tracks the leaf.
-  isResume: boolean;
-}
 
 const activeRuns = new Map<string, ActiveRun>(); // runId -> ActiveRun
 
@@ -319,87 +295,6 @@ export function buildCronjobSystemPrompt(cronjob: Cronjob, jobId: string, runId:
 // Run lifecycle
 // ---------------------------------------------------------------------------
 
-function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent) {
-  switch (ev.kind) {
-    case "system_init": {
-      const sessionId = ev.sessionId;
-      if (sessionId && !active.sessionId) {
-        active.sessionId = sessionId;
-        if (sessionId !== active.rootSessionId) {
-          const patch: Partial<CronjobRun> = active.isResume ? { currentSessionId: sessionId } : { rootSessionId: sessionId, currentSessionId: sessionId };
-          const updated = updateRun(active.jobId, active.runId, patch);
-          if (updated) {
-            if (!active.isResume) active.rootSessionId = sessionId;
-            eventHandler({ type: "cronjob_run_updated", run: updated });
-          }
-        }
-        for (const entry of active.pendingEntries) {
-          appendRunLog(active.jobId, active.runId, sessionId, entry);
-          active.lastWrittenEntryId = entry.id;
-        }
-        active.pendingEntries = [];
-      }
-      break;
-    }
-    case "assistant_text":
-      active.lastAssistantText = ev.text;
-      writeLog(active, "text", ev.text);
-      break;
-    case "system_text":
-      writeLog(active, "system", ev.text);
-      break;
-    case "thinking":
-      writeLog(active, "thinking", ev.text, ev.durationMs != null ? { duration_ms: ev.durationMs } : undefined);
-      break;
-    case "tool_call":
-      writeLog(active, "tool_call", ev.name, { toolId: ev.toolUseId, input: ev.input });
-      break;
-    case "tool_result":
-      writeLog(
-        active,
-        "tool_result",
-        ev.content.slice(0, 10000),
-        { toolUseId: ev.toolUseId, ...(ev.durationMs != null ? { duration_ms: ev.durationMs } : {}), ...(ev.isError != null ? { isError: ev.isError } : {}) },
-        ev.attachments,
-      );
-      break;
-    case "file_view":
-      writeLog(active, "file-view", ev.title, undefined, ev.attachments);
-      break;
-    case "turn_completed": {
-      if (active.sessionId && ev.usage) {
-        const cumulative = accumulateRunSessionUsage(active.jobId, active.runId, active.sessionId, ev.usage, ev.cost ?? 0);
-        if (active.lastWrittenEntryId) {
-          appendRunSessionUsageSnapshot(active.jobId, active.runId, active.sessionId, active.lastWrittenEntryId, cumulative);
-        }
-      }
-      if (ev.status !== "completed") {
-        const errorText = ev.error ?? `Run stopped: ${ev.status}.`;
-        writeLog(active, "error", errorText);
-      }
-      break;
-    }
-    case "usage_update": {
-      if (active.sessionId) {
-        const cumulative = accumulateRunSessionUsage(active.jobId, active.runId, active.sessionId, ev.tokenUsage, 0);
-        if (active.lastWrittenEntryId) {
-          appendRunSessionUsageSnapshot(active.jobId, active.runId, active.sessionId, active.lastWrittenEntryId, cumulative);
-        }
-      }
-      break;
-    }
-    case "compacted":
-      writeLog(active, "system", ev.summary ? `Context compacted: ${ev.summary}` : "Context compacted.");
-      break;
-    case "approval_request":
-      writeLog(active, "system", `Approval requested for ${ev.toolName}; cron jobs run unattended, so this run may wait until the hard timeout.`);
-      break;
-    case "error":
-      writeLog(active, "error", ev.message);
-      break;
-  }
-}
-
 export function emitRunReadFile(jobId: string, runId: string, rawPath: string): RunAffordanceResult {
   return emitRunReadFileWithDeps(activeRuns, writeAffordanceLog, jobId, runId, rawPath);
 }
@@ -418,41 +313,13 @@ function writeAffordanceLog(
 ) {
   const fullActive = activeRuns.get(active.runId);
   if (!fullActive) return;
-  writeLog(fullActive, kind, content, metadata, attachments, extra);
-}
-
-function writeLog(
-  active: ActiveRun,
-  kind: LogEntry["kind"],
-  content: string,
-  metadata?: Record<string, unknown>,
-  attachments?: Attachment[],
-  extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
-) {
-  const entry: LogEntry = {
-    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    agentId: active.streamId,
-    timestamp: Date.now(),
-    kind,
-    content,
-    ...(metadata ? { metadata } : {}),
-    ...(attachments && attachments.length > 0 ? { attachments } : {}),
-    ...(extra ?? {}),
-  };
-  if (active.sessionId) {
-    appendRunLog(active.jobId, active.runId, active.sessionId, entry);
-    active.lastWrittenEntryId = entry.id;
-  } else {
-    // Pre-init: buffer until system_init flushes us.
-    active.pendingEntries.push(entry);
-  }
-  eventHandler({ type: "log_entry", entry });
+  writeLog(fullActive, kind, content, eventHandler, metadata, attachments, extra);
 }
 
 async function runConsumer(active: ActiveRun) {
   try {
     for await (const ev of active.session.stream()) {
-      processNormalizedEvent(active, ev);
+      processNormalizedEvent(active, ev, eventHandler);
       if (ev.kind === "turn_completed") {
         const status: CronjobRun["status"] = ev.status === "completed" ? "completed" : "failed";
         const errorReason = ev.status === "completed" ? null : (ev.error ?? `Run stopped: ${ev.status}`);
@@ -470,7 +337,7 @@ async function runConsumer(active: ActiveRun) {
   } catch (err: any) {
     if (active.killed) return; // hard timeout already handled
     console.error(`Cronjob run ${active.runId} stream error:`, err.message);
-    writeLog(active, "error", `Stream error: ${err.message}`);
+    writeLog(active, "error", `Stream error: ${err.message}`, eventHandler);
     finalizeRun(active, "failed", `Stream error: ${err.message}`);
   }
 }
@@ -612,7 +479,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string
     try {
       session.close();
     } catch {}
-    writeLog(active, "error", "Cron job run exceeded 30-minute hard timeout.");
+    writeLog(active, "error", "Cron job run exceeded 30-minute hard timeout.", eventHandler);
     finalizeRun(active, "timed_out", "exceeded global run timeout");
   }, HARD_TIMEOUT_MS);
 
@@ -624,7 +491,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string
     } catch (err: any) {
       if (active.killed) return;
       console.error(`Cronjob run ${runId} input error:`, err.message);
-      writeLog(active, "error", `Failed to send prompt: ${err.message || String(err)}`);
+      writeLog(active, "error", `Failed to send prompt: ${err.message || String(err)}`, eventHandler);
       try {
         session.close();
       } catch {}
@@ -807,7 +674,7 @@ function installResumedActive(run: CronjobRun, session: BackendSession, sessionI
     try {
       active.session.close();
     } catch {}
-    writeLog(active, "error", "Cron job run exceeded 30-minute hard timeout.");
+    writeLog(active, "error", "Cron job run exceeded 30-minute hard timeout.", eventHandler);
     finalizeRun(active, "timed_out", "exceeded global run timeout");
   }, HARD_TIMEOUT_MS);
   return active;
@@ -853,7 +720,7 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
 
     const active = installResumedActive(run, session, leaf);
     // Persist the user message so it shows up in the transcript.
-    writeLog(active, "user_message", text, username ? { username } : undefined);
+    writeLog(active, "user_message", text, eventHandler, username ? { username } : undefined);
 
     const prefixedText = username ? `[${username}] ${text}` : text;
     (async () => {
@@ -862,7 +729,7 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
       } catch (err: any) {
         if (active.killed) return;
         console.error(`Cronjob run ${runId} send error:`, err.message);
-        writeLog(active, "error", `Failed to send: ${err.message || String(err)}`);
+        writeLog(active, "error", `Failed to send: ${err.message || String(err)}`, eventHandler);
         try {
           session.close();
         } catch {}
@@ -1038,7 +905,7 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
 
   // 8. Wire up the active run, persist the new edited message, send it.
   const active = installResumedActive(updatedRun ?? run, session, newSessionId);
-  writeLog(active, "user_message", newText, username ? { username } : undefined);
+  writeLog(active, "user_message", newText, eventHandler, username ? { username } : undefined);
   const prefixedText = username ? `[${username}] ${newText}` : newText;
   (async () => {
     try {
@@ -1046,7 +913,7 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
     } catch (err: any) {
       if (active.killed) return;
       console.error(`Cronjob run ${runId} edit-send error:`, err.message);
-      writeLog(active, "error", `Failed to send edited message: ${err.message || String(err)}`);
+      writeLog(active, "error", `Failed to send edited message: ${err.message || String(err)}`, eventHandler);
       try {
         session.close();
       } catch {}
