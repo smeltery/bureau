@@ -1,24 +1,21 @@
-name: CI
+name: App CI
 
-# Quality gate for every PR and every push to master.
-#
-# Bun is provided by the project's Flox environment (.flox/env/manifest.toml),
-# pinned to the same version developers run locally — no separate setup-bun
-# version to drift. The job activates the env once, installs dependencies once,
-# then runs the complete root `ci` script.
-#
-# Two caches keep the Flox overhead off the hot path:
-#   * the Nix store (cache-nix-action), keyed on the env lock, so the pinned
-#     toolchain closure is restored instead of re-downloaded each run;
-#   * node_modules, keyed on the Bun lockfile.
+# Quality gate for the root Bun/Flox app. Website validation lives in
+# website-ci.yml so npm/Next checks do not overlap with this job.
 on:
   pull_request:
+    paths-ignore:
+      - "website/**"
+      - "vercel.json"
   push:
     branches: [master]
+    paths-ignore:
+      - "website/**"
+      - "vercel.json"
 
 # Cancel in-flight runs for the same PR / branch when a new commit lands.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: app-ci-${{ github.ref }}
   cancel-in-progress: true
 
 # Lock down default permissions; this workflow only needs read access.
@@ -27,21 +24,10 @@ permissions:
 
 jobs:
   ci:
-    name: ci
+    name: app-ci
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: flox/install-flox-action@v2
-      - uses: nix-community/cache-nix-action@v6
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('.flox/env/manifest.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 5G
-      - uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-      - run: flox activate -- bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-bun-flox
       - run: flox activate -- bun run ci
