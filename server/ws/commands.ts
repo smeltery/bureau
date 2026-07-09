@@ -629,6 +629,12 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
       if (!canUseAgent(ws, cmd.agentId)) break;
       AgentManager.dequeueMessage(cmd.agentId, cmd.queuedId);
       break;
+    case "send_now":
+      if (!canUseAgent(ws, cmd.agentId)) break;
+      AgentManager.sendNow(cmd.agentId).catch((err: any) => {
+        console.error(`sendNow failed for ${cmd.agentId}:`, err.message);
+      });
+      break;
     case "new_conversation":
       if (!canUseAgent(ws, cmd.agentId)) break;
       await AgentManager.newConversation(cmd.agentId);

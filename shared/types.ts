@@ -786,6 +786,7 @@ export type ClientCommand =
   | { type: "reorder_rooms"; order: string[] }
   | { type: "edit_message"; agentId: string; logEntryId: string; newText: string; username?: string }
   | { type: "dequeue_message"; agentId: string; queuedId: string }
+  | { type: "send_now"; agentId: string }
   | {
       type: "add_cronjob";
       requestId?: string;

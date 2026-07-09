@@ -29,7 +29,7 @@ export {
   restoreAgents,
 } from "./lifecycle.ts";
 export { sendMessage, dequeueMessage, enqueueMessage, flushQueue } from "./conversation/send.ts";
-export { abort, newConversation, resume } from "./conversation/control.ts";
+export { abort, sendNow, newConversation, resume } from "./conversation/control.ts";
 export { editMessage } from "./conversation/edit.ts";
 export { setTopic, resetTopic } from "./topic.ts";
 export { openTerminal, closeTerminal, getTerminalBuffer, terminalInput, terminalResize } from "./terminal.ts";

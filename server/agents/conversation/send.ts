@@ -112,6 +112,14 @@ export async function flushQueue(agentId: string): Promise<void> {
   if (managed.messageQueue.length === 0) return;
   if (isAgentBusy(managed.info.state)) return;
   if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick) return;
+  if (managed.abortPromise) {
+    try {
+      await managed.abortPromise;
+    } catch {}
+    if (managed.flushInProgress) return;
+    if (managed.messageQueue.length === 0) return;
+    if (isAgentBusy(managed.info.state)) return;
+  }
 
   managed.flushInProgress = true;
   try {

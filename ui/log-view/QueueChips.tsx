@@ -16,6 +16,35 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
         overflowY: "auto",
       }}
     >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span
+          style={{
+            fontSize: isMobile ? 11 : 10,
+            fontWeight: 600,
+            color: "var(--text-muted)",
+            textTransform: "uppercase",
+          }}
+        >
+          {queue.length} queued
+        </span>
+        <button
+          onClick={() => send({ type: "send_now", agentId })}
+          style={{
+            padding: "2px 10px",
+            borderRadius: 4,
+            border: "1px solid var(--green)",
+            background: "var(--green)",
+            color: "var(--bg-base)",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+          title="Flush queued messages now"
+        >
+          Send now
+        </button>
+      </div>
       {queue.map((msg) => {
         const attachmentCount = msg.attachments?.length ?? 0;
         const isAgent = msg.sender.kind === "agent";

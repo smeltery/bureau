@@ -262,7 +262,7 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
     if (req.method === "POST" && parts.length === 3 && parts[2] === "send-now") {
       const denied = requireUserAgentAccess(auth, agentId);
       if (denied) return denied;
-      void AgentManager.flushQueue(agentId);
+      void AgentManager.sendNow(agentId);
       return new Response(null, { status: 204, headers: JSON_HEADERS });
     }
   }

@@ -4,6 +4,7 @@ import { createSession, replaceSession } from "../session/runtime.ts";
 import { validateCwd } from "../session/paths.ts";
 import { errMessage } from "../../../shared/errors.ts";
 import { generateTopic, persistCurrentSessionTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
+import { flushQueue } from "./send.ts";
 
 // cwd is a property of the session (source of truth in sessions.json); the
 // agent's info.cwd is just a denormalized mirror. Before resuming a session,
@@ -97,6 +98,16 @@ export async function abort(agentId: string) {
     managed.abortPromise = null;
     abortDone();
   }
+}
+
+export async function sendNow(agentId: string) {
+  const managed = agents.get(agentId);
+  if (!managed) return;
+  if (managed.messageQueue.length === 0) return;
+  if (managed.info.state === "thinking" || managed.info.state === "tool_executing") {
+    await abort(agentId);
+  }
+  await flushQueue(agentId);
 }
 
 export async function newConversation(agentId: string) {
