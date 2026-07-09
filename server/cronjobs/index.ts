@@ -33,7 +33,8 @@ import { mintRunToken, revokeRunToken } from "./tokens.ts";
 import { buildCronjobMemoryPrompt, buildCronjobSystemPrompt as buildCronjobSystemPromptWithInstructions } from "./system-prompt.ts";
 import { emitRunDiffWithDeps, emitRunReadFileWithDeps, type AffordanceActiveRun, type RunAffordanceResult } from "./run-affordances.ts";
 import { readCronjobLifetimeUsage as readCronjobLifetimeUsageFromDisk } from "./usage.ts";
-import { processNormalizedEvent, writeLog, type ActiveRun } from "./run-events.ts";
+import { writeLog, type ActiveRun } from "./run-events.ts";
+import { finalizeRunWithDeps, runConsumerWithDeps, startRunHardTimeout, writeAffordanceLogWithDeps, type RunLifecycleDeps } from "./run-lifecycle.ts";
 import { addCronjobDefinition, deleteCronjobDefinition, updateCronjobDefinition, type AddCronjobInput, type UpdateCronjobChanges } from "./definitions.ts";
 import { editRunMessageWithDeps } from "./run-edit.ts";
 import {
@@ -191,6 +192,14 @@ export function emitRunDiff(jobId: string, runId: string, dir?: string, commit?:
   return emitRunDiffWithDeps(activeRuns, writeAffordanceLog, jobId, runId, dir, commit);
 }
 
+function lifecycleDeps(): RunLifecycleDeps {
+  return {
+    activeRuns,
+    emitEvent: (e) => eventHandler(e),
+    hardTimeoutMs: HARD_TIMEOUT_MS,
+  };
+}
+
 function writeAffordanceLog(
   active: AffordanceActiveRun,
   kind: LogEntry["kind"],
@@ -199,77 +208,15 @@ function writeAffordanceLog(
   attachments?: Attachment[],
   extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
 ) {
-  const fullActive = activeRuns.get(active.runId);
-  if (!fullActive) return;
-  writeLog(fullActive, kind, content, eventHandler, metadata, attachments, extra);
+  writeAffordanceLogWithDeps(lifecycleDeps(), active, kind, content, metadata, attachments, extra);
 }
 
 async function runConsumer(active: ActiveRun) {
-  try {
-    for await (const ev of active.session.stream()) {
-      processNormalizedEvent(active, ev, eventHandler);
-      if (ev.kind === "turn_completed") {
-        const status: CronjobRun["status"] = ev.status === "completed" ? "completed" : "failed";
-        const errorReason = ev.status === "completed" ? null : (ev.error ?? `Run stopped: ${ev.status}`);
-        finalizeRun(active, status, errorReason);
-        return;
-      }
-      if (ev.kind === "error") {
-        finalizeRun(active, "failed", ev.message);
-        return;
-      }
-    }
-    if (activeRuns.has(active.runId)) {
-      finalizeRun(active, "failed", "stream ended before turn completed");
-    }
-  } catch (err: any) {
-    if (active.killed) return; // hard timeout already handled
-    console.error(`Cronjob run ${active.runId} stream error:`, err.message);
-    writeLog(active, "error", `Stream error: ${err.message}`, eventHandler);
-    finalizeRun(active, "failed", `Stream error: ${err.message}`);
-  }
+  await runConsumerWithDeps(lifecycleDeps(), active);
 }
 
 function finalizeRun(active: ActiveRun, status: CronjobRun["status"], errorReason: string | null = null) {
-  // Idempotent: multiple paths can race to finalize (runConsumer's success
-  // branch when stream ends, the IIFE's catch when session.send() fails, the
-  // timeout handler). The first one wins; later calls no-op. Without this,
-  // a send-fail's finalizeRun(failed) gets clobbered by runConsumer reaching
-  // finalizeRun(completed) right after session.close() ends the stream.
-  if (!activeRuns.has(active.runId)) return;
-  activeRuns.delete(active.runId);
-  if (active.hardTimeoutTimer) {
-    clearTimeout(active.hardTimeoutTimer);
-    active.hardTimeoutTimer = null;
-  }
-  // If init never arrived, the run row's rootSessionId is still the
-  // `pending-<runId>` placeholder. Flush any buffered pre-init entries to
-  // a JSONL named after that placeholder so loadRunLogWithAncestors finds
-  // them on reload (the canonical motivating example: "Failed to send
-  // prompt" surfaced before the SDK assigned a sessionId).
-  if (!active.sessionId && active.pendingEntries.length > 0) {
-    for (const entry of active.pendingEntries) {
-      appendRunLog(active.jobId, active.runId, active.rootSessionId, entry);
-    }
-    active.pendingEntries = [];
-  }
-  // Release the underlying backend subprocess. Streams are persistent across
-  // turns, so a successful run reaches finalizeRun with the session still
-  // alive — without close() it would leak until process exit.
-  try {
-    active.session.close();
-  } catch {}
-  revokeRunToken(active.runId);
-  const previewText = (active.lastAssistantText || "").trim().replace(/\s+/g, " ").slice(0, 120);
-  const updated = updateRun(active.jobId, active.runId, {
-    status,
-    endedAt: Date.now(),
-    errorReason: errorReason ?? null,
-    previewText,
-  });
-  if (updated) eventHandler({ type: "cronjob_run_updated", run: updated });
-  // tick() and the cwd-invalid branch in fire() already set lastFireAt and
-  // nextFireAt at fire time — no further schedule update needed here.
+  finalizeRunWithDeps(lifecycleDeps(), active, status, errorReason);
 }
 
 function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string): CronjobRun | null {
@@ -361,15 +308,7 @@ function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string
   };
   activeRuns.set(runId, active);
   active.consumerPromise = runConsumer(active);
-  active.hardTimeoutTimer = setTimeout(() => {
-    if (!activeRuns.has(runId)) return;
-    active.killed = true;
-    try {
-      session.close();
-    } catch {}
-    writeLog(active, "error", "Cron job run exceeded 30-minute hard timeout.", eventHandler);
-    finalizeRun(active, "timed_out", "exceeded global run timeout");
-  }, HARD_TIMEOUT_MS);
+  startRunHardTimeout(lifecycleDeps(), active);
 
   // Send the prompt as the first user message. Wrap in a try so ergonomic
   // errors don't crash the tick.
@@ -534,15 +473,7 @@ function installResumedActive(run: CronjobRun, session: BackendSession, sessionI
   const updated = updateRun(run.cronjobId, run.id, { status: "running", endedAt: null, errorReason: null });
   if (updated) eventHandler({ type: "cronjob_run_updated", run: updated });
   active.consumerPromise = runConsumer(active);
-  active.hardTimeoutTimer = setTimeout(() => {
-    if (!activeRuns.has(run.id)) return;
-    active.killed = true;
-    try {
-      active.session.close();
-    } catch {}
-    writeLog(active, "error", "Cron job run exceeded 30-minute hard timeout.", eventHandler);
-    finalizeRun(active, "timed_out", "exceeded global run timeout");
-  }, HARD_TIMEOUT_MS);
+  startRunHardTimeout(lifecycleDeps(), active);
   return active;
 }
 
