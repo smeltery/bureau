@@ -4,11 +4,9 @@ import { rmSync, statSync } from "fs";
 import type { AgentBackendType, AgentInfo, AgentOutfit, KilledAgentSummary, LogEntry, SkillInfo } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES, KILLED_AGENT_CHIP_CAP } from "../../shared/types.ts";
 import { listAgentSessions, loadAgents, loadAgentHistory, loadLogWithAncestors, saveAgentHistory, getSessionCwd, persistSessionCwd, type AgentHistoryEntry } from "../persistence.ts";
-import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
 import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
-import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
 import { moveClaudeSessionFile, resolveCwd, validateCwd } from "./session/paths.ts";
 import { buildSessionEnv, createSession, installSession, replaceSession } from "./session/runtime.ts";
 import { getBackend } from "../backends/index.ts";
@@ -16,6 +14,7 @@ import { findRoomIndex, updateState } from "./state.ts";
 import { sidecarSend } from "./terminal.ts";
 import { BUREAU_DIR, LOGS_DIR } from "../persistence/paths.ts";
 import { mintAgentToken, revokeAgentToken } from "./tokens.ts";
+import { createManagedAgent } from "./managed-factory.ts";
 
 export { emitAgentDiff, emitAgentEditFile, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
 
@@ -310,34 +309,7 @@ export async function spawn(
     queue: [],
   };
 
-  const managed: ManagedAgent = {
-    info,
-    session: null,
-    sessionId: null,
-    consumerPromise: null,
-    pendingTurn: null,
-    afterTurnPromise: null,
-    turnCancelToken: 0,
-    aborting: false,
-    abortPromise: null,
-    slashCommands: autocompleteCommands(),
-    skills: deduplicateSkills([...discoverUserSkills(), ...discoverProjectSkills(resolvedCwd), ...discoverPluginSkills(), ...discoverBundledSkills()]),
-    sdkReportedCommands: [],
-    thinkingStartedAt: 0,
-    toolCallTimestamps: new Map(),
-    topicGenerating: false,
-    topicMessageCount: 0,
-    pendingResume: false,
-    pendingResumeSessions: [],
-    pendingModelPick: false,
-    pendingEffortPick: false,
-    pendingPermission: null,
-    ptySidecar: null,
-    ptyBuffer: "",
-    messageQueue: [],
-    flushInProgress: false,
-    lastWrittenEntryId: null,
-  };
+  const managed = createManagedAgent({ info, skillCwd: resolvedCwd });
   agents.set(id, managed);
   mintAgentToken(id, info.userId ?? null, info.privileged ?? false);
   emit({ type: "agent_added", agent: info });
@@ -603,34 +575,12 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
   };
 
   const persistedTopicCount = resumeFromSession ? (listAgentSessions(agentId).find((s) => s.sessionId === resumeFromSession)?.topicMessageCount ?? 0) : 0;
-  const managed: ManagedAgent = {
+  const managed = createManagedAgent({
     info,
-    session: null,
+    skillCwd: resolvedCwd,
     sessionId: resumeFromSession,
-    consumerPromise: null,
-    pendingTurn: null,
-    afterTurnPromise: null,
-    turnCancelToken: 0,
-    aborting: false,
-    abortPromise: null,
-    slashCommands: autocompleteCommands(),
-    skills: deduplicateSkills([...discoverUserSkills(), ...discoverProjectSkills(resolvedCwd), ...discoverPluginSkills(), ...discoverBundledSkills()]),
-    sdkReportedCommands: [],
-    thinkingStartedAt: 0,
-    toolCallTimestamps: new Map(),
-    topicGenerating: false,
     topicMessageCount: persistedTopicCount,
-    pendingResume: false,
-    pendingResumeSessions: [],
-    pendingModelPick: false,
-    pendingEffortPick: false,
-    pendingPermission: null,
-    ptySidecar: null,
-    ptyBuffer: "",
-    messageQueue: [],
-    flushInProgress: false,
-    lastWrittenEntryId: null,
-  };
+  });
   mintAgentToken(agentId, info.userId ?? null, info.privileged ?? false);
   agents.set(agentId, managed);
 
@@ -718,34 +668,12 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         queue: [],
       };
       mintAgentToken(p.id, info.userId ?? null, info.privileged ?? false);
-      const managed: ManagedAgent = {
+      const managed = createManagedAgent({
         info,
-        session: null,
+        skillCwd: p.cwd,
         sessionId: p.lastSessionId,
-        consumerPromise: null,
-        pendingTurn: null,
-        afterTurnPromise: null,
-        turnCancelToken: 0,
-        aborting: false,
-        abortPromise: null,
-        slashCommands: autocompleteCommands(),
-        skills: deduplicateSkills([...discoverUserSkills(), ...discoverProjectSkills(p.cwd), ...discoverPluginSkills(), ...discoverBundledSkills()]),
-        sdkReportedCommands: [],
-        thinkingStartedAt: 0,
-        toolCallTimestamps: new Map(),
-        topicGenerating: false,
         topicMessageCount: persistedTopicCount,
-        pendingResume: false,
-        pendingResumeSessions: [],
-        pendingModelPick: false,
-        pendingEffortPick: false,
-        pendingPermission: null,
-        ptySidecar: null,
-        ptyBuffer: "",
-        messageQueue: [],
-        flushInProgress: false,
-        lastWrittenEntryId: null,
-      };
+      });
       agents.set(p.id, managed);
 
       // Load log history into cache (browsers connect later, so we cache it).
