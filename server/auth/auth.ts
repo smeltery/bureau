@@ -7,7 +7,7 @@
 // the relevant operation; if you change any of these comments, double-check
 // the docs/features/access-and-invites.md and docs/security-audit.md.
 
-import type { UserRole, InviteWire, SessionWire, SessionContext } from "../../shared/types.ts";
+import type { UserRole, SessionContext } from "../../shared/types.ts";
 import { lowercaseKey } from "../../shared/identity.ts";
 import { claimUserByName, getUserById, getUserByName, hasOwner } from "../users.ts";
 import { hashOf, randomToken, safeHashEq } from "./tokens.ts";
@@ -17,6 +17,7 @@ import { forceExpireSocketsForSession } from "./session-sockets.ts";
 export { setRoomsSnapshotProvider } from "./bootstrap-owner.ts";
 import { commitBootstrapOwnerUser, snapshotRoomIds } from "./bootstrap-owner.ts";
 import { ensureLoaded, inviteStore, mutate, persistInvites, persistSessions, sessionStore, type StoredInvite, type StoredSession } from "./store.ts";
+export { listActiveSessions, listActiveSessionsForUserId, listInvites, listInvitesForUsername } from "./lists.ts";
 
 setHasOwnerProvider(hasOwner);
 export {
@@ -596,83 +597,6 @@ function validateByHash(hash: string): SessionLookup | null {
     role: user.role,
     needsRolling,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Wire shapes for owner UI.
-
-function toInviteWire(v: StoredInvite): InviteWire {
-  return {
-    tokenPrefix: v.tokenPrefix,
-    username: v.username,
-    role: v.role,
-    createdBy: v.createdBy,
-    createdAt: v.createdAt,
-    expiresAt: v.expiresAt,
-    ...(v.bootstrap ? { bootstrap: true as const } : {}),
-  };
-}
-
-function toSessionWire(v: StoredSession): SessionWire {
-  const user = getUserById(v.userId);
-  return {
-    sessionPrefix: v.sessionPrefix,
-    username: user?.name ?? "(deleted)",
-    createdAt: v.createdAt,
-    lastSeenAt: v.lastSeenAt,
-    expiresAt: v.expiresAt,
-    absoluteExpiresAt: v.absoluteExpiresAt,
-    userAgent: v.userAgent,
-  };
-}
-
-export function listInvites(): InviteWire[] {
-  ensureLoaded();
-  const now = Date.now();
-  const result: InviteWire[] = [];
-  for (const v of inviteStore().values()) {
-    if (v.consumed) continue;
-    if (v.expiresAt < now) continue;
-    result.push(toInviteWire(v));
-  }
-  return result.sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export function listInvitesForUsername(name: string): InviteWire[] {
-  ensureLoaded();
-  const now = Date.now();
-  const target = lowercaseKey(name);
-  const result: InviteWire[] = [];
-  for (const v of inviteStore().values()) {
-    if (v.consumed) continue;
-    if (v.expiresAt < now) continue;
-    if (!v.username || lowercaseKey(v.username) !== target) continue;
-    result.push(toInviteWire(v));
-  }
-  return result.sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export function listActiveSessions(): SessionWire[] {
-  ensureLoaded();
-  const now = Date.now();
-  const result: SessionWire[] = [];
-  for (const v of sessionStore().values()) {
-    if (v.expiresAt < now || v.absoluteExpiresAt < now) continue;
-    result.push(toSessionWire(v));
-  }
-  return result.sort((a, b) => b.lastSeenAt - a.lastSeenAt);
-}
-
-export function listActiveSessionsForUserId(userId: string): SessionWire[] {
-  ensureLoaded();
-  const now = Date.now();
-  const result: SessionWire[] = [];
-  for (const v of sessionStore().values()) {
-    if (v.expiresAt < now || v.absoluteExpiresAt < now) continue;
-    if (v.userId !== userId) continue;
-    result.push(toSessionWire(v));
-  }
-  return result.sort((a, b) => b.lastSeenAt - a.lastSeenAt);
 }
 
 export async function revokeOutstandingInviteByPrefixForUsername(prefix: string, username: string): Promise<RevokeResult> {
