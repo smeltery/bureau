@@ -22,11 +22,7 @@ import {
   updateRun,
   findRun,
   appendRunLog,
-  loadRunLog,
   loadRunLogWithAncestors,
-  loadRunSessionsMap,
-  persistRunSessionFork,
-  findUsageAtForkRun,
   rollRunSessionUsageOnResume,
   listAllCronjobIdsOnDisk,
   readEnvFile,
@@ -34,7 +30,7 @@ import {
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "../agents/session/paths.ts";
 import { officeConfig } from "../agents/state.ts";
 import { getBackend } from "../backends/index.ts";
-import type { BackendSession, CreateSessionOptions, NormalizedMessage } from "../backends/types.ts";
+import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
 import { getUserById, getUserByName } from "../users.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 import { mintRunToken, revokeRunToken } from "./tokens.ts";
@@ -43,6 +39,7 @@ import { emitRunDiffWithDeps, emitRunReadFileWithDeps, type AffordanceActiveRun,
 import { readCronjobLifetimeUsage as readCronjobLifetimeUsageFromDisk } from "./usage.ts";
 import { processNormalizedEvent, writeLog, type ActiveRun } from "./run-events.ts";
 import { addCronjobDefinition, deleteCronjobDefinition, updateCronjobDefinition, type AddCronjobInput, type UpdateCronjobChanges } from "./definitions.ts";
+import { editRunMessageWithDeps } from "./run-edit.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
@@ -682,149 +679,22 @@ export async function editRunMessage(jobId: string, runId: string, logEntryId: s
 }
 
 async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: string, leaf: string, username?: string): Promise<void> {
-  const jobId = run.cronjobId;
-  const runId = run.id;
-
-  // 1. Locate the target log entry in the run's transcript (with ancestry).
-  const oldEntries = loadRunLogWithAncestors(jobId, runId, leaf);
-  const targetEntry = oldEntries.find((e) => e.id === logEntryId);
-  if (!targetEntry || targetEntry.kind !== "user_message") {
-    emitRunErrorEntry(jobId, runId, "Cannot edit: message not found.");
-    return;
-  }
-
-  // 2. Match the target to a position in the backend session's message list.
-  //    Mirror agent-manager's content + occurrence-index strategy.
-  const backend = cronRunBackend(run);
-  let sessionMessages: NormalizedMessage[];
-  try {
-    sessionMessages = await backend.getSessionMessages(leaf, run.cwdSnapshot);
-  } catch (err: any) {
-    emitRunErrorEntry(jobId, runId, `Failed to load session messages: ${err.message || String(err)}`);
-    return;
-  }
-  const targetUsername = targetEntry.metadata?.username as string | undefined;
-  const targetSdkText = (targetEntry.metadata?.sdkText as string | undefined) ?? targetEntry.content;
-  const prefixedContent = targetUsername ? `[${targetUsername}] ${targetSdkText}` : targetSdkText;
-  const userLogEntries = oldEntries.filter((e) => e.kind === "user_message");
-  let occurrenceIndex = 0;
-  for (const e of userLogEntries) {
-    const u = e.metadata?.username as string | undefined;
-    const sdkText = (e.metadata?.sdkText as string | undefined) ?? e.content;
-    const prefixed = u ? `[${u}] ${sdkText}` : sdkText;
-    if (prefixed === prefixedContent) {
-      if (e.id === logEntryId) break;
-      occurrenceIndex++;
-    }
-  }
-  // Skip the cronjob's original prompt: it's the backend's first user message but
-  // not a LogEntry, so its content will never match. occurrenceIndex therefore
-  // counts from the first post-prompt user message.
-  const cronjobPromptIsFirstSdkUser = sessionMessages[0]?.role === "user";
-  let matchCount = 0;
-  let targetIdx = -1;
-  for (let i = cronjobPromptIsFirstSdkUser ? 1 : 0; i < sessionMessages.length; i++) {
-    const message = sessionMessages[i];
-    if (message.role !== "user") continue;
-    if (message.text === prefixedContent) {
-      if (matchCount === occurrenceIndex) {
-        targetIdx = i;
-        break;
-      }
-      matchCount++;
-    }
-  }
-  if (targetIdx <= 0) {
-    emitRunErrorEntry(jobId, runId, "Cannot edit: could not locate message in backend session.");
-    return;
-  }
-
-  // 3. Fork before the target message so the original message is excluded from
-  //    the new leaf. Each backend handles its own predecessor semantics.
-  let newSessionId: string;
-  let forkFromBackendSessionId = leaf;
-  try {
-    const forkResult = await backend.forkSessionBeforeMessage(leaf, sessionMessages[targetIdx].uuid);
-    if (forkResult.kind === "fresh") {
-      emitRunErrorEntry(jobId, runId, "Cannot edit: backend returned a fresh fork without a session id.");
-      return;
-    }
-    newSessionId = forkResult.sessionId;
-    forkFromBackendSessionId = forkResult.forkedFromSessionId;
-  } catch (err: any) {
-    emitRunErrorEntry(jobId, runId, `Fork failed: ${err.message || String(err)}`);
-    return;
-  }
-
-  // 4. Try to resume the new fork. If this fails, do NOT update currentSessionId
-  //    — leave the run pointing at the old leaf so a retry can start over.
-  let session: BackendSession;
-  try {
-    session = backend.resumeSession(newSessionId, buildRunResumeOptions(run, newSessionId));
-  } catch (err: any) {
-    revokeRunToken(runId);
-    emitRunErrorEntry(jobId, runId, `Failed to start fork: ${err.message || String(err)}`);
-    return;
-  }
-
-  // 5. The target log entry may live in an ancestor's JSONL (if the user has
-  //    forked before). Walk back to find which JSONL actually contains it,
-  //    and point forkedFrom at that ancestor — keeps loadRunLogWithAncestors
-  //    cutting at the right level.
-  let forkFromSessionId = forkFromBackendSessionId;
-  const leafEntries = loadRunLog(jobId, runId, leaf);
-  if (!leafEntries.some((e) => e.id === logEntryId)) {
-    const sessMap = loadRunSessionsMap(jobId, runId);
-    let walk: string | undefined = sessMap[leaf]?.forkedFrom;
-    const visited = new Set<string>([leaf]);
-    while (walk && !visited.has(walk)) {
-      visited.add(walk);
-      const ancestorEntries = loadRunLog(jobId, runId, walk);
-      if (ancestorEntries.some((e) => e.id === logEntryId)) {
-        forkFromSessionId = walk;
-        break;
-      }
-      walk = sessMap[walk]?.forkedFrom;
-    }
-  }
-
-  // 6. Persist fork metadata + parent-base usage, then update the run's
-  //    currentSessionId so getRunTranscript walks back from the fork.
-  const parentBase = findUsageAtForkRun(jobId, runId, forkFromSessionId, logEntryId);
-  persistRunSessionFork(jobId, runId, newSessionId, forkFromSessionId, logEntryId, parentBase);
-  const updatedRun = updateRun(jobId, runId, { currentSessionId: newSessionId });
-  if (updatedRun) eventHandler({ type: "cronjob_run_updated", run: updatedRun });
-
-  // 7. Re-emit the transcript up to (but not including) the edited entry so
-  //    every connected client switches to the new branch immediately.
-  const streamId = cronjobRunStreamId(runId);
-  const parentEntries: LogEntry[] = [];
-  for (const e of oldEntries) {
-    if (e.id === logEntryId) break;
-    parentEntries.push(e);
-  }
-  eventHandler({ type: "clear_logs", agentId: streamId });
-  for (const e of parentEntries) {
-    eventHandler({ type: "log_entry", entry: e });
-  }
-
-  // 8. Wire up the active run, persist the new edited message, send it.
-  const active = installResumedActive(updatedRun ?? run, session, newSessionId);
-  writeLog(active, "user_message", newText, eventHandler, username ? { username } : undefined);
-  const prefixedText = username ? `[${username}] ${newText}` : newText;
-  (async () => {
-    try {
-      await session.send(prefixedText);
-    } catch (err: any) {
-      if (active.killed) return;
-      console.error(`Cronjob run ${runId} edit-send error:`, err.message);
-      writeLog(active, "error", `Failed to send edited message: ${err.message || String(err)}`, eventHandler);
-      try {
-        session.close();
-      } catch {}
-      finalizeRun(active, "failed", err.message || String(err));
-    }
-  })();
+  await editRunMessageWithDeps(
+    {
+      cronRunBackend,
+      buildRunResumeOptions,
+      emitRunErrorEntry,
+      installResumedActive,
+      finalizeRun,
+      revokeRunToken,
+      emitEvent: eventHandler,
+    },
+    run,
+    logEntryId,
+    newText,
+    leaf,
+    username,
+  );
 }
 
 // ---------------------------------------------------------------------------
