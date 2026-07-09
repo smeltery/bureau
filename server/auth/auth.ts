@@ -14,6 +14,8 @@ import { lowercaseKey } from "../../shared/identity.ts";
 import { claimUserByName, deleteUserById, getUserById, getUserByName, hasOwner, setUserRoleById, updateUserById } from "../users.ts";
 import { hashOf, randomToken, safeHashEq } from "./tokens.ts";
 import { setHasOwnerProvider } from "./http-env.ts";
+export { forceExpireSocketsForSession, registerSocket, unregisterSocket } from "./session-sockets.ts";
+import { forceExpireSocketsForSession } from "./session-sockets.ts";
 
 setHasOwnerProvider(hasOwner);
 export {
@@ -193,50 +195,6 @@ function fireSessionsChangedHook(): void {
   } catch (err) {
     console.error("[auth] onSessionsChangedHook threw:", err);
   }
-}
-
-// ---------------------------------------------------------------------------
-// WS registry: sessionIdHash → sockets currently authenticated with that
-// session. Populated at upgrade; cleared at close. Used to force-close on
-// revoke so the WS doesn't keep pumping messages until the next client send.
-
-type ClosableSocket = { send?: (data: string) => void; close: () => void };
-const wsBySession = new Map<string, Set<ClosableSocket>>();
-
-export function registerSocket(sessionIdHash: string, ws: ClosableSocket) {
-  let set = wsBySession.get(sessionIdHash);
-  if (!set) {
-    set = new Set();
-    wsBySession.set(sessionIdHash, set);
-  }
-  set.add(ws);
-}
-
-export function unregisterSocket(sessionIdHash: string, ws: ClosableSocket) {
-  const set = wsBySession.get(sessionIdHash);
-  if (!set) return;
-  set.delete(ws);
-  if (set.size === 0) wsBySession.delete(sessionIdHash);
-}
-
-// Notify-then-close contract for server-initiated session invalidation:
-// revoke, logout, expiry, orphan-after-user-delete. The client's WS
-// onclose handler blindly retries on close, so closing without
-// `session_expired` first leaves the browser in a 2s reconnect loop
-// against a 401-returning upgrade. Sending the message first lets the
-// store's reload-to-login effect take over instead.
-function forceExpireSocketsForSession(sessionIdHash: string) {
-  const set = wsBySession.get(sessionIdHash);
-  if (!set) return;
-  for (const ws of set) {
-    try {
-      ws.send?.(JSON.stringify({ type: "session_expired" }));
-    } catch {}
-    try {
-      ws.close();
-    } catch {}
-  }
-  wsBySession.delete(sessionIdHash);
 }
 
 // ---------------------------------------------------------------------------
