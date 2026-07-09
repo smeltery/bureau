@@ -10,7 +10,6 @@ import { getUpdateStatus, onUpdateChange, startUpdateChecker } from "./update-ch
 import { getBackupStatus, startBackupScheduler } from "./backup.ts";
 import { broadcast, browsers, tasks } from "./ws/broadcast.ts";
 import { handleCommand } from "./ws/commands.ts";
-import { stopWatch, watchFile, type FileWatcher } from "./file-editor.ts";
 import {
   canSeeRoom,
   claimUser,
@@ -28,11 +27,8 @@ import {
   wouldDeleteLeaveNoOwner,
 } from "./users.ts";
 import { listAllPresence, refreshPresenceForUser, removePresence } from "./presence.ts";
-
-// Per-WS editor file watchers. Each open file gets one fs.watch handle keyed
-// by `${agentId}\0${absPath}` so the same path can be watched independently
-// across agents. Watchers close on editor_close or WS disconnect.
-export const editorWatchers = new WeakMap<import("bun").ServerWebSocket<unknown>, Map<string, FileWatcher>>();
+import { closeEditorWatch, closeEditorWatchesFor, findBrowserConnection, watchEditorFile } from "./editor-watchers.ts";
+export { editorWatchers } from "./editor-watchers.ts";
 import { handleLiveReloadRequest, startLiveReloadWatcher } from "./http/live-reload.ts";
 import { handleTasksRequest } from "./http/tasks.ts";
 import { handleCronjobsRequest } from "./http/cronjobs.ts";
@@ -201,47 +197,6 @@ function countTotalOnlineUsers(): number {
 export function pushPresenceListToEachWs() {
   for (const ws of browsers) {
     ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws), totalOnlineUsers: countTotalOnlineUsers() } as ServerMessage));
-  }
-}
-
-function editorKey(agentId: string, path: string): string {
-  return `${agentId}\0${path}`;
-}
-
-function findBrowserConnection(connectionId: string, sessionIdHash: string): import("bun").ServerWebSocket<unknown> | null {
-  for (const ws of browsers) {
-    const session = (ws.data as WsData | undefined)?.session ?? null;
-    if (session?.sessionIdHash !== sessionIdHash) continue;
-    if (getSessionContext(ws)?.connectionId === connectionId) return ws;
-  }
-  return null;
-}
-
-function watchEditorFile(agentId: string, absPath: string, connectionId: string) {
-  for (const ws of browsers) {
-    if (getSessionContext(ws)?.connectionId !== connectionId) continue;
-    const map = editorWatchers.get(ws) ?? new Map<string, FileWatcher>();
-    editorWatchers.set(ws, map);
-    const key = editorKey(agentId, absPath);
-    const old = map.get(key);
-    if (old) stopWatch(old);
-    const watcher = watchFile(absPath, agentId, (mtime) => {
-      ws.send(JSON.stringify({ type: "editor_external_change", agentId, path: absPath, mtime } as ServerMessage));
-    });
-    if (watcher) map.set(key, watcher);
-    return;
-  }
-}
-
-function closeEditorWatch(agentId: string, absPath: string, connectionId: string) {
-  for (const ws of browsers) {
-    if (getSessionContext(ws)?.connectionId !== connectionId) continue;
-    const map = editorWatchers.get(ws);
-    const watcher = map?.get(editorKey(agentId, absPath));
-    if (!watcher) return;
-    stopWatch(watcher);
-    map!.delete(editorKey(agentId, absPath));
-    return;
   }
 }
 
@@ -805,11 +760,7 @@ const server = Bun.serve<WsData>({
         pushPresenceListToEachWs();
       }
       clearWsUser(ws);
-      const map = editorWatchers.get(ws);
-      if (map) {
-        for (const w of map.values()) stopWatch(w);
-        editorWatchers.delete(ws);
-      }
+      closeEditorWatchesFor(ws);
     },
   },
 });
