@@ -7,9 +7,7 @@
 // the relevant operation; if you change any of these comments, double-check
 // the docs/features/access-and-invites.md and docs/security-audit.md.
 
-import { existsSync, readFileSync } from "fs";
 import type { UserRole, InviteWire, SessionWire, SessionContext } from "../../shared/types.ts";
-import { atomicWriteFileSync, INVITES_FILE, SESSIONS_FILE } from "../persistence/paths.ts";
 import { lowercaseKey } from "../../shared/identity.ts";
 import { claimUserByName, getUserById, getUserByName, hasOwner } from "../users.ts";
 import { hashOf, randomToken, safeHashEq } from "./tokens.ts";
@@ -18,6 +16,7 @@ export { forceExpireSocketsForSession, registerSocket, unregisterSocket } from "
 import { forceExpireSocketsForSession } from "./session-sockets.ts";
 export { setRoomsSnapshotProvider } from "./bootstrap-owner.ts";
 import { commitBootstrapOwnerUser, snapshotRoomIds } from "./bootstrap-owner.ts";
+import { ensureLoaded, inviteStore, mutate, persistInvites, persistSessions, sessionStore, type StoredInvite, type StoredSession } from "./store.ts";
 
 setHasOwnerProvider(hasOwner);
 export {
@@ -33,126 +32,6 @@ export {
   setOfficeName,
   setPublicOriginFallback,
 } from "./http-env.ts";
-
-// ---------------------------------------------------------------------------
-// On-disk record shapes (hashed). Raw tokens never persist.
-
-interface StoredInvite {
-  tokenHash: string; // sha256(rawToken) hex; the map key duplicates this for convenience
-  tokenPrefix: string; // first 8 chars of the raw base64url token, kept clear for UI
-  username: string | null; // null only for bootstrap invites
-  role: UserRole;
-  createdBy: string | null; // null for bootstrap
-  createdAt: number;
-  expiresAt: number;
-  consumed: boolean;
-  consumedAt: number | null;
-  bootstrap: boolean;
-}
-
-interface StoredSession {
-  sessionIdHash: string; // sha256(rawSessionId) hex
-  sessionPrefix: string; // first 8 chars of the raw base64url id, kept clear for UI
-  // Stable user identity. `userId` is authoritative for who owns the
-  // session; the display name is resolved from the user record at
-  // validation time, so a rename flows through to all in-flight sessions
-  // automatically.
-  userId: string;
-  createdAt: number;
-  lastSeenAt: number;
-  expiresAt: number;
-  absoluteExpiresAt: number;
-  userAgent: string | null;
-}
-
-// ---------------------------------------------------------------------------
-// In-process state. Loaded once on first call; mutated under `mutate()`.
-
-let invites: Map<string, StoredInvite> | null = null;
-let sessions: Map<string, StoredSession> | null = null;
-
-// Mutex: a chain of promises. Each `mutate` awaits the previous link before
-// running, so concurrent invite acceptances and revocations serialize. The
-// chain lives at module scope so it survives across the call sites we care
-// about (HTTP handlers, WS handlers, bootstrap).
-let mutexTail: Promise<unknown> = Promise.resolve();
-function mutate<T>(fn: () => Promise<T> | T): Promise<T> {
-  const run = mutexTail.then(() => fn());
-  // Swallow errors on the tail so a thrown caller doesn't poison the chain.
-  mutexTail = run.catch(() => undefined);
-  return run;
-}
-
-// ---------------------------------------------------------------------------
-// Load / persist
-
-function loadInvitesFromDisk(): Map<string, StoredInvite> {
-  const map = new Map<string, StoredInvite>();
-  try {
-    if (!existsSync(INVITES_FILE)) return map;
-    const raw = readFileSync(INVITES_FILE, "utf-8");
-    if (!raw.trim()) return map;
-    const parsed = JSON.parse(raw) as Record<string, StoredInvite>;
-    for (const [k, v] of Object.entries(parsed)) {
-      if (!v || typeof v.tokenHash !== "string") continue;
-      map.set(k, v);
-    }
-  } catch (err) {
-    console.error("Failed to load invites.json:", err);
-  }
-  return map;
-}
-
-function loadSessionsFromDisk(): Map<string, StoredSession> {
-  const map = new Map<string, StoredSession>();
-  try {
-    if (!existsSync(SESSIONS_FILE)) return map;
-    const raw = readFileSync(SESSIONS_FILE, "utf-8");
-    if (!raw.trim()) return map;
-    const parsed = JSON.parse(raw) as Record<string, Partial<StoredSession>>;
-    for (const [k, v] of Object.entries(parsed)) {
-      if (!v || typeof v.sessionIdHash !== "string") continue;
-      if (typeof v.userId !== "string" || !v.userId) continue;
-      map.set(k, {
-        sessionIdHash: v.sessionIdHash,
-        sessionPrefix: v.sessionPrefix ?? "",
-        userId: v.userId,
-        createdAt: v.createdAt ?? Date.now(),
-        lastSeenAt: v.lastSeenAt ?? Date.now(),
-        expiresAt: v.expiresAt ?? 0,
-        absoluteExpiresAt: v.absoluteExpiresAt ?? 0,
-        userAgent: v.userAgent ?? null,
-      });
-    }
-  } catch (err) {
-    console.error("Failed to load sessions.json:", err);
-  }
-  return map;
-}
-
-// Auth state mutations must surface persistence failures to the caller so
-// the caller can roll back in-memory state. Swallowing here would let
-// accept/mint/revoke report success while disk diverges from memory — on
-// the next restart the user would be locked out (consumed invite + lost
-// session) or able to reuse a "revoked" invite.
-function persistInvites() {
-  if (!invites) return;
-  const obj: Record<string, StoredInvite> = {};
-  for (const [k, v] of invites) obj[k] = v;
-  atomicWriteFileSync(INVITES_FILE, JSON.stringify(obj, null, 2));
-}
-
-function persistSessions() {
-  if (!sessions) return;
-  const obj: Record<string, StoredSession> = {};
-  for (const [k, v] of sessions) obj[k] = v;
-  atomicWriteFileSync(SESSIONS_FILE, JSON.stringify(obj, null, 2));
-}
-
-function ensureLoaded() {
-  if (invites === null) invites = loadInvitesFromDisk();
-  if (sessions === null) sessions = loadSessionsFromDisk();
-}
 
 // ---------------------------------------------------------------------------
 // Hooks for the dispatcher to be notified of acceptance events. Used so
@@ -263,14 +142,14 @@ export async function mintInvite(opts: MintOptions): Promise<MintResult | MintEr
     if (opts.replacePriorForUsername && trimmedName) {
       const target = lowercaseKey(trimmedName);
       const now0 = Date.now();
-      for (const [k, v] of invites!) {
+      for (const [k, v] of inviteStore()) {
         if (v.consumed) continue;
         if (v.expiresAt < now0) continue;
         if (!v.username || lowercaseKey(v.username) !== target) continue;
         removedKeys.push(k);
         removedSnapshots.push(v);
       }
-      for (const k of removedKeys) invites!.delete(k);
+      for (const k of removedKeys) inviteStore().delete(k);
     }
 
     const { raw, hash, prefix } = randomToken();
@@ -287,13 +166,13 @@ export async function mintInvite(opts: MintOptions): Promise<MintResult | MintEr
       consumedAt: null,
       bootstrap: !!opts.bootstrap,
     };
-    invites!.set(hash, invite);
+    inviteStore().set(hash, invite);
     try {
       persistInvites();
     } catch (err) {
-      invites!.delete(hash);
+      inviteStore().delete(hash);
       for (let i = 0; i < removedKeys.length; i++) {
-        invites!.set(removedKeys[i], removedSnapshots[i]);
+        inviteStore().set(removedKeys[i], removedSnapshots[i]);
       }
       throw err;
     }
@@ -314,7 +193,7 @@ export function peekInvite(rawToken: string): InvitePeek | { error: "not_found" 
   ensureLoaded();
   if (!rawToken) return { error: "not_found" };
   const hash = hashOf(rawToken);
-  const invite = invites!.get(hash);
+  const invite = inviteStore().get(hash);
   if (!invite) return { error: "not_found" };
   if (!safeHashEq(invite.tokenHash, hash)) return { error: "not_found" };
   if (invite.consumed) return { error: "consumed" };
@@ -348,7 +227,7 @@ export interface AcceptErr {
 // refused because an owner exists (the invite itself is stale).
 function markAllUnconsumedBootstrapInvitesConsumed(): void {
   const stale: StoredInvite[] = [];
-  for (const inv of invites!.values()) {
+  for (const inv of inviteStore().values()) {
     if (inv.bootstrap && !inv.consumed) stale.push(inv);
   }
   if (stale.length === 0) return;
@@ -376,7 +255,7 @@ export async function acceptInvite(rawToken: string, ctx: { userAgent: string | 
   return mutate(() => {
     ensureLoaded();
     const hash = hashOf(rawToken);
-    const invite = invites!.get(hash);
+    const invite = inviteStore().get(hash);
     if (!invite) return { ok: false, error: "not_found" };
     if (!safeHashEq(invite.tokenHash, hash)) return { ok: false, error: "not_found" };
     if (invite.consumed) return { ok: false, error: "consumed" };
@@ -450,11 +329,11 @@ export async function acceptInvite(rawToken: string, ctx: { userAgent: string | 
       if (bootstrapRollback) bootstrapRollback();
       throw err;
     }
-    sessions!.set(sessionHash, session);
+    sessionStore().set(sessionHash, session);
     try {
       persistSessions();
     } catch (err) {
-      sessions!.delete(sessionHash);
+      sessionStore().delete(sessionHash);
       invite.consumed = prevConsumed;
       invite.consumedAt = null;
       try {
@@ -534,11 +413,11 @@ export async function claimOwnership(rawChosenName: string, ctx: { userAgent: st
       absoluteExpiresAt: now + absoluteTtlMs,
       userAgent: ctx.userAgent,
     };
-    sessions!.set(sessionHash, session);
+    sessionStore().set(sessionHash, session);
     try {
       persistSessions();
     } catch (err) {
-      sessions!.delete(sessionHash);
+      sessionStore().delete(sessionHash);
       rollback();
       throw err;
     }
@@ -564,19 +443,19 @@ export async function revokeInviteByPrefix(prefix: string): Promise<RevokeResult
   return mutate(() => {
     ensureLoaded();
     const matches: string[] = [];
-    for (const [k, v] of invites!) {
+    for (const [k, v] of inviteStore()) {
       if (v.tokenPrefix === prefix) matches.push(k);
       if (matches.length > 1) break;
     }
     if (matches.length === 0) return "not_found";
     if (matches.length > 1) return "ambiguous";
     const k = matches[0];
-    const prev = invites!.get(k)!;
-    invites!.delete(k);
+    const prev = inviteStore().get(k)!;
+    inviteStore().delete(k);
     try {
       persistInvites();
     } catch (err) {
-      invites!.set(k, prev);
+      inviteStore().set(k, prev);
       throw err;
     }
     return "ok";
@@ -587,19 +466,19 @@ export async function revokeSessionByPrefix(prefix: string): Promise<RevokeResul
   return mutate(() => {
     ensureLoaded();
     const matches: string[] = [];
-    for (const [k, v] of sessions!) {
+    for (const [k, v] of sessionStore()) {
       if (v.sessionPrefix === prefix) matches.push(k);
       if (matches.length > 1) break;
     }
     if (matches.length === 0) return "not_found";
     if (matches.length > 1) return "ambiguous";
     const hash = matches[0];
-    const prev = sessions!.get(hash)!;
-    sessions!.delete(hash);
+    const prev = sessionStore().get(hash)!;
+    sessionStore().delete(hash);
     try {
       persistSessions();
     } catch (err) {
-      sessions!.set(hash, prev);
+      sessionStore().set(hash, prev);
       throw err;
     }
     forceExpireSocketsForSession(hash);
@@ -611,13 +490,13 @@ export async function revokeSessionByPrefix(prefix: string): Promise<RevokeResul
 export async function logoutBySessionHash(sessionIdHash: string): Promise<boolean> {
   return mutate(() => {
     ensureLoaded();
-    const prev = sessions!.get(sessionIdHash);
+    const prev = sessionStore().get(sessionIdHash);
     if (!prev) return false;
-    sessions!.delete(sessionIdHash);
+    sessionStore().delete(sessionIdHash);
     try {
       persistSessions();
     } catch (err) {
-      sessions!.set(sessionIdHash, prev);
+      sessionStore().set(sessionIdHash, prev);
       throw err;
     }
     forceExpireSocketsForSession(sessionIdHash);
@@ -632,11 +511,11 @@ export async function evictSessionsForUserId(userId: string): Promise<number> {
   return mutate(() => {
     ensureLoaded();
     const hashes: string[] = [];
-    for (const [hash, s] of sessions!) {
+    for (const [hash, s] of sessionStore()) {
       if (s.userId === userId) hashes.push(hash);
     }
     if (hashes.length === 0) return 0;
-    for (const hash of hashes) sessions!.delete(hash);
+    for (const hash of hashes) sessionStore().delete(hash);
     try {
       persistSessions();
     } catch (err) {
@@ -676,19 +555,19 @@ export function revalidateByHash(sessionIdHash: string): SessionLookup | null {
 }
 
 function validateByHash(hash: string): SessionLookup | null {
-  const session = sessions!.get(hash);
+  const session = sessionStore().get(hash);
   if (!session) return null;
   if (!safeHashEq(session.sessionIdHash, hash)) return null;
   const now = Date.now();
   if (session.expiresAt < now || session.absoluteExpiresAt < now) {
-    sessions!.delete(hash);
+    sessionStore().delete(hash);
     forceExpireSocketsForSession(hash);
     fireSessionsChangedHook();
     return null;
   }
   const user = getUserById(session.userId);
   if (!user) {
-    sessions!.delete(hash);
+    sessionStore().delete(hash);
     forceExpireSocketsForSession(hash);
     fireSessionsChangedHook();
     return null;
@@ -751,7 +630,7 @@ export function listInvites(): InviteWire[] {
   ensureLoaded();
   const now = Date.now();
   const result: InviteWire[] = [];
-  for (const v of invites!.values()) {
+  for (const v of inviteStore().values()) {
     if (v.consumed) continue;
     if (v.expiresAt < now) continue;
     result.push(toInviteWire(v));
@@ -764,7 +643,7 @@ export function listInvitesForUsername(name: string): InviteWire[] {
   const now = Date.now();
   const target = lowercaseKey(name);
   const result: InviteWire[] = [];
-  for (const v of invites!.values()) {
+  for (const v of inviteStore().values()) {
     if (v.consumed) continue;
     if (v.expiresAt < now) continue;
     if (!v.username || lowercaseKey(v.username) !== target) continue;
@@ -777,7 +656,7 @@ export function listActiveSessions(): SessionWire[] {
   ensureLoaded();
   const now = Date.now();
   const result: SessionWire[] = [];
-  for (const v of sessions!.values()) {
+  for (const v of sessionStore().values()) {
     if (v.expiresAt < now || v.absoluteExpiresAt < now) continue;
     result.push(toSessionWire(v));
   }
@@ -788,7 +667,7 @@ export function listActiveSessionsForUserId(userId: string): SessionWire[] {
   ensureLoaded();
   const now = Date.now();
   const result: SessionWire[] = [];
-  for (const v of sessions!.values()) {
+  for (const v of sessionStore().values()) {
     if (v.expiresAt < now || v.absoluteExpiresAt < now) continue;
     if (v.userId !== userId) continue;
     result.push(toSessionWire(v));
@@ -802,7 +681,7 @@ export async function revokeOutstandingInviteByPrefixForUsername(prefix: string,
     const target = lowercaseKey(username);
     const now = Date.now();
     const matches: string[] = [];
-    for (const [k, v] of invites!) {
+    for (const [k, v] of inviteStore()) {
       if (v.tokenPrefix !== prefix) continue;
       if (v.consumed) continue;
       if (v.expiresAt < now) continue;
@@ -812,15 +691,15 @@ export async function revokeOutstandingInviteByPrefixForUsername(prefix: string,
     if (matches.length === 0) return "not_found";
     if (matches.length > 1) return "ambiguous";
     const k = matches[0];
-    const row = invites!.get(k)!;
+    const row = inviteStore().get(k)!;
     if (!row.username || lowercaseKey(row.username) !== target) {
       return "not_found";
     }
-    invites!.delete(k);
+    inviteStore().delete(k);
     try {
       persistInvites();
     } catch (err) {
-      invites!.set(k, row);
+      inviteStore().set(k, row);
       throw err;
     }
     return "ok";
@@ -834,7 +713,7 @@ export async function revokeActiveSessionByPrefixForUserId(prefix: string, userI
     ensureLoaded();
     const now = Date.now();
     const matches: string[] = [];
-    for (const [k, v] of sessions!) {
+    for (const [k, v] of sessionStore()) {
       if (v.sessionPrefix !== prefix) continue;
       if (v.expiresAt < now || v.absoluteExpiresAt < now) continue;
       matches.push(k);
@@ -843,18 +722,18 @@ export async function revokeActiveSessionByPrefixForUserId(prefix: string, userI
     if (matches.length === 0) return "not_found";
     if (matches.length > 1) return "ambiguous";
     const hash = matches[0];
-    const row = sessions!.get(hash)!;
+    const row = sessionStore().get(hash)!;
     if (row.userId !== userId) return "not_found";
     // Confidentiality-critical: this check is *after* the scope test so a
     // foreign last-owner prefix can never produce a divergent response.
     if (wouldRevokeLeaveOfficeUnreachable(hash)) {
       return "would_strand_office";
     }
-    sessions!.delete(hash);
+    sessionStore().delete(hash);
     try {
       persistSessions();
     } catch (err) {
-      sessions!.set(hash, row);
+      sessionStore().set(hash, row);
       throw err;
     }
     forceExpireSocketsForSession(hash);
@@ -884,7 +763,7 @@ export function countActiveOwnerSessions(): number {
   ensureLoaded();
   const now = Date.now();
   let n = 0;
-  for (const s of sessions!.values()) {
+  for (const s of sessionStore().values()) {
     if (s.expiresAt < now || s.absoluteExpiresAt < now) continue;
     const u = getUserById(s.userId);
     if (u?.role === "owner") n++;
@@ -894,12 +773,12 @@ export function countActiveOwnerSessions(): number {
 
 export function wouldRevokeLeaveOfficeUnreachable(sessionIdHash: string): boolean {
   ensureLoaded();
-  const target = sessions!.get(sessionIdHash);
+  const target = sessionStore().get(sessionIdHash);
   if (!target) return false;
   const targetUser = getUserById(target.userId);
   if (targetUser?.role !== "owner") return false;
   const now = Date.now();
-  for (const [hash, s] of sessions!) {
+  for (const [hash, s] of sessionStore()) {
     if (hash === sessionIdHash) continue;
     if (s.expiresAt < now || s.absoluteExpiresAt < now) continue;
     const u = getUserById(s.userId);
@@ -911,7 +790,7 @@ export function wouldRevokeLeaveOfficeUnreachable(sessionIdHash: string): boolea
 export function resolveSessionHashByPrefix(prefix: string): string | null {
   ensureLoaded();
   let found: string | null = null;
-  for (const [hash, s] of sessions!) {
+  for (const [hash, s] of sessionStore()) {
     if (s.sessionPrefix === prefix) {
       if (found !== null) return null; // ambiguous
       found = hash;
