@@ -30,15 +30,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-bun-flox
-      - name: Typecheck
-        run: flox activate -- bun run typecheck
-      - name: Lint
-        run: flox activate -- bun run lint
-      - name: Format check
-        run: flox activate -- bun run format:check
-      - name: Test
-        run: flox activate -- bun run test
-      - name: Build UI
-        run: flox activate -- bun run build:ui
-      - name: Build server
-        run: flox activate -- bun run build:server
+      - name: Run app CI
+        run: flox activate -- bun run ci

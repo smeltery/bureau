@@ -7,11 +7,13 @@ on:
     paths:
       - "website/**"
       - "vercel.json"
+      - ".github/workflows/website-ci.yml"
   push:
     branches: [master]
     paths:
       - "website/**"
       - "vercel.json"
+      - ".github/workflows/website-ci.yml"
 
 concurrency:
   group: website-ci-${{ github.ref }}
