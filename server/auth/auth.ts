@@ -8,12 +8,12 @@
 // the docs/features/access-and-invites.md and docs/security-audit.md.
 
 import { existsSync, readFileSync } from "fs";
-import { randomBytes, createHash, timingSafeEqual } from "crypto";
 import type { UserRole, UserRecord, InviteWire, SessionWire, SessionContext } from "../../shared/types.ts";
 import { atomicWriteFileSync, INVITES_FILE, SESSIONS_FILE } from "../persistence/paths.ts";
 import { normalizePublicOrigin } from "../../shared/public-origin.ts";
 import { lowercaseKey } from "../../shared/identity.ts";
 import { claimUserByName, deleteUserById, getUserById, getUserByName, hasOwner, setUserRoleById, updateUserById } from "../users.ts";
+import { hashOf, randomToken, safeHashEq } from "./tokens.ts";
 
 // Injected by server/index.ts at boot. New owners need a snapshot of every
 // current room id as their initial allowedRooms (the strict string[] model
@@ -178,31 +178,6 @@ function fireSessionsChangedHook(): void {
   } catch (err) {
     console.error("[auth] onSessionsChangedHook threw:", err);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Token / hashing primitives
-
-const TOKEN_BYTES = 32; // 256 bits of entropy
-const PREFIX_LEN = 8;
-
-function randomToken(): { raw: string; hash: string; prefix: string } {
-  const buf = randomBytes(TOKEN_BYTES);
-  const raw = buf.toString("base64url");
-  const hash = createHash("sha256").update(raw).digest("hex");
-  return { raw, hash, prefix: raw.slice(0, PREFIX_LEN) };
-}
-
-function hashOf(rawToken: string): string {
-  return createHash("sha256").update(rawToken).digest("hex");
-}
-
-// Constant-time hex string compare. Inputs must be the same length, which
-// they are here (sha256 hex = 64 chars). Guards against timing side channels
-// during the Map.get → compare path.
-function safeHashEq(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
 // ---------------------------------------------------------------------------
@@ -1192,8 +1167,4 @@ export function readSessionCookie(req: Request): string | null {
     return value || null;
   }
   return null;
-}
-
-export function safePrefix(rawToken: string): string {
-  return rawToken.slice(0, PREFIX_LEN);
 }

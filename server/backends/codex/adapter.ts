@@ -25,7 +25,7 @@
 import { readFileSync, statSync } from "fs";
 import { basename } from "path";
 
-import { getFilePath, saveFile } from "../../persistence.ts";
+import { saveFile } from "../../persistence.ts";
 import { mimeTypeForFilename } from "../../mime-types.ts";
 import { errMessage } from "../../../shared/errors.ts";
 import { BackendNotConfiguredError } from "../../internal-types.ts";
@@ -52,6 +52,10 @@ import type {
 
 import { JsonRpcLiteClient, PASS, type JsonRpcId, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
 import { getCodexLoginCommands, isCodexAuthenticated } from "./native-bin.ts";
+import { extractApprovalInput, inferApprovalDescription, inferApprovalTitle, inferToolNameFromApproval, mapApprovalDecision } from "./approvals.ts";
+import { formatPatchChangeKind, formatWebSearchAction, mapTurnStatus } from "./protocol-format.ts";
+import { readThreadTurns, findTurnIndexContainingItemId } from "./thread-history.ts";
+import { buildCodexUserInput } from "./user-input.ts";
 
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import type { Model as CodexProtocolModel } from "./_generated/v2/Model.ts";
@@ -147,98 +151,6 @@ const DEFAULT_SANDBOX_MODE = "workspace-write";
 
 const CLIENT_INFO_NAME = "bureau";
 const CLIENT_INFO_VERSION = "1.0.0";
-
-// Cap for inlined text-ish attachments. Larger files get a stub pointer so the
-// model still knows the file is there without us blasting megabytes of stray
-// logs / build output into context.
-const MAX_INLINE_ATTACHMENT_BYTES = 64 * 1024;
-
-// Media-type allowlist for inlining attachment contents into the prompt.
-// Anything outside this list (binary blobs, unknown formats) gets a stub.
-const INLINE_TEXT_MEDIA_PREFIXES = ["text/", "application/json", "application/xml", "application/yaml", "application/x-yaml", "application/javascript", "application/typescript"];
-
-function isInlinableTextMedia(mediaType: string): boolean {
-  return INLINE_TEXT_MEDIA_PREFIXES.some((prefix) => mediaType.startsWith(prefix));
-}
-
-function formatWebSearchAction(action: unknown): string {
-  if (!action || typeof action !== "object") return "";
-  const a = action as Record<string, unknown>;
-  switch (a.type) {
-    case "search": {
-      const queries = Array.isArray(a.queries) ? a.queries.filter((q): q is string => typeof q === "string") : [];
-      const query = queries.length ? queries.join(" | ") : typeof a.query === "string" ? a.query : "";
-      return query ? `search: ${query}` : "search";
-    }
-    case "openPage": {
-      const url = typeof a.url === "string" ? a.url : "";
-      return url ? `openPage: ${url}` : "openPage";
-    }
-    case "findInPage": {
-      const pattern = typeof a.pattern === "string" ? a.pattern : "";
-      const url = typeof a.url === "string" ? a.url : "";
-      if (pattern && url) return `findInPage: ${pattern} @ ${url}`;
-      return pattern || url ? `findInPage: ${pattern || url}` : "findInPage";
-    }
-    case "other":
-      return "other";
-    default:
-      return "";
-  }
-}
-
-function compactRecord(record: Record<string, unknown>): Record<string, unknown> {
-  // Display-only cleanup for approval context; downstream logic never
-  // introspects this object.
-  return Object.fromEntries(
-    Object.entries(record).filter(([, value]) => {
-      if (value == null) return false;
-      if (typeof value === "string") return value.trim().length > 0;
-      if (Array.isArray(value)) return value.length > 0;
-      if (typeof value === "object") return Object.keys(value).length > 0;
-      return true;
-    }),
-  );
-}
-
-// Raw turn shape from thread/read includeTurns:true. We type loosely here
-// because the orchestrator only consumes a couple of fields; the generated
-// Turn type is richer than we need.
-interface RawTurn {
-  id: string;
-  // ThreadItem union is broad (~20 variants); the consumers here narrow by
-  // `type` and read id/text/content directly. Keep loose to avoid coupling
-  // the helper to the generated schema.
-  items: unknown[];
-}
-
-// Single thread/read call returning the parent thread's turn list. Used by
-// both getSessionMessages (flattens to NormalizedMessage[]) and
-// forkSessionBeforeMessage (needs turn structure for rollback arithmetic).
-async function readThreadTurns(client: JsonRpcLiteClient, threadId: string): Promise<RawTurn[]> {
-  const resp = await client.request<{ thread: { turns?: unknown[] } }>("thread/read", { threadId, includeTurns: true });
-  const rawTurns = resp.thread?.turns ?? [];
-  return rawTurns.map((raw): RawTurn => {
-    const t = raw as { id?: unknown; items?: unknown };
-    return {
-      id: typeof t?.id === "string" ? t.id : "",
-      items: Array.isArray(t?.items) ? t.items : [],
-    };
-  });
-}
-
-// Locate the turn (by index) whose items array contains an item with the
-// given id. Returns -1 if not found. Used by forkSessionBeforeMessage to
-// translate from item-level message uuid → turn-level rollback count.
-function findTurnIndexContainingItemId(turns: RawTurn[], itemId: string): number {
-  for (let i = 0; i < turns.length; i++) {
-    const items = turns[i].items;
-    for (const item of items) {
-      if ((item as { id?: unknown })?.id === itemId) return i;
-    }
-  }
-  return -1;
-}
 
 // ---------------------------------------------------------------------------
 // CodexSession
@@ -1098,7 +1010,7 @@ class CodexSession implements BackendSession {
       case "item/commandExecution/requestApproval":
       case "item/fileChange/requestApproval": {
         const approvalId = String(req.id);
-        const toolName = inferToolNameFromApproval(req.method, params);
+        const toolName = inferToolNameFromApproval(req.method);
         const title = inferApprovalTitle(req.method, params);
         const description = inferApprovalDescription(req.method, params);
         // The promise we return is what the JsonRpcLiteClient's handler chain
@@ -1237,197 +1149,6 @@ class CodexSession implements BackendSession {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function mapTurnStatus(status: string | undefined): "completed" | "interrupted" | "failed" {
-  switch (status) {
-    case "completed":
-      return "completed";
-    case "interrupted":
-      return "interrupted";
-    case "failed":
-      return "failed";
-    default:
-      return "failed";
-  }
-}
-
-function formatPatchChangeKind(kind: unknown): string {
-  if (typeof kind === "string") return kind;
-  if (!kind || typeof kind !== "object") return "modified";
-  const type = (kind as { type?: unknown }).type;
-  if (typeof type !== "string") return "modified";
-  if (type !== "update") return type;
-  const movePath = (kind as { move_path?: unknown }).move_path;
-  return typeof movePath === "string" && movePath.length > 0 ? `update -> ${movePath}` : "update";
-}
-
-// The approval response enums differ by method:
-//   applyPatchApproval / execCommandApproval (legacy):  ReviewDecision
-//     -> "approved" | "approved_for_session" | "denied"
-//   item/commandExecution/requestApproval (v2):  CommandExecutionApprovalDecision
-//     -> "accept" | "acceptForSession" | "acceptWithExecpolicyAmendment"
-//        | "decline" | "cancel"
-//   item/fileChange/requestApproval (v2):  FileChangeApprovalDecision
-//     -> "accept" | "acceptForSession" | "decline" | "cancel"
-// We map our 3-button /resolve UX to: allow_persistent -> acceptForSession,
-// allow_once -> accept, deny -> decline. "cancel" is intentionally not used:
-// it interrupts the whole turn, which is harsher than the user typically
-// means by a single-tool deny.
-function mapApprovalDecision(method: string, decision: ApprovalDecision): string {
-  if (method === "applyPatchApproval" || method === "execCommandApproval") {
-    switch (decision.kind) {
-      case "allow_persistent":
-        return "approved_for_session";
-      case "allow_once":
-        return "approved";
-      case "deny":
-        return "denied";
-    }
-  }
-  // v2 command-execution + file-change approvals — same enum variant names.
-  switch (decision.kind) {
-    case "allow_persistent":
-      return "acceptForSession";
-    case "allow_once":
-      return "accept";
-    case "deny":
-      return "decline";
-  }
-}
-
-function inferToolNameFromApproval(method: string, _params: unknown): string {
-  switch (method) {
-    case "applyPatchApproval":
-    case "item/fileChange/requestApproval":
-      return "Edit";
-    case "execCommandApproval":
-    case "item/commandExecution/requestApproval":
-      return "Bash";
-    case "item/permissions/requestApproval":
-      return "Permissions";
-    default:
-      return method;
-  }
-}
-
-function inferApprovalTitle(method: string, rawParams: unknown): string {
-  const params = rawParams as
-    | {
-        command?: string | string[];
-        commandActions?: { command?: string }[];
-      }
-    | null
-    | undefined;
-  switch (method) {
-    case "applyPatchApproval":
-    case "item/fileChange/requestApproval":
-      return `Codex wants to apply a patch`;
-    case "execCommandApproval":
-    case "item/commandExecution/requestApproval": {
-      const rawCommand = params?.command;
-      const cmd = Array.isArray(rawCommand) ? rawCommand.join(" ") : (rawCommand ?? params?.commandActions?.[0]?.command ?? "");
-      return cmd ? `Codex wants to run: \`${cmd.slice(0, 80)}\`` : `Codex wants to run a command`;
-    }
-    case "item/permissions/requestApproval":
-      return `Codex wants to change permissions`;
-    default:
-      return `Codex wants approval`;
-  }
-}
-
-function inferApprovalDescription(_method: string, params: unknown): string | undefined {
-  const reason = (params as { reason?: unknown } | null | undefined)?.reason;
-  if (typeof reason === "string" && reason.trim()) return reason;
-  return undefined;
-}
-
-function extractApprovalInput(method: string, params: unknown): Record<string, unknown> {
-  if (!params || typeof params !== "object") return {};
-  const p = params as Record<string, unknown>;
-
-  if (method === "execCommandApproval" || method === "item/commandExecution/requestApproval") {
-    const command = Array.isArray(p.command) ? p.command.filter((part): part is string => typeof part === "string") : p.command;
-    return compactRecord({
-      command: Array.isArray(command) ? command.join(" ") : command,
-      cwd: p.cwd,
-      reason: p.reason,
-      networkApprovalContext: p.networkApprovalContext,
-      additionalPermissions: p.additionalPermissions,
-    });
-  }
-
-  if (method === "applyPatchApproval") {
-    return compactRecord({
-      fileChanges: p.fileChanges,
-      grantRoot: p.grantRoot,
-      reason: p.reason,
-    });
-  }
-
-  if (method === "item/fileChange/requestApproval") {
-    return compactRecord({
-      itemId: p.itemId,
-      grantRoot: p.grantRoot,
-      reason: p.reason,
-    });
-  }
-
-  return {};
-}
-
-// Build the UserInput[] for turn/start from plain text + Bureau attachments.
-// Codex's UserInput variants are: text, image, localImage, skill, mention. For
-// v1 we pass text + localImage paths for image attachments; non-image
-// attachments (PDFs, text files) get inlined as a text description. This is
-// a UX simplification — richer attachment support is a follow-up.
-function buildCodexUserInput(text: string, attachments: AttachmentSpec[] | undefined, agentId: string): Array<Record<string, unknown>> {
-  const inputs: Array<Record<string, unknown>> = [];
-  if (text) {
-    inputs.push({ type: "text", text, text_elements: [] });
-  }
-  if (attachments && attachments.length > 0) {
-    const textChunks: string[] = [];
-    for (const att of attachments) {
-      const filePath = getFilePath(agentId, att.filename);
-      if (!filePath) continue;
-      if (att.mediaType.startsWith("image/")) {
-        inputs.push({ type: "localImage", path: filePath });
-      } else if (att.mediaType === "application/pdf") {
-        textChunks.push(`Attached PDF "${att.originalName}" at ${filePath}`);
-      } else if (isInlinableTextMedia(att.mediaType)) {
-        // Text-ish file: inline up to MAX_INLINE_ATTACHMENT_BYTES. Stat first
-        // so we don't read the whole file when it would just get dropped.
-        try {
-          const size = statSync(filePath).size;
-          if (size > MAX_INLINE_ATTACHMENT_BYTES) {
-            textChunks.push(`Attached file "${att.originalName}" (${size} bytes; exceeds ${MAX_INLINE_ATTACHMENT_BYTES}-byte inline cap). Path: ${filePath}`);
-          } else {
-            const content = readFileSync(filePath, "utf-8");
-            textChunks.push(`--- File: ${att.originalName} ---\n${content}\n---`);
-          }
-        } catch {
-          textChunks.push(`Attached file ${att.originalName} (could not read content) at ${filePath}`);
-        }
-      } else {
-        // Unknown / binary media: don't inline. Hand codex the path so it can
-        // open the file with a tool if it needs to.
-        textChunks.push(`Attached file "${att.originalName}" (${att.mediaType}) at ${filePath}`);
-      }
-    }
-    if (textChunks.length > 0) {
-      inputs.push({
-        type: "text",
-        text: textChunks.join("\n\n"),
-        text_elements: [],
-      });
-    }
-  }
-  // turn/start with empty input is invalid; ensure at least an empty text.
-  if (inputs.length === 0) {
-    inputs.push({ type: "text", text: "", text_elements: [] });
-  }
-  return inputs;
-}
 
 // Translate a Codex protocol Model into the BackendModel shape the rest of
 // the system consumes. We pick `model` (the wire slug) as `id` since that's
