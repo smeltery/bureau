@@ -22,9 +22,9 @@ plain `bun install` / `bun run dev` flow.
 
 ## Quality gate
 
-Every PR runs one CI job (`.github/workflows/ci.yml`) that activates the Flox
-environment once, installs dependencies once, then runs the same root `ci`
-script developers can run locally:
+App PRs run `.github/workflows/ci.yml`, which activates the Flox environment,
+installs dependencies once, then runs the same root `ci` script developers can
+run locally:
 
 | Script                 | What it checks                                      |
 | ---------------------- | --------------------------------------------------- |
@@ -35,7 +35,9 @@ script developers can run locally:
 | `bun run build:ui`     | Production UI bundle plus static asset copy         |
 | `bun run build:server` | Server bundle/import check with Bun's server target |
 
-All checks in the `ci` job must pass before a PR can merge.
+All checks in the `app-ci` job must pass before an app PR can merge. Website
+changes run `.github/workflows/website-ci.yml`, which uses the website's npm
+lockfile and `npm run ci` from `website/`.
 
 Run the full CI gate locally before pushing:
 
@@ -82,14 +84,17 @@ loads the SDK or reads the filesystem on import.
 
 ## Branch protection (one-time setup)
 
-The CI workflow is the gate, but GitHub only _enforces_ it once branch
-protection requires the `ci` check. To enable on `master`:
+The CI workflows are the gates, but GitHub only _enforces_ them once branch
+protection requires their status checks. Because these workflows use path
+filters, do not require a check globally unless it runs for every protected PR;
+otherwise GitHub can leave the skipped workflow pending. To require the app gate
+on `master`:
 
 ```sh
 # Replace OWNER/REPO and run from a checkout with `gh` authenticated.
 gh api -X PUT repos/dotbrains/bureau/branches/master/protection \
   -F required_status_checks.strict=true \
-  -F 'required_status_checks.contexts[]=ci' \
+  -F 'required_status_checks.contexts[]=app-ci' \
   -F enforce_admins=false \
   -F required_pull_request_reviews.required_approving_review_count=0 \
   -F restrictions=
@@ -97,7 +102,7 @@ gh api -X PUT repos/dotbrains/bureau/branches/master/protection \
 
 Or via the UI: **Settings → Branches → Add branch protection rule** for
 `master`, tick _Require status checks to pass before merging_, and add the
-`ci` job.
+`app-ci` job.
 
 After the rule exists, GitHub disables the merge button on any PR with a
 failing or pending check.
