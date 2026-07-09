@@ -55,7 +55,6 @@ import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
 import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
 import {
-  freezeBootState,
   getOfficeName,
   isProcessPreClaim,
   registerSocket,
@@ -63,10 +62,8 @@ import {
   setOfficeName,
   setOnInviteConsumed,
   setOnSessionsChanged,
-  setPublicOriginFallback,
   setRoomsSnapshotProvider,
   unregisterSocket,
-  validateSession,
   buildPublicOrigin,
   evictSessionsForUserId,
   isProcessBoundLoopback,
@@ -87,6 +84,7 @@ import {
 import { startAdminSocket } from "./auth/admin-socket.ts";
 import { normalizePublicOrigin } from "../shared/public-origin.ts";
 import { hostname as osHostname, userInfo } from "os";
+import { boundExternal, initializeAccessConfig } from "./boot-access.ts";
 
 // ---------------------------------------------------------------------------
 // CLI sub-command fast-path. The operator invokes
@@ -102,69 +100,7 @@ if (Bun.argv[2] === "owner-login") {
   process.exit(0);
 }
 
-// ---------------------------------------------------------------------------
-// Boot block: resolve access settings, migrate the deprecated env var,
-// backfill externalAccess to disk, then freeze cookie/bind state for the
-// lifetime of the process. Order matters: every auth/origin codepath below
-// reads the frozen state, and a mid-process claim must not change the bind
-// decision the cookie attributes were minted against.
-{
-  let cfg = loadOfficeConfig();
-  const envRaw = process.env.BUREAU_PUBLIC_ORIGIN?.trim();
-  const envOrigin = envRaw ? normalizePublicOrigin(envRaw) : null;
-
-  // Env-var migration. BUREAU_PUBLIC_ORIGIN is deprecated; copy its value
-  // into office-config.json (only when JSON's slot is empty, never clobber
-  // an explicit JSON value) and warn the operator. The env var still wins
-  // for THIS boot via buildPublicOrigin's precedence chain.
-  let configDirty = false;
-  if (envOrigin) {
-    if (cfg.publicOrigin === null) {
-      console.log(
-        `[auth] BUREAU_PUBLIC_ORIGIN is deprecated. Migrating "${envOrigin}" into office-config.json so it survives without the env var. Remove BUREAU_PUBLIC_ORIGIN from your env on your next deploy.`,
-      );
-      cfg = { ...cfg, publicOrigin: envOrigin };
-      configDirty = true;
-    } else if (cfg.publicOrigin === envOrigin) {
-      console.log(`[auth] BUREAU_PUBLIC_ORIGIN env var is redundant with office-config.json#publicOrigin (${cfg.publicOrigin}) and is deprecated. Remove it from your env on your next deploy.`);
-    } else {
-      console.error(
-        `[auth] BUREAU_PUBLIC_ORIGIN ("${envOrigin}") differs from office-config.json#publicOrigin ("${cfg.publicOrigin}"). The env var is deprecated; bureau uses the env value for THIS boot but will use the JSON value once the env var is removed. Reconcile by editing one and removing the other.`,
-      );
-    }
-  }
-
-  // External-access backfill. When the field is absent from JSON
-  // (pre-redesign install), default to true if any publicOrigin source
-  // exists so the office stays reachable at its old address after the
-  // upgrade. Write the resolved value back so subsequent boots don't
-  // re-run this inference.
-  let externalAccess: boolean;
-  if (cfg.externalAccess !== null) {
-    externalAccess = cfg.externalAccess;
-  } else {
-    externalAccess = cfg.publicOrigin !== null || envOrigin !== null;
-    configDirty = true;
-  }
-
-  if (configDirty) {
-    try {
-      saveOfficeConfig({
-        prompt: cfg.prompt,
-        envFile: cfg.envFile,
-        publicOrigin: cfg.publicOrigin,
-        externalAccess,
-        officeName: cfg.officeName,
-      });
-    } catch (err) {
-      console.error(`[auth] failed to backfill office-config.json (${(err as Error).message}); will re-attempt next boot`);
-    }
-  }
-
-  setPublicOriginFallback(cfg.publicOrigin);
-  setOfficeName(cfg.officeName);
-  freezeBootState({ externalAccess });
-}
+initializeAccessConfig();
 
 // Inject the room snapshot provider auth.ts uses when seeding a new owner's
 // allowedRooms at invite-acceptance time. The provider closes over
@@ -877,20 +813,6 @@ const server = Bun.serve<WsData>({
     },
   },
 });
-
-// Effective external-access flag derived from the boot-frozen state. We
-// can't import isProcessBoundLoopback at module top without inducing the
-// cycle Bun.serve's options block sits in (it runs before freezeBootState
-// finishes if we reference the predicate during options evaluation), so
-// the wrapper queries the office config directly.
-function boundExternal(): boolean {
-  const cfg = loadOfficeConfig();
-  // Loopback when externalAccess is explicitly false OR (when null) when
-  // no publicOrigin source exists. Matches the boot block's default.
-  if (cfg.externalAccess === false) return false;
-  if (cfg.externalAccess === true) return true;
-  return cfg.publicOrigin !== null || !!process.env.BUREAU_PUBLIC_ORIGIN;
-}
 
 // Start update checker
 onUpdateChange((status) => {
