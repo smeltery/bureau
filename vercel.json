@@ -1,5 +1,5 @@
 {
-  "installCommand": "cd website && npm install",
+  "installCommand": "cd website && npm ci",
   "buildCommand": "cd website && npm run build",
   "devCommand": "cd website && npm run dev",
   "framework": "nextjs",

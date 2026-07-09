@@ -1,16 +1,7 @@
 #!/usr/bin/env bash
-# Mirrors `bun run check` (typecheck + lint + format:check + test).
+# Runs the local quality gate without duplicating package.json scripts.
 # Bypass with `git push --no-verify` only after deciding the push is safe.
 set -e
 
-echo "→ typecheck"
-bun run typecheck
-
-echo "→ lint"
-bun run lint
-
-echo "→ format:check"
-bun run format:check
-
-echo "→ test"
-bun run test
+echo "→ check"
+bun run check
