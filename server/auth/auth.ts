@@ -10,10 +10,25 @@
 import { existsSync, readFileSync } from "fs";
 import type { UserRole, UserRecord, InviteWire, SessionWire, SessionContext } from "../../shared/types.ts";
 import { atomicWriteFileSync, INVITES_FILE, SESSIONS_FILE } from "../persistence/paths.ts";
-import { normalizePublicOrigin } from "../../shared/public-origin.ts";
 import { lowercaseKey } from "../../shared/identity.ts";
 import { claimUserByName, deleteUserById, getUserById, getUserByName, hasOwner, setUserRoleById, updateUserById } from "../users.ts";
 import { hashOf, randomToken, safeHashEq } from "./tokens.ts";
+import { setHasOwnerProvider } from "./http-env.ts";
+
+setHasOwnerProvider(hasOwner);
+export {
+  COOKIE_NAME,
+  buildPublicOrigin,
+  clearCookieHeader,
+  freezeBootState,
+  getOfficeName,
+  isProcessBoundLoopback,
+  isProcessPreClaim,
+  readSessionCookie,
+  setCookieHeader,
+  setOfficeName,
+  setPublicOriginFallback,
+} from "./http-env.ts";
 
 // Injected by server/index.ts at boot. New owners need a snapshot of every
 // current room id as their initial allowedRooms (the strict string[] model
@@ -1034,137 +1049,4 @@ export function resolveSessionHashByPrefix(prefix: string): string | null {
     }
   }
   return found;
-}
-
-// ---------------------------------------------------------------------------
-// Cookie + origin helpers used by the middleware.
-
-export const COOKIE_NAME = "bureau_session";
-
-// Precedence: process.env.BUREAU_PUBLIC_ORIGIN > office-config.json's
-// `publicOrigin` (registered via setPublicOriginFallback at boot) >
-// localhost fallback. Both env and config are operator-authored; we never
-// infer the origin from request headers. Both go through the same
-// validator — a malformed env value falls through to config rather than
-// poisoning the Origin allowlist with e.g. `https://host/path`.
-let cachedFallbackOrigin: string | null = null;
-let envEvaluated = false;
-let envCachedOrigin: string | null = null;
-
-export function setPublicOriginFallback(origin: string | null): void {
-  cachedFallbackOrigin = origin;
-}
-
-function evaluateEnvOrigin(): string | null {
-  if (envEvaluated) return envCachedOrigin;
-  envEvaluated = true;
-  const raw = process.env.BUREAU_PUBLIC_ORIGIN?.trim();
-  if (!raw) {
-    envCachedOrigin = null;
-    return null;
-  }
-  const normalized = normalizePublicOrigin(raw);
-  if (!normalized) {
-    console.error(`[auth] BUREAU_PUBLIC_ORIGIN="${raw}" is not a valid public origin (need https://<host> or http://localhost; no path/query/fragment); ignoring`);
-    envCachedOrigin = null;
-    return null;
-  }
-  envCachedOrigin = normalized;
-  return normalized;
-}
-
-let bootHadOwner: boolean | null = null;
-let bootExternalAccess: boolean | null = null;
-
-export function freezeBootState(opts: { externalAccess: boolean }): void {
-  bootHadOwner = hasOwner();
-  bootExternalAccess = opts.externalAccess;
-}
-
-// Live (not frozen at boot) — owners can rename the office without a
-// restart. Read by auth-middleware to prefix page titles. null falls back
-// to the bare "Bureau — …" title.
-let officeName: string | null = null;
-export function setOfficeName(name: string | null): void {
-  officeName = name && name.trim() ? name.trim().slice(0, 64) : null;
-}
-export function getOfficeName(): string | null {
-  return officeName;
-}
-
-// Auto-init safety net: if freezeBootState() wasn't called (e.g. tests
-// importing auth.ts standalone), default to the strictest interpretation
-// — pre-claim, loopback-only — so callers can't accidentally mint a
-// Secure-flagged cookie over an HTTP connection.
-function ensureBootCaptured(): void {
-  if (bootHadOwner === null) bootHadOwner = hasOwner();
-  if (bootExternalAccess === null) bootExternalAccess = false;
-}
-
-export function isProcessPreClaim(): boolean {
-  ensureBootCaptured();
-  return bootHadOwner === false;
-}
-
-export function isProcessBoundLoopback(): boolean {
-  ensureBootCaptured();
-  return bootHadOwner === false || bootExternalAccess !== true;
-}
-
-export function buildPublicOrigin(): {
-  origin: string;
-  isHttps: boolean;
-  source: "env" | "config" | "localhost";
-} {
-  // Loopback-only bind (pre-claim, or post-claim with external access off):
-  // the configured public origin can't be reached anyway, and using it here
-  // would mismatch the bind. Force the localhost fallback so cookie
-  // attributes, allowed-origin checks, and minted URLs all match.
-  if (isProcessBoundLoopback()) {
-    const fallback = `http://localhost:${process.env.PORT || "4000"}`;
-    return { origin: fallback, isHttps: false, source: "localhost" };
-  }
-  const envOrigin = evaluateEnvOrigin();
-  if (envOrigin) {
-    return { origin: envOrigin, isHttps: envOrigin.startsWith("https://"), source: "env" };
-  }
-  if (cachedFallbackOrigin) {
-    return {
-      origin: cachedFallbackOrigin,
-      isHttps: cachedFallbackOrigin.startsWith("https://"),
-      source: "config",
-    };
-  }
-  const fallback = `http://localhost:${process.env.PORT || "4000"}`;
-  return { origin: fallback, isHttps: false, source: "localhost" };
-}
-
-export function setCookieHeader(rawSessionId: string, absoluteExpiresAt: number): string {
-  const { isHttps } = buildPublicOrigin();
-  const maxAgeSec = Math.max(0, Math.floor((absoluteExpiresAt - Date.now()) / 1000));
-  const attrs = [`${COOKIE_NAME}=${rawSessionId}`, `Path=/`, `HttpOnly`, `SameSite=Lax`, `Max-Age=${maxAgeSec}`];
-  if (isHttps) attrs.push("Secure");
-  return attrs.join("; ");
-}
-
-export function clearCookieHeader(): string {
-  const { isHttps } = buildPublicOrigin();
-  const attrs = [`${COOKIE_NAME}=`, `Path=/`, `HttpOnly`, `SameSite=Lax`, `Max-Age=0`];
-  if (isHttps) attrs.push("Secure");
-  return attrs.join("; ");
-}
-
-export function readSessionCookie(req: Request): string | null {
-  const header = req.headers.get("cookie");
-  if (!header) return null;
-  const parts = header.split(";");
-  for (const part of parts) {
-    const idx = part.indexOf("=");
-    if (idx <= 0) continue;
-    const name = part.slice(0, idx).trim();
-    if (name !== COOKIE_NAME) continue;
-    const value = part.slice(idx + 1).trim();
-    return value || null;
-  }
-  return null;
 }
