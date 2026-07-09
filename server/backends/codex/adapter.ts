@@ -36,7 +36,6 @@ import type {
   Backend,
   BackendModel,
   BackendSession,
-  ContextUsage,
   CreateSessionOptions,
   ForkSessionBeforeMessageResult,
   ListModelsOptions,
@@ -45,7 +44,6 @@ import type {
   NormalizedMessage,
   OneShotOptions,
   PermissionModeOption,
-  TokenUsage,
 } from "../types.ts";
 
 import { JsonRpcLiteClient, PASS, type JsonRpcId, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
@@ -53,8 +51,9 @@ import { extractApprovalInput, inferApprovalDescription, inferApprovalTitle, inf
 import { mapTurnStatus } from "./protocol-format.ts";
 import { buildCodexUserInput } from "./user-input.ts";
 import { translateCompletedItem } from "./completed-items.ts";
-import { CLIENT_INFO_NAME, CLIENT_INFO_VERSION, forkCodexSessionBeforeMessage, getCodexSessionMessages, initializeCodexClient, listCodexModels, oneShotCodexPrompt } from "./backend-ops.ts";
-import { AUTH_ERROR_PATTERNS, CAPABILITIES, DEFAULT_SANDBOX_MODE, LOGIN_INSTRUCTIONS, MODEL_OPTIONS, PERMISSION_MODES, getCodexLoginInstructions, modelDisplayLabel } from "./config.ts";
+import { CLIENT_INFO_NAME, CLIENT_INFO_VERSION, forkCodexSessionBeforeMessage, getCodexSessionMessages, listCodexModels, oneShotCodexPrompt } from "./backend-ops.ts";
+import { AUTH_ERROR_PATTERNS, CAPABILITIES, DEFAULT_SANDBOX_MODE, LOGIN_INSTRUCTIONS, MODEL_OPTIONS, PERMISSION_MODES, getCodexLoginInstructions } from "./config.ts";
+import { CodexUsageTracker } from "./session-usage.ts";
 
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/ThreadTokenUsageUpdatedNotification.ts";
@@ -143,30 +142,7 @@ class CodexSession implements BackendSession {
   // jsonRpcId-keyed map of in-flight server-initiated approval requests. The
   // orchestrator references these by approvalId == jsonRpcId.
   private pendingApprovals = new Map<string, PendingApproval>();
-  // Running totals from Codex's cumulative tokenUsage notifications. We diff
-  // against this when emitting usage_update so the orchestrator's accumulator
-  // (which sums deltas) gets the right value.
-  private lastCumulativeUsage: TokenUsage = {
-    inputTokens: 0,
-    outputTokens: 0,
-    cacheReadInputTokens: 0,
-    cacheCreationInputTokens: 0,
-  };
-  // Latest snapshot for /context. We use the `last` (most recent turn) field
-  // of the tokenUsage notification, not `total` (cumulative-since-thread-
-  // start). `last.inputTokens` is the prompt size of the last turn — i.e.
-  // what was in context when the model spoke — and `last.outputTokens` is
-  // what was appended after. Together they approximate the context fullness
-  // heading into the next turn. Using `total.*` here would mis-report cache
-  // re-reads (which sum across turns) as live context usage. Null until the
-  // first notification arrives (typically right after the first turn).
-  private modelContextWindow: number | null = null;
-  private lastTurnBreakdown: {
-    inputNewTokens: number;
-    inputCachedTokens: number;
-    outputTokens: number;
-    reasoningOutputTokens: number;
-  } | null = null;
+  private usage = new CodexUsageTracker();
   // Resolves when bootstrap (initialize + thread/start) completes — success
   // or failure. send() / approve() / abort() await this so they don't race
   // the async setup. On failure threadId stays null; callers see a clear
@@ -444,31 +420,8 @@ class CodexSession implements BackendSession {
     this.markEnded();
   }
 
-  async getContextUsage(): Promise<ContextUsage | null> {
-    // Codex doesn't expose a context-usage RPC; we synthesize one from the
-    // last-turn breakdown cached in the `thread/tokenUsage/updated` handler.
-    // See the lastTurnBreakdown field comment for why `last.*` is the right
-    // signal (vs `total.*`, which sums cache re-reads across turns).
-    if (this.lastTurnBreakdown === null || this.modelContextWindow === null || this.modelContextWindow <= 0) {
-      return null;
-    }
-    const maxTokens = this.modelContextWindow;
-    const b = this.lastTurnBreakdown;
-    const totalTokens = b.inputNewTokens + b.inputCachedTokens + b.outputTokens + b.reasoningOutputTokens;
-    const percentage = Math.min(100, (totalTokens / maxTokens) * 100);
-    const categories = [
-      { name: "Input (new)", tokens: b.inputNewTokens },
-      { name: "Input (cached)", tokens: b.inputCachedTokens },
-      { name: "Output", tokens: b.outputTokens },
-      { name: "Reasoning", tokens: b.reasoningOutputTokens },
-    ];
-    return {
-      model: modelDisplayLabel(this.opts.modelFamily),
-      totalTokens,
-      maxTokens,
-      percentage,
-      categories,
-    };
+  async getContextUsage() {
+    return this.usage.getContextUsage(this.opts.modelFamily);
   }
 
   // -------------------------------------------------------------------------
@@ -639,42 +592,8 @@ class CodexSession implements BackendSession {
         // drift — this handler was previously broken by exactly that kind of
         // schema mismatch (was reading `params.usage`, never existed in v2).
         const notif = params as ThreadTokenUsageUpdatedNotification | null | undefined;
-        const tu = notif?.tokenUsage;
-        if (!tu) break;
-        // `total` drives the cumulative usage_update event (lifetime billing).
-        const total = tu.total;
-        const totalInput = total.inputTokens;
-        const totalCached = total.cachedInputTokens;
-        const totalOutput = total.outputTokens;
-        const cumulative: TokenUsage = {
-          inputTokens: Math.max(0, totalInput - totalCached),
-          outputTokens: totalOutput,
-          cacheReadInputTokens: totalCached,
-          cacheCreationInputTokens: 0,
-        };
-        const delta: TokenUsage = {
-          inputTokens: Math.max(0, cumulative.inputTokens - this.lastCumulativeUsage.inputTokens),
-          outputTokens: Math.max(0, cumulative.outputTokens - this.lastCumulativeUsage.outputTokens),
-          cacheReadInputTokens: Math.max(0, cumulative.cacheReadInputTokens - this.lastCumulativeUsage.cacheReadInputTokens),
-          cacheCreationInputTokens: 0,
-        };
-        this.lastCumulativeUsage = cumulative;
-        // `last` drives the /context snapshot (current context fullness).
-        const last = tu.last;
-        const lastInput = last.inputTokens;
-        const lastCached = last.cachedInputTokens;
-        const lastOutput = last.outputTokens;
-        const lastReasoning = last.reasoningOutputTokens;
-        if (tu.modelContextWindow !== null) {
-          this.modelContextWindow = tu.modelContextWindow;
-        }
-        this.lastTurnBreakdown = {
-          inputNewTokens: Math.max(0, lastInput - lastCached),
-          inputCachedTokens: lastCached,
-          outputTokens: Math.max(0, lastOutput - lastReasoning),
-          reasoningOutputTokens: lastReasoning,
-        };
-        this.enqueue({ kind: "usage_update", tokenUsage: delta });
+        if (!notif?.tokenUsage) break;
+        this.enqueue({ kind: "usage_update", tokenUsage: this.usage.applyTokenUsageNotification(notif) });
         break;
       }
 
