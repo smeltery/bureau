@@ -10,22 +10,10 @@
 // broadcasts log entries to the UI via the existing event bus. The synthetic
 // "stream id" used for log routing is `cronjobRunStreamId(runId)`.
 
-import {
-  generateCronjobId,
-  generateCronjobRunId,
-  cronjobRunStreamId,
-  type Attachment,
-  type Cronjob,
-  type CronjobRun,
-  type CronjobPermissionMode,
-  type LogEntry,
-  type Schedule,
-} from "../../shared/types.ts";
+import { generateCronjobRunId, cronjobRunStreamId, type Attachment, type Cronjob, type CronjobRun, type LogEntry } from "../../shared/types.ts";
 import {
   loadCronjobs,
   saveCronjobs,
-  loadCronjobHistory,
-  saveCronjobHistory,
   loadCronjobsPrompt,
   saveCronjobsPrompt,
   loadRuns,
@@ -43,9 +31,8 @@ import {
   listAllCronjobIdsOnDisk,
   readEnvFile,
 } from "../persistence.ts";
-import { claudeProjectDir, claudeSessionFileExists, resolveCwd, validateCwd } from "../agents/session/paths.ts";
+import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "../agents/session/paths.ts";
 import { officeConfig } from "../agents/state.ts";
-import { validateCodexSandbox, validateCronjobPermissionMode, validateEffort, validateModelFamily } from "../agent-validators.ts";
 import { getBackend } from "../backends/index.ts";
 import type { BackendSession, CreateSessionOptions, NormalizedMessage } from "../backends/types.ts";
 import { getUserById, getUserByName } from "../users.ts";
@@ -55,6 +42,7 @@ import { buildCronjobMemoryPrompt, buildCronjobSystemPrompt as buildCronjobSyste
 import { emitRunDiffWithDeps, emitRunReadFileWithDeps, type AffordanceActiveRun, type RunAffordanceResult } from "./run-affordances.ts";
 import { readCronjobLifetimeUsage as readCronjobLifetimeUsageFromDisk } from "./usage.ts";
 import { processNormalizedEvent, writeLog, type ActiveRun } from "./run-events.ts";
+import { addCronjobDefinition, deleteCronjobDefinition, updateCronjobDefinition, type AddCronjobInput, type UpdateCronjobChanges } from "./definitions.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
@@ -157,106 +145,23 @@ export function setCronjobsPrompt(value: string | null) {
   eventHandler({ type: "cronjobs_prompt_updated", value: normalized });
 }
 
-export interface AddCronjobInput {
-  name: string;
-  schedule: Schedule;
-  prompt: string;
-  cwd: string;
-  agentType?: Cronjob["agentType"];
-  modelFamily: Cronjob["modelFamily"];
-  effort?: Cronjob["effort"];
-  permissionMode: CronjobPermissionMode;
-  codexSandbox?: Cronjob["codexSandbox"];
-  username: string;
-  userId?: string | null;
-  device?: string;
-}
+export type { AddCronjobInput };
 
 export function addCronjob(input: AddCronjobInput): Cronjob {
-  const schedule = clampSchedule(input.schedule);
-  const now = Date.now();
-  const agentType = input.agentType ?? "claude";
-  const modelFamily = validateModelFamily(agentType, input.modelFamily);
-  const effort = validateEffort(agentType, modelFamily, input.effort);
-  const codexSandbox = agentType === "codex" ? validateCodexSandbox(input.codexSandbox) : undefined;
-  const cronjob: Cronjob = {
-    id: generateCronjobId(cronjobs.map((c) => c.id)),
-    name: input.name.trim() || "Untitled cron job",
-    schedule,
-    prompt: input.prompt,
-    cwd: resolveCwd(input.cwd),
-    agentType,
-    modelFamily,
-    effort,
-    permissionMode: validateCronjobPermissionMode(agentType, input.permissionMode),
-    ...(codexSandbox ? { codexSandbox } : {}),
-    enabled: true,
-    createdBy: input.username,
-    userId: input.userId ?? (input.username ? (getUserByName(input.username)?.id ?? null) : null),
-    username: input.username,
-    device: input.device ?? null,
-    createdAt: now,
-    lastFireAt: null,
-    nextFireAt: computeNextFire(schedule, now, now),
-  };
-  cronjobs.push(cronjob);
-  saveCronjobs(cronjobs);
-  // Update history with the latest name so /usage attribution survives delete.
-  const history = loadCronjobHistory();
-  history[cronjob.id] = { lastName: cronjob.name };
-  saveCronjobHistory(history);
+  const cronjob = addCronjobDefinition(cronjobs, input);
   eventHandler({ type: "cronjob_added", cronjob });
   return cronjob;
 }
 
-export function updateCronjob(
-  id: string,
-  changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "effort" | "permissionMode" | "codexSandbox" | "enabled">>,
-): Cronjob | null {
-  const idx = cronjobs.findIndex((c) => c.id === id);
-  if (idx < 0) return null;
-  const prev = cronjobs[idx];
-  const next: Cronjob = { ...prev };
-  if (changes.name !== undefined) next.name = changes.name.trim() || prev.name;
-  if (changes.prompt !== undefined) next.prompt = changes.prompt;
-  if (changes.cwd !== undefined) next.cwd = resolveCwd(changes.cwd);
-  if (changes.modelFamily !== undefined) next.modelFamily = validateModelFamily(next.agentType, changes.modelFamily);
-  if (changes.effort !== undefined || changes.modelFamily !== undefined) next.effort = validateEffort(next.agentType, next.modelFamily, changes.effort ?? next.effort);
-  if (changes.permissionMode !== undefined) next.permissionMode = validateCronjobPermissionMode(next.agentType, changes.permissionMode);
-  if (changes.codexSandbox !== undefined) {
-    const sandbox = next.agentType === "codex" ? validateCodexSandbox(changes.codexSandbox) : undefined;
-    if (sandbox) next.codexSandbox = sandbox;
-    else delete next.codexSandbox;
-  }
-  if (changes.enabled !== undefined) next.enabled = changes.enabled;
-  if (changes.schedule !== undefined) {
-    next.schedule = clampSchedule(changes.schedule);
-    // Anchor to the most recent fire (or createdAt if never fired) so an
-    // edit can't surprise-fire immediately. The design doc originally said
-    // anchor to createdAt for "predictable cadence", but that produces
-    // immediate fires when the new period happens to align near `now`.
-    const anchor = next.lastFireAt ?? next.createdAt;
-    next.nextFireAt = computeNextFire(next.schedule, anchor, Date.now());
-  }
-  cronjobs[idx] = next;
-  saveCronjobs(cronjobs);
-  const history = loadCronjobHistory();
-  history[next.id] = { lastName: next.name };
-  saveCronjobHistory(history);
+export function updateCronjob(id: string, changes: UpdateCronjobChanges): Cronjob | null {
+  const next = updateCronjobDefinition(cronjobs, id, changes);
+  if (!next) return null;
   eventHandler({ type: "cronjob_updated", cronjob: next });
   return next;
 }
 
 export function deleteCronjob(id: string): boolean {
-  const idx = cronjobs.findIndex((c) => c.id === id);
-  if (idx < 0) return false;
-  const removed = cronjobs[idx];
-  cronjobs.splice(idx, 1);
-  saveCronjobs(cronjobs);
-  // Preserve last name for usage report.
-  const history = loadCronjobHistory();
-  history[removed.id] = { lastName: removed.name };
-  saveCronjobHistory(history);
+  if (!deleteCronjobDefinition(cronjobs, id)) return false;
   eventHandler({ type: "cronjob_deleted", id });
   return true;
 }
