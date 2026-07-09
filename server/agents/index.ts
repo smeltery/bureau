@@ -13,8 +13,6 @@ export {
   getAgentCommands,
   listSessions,
   getCurrentSessionId,
-  editAgent,
-  setAgentPrivileged,
   emitAgentDiff,
   emitAgentEditFile,
   emitAgentReadFile,
@@ -28,6 +26,7 @@ export {
   getKilledAgentSummaries,
   restoreAgents,
 } from "./lifecycle.ts";
+export { editAgent, setAgentPrivileged } from "./settings.ts";
 export { sendMessage, dequeueMessage, enqueueMessage, flushQueue } from "./conversation/send.ts";
 export { abort, sendNow, newConversation, resume } from "./conversation/control.ts";
 export { editMessage } from "./conversation/edit.ts";
