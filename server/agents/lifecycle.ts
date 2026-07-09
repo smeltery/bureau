@@ -1,27 +1,14 @@
 import { homedir } from "os";
-import { basename, join } from "path";
-import { existsSync, readFileSync, rmSync, statSync } from "fs";
+import { join } from "path";
+import { rmSync, statSync } from "fs";
 import type { AgentBackendType, AgentInfo, AgentOutfit, KilledAgentSummary, LogEntry, SkillInfo } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES, KILLED_AGENT_CHIP_CAP } from "../../shared/types.ts";
-import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
-import {
-  listAgentSessions,
-  loadAgents,
-  loadAgentHistory,
-  loadLogWithAncestors,
-  saveAgentHistory,
-  saveFile as savePersistedFile,
-  getSessionCwd,
-  persistSessionCwd,
-  type AgentHistoryEntry,
-} from "../persistence.ts";
-import { mimeTypeForFilename } from "../mime-types.ts";
+import { listAgentSessions, loadAgents, loadAgentHistory, loadLogWithAncestors, saveAgentHistory, getSessionCwd, persistSessionCwd, type AgentHistoryEntry } from "../persistence.ts";
 import { autocompleteCommands } from "./commands.ts";
 import { generateOutfit } from "./outfit.ts";
 import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
-import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
+import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
-import { openFile as openFileImpl, saveFile as saveFileImpl, resolveEditorPath, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
 import { moveClaudeSessionFile, resolveCwd, validateCwd } from "./session/paths.ts";
 import { buildSessionEnv, createSession, installSession, replaceSession } from "./session/runtime.ts";
 import { getBackend } from "../backends/index.ts";
@@ -29,6 +16,8 @@ import { findRoomIndex, updateState } from "./state.ts";
 import { sidecarSend } from "./terminal.ts";
 import { BUREAU_DIR, LOGS_DIR } from "../persistence/paths.ts";
 import { mintAgentToken, revokeAgentToken } from "./tokens.ts";
+
+export { emitAgentDiff, emitAgentEditFile, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
 
 // ---------------------------------------------------------------------------
 // Public read-only getters used by server/index.ts
@@ -74,159 +63,6 @@ export function listSessions(agentId: string) {
 
 export function getCurrentSessionId(agentId: string): string | null {
   return agents.get(agentId)?.sessionId ?? null;
-}
-
-// Validate a shell command and emit a `terminal-command` log entry so the
-// boss sees a [Copy to terminal] card in chat. Single-line only; agents
-// that need multiple steps can join with `&&` / `;`. The card does not
-// auto-execute — clicking it opens the terminal panel and types the
-// command at the prompt, leaving the boss to review and press Enter.
-const TERMINAL_COMMAND_MAX_LEN = 4096;
-export function emitAgentTerminalCommand(agentId: string, rawCommand: string): { ok: true } | { ok: false; status: number; error: string } {
-  const managed = agents.get(agentId);
-  if (!managed) return { ok: false, status: 404, error: "agent not found" };
-  if (typeof rawCommand !== "string") return { ok: false, status: 400, error: "command must be a string" };
-  const command = rawCommand.replace(/\s+$/u, "");
-  if (!command) return { ok: false, status: 400, error: "empty command" };
-  if (command.length > TERMINAL_COMMAND_MAX_LEN) {
-    return { ok: false, status: 400, error: `command too long (max ${TERMINAL_COMMAND_MAX_LEN} chars)` };
-  }
-  if (/[\r\n]/u.test(command)) {
-    return { ok: false, status: 400, error: "command must be single-line; join steps with && or ;" };
-  }
-  addLogEntry(agentId, "terminal-command", command, undefined, undefined, { terminal: { command } });
-  return { ok: true };
-}
-
-// Resolve a user-supplied editor path against the named agent's cwd and
-// open it. Returns either the file payload or a structured error so the WS
-// handler can render the right diagnostic.
-export function openEditorFile(agentId: string, rawPath: string): { ok: true; result: OpenFileResult } | { ok: false; error: "not_agent" | "bad_path" } {
-  const managed = agents.get(agentId);
-  if (!managed) return { ok: false, error: "not_agent" };
-  const resolved = resolveEditorPath(rawPath, managed.info.cwd);
-  if (resolved.kind === "bad_path") return { ok: false, error: "bad_path" };
-  return { ok: true, result: openFileImpl(resolved.path) };
-}
-
-export function saveEditorFile(absPath: string, content: string, expectedMtime: number, force: boolean): SaveFileResult {
-  return saveFileImpl(absPath, content, expectedMtime, force);
-}
-
-export function resolveEditorPathForAgent(agentId: string, rawPath: string): string | null {
-  const managed = agents.get(agentId);
-  if (!managed) return null;
-  const resolved = resolveEditorPath(rawPath, managed.info.cwd);
-  return resolved.kind === "ok" ? resolved.path : null;
-}
-
-// Validate a file path and emit an `edit-request` log entry so the boss
-// sees an [Open in editor] card in chat. Clicking the card opens the file
-// in the editor side panel.
-import { resolve as resolvePath } from "path";
-const EDIT_FILE_MAX_LEN = 4096;
-export function emitAgentEditFile(agentId: string, rawPath: string): { ok: true } | { ok: false; status: number; error: string } {
-  const managed = agents.get(agentId);
-  if (!managed) return { ok: false, status: 404, error: "agent not found" };
-  if (typeof rawPath !== "string") return { ok: false, status: 400, error: "path must be a string" };
-  const trimmed = rawPath.trim();
-  if (!trimmed) return { ok: false, status: 400, error: "empty path" };
-  if (trimmed.length > EDIT_FILE_MAX_LEN) return { ok: false, status: 400, error: `path too long (max ${EDIT_FILE_MAX_LEN} chars)` };
-  let resolved: string;
-  if (trimmed.startsWith("~/")) resolved = resolvePath(homedir(), trimmed.slice(2));
-  else if (trimmed === "~") resolved = homedir();
-  else if (trimmed.startsWith("/")) resolved = resolvePath(trimmed);
-  else resolved = resolvePath(managed.info.cwd, trimmed);
-  addLogEntry(agentId, "edit-request", resolved, undefined, undefined, { file: { path: resolved } });
-  return { ok: true };
-}
-
-// Display cap for POST /api/agents/:id/read-file. Independent from the editor
-// panel's text cap — this one bounds binary/image display payloads served
-// through /api/files.
-const MAX_READ_FILE_BYTES = 20 * 1024 * 1024;
-
-// Resolve a path against the agent's cwd, copy it into the agent's files
-// dir (hash-deduped via saveFile), and emit a `file-view` log entry so the
-// UI renders the attachment inline (images) or as a clickable chip
-// (everything else). Mirrors emitAgentEditFile's error-surface pattern:
-// path/size/io failures become system messages, not HTTP errors.
-export function emitAgentReadFile(agentId: string, rawPath: string): { ok: true } | { ok: false; status: number; error: string } {
-  const managed = agents.get(agentId);
-  if (!managed) return { ok: false, status: 404, error: "agent not found" };
-  const resolved = resolveEditorPath(rawPath, managed.info.cwd);
-  if (resolved.kind === "bad_path") {
-    return { ok: false, status: 400, error: "missing or empty path" };
-  }
-  const absPath = resolved.path;
-  if (!existsSync(absPath)) {
-    addLogEntry(agentId, "system", `\`${absPath}\` does not exist.`);
-    return { ok: true };
-  }
-  let st;
-  try {
-    st = statSync(absPath);
-  } catch (err) {
-    addLogEntry(agentId, "system", `Failed to read \`${absPath}\`: ${err instanceof Error ? err.message : String(err)}`);
-    return { ok: true };
-  }
-  if (!st.isFile()) {
-    addLogEntry(agentId, "system", `\`${absPath}\` is not a file.`);
-    return { ok: true };
-  }
-  if (st.size > MAX_READ_FILE_BYTES) {
-    addLogEntry(agentId, "system", `\`${absPath}\` is ${(st.size / (1024 * 1024)).toFixed(1)} MB — too large to display (${MAX_READ_FILE_BYTES / (1024 * 1024)} MB limit).`);
-    return { ok: true };
-  }
-  let data: Buffer;
-  try {
-    data = readFileSync(absPath);
-  } catch (err) {
-    addLogEntry(agentId, "system", `Failed to read \`${absPath}\`: ${err instanceof Error ? err.message : String(err)}`);
-    return { ok: true };
-  }
-  const originalName = basename(absPath);
-  const mediaType = mimeTypeForFilename(originalName);
-  const att = savePersistedFile(agentId, data, mediaType, originalName);
-  if (!att) {
-    addLogEntry(agentId, "system", `Failed to save \`${absPath}\` for display.`);
-    return { ok: true };
-  }
-  addLogEntry(agentId, "file-view", originalName, undefined, [att]);
-  return { ok: true };
-}
-
-// Emit a styled diff card into an agent's chat. Mirrors the /bureau-diff slash
-// command but driven by HTTP — agents call POST /api/agents/:id/diff to surface a
-// diff when the boss asks for their changes in plain English.
-export function emitAgentDiff(agentId: string, dir?: string, commit?: string): { ok: true } | { ok: false; status: number; error: string } {
-  const managed = agents.get(agentId);
-  if (!managed) return { ok: false, status: 404, error: "agent not found" };
-
-  const resolved = resolveDiffCwd(dir, managed.info.cwd);
-  if (resolved.kind === "bad_dir") {
-    return { ok: false, status: 400, error: `\`${resolved.attempted}\` is not a directory.` };
-  }
-
-  const result = computeBureauDiff(resolved.cwd, { commit });
-  switch (result.kind) {
-    case "not_repo":
-      emitEphemeralLog(agentId, "system", `\`${result.cwd}\` is not a git repository.`);
-      break;
-    case "git_error":
-      emitEphemeralLog(agentId, "system", `Failed to run git diff in \`${result.cwd}\`:\n\n\`\`\`\n${result.message}\n\`\`\``);
-      break;
-    case "bad_commit":
-      emitEphemeralLog(agentId, "system", `Cannot diff \`${result.attempted}\`: ${result.message}.`);
-      break;
-    case "clean":
-      emitEphemeralLog(agentId, "system", commit ? `\`${commit}\` introduced no file changes (empty commit?).` : `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
-      break;
-    case "ok":
-      emitEphemeralLog(agentId, "diff", result.summary, undefined, { diff: result.payload });
-      break;
-  }
-  return { ok: true };
 }
 
 // ---------------------------------------------------------------------------
