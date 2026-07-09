@@ -35,7 +35,6 @@ import type {
   AttachmentSpec,
   Backend,
   BackendCapabilities,
-  BackendEffortOption,
   BackendModel,
   BackendSession,
   ContextUsage,
@@ -53,16 +52,12 @@ import type {
 import { JsonRpcLiteClient, PASS, type JsonRpcId, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
 import { getCodexLoginCommands, isCodexAuthenticated } from "./native-bin.ts";
 import { extractApprovalInput, inferApprovalDescription, inferApprovalTitle, inferToolNameFromApproval, mapApprovalDecision } from "./approvals.ts";
-import { formatPatchChangeKind, formatWebSearchAction, mapTurnStatus } from "./protocol-format.ts";
-import { readThreadTurns, findTurnIndexContainingItemId } from "./thread-history.ts";
+import { mapTurnStatus } from "./protocol-format.ts";
 import { buildCodexUserInput } from "./user-input.ts";
+import { translateCompletedItem } from "./completed-items.ts";
+import { CLIENT_INFO_NAME, CLIENT_INFO_VERSION, forkCodexSessionBeforeMessage, getCodexSessionMessages, initializeCodexClient, listCodexModels, oneShotCodexPrompt } from "./backend-ops.ts";
 
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
-import type { Model as CodexProtocolModel } from "./_generated/v2/Model.ts";
-import type { ModelListParams } from "./_generated/v2/ModelListParams.ts";
-import type { ModelListResponse } from "./_generated/v2/ModelListResponse.ts";
-import type { ThreadRollbackParams } from "./_generated/v2/ThreadRollbackParams.ts";
-import type { ThreadRollbackResponse } from "./_generated/v2/ThreadRollbackResponse.ts";
 import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/ThreadTokenUsageUpdatedNotification.ts";
 
 // ---------------------------------------------------------------------------
@@ -148,9 +143,6 @@ const PERMISSION_MODES: PermissionModeOption[] = [
 // Default sandbox if the caller doesn't pass one. workspace-write is the
 // "Claude-equivalent default" preset from the spec's reference mapping.
 const DEFAULT_SANDBOX_MODE = "workspace-write";
-
-const CLIENT_INFO_NAME = "bureau";
-const CLIENT_INFO_VERSION = "1.0.0";
 
 // ---------------------------------------------------------------------------
 // CodexSession
@@ -777,7 +769,11 @@ class CodexSession implements BackendSession {
         break;
       case "item/completed": {
         const item = params?.item;
-        if (item) this.translateCompletedItem(item);
+        if (item) {
+          for (const ev of translateCompletedItem(item, (rawPath) => this.attachmentFromPath(rawPath))) {
+            this.enqueue(ev);
+          }
+        }
         break;
       }
       // Streaming deltas (item/agentMessage/delta, item/reasoning/textDelta,
@@ -829,161 +825,6 @@ class CodexSession implements BackendSession {
       // remoteControl/*, thread/goal/*, rawResponseItem/*, item/auto-
       // ApprovalReview/*, item/commandExecution/outputDelta, etc.): ignored
       // at v1. The "item/...outputDelta" streams could feed richer UI later.
-      default:
-        break;
-    }
-  }
-
-  private translateCompletedItem(rawItem: unknown): void {
-    // ThreadItem union is too broad (~20 variants) to model exactly here.
-    // Cast to a loose Record so per-branch field reads stay typed without
-    // committing to the generated schema.
-    const item = rawItem as Record<string, unknown>;
-    switch (item?.type) {
-      case "agentMessage": {
-        const text = item.text as string | undefined;
-        if (text) this.enqueue({ kind: "assistant_text", text });
-        break;
-      }
-      case "reasoning": {
-        const summary = Array.isArray(item.summary) ? item.summary.join("\n") : "";
-        const content = Array.isArray(item.content) ? item.content.join("\n") : "";
-        const joined = [summary, content].filter(Boolean).join("\n\n");
-        if (joined) this.enqueue({ kind: "thinking", text: joined });
-        break;
-      }
-      case "commandExecution": {
-        const command = item.command as string | undefined;
-        const cwd = item.cwd as string | undefined;
-        const aggregatedOutput = item.aggregatedOutput as string | undefined;
-        const exitCode = item.exitCode as number | undefined;
-        const durationMs = item.durationMs as number | undefined;
-        const toolUseId = item.id as string;
-        this.enqueue({
-          kind: "tool_call",
-          toolUseId,
-          name: "Bash",
-          input: cwd ? { command, cwd } : { command },
-        });
-        const content = (aggregatedOutput ?? "") + (exitCode != null ? `\n(exit code ${exitCode})` : "");
-        this.enqueue({
-          kind: "tool_result",
-          toolUseId,
-          content,
-          durationMs: durationMs ?? undefined,
-          isError: exitCode != null && exitCode !== 0,
-        });
-        break;
-      }
-      case "fileChange": {
-        const toolUseId = item.id as string;
-        const changes = Array.isArray(item.changes) ? item.changes : [];
-        const summary = (changes as { path?: string; kind?: unknown }[]).map((c) => `${c.path ?? "?"} (${formatPatchChangeKind(c.kind)})`).join("\n");
-        const status = item.status as string | undefined;
-        this.enqueue({
-          kind: "tool_call",
-          toolUseId,
-          name: "Edit",
-          input: { changes },
-        });
-        this.enqueue({
-          kind: "tool_result",
-          toolUseId,
-          content: `${summary}\n\nstatus: ${status ?? "unknown"}`,
-          isError: status != null && status !== "completed" && status !== "applied",
-        });
-        break;
-      }
-      case "mcpToolCall": {
-        const toolUseId = item.id as string;
-        const server = item.server as string;
-        const tool = item.tool as string;
-        const durationMs = item.durationMs as number | undefined;
-        this.enqueue({
-          kind: "tool_call",
-          toolUseId,
-          name: `mcp__${server}__${tool}`,
-          input: (item.arguments ?? {}) as Record<string, unknown>,
-        });
-        const result = item.result;
-        const error = item.error;
-        const content = error ? `Error: ${JSON.stringify(error)}` : JSON.stringify(result ?? {});
-        this.enqueue({
-          kind: "tool_result",
-          toolUseId,
-          content,
-          durationMs: durationMs ?? undefined,
-          isError: !!error,
-        });
-        break;
-      }
-      case "webSearch": {
-        const toolUseId = item.id as string;
-        const query = item.query as string | undefined;
-        const actionSummary = formatWebSearchAction(item.action);
-        this.enqueue({
-          kind: "tool_call",
-          toolUseId,
-          name: "WebSearch",
-          input: query ? { query } : {},
-        });
-        this.enqueue({
-          kind: "tool_result",
-          toolUseId,
-          content: actionSummary,
-          isError: false,
-        });
-        break;
-      }
-      case "plan": {
-        const text = item.text as string | undefined;
-        if (text) this.enqueue({ kind: "thinking", text });
-        break;
-      }
-      case "imageView": {
-        const att = this.attachmentFromPath(item.path);
-        if (att) {
-          this.enqueue({
-            kind: "file_view",
-            title: att.originalName,
-            attachments: [att],
-          });
-        } else {
-          this.enqueue({
-            kind: "system_text",
-            text: `Codex viewed an image, but Bureau could not display it.`,
-          });
-        }
-        break;
-      }
-      case "imageGeneration": {
-        const att = this.attachmentFromPath(item.savedPath);
-        if (att) {
-          const title = typeof item.revisedPrompt === "string" && item.revisedPrompt.trim() ? item.revisedPrompt : att.originalName;
-          this.enqueue({
-            kind: "file_view",
-            title,
-            attachments: [att],
-          });
-        } else if (item.status === "failed") {
-          const result = typeof item.result === "string" ? item.result : "";
-          this.enqueue({
-            kind: "system_text",
-            text: result ? `Codex image generation failed: ${result}` : `Codex image generation failed.`,
-          });
-        } else {
-          this.enqueue({
-            kind: "system_text",
-            text: `Codex generated an image, but Bureau could not display it.`,
-          });
-        }
-        break;
-      }
-      case "contextCompaction":
-        this.enqueue({ kind: "compacted" });
-        break;
-      // userMessage, hookPrompt, dynamicToolCall, collabAgentToolCall,
-      // enteredReviewMode, exitedReviewMode: ignored at v1.
       default:
         break;
     }
@@ -1147,29 +988,6 @@ class CodexSession implements BackendSession {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// Translate a Codex protocol Model into the BackendModel shape the rest of
-// the system consumes. We pick `model` (the wire slug) as `id` since that's
-// what gets passed to thread/start; `displayName` is the human label.
-function toBackendModel(m: CodexProtocolModel): BackendModel {
-  const supportedEfforts: BackendEffortOption[] = (m.supportedReasoningEfforts ?? []).map((opt) => ({
-    level: opt.reasoningEffort,
-    description: opt.description,
-  }));
-  return {
-    id: m.model,
-    label: m.displayName || m.model,
-    description: m.description || undefined,
-    isDefault: m.isDefault,
-    hidden: m.hidden,
-    supportedEfforts,
-    defaultEffort: m.defaultReasoningEffort,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Backend implementation
 // ---------------------------------------------------------------------------
 
@@ -1185,43 +1003,7 @@ export const codexBackend: Backend = {
   },
 
   async listModels(opts: ListModelsOptions): Promise<BackendModel[]> {
-    // Spin up a one-shot JsonRpcLiteClient just for model/list. The pattern
-    // mirrors oneShotPrompt but skips thread/start — model/list is a
-    // server-level RPC, not thread-scoped. Pagination loops until
-    // nextCursor === null. ~1-2s end-to-end including subprocess spawn.
-    const client = new JsonRpcLiteClient({ cwd: opts.cwd, env: opts.env });
-    try {
-      client.start();
-      await client.initialize({
-        clientInfo: {
-          name: CLIENT_INFO_NAME,
-          version: CLIENT_INFO_VERSION,
-          title: null,
-        },
-        capabilities: {
-          experimentalApi: true,
-          optOutNotificationMethods: null,
-        },
-      });
-      const collected: CodexProtocolModel[] = [];
-      let cursor: string | null = null;
-      // Hard cap on iterations: defensive against a malformed nextCursor
-      // loop. Real model lists are well under 100 entries.
-      for (let i = 0; i < 32; i++) {
-        const params: ModelListParams = {
-          cursor: cursor ?? null,
-          limit: null,
-          includeHidden: opts.includeHidden ?? false,
-        };
-        const resp = await client.request<ModelListResponse>("model/list", params);
-        collected.push(...resp.data);
-        if (!resp.nextCursor) break;
-        cursor = resp.nextCursor;
-      }
-      return collected.map(toBackendModel);
-    } finally {
-      await client.close();
-    }
+    return listCodexModels(opts);
   },
 
   createSession(opts: CreateSessionOptions): BackendSession {
@@ -1252,202 +1034,15 @@ export const codexBackend: Backend = {
   },
 
   async forkSessionBeforeMessage(sessionId: string, targetMessageId: string): Promise<ForkSessionBeforeMessageResult> {
-    // Strategy: fork-then-rollback. Codex 0.130's thread/fork copies whole
-    // threads (no per-message granularity), so to preserve the parent and
-    // produce a child rolled back to before the edited message we:
-    //   1. thread/read the parent → walk turns to find which one contains
-    //      targetMessageId
-    //   2. thread/fork(parent) → child threadId (parent unaltered)
-    //   3. thread/rollback(child, numTurns) → drops the target's turn and
-    //      everything after it, leaving the child at the predecessor's turn
-    //
-    // Turn arithmetic: a user message always starts a new turn in Codex's
-    // model. So if target is in turn K (0-indexed), the turns to preserve
-    // are [0..K-1] and the turns to drop are [K..totalTurns-1]. That gives
-    // numTurns = totalTurns - K, which equals totalTurns when K=0 (first-
-    // message edit drops everything and starts the child from scratch — but
-    // still as a fork, so /resume shows the parent as the original branch).
-    const client = new JsonRpcLiteClient();
-    try {
-      client.start();
-      await client.initialize({
-        clientInfo: {
-          name: CLIENT_INFO_NAME,
-          version: CLIENT_INFO_VERSION,
-          title: null,
-        },
-        capabilities: {
-          experimentalApi: true,
-          optOutNotificationMethods: null,
-        },
-      });
-
-      const turns = await readThreadTurns(client, sessionId);
-      const targetTurnIndex = findTurnIndexContainingItemId(turns, targetMessageId);
-      if (targetTurnIndex === -1) {
-        throw new Error("forkSessionBeforeMessage: target message not found in thread turns");
-      }
-      const numTurns = turns.length - targetTurnIndex;
-      if (numTurns < 1) {
-        // Defensive: target was found in turns so this shouldn't happen, but
-        // bail before issuing a rollback rejected by the server (numTurns
-        // must be >= 1 per the protocol).
-        throw new Error("forkSessionBeforeMessage: computed numTurns < 1 (programming error)");
-      }
-
-      const forkResp = await client.request<{ thread: { id: string } }>("thread/fork", {
-        threadId: sessionId,
-        excludeTurns: true,
-      });
-      const childThreadId = forkResp.thread.id;
-
-      const rollbackParams: ThreadRollbackParams = {
-        threadId: childThreadId,
-        numTurns,
-      };
-      await client.request<ThreadRollbackResponse>("thread/rollback", rollbackParams);
-
-      return {
-        kind: "fork",
-        sessionId: childThreadId,
-        forkedFromSessionId: sessionId,
-      };
-    } finally {
-      await client.close();
-    }
+    return forkCodexSessionBeforeMessage(sessionId, targetMessageId);
   },
 
   async getSessionMessages(sessionId: string): Promise<NormalizedMessage[]> {
-    // thread/read returns the Thread, with rollout history populated in
-    // thread.turns[].items[] only when includeTurns:true is set. Each Turn
-    // is one round of work; we flatten user and assistant items across all
-    // turns in order so the orchestrator's edit-message matching can find
-    // user messages by content + occurrence index.
-    const client = new JsonRpcLiteClient();
-    try {
-      client.start();
-      await client.initialize({
-        clientInfo: {
-          name: CLIENT_INFO_NAME,
-          version: CLIENT_INFO_VERSION,
-          title: null,
-        },
-        capabilities: {
-          experimentalApi: true,
-          optOutNotificationMethods: null,
-        },
-      });
-      const turns = await readThreadTurns(client, sessionId);
-      const out: NormalizedMessage[] = [];
-      type ThreadItem = {
-        type?: string;
-        id?: string;
-        content?: unknown;
-        text?: string;
-      };
-      for (const turn of turns) {
-        for (const raw of turn.items) {
-          const item = raw as ThreadItem;
-          if (item?.type === "userMessage" && typeof item.id === "string") {
-            const text = Array.isArray(item.content)
-              ? (item.content as { type?: string; text?: string }[])
-                  .filter((c): c is { type: "text"; text: string } => c.type === "text" && typeof c.text === "string")
-                  .map((c) => c.text)
-                  .join("")
-              : "";
-            out.push({ uuid: item.id, role: "user", text });
-          } else if (item?.type === "agentMessage" && typeof item.id === "string") {
-            out.push({
-              uuid: item.id,
-              role: "assistant",
-              text: item.text ?? "",
-            });
-          }
-        }
-      }
-      return out;
-    } finally {
-      await client.close();
-    }
+    return getCodexSessionMessages(sessionId);
   },
 
   async oneShotPrompt(prompt: string, opts: OneShotOptions): Promise<string> {
-    // Per the spec: thread/start ephemeral:true → turn/start → consume one
-    // agentMessage → thread/archive. Costs one turn but mirrors Claude's
-    // one-shot prompt flow.
-    const client = new JsonRpcLiteClient({ cwd: opts.cwd, env: opts.env });
-    try {
-      client.start();
-      await client.initialize({
-        clientInfo: {
-          name: CLIENT_INFO_NAME,
-          version: CLIENT_INFO_VERSION,
-          title: null,
-        },
-        capabilities: {
-          experimentalApi: true,
-          optOutNotificationMethods: null,
-        },
-      });
-      const startResp = await client.request<{ thread: { id: string } }>("thread/start", {
-        cwd: opts.cwd,
-        model: opts.modelFamily,
-        sandbox: "read-only",
-        approvalPolicy: "never",
-        ephemeral: true,
-        experimentalRawEvents: false,
-        persistExtendedHistory: false,
-      });
-      const threadId = startResp.thread.id;
-      let result = "";
-      let resolved = false;
-      // Fail closed: callers (topic generation, etc.) need to distinguish a
-      // genuine empty response from a turn that errored or was interrupted.
-      // We keep awaiting the same `done` to collect any final state, but throw
-      // after archive so the caller sees the real failure.
-      let failure: Error | null = null;
-      const done = new Promise<void>((resolve) => {
-        client.onNotification((n) => {
-          const params = n.params as Record<string, unknown> | null | undefined;
-          if (params?.threadId !== threadId) return;
-          if (n.method === "item/completed") {
-            const item = params?.item as { type?: string; text?: string } | undefined;
-            if (item?.type === "agentMessage" && typeof item.text === "string") {
-              result = item.text;
-            }
-          } else if (n.method === "turn/completed") {
-            const turn = params?.turn as { status?: string; error?: { message?: string } | null } | undefined;
-            if (turn?.status && turn.status !== "completed") {
-              failure = new Error(`Codex one-shot turn ${turn.status}: ${turn.error?.message ?? "no detail"}`);
-            }
-            if (!resolved) {
-              resolved = true;
-              resolve();
-            }
-          } else if (n.method === "error") {
-            const msg = params?.message;
-            failure = new Error(`Codex one-shot error: ${typeof msg === "string" ? msg : "unknown"}`);
-            if (!resolved) {
-              resolved = true;
-              resolve();
-            }
-          }
-        });
-      });
-      await client.request("turn/start", {
-        threadId,
-        input: [{ type: "text", text: prompt, text_elements: [] }],
-      });
-      await done;
-      // Best-effort archive; ignore errors.
-      try {
-        await client.request("thread/archive", { threadId });
-      } catch {}
-      if (failure) throw failure as Error;
-      return result;
-    } finally {
-      await client.close();
-    }
+    return oneShotCodexPrompt(prompt, opts);
   },
 
   detectAuthError(text: string): boolean {
