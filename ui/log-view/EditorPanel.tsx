@@ -5,83 +5,13 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { autocompletion, closeBrackets } from "@codemirror/autocomplete";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
-import { javascript } from "@codemirror/lang-javascript";
-import { json } from "@codemirror/lang-json";
-import { markdown } from "@codemirror/lang-markdown";
-import { css } from "@codemirror/lang-css";
-import { html } from "@codemirror/lang-html";
-import { python } from "@codemirror/lang-python";
-import { rust } from "@codemirror/lang-rust";
-import { go } from "@codemirror/lang-go";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { send, addRawListener, removeRawListener } from "../ws.ts";
 import { useTheme } from "../store.tsx";
 import type { ServerMessage } from "../../shared/types.ts";
 import { getEditorState, setEditorState, type PersistedTab } from "./editor-state.ts";
-
-interface Tab {
-  path: string;
-  content: string;
-  mtime: number;
-  language: string;
-  size: number;
-  dirty: boolean;
-  // Save banner state. "stale": disk newer than expectedMtime; user must
-  // pick Overwrite or Reload. "external": file changed under us while we
-  // hold a clean buffer (auto-reloaded already → null) or a dirty buffer
-  // (banner: "Reload? lose edits").
-  banner: null | { kind: "stale"; currentMtime: number } | { kind: "external"; mtime: number } | { kind: "save_error"; message: string };
-}
-
-const TABS_KEY = (agentId: string) => `bureau:editor:tabs:${agentId}`;
-
-function readTabs(agentId: string): string[] {
-  if (typeof localStorage === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(TABS_KEY(agentId));
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr.filter((p): p is string => typeof p === "string");
-  } catch {
-    return [];
-  }
-}
-
-function writeTabs(agentId: string, paths: string[]) {
-  if (typeof localStorage === "undefined") return;
-  try {
-    localStorage.setItem(TABS_KEY(agentId), JSON.stringify(paths.slice(0, 20)));
-  } catch {}
-}
-
-function languageExtension(language: string) {
-  switch (language) {
-    case "javascript":
-      return [javascript({ jsx: true, typescript: true })];
-    case "json":
-      return [json()];
-    case "markdown":
-      return [markdown()];
-    case "css":
-      return [css()];
-    case "html":
-      return [html()];
-    case "python":
-      return [python()];
-    case "rust":
-      return [rust()];
-    case "go":
-      return [go()];
-    default:
-      return [];
-  }
-}
-
-function basename(path: string): string {
-  const i = path.lastIndexOf("/");
-  return i === -1 ? path : path.slice(i + 1);
-}
+import { basename, languageExtension, readTabs, writeTabs, type Tab } from "./editor-model.ts";
+import { EditorBanner } from "./EditorBanner.tsx";
 
 export function EditorPanel({
   agentId,
@@ -822,73 +752,7 @@ export function EditorPanel({
         </div>
       )}
 
-      {/* Banner row (per active tab) */}
-      {activeTab?.banner && (
-        <div
-          style={{
-            padding: "6px 12px",
-            background: activeTab.banner.kind === "save_error" ? "var(--red-bg)" : "var(--orange-bg)",
-            borderBottom: "1px solid var(--border)",
-            fontSize: 12,
-            color: activeTab.banner.kind === "save_error" ? "var(--red)" : "var(--orange)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
-        >
-          {activeTab.banner.kind === "stale" && (
-            <>
-              <span style={{ flex: 1 }}>File changed on disk since you opened it.</span>
-              <button onClick={overwrite} style={bannerBtn("var(--orange)")}>
-                Overwrite
-              </button>
-              <button onClick={reloadFromDisk} style={bannerBtn("var(--text-secondary)")}>
-                Reload
-              </button>
-            </>
-          )}
-          {activeTab.banner.kind === "external" && (
-            <>
-              <span style={{ flex: 1 }}>File changed externally — your edits will be lost if you reload.</span>
-              <button onClick={reloadFromDisk} style={bannerBtn("var(--orange)")}>
-                Reload
-              </button>
-              <button onClick={dismissBanner} style={bannerBtn("var(--text-secondary)")}>
-                Dismiss
-              </button>
-            </>
-          )}
-          {activeTab.banner.kind === "save_error" && (
-            <>
-              <span style={{ flex: 1 }}>Save failed: {activeTab.banner.message}</span>
-              <button onClick={dismissBanner} style={bannerBtn("var(--red)")}>
-                Dismiss
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {pendingError && (
-        <div
-          style={{
-            padding: "6px 12px",
-            background: "var(--red-bg)",
-            borderBottom: "1px solid var(--border)",
-            fontSize: 12,
-            color: "var(--red)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <span style={{ flex: 1 }}>{pendingError}</span>
-          <button onClick={() => setPendingError(null)} style={bannerBtn("var(--red)")}>
-            Dismiss
-          </button>
-        </div>
-      )}
+      <EditorBanner activeTab={activeTab} pendingError={pendingError} onOverwrite={overwrite} onReload={reloadFromDisk} onDismissBanner={dismissBanner} onDismissError={() => setPendingError(null)} />
 
       {/* Editor body */}
       <div
@@ -928,17 +792,4 @@ export function EditorPanel({
       )}
     </div>
   );
-}
-
-function bannerBtn(color: string): React.CSSProperties {
-  return {
-    padding: "2px 10px",
-    borderRadius: 4,
-    border: `1px solid ${color}`,
-    background: "transparent",
-    color,
-    fontSize: 11,
-    fontFamily: "'JetBrains Mono',monospace",
-    cursor: "pointer",
-  };
 }
