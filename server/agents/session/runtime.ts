@@ -10,6 +10,7 @@ import { getBackend } from "../../backends/index.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { getUserById } from "../../users.ts";
 import { buildSessionEnv } from "./session-env.ts";
+import { diagnoseProcessExit, emitLoginInstructions as emitLoginInstructionsImpl, emitLoginInstructionsIfAuth, isAuthErrorForAgent } from "./diagnostics.ts";
 export { CLAUDE_NATIVE_BIN } from "./claude-native.ts";
 export { buildSessionEnv } from "./session-env.ts";
 
@@ -69,67 +70,7 @@ export function createTurnDeferred(managed: ManagedAgent): Promise<void> {
   return promise;
 }
 
-// ---------------------------------------------------------------------------
-// Diagnostics for opaque SDK exit codes
-// ---------------------------------------------------------------------------
-
-// Produce a human-readable hint for why the Claude CLI subprocess may have died,
-// to go alongside the SDK's generic "process exited with code 1". Returns null if
-// no specific cause is identifiable.
-//
-// Resolves session paths against the same CLAUDE_CONFIG_DIR the spawn used by
-// reading env via envForHints (best-effort: a broken envFile must not mask the
-// original backend error this hint is annotating).
-function diagnoseProcessExit(managed: ManagedAgent): string | null {
-  const cwd = managed.info.cwd;
-  try {
-    validateCwd(cwd);
-  } catch {
-    return `Likely cause: cwd \`${cwd}\` no longer exists. Click the agent name in the log view header to point it at a valid directory.`;
-  }
-  const env = envForHints(managed);
-  if (managed.sessionId && !claudeSessionFileExists(cwd, managed.sessionId, env)) {
-    return (
-      `Likely cause: session \`${managed.sessionId.slice(0, 8)}…\` was not found in \`${claudeProjectDir(cwd, env)}\`. ` +
-      `This usually happens after cwd was moved/renamed — the Claude CLI locates session files by a path derived from cwd. ` +
-      `Use /resume to pick another session, or move the session .jsonl into the new project dir.`
-    );
-  }
-  return null;
-}
-
-// Error-path env build for diagnostic hints. Resume preflights deliberately
-// fail loudly on a broken envFile (an agent expecting custom creds must not
-// silently fall through to host creds). Hint generators are different: they
-// annotate an already-failed backend error, and a broken envFile here would
-// mask the real cause. Swallow and return undefined — the hint just falls back
-// to inspecting the default ~/.claude path, which is the worst-case-correct
-// behavior when we can't resolve env.
-function envForHints(managed: ManagedAgent): { [key: string]: string | undefined } | undefined {
-  try {
-    return buildSessionEnv(managed);
-  } catch {
-    return undefined;
-  }
-}
-
-function isAuthErrorForAgent(managed: ManagedAgent | undefined, text: string): boolean {
-  if (!managed) return false;
-  return getBackend(managed.info.agentType).detectAuthError(text);
-}
-
-export function emitLoginInstructions(agentId: string, managed: ManagedAgent | undefined) {
-  if (!managed) return;
-  const instructions = getBackend(managed.info.agentType).getLoginInstructions({ env: envForHints(managed) });
-  emitEphemeralLog(agentId, "system", instructions.text);
-  for (const command of instructions.commands ?? []) {
-    addLogEntry(agentId, "terminal-command", command, undefined, undefined, { terminal: { command } });
-  }
-}
-
-function emitLoginInstructionsIfAuth(agentId: string, managed: ManagedAgent | undefined, text: string) {
-  if (managed && isAuthErrorForAgent(managed, text)) emitLoginInstructions(agentId, managed);
-}
+export { emitLoginInstructions } from "./diagnostics.ts";
 
 // ---------------------------------------------------------------------------
 // Session lifecycle: runConsumer / installSession / replaceSession / createSession
@@ -267,7 +208,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
           const errorText = ev.error ?? `Agent stopped: ${ev.status}.`;
           addLogEntry(agentId, "error", errorText);
           const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, errorText);
-          if (ev.causedByAuth !== true && auth) emitLoginInstructions(agentId, managed);
+          if (ev.causedByAuth !== true && auth) emitLoginInstructionsImpl(agentId, managed);
           updateState(agentId, auth ? "waiting_for_response" : "error");
         }
       }
