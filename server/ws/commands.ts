@@ -3,24 +3,19 @@ import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import { saveRecentCwd } from "../persistence.ts";
-import { broadcast, browsers } from "./broadcast.ts";
-import { pushPresenceListToEachWs, sendInitialPayload } from "../index.ts";
-import { canSeeRoom, claimUser, deleteUser, getSessionContext, getUserById, getWsUser, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
-import { refreshPresenceForUser, setPresence } from "../presence.ts";
-import { evictSessionsForUserId } from "../auth/auth.ts";
+import { broadcast } from "./broadcast.ts";
+import { pushPresenceListToEachWs } from "../index.ts";
+import { getUserById, getWsUser } from "../users.ts";
 import { handleAccessCommand } from "./access-commands.ts";
 import { handleEditorCommand } from "./editor-commands.ts";
 import { handleTaskCommand } from "./task-commands.ts";
+import { canUseRoom, handleUserCommand } from "./user-commands.ts";
 
 function canUseAgent(ws: ServerWebSocket<unknown>, agentId: string): boolean {
   const agent = AgentManager.getAllAgents().find((a) => a.id === agentId);
   if (!agent) return false;
   const roomId = AgentManager.getRooms()[agent.room]?.id;
-  return !!roomId && canSeeRoom(getWsUser(ws), roomId);
-}
-
-function canUseRoom(ws: ServerWebSocket<unknown>, roomId: string): boolean {
-  return canSeeRoom(getWsUser(ws), roomId);
+  return !!roomId && canUseRoom(ws, roomId);
 }
 
 function isOwner(ws: ServerWebSocket<unknown>): boolean {
@@ -30,90 +25,12 @@ function isOwner(ws: ServerWebSocket<unknown>): boolean {
 export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>) {
   if (await handleAccessCommand(cmd, ws)) return;
   if (handleTaskCommand(cmd)) return;
+  if (await handleUserCommand(cmd, ws)) return;
 
   switch (cmd.type) {
     case "ping":
       ws.send(JSON.stringify({ type: "pong" } as ServerMessage));
       break;
-    case "claim_user": {
-      claimUser(ws, cmd.username, AgentManager.getRooms());
-      sendInitialPayload(ws);
-      pushPresenceListToEachWs();
-      break;
-    }
-    case "update_user": {
-      const envFile = cmd.changes.envFile;
-      if (typeof envFile === "string" && envFile.trim()) {
-        try {
-          AgentManager.validateEnvPath(envFile.trim());
-        } catch (err) {
-          console.warn(`[users] rejected envFile update: ${(err as Error).message}`);
-          break;
-        }
-      }
-      const updated = updateUser(getWsUser(ws), cmd.userId, cmd.changes, AgentManager.getRooms());
-      for (const browser of browsers) {
-        sendInitialPayload(browser);
-      }
-      if (updated) {
-        refreshPresenceForUser(updated.id, { name: updated.name, avatarColor: updated.avatarColor, avatarVariant: updated.avatarVariant }, new Set(updated.allowedRooms));
-        pushPresenceListToEachWs();
-      }
-      break;
-    }
-    case "delete_user": {
-      const actor = getWsUser(ws);
-      if (!actor || actor.role !== "owner") break;
-      // Lockout-prevention: refuse deletion that would leave the office
-      // without any owner record on disk. Defense in depth: same invariant
-      // as the session-revoke check, applied to user records.
-      if (wouldDeleteLeaveNoOwner(cmd.userId)) {
-        console.warn(`[auth] delete_user "${cmd.userId}" refused: would leave office with no owners`);
-        break;
-      }
-      deleteUser(actor, cmd.userId);
-      for (const browser of browsers) {
-        sendInitialPayload(browser);
-      }
-      // Evict any sessions the deleted user still had open: their browsers
-      // get session_expired + close so they land on the login wall instead
-      // of looping reconnect against a now-orphaned cookie.
-      await evictSessionsForUserId(cmd.userId);
-      break;
-    }
-    case "presence_update": {
-      const user = getWsUser(ws);
-      if (!user) break;
-      const rooms = AgentManager.getRooms();
-      const visibleRooms = user.role === "owner" ? rooms : rooms.filter((r) => user.allowedRooms.includes(r.id));
-      const visibleRoomIds = new Set(visibleRooms.map((r) => r.id));
-      const roomId =
-        cmd.currentRoomId && visibleRoomIds.has(cmd.currentRoomId)
-          ? cmd.currentRoomId
-          : cmd.currentRoom !== null && Number.isInteger(cmd.currentRoom)
-            ? (visibleRooms[cmd.currentRoom]?.id ?? null)
-            : null;
-      let focusedAgentId: string | null = null;
-      if (roomId && cmd.focusedAgentId) {
-        const agent = AgentManager.getAllAgents().find((a) => a.id === cmd.focusedAgentId);
-        if (agent && rooms[agent.room]?.id === roomId) focusedAgentId = agent.id;
-      }
-      const connectionId = getSessionContext(ws)?.connectionId ?? "";
-      const changed = setPresence({
-        connectionId,
-        userId: user.id,
-        username: user.name,
-        device: cmd.device ?? null,
-        avatarColor: user.avatarColor,
-        avatarVariant: user.avatarVariant,
-        currentRoomId: roomId,
-        focusedAgentId,
-        viewMode: cmd.viewMode === "log" || cmd.viewMode === "away" ? cmd.viewMode : "office",
-        lastSeenAt: Date.now(),
-      });
-      if (changed) pushPresenceListToEachWs();
-      break;
-    }
     case "spawn": {
       if (cmd.roomId && !canUseRoom(ws, cmd.roomId)) break;
       try {
