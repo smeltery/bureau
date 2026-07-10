@@ -1,59 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentBackendType, AgentInfo, AgentOutfit, ClientCommand } from "../../../shared/types.ts";
 import { CODEX_MODELS, familyAllowsAutoPermission, MODEL_FAMILIES, modelVersionLabel } from "../../../shared/types.ts";
-import { SHIRT_COLORS, HAIR_COLORS, SKIN_COLORS, HAIR_STYLES, BEARDS, HATS, ACCESSORIES } from "../../../shared/outfit-options.ts";
-import { Character } from "../../office/scene/Character.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
 import { useAppState } from "../../store.tsx";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
+import { AgentAppearanceEditor, makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
 import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
-
-const HAIR_STYLE_LABELS: Record<AgentOutfit["hairStyle"], string> = {
-  short: "Short",
-  long: "Long",
-  ponytail: "Ponytail",
-  bun: "Bun",
-  pigtails: "Pigtails",
-  curly: "Curly",
-  bald: "Bald",
-};
-
-const HAT_LABELS: Record<AgentOutfit["hat"], string> = {
-  none: "None",
-  cap: "Cap",
-  beanie: "Beanie",
-  bow: "Hair Bow",
-  headband: "Headband",
-};
-
-const ACCESSORY_LABELS: Record<string, string> = {
-  none: "None",
-  glasses: "Glasses",
-  headphones: "Headphones",
-  bow_tie: "Bow Tie",
-  tie: "Tie",
-  earrings: "Earrings",
-};
-
-const BEARD_LABELS: Record<AgentOutfit["beard"], string> = {
-  none: "None",
-  stubble: "Stubble",
-  full: "Full",
-  goatee: "Goatee",
-  mustache: "Mustache",
-};
-
-function makeRandomOutfit(): AgentOutfit {
-  return {
-    hat: HATS[Math.floor(Math.random() * HATS.length)],
-    color: SHIRT_COLORS[Math.floor(Math.random() * SHIRT_COLORS.length)],
-    hair: HAIR_COLORS[Math.floor(Math.random() * HAIR_COLORS.length)],
-    hairStyle: HAIR_STYLES[Math.floor(Math.random() * HAIR_STYLES.length)],
-    skin: SKIN_COLORS[Math.floor(Math.random() * SKIN_COLORS.length)],
-    beard: BEARDS[Math.floor(Math.random() * BEARDS.length)],
-    accessory: ACCESSORIES[Math.floor(Math.random() * ACCESSORIES.length)],
-  };
-}
 
 type EditAgentDialogProps = {
   onClose: () => void;
@@ -312,123 +264,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
           </select>
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Appearance</label>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
-            <div style={{ width: 52, height: 70, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Character state="idle" outfit={outfit} />
-            </div>
-            <button onClick={() => setOutfit(makeRandomOutfit())} style={randomBtnStyle}>
-              Randomize
-            </button>
-          </div>
-
-          {/* Skin Color */}
-          <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Skin</div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
-            {SKIN_COLORS.map((c) => (
-              <div
-                key={c}
-                onClick={() => setOutfit({ ...outfit, skin: c })}
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  background: c,
-                  cursor: "pointer",
-                  border: outfit.skin === c ? "2px solid var(--text-primary)" : "2px solid transparent",
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Shirt Color */}
-          <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Shirt</div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
-            {SHIRT_COLORS.map((c) => (
-              <div
-                key={c}
-                onClick={() => setOutfit({ ...outfit, color: c })}
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  background: c,
-                  cursor: "pointer",
-                  border: outfit.color === c ? "2px solid var(--text-primary)" : "2px solid transparent",
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Hair Color */}
-          <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hair Color</div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
-            {HAIR_COLORS.map((c) => (
-              <div
-                key={c}
-                onClick={() => setOutfit({ ...outfit, hair: c })}
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  background: c,
-                  cursor: "pointer",
-                  border: outfit.hair === c ? "2px solid var(--text-primary)" : "2px solid transparent",
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Hair Style & Hat */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hair Style</div>
-              <select value={outfit.hairStyle ?? "short"} onChange={(e) => setOutfit({ ...outfit, hairStyle: e.target.value as AgentOutfit["hairStyle"] })} style={selectStyle}>
-                {HAIR_STYLES.map((s) => (
-                  <option key={s} value={s}>
-                    {HAIR_STYLE_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hat</div>
-              <select value={outfit.hat} onChange={(e) => setOutfit({ ...outfit, hat: e.target.value as AgentOutfit["hat"] })} style={selectStyle}>
-                {HATS.map((h) => (
-                  <option key={h} value={h}>
-                    {HAT_LABELS[h]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Beard & Accessory */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 4 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Beard</div>
-              <select value={outfit.beard ?? "none"} onChange={(e) => setOutfit({ ...outfit, beard: e.target.value as AgentOutfit["beard"] })} style={selectStyle}>
-                {BEARDS.map((b) => (
-                  <option key={b} value={b}>
-                    {BEARD_LABELS[b]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Accessory</div>
-              <select
-                value={outfit.accessory ?? "none"}
-                onChange={(e) => setOutfit({ ...outfit, accessory: e.target.value === "none" ? null : (e.target.value as AgentOutfit["accessory"]) })}
-                style={selectStyle}
-              >
-                {ACCESSORIES.map((a) => (
-                  <option key={a ?? "none"} value={a ?? "none"}>
-                    {ACCESSORY_LABELS[a ?? "none"]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <AgentAppearanceEditor outfit={outfit} onChange={setOutfit} selectStyle={selectStyle} />
 
           <label style={{ ...labelStyle, marginTop: 14 }}>
             Custom Instructions <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
@@ -528,13 +364,3 @@ const selectStyle: React.CSSProperties = {
 const cancelBtnStyle: React.CSSProperties = dialogCancelBtn;
 const chipStyle: React.CSSProperties = dialogChip;
 const saveBtnStyle: React.CSSProperties = dialogSaveBtn;
-
-const randomBtnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 8,
-  border: "1px solid var(--border-light)",
-  background: "var(--bg-hover)",
-  color: "var(--text-dim)",
-  fontSize: 12,
-  cursor: "pointer",
-};
