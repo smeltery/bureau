@@ -4,9 +4,6 @@ import { send } from "../ws.ts";
 import { useAppState, useDispatch, useFeatures } from "../store.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
 import { serializeEntries } from "./entries/index.tsx";
-import { TerminalPanel } from "./TerminalPanel.tsx";
-import { EditorPanel } from "./EditorPanel.tsx";
-import { PanelResizer } from "./PanelResizer.tsx";
 import { Header } from "./Header.tsx";
 import { InputBar } from "./InputBar.tsx";
 import { QueueChips } from "./QueueChips.tsx";
@@ -16,10 +13,13 @@ import { usePinnedUserMessage } from "./hooks/usePinnedUserMessage.ts";
 import { useSlashAutocomplete } from "./hooks/useSlashAutocomplete.ts";
 import { useVoiceInput } from "./hooks/useVoiceInput.ts";
 import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
-import { PANEL_MIN, useSidePanelLayout } from "./hooks/useSidePanelLayout.ts";
+import { useSidePanelLayout } from "./hooks/useSidePanelLayout.ts";
 import { useSelectionCite } from "./useSelectionCite.ts";
 import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 import { LogMessagesPane } from "./LogMessagesPane.tsx";
+import { DesktopEditorSidePanel, DesktopTerminalSidePanel, MobileEditorSidePanel, MobileTerminalSidePanel } from "./LogViewSidePanels.tsx";
+import { PinnedUserMessageBanner } from "./PinnedUserMessageBanner.tsx";
+import { ScrollToBottomButton } from "./ScrollToBottomButton.tsx";
 
 export function LogView({
   agent,
@@ -301,41 +301,7 @@ export function LogView({
           getConversationText={getConversationText}
         />
 
-        {/* Pinned user message — sits between the header and the messages
-            when no user_message is currently visible in the scroll viewport.
-            Click scrolls the conversation back to that message. */}
-        {pinnedMessage && (
-          <div
-            onClick={scrollToPinnedMessage}
-            title={pinnedMessage.content}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: isMobile ? "6px 12px" : "6px 24px",
-              background: "var(--bg-subtle)",
-              borderBottom: "1px solid var(--border)",
-              cursor: "pointer",
-              color: "var(--text-muted)",
-              fontSize: 12,
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ color: "var(--text-ghost)", flexShrink: 0, fontWeight: 600 }}>↑ you:</span>
-            <span
-              style={{
-                flex: 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                minWidth: 0,
-              }}
-            >
-              {pinnedMessage.content}
-            </span>
-            <span style={{ color: "var(--text-ghost)", flexShrink: 0, fontSize: 11, lineHeight: 1 }}>↑</span>
-          </div>
-        )}
+        {pinnedMessage && <PinnedUserMessageBanner pinnedMessage={pinnedMessage} isMobile={isMobile} onClick={scrollToPinnedMessage} />}
 
         <LogMessagesPane
           agent={agent}
@@ -355,38 +321,15 @@ export function LogView({
           stateChangedAt={stateChangedAt.get(agent.id)}
         />
 
-        {/* Scroll to bottom */}
         {!autoScroll && (
-          <button
+          <ScrollToBottomButton
             onClick={() => {
               if (scrollRef.current) {
                 scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
               }
               setAutoScroll(true);
             }}
-            style={{
-              position: "absolute",
-              bottom: 80,
-              right: 32,
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              border: "1px solid var(--border-medium)",
-              background: "var(--bg-surface)",
-              color: "var(--text-muted)",
-              fontSize: 16,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-              zIndex: 5,
-              transition: "opacity 0.15s",
-            }}
-            title="Scroll to bottom"
-          >
-            ↓
-          </button>
+          />
         )}
 
         <QueueChips queue={agent.queue ?? []} agentId={agent.id} isMobile={isMobile} />
@@ -426,55 +369,30 @@ export function LogView({
         />
       </div>
       {features.terminal && !isMobile && terminalOpen && (
-        <div ref={terminalContainerRef} style={{ width: terminalWidth, flexShrink: 0, position: "relative" }}>
-          <PanelResizer panelRef={terminalContainerRef} min={PANEL_MIN.terminal} getMax={getTerminalMax} onCommit={commitTerminalWidth} />
-          <TerminalPanel agentId={agent.id} onClose={() => setTerminalOpen(false)} />
-        </div>
+        <DesktopTerminalSidePanel
+          agentId={agent.id}
+          panelRef={terminalContainerRef}
+          width={terminalWidth}
+          getMax={getTerminalMax}
+          onCommit={commitTerminalWidth}
+          onClose={() => setTerminalOpen(false)}
+        />
       )}
       {features.editor && !isMobile && editorOpen && (
-        <div ref={editorContainerRef} style={{ width: editorWidth, flexShrink: 0, position: "relative" }}>
-          <PanelResizer panelRef={editorContainerRef} min={PANEL_MIN.editor} getMax={getEditorMax} onCommit={commitEditorWidth} />
-          <EditorPanel agentId={agent.id} initialPath={editorInitialPath} onClose={() => setEditorOpen(false)} onPathOpened={() => setEditorInitialPath(null)} />
-        </div>
+        <DesktopEditorSidePanel
+          agentId={agent.id}
+          panelRef={editorContainerRef}
+          width={editorWidth}
+          getMax={getEditorMax}
+          onCommit={commitEditorWidth}
+          initialPath={editorInitialPath}
+          onClose={() => setEditorOpen(false)}
+          onPathOpened={() => setEditorInitialPath(null)}
+        />
       )}
-      {isMobile && features.terminal && terminalOpen && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "100%",
-            paddingTop: "env(safe-area-inset-top, 0px)",
-            boxSizing: "border-box",
-            background: "var(--bg-base)",
-            zIndex: 30,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <TerminalPanel agentId={agent.id} onClose={() => setTerminalOpen(false)} mobile />
-        </div>
-      )}
+      {isMobile && features.terminal && terminalOpen && <MobileTerminalSidePanel agentId={agent.id} onClose={() => setTerminalOpen(false)} />}
       {isMobile && features.editor && editorOpen && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "100%",
-            paddingTop: "env(safe-area-inset-top, 0px)",
-            paddingBottom: "env(safe-area-inset-bottom, 0px)",
-            boxSizing: "border-box",
-            background: "var(--bg-base)",
-            zIndex: 30,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <EditorPanel agentId={agent.id} initialPath={editorInitialPath} onClose={() => setEditorOpen(false)} onPathOpened={() => setEditorInitialPath(null)} mobile />
-        </div>
+        <MobileEditorSidePanel agentId={agent.id} initialPath={editorInitialPath} onClose={() => setEditorOpen(false)} onPathOpened={() => setEditorInitialPath(null)} />
       )}
       {cite && scrollRef.current && <CiteSelectionButton cite={cite} containerRect={scrollRef.current.getBoundingClientRect()} onClick={() => handleCite(cite.text)} />}
     </div>
