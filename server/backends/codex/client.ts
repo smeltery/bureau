@@ -29,7 +29,7 @@
 // isolation, simpler auth/request-id scoping). The transport layer is
 // designed to support sharing later without breaking the contract.
 
-import { spawn, type ChildProcessWithoutNullStreams } from "child_process";
+import type { ChildProcessWithoutNullStreams } from "child_process";
 import { errMessage } from "../../../shared/errors.ts";
 import {
   JSONRPC_INTERNAL_ERROR,
@@ -43,20 +43,9 @@ import {
   type NotificationHandler,
   type ServerRequestHandler,
 } from "./client-types.ts";
-import { resolveCodexLauncherPath, withBureauCodexHome } from "./native-bin.ts";
+import { CODEX_LAUNCH_FAILED_MESSAGE, spawnCodexAppServer, terminateCodexProcessGroup } from "./client-process.ts";
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import type { InitializeResponse } from "./_generated/InitializeResponse.ts";
-
-// Surfaced verbatim into chat by sendMessage's BackendNotConfiguredError
-// handling when the bundled launcher can't be spawned. Since codex now ships
-// as an bureau runtime dep, ENOENT here means the install is corrupt, not
-// that the user forgot to install something.
-const CODEX_LAUNCH_FAILED_MESSAGE = `Bureau's bundled Codex CLI failed to launch. Run \`bun install\` in the bureau checkout, then \`/clear\` this conversation to retry.`;
-
-// Grace period between SIGTERM and the SIGKILL escalation when closing a codex
-// subprocess group. Long enough for a healthy process to flush and exit, short
-// enough that a hung mid-turn process is reclaimed promptly.
-const CODEX_KILL_GRACE_MS = 2000;
 
 export type { JsonRpcId, JsonRpcNotification, JsonRpcRequest } from "./client-types.ts";
 
@@ -124,35 +113,7 @@ export class JsonRpcLiteClient {
     if (this.closed) {
       throw new Error("JsonRpcLiteClient is closed");
     }
-    const codexArgs = this.opts.args ?? ["app-server", "--listen", "stdio://"];
-    let bin: string;
-    let spawnArgs: string[];
-    if (this.opts.codexBin) {
-      bin = this.opts.codexBin;
-      spawnArgs = codexArgs;
-    } else {
-      // Default: bundled launcher under process.execPath (Bun runs the JS
-      // launcher fine — we don't depend on `node` being on PATH). Resolution
-      // throws here are translated to a chat-actionable hint via the catch
-      // in CodexSession.bootstrap.
-      const launcher = resolveCodexLauncherPath();
-      bin = process.execPath;
-      spawnArgs = [launcher, ...codexArgs];
-    }
-    // Apply the bureau CODEX_HOME default here (not at every adapter
-    // callsite) so model/list, fork, read, one-shot, and the session bootstrap
-    // all spawn with the same effective env. withBureauCodexHome honors a
-    // caller-set CODEX_HOME verbatim (per-user envFile billing isolation, see
-    // server/backends/codex/native-bin.ts).
-    this.child = spawn(bin, spawnArgs, {
-      cwd: this.opts.cwd,
-      env: withBureauCodexHome(this.opts.env),
-      stdio: ["pipe", "pipe", "pipe"],
-      // Make the launcher its own process-group leader so close() can signal
-      // the launcher and native codex child together. The JS launcher does not
-      // reliably forward signals on its own.
-      detached: true,
-    });
+    this.child = spawnCodexAppServer(this.opts);
 
     this.child.stdout.setEncoding("utf8");
     this.child.stderr.setEncoding("utf8");
@@ -220,21 +181,8 @@ export class JsonRpcLiteClient {
     if (!this.killed) {
       this.killed = true;
       const child = this.child;
-      if (child && child.pid !== undefined && !child.killed) {
-        try {
-          child.stdin.end();
-        } catch {}
-        const pgid = child.pid;
-        try {
-          process.kill(-pgid, "SIGTERM");
-        } catch {}
-        const timer = setTimeout(() => {
-          try {
-            process.kill(-pgid, "SIGKILL");
-          } catch {}
-        }, CODEX_KILL_GRACE_MS);
-        timer.unref?.();
-        this.killTimer = timer;
+      if (child) {
+        this.killTimer = terminateCodexProcessGroup(child);
       }
     }
     this.closed = true;
