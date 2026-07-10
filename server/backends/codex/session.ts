@@ -22,11 +22,6 @@
 //      --experimental, so missing this flag would silently strip experimental
 //      fields on the wire.
 
-import { readFileSync, statSync } from "fs";
-import { basename } from "path";
-
-import { saveFile } from "../../persistence.ts";
-import { mimeTypeForFilename } from "../../mime-types.ts";
 import { errMessage } from "../../../shared/errors.ts";
 import { BackendNotConfiguredError } from "../../internal-types.ts";
 
@@ -37,7 +32,10 @@ import { mapApprovalDecision } from "./approvals.ts";
 import { buildCodexUserInput } from "./user-input.ts";
 import { AUTH_ERROR_PATTERNS } from "./config.ts";
 import { CodexUsageTracker } from "./session-usage.ts";
+import { rejectPendingApprovalsOnClose, resolvePendingApprovalsOnAbort } from "./session-approval-cleanup.ts";
+import { attachmentFromPath } from "./session-attachments.ts";
 import { bootstrapCodexThread, type CodexSessionInitOpts } from "./session-bootstrap.ts";
+import { CodexSessionEventBuffer } from "./session-event-buffer.ts";
 import { handleCodexNotification } from "./session-notifications.ts";
 import { handleCodexServerRequest, type PendingApproval } from "./session-requests.ts";
 
@@ -66,9 +64,7 @@ export class CodexSession implements BackendSession {
   private client: JsonRpcLiteClient;
   private threadId: string | null = null;
   private activeTurnId: string | null = null;
-  private buffer: NormalizedEvent[] = [];
-  private resolveWake: (() => void) | null = null;
-  private ended = false;
+  private events = new CodexSessionEventBuffer();
   private closed = false;
   // Tracks whether we've yielded turn_completed for the current turn so we
   // can synthesize a failed one on subprocess exit if not.
@@ -164,15 +160,7 @@ export class CodexSession implements BackendSession {
   // -------------------------------------------------------------------------
 
   async *stream(): AsyncGenerator<NormalizedEvent, void> {
-    while (true) {
-      while (this.buffer.length > 0) {
-        yield this.buffer.shift()!;
-      }
-      if (this.ended) return;
-      await new Promise<void>((resolve) => {
-        this.resolveWake = resolve;
-      });
-    }
+    yield* this.events.stream();
   }
 
   async send(text: string, attachments?: AttachmentSpec[]): Promise<void> {
@@ -265,24 +253,7 @@ export class CodexSession implements BackendSession {
         text: `Codex interrupt failed: ${errMessage(err)}`,
       });
     }
-    // Release any in-flight server-initiated approval requests so the parked
-    // JsonRpcLiteClient handler frames don't leak across to the next turn.
-    // close() can use respondWithError because client.close() runs synchronously
-    // right after and short-circuits the deferred-rejection's auto-respond — the
-    // hot-abort path doesn't close the client, so we must resolve cleanly to
-    // avoid double-responding on the wire (one -32000, then a -32603 from the
-    // catch in JsonRpcLiteClient.handleServerRequest). Routing through
-    // mapApprovalDecision keeps the wire shape identical to a user-driven deny.
-    for (const [, pending] of this.pendingApprovals) {
-      try {
-        const decisionWire = mapApprovalDecision(pending.method, {
-          kind: "deny",
-          reason: "Turn interrupted",
-        });
-        pending.resolve({ decision: decisionWire });
-      } catch {}
-    }
-    this.pendingApprovals.clear();
+    resolvePendingApprovalsOnAbort(this.pendingApprovals);
   }
 
   canAbortInPlace(): boolean {
@@ -292,21 +263,7 @@ export class CodexSession implements BackendSession {
   close(): void {
     if (this.closed) return;
     this.closed = true;
-    // Tell codex about in-flight approvals before tearing down. Respond on
-    // the wire FIRST: the deferred rejection below would also trigger an
-    // auto-respond, but by the time that fires we've called client.close()
-    // and the response is dropped — so the explicit respondWithError is what
-    // codex actually sees. Then reject the deferred so the parked handler
-    // frame unwinds and the promise frees.
-    for (const [, pending] of this.pendingApprovals) {
-      try {
-        this.client.respondWithError(pending.jsonRpcId, -32000, "Session closed");
-      } catch {}
-      try {
-        pending.reject(new Error("Session closed"));
-      } catch {}
-    }
-    this.pendingApprovals.clear();
+    rejectPendingApprovalsOnClose(this.client, this.pendingApprovals);
     // Fire-and-forget close on the client; subprocess exit handler tidies up.
     void this.client.close();
     this.markEnded();
@@ -321,8 +278,7 @@ export class CodexSession implements BackendSession {
   // -------------------------------------------------------------------------
 
   private enqueue(ev: NormalizedEvent): void {
-    this.buffer.push(ev);
-    this.wake();
+    this.events.enqueue(ev);
   }
 
   // Funnel for system_text emissions whose payload may carry codex-sourced
@@ -361,28 +317,8 @@ export class CodexSession implements BackendSession {
       .catch(() => {});
   }
 
-  private attachmentFromPath(rawPath: unknown): AttachmentSpec | null {
-    if (typeof rawPath !== "string" || rawPath.length === 0) return null;
-    try {
-      const st = statSync(rawPath);
-      if (!st.isFile()) return null;
-      return saveFile(this.opts.agentId, readFileSync(rawPath), mimeTypeForFilename(rawPath), basename(rawPath));
-    } catch {
-      return null;
-    }
-  }
-
-  private wake(): void {
-    if (this.resolveWake) {
-      const r = this.resolveWake;
-      this.resolveWake = null;
-      r();
-    }
-  }
-
   private markEnded(): void {
-    this.ended = true;
-    this.wake();
+    this.events.markEnded();
   }
 
   // -------------------------------------------------------------------------
@@ -408,7 +344,7 @@ export class CodexSession implements BackendSession {
       },
       enqueue: (event) => this.enqueue(event),
       enqueueAuthAwareSystemText: (text) => this.enqueueAuthAwareSystemText(text),
-      attachmentFromPath: (rawPath) => this.attachmentFromPath(rawPath),
+      attachmentFromPath: (rawPath) => attachmentFromPath(this.opts.agentId, rawPath),
     });
   }
 
