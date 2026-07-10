@@ -1,4 +1,4 @@
-import type { AgentBackendType } from "./types.ts";
+import type { AgentBackendType } from "./agent-types.ts";
 import type { CodexSandboxMode, EffortLevel } from "./agent-models.ts";
 
 export type Schedule = { type: "daily"; hour: number; minute: number } | { type: "weekly"; weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6; hour: number; minute: number } | { type: "interval"; minutes: number };
