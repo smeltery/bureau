@@ -1,6 +1,7 @@
-import type { AgentInfo, AgentOutfit, TaskItem, TaskPriority, TaskStatus, RoomWire, OfficeSettings } from "./types.ts";
-import { DEFAULT_AGENT_CAPABILITIES, generateTaskId, generateRoomId, isValidStatus, isValidPriority } from "./types.ts";
-import { SHIRT_COLORS, HAIR_COLORS, SKIN_COLORS, HAIR_STYLES, BEARDS, HATS, ACCESSORIES } from "./outfit-options.ts";
+import type { AgentInfo, AgentOutfit, TaskItem, TaskPriority, RoomWire, OfficeSettings } from "./types.ts";
+import { DEFAULT_AGENT_CAPABILITIES, generateRoomId } from "./types.ts";
+import { generateOutfit } from "./office-outfit.ts";
+import { addTaskToList, deleteTaskFromList, updateTaskInList } from "./office-tasks.ts";
 
 // Domain events — callers translate these to ServerMessage
 export type OfficeEvent =
@@ -13,22 +14,6 @@ export type OfficeEvent =
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
   | { type: "tasks_changed"; tasks: TaskItem[] };
-
-function pick<T>(arr: readonly T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function generateOutfit(): AgentOutfit {
-  return {
-    hat: pick(HATS),
-    color: pick(SHIRT_COLORS),
-    hair: pick(HAIR_COLORS),
-    hairStyle: pick(HAIR_STYLES),
-    skin: pick(SKIN_COLORS),
-    beard: pick(BEARDS),
-    accessory: pick(ACCESSORIES),
-  };
-}
 
 export interface OfficeStateData {
   agents: AgentInfo[];
@@ -330,30 +315,21 @@ export class OfficeState {
   }
 
   addTask(title: string, createdBy: string, opts?: { description?: string; priority?: TaskPriority; assignee?: string }): OfficeEvent[] {
-    const task: TaskItem = {
-      id: generateTaskId(this._tasks.map((t) => t.id)),
-      title: title.trim(),
-      description: opts?.description,
-      priority: opts?.priority,
-      status: "open",
-      assignee: opts?.assignee,
-      createdBy,
-      createdAt: Date.now(),
-    };
-    this._tasks.push(task);
-    return [{ type: "tasks_changed", tasks: [...this._tasks] }];
+    const result = addTaskToList(this._tasks, title, createdBy, opts);
+    this._tasks = result.tasks;
+    return result.events;
   }
 
   updateTask(id: string, changes: Partial<Pick<TaskItem, "title" | "description" | "priority" | "status" | "assignee">>): OfficeEvent[] {
-    const task = this._tasks.find((t) => t.id === id);
-    if (!task) return [];
-    Object.assign(task, changes);
-    return [{ type: "tasks_changed", tasks: [...this._tasks] }];
+    const result = updateTaskInList(this._tasks, id, changes);
+    this._tasks = result.tasks;
+    return result.events;
   }
 
   deleteTask(id: string): OfficeEvent[] {
-    this._tasks = this._tasks.filter((t) => t.id !== id);
-    return [{ type: "tasks_changed", tasks: [...this._tasks] }];
+    const result = deleteTaskFromList(this._tasks, id);
+    this._tasks = result.tasks;
+    return result.events;
   }
 
   addRecentCwd(cwd: string) {
