@@ -11,6 +11,7 @@ import { useTheme } from "../store.tsx";
 import { getEditorState, setEditorState, type PersistedTab } from "./editor-state.ts";
 import { languageExtension, readTabs, writeTabs, type Tab } from "./editor-model.ts";
 import { EditorBanner } from "./EditorBanner.tsx";
+import { EditorFooter } from "./EditorFooter.tsx";
 import { EditorTabsHeader } from "./EditorTabsHeader.tsx";
 import { useEditorSocket } from "./hooks/useEditorSocket.ts";
 
@@ -391,31 +392,7 @@ export function EditorPanel({
         }}
       />
 
-      {/* Footer status. Mobile drops the path (low value at 320px and already
-          available in the tab-dropdown tooltip) and the Ctrl+S hint (no Ctrl
-          key on touch). The bottom safe-area inset is handled by the outer
-          overlay container in LogView, so the footer keeps a flat 4px pad. */}
-      {activeTab && (
-        <div
-          style={{
-            padding: "4px 12px",
-            fontSize: 11,
-            color: "var(--text-dim)",
-            background: "var(--bg-surface)",
-            borderTop: "1px solid var(--border)",
-            display: "flex",
-            gap: 12,
-            fontFamily: "'JetBrains Mono', monospace",
-            flexShrink: 0,
-          }}
-        >
-          {!mobile && <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeTab.path}</span>}
-          {mobile && <span style={{ flex: 1 }} />}
-          <span>{activeTab.language}</span>
-          <span>{activeTab.dirty ? "modified" : "saved"}</span>
-          {!mobile && <span title="Ctrl+S to save">{(navigator.platform || "").includes("Mac") ? "⌘S" : "Ctrl+S"}</span>}
-        </div>
-      )}
+      <EditorFooter activeTab={activeTab} mobile={mobile} />
     </div>
   );
 }
