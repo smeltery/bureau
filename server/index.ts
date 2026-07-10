@@ -1,4 +1,4 @@
-import type { ClientCommand, ServerMessage } from "../shared/types.ts";
+import type { ServerMessage } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
 import { loadEnabledPlugins } from "./persistence.ts";
@@ -7,14 +7,13 @@ import { join as joinPath } from "path";
 import { onUpdateChange, startUpdateChecker } from "./update-checker.ts";
 import { getBackupStatus, startBackupScheduler } from "./backup.ts";
 import { broadcast, browsers } from "./ws/broadcast.ts";
-import { handleCommand } from "./ws/commands.ts";
-import { claimUser, clearWsUser, getSessionContext, getWsUser, setWsSessionPrefix } from "./users.ts";
-import { removePresence } from "./presence.ts";
-import { closeEditorWatch, closeEditorWatchesFor, findBrowserConnection, watchEditorFile } from "./editor-watchers.ts";
+import { getWsUser } from "./users.ts";
+import { closeEditorWatch, findBrowserConnection, watchEditorFile } from "./editor-watchers.ts";
 export { editorWatchers } from "./editor-watchers.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "./ws-initial-payload.ts";
 export { pushPresenceListToEachWs, sendInitialPayload } from "./ws-initial-payload.ts";
 import { wireAgentAndCronjobEvents } from "./ws/agent-events.ts";
+import { closeBrowserWebSocket, handleBrowserWebSocketMessage, openBrowserWebSocket, type WsData } from "./ws/websocket-handlers.ts";
 import { handleLiveReloadRequest, startLiveReloadWatcher } from "./http/live-reload.ts";
 import { handleTasksRequest } from "./http/tasks.ts";
 import { handleCronjobsRequest } from "./http/cronjobs.ts";
@@ -39,19 +38,15 @@ import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth
 import {
   getOfficeName,
   isProcessPreClaim,
-  registerSocket,
-  revalidateByHash,
   setOfficeName,
   setOnInviteConsumed,
   setOnSessionsChanged,
   setRoomsSnapshotProvider,
-  unregisterSocket,
   isProcessBoundLoopback,
   listActiveSessions,
   listActiveSessionsForUserId,
   listInvites,
   listInvitesForUsername,
-  type SessionLookup,
 } from "./auth/auth.ts";
 import { startAdminSocket } from "./auth/admin-socket.ts";
 import { boundExternal, initializeAccessConfig } from "./boot-access.ts";
@@ -134,14 +129,6 @@ wireAgentAndCronjobEvents();
 startLiveReloadWatcher();
 
 const { socketPath, port: PORT } = resolveListenOptions();
-
-// Per-WS auth context. Set at upgrade; cleared at close. WsData carries the
-// session lookup so per-message rechecks can revoke active connections
-// within ~1s of an Access-pane revoke. Loopback connections (agents on the
-// same host) skip auth and run with `session === null`.
-interface WsData {
-  session: SessionLookup | null;
-}
 
 const server = Bun.serve<WsData>({
   // Bun's default is ~128MB, below our 200MB per-file / 400MB per-upload limits,
@@ -287,59 +274,9 @@ const server = Bun.serve<WsData>({
     return handleStaticRequest(req, url);
   },
   websocket: {
-    open(ws) {
-      browsers.add(ws);
-      const session = ws.data?.session ?? null;
-      if (session) {
-        registerSocket(session.sessionIdHash, ws);
-        // Bind the WS to the authenticated user record automatically. The
-        // user already exists in users.json (created via the invite/claim
-        // flow); this hooks the WS into the existing per-WS lifecycle
-        // (wsUsers / sessionPrefixes / connectedAt) that the rest of
-        // bureau's command handlers depend on. claim_user is still wired
-        // for loopback connections (agents on the same host) that arrive
-        // without a session.
-        claimUser(ws, session.username, AgentManager.getRooms());
-        // Install the real auth-session prefix so SessionContext.currentSessionPrefix
-        // matches the Access pane's session row for self-detection.
-        setWsSessionPrefix(ws, session.sessionPrefix);
-      }
-      sendInitialPayload(ws);
-    },
-    message(ws, data) {
-      // Per-message session recheck so a revoke from the Access pane
-      // disconnects an active connection within ~1s. Loopback connections
-      // (ws.data.session === null) skip the check.
-      const session = ws.data?.session ?? null;
-      if (session) {
-        const current = revalidateByHash(session.sessionIdHash);
-        if (!current) {
-          try {
-            ws.send(JSON.stringify({ type: "session_expired" } as ServerMessage));
-          } catch {}
-          try {
-            ws.close();
-          } catch {}
-          return;
-        }
-      }
-      try {
-        const cmd = JSON.parse(data as string) as ClientCommand;
-        handleCommand(cmd, ws);
-      } catch (e) {
-        console.error("Invalid command:", e);
-      }
-    },
-    close(ws) {
-      browsers.delete(ws);
-      const session = ws.data?.session ?? null;
-      if (session) unregisterSocket(session.sessionIdHash, ws);
-      if (getSessionContext(ws)?.connectionId && removePresence(getSessionContext(ws)!.connectionId)) {
-        pushPresenceListToEachWs();
-      }
-      clearWsUser(ws);
-      closeEditorWatchesFor(ws);
-    },
+    open: openBrowserWebSocket,
+    message: handleBrowserWebSocketMessage,
+    close: closeBrowserWebSocket,
   },
 });
 
