@@ -5,7 +5,9 @@ import { send, addRawListener, removeRawListener } from "../../ws.ts";
 import { useAppState } from "../../store.tsx";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { AgentAppearanceEditor, makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
-import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
+import { AgentMoveRoomSection } from "./AgentMoveRoomSection.tsx";
+import { AgentWorkingDirectoryField } from "./AgentWorkingDirectoryField.tsx";
+import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 
 type EditAgentDialogProps = {
   onClose: () => void;
@@ -203,33 +205,16 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
           <label style={labelStyle}>Name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isSpawn ? `Agent ${props.deskIndex! + 1}` : undefined} autoFocus={isSpawn} style={inputStyle} />
 
-          <label style={{ ...labelStyle, marginTop: 12 }}>Working Directory</label>
-          <input
-            value={cwd}
-            onChange={(e) => {
-              setCwd(e.target.value);
-              if (cwdError) setCwdError(null);
-            }}
-            style={cwdError ? { ...inputStyle, borderColor: "#ff6b6b" } : inputStyle}
+          <AgentWorkingDirectoryField
+            cwd={cwd}
+            cwdError={cwdError}
+            inputStyle={inputStyle}
+            labelStyle={labelStyle}
+            recentCwds={recentCwds}
+            setCwd={setCwd}
+            setCwdError={setCwdError}
+            showNextConversationHint={!isSpawn}
           />
-          {cwdError && <p style={{ fontSize: 10, color: "#ff6b6b", margin: "4px 0 0" }}>{cwdError}</p>}
-          {recentCwds.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-              {recentCwds.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => {
-                    setCwd(c);
-                    if (cwdError) setCwdError(null);
-                  }}
-                  style={chipStyle}
-                >
-                  {c.replace(/^\/home\/[^/]+/, "~")}
-                </button>
-              ))}
-            </div>
-          )}
-          {!isSpawn && <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>}
 
           <label style={{ ...labelStyle, marginTop: 12 }}>Permission Mode</label>
           <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as AgentInfo["permissionMode"])} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
@@ -290,44 +275,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
             </>
           )}
 
-          {/* Move to Room — only show when multiple rooms exist and editing */}
-          {!isSpawn && roomCount > 1 && (
-            <>
-              <label style={{ ...labelStyle, marginTop: 14 }}>Move to Room</label>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {Array.from({ length: roomCount }, (_, i) => {
-                  if (i === agent!.room) return null;
-                  const roomAgentCount = agents.filter((a) => a.room === i).length;
-                  const isFull = roomAgentCount >= 8;
-                  return (
-                    <button
-                      key={i}
-                      disabled={isFull}
-                      onClick={() => {
-                        const targetRoomId = rooms[i]?.id;
-                        if (!targetRoomId) return;
-                        send({ type: "move_agent", agentId: agent!.id, targetRoomId });
-                        onClose();
-                      }}
-                      style={{
-                        padding: "5px 12px",
-                        borderRadius: 6,
-                        border: "1px solid var(--border)",
-                        background: isFull ? "var(--bg-input)" : "var(--btn-surface)",
-                        color: isFull ? "var(--text-ghost)" : "var(--text-dim)",
-                        fontSize: 11,
-                        cursor: isFull ? "not-allowed" : "pointer",
-                        fontFamily: "'JetBrains Mono',monospace",
-                        opacity: isFull ? 0.5 : 1,
-                      }}
-                    >
-                      {rooms[i]?.name ?? `Room ${i + 1}`} ({roomAgentCount}/8)
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          {!isSpawn && <AgentMoveRoomSection agent={agent!} agents={agents} rooms={rooms} labelStyle={labelStyle} onClose={onClose} />}
         </div>
         <div
           style={{
@@ -362,5 +310,4 @@ const selectStyle: React.CSSProperties = {
 };
 
 const cancelBtnStyle: React.CSSProperties = dialogCancelBtn;
-const chipStyle: React.CSSProperties = dialogChip;
 const saveBtnStyle: React.CSSProperties = dialogSaveBtn;
