@@ -40,7 +40,9 @@ import {
   type NotificationHandler,
   type ServerRequestHandler,
 } from "./client-types.ts";
-import { CODEX_LAUNCH_FAILED_MESSAGE, spawnCodexAppServer, terminateCodexProcessGroup } from "./client-process.ts";
+import { spawnCodexAppServer, terminateCodexProcessGroup } from "./client-process.ts";
+import { attachCodexChildEvents } from "./client-child-events.ts";
+import { writeCodexFrame } from "./client-write.ts";
 import { JsonlFrameBuffer } from "./client-jsonl-buffer.ts";
 import { JsonRpcPendingRequests } from "./client-pending.ts";
 import { dispatchCodexClientFrame } from "./client-dispatch.ts";
@@ -108,49 +110,26 @@ export class JsonRpcLiteClient {
       throw new Error("JsonRpcLiteClient is closed");
     }
     this.child = spawnCodexAppServer(this.opts);
-
-    this.child.stdout.setEncoding("utf8");
-    this.child.stderr.setEncoding("utf8");
-
-    this.child.stdout.on("data", (chunk: string) => this.onStdoutChunk(chunk));
-    this.child.stderr.on("data", (chunk: string) => {
-      for (const h of this.stderrHandlers) {
-        try {
-          h(chunk);
-        } catch {}
-      }
-    });
-    this.child.on("error", (err: NodeJS.ErrnoException) => {
-      // Spawn failure. Translate ENOENT to a user-actionable reinstall hint
-      // (bundled binary missing or corrupt) rather than just the raw errno;
-      // every other failure falls through to the underlying message. Mark
-      // the client closed so any subsequent request short-circuits on the
-      // `this.closed` guard in request() instead of writing to a dead process.
-      this.closed = true;
-      if (err.code === "ENOENT") {
-        this.pending.failAll(new Error(CODEX_LAUNCH_FAILED_MESSAGE));
-      } else {
-        this.pending.failAll(`codex subprocess error: ${err.message}`);
-      }
-    });
-    this.child.on("exit", (code, signal) => {
-      this.exitInfo = { code, signal };
-      this.closed = true;
-      if (this.killTimer) {
-        clearTimeout(this.killTimer);
-        this.killTimer = null;
-      }
-      this.pending.failAll(`codex subprocess exited${code != null ? ` with code ${code}` : ""}${signal ? ` (signal ${signal})` : ""}`);
-      for (const h of this.exitHandlers) {
-        try {
-          h(code, signal);
-        } catch {}
-      }
-      for (const h of this.closeHandlers) {
-        try {
-          h();
-        } catch {}
-      }
+    attachCodexChildEvents({
+      child: this.child,
+      failAllPending: (reason) => this.pending.failAll(reason),
+      onErrorClosed: () => {
+        this.closed = true;
+      },
+      onStdout: (chunk) => this.onStdoutChunk(chunk),
+      onStderr: (chunk) => this.emitStderr(chunk),
+      clearKillTimer: () => {
+        if (this.killTimer) {
+          clearTimeout(this.killTimer);
+          this.killTimer = null;
+        }
+      },
+      onExit: (code, signal) => {
+        this.exitInfo = { code, signal };
+        this.closed = true;
+        this.emitExit(code, signal);
+      },
+      onClose: () => this.emitClose(),
     });
   }
 
@@ -310,25 +289,35 @@ export class JsonRpcLiteClient {
   // -------------------------------------------------------------------------
 
   private write(frame: unknown): void {
-    if (!this.child) throw new Error("client not started");
-    const line = JSON.stringify(frame) + "\n";
-    // child.pid is undefined when spawn() failed synchronously (e.g. ENOENT
-    // on a corrupt bundled launcher). Translating here wins the race against
-    // the async child.on('error') ENOENT handler so the user-visible chat
-    // error is the actionable reinstall hint, not the technical
-    // "stdin is not writable" message that fires when the dead child's
-    // stdin stream is already closed.
-    if (this.child.pid === undefined) {
-      throw new Error(CODEX_LAUNCH_FAILED_MESSAGE);
-    }
-    if (!this.child.stdin.writable) {
-      throw new Error("codex stdin is not writable");
-    }
-    this.child.stdin.write(line);
+    writeCodexFrame(this.child, frame);
   }
 
   private onStdoutChunk(chunk: string): void {
     this.stdoutBuffer.push(chunk, (line) => this.dispatch(line));
+  }
+
+  private emitStderr(chunk: string): void {
+    for (const h of this.stderrHandlers) {
+      try {
+        h(chunk);
+      } catch {}
+    }
+  }
+
+  private emitExit(code: number | null, signal: NodeJS.Signals | null): void {
+    for (const h of this.exitHandlers) {
+      try {
+        h(code, signal);
+      } catch {}
+    }
+  }
+
+  private emitClose(): void {
+    for (const h of this.closeHandlers) {
+      try {
+        h();
+      } catch {}
+    }
   }
 
   private dispatch(line: string): void {
