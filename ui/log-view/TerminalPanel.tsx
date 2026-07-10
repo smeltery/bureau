@@ -7,6 +7,7 @@ import type { ServerMessage } from "../../shared/types.ts";
 import { applyCtrl, ensureMobileTerminalStyle, MobileInputProxy, MobileSoftKeyBar, type SoftKey } from "./terminal-mobile.tsx";
 import { useMobileTerminalTouch } from "./useMobileTerminalTouch.ts";
 import { DARK_TERMINAL_THEME, LIGHT_TERMINAL_THEME } from "./terminal-themes.ts";
+import { TerminalExitOverlay, TerminalHeader } from "./terminal-chrome.tsx";
 
 export function TerminalPanel({
   agentId,
@@ -262,51 +263,7 @@ export function TerminalPanel({
         position: "relative",
       }}
     >
-      {/* Terminal header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 12px",
-          height: mobile ? 44 : 36,
-          borderBottom: "1px solid var(--border-strong)",
-          background: "var(--bg-surface)",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontSize: mobile ? 13 : 11,
-            color: "var(--text-dim)",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {/* Skip the ▶ on mobile: iOS Safari forces it through the system
-              emoji renderer which overrides our green CSS color and looks
-              like an out-of-place colored emoji. Desktop renders it as a
-              proper CSS-colored glyph, which is the intended brand mark. */}
-          {!mobile && <span style={{ color: "var(--green)", fontSize: 13 }}>&#9654;</span>}
-          Terminal
-        </span>
-        <button
-          onClick={onClose}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            fontSize: mobile ? 24 : 16,
-            padding: mobile ? "4px 10px" : "0 4px",
-            lineHeight: 1,
-          }}
-          title="Close terminal"
-        >
-          &times;
-        </button>
-      </div>
+      <TerminalHeader mobile={mobile} onClose={onClose} />
 
       {/* Terminal body. position:relative so the exit overlay anchors to the
           body bottom (above the soft-key bar) without a hard-coded offset. */}
@@ -326,45 +283,7 @@ export function TerminalPanel({
         {mobile && <MobileInputProxy ref={inputProxyRef} onInput={sendInput} />}
         {/* Exit overlay — anchored to the body so it floats above whatever
             sits below (soft-key bar on mobile, nothing on desktop). */}
-        {exited !== null && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 16,
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "var(--bg-overlay)",
-              border: "1px solid var(--border-medium)",
-              borderRadius: 8,
-              padding: "8px 16px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              fontSize: 12,
-              color: "var(--text-dim)",
-              boxShadow: "0 4px 12px var(--shadow)",
-            }}
-          >
-            <span>Shell exited ({exited})</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRespawn();
-              }}
-              style={{
-                padding: "3px 12px",
-                borderRadius: 6,
-                border: "1px solid var(--green-border)",
-                background: "var(--green-bg)",
-                color: "var(--green)",
-                fontSize: 12,
-                cursor: "pointer",
-              }}
-            >
-              Restart
-            </button>
-          </div>
-        )}
+        {exited !== null && <TerminalExitOverlay exitCode={exited} onRestart={handleRespawn} />}
       </div>
 
       {/* Soft-key bar (mobile only). Adds the home-indicator safe-area
