@@ -44,6 +44,8 @@ import {
   type ServerRequestHandler,
 } from "./client-types.ts";
 import { CODEX_LAUNCH_FAILED_MESSAGE, spawnCodexAppServer, terminateCodexProcessGroup } from "./client-process.ts";
+import { JsonlFrameBuffer } from "./client-jsonl-buffer.ts";
+import { JsonRpcPendingRequests } from "./client-pending.ts";
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import type { InitializeResponse } from "./_generated/InitializeResponse.ts";
 
@@ -68,20 +70,14 @@ export interface JsonRpcLiteClientOptions {
 export { PASS };
 export type { NotificationHandler, ServerRequestHandler };
 
-type Pending = {
-  resolve: (value: unknown) => void;
-  reject: (err: Error) => void;
-};
-
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
 
 export class JsonRpcLiteClient {
   private child: ChildProcessWithoutNullStreams | null = null;
-  private nextRequestId = 1;
-  private pending = new Map<JsonRpcId, Pending>();
-  private stdoutBuffer = "";
+  private pending = new JsonRpcPendingRequests();
+  private stdoutBuffer = new JsonlFrameBuffer();
   private closed = false;
   // Guards the OS-process kill in close(), tracked separately from `closed`
   // which may be set by error/exit handlers while the child is still alive.
@@ -134,9 +130,9 @@ export class JsonRpcLiteClient {
       // `this.closed` guard in request() instead of writing to a dead process.
       this.closed = true;
       if (err.code === "ENOENT") {
-        this.failAllPending(new Error(CODEX_LAUNCH_FAILED_MESSAGE));
+        this.pending.failAll(new Error(CODEX_LAUNCH_FAILED_MESSAGE));
       } else {
-        this.failAllPending(`codex subprocess error: ${err.message}`);
+        this.pending.failAll(`codex subprocess error: ${err.message}`);
       }
     });
     this.child.on("exit", (code, signal) => {
@@ -146,7 +142,7 @@ export class JsonRpcLiteClient {
         clearTimeout(this.killTimer);
         this.killTimer = null;
       }
-      this.failAllPending(`codex subprocess exited${code != null ? ` with code ${code}` : ""}${signal ? ` (signal ${signal})` : ""}`);
+      this.pending.failAll(`codex subprocess exited${code != null ? ` with code ${code}` : ""}${signal ? ` (signal ${signal})` : ""}`);
       for (const h of this.exitHandlers) {
         try {
           h(code, signal);
@@ -186,7 +182,7 @@ export class JsonRpcLiteClient {
       }
     }
     this.closed = true;
-    this.failAllPending("client closed");
+    this.pending.failAll("client closed");
   }
 
   // -------------------------------------------------------------------------
@@ -199,18 +195,12 @@ export class JsonRpcLiteClient {
     if (this.closed || !this.child) {
       throw new Error(`cannot send ${method}: client is closed`);
     }
-    const id = this.nextRequestId++;
+    const { id, promise } = this.pending.allocate<T>();
     const frame: JsonRpcRequest = {
       id,
       method,
       ...(params !== undefined ? { params } : {}),
     };
-    const promise = new Promise<T>((resolve, reject) => {
-      this.pending.set(id, {
-        resolve: resolve as (v: unknown) => void,
-        reject,
-      });
-    });
     // Defensive: attach a noop catch so Bun does not flag the rejection as
     // unhandled in the window between Promise construction and the caller's
     // await. Observed crash mode: write() succeeds, then child.on('error')
@@ -340,15 +330,7 @@ export class JsonRpcLiteClient {
   }
 
   private onStdoutChunk(chunk: string): void {
-    this.stdoutBuffer += chunk;
-    let nl: number;
-    while ((nl = this.stdoutBuffer.indexOf("\n")) >= 0) {
-      const line = this.stdoutBuffer.slice(0, nl);
-      this.stdoutBuffer = this.stdoutBuffer.slice(nl + 1);
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      this.dispatch(trimmed);
-    }
+    this.stdoutBuffer.push(chunk, (line) => this.dispatch(line));
   }
 
   private dispatch(line: string): void {
@@ -399,21 +381,14 @@ export class JsonRpcLiteClient {
     if (hasId) {
       // Response to one of our requests.
       const id = f.id as JsonRpcId;
-      const pending = this.pending.get(id);
-      if (!pending) {
+      const result = "result" in f ? f.result : undefined;
+      if (!this.pending.settle(id, result, f.error)) {
         for (const h of this.stderrHandlers) {
           try {
             h(`[codex client] response for unknown request id ${String(id)}\n`);
           } catch {}
         }
         return;
-      }
-      this.pending.delete(id);
-      if (f.error) {
-        const err = f.error;
-        pending.reject(Object.assign(new Error(`${err.message ?? "JSON-RPC error"} (code ${err.code ?? "?"})`), { code: err.code, data: err.data }));
-      } else {
-        pending.resolve("result" in f ? f.result : undefined);
       }
       return;
     }
@@ -439,16 +414,6 @@ export class JsonRpcLiteClient {
     }
     // No handler claimed it.
     this.respondWithError(request.id, JSONRPC_METHOD_NOT_FOUND, `No client handler for method "${request.method}"`);
-  }
-
-  private failAllPending(reason: string | Error): void {
-    const err = typeof reason === "string" ? new Error(reason) : reason;
-    for (const [, pending] of this.pending) {
-      try {
-        pending.reject(err);
-      } catch {}
-    }
-    this.pending.clear();
   }
 
   // -------------------------------------------------------------------------
