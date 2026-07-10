@@ -4,10 +4,11 @@ import * as AgentManager from "../agent-manager.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import { broadcast } from "./broadcast.ts";
 import { pushPresenceListToEachWs } from "../index.ts";
-import { getUserById, getWsUser } from "../users.ts";
+import { getWsUser } from "../users.ts";
 import { handleAccessCommand } from "./access-commands.ts";
 import { handleCronjobCommand } from "./cronjob-commands.ts";
 import { handleEditorCommand } from "./editor-commands.ts";
+import { handleSettingsCommand } from "./settings-commands.ts";
 import { handleTaskCommand } from "./task-commands.ts";
 import { canUseRoom, handleUserCommand } from "./user-commands.ts";
 
@@ -27,6 +28,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
   if (handleTaskCommand(cmd)) return;
   if (await handleUserCommand(cmd, ws)) return;
   if (handleCronjobCommand(cmd, ws)) return;
+  if (handleSettingsCommand(cmd, ws, (roomId) => canUseRoom(ws, roomId))) return;
 
   switch (cmd.type) {
     case "ping":
@@ -217,99 +219,6 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
     }
     case "editor_close": {
       handleEditorCommand(cmd, ws, (agentId) => canUseAgent(ws, agentId));
-      break;
-    }
-    case "update_office_settings": {
-      const envFile = cmd.envFile && cmd.envFile.trim() ? cmd.envFile.trim() : null;
-      if (envFile) {
-        try {
-          AgentManager.validateEnvPath(envFile);
-        } catch (err: any) {
-          ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: false, error: err.message || "Invalid env file" } as ServerMessage));
-          break;
-        }
-      }
-      AgentManager.setOfficeSettings(cmd.prompt, envFile);
-      ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
-      break;
-    }
-    case "update_room_settings": {
-      if (!canUseRoom(ws, cmd.roomId)) break;
-      const envFile = cmd.envFile && cmd.envFile.trim() ? cmd.envFile.trim() : null;
-      if (envFile) {
-        try {
-          AgentManager.validateEnvPath(envFile);
-        } catch (err: any) {
-          ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: false, error: err.message || "Invalid env file" } as ServerMessage));
-          break;
-        }
-      }
-      const ok = AgentManager.setRoomSettings(cmd.roomId, cmd.prompt, envFile);
-      if (!ok) {
-        ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: false, error: "Room not found" } as ServerMessage));
-      } else {
-        ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
-      }
-      break;
-    }
-    case "request_cwd_validation": {
-      try {
-        AgentManager.validateCwd(cmd.cwd);
-        ws.send(JSON.stringify({ type: "cwd_validation", requestId: cmd.requestId, ok: true } as ServerMessage));
-      } catch (err: any) {
-        ws.send(JSON.stringify({ type: "cwd_validation", requestId: cmd.requestId, ok: false, error: err.message || "Invalid directory" } as ServerMessage));
-      }
-      break;
-    }
-    case "request_settings_validation": {
-      let envFile: string | null = null;
-      let userId: string | undefined;
-      if (cmd.scope === "office") {
-        envFile = AgentManager.getOfficeSettings().envFile;
-      } else if (cmd.scope === "room" && cmd.roomId) {
-        const room = AgentManager.getRooms().find((r) => r.id === cmd.roomId);
-        envFile = room?.envFile ?? null;
-      } else if (cmd.scope === "user") {
-        const actor = getWsUser(ws);
-        const target = cmd.userId ? getUserById(cmd.userId) : actor;
-        if (!actor || !target || (actor.role !== "owner" && actor.id !== target.id)) {
-          ws.send(
-            JSON.stringify({
-              type: "settings_validation",
-              requestId: cmd.requestId,
-              scope: cmd.scope,
-              userId: cmd.userId,
-              envFile: null,
-              ok: false,
-              error: "User env validation is not allowed.",
-            } as ServerMessage),
-          );
-          break;
-        }
-        userId = target.id;
-        envFile = cmd.envFile !== undefined ? cmd.envFile?.trim() || null : (target.envFile ?? null);
-      }
-      if (!envFile) {
-        ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, userId, envFile: null, ok: true } as ServerMessage));
-        break;
-      }
-      try {
-        const keyCount = AgentManager.validateEnvPath(envFile);
-        ws.send(JSON.stringify({ type: "settings_validation", requestId: cmd.requestId, scope: cmd.scope, roomId: cmd.roomId, userId, envFile, ok: true, keyCount } as ServerMessage));
-      } catch (err: any) {
-        ws.send(
-          JSON.stringify({
-            type: "settings_validation",
-            requestId: cmd.requestId,
-            scope: cmd.scope,
-            roomId: cmd.roomId,
-            userId,
-            envFile,
-            ok: false,
-            error: err.message || "Invalid env file",
-          } as ServerMessage),
-        );
-      }
       break;
     }
     case "create_room":
