@@ -1,5 +1,5 @@
 import type { AttachmentSpec, NormalizedEvent } from "../types.ts";
-import type { JsonRpcNotification } from "./client.ts";
+import type { JsonRpcNotification } from "./client-types.ts";
 import { translateCompletedItem } from "./completed-items.ts";
 import { AUTH_ERROR_PATTERNS } from "./config.ts";
 import { mapTurnStatus } from "./protocol-format.ts";

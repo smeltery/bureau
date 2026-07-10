@@ -31,7 +31,21 @@
 
 import { spawn, type ChildProcessWithoutNullStreams } from "child_process";
 import { errMessage } from "../../../shared/errors.ts";
+import {
+  JSONRPC_INTERNAL_ERROR,
+  JSONRPC_METHOD_NOT_FOUND,
+  PASS,
+  type JsonRpcErrorResponse,
+  type JsonRpcId,
+  type JsonRpcNotification,
+  type JsonRpcRequest,
+  type JsonRpcSuccessResponse,
+  type NotificationHandler,
+  type ServerRequestHandler,
+} from "./client-types.ts";
 import { resolveCodexLauncherPath, withBureauCodexHome } from "./native-bin.ts";
+import type { InitializeParams } from "./_generated/InitializeParams.ts";
+import type { InitializeResponse } from "./_generated/InitializeResponse.ts";
 
 // Surfaced verbatim into chat by sendMessage's BackendNotConfiguredError
 // handling when the bundled launcher can't be spawned. Since codex now ships
@@ -44,42 +58,7 @@ const CODEX_LAUNCH_FAILED_MESSAGE = `Bureau's bundled Codex CLI failed to launch
 // enough that a hung mid-turn process is reclaimed promptly.
 const CODEX_KILL_GRACE_MS = 2000;
 
-import type { InitializeParams } from "./_generated/InitializeParams.ts";
-import type { InitializeResponse } from "./_generated/InitializeResponse.ts";
-
-// ---------------------------------------------------------------------------
-// Wire types
-// ---------------------------------------------------------------------------
-
-export type JsonRpcId = number | string;
-
-export interface JsonRpcRequest {
-  id: JsonRpcId;
-  method: string;
-  params?: unknown;
-}
-
-export interface JsonRpcNotification {
-  method: string;
-  params?: unknown;
-}
-
-export interface JsonRpcSuccessResponse {
-  id: JsonRpcId;
-  result: unknown;
-}
-
-export interface JsonRpcErrorResponse {
-  id: JsonRpcId;
-  error: { code: number; message: string; data?: unknown };
-}
-
-export type JsonRpcResponse = JsonRpcSuccessResponse | JsonRpcErrorResponse;
-
-// Standard JSON-RPC error codes; we only emit the "method not found" /
-// "internal error" ones when responding to unhandled server requests.
-export const JSONRPC_METHOD_NOT_FOUND = -32601;
-export const JSONRPC_INTERNAL_ERROR = -32603;
+export type { JsonRpcId, JsonRpcNotification, JsonRpcRequest } from "./client-types.ts";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -97,16 +76,8 @@ export interface JsonRpcLiteClientOptions {
   args?: string[];
 }
 
-export type NotificationHandler = (notification: JsonRpcNotification) => void;
-
-// Server-request handler. Return PASS to delegate to the next handler in
-// registration order. Returning a value (or throwing) commits this handler to
-// providing the response. If no handler claims a server request, the client
-// auto-responds with method-not-found.
-export const PASS: unique symbol = Symbol("PASS");
-// Returning the PASS symbol (which is `unknown`-typed) declines the request
-// and lets the next handler in registration order respond.
-export type ServerRequestHandler = (request: JsonRpcRequest) => Promise<unknown>;
+export { PASS };
+export type { NotificationHandler, ServerRequestHandler };
 
 type Pending = {
   resolve: (value: unknown) => void;

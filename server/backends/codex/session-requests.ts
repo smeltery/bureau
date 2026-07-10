@@ -1,5 +1,5 @@
 import type { NormalizedEvent } from "../types.ts";
-import { PASS, type JsonRpcId, type JsonRpcRequest } from "./client.ts";
+import { PASS, type JsonRpcId, type JsonRpcRequest } from "./client-types.ts";
 import { extractApprovalInput, inferApprovalDescription, inferApprovalTitle, inferToolNameFromApproval } from "./approvals.ts";
 import { LOGIN_INSTRUCTIONS } from "./config.ts";
 
