@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useAppState, useDispatch, useTheme, useFeatures } from "../store.tsx";
 import { Floor, Walls } from "./scene/Floor.tsx";
 import { RoomProps } from "./scene/RoomProps.tsx";
-import { RoomTabBar } from "./RoomTabBar.tsx";
 import { DeskUnit } from "./scene/DeskUnit.tsx";
 import { EmptySlot } from "./scene/EmptySlot.tsx";
 import { StatusLight } from "./scene/StatusLight.tsx";
@@ -10,16 +9,16 @@ import { SCENE_W, SCENE_H } from "./grid.ts";
 import { useGhostTransitions, type DoorCoord } from "./useGhostTransitions.ts";
 import { GhostBody, GhostTag } from "./Ghost.tsx";
 import { send } from "../ws.ts";
-import { ThemePicker } from "../components/ThemePicker.tsx";
-import { MobileHeader, getRoomCounts } from "../components/overlays/MobileHeader.tsx";
+import { getRoomCounts } from "../components/overlays/MobileHeader.tsx";
 import { WallPanelMenu, type WallPanelMenuItem } from "../components/overlays/WallPanelMenu.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
 import { useViewport } from "./useViewport.ts";
 import { ZoomControls } from "./ZoomControls.tsx";
 import type { AgentInfo } from "../../shared/types.ts";
-import { BuildingIcon, DesktopOfficeHeader, DoorIcon } from "./OfficeHeader.tsx";
-import { DoorDropZone } from "./DoorDropZone.tsx";
+import { BuildingIcon, DoorIcon } from "./OfficeHeader.tsx";
 import { OfficeHints } from "./OfficeHints.tsx";
+import { RoomDoorDropZones } from "./RoomDoorDropZones.tsx";
+import { OfficeTopHud } from "./OfficeTopHud.tsx";
 
 const GHOST_SIZE = 40;
 
@@ -74,8 +73,7 @@ export function OfficeView({
   const roomNames = rooms.map((r) => r.name);
   const officePrompt = office.prompt;
   const dispatch = useDispatch();
-  const { mode, toggleTheme } = useTheme();
-  const [themePickerOpen, setThemePickerOpen] = useState(false);
+  const { toggleTheme } = useTheme();
   const { embed } = useFeatures();
   const mobileScale = isMobile ? screen.width / (SCENE_W - 200) : 1;
   // layoutKey changes whenever the centered-scene static transform changes,
@@ -118,6 +116,20 @@ export function OfficeView({
   const [leftDoorReject, setLeftDoorReject] = useState(false);
   const [rightDoorReject, setRightDoorReject] = useState(false);
   const [wallMenu, setWallMenu] = useState<{ x: number; y: number } | null>(null);
+  const rejectLeftDoor = useCallback(() => {
+    setLeftDoorReject(true);
+    setTimeout(() => setLeftDoorReject(false), 400);
+  }, []);
+  const rejectRightDoor = useCallback(() => {
+    setRightDoorReject(true);
+    setTimeout(() => setRightDoorReject(false), 400);
+  }, []);
+  const setCurrentRoom = useCallback(
+    (room: number) => {
+      dispatch({ type: "set_current_room", room });
+    },
+    [dispatch],
+  );
 
   const wallMenuItems: WallPanelMenuItem[] = [
     { id: "office", icon: <BuildingIcon />, label: "Office settings", onClick: onEditOfficePrompt },
@@ -137,39 +149,21 @@ export function OfficeView({
         color: "var(--text-primary)",
       }}
     >
-      {/* Top HUD bar */}
-      {embed ? null : isMobile ? (
-        <MobileHeader
-          viewMode="office"
-          onToggleView={() => dispatch({ type: "toggle_mobile_view" })}
-          counts={counts}
-          onOpenTasks={onOpenTasks}
-          onEditUsername={onEditUsername}
-          onOpenDeviceSettings={onOpenDeviceSettings}
-          onEditOfficePrompt={onEditOfficePrompt}
-          onEditRoomSettings={onEditRoomSettings}
-          updateAvailable={updateAvailable}
-          onOpenUpdate={onOpenUpdate}
-        />
-      ) : (
-        <DesktopOfficeHeader
-          counts={counts}
-          mode={mode}
-          username={username}
-          updateAvailable={updateAvailable}
-          onOpenTasks={onOpenTasks}
-          onOpenCronjobs={onOpenCronjobs}
-          onOpenPlugins={onOpenPlugins}
-          onEditUsername={onEditUsername}
-          onOpenDeviceSettings={onOpenDeviceSettings}
-          onEditOfficePrompt={onEditOfficePrompt}
-          onEditRoomSettings={onEditRoomSettings}
-          onOpenUpdate={onOpenUpdate}
-          onOpenTheme={() => setThemePickerOpen(true)}
-        />
-      )}
-
-      {!embed && <RoomTabBar />}
+      <OfficeTopHud
+        counts={counts}
+        embed={embed}
+        isMobile={isMobile}
+        username={username}
+        updateAvailable={updateAvailable}
+        onEditUsername={onEditUsername}
+        onOpenDeviceSettings={onOpenDeviceSettings}
+        onEditOfficePrompt={onEditOfficePrompt}
+        onEditRoomSettings={onEditRoomSettings}
+        onOpenTasks={onOpenTasks}
+        onOpenCronjobs={onOpenCronjobs}
+        onOpenPlugins={onOpenPlugins}
+        onOpenUpdate={onOpenUpdate}
+      />
 
       {/* Office scene */}
       {/* touch-action: none keeps iOS from turning one-finger drags into page
@@ -231,54 +225,18 @@ export function OfficeView({
             />
             <Floor />
             <RoomProps />
-            {currentRoom > 0 && (
-              <DoorDropZone
-                side="left"
-                onClick={() => dispatch({ type: "set_current_room", room: currentRoom - 1 })}
-                onDragOverChange={(over) => setLeftDoorDragOver(over)}
-                onDrop={(deskIndex) => {
-                  const a = roomAgents.find((a) => a.desk === deskIndex);
-                  if (!a) {
-                    setLeftDoorReject(true);
-                    setTimeout(() => setLeftDoorReject(false), 400);
-                    return false;
-                  }
-                  const targetRoom = currentRoom - 1;
-                  const targetRoomId = rooms[targetRoom]?.id;
-                  if (!targetRoomId || agents.filter((x) => x.room === targetRoom).length >= 8) {
-                    setLeftDoorReject(true);
-                    setTimeout(() => setLeftDoorReject(false), 400);
-                    return false;
-                  }
-                  send({ type: "move_agent", agentId: a.id, targetRoomId });
-                  return true;
-                }}
-              />
-            )}
-            {currentRoom < roomCount - 1 && (
-              <DoorDropZone
-                side="right"
-                onClick={() => dispatch({ type: "set_current_room", room: currentRoom + 1 })}
-                onDragOverChange={(over) => setRightDoorDragOver(over)}
-                onDrop={(deskIndex) => {
-                  const a = roomAgents.find((a) => a.desk === deskIndex);
-                  if (!a) {
-                    setRightDoorReject(true);
-                    setTimeout(() => setRightDoorReject(false), 400);
-                    return false;
-                  }
-                  const targetRoom = currentRoom + 1;
-                  const targetRoomId = rooms[targetRoom]?.id;
-                  if (!targetRoomId || agents.filter((x) => x.room === targetRoom).length >= 8) {
-                    setRightDoorReject(true);
-                    setTimeout(() => setRightDoorReject(false), 400);
-                    return false;
-                  }
-                  send({ type: "move_agent", agentId: a.id, targetRoomId });
-                  return true;
-                }}
-              />
-            )}
+            <RoomDoorDropZones
+              agents={agents}
+              currentRoom={currentRoom}
+              roomAgents={roomAgents}
+              rooms={rooms}
+              roomCount={roomCount}
+              onSetRoom={setCurrentRoom}
+              onLeftDragOverChange={setLeftDoorDragOver}
+              onRightDragOverChange={setRightDoorDragOver}
+              onLeftReject={rejectLeftDoor}
+              onRightReject={rejectRightDoor}
+            />
             {Array.from({ length: 8 }, (_, i) => {
               const agent = roomAgents.find((a) => a.desk === i);
               if (agent) {
@@ -369,7 +327,6 @@ export function OfficeView({
       {/* Bottom HUD */}
       {!embed && <OfficeHints isMobile={isMobile} />}
       {wallMenu && <WallPanelMenu x={wallMenu.x} y={wallMenu.y} items={wallMenuItems} onClose={() => setWallMenu(null)} />}
-      <ThemePicker open={themePickerOpen} onClose={() => setThemePickerOpen(false)} />
     </div>
   );
 }
