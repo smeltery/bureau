@@ -5,6 +5,7 @@ import { send, addRawListener, removeRawListener } from "../ws.ts";
 import { useTheme } from "../store.tsx";
 import type { ServerMessage } from "../../shared/types.ts";
 import { applyCtrl, ensureMobileTerminalStyle, MobileInputProxy, MobileSoftKeyBar, type SoftKey } from "./terminal-mobile.tsx";
+import { useMobileTerminalTouch } from "./useMobileTerminalTouch.ts";
 
 const DARK_THEME = {
   background: "#0a0e16",
@@ -233,117 +234,7 @@ export function TerminalPanel({
     return () => vv.removeEventListener("resize", update);
   }, [mobile]);
 
-  // Mobile touch handling: single-finger pan scrolls the scrollback buffer,
-  // two-finger pinch scales font size between 10–22px. xterm's canvas
-  // renderer hijacks single-finger drag for selection, so the .xterm-viewport
-  // never receives the touch — we have to translate the pan to scrollLines()
-  // ourselves. Pinch needs a manual fit() (font change doesn't change
-  // container size, so ResizeObserver doesn't fire) and a terminal_resize
-  // dispatch on touchend so the PTY tracks the new cols/rows.
-  useEffect(() => {
-    if (!mobile) return;
-    const el = bodyRef.current;
-    if (!el) return;
-    let initialDistance = 0;
-    let initialFontSize = 14;
-    let pinching = false;
-    let rafScheduled = false;
-    let scrollLastY: number | null = null;
-    let scrollAcc = 0;
-    let scrollMoved = false;
-    function distance(e: TouchEvent) {
-      const [a, b] = [e.touches[0], e.touches[1]];
-      return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    }
-    function lineHeightPx() {
-      const term = termRef.current;
-      if (!term) return 18;
-      const fs = (term.options.fontSize as number) ?? 14;
-      const lh = (term.options.lineHeight as number) ?? 1;
-      return fs * lh;
-    }
-    function onStart(e: TouchEvent) {
-      if (!termRef.current) return;
-      if (e.touches.length === 2) {
-        pinching = true;
-        initialDistance = distance(e);
-        initialFontSize = (termRef.current.options.fontSize as number) ?? 14;
-        scrollLastY = null;
-      } else if (e.touches.length === 1) {
-        scrollLastY = e.touches[0].clientY;
-        scrollAcc = 0;
-        scrollMoved = false;
-      }
-    }
-    function onMove(e: TouchEvent) {
-      const term = termRef.current;
-      if (!term) return;
-      if (pinching && e.touches.length === 2) {
-        e.preventDefault();
-        const ratio = distance(e) / initialDistance;
-        const next = Math.max(10, Math.min(22, Math.round(initialFontSize * ratio)));
-        if (next !== term.options.fontSize) {
-          term.options.fontSize = next;
-          if (!rafScheduled) {
-            rafScheduled = true;
-            requestAnimationFrame(() => {
-              rafScheduled = false;
-              fitRef.current?.fit();
-            });
-          }
-        }
-      } else if (!pinching && e.touches.length === 1 && scrollLastY !== null) {
-        // Always preventDefault on single-finger pan inside the terminal —
-        // we own this gesture (xterm scrollback). Without this, sub-pixel
-        // early frames let iOS engage document-body rubber-band overscroll
-        // on top of our scroll, producing the "two nested scrolls" effect.
-        e.preventDefault();
-        const currentY = e.touches[0].clientY;
-        const dy = currentY - scrollLastY;
-        scrollLastY = currentY;
-        // Drag down (dy > 0) → reveal earlier content → scrollLines(negative).
-        scrollAcc -= dy / lineHeightPx();
-        const lines = Math.trunc(scrollAcc);
-        if (lines !== 0) {
-          term.scrollLines(lines);
-          scrollAcc -= lines;
-          scrollMoved = true;
-        }
-      }
-    }
-    function onEnd(e: TouchEvent) {
-      if (e.touches.length >= 2) return;
-      if (pinching) {
-        pinching = false;
-        // Final fit + push the new geometry to the PTY. Doing this only on
-        // touchend (not per touchmove) keeps WebSocket traffic sane during
-        // the gesture; readline prompts redraw at the new cols/rows after.
-        fitRef.current?.fit();
-        if (termRef.current) {
-          send({ type: "terminal_resize", agentId, cols: termRef.current.cols, rows: termRef.current.rows });
-        }
-      }
-      scrollLastY = null;
-      // scrollMoved is read by handleBodyTap to suppress the focus-on-tap
-      // that would otherwise pop the keyboard right after a scroll gesture.
-      // It's reset on the next touchstart.
-    }
-    function getScrollMoved() {
-      return scrollMoved;
-    }
-    scrollMovedRef.current = getScrollMoved;
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: false });
-    el.addEventListener("touchend", onEnd, { passive: true });
-    el.addEventListener("touchcancel", onEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchmove", onMove);
-      el.removeEventListener("touchend", onEnd);
-      el.removeEventListener("touchcancel", onEnd);
-      scrollMovedRef.current = null;
-    };
-  }, [mobile, agentId]);
+  useMobileTerminalTouch({ mobile, agentId, bodyRef, termRef, fitRef, scrollMovedRef });
 
   // Tap on the terminal body focuses our input proxy so the soft keyboard
   // opens. Mobile only — desktop relies on xterm's built-in click-to-focus.
