@@ -15,8 +15,10 @@ import { setHasOwnerProvider } from "./http-env.ts";
 export { forceExpireSocketsForSession, registerSocket, unregisterSocket } from "./session-sockets.ts";
 export { setRoomsSnapshotProvider } from "./bootstrap-owner.ts";
 import { commitBootstrapOwnerUser, snapshotRoomIds } from "./bootstrap-owner.ts";
+import { markAllUnconsumedBootstrapInvitesConsumed } from "./bootstrap-invites.ts";
 import { ensureLoaded, inviteStore, mutate, persistInvites, persistSessions, sessionStore, type StoredInvite, type StoredSession } from "./store.ts";
 export { listActiveSessions, listActiveSessionsForUserId, listInvites, listInvitesForUsername } from "./lists.ts";
+export { revokeInviteByPrefix, revokeOutstandingInviteByPrefixForUsername, type RevokeResult } from "./invite-revocation.ts";
 export {
   countActiveOwnerSessions,
   evictSessionsForUserId,
@@ -218,31 +220,6 @@ export interface AcceptErr {
   error: "not_found" | "consumed" | "expired" | "needs_name" | "invalid_name" | "role_mismatch" | "owner_exists";
 }
 
-// Mark every still-unconsumed bootstrap invite as consumed. Called after a
-// successful bootstrap accept (siblings are now stale) and when an accept is
-// refused because an owner exists (the invite itself is stale).
-function markAllUnconsumedBootstrapInvitesConsumed(): void {
-  const stale: StoredInvite[] = [];
-  for (const inv of inviteStore().values()) {
-    if (inv.bootstrap && !inv.consumed) stale.push(inv);
-  }
-  if (stale.length === 0) return;
-  const now = Date.now();
-  for (const inv of stale) {
-    inv.consumed = true;
-    inv.consumedAt = now;
-  }
-  try {
-    persistInvites();
-  } catch (err) {
-    for (const inv of stale) {
-      inv.consumed = false;
-      inv.consumedAt = null;
-    }
-    console.error(`[auth] failed to sweep ${stale.length} stale bootstrap invite(s); they will be retried on the next owner-creating accept`, err);
-  }
-}
-
 // Accept an invite token. If the invite has a pre-set username, that username
 // is bound to the new session. If the invite is a bootstrap invite, the
 // caller must supply `chosenName` (the only path where invitees pick their
@@ -427,64 +404,5 @@ export async function claimOwnership(rawChosenName: string, ctx: { userAgent: st
       absoluteExpiresAt: session.absoluteExpiresAt,
       username: userRecord.name,
     };
-  });
-}
-
-export type RevokeResult = "ok" | "not_found" | "ambiguous";
-
-// Find at most two matching rows; if more than one matches the same display
-// prefix we refuse to revoke either, so an extremely unlikely 8-char prefix
-// collision can't silently target the wrong record.
-export async function revokeInviteByPrefix(prefix: string): Promise<RevokeResult> {
-  return mutate(() => {
-    ensureLoaded();
-    const matches: string[] = [];
-    for (const [k, v] of inviteStore()) {
-      if (v.tokenPrefix === prefix) matches.push(k);
-      if (matches.length > 1) break;
-    }
-    if (matches.length === 0) return "not_found";
-    if (matches.length > 1) return "ambiguous";
-    const k = matches[0];
-    const prev = inviteStore().get(k)!;
-    inviteStore().delete(k);
-    try {
-      persistInvites();
-    } catch (err) {
-      inviteStore().set(k, prev);
-      throw err;
-    }
-    return "ok";
-  });
-}
-
-export async function revokeOutstandingInviteByPrefixForUsername(prefix: string, username: string): Promise<RevokeResult> {
-  return mutate(() => {
-    ensureLoaded();
-    const target = lowercaseKey(username);
-    const now = Date.now();
-    const matches: string[] = [];
-    for (const [k, v] of inviteStore()) {
-      if (v.tokenPrefix !== prefix) continue;
-      if (v.consumed) continue;
-      if (v.expiresAt < now) continue;
-      matches.push(k);
-      if (matches.length > 1) break;
-    }
-    if (matches.length === 0) return "not_found";
-    if (matches.length > 1) return "ambiguous";
-    const k = matches[0];
-    const row = inviteStore().get(k)!;
-    if (!row.username || lowercaseKey(row.username) !== target) {
-      return "not_found";
-    }
-    inviteStore().delete(k);
-    try {
-      persistInvites();
-    } catch (err) {
-      inviteStore().set(k, row);
-      throw err;
-    }
-    return "ok";
   });
 }
