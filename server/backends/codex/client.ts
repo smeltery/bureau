@@ -30,10 +30,7 @@
 // designed to support sharing later without breaking the contract.
 
 import type { ChildProcessWithoutNullStreams } from "child_process";
-import { errMessage } from "../../../shared/errors.ts";
 import {
-  JSONRPC_INTERNAL_ERROR,
-  JSONRPC_METHOD_NOT_FOUND,
   PASS,
   type JsonRpcErrorResponse,
   type JsonRpcId,
@@ -46,6 +43,7 @@ import {
 import { CODEX_LAUNCH_FAILED_MESSAGE, spawnCodexAppServer, terminateCodexProcessGroup } from "./client-process.ts";
 import { JsonlFrameBuffer } from "./client-jsonl-buffer.ts";
 import { JsonRpcPendingRequests } from "./client-pending.ts";
+import { dispatchCodexClientFrame } from "./client-dispatch.ts";
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import type { InitializeResponse } from "./_generated/InitializeResponse.ts";
 
@@ -334,86 +332,14 @@ export class JsonRpcLiteClient {
   }
 
   private dispatch(line: string): void {
-    let frame: unknown;
-    try {
-      frame = JSON.parse(line);
-    } catch (err) {
-      // Malformed frame — surface via stderr handlers for visibility.
-      for (const h of this.stderrHandlers) {
-        try {
-          h(`[codex client] JSON parse error: ${errMessage(err)}\nframe: ${line.slice(0, 200)}\n`);
-        } catch {}
-      }
-      return;
-    }
-    if (frame == null || typeof frame !== "object") return;
-    const f = frame as {
-      id?: JsonRpcId;
-      method?: string;
-      result?: unknown;
-      error?: { code?: number; message?: string; data?: unknown };
-    };
-
-    const hasId = "id" in f && f.id != null;
-    const hasMethod = "method" in f && typeof f.method === "string";
-
-    if (hasMethod && hasId) {
-      // Server-initiated request — must respond with same id.
-      void this.handleServerRequest(f as JsonRpcRequest);
-      return;
-    }
-    if (hasMethod) {
-      // Notification.
-      const notification = f as JsonRpcNotification;
-      for (const h of this.notificationHandlers) {
-        try {
-          h(notification);
-        } catch (err) {
-          for (const sh of this.stderrHandlers) {
-            try {
-              sh(`[codex client] notification handler error: ${errMessage(err)}\n`);
-            } catch {}
-          }
-        }
-      }
-      return;
-    }
-    if (hasId) {
-      // Response to one of our requests.
-      const id = f.id as JsonRpcId;
-      const result = "result" in f ? f.result : undefined;
-      if (!this.pending.settle(id, result, f.error)) {
-        for (const h of this.stderrHandlers) {
-          try {
-            h(`[codex client] response for unknown request id ${String(id)}\n`);
-          } catch {}
-        }
-        return;
-      }
-      return;
-    }
-    // Frame with neither method nor id — surface for visibility.
-    for (const h of this.stderrHandlers) {
-      try {
-        h(`[codex client] unrecognized frame: ${line.slice(0, 200)}\n`);
-      } catch {}
-    }
-  }
-
-  private async handleServerRequest(request: JsonRpcRequest): Promise<void> {
-    for (const handler of [...this.serverRequestHandlers]) {
-      try {
-        const result = await handler(request);
-        if (result === PASS) continue;
-        this.respond(request.id, result);
-        return;
-      } catch (err) {
-        this.respondWithError(request.id, JSONRPC_INTERNAL_ERROR, errMessage(err, "handler threw"));
-        return;
-      }
-    }
-    // No handler claimed it.
-    this.respondWithError(request.id, JSONRPC_METHOD_NOT_FOUND, `No client handler for method "${request.method}"`);
+    dispatchCodexClientFrame(line, {
+      pending: this.pending,
+      notificationHandlers: this.notificationHandlers,
+      serverRequestHandlers: this.serverRequestHandlers,
+      stderrHandlers: this.stderrHandlers,
+      respond: (id, result) => this.respond(id, result),
+      respondWithError: (id, code, message, data) => this.respondWithError(id, code, message, data),
+    });
   }
 
   // -------------------------------------------------------------------------
