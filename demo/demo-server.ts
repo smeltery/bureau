@@ -1,9 +1,12 @@
-import { OfficeState, type OfficeEvent } from "../shared/office-state.ts";
-import type { ClientCommand, ServerMessage, LogEntry, Cronjob, PresenceInfo, Schedule, SessionContext, SessionWire, UserRecord } from "../shared/types.ts";
+import { OfficeState } from "../shared/office-state.ts";
+import type { ClientCommand, Cronjob, ServerMessage, PresenceInfo, SessionContext, SessionWire, UserRecord } from "../shared/types.ts";
 import { generateCronjobId } from "../shared/types.ts";
 import { defaultGhostColorForUserId, isGhostVariant, isHexColor, normalizeHexColor } from "../shared/avatar.ts";
 import { shimEmit } from "../ui/ws.ts";
-import { DEMO_CRONJOBS_SEED, DEMO_LOGS, OFFICE_CHARACTERS } from "./demo-fixtures.ts";
+import { computeNextFireDemo, cronjobs, cronjobsPrompt, seedCronjobs, setCronjobsPrompt } from "./demo-cronjobs.ts";
+import { emitEvents } from "./demo-events.ts";
+import { abortDemoMessage, emitDemoSystemLog, seedLogs, sendDemoMessage } from "./demo-logs.ts";
+import { OFFICE_CHARACTERS } from "./demo-fixtures.ts";
 
 const state = new OfficeState();
 let embedMode = false;
@@ -49,29 +52,6 @@ function ensureSeeded() {
   ]);
 }
 
-function seedLogs() {
-  const baseTime = Date.now() - 120_000; // start 2 minutes ago
-  for (const { agentName, entries } of DEMO_LOGS) {
-    const char = OFFICE_CHARACTERS.find((c) => c.name === agentName);
-    if (!char) continue;
-    const agentId = `demo-${char.name.toLowerCase().replace(/\s+/g, "-")}`;
-    let t = baseTime;
-    for (const { kind, content, metadata } of entries) {
-      t += 3000 + Math.random() * 5000;
-      const meta = kind === "user_message" ? { ...metadata, username: "Ricky" } : metadata;
-      const entry = makeLogEntry(agentId, kind, content, meta);
-      entry.timestamp = t;
-      shimEmit({ type: "log_entry", entry });
-    }
-  }
-}
-
-const DEMO_REPLY =
-  "This is a demo — your message was not actually sent to Claude. To use Bureau for real, follow the setup instructions in the [README](https://github.com/dotbrains/bureau).";
-
-// Cron jobs: maintained as plain in-memory state (not via OfficeState).
-const cronjobs: Cronjob[] = [];
-let cronjobsPrompt: string | null = null;
 const users = new Map<string, UserRecord>();
 let sessionContext: SessionContext | null = null;
 let activeSessions: SessionWire[] = [];
@@ -141,104 +121,6 @@ function seedUsers() {
   ];
 }
 
-function computeNextFireDemo(schedule: Schedule, anchor: number, now: number = Date.now()): number {
-  if (schedule.type === "interval") {
-    const intervalMs = Math.max(5, schedule.minutes) * 60_000;
-    if (now <= anchor) return anchor + intervalMs;
-    const periods = Math.floor((now - anchor) / intervalMs) + 1;
-    return anchor + periods * intervalMs;
-  }
-  const next = new Date(now);
-  next.setSeconds(0, 0);
-  next.setHours(schedule.hour, schedule.minute, 0, 0);
-  if (schedule.type === "daily") {
-    if (next.getTime() <= now) next.setDate(next.getDate() + 1);
-    return next.getTime();
-  }
-  // weekly
-  const currentDay = next.getDay();
-  let daysAhead = (schedule.weekday - currentDay + 7) % 7;
-  if (daysAhead === 0 && next.getTime() <= now) daysAhead = 7;
-  next.setDate(next.getDate() + daysAhead);
-  return next.getTime();
-}
-
-function seedCronjobs() {
-  const now = Date.now();
-  const usedIds = new Set<string>();
-  for (const seed of DEMO_CRONJOBS_SEED) {
-    const id = generateCronjobId(Array.from(usedIds));
-    usedIds.add(id);
-    const createdAt = now - seed.ageDays * 86400000;
-    const lastFireAt = seed.lastFireDaysAgo === null ? null : now - seed.lastFireDaysAgo * 86400000;
-    cronjobs.push({
-      id,
-      name: seed.name,
-      schedule: seed.schedule,
-      prompt: seed.prompt,
-      cwd: seed.cwd,
-      modelFamily: seed.modelFamily,
-      permissionMode: "bypassPermissions",
-      enabled: true,
-      createdBy: seed.createdBy,
-      device: null,
-      createdAt,
-      lastFireAt,
-      nextFireAt: computeNextFireDemo(seed.schedule, lastFireAt ?? createdAt, now),
-    });
-  }
-}
-
-// Track pending reply timeouts per agent to avoid flickering on rapid sends
-const pendingReplies = new Map<string, ReturnType<typeof setTimeout>>();
-
-function emitEvents(events: OfficeEvent[]) {
-  for (const event of events) {
-    switch (event.type) {
-      case "agent_added":
-        shimEmit({ type: "agent_added", agent: event.agent });
-        // Send empty slash_commands so autocomplete initializes
-        shimEmit({ type: "slash_commands", agentId: event.agent.id, commands: [], skills: [] });
-        break;
-      case "agent_removed":
-        shimEmit({ type: "agent_removed", agentId: event.agentId });
-        break;
-      case "agent_updated":
-        shimEmit({ type: "agent_updated", agentId: event.agentId, changes: event.changes });
-        break;
-      case "room_created":
-        shimEmit({ type: "room_created", room: event.room });
-        break;
-      case "room_renamed":
-        shimEmit({ type: "room_renamed", roomId: event.roomId, name: event.name });
-        break;
-      case "room_closed":
-        shimEmit({ type: "room_closed", roomId: event.roomId });
-        break;
-      case "room_settings_updated":
-        shimEmit({ type: "room_settings_updated", roomId: event.roomId, prompt: event.prompt, envFile: event.envFile });
-        break;
-      case "office_settings_updated":
-        shimEmit({ type: "office_settings_updated", prompt: event.prompt, envFile: event.envFile });
-        break;
-      case "tasks_changed":
-        shimEmit({ type: "tasks", tasks: event.tasks });
-        break;
-    }
-  }
-}
-
-function makeLogEntry(agentId: string, kind: LogEntry["kind"], content: string, metadata?: Record<string, unknown>): LogEntry {
-  return {
-    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    agentId,
-    timestamp: Date.now(),
-    kind,
-    content,
-    metadata,
-  };
-}
-
 export function handleCommand(cmd: ClientCommand) {
   switch (cmd.type) {
     case "spawn": {
@@ -252,9 +134,7 @@ export function handleCommand(cmd: ClientCommand) {
       });
       if (result) {
         emitEvents(result.events);
-        // System message
-        const entry = makeLogEntry(result.agent.id, "system", `Agent "${cmd.name}" ready. Working in ${cmd.cwd}. (Demo mode)`);
-        shimEmit({ type: "log_entry", entry });
+        emitDemoSystemLog(result.agent.id, `Agent "${cmd.name}" ready. Working in ${cmd.cwd}. (Demo mode)`);
       }
       if (cmd.requestId) {
         shimEmit({ type: "agent_save_response", requestId: cmd.requestId, ok: true });
@@ -404,32 +284,11 @@ export function handleCommand(cmd: ClientCommand) {
       break;
     }
     case "send_message": {
-      // Log the user message
-      const userEntry = makeLogEntry(cmd.agentId, "user_message", cmd.text, cmd.username ? { username: cmd.username } : undefined);
-      shimEmit({ type: "log_entry", entry: userEntry });
-      // Cancel any pending reply for this agent (prevents flickering on rapid sends)
-      const prev = pendingReplies.get(cmd.agentId);
-      if (prev) clearTimeout(prev);
-      // Briefly show "thinking" state, then reply
-      shimEmit({ type: "agent_updated", agentId: cmd.agentId, changes: { state: "thinking" } });
-      pendingReplies.set(cmd.agentId, setTimeout(() => {
-        pendingReplies.delete(cmd.agentId);
-        const replyEntry = makeLogEntry(cmd.agentId, "text", DEMO_REPLY);
-        shimEmit({ type: "log_entry", entry: replyEntry });
-        shimEmit({ type: "agent_updated", agentId: cmd.agentId, changes: { state: "waiting_for_response" } });
-      }, 800));
+      sendDemoMessage(cmd.agentId, cmd.text, cmd.username);
       break;
     }
     case "abort": {
-      // Cancel any pending reply
-      const pendingAbort = pendingReplies.get(cmd.agentId);
-      if (pendingAbort) {
-        clearTimeout(pendingAbort);
-        pendingReplies.delete(cmd.agentId);
-      }
-      shimEmit({ type: "agent_updated", agentId: cmd.agentId, changes: { state: "waiting_for_response" } });
-      const abortEntry = makeLogEntry(cmd.agentId, "system", "Agent interrupted.");
-      shimEmit({ type: "log_entry", entry: abortEntry });
+      abortDemoMessage(cmd.agentId);
       break;
     }
     case "add_cronjob": {
@@ -482,8 +341,8 @@ export function handleCommand(cmd: ClientCommand) {
       break;
     }
     case "update_cronjobs_prompt": {
-      cronjobsPrompt = cmd.value && cmd.value.trim() ? cmd.value : null;
-      shimEmit({ type: "cronjobs_prompt_updated", value: cronjobsPrompt });
+      const value = setCronjobsPrompt(cmd.value);
+      shimEmit({ type: "cronjobs_prompt_updated", value });
       shimEmit({ type: "settings_save_response", requestId: cmd.requestId, ok: true });
       break;
     }
