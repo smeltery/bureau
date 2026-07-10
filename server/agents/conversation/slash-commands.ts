@@ -1,6 +1,6 @@
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
 import { addLogEntry, emitEphemeralLog, isAgentBusy, updateState, type ManagedAgent } from "../state.ts";
-import { enqueueMessage } from "./send.ts";
+import { enqueueMessage } from "./message-queue.ts";
 import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { SessionSwappedError } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";

@@ -4,7 +4,7 @@ import { createSession, replaceSession } from "../session/runtime.ts";
 import { validateCwd } from "../session/paths.ts";
 import { errMessage } from "../../../shared/errors.ts";
 import { generateTopic, persistCurrentSessionTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
-import { flushQueue } from "./send.ts";
+import { flushQueue } from "./message-queue.ts";
 
 // cwd is a property of the session (source of truth in sessions.json); the
 // agent's info.cwd is just a denormalized mirror. Before resuming a session,

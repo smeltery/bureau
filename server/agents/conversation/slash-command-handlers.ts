@@ -3,7 +3,7 @@ import { computeBureauDiff, resolveDiffCwd } from "../../bureau-diff.ts";
 import { resolveEditorPath, openFile as openEditorFile } from "../../file-editor.ts";
 import { listAgentSessions } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
-import { enqueueMessage } from "./send.ts";
+import { enqueueMessage } from "./message-queue.ts";
 import { createSession, emitLoginInstructions, replaceSession } from "../session/runtime.ts";
 import { tildifyCwd } from "../session/paths.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";

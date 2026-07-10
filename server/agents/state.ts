@@ -210,9 +210,9 @@ export function updateState(agentId: string, state: AgentState) {
   managed.info = { ...managed.info, state };
   emit({ type: "agent_updated", agentId, changes: { state } });
   // Transitioning out of a busy state: flush any queued messages. Dynamic
-  // import dodges the state↔send circular dependency.
+  // import dodges the state↔queue circular dependency.
   if (wasBusy && !isAgentBusy(state) && managed.messageQueue.length > 0) {
-    import("./conversation/send.ts")
+    import("./conversation/message-queue.ts")
       .then(({ flushQueue }) =>
         flushQueue(agentId).catch((err: any) => {
           console.error(`flushQueue failed for ${agentId}:`, err.message);
