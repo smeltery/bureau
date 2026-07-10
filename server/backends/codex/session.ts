@@ -38,6 +38,7 @@ import { attachmentFromPath } from "./session-attachments.ts";
 import { bootstrapCodexThread, type CodexSessionInitOpts } from "./session-bootstrap.ts";
 import { CodexSessionEventBuffer } from "./session-event-buffer.ts";
 import { handleCodexNotification } from "./session-notifications.ts";
+import { codexSubprocessExitEvent, handleCodexSessionStderr } from "./session-process-events.ts";
 import { handleCodexServerRequest, type PendingApproval } from "./session-requests.ts";
 
 // ---------------------------------------------------------------------------
@@ -316,22 +317,7 @@ export class CodexSession implements BackendSession {
   // -------------------------------------------------------------------------
 
   private handleStderr(chunk: string): void {
-    // Codex stderr is opaque process output. Route to the agent log as
-    // system_text so the boss has visibility. Trim trailing newlines and
-    // skip pure whitespace.
-    const text = chunk.trimEnd();
-    if (!text) return;
-    // Drop known-benign startup notices. Codex logs these at ERROR level
-    // but they're informational: the bubblewrap line is a "here's how our
-    // Linux sandbox works" note, and the trusted-project line tells the
-    // user how to opt into project-local config — neither is actionable
-    // for Bureau users in the chat.
-    if (/bubblewrap.*needs access to create user namespaces/i.test(text) || /until the project is trusted, but skills still load/i.test(text)) {
-      return;
-    }
-    // Route through the auth-aware gate so codex's websocket retry burst
-    // produces at most one user-visible signal per turn (Claude-SDK parity).
-    this.enqueueAuthAwareSystemText(`[codex stderr] ${text}`);
+    handleCodexSessionStderr(chunk, (text) => this.enqueueAuthAwareSystemText(text));
   }
 
   private handleSubprocessExit(code: number | null, signal: NodeJS.Signals | null): void {
@@ -340,21 +326,8 @@ export class CodexSession implements BackendSession {
     // unlikely-but-possible later stderr (e.g. drained late) doesn't sneak
     // through with a stale-open gate.
     this.authGate.resetTurn();
-    // If a turn was in flight when codex died, synthesize a failed
-    // turn_completed so the orchestrator's pendingTurn unblocks.
-    if (this.turnInFlight) {
-      this.turnInFlight = false;
-      this.enqueue({
-        kind: "turn_completed",
-        status: "failed",
-        error: `codex subprocess exited${code != null ? ` (code ${code})` : ""}${signal ? ` (signal ${signal})` : ""} mid-turn`,
-      });
-    } else {
-      this.enqueue({
-        kind: "system_text",
-        text: `Codex subprocess exited${code != null ? ` (code ${code})` : ""}${signal ? ` (signal ${signal})` : ""}.`,
-      });
-    }
+    this.enqueue(codexSubprocessExitEvent({ code, signal, turnInFlight: this.turnInFlight }));
+    this.turnInFlight = false;
     this.markEnded();
   }
 }
