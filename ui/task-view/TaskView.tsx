@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAppState } from "../store.tsx";
 import type { TaskStatus } from "../../shared/types.ts";
-import { timeAgo } from "../utils/time.ts";
 import { TaskDetailPanel } from "./TaskDetailPanel.tsx";
-import { PRIORITY_COLORS, PRIORITY_ORDER, STATUS_COLORS, STATUS_LABELS, STATUS_ORDER, type SortDir, type SortField } from "./constants.ts";
+import { TaskTable } from "./TaskTable.tsx";
+import { PRIORITY_ORDER, STATUS_ORDER, type SortDir, type SortField } from "./constants.ts";
 
 export function TaskView({ username, onClose, onFocusAgent }: { username: string; onClose: () => void; onFocusAgent?: (agentId: string) => void }) {
   const { tasks, tasksLoaded, agents, isMobile } = useAppState();
@@ -134,6 +134,20 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
       setSortField(field);
       setSortDir("asc");
     }
+  }
+
+  function handleSelectTask(taskId: string) {
+    if (taskId === selectedId) {
+      tryClosePanel();
+      return;
+    }
+    if (panelOpen) {
+      tryClosePanel();
+      pendingSelectRef.current = taskId;
+      return;
+    }
+    setSelectedId(taskId);
+    setCreating(false);
   }
 
   const cellPad = isMobile ? "6px 4px" : "8px 10px";
@@ -283,129 +297,19 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
             }}
             style={{ flex: 1, overflowY: "auto", overflowX: isMobile ? "hidden" : "auto" }}
           >
-            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: isMobile ? "fixed" : undefined }}>
-              <thead>
-                <tr>
-                  <th style={{ ...thStyle, width: isMobile ? 24 : 36 }} onClick={() => handleSort("status")}>
-                    S{sortField === "status" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
-                  </th>
-                  <th style={{ ...thStyle, width: isMobile ? 24 : 36 }} onClick={() => handleSort("priority")}>
-                    P{sortField === "priority" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
-                  </th>
-                  <th style={thStyle} onClick={() => handleSort("title")}>
-                    TITLE{sortField === "title" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
-                  </th>
-                  <th style={{ ...thStyle, width: isMobile ? 60 : 100 }} onClick={() => handleSort("assignee")}>
-                    ASSIGNEE{sortField === "assignee" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
-                  </th>
-                  {!isMobile && (
-                    <th style={{ ...thStyle, width: 90 }} onClick={() => handleSort("createdBy")}>
-                      BY{sortField === "createdBy" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
-                    </th>
-                  )}
-                  <th style={{ ...thStyle, width: 70 }} onClick={() => handleSort("createdAt")}>
-                    AGE{sortField === "createdAt" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={isMobile ? 5 : 6} style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
-                      {tasksLoaded ? "No tasks" : "Loading..."}
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((task) => (
-                    <tr
-                      key={task.id}
-                      onClick={() => {
-                        if (task.id === selectedId) {
-                          tryClosePanel();
-                          return;
-                        }
-                        if (panelOpen) {
-                          tryClosePanel();
-                          pendingSelectRef.current = task.id;
-                          return;
-                        }
-                        setSelectedId(task.id);
-                        setCreating(false);
-                      }}
-                      style={{
-                        cursor: "pointer",
-                        background: task.id === selectedId ? "var(--bg-hover)" : "transparent",
-                        borderBottom: "1px solid var(--border-subtle)",
-                        opacity: task.status === "done" ? 0.5 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (task.id !== selectedId) e.currentTarget.style.background = "var(--bg-hover)";
-                      }}
-                      onMouseLeave={(e) => {
-                        if (task.id !== selectedId) e.currentTarget.style.background = "transparent";
-                      }}
-                    >
-                      <td style={{ padding: cellPad }}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            background: STATUS_COLORS[task.status],
-                            boxShadow: task.status === "open" || task.status === "in_progress" ? `0 0 6px ${STATUS_COLORS[task.status]}` : "none",
-                          }}
-                          title={STATUS_LABELS[task.status]}
-                        />
-                      </td>
-                      <td style={{ padding: cellPad }}>
-                        {task.priority && (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              fontFamily: "'JetBrains Mono',monospace",
-                              color: PRIORITY_COLORS[task.priority],
-                            }}
-                          >
-                            {task.priority}
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          padding: cellPad,
-                          fontSize: 13,
-                          textDecoration: task.status === "done" ? "line-through" : "none",
-                          maxWidth: isMobile ? 0 : 300,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {task.title}
-                        {task.description && <span style={{ color: "var(--text-hint)", fontWeight: 400 }}> | {task.description}</span>}
-                      </td>
-                      <td
-                        style={{
-                          padding: cellPad,
-                          fontSize: 11,
-                          color: "var(--text-dim)",
-                          fontFamily: "'JetBrains Mono',monospace",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {renderName(task.assignee)}
-                      </td>
-                      {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace" }}>{renderName(task.createdBy)}</td>}
-                      <td style={{ padding: cellPad, fontSize: 10, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{timeAgo(task.createdAt)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+            <TaskTable
+              tasks={filtered}
+              tasksLoaded={tasksLoaded}
+              selectedId={selectedId}
+              isMobile={isMobile}
+              cellPad={cellPad}
+              thStyle={thStyle}
+              sortField={sortField}
+              sortDir={sortDir}
+              onSort={handleSort}
+              onSelect={(task) => handleSelectTask(task.id)}
+              renderName={renderName}
+            />
           </div>
         </div>
 
