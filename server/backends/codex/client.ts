@@ -46,6 +46,7 @@ import { writeCodexFrame } from "./client-write.ts";
 import { JsonlFrameBuffer } from "./client-jsonl-buffer.ts";
 import { JsonRpcPendingRequests } from "./client-pending.ts";
 import { dispatchCodexClientFrame } from "./client-dispatch.ts";
+import { JsonRpcClientHandlers } from "./client-handlers.ts";
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import type { InitializeResponse } from "./_generated/InitializeResponse.ts";
 
@@ -88,12 +89,7 @@ export class JsonRpcLiteClient {
     signal: NodeJS.Signals | null;
   } | null = null;
   private initialized = false;
-
-  private notificationHandlers = new Set<NotificationHandler>();
-  private serverRequestHandlers: ServerRequestHandler[] = [];
-  private stderrHandlers = new Set<(chunk: string) => void>();
-  private exitHandlers = new Set<(code: number | null, signal: NodeJS.Signals | null) => void>();
-  private closeHandlers = new Set<() => void>();
+  private handlers = new JsonRpcClientHandlers();
 
   constructor(private readonly opts: JsonRpcLiteClientOptions = {}) {}
 
@@ -117,7 +113,7 @@ export class JsonRpcLiteClient {
         this.closed = true;
       },
       onStdout: (chunk) => this.onStdoutChunk(chunk),
-      onStderr: (chunk) => this.emitStderr(chunk),
+      onStderr: (chunk) => this.handlers.emitStderr(chunk),
       clearKillTimer: () => {
         if (this.killTimer) {
           clearTimeout(this.killTimer);
@@ -127,9 +123,9 @@ export class JsonRpcLiteClient {
       onExit: (code, signal) => {
         this.exitInfo = { code, signal };
         this.closed = true;
-        this.emitExit(code, signal);
+        this.handlers.emitExit(code, signal);
       },
-      onClose: () => this.emitClose(),
+      onClose: () => this.handlers.emitClose(),
     });
   }
 
@@ -245,10 +241,7 @@ export class JsonRpcLiteClient {
   // Subscribers receive every notification; filter by params.threadId (or
   // other discriminators) downstream.
   onNotification(handler: NotificationHandler): () => void {
-    this.notificationHandlers.add(handler);
-    return () => {
-      this.notificationHandlers.delete(handler);
-    };
+    return this.handlers.onNotification(handler);
   }
 
   // Register a handler for server-initiated requests. Handlers are tried in
@@ -256,32 +249,19 @@ export class JsonRpcLiteClient {
   // commits to providing the response. If all handlers PASS, the client
   // responds method-not-found.
   onServerRequest(handler: ServerRequestHandler): () => void {
-    this.serverRequestHandlers.push(handler);
-    return () => {
-      const i = this.serverRequestHandlers.indexOf(handler);
-      if (i >= 0) this.serverRequestHandlers.splice(i, 1);
-    };
+    return this.handlers.onServerRequest(handler);
   }
 
   onStderr(handler: (chunk: string) => void): () => void {
-    this.stderrHandlers.add(handler);
-    return () => {
-      this.stderrHandlers.delete(handler);
-    };
+    return this.handlers.onStderr(handler);
   }
 
   onExit(handler: (code: number | null, signal: NodeJS.Signals | null) => void): () => void {
-    this.exitHandlers.add(handler);
-    return () => {
-      this.exitHandlers.delete(handler);
-    };
+    return this.handlers.onExit(handler);
   }
 
   onClose(handler: () => void): () => void {
-    this.closeHandlers.add(handler);
-    return () => {
-      this.closeHandlers.delete(handler);
-    };
+    return this.handlers.onClose(handler);
   }
 
   // -------------------------------------------------------------------------
@@ -296,36 +276,12 @@ export class JsonRpcLiteClient {
     this.stdoutBuffer.push(chunk, (line) => this.dispatch(line));
   }
 
-  private emitStderr(chunk: string): void {
-    for (const h of this.stderrHandlers) {
-      try {
-        h(chunk);
-      } catch {}
-    }
-  }
-
-  private emitExit(code: number | null, signal: NodeJS.Signals | null): void {
-    for (const h of this.exitHandlers) {
-      try {
-        h(code, signal);
-      } catch {}
-    }
-  }
-
-  private emitClose(): void {
-    for (const h of this.closeHandlers) {
-      try {
-        h();
-      } catch {}
-    }
-  }
-
   private dispatch(line: string): void {
     dispatchCodexClientFrame(line, {
       pending: this.pending,
-      notificationHandlers: this.notificationHandlers,
-      serverRequestHandlers: this.serverRequestHandlers,
-      stderrHandlers: this.stderrHandlers,
+      notificationHandlers: this.handlers.notificationHandlers,
+      serverRequestHandlers: this.handlers.serverRequestHandlers,
+      stderrHandlers: this.handlers.stderrHandlers,
       respond: (id, result) => this.respond(id, result),
       respondWithError: (id, code, message, data) => this.respondWithError(id, code, message, data),
     });
