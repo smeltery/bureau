@@ -3,6 +3,7 @@ import { send } from "../ws.ts";
 import type { TaskItem, TaskPriority, TaskStatus } from "../../shared/types.ts";
 import { timeAgo } from "../utils/time.ts";
 import { dialogInput, dialogLabel } from "../components/modals/dialog-styles.ts";
+import { TaskDetailFooter } from "./TaskDetailFooter.tsx";
 
 export function TaskDetailPanel({
   task,
@@ -263,91 +264,18 @@ export function TaskDetailPanel({
         )}
       </div>
 
-      {/* Sticky footer */}
-      <div
-        style={{
-          padding: fullScreen ? "12px 20px max(12px, env(safe-area-inset-bottom, 0px))" : "12px 24px 20px",
-          borderTop: "1px solid var(--border-subtle)",
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        {confirmDiscard && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", flex: 1 }}>Discard unsaved changes?</span>
-            <button
-              onClick={onClose}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: "1px solid var(--red)",
-                background: "var(--red)",
-                color: "var(--bg-base)",
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Discard
-            </button>
-            <button
-              onClick={() => setConfirmDiscard(false)}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: "transparent",
-                color: "var(--text-primary)",
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={handleSave}
-            disabled={!title.trim()}
-            style={{
-              flex: 1,
-              padding: "9px 0",
-              borderRadius: 8,
-              border: "none",
-              background: title.trim() ? "var(--accent)" : "var(--bg-subtle)",
-              color: title.trim() ? "var(--bg-base)" : "var(--text-muted)",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: title.trim() ? "pointer" : "default",
-            }}
-          >
-            {mode === "create" ? "Create" : "Save"}
-          </button>
-          {mode === "edit" && (
-            <button
-              onClick={handleDelete}
-              onBlur={() => setConfirmDelete(false)}
-              style={{
-                padding: "9px 14px",
-                borderRadius: 8,
-                border: `1px solid ${confirmDelete ? "var(--red)" : "var(--border)"}`,
-                background: confirmDelete ? "var(--red)" : "transparent",
-                color: confirmDelete ? "var(--bg-base)" : "var(--red)",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {confirmDelete ? "Confirm?" : "Delete"}
-            </button>
-          )}
-        </div>
-      </div>
+      <TaskDetailFooter
+        confirmDelete={confirmDelete}
+        confirmDiscard={confirmDiscard}
+        fullScreen={fullScreen}
+        mode={mode}
+        title={title}
+        onCancelDiscard={() => setConfirmDiscard(false)}
+        onClose={onClose}
+        onDelete={handleDelete}
+        onSave={handleSave}
+        setConfirmDelete={setConfirmDelete}
+      />
     </div>
   );
 }
