@@ -38,46 +38,9 @@ jobs:
           else
             base="${{ github.event.before }}"
             head="${{ github.sha }}"
-            if [[ "$base" =~ ^0+$ ]]; then
-              base="$(git rev-list --max-parents=0 "$head")"
-            fi
           fi
 
-          changed_files="$(git diff --name-only "$base" "$head")"
-
-          app=false
-          demo=false
-          website=false
-          workflow=false
-          while IFS= read -r path; do
-            [[ -z "$path" ]] && continue
-            case "$path" in
-              website/*|vercel.json)
-                website=true
-                ;;
-            esac
-            case "$path" in
-              demo/*)
-                app=true
-                demo=true
-                ;;
-              api/*|scripts/*|server/*|shared/*|skills/*|ui/*|.flox/*|.githooks/*|.oxlintrc.json|.prettierignore|.prettierrc.json|bun.lock|package.json|tsconfig.json)
-                app=true
-                ;;
-            esac
-            case "$path" in
-              .github/workflows/*|.github/actionlint.yaml)
-                workflow=true
-                ;;
-            esac
-          done <<< "$changed_files"
-
-          {
-            echo "app=$app"
-            echo "demo=$demo"
-            echo "website=$website"
-            echo "workflow=$workflow"
-          } >> "$GITHUB_OUTPUT"
+          scripts/detect-ci-areas.sh "$base" "$head" "$GITHUB_OUTPUT"
 
   workflow-ci:
     name: workflow-ci
