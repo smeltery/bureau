@@ -1,7 +1,5 @@
 import type { AgentState } from "../../../shared/types.ts";
-import { existsSync } from "fs";
-import { join } from "path";
-import { accumulateSessionUsage, appendSessionUsageSnapshot, readEnvFile, rollSessionUsageOnResume, loadLogWithAncestors, appendLog, ensureSessionCwd } from "../../persistence.ts";
+import { accumulateSessionUsage, appendSessionUsageSnapshot, rollSessionUsageOnResume, loadLogWithAncestors, appendLog, ensureSessionCwd } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, officeConfig, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { memoryStore } from "../../memory-store.ts";
@@ -11,7 +9,9 @@ import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discove
 import { getBackend } from "../../backends/index.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { getUserById } from "../../users.ts";
-import { getAgentToken } from "../tokens.ts";
+import { buildSessionEnv } from "./session-env.ts";
+export { CLAUDE_NATIVE_BIN } from "./claude-native.ts";
+export { buildSessionEnv } from "./session-env.ts";
 
 export function buildMemoryPromptForAgent(managed: ManagedAgent): string | null {
   const room = rooms[managed.info.room];
@@ -26,32 +26,6 @@ export function buildMemoryPromptForAgent(managed: ManagedAgent): string | null 
 
 export function managerNameForAgent(managed: ManagedAgent): string | null {
   return managed.info.userId ? (getUserById(managed.info.userId)?.name ?? null) : null;
-}
-
-// ---------------------------------------------------------------------------
-// Claude CLI native binary resolution
-// ---------------------------------------------------------------------------
-
-// Path to the Claude CLI native binary that ships with the Agent SDK.
-// The SDK's auto-resolver tries the musl variant first on Linux, which fails
-// on glibc systems (ENOENT on /lib/ld-musl-*.so.1 when execve runs the binary).
-// We resolve explicitly and pass it as pathToClaudeCodeExecutable so every
-// libc gets the right binary.
-export const CLAUDE_NATIVE_BIN = resolveClaudeNativeBinary();
-
-function resolveClaudeNativeBinary(): string {
-  const anthropicDir = join(import.meta.dir, "..", "..", "..", "node_modules", "@anthropic-ai");
-  const binName = process.platform === "win32" ? "claude.exe" : "claude";
-  if (process.platform === "linux") {
-    const muslArch = process.arch === "arm64" ? "aarch64" : "x86_64";
-    const isMusl = existsSync(`/lib/ld-musl-${muslArch}.so.1`);
-    const variants = isMusl ? [`linux-${process.arch}-musl`, `linux-${process.arch}`] : [`linux-${process.arch}`, `linux-${process.arch}-musl`];
-    for (const v of variants) {
-      const p = join(anthropicDir, `claude-agent-sdk-${v}`, binName);
-      if (existsSync(p)) return p;
-    }
-  }
-  return join(anthropicDir, `claude-agent-sdk-${process.platform}-${process.arch}`, binName);
 }
 
 // ---------------------------------------------------------------------------
@@ -93,41 +67,6 @@ export function createTurnDeferred(managed: ManagedAgent): Promise<void> {
   });
   managed.pendingTurn = { resolve, reject };
   return promise;
-}
-
-// ---------------------------------------------------------------------------
-// Environment merging for sessions (office + room + user dotenv layering)
-// ---------------------------------------------------------------------------
-
-// Merge process.env with office, room, and user env files.
-// User overrides room, room overrides office, office overrides process.env. Spawn-time failure mode:
-// if a configured env file is missing or fails to parse, throw — the caller is
-// responsible for surfacing the error to the agent log.
-export function buildSessionEnv(managed: ManagedAgent): { [key: string]: string | undefined } | undefined {
-  const room = rooms[managed.info.room];
-  const roomEnvFile = room?.envFile ?? null;
-  const officeEnvFile = officeConfig.envFile;
-  const userEnvFile = managed.info.userId ? (getUserById(managed.info.userId)?.envFile ?? null) : null;
-  const agentToken = getAgentToken(managed.info.id);
-  if (!roomEnvFile && !officeEnvFile && !userEnvFile && !agentToken) return undefined;
-
-  // Intentional: inherit parent process.env so agents see HOME/PATH/etc. Office
-  // room, and user files override individual keys but cannot unset inherited ones.
-  const merged: { [key: string]: string | undefined } = { ...process.env };
-  if (officeEnvFile) {
-    const officeEnv = readEnvFile(officeEnvFile);
-    Object.assign(merged, officeEnv);
-  }
-  if (roomEnvFile) {
-    const roomEnv = readEnvFile(roomEnvFile);
-    Object.assign(merged, roomEnv);
-  }
-  if (userEnvFile) {
-    const userEnv = readEnvFile(userEnvFile);
-    Object.assign(merged, userEnv);
-  }
-  if (agentToken) merged.BUREAU_AGENT_TOKEN = agentToken;
-  return merged;
 }
 
 // ---------------------------------------------------------------------------
