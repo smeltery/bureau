@@ -3,6 +3,8 @@ import type { AgentCapabilities, AgentPermissionMode, CodexSandboxMode, EffortLe
 import type { CCPluginsState } from "./cc-plugin-types.ts";
 import type { Cronjob, CronjobPermissionMode, CronjobRun, Schedule } from "./cronjobs.ts";
 import type { Attachment, LogEntry } from "./log-types.ts";
+import { generateHexId } from "./tasks.ts";
+import type { TaskItem, TaskPriority } from "./tasks.ts";
 
 export {
   CODEX_MODELS,
@@ -23,6 +25,8 @@ export { cronjobRunStreamId, humanizeSchedule, parseStreamId } from "./cronjobs.
 export type { Cronjob, CronjobPermissionMode, CronjobRun, CronjobRunStatus, CronjobRunTrigger, Schedule } from "./cronjobs.ts";
 export type { CCAvailablePlugin, CCInstalledPlugin, CCMarketplace, CCPluginScope, CCPluginsState } from "./cc-plugin-types.ts";
 export type { Attachment, DiffFileSummary, DiffPayload, FilePayload, LogEntry, TerminalCommandPayload } from "./log-types.ts";
+export { generateHexId, generateTaskId, isValidPriority, isValidStatus } from "./tasks.ts";
+export type { TaskItem, TaskPriority, TaskStatus } from "./tasks.ts";
 
 // Agent states derived from SDK stream events
 export type AgentState = "idle" | "thinking" | "tool_executing" | "waiting_for_response" | "error" | "stopped";
@@ -122,21 +126,6 @@ export interface QueuedMessage {
   queuedAt: number;
 }
 
-// Task item (replaces todos)
-export type TaskStatus = "open" | "in_progress" | "done" | "backlog";
-export type TaskPriority = "P0" | "P1" | "P2" | "P3";
-
-export interface TaskItem {
-  id: string; // 8-char hex hash
-  title: string;
-  description?: string;
-  priority?: TaskPriority;
-  status: TaskStatus;
-  assignee?: string;
-  createdBy: string;
-  createdAt: number;
-}
-
 export type MemoryScope = "office" | "room" | "agent" | "boss";
 
 export interface MemoryItem {
@@ -148,40 +137,12 @@ export interface MemoryItem {
   raw: string;
 }
 
-// Generate a unique 8-char hex ID, avoiding collisions with `existing`.
-function generateHexId(existing?: string[]): string {
-  const ids = existing ? new Set(existing) : undefined;
-  for (;;) {
-    const bytes = new Uint8Array(4);
-    crypto.getRandomValues(bytes);
-    const id = Array.from(bytes)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    if (!ids || !ids.has(id)) return id;
-  }
-}
-
-export function generateTaskId(existing?: string[]): string {
-  return generateHexId(existing);
-}
-
 export function generateCronjobId(existing?: string[]): string {
   return generateHexId(existing);
 }
 
 export function generateCronjobRunId(existing?: string[]): string {
   return generateHexId(existing);
-}
-
-const VALID_STATUSES = new Set<TaskStatus>(["open", "in_progress", "done", "backlog"]);
-const VALID_PRIORITIES = new Set<TaskPriority>(["P0", "P1", "P2", "P3"]);
-
-export function isValidStatus(s: unknown): s is TaskStatus {
-  return typeof s === "string" && VALID_STATUSES.has(s as TaskStatus);
-}
-
-export function isValidPriority(p: unknown): p is TaskPriority {
-  return typeof p === "string" && VALID_PRIORITIES.has(p as TaskPriority);
 }
 
 // Session info for resume feature
