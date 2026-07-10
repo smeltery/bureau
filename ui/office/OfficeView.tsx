@@ -18,6 +18,8 @@ import { useViewport } from "./useViewport.ts";
 import { ZoomControls } from "./ZoomControls.tsx";
 import type { AgentInfo } from "../../shared/types.ts";
 import { BuildingIcon, DesktopOfficeHeader, DoorIcon } from "./OfficeHeader.tsx";
+import { DoorDropZone } from "./DoorDropZone.tsx";
+import { OfficeHints } from "./OfficeHints.tsx";
 
 const GHOST_SIZE = 40;
 
@@ -32,39 +34,6 @@ export interface ViewportControls {
   resetView: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
-}
-
-/** HTML drop zone positioned over an SVG door — SVG elements are unreliable drag-and-drop targets */
-function DoorDropZone({ side, onDrop, onDragOverChange, onClick }: { side: "left" | "right"; onDrop: (deskIndex: number) => boolean; onDragOverChange: (over: boolean) => void; onClick: () => void }) {
-  const [reject, setReject] = useState(false);
-  // Pixel positions within the 950×700 scene container, derived from the SVG door transforms
-  const style: React.CSSProperties =
-    side === "left" ? { position: "absolute", left: 0, top: 225, width: 85, height: 155, zIndex: 200 } : { position: "absolute", right: 0, top: 225, width: 85, height: 155, zIndex: 200 };
-  return (
-    <div
-      data-no-pan
-      style={{ ...style, cursor: "pointer", background: reject ? "rgba(255,60,60,0.08)" : "transparent" }}
-      onClick={onClick}
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-      }}
-      onDragEnter={() => onDragOverChange(true)}
-      onDragLeave={() => onDragOverChange(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        onDragOverChange(false);
-        const src = parseInt(e.dataTransfer.getData("text/plain"), 10);
-        if (!isNaN(src)) {
-          const ok = onDrop(src);
-          if (!ok) {
-            setReject(true);
-            setTimeout(() => setReject(false), 400);
-          }
-        }
-      }}
-    />
-  );
 }
 
 export function OfficeView({
@@ -398,37 +367,7 @@ export function OfficeView({
       </div>
 
       {/* Bottom HUD */}
-      {!embed && (
-        <div
-          style={{
-            padding: isMobile ? "8px 12px" : "8px 20px",
-            ...(isMobile ? { paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))" } : {}),
-            background: "var(--bg-hud-bottom)",
-            backdropFilter: "blur(8px)",
-            borderTop: "1px solid var(--border-subtle)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: isMobile ? 12 : 20,
-            flexShrink: 0,
-            zIndex: 500,
-          }}
-        >
-          {(isMobile ? ["TAP → open", "LONG-PRESS → actions"] : ["CLICK → open agent", "DRAG → swap desks or move to door", "RIGHT-CLICK → actions", "ESC → back"]).map((h, i) => (
-            <span
-              key={i}
-              style={{
-                fontSize: 9,
-                color: "var(--text-hint)",
-                fontFamily: "'JetBrains Mono',monospace",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {h}
-            </span>
-          ))}
-        </div>
-      )}
+      {!embed && <OfficeHints isMobile={isMobile} />}
       {wallMenu && <WallPanelMenu x={wallMenu.x} y={wallMenu.y} items={wallMenuItems} onClose={() => setWallMenu(null)} />}
       <ThemePicker open={themePickerOpen} onClose={() => setThemePickerOpen(false)} />
     </div>
