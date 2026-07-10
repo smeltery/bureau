@@ -1,13 +1,13 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { AgentInfo } from "../../shared/types.ts";
 import { familyDisplayLabel } from "../../shared/types.ts";
-import { send } from "../ws.ts";
 import { useAppState, useFeatures, useTheme } from "../store.tsx";
 import { CopyButton } from "../components/controls/CopyButton.tsx";
 import { MoonIcon, PersonIcon, SunIcon } from "../components/controls/Icons.tsx";
 import { ThemePicker } from "../components/ThemePicker.tsx";
 import { StatusLight } from "../office/scene/StatusLight.tsx";
 import { HeaderTimer, STATE_LABELS } from "./StateIndicators.tsx";
+import { HeaderTopic } from "./HeaderTopic.tsx";
 
 export function Header({
   agent,
@@ -40,10 +40,6 @@ export function Header({
   const { mode } = useTheme();
   const features = useFeatures();
 
-  const [editingTopic, setEditingTopic] = useState(false);
-  const [topicDraft, setTopicDraft] = useState("");
-  const topicInputRef = useRef<HTMLInputElement>(null);
-  const topicSavedRef = useRef(false);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
 
   if (isMobile) {
@@ -189,97 +185,7 @@ export function Header({
           {agent.name}
         </span>
         {STATE_LABELS[agent.state] && <HeaderTimer state={agent.state} stateChangedAt={stateChangedAt.get(agent.id)} />}
-        {agent.topic && agent.topic !== "..." && !editingTopic && (
-          <>
-            <span style={{ color: "var(--text-ghost)" }}>&middot;</span>
-            <span
-              onClick={() => {
-                setEditingTopic(true);
-                setTopicDraft(agent.topic ?? "");
-                setTimeout(() => topicInputRef.current?.focus(), 0);
-              }}
-              style={{
-                color: "var(--text-secondary)",
-                fontSize: 13,
-                cursor: "text",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                minWidth: 0,
-              }}
-              title={agent.topic ?? "Click to edit topic"}
-            >
-              {agent.topic}
-            </span>
-            <button
-              onClick={() => send({ type: "reset_topic", agentId: agent.id })}
-              disabled={!agent.topicStale}
-              title={agent.topicStale ? "Regenerate topic from conversation" : "No new messages since last generation"}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: agent.topicStale ? "pointer" : "default",
-                color: "var(--text-secondary)",
-                fontSize: 15,
-                padding: "0 4px",
-                opacity: agent.topicStale ? 0.8 : 0.3,
-                transition: "opacity 0.2s",
-                lineHeight: 1,
-              }}
-            >
-              ↻
-            </button>
-          </>
-        )}
-        {agent.topic === "..." && (
-          <>
-            <span style={{ color: "var(--text-ghost)" }}>&middot;</span>
-            <span style={{ color: "var(--text-ghost)", fontSize: 13 }}>...</span>
-          </>
-        )}
-        {editingTopic && (
-          <input
-            ref={topicInputRef}
-            value={topicDraft}
-            onChange={(e) => setTopicDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                const trimmed = topicDraft.trim();
-                if (trimmed && trimmed !== agent.topic) {
-                  send({ type: "set_topic", agentId: agent.id, topic: trimmed });
-                }
-                topicSavedRef.current = true;
-                setEditingTopic(false);
-              }
-              if (e.key === "Escape") {
-                topicSavedRef.current = true;
-                setEditingTopic(false);
-              }
-            }}
-            onBlur={() => {
-              if (topicSavedRef.current) {
-                topicSavedRef.current = false;
-                setEditingTopic(false);
-                return;
-              }
-              const trimmed = topicDraft.trim();
-              if (trimmed && trimmed !== agent.topic) {
-                send({ type: "set_topic", agentId: agent.id, topic: trimmed });
-              }
-              setEditingTopic(false);
-            }}
-            style={{
-              background: "transparent",
-              border: "1px solid var(--border-medium)",
-              borderRadius: 4,
-              color: "var(--text-muted)",
-              fontSize: 12,
-              padding: "1px 6px",
-              outline: "none",
-              width: 200,
-            }}
-          />
-        )}
+        <HeaderTopic agent={agent} />
         <span style={{ color: "var(--text-ghost)", flexShrink: 0 }}>&middot;</span>
         <span
           title={agent.cwd}
