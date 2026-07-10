@@ -35,15 +35,13 @@
  * with the pre-refactor patterns in each call site.
  */
 
-import type { Attachment, LogEntry } from "../../shared/types.ts";
-import type { BureauPlugin, PluginAfterTurnInput, PluginTurnContext } from "../../shared/plugin-types.ts";
+import type { Attachment } from "../../shared/types.ts";
+import type { PluginAfterTurnInput, PluginTurnContext } from "../../shared/plugin-types.ts";
 import type { ManagedAgent } from "../agents/state.ts";
 import { beginTurn, logCache, rooms } from "../agents/state.ts";
 import { SessionSwappedError, createTurnDeferred } from "../agents/session/runtime.ts";
-import { getEnabledPlugins, logPluginFailure } from "./registry.ts";
-
-const BEFORE_TURN_TIMEOUT_MS = 5000;
-const AFTER_TURN_TIMEOUT_MS = 10000;
+import { getEnabledPlugins } from "./registry.ts";
+import { assistantTextFromEntries, runAfterTurn, runBeforeTurnHooks } from "./turn-hooks.ts";
 
 export type TurnOrigin = "user" | "queued" | "skill" | "edit-fork";
 
@@ -147,17 +145,9 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   // already returns entries sorted by id; we preserve that order in the
   // assembled prefix.
   const loaded = getEnabledPlugins();
-  const prefixes: Array<{ id: string; prefix: string }> = [];
-  if (loaded.length > 0) {
-    const results = await Promise.all(
-      loaded.map(async ({ plugin }) => {
-        const prefix = await runOneBeforeTurn(plugin, ctx, origin);
-        return prefix ? { id: plugin.id, prefix } : null;
-      }),
-    );
-    for (const r of results) {
-      if (r) prefixes.push(r);
-    }
+  const plugins = loaded.map((lp) => lp.plugin);
+  const prefixes = await runBeforeTurnHooks(plugins, ctx, origin);
+  if (plugins.length > 0) {
     // beforeTurn could have taken up to BEFORE_TURN_TIMEOUT_MS per plugin;
     // re-check the cancel token before committing to send.
     checkCancelled();
@@ -242,13 +232,7 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
       assistantText: assistantTextFromEntries(newLogEntries),
       newLogEntries,
     };
-    managed.afterTurnPromise = runAfterTurn(
-      loaded.map((lp) => lp.plugin),
-      ctx,
-      input,
-      origin,
-      managed,
-    );
+    managed.afterTurnPromise = runAfterTurn(plugins, ctx, input, origin, managed);
   }
 
   if (thrown !== undefined) {
@@ -271,188 +255,4 @@ export function stripPluginPrefix(text: string): string {
   const marker = "User message:\n";
   if (!text.startsWith(marker, offset)) return text;
   return text.slice(offset + marker.length);
-}
-
-// ---------------------------------------------------------------------------
-// beforeTurn — per-plugin race with timeout
-// ---------------------------------------------------------------------------
-
-async function runOneBeforeTurn(p: BureauPlugin, ctx: PluginTurnContext, origin: TurnOrigin): Promise<string | null> {
-  if (!p.beforeTurn) return null;
-
-  const start = Date.now();
-  // `timedOut` lets the underlying work's catch suppress its log if the race
-  // already resolved with timeout. Avoids a double-log when both the timeout
-  // AND a late throw fire.
-  let timedOut = false;
-
-  // Wrap the underlying work so a late rejection after the race resolves
-  // doesn't become an unhandledRejection.
-  const work = (async () => {
-    try {
-      const r = await p.beforeTurn!(ctx);
-      return r ?? null;
-    } catch (err) {
-      if (!timedOut) {
-        logPluginFailure({
-          pluginId: p.id,
-          hook: "beforeTurn",
-          agentId: ctx.agentId,
-          roomId: ctx.roomId,
-          origin,
-          durationMs: Date.now() - start,
-          error: err,
-        });
-      }
-      return null;
-    }
-  })();
-
-  const winner = await Promise.race([work.then((r) => ({ kind: "ok" as const, r })), new Promise<{ kind: "timeout" }>((res) => setTimeout(() => res({ kind: "timeout" }), BEFORE_TURN_TIMEOUT_MS))]);
-
-  if (winner.kind === "timeout") {
-    timedOut = true;
-    logPluginFailure({
-      pluginId: p.id,
-      hook: "beforeTurn",
-      agentId: ctx.agentId,
-      roomId: ctx.roomId,
-      origin,
-      durationMs: BEFORE_TURN_TIMEOUT_MS,
-      error: new Error(`beforeTurn timed out after ${BEFORE_TURN_TIMEOUT_MS}ms`),
-    });
-    return null;
-  }
-
-  return normalizeBeforeTurnResult(p, winner.r, ctx, origin, start);
-}
-
-/** Validate a plugin's beforeTurn return value and extract the prefix string.
- *  A malformed shape — non-object return, or `promptPrefix` that isn't a
- *  string — must NOT crash the turn (the spec is explicit: plugin errors
- *  never fail the turn). Instead we log the malformation to plugins.jsonl
- *  and return null, dropping the plugin's contribution for this turn. The
- *  isolation boundary lives here so callers can't accidentally route an
- *  unsafe value into the prompt-assembly path.
- *
- *  Accepts: null/undefined (no contribution), `{}` (no contribution),
- *  `{ promptPrefix: string }` (the canonical shape), `{ promptPrefix: null }`
- *  (treated as no contribution).
- *  Rejects-with-log: primitives, arrays, `{ promptPrefix: <non-string> }`. */
-function normalizeBeforeTurnResult(p: BureauPlugin, value: unknown, ctx: PluginTurnContext, origin: TurnOrigin, startMs: number): string | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "object" || Array.isArray(value)) {
-    logPluginFailure({
-      pluginId: p.id,
-      hook: "beforeTurn",
-      agentId: ctx.agentId,
-      roomId: ctx.roomId,
-      origin,
-      durationMs: Date.now() - startMs,
-      error: new Error(`beforeTurn must return an object or void; got ${Array.isArray(value) ? "array" : typeof value}`),
-    });
-    return null;
-  }
-  const obj = value as Record<string, unknown>;
-  if (!("promptPrefix" in obj)) return null;
-  const prefix = obj.promptPrefix;
-  if (prefix === undefined || prefix === null) return null;
-  if (typeof prefix !== "string") {
-    logPluginFailure({
-      pluginId: p.id,
-      hook: "beforeTurn",
-      agentId: ctx.agentId,
-      roomId: ctx.roomId,
-      origin,
-      durationMs: Date.now() - startMs,
-      error: new Error(`beforeTurn promptPrefix must be a string; got ${typeof prefix}`),
-    });
-    return null;
-  }
-  const trimmed = prefix.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-// ---------------------------------------------------------------------------
-// afterTurn — per-plugin race, self-clearing aggregate promise
-// ---------------------------------------------------------------------------
-
-function runAfterTurn(plugins: BureauPlugin[], ctx: PluginTurnContext, input: PluginAfterTurnInput, origin: TurnOrigin, managed: ManagedAgent): Promise<void> {
-  // The settled aggregate of all per-plugin races. runOneAfterTurn catches
-  // throws and timeouts internally, so this never rejects.
-  const settled: Promise<void> = Promise.all(plugins.map((p) => runOneAfterTurn(p, ctx, input, origin))).then(() => undefined);
-
-  // Wrap with a self-clearing finally — a timed-out plugin must not leave a
-  // stale promise blocking every future turn. Identity-compare via the
-  // wrapping `self` so we only null the slot if it still points at this
-  // turn's promise (a later turn may have overwritten it).
-  const self: Promise<void> = settled.finally(() => {
-    if (managed.afterTurnPromise === self) {
-      managed.afterTurnPromise = null;
-    }
-  });
-
-  return self;
-}
-
-async function runOneAfterTurn(p: BureauPlugin, ctx: PluginTurnContext, input: PluginAfterTurnInput, origin: TurnOrigin): Promise<void> {
-  if (!p.afterTurn) return;
-
-  const start = Date.now();
-  let timedOut = false;
-
-  const work = (async () => {
-    try {
-      await p.afterTurn!(ctx, input);
-    } catch (err) {
-      if (!timedOut) {
-        logPluginFailure({
-          pluginId: p.id,
-          hook: "afterTurn",
-          agentId: ctx.agentId,
-          roomId: ctx.roomId,
-          origin,
-          durationMs: Date.now() - start,
-          error: err,
-        });
-      }
-    }
-  })();
-
-  const winner = await Promise.race([work.then(() => "ok" as const), new Promise<"timeout">((res) => setTimeout(() => res("timeout"), AFTER_TURN_TIMEOUT_MS))]);
-
-  if (winner === "timeout") {
-    timedOut = true;
-    logPluginFailure({
-      pluginId: p.id,
-      hook: "afterTurn",
-      agentId: ctx.agentId,
-      roomId: ctx.roomId,
-      origin,
-      durationMs: AFTER_TURN_TIMEOUT_MS,
-      error: new Error(`afterTurn timed out after ${AFTER_TURN_TIMEOUT_MS}ms`),
-    });
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Concatenate all `text` log entries from the turn's slice, in chronological
- *  order, joined with blank-line separators. Tool-using turns emit text →
- *  tool_call → text patterns, and a memory/audit plugin needs the agent's
- *  full natural-language output, not just the last span. Empty/whitespace-
- *  only entries are dropped so the join doesn't produce stray blank lines.
- *  Returns empty string when no text entry landed (failed/interrupted
- *  turns before any assistant text streamed). */
-function assistantTextFromEntries(entries: LogEntry[]): string {
-  const parts: string[] = [];
-  for (const e of entries) {
-    if (e.kind !== "text") continue;
-    if (typeof e.content !== "string") continue;
-    const trimmed = e.content.trim();
-    if (trimmed.length > 0) parts.push(trimmed);
-  }
-  return parts.join("\n\n");
 }
