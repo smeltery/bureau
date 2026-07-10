@@ -6,13 +6,13 @@ import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { autocompletion, closeBrackets } from "@codemirror/autocomplete";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { send, addRawListener, removeRawListener } from "../ws.ts";
+import { send } from "../ws.ts";
 import { useTheme } from "../store.tsx";
-import type { ServerMessage } from "../../shared/types.ts";
 import { getEditorState, setEditorState, type PersistedTab } from "./editor-state.ts";
 import { languageExtension, readTabs, writeTabs, type Tab } from "./editor-model.ts";
 import { EditorBanner } from "./EditorBanner.tsx";
 import { EditorTabsHeader } from "./EditorTabsHeader.tsx";
+import { useEditorSocket } from "./hooks/useEditorSocket.ts";
 
 export function EditorPanel({
   agentId,
@@ -147,106 +147,7 @@ export function EditorPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialPath]);
 
-  // Wire raw WebSocket listener for editor_* messages addressed to this agent.
-  useEffect(() => {
-    const handler = (data: string) => {
-      let msg: ServerMessage | null = null;
-      try {
-        msg = JSON.parse(data) as ServerMessage;
-      } catch {
-        return;
-      }
-      if (!msg) return;
-      if (msg.type === "editor_content" && msg.agentId === agentId) {
-        const m = msg;
-        setTabsAndPersist((prev) => {
-          const idx = prev.findIndex((t) => t.path === m.path);
-          if (idx >= 0) {
-            const existing = prev[idx]!;
-            const next = prev.slice();
-            if (existing.dirty) {
-              // Preserve the dirty buffer — this happens after agent-switch
-              // re-mounts when we re-fetch on disk to reinstall fs.watch.
-              // Refresh only the metadata fields the server is authoritative for.
-              next[idx] = {
-                ...existing,
-                mtime: m.mtime,
-                language: m.language,
-                size: m.size,
-              };
-            } else {
-              next[idx] = {
-                path: m.path,
-                content: m.content,
-                mtime: m.mtime,
-                language: m.language,
-                size: m.size,
-                dirty: false,
-                banner: null,
-              };
-            }
-            return next;
-          }
-          return [
-            ...prev,
-            {
-              path: m.path,
-              content: m.content,
-              mtime: m.mtime,
-              language: m.language,
-              size: m.size,
-              dirty: false,
-              banner: null,
-            },
-          ];
-        });
-        setActivePath((prev) => prev ?? m.path);
-      } else if (msg.type === "editor_open_error" && msg.agentId === agentId) {
-        const m = msg;
-        const reason =
-          m.reason === "not_found"
-            ? "not found"
-            : m.reason === "not_file"
-              ? "not a file"
-              : m.reason === "binary"
-                ? "binary file (text only)"
-                : m.reason === "too_large"
-                  ? `too large (${m.size ? (m.size / 1024).toFixed(1) + " KB" : ""}, 1 MB limit)`
-                  : m.reason === "io_error"
-                    ? `error: ${m.message ?? "unknown"}`
-                    : "bad path";
-        setPendingError(`${m.path}: ${reason}`);
-      } else if (msg.type === "editor_save_response" && msg.agentId === agentId) {
-        const m = msg;
-        setTabsAndPersist((prev) =>
-          prev.map((t) => {
-            if (t.path !== m.path) return t;
-            if (m.ok) {
-              return { ...t, mtime: m.mtime ?? t.mtime, dirty: false, banner: null };
-            }
-            if (m.reason === "stale" && m.currentMtime !== undefined) {
-              return { ...t, banner: { kind: "stale", currentMtime: m.currentMtime } };
-            }
-            return { ...t, banner: { kind: "save_error", message: m.error ?? "save failed" } };
-          }),
-        );
-      } else if (msg.type === "editor_external_change" && msg.agentId === agentId) {
-        const m = msg;
-        // Decide outside the state updater so React strict-mode's double
-        // invocation doesn't fire two `editor_open` round-trips.
-        const existing = tabsRef.current.find((t) => t.path === m.path);
-        if (!existing) return;
-        if (existing.dirty) {
-          setTabsAndPersist((prev) => prev.map((t) => (t.path === m.path ? { ...t, banner: { kind: "external", mtime: m.mtime } } : t)));
-        } else {
-          // Clean buffer → silently re-fetch by triggering an open.
-          send({ type: "editor_open", agentId, path: m.path });
-        }
-      }
-    };
-    addRawListener(handler);
-    return () => removeRawListener(handler);
-  }, [agentId, setTabsAndPersist]);
+  useEditorSocket({ agentId, setPendingError, setActivePath, setTabsAndPersist, tabsRef });
 
   // Release server-side fs.watch handles when the panel unmounts (LogView
   // reset, agent switch, etc.). Without this, watchers persist on the WS
