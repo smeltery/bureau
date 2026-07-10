@@ -35,13 +35,11 @@ import type { ApprovalDecision, AttachmentSpec, BackendSession, NormalizedEvent 
 import { JsonRpcLiteClient, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
 import { mapApprovalDecision } from "./approvals.ts";
 import { buildCodexUserInput } from "./user-input.ts";
-import { CLIENT_INFO_NAME, CLIENT_INFO_VERSION } from "./backend-ops.ts";
-import { AUTH_ERROR_PATTERNS, DEFAULT_SANDBOX_MODE } from "./config.ts";
+import { AUTH_ERROR_PATTERNS } from "./config.ts";
 import { CodexUsageTracker } from "./session-usage.ts";
+import { bootstrapCodexThread, type CodexSessionInitOpts } from "./session-bootstrap.ts";
 import { handleCodexNotification } from "./session-notifications.ts";
 import { handleCodexServerRequest, type PendingApproval } from "./session-requests.ts";
-
-import type { InitializeParams } from "./_generated/InitializeParams.ts";
 
 // ---------------------------------------------------------------------------
 // CodexSession
@@ -63,19 +61,6 @@ import type { InitializeParams } from "./_generated/InitializeParams.ts";
 //
 // Stream output is buffered exactly like ClaudeSession: enqueue + wake the
 // stream's parked promise; stream() yields from buffer.
-
-interface CodexSessionInitOpts {
-  agentId: string;
-  cwd: string;
-  systemPrompt: string;
-  modelFamily: string;
-  effort: string;
-  permissionMode: string;
-  sandbox?: string; // SandboxMode enum string; falls back to DEFAULT_SANDBOX_MODE
-  env?: { [key: string]: string | undefined };
-  resumeThreadId?: string;
-  ephemeral?: boolean;
-}
 
 export class CodexSession implements BackendSession {
   private client: JsonRpcLiteClient;
@@ -148,43 +133,7 @@ export class CodexSession implements BackendSession {
   private async bootstrap(): Promise<void> {
     try {
       this.client.start();
-      const initParams: InitializeParams = {
-        clientInfo: {
-          name: CLIENT_INFO_NAME,
-          version: CLIENT_INFO_VERSION,
-          title: null,
-        },
-        capabilities: {
-          experimentalApi: true,
-          optOutNotificationMethods: null,
-        },
-      };
-      await this.client.initialize(initParams);
-
-      if (this.opts.resumeThreadId) {
-        // Resume an existing thread. Pass current settings as overrides so
-        // a UI-side change to permissionMode/sandbox/model/systemPrompt
-        // propagates instead of being stuck on whatever the thread was born
-        // with — editAgent replaceSession → resumeSession is the path that
-        // exercises this, and without the overrides the resumed thread
-        // silently keeps the original policy.
-        const resumeResp = await this.client.request<{
-          thread: { id: string };
-        }>("thread/resume", {
-          threadId: this.opts.resumeThreadId,
-          approvalPolicy: this.opts.permissionMode,
-          sandbox: this.opts.sandbox ?? DEFAULT_SANDBOX_MODE,
-          model: this.opts.modelFamily,
-          developerInstructions: this.opts.systemPrompt,
-          persistExtendedHistory: false,
-        });
-        this.threadId = resumeResp.thread.id;
-      } else {
-        // Start a new thread.
-        const startParams = this.buildThreadStartParams();
-        const startResp = await this.client.request<{ thread: { id: string } }>("thread/start", startParams);
-        this.threadId = startResp.thread.id;
-      }
+      this.threadId = await bootstrapCodexThread(this.client, this.opts);
 
       this.enqueue({
         kind: "system_init",
@@ -208,31 +157,6 @@ export class CodexSession implements BackendSession {
       });
       this.markEnded();
     }
-  }
-
-  private buildThreadStartParams(): Record<string, unknown> {
-    // sandbox is a SandboxMode enum string; approvalPolicy is the
-    // AskForApproval enum string. We deliberately keep this as a plain
-    // Record so the codegen union strictness doesn't fight us — the wire
-    // schema is what we're targeting.
-    const params: Record<string, unknown> = {
-      cwd: this.opts.cwd,
-      developerInstructions: this.opts.systemPrompt,
-      model: this.opts.modelFamily,
-      sandbox: this.opts.sandbox ?? DEFAULT_SANDBOX_MODE,
-      approvalPolicy: this.opts.permissionMode,
-      experimentalRawEvents: false,
-      // persistExtendedHistory is deprecated in 0.130 and ignored by the
-      // server, but the wire schema still requires the field.
-      persistExtendedHistory: false,
-    };
-    if (this.opts.ephemeral) params.ephemeral = true;
-    if (this.opts.effort) {
-      // ReasoningEffort enum string. Best-effort pass-through; codex
-      // accepts a subset, mismatched values fail at handshake time.
-      params.reasoningEffort = this.opts.effort;
-    }
-    return params;
   }
 
   // -------------------------------------------------------------------------
