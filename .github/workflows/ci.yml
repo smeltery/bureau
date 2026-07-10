@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       app: ${{ steps.changed.outputs.app }}
+      demo: ${{ steps.changed.outputs.demo }}
       website: ${{ steps.changed.outputs.website }}
       workflow: ${{ steps.changed.outputs.workflow }}
     steps:
@@ -45,6 +46,7 @@ jobs:
           changed_files="$(git diff --name-only "$base" "$head")"
 
           app=false
+          demo=false
           website=false
           workflow=false
           while IFS= read -r path; do
@@ -55,7 +57,11 @@ jobs:
                 ;;
             esac
             case "$path" in
-              api/*|demo/*|scripts/*|server/*|shared/*|skills/*|ui/*|.flox/*|.githooks/*|bun.lock|package.json|tsconfig.json)
+              demo/*)
+                app=true
+                demo=true
+                ;;
+              api/*|scripts/*|server/*|shared/*|skills/*|ui/*|.flox/*|.githooks/*|.oxlintrc.json|.prettierignore|.prettierrc.json|bun.lock|package.json|tsconfig.json)
                 app=true
                 ;;
             esac
@@ -68,6 +74,7 @@ jobs:
 
           {
             echo "app=$app"
+            echo "demo=$demo"
             echo "website=$website"
             echo "workflow=$workflow"
           } >> "$GITHUB_OUTPUT"
@@ -108,6 +115,9 @@ jobs:
         run: flox activate -- bun install --frozen-lockfile
       - name: Run app CI
         run: flox activate -- bun run ci
+      - name: Build demo bundle
+        if: needs.changes.outputs.demo == 'true'
+        run: flox activate -- bun run demo:build:assets
 
   website-ci:
     name: website-ci
