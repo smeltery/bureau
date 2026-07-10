@@ -3,7 +3,6 @@
 import type { Server } from "bun";
 import {
   acceptInvite,
-  buildPublicOrigin,
   claimOwnership,
   clearCookieHeader,
   logoutBySessionHash,
@@ -16,6 +15,7 @@ import {
 } from "./auth.ts";
 import { hasOwner } from "../users.ts";
 import { renderAcceptPage, renderClaimPage, renderInviteError, renderLockoutBlocked, renderLoginPage, securityHeaders } from "./auth-pages.ts";
+import { checkOrigin, isLoopbackOrigin, originValidForAuthPost, requestIsLoopback } from "./auth-request-guards.ts";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -29,38 +29,6 @@ type OwnerCreatedCb = (opts: { username: string }) => Promise<void> | void;
 let onOwnerCreated: OwnerCreatedCb | null = null;
 export function setOnOwnerCreated(cb: OwnerCreatedCb | null): void {
   onOwnerCreated = cb;
-}
-
-// ---------------------------------------------------------------------------
-// Loopback detection. Localhost calls (agent-to-server curl, in-process tests)
-// bypass cookie auth — the host already trusts its own processes. The cookie
-// path exists to gate browser/remote access, not local IPC.
-
-function isLoopback(addr: string | null): boolean {
-  if (!addr) return false;
-  return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1" || addr.startsWith("127.");
-}
-
-export function requestIsLoopback<T>(req: Request, server: Server<T>): boolean {
-  try {
-    const info = server.requestIP(req);
-    return isLoopback(info?.address ?? null);
-  } catch {
-    return false;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Origin check. Reverse proxies are configured by the operator setting
-// BUREAU_PUBLIC_ORIGIN or office-config.json#publicOrigin; we do not infer
-// the origin from Host/X-Forwarded-Host because that's how
-// WebSocket-hijacking bugs happen.
-
-export function checkOrigin(req: Request): boolean {
-  const origin = req.headers.get("origin");
-  if (!origin) return false;
-  const { origin: expected } = buildPublicOrigin();
-  return origin === expected;
 }
 
 // ---------------------------------------------------------------------------
@@ -227,26 +195,6 @@ export async function handleLogout(req: Request, officeName: string | null): Pro
   });
 }
 
-// /auth/* POSTs are exclusively browser-driven. Unlike the agent-API
-// endpoints (which accept missing Origin from local curl), these require an
-// explicit Origin match — except for the absent/`null` Origin case, where
-// we fall back to the Fetch Metadata `Sec-Fetch-Site: same-origin` signal
-// (browser-attested, not forgeable by page JS). The literal-`null` case
-// happens on Chrome for top-level form POSTs from a page that sets
-// `Referrer-Policy: no-referrer`; absent Origin is the broader
-// legacy/privacy case. Empty-string Origin fails closed.
-function hasSameOriginFetchMetadata(req: Request): boolean {
-  return req.headers.get("sec-fetch-site") === "same-origin";
-}
-function originValidForAuthPost(req: Request): boolean {
-  const origin = req.headers.get("origin");
-  if (origin === null || origin === "null") {
-    return hasSameOriginFetchMetadata(req);
-  }
-  if (origin === "") return false;
-  return checkOrigin(req);
-}
-
 // Top-level router used by index.ts: returns null when the path isn't an
 // /auth/* path, so the caller falls through to its normal dispatch.
 export async function tryHandleAuthRoute<T>(req: Request, url: URL, officeName: string | null, server: Server<T>): Promise<Response | null> {
@@ -350,11 +298,4 @@ async function handleClaim<T>(req: Request, server: Server<T>, officeName: strin
       ...securityHeaders({ tokenInUrl: false }),
     },
   });
-}
-
-// Accept either http://localhost:<port> or http://127.0.0.1:<port> as the
-// claim-form Origin. The browser sends whichever the operator typed.
-function isLoopbackOrigin(origin: string): boolean {
-  const port = process.env.PORT || "4000";
-  return origin === `http://localhost:${port}` || origin === `http://127.0.0.1:${port}`;
 }
