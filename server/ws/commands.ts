@@ -1,16 +1,16 @@
 import type { ServerWebSocket } from "bun";
-import type { ClientCommand, ServerMessage, TaskItem } from "../../shared/types.ts";
-import { generateTaskId, isValidPriority, isValidStatus } from "../../shared/types.ts";
+import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
-import { saveRecentCwd, saveTasks } from "../persistence.ts";
-import { broadcast, browsers, setTasks, tasks } from "./broadcast.ts";
+import { saveRecentCwd } from "../persistence.ts";
+import { broadcast, browsers } from "./broadcast.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../index.ts";
 import { canSeeRoom, claimUser, deleteUser, getSessionContext, getUserById, getWsUser, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { refreshPresenceForUser, setPresence } from "../presence.ts";
 import { evictSessionsForUserId } from "../auth/auth.ts";
 import { handleAccessCommand } from "./access-commands.ts";
 import { handleEditorCommand } from "./editor-commands.ts";
+import { handleTaskCommand } from "./task-commands.ts";
 
 function canUseAgent(ws: ServerWebSocket<unknown>, agentId: string): boolean {
   const agent = AgentManager.getAllAgents().find((a) => a.id === agentId);
@@ -29,6 +29,7 @@ function isOwner(ws: ServerWebSocket<unknown>): boolean {
 
 export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>) {
   if (await handleAccessCommand(cmd, ws)) return;
+  if (handleTaskCommand(cmd)) return;
 
   switch (cmd.type) {
     case "ping":
@@ -391,43 +392,6 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
           } as ServerMessage),
         );
       }
-      break;
-    }
-    case "add_task": {
-      const task: TaskItem = {
-        id: generateTaskId(tasks.map((t) => t.id)),
-        title: cmd.title.trim(),
-        description: cmd.description,
-        priority: cmd.priority && isValidPriority(cmd.priority) ? cmd.priority : undefined,
-        status: "open",
-        assignee: cmd.assignee,
-        createdBy: cmd.username,
-        createdAt: Date.now(),
-      };
-      tasks.push(task);
-      saveTasks(tasks);
-      broadcast({ type: "tasks", tasks } as ServerMessage);
-      break;
-    }
-    case "update_task": {
-      const task = tasks.find((t) => t.id === cmd.id);
-      if (task) {
-        const c = cmd.changes;
-        if (c.title !== undefined) task.title = String(c.title);
-        if (c.description !== undefined) task.description = c.description ? String(c.description) : undefined;
-        if (c.assignee !== undefined) task.assignee = c.assignee ? String(c.assignee) : undefined;
-        if (c.status !== undefined && isValidStatus(c.status)) task.status = c.status;
-        if (c.priority !== undefined && isValidPriority(c.priority)) task.priority = c.priority;
-        saveTasks(tasks);
-        broadcast({ type: "tasks", tasks } as ServerMessage);
-      }
-      break;
-    }
-    case "delete_task": {
-      const next = tasks.filter((t) => t.id !== cmd.id);
-      setTasks(next);
-      saveTasks(next);
-      broadcast({ type: "tasks", tasks: next } as ServerMessage);
       break;
     }
     case "create_room":
