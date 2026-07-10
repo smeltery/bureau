@@ -13,6 +13,7 @@ import { useSlashAutocomplete } from "./hooks/useSlashAutocomplete.ts";
 import { useVoiceInput } from "./hooks/useVoiceInput.ts";
 import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
 import { useLogViewPanels } from "./hooks/useLogViewPanels.ts";
+import { useCiteInsertion } from "./hooks/useCiteInsertion.ts";
 import { useSelectionCite } from "./useSelectionCite.ts";
 import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 import { LogMessagesPane } from "./LogMessagesPane.tsx";
@@ -114,6 +115,13 @@ export function LogView({
   const attachments = useAttachmentUpload(agent.id);
 
   const isBusy = agent.state === "thinking" || agent.state === "tool_executing";
+  const handleCite = useCiteInsertion({
+    inputRef,
+    textareaRef,
+    setInput,
+    clearCite,
+    autoResize,
+  });
 
   // Dismiss edit textarea when agent is no longer idle (e.g. another tab sent a message)
   useEffect(() => {
@@ -145,56 +153,6 @@ export function LogView({
   }, [isMobile, features.terminal, panels.setTerminalOpen]);
 
   const getConversationText = useCallback(() => serializeEntries(logs), [logs]);
-
-  // Insert (or append) `text` into the draft as a triple-quoted "Cited text"
-  // block, then focus the textarea + position the caret after the insertion.
-  // Splits on caret-vs-no-caret because the boss might cite into a half-
-  // written prompt OR with no active focus on the composer at all.
-  const handleCite = useCallback(
-    (text: string) => {
-      const ta = textareaRef.current;
-      const current = inputRef.current;
-      const block = `Cited text:\n"""\n${text}\n"""\n`;
-
-      let newDraft: string;
-      let caretPos: number;
-
-      if (ta && document.activeElement === ta) {
-        const start = ta.selectionStart ?? current.length;
-        const end = ta.selectionEnd ?? current.length;
-        const before = current.slice(0, start);
-        const after = current.slice(end);
-        const leadSep = before === "" || before.endsWith("\n") ? "" : "\n";
-        const trailSep = after === "" || after.startsWith("\n") ? "" : "\n";
-        const insertion = leadSep + block + trailSep;
-        newDraft = before + insertion + after;
-        caretPos = before.length + insertion.length;
-      } else {
-        if (current === "") {
-          newDraft = block;
-        } else {
-          const sep = current.endsWith("\n\n") ? "" : current.endsWith("\n") ? "\n" : "\n\n";
-          newDraft = current + sep + block;
-        }
-        caretPos = newDraft.length;
-      }
-
-      setInput(newDraft);
-      // Collapse the chat selection so the pill goes away. selectionchange
-      // will null out the hook state too, but clearCite first for snappy
-      // feedback.
-      clearCite();
-      window.getSelection()?.removeAllRanges();
-      requestAnimationFrame(() => {
-        const ta2 = textareaRef.current;
-        if (!ta2) return;
-        ta2.focus({ preventScroll: true });
-        ta2.setSelectionRange(caretPos, caretPos);
-        autoResize(ta2);
-      });
-    },
-    [setInput, clearCite, autoResize],
-  );
 
   return (
     <div
