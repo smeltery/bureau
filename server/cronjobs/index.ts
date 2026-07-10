@@ -10,7 +10,7 @@
 // broadcasts log entries to the UI via the existing event bus. The synthetic
 // "stream id" used for log routing is `cronjobRunStreamId(runId)`.
 
-import { generateCronjobRunId, cronjobRunStreamId, type Attachment, type Cronjob, type CronjobRun, type LogEntry } from "../../shared/types.ts";
+import { type Attachment, type Cronjob, type CronjobRun, type LogEntry } from "../../shared/types.ts";
 import {
   loadCronjobs,
   saveCronjobs,
@@ -26,7 +26,7 @@ import {
   listAllCronjobIdsOnDisk,
 } from "../persistence.ts";
 import { validateCwd } from "../agents/session/paths.ts";
-import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
+import type { CreateSessionOptions } from "../backends/types.ts";
 import { getUserByName } from "../users.ts";
 import { computeNextFire } from "./schedule.ts";
 import { mintRunToken, revokeRunToken } from "./tokens.ts";
@@ -39,6 +39,7 @@ import { addCronjobDefinition, deleteCronjobDefinition, updateCronjobDefinition,
 import { startCronjobSchedulerWithDeps } from "./scheduler.ts";
 import { buildCronjobEnv, buildRunSessionOptions as buildRunSessionOptionsWithDeps, cronjobBackend, withRunTokenEnv } from "./session-options.ts";
 import { editRunMessageWithDeps, sendRunMessageWithDeps, type RunContinuationDeps } from "./run-continuation.ts";
+import { fireCronjobRunWithDeps, recordSkippedRunWithDeps, type RunStartDeps } from "./run-start.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
@@ -204,114 +205,31 @@ function continuationDeps(): RunContinuationDeps {
   };
 }
 
+function runStartDeps(): RunStartDeps {
+  return {
+    activeRuns,
+    appendRun,
+    updateRun,
+    saveCronjobs,
+    getCronjobs: () => cronjobs,
+    emitEvent: (event) => eventHandler(event),
+    validateCwd,
+    buildEnv: buildCronjobEnv,
+    mintRunToken,
+    revokeRunToken,
+    withRunTokenEnv,
+    buildRunSessionOptions,
+    createSession: (job, opts) => cronjobBackend(job).createSession(opts),
+    runConsumer,
+    startRunHardTimeout,
+    lifecycleDeps,
+    finalizeRun,
+    computeNextFire,
+  };
+}
+
 function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string): CronjobRun | null {
-  const jobId = job.id;
-
-  // Validate cwd before spawning so a moved directory surfaces as a failed
-  // run rather than an opaque SDK exit.
-  let cwdValid = true;
-  let cwdError: string | null = null;
-  let env: { [key: string]: string | undefined } | undefined;
-  try {
-    validateCwd(job.cwd);
-    env = buildCronjobEnv(job.userId);
-  } catch (err: any) {
-    cwdValid = false;
-    cwdError = err.message || "Invalid cronjob environment";
-  }
-
-  const runId = generateCronjobRunId();
-  const placeholderSessionId = `pending-${runId}`;
-  const now = Date.now();
-  const run: CronjobRun = {
-    id: runId,
-    cronjobId: jobId,
-    cronjobName: job.name,
-    trigger,
-    status: cwdValid ? "running" : "failed",
-    startedAt: now,
-    endedAt: cwdValid ? null : now,
-    errorReason: cwdError,
-    promptSnapshot: job.prompt,
-    agentTypeSnapshot: job.agentType,
-    modelFamilySnapshot: job.modelFamily,
-    effortSnapshot: job.effort,
-    cwdSnapshot: job.cwd,
-    permissionModeSnapshot: job.permissionMode,
-    ...(job.codexSandbox ? { codexSandboxSnapshot: job.codexSandbox } : {}),
-    rootSessionId: placeholderSessionId,
-    currentSessionId: placeholderSessionId,
-    previewText: cwdError ?? "",
-    ...(triggeredBy ? { triggeredBy } : {}),
-  };
-  appendRun(jobId, run);
-  eventHandler({ type: "cronjob_run_updated", run });
-
-  if (!cwdValid) {
-    // Update next fire for scheduled trigger so we don't loop.
-    if (trigger === "scheduled") {
-      job.lastFireAt = now;
-      job.nextFireAt = computeNextFire(job.schedule, now, now);
-      saveCronjobs(cronjobs);
-      eventHandler({ type: "cronjob_updated", cronjob: job });
-    }
-    return run;
-  }
-
-  const runToken = mintRunToken(jobId, runId, job.userId ?? null);
-  const opts = buildRunSessionOptions(job, jobId, runId, withRunTokenEnv(env, runToken));
-  let session: BackendSession;
-  try {
-    session = cronjobBackend(job).createSession(opts);
-  } catch (err: any) {
-    revokeRunToken(runId);
-    const updated = updateRun(jobId, runId, {
-      status: "failed",
-      endedAt: Date.now(),
-      errorReason: `Failed to create session: ${err.message || String(err)}`,
-    });
-    if (updated) eventHandler({ type: "cronjob_run_updated", run: updated });
-    return updated ?? run;
-  }
-
-  const streamId = cronjobRunStreamId(runId);
-  const active: ActiveRun = {
-    jobId,
-    runId,
-    streamId,
-    session,
-    sessionId: null,
-    rootSessionId: placeholderSessionId,
-    consumerPromise: Promise.resolve(),
-    hardTimeoutTimer: null,
-    lastWrittenEntryId: null,
-    lastAssistantText: "",
-    trigger,
-    killed: false,
-    pendingEntries: [],
-    isResume: false,
-  };
-  activeRuns.set(runId, active);
-  active.consumerPromise = runConsumer(active);
-  startRunHardTimeout(lifecycleDeps(), active);
-
-  // Send the prompt as the first user message. Wrap in a try so ergonomic
-  // errors don't crash the tick.
-  (async () => {
-    try {
-      await session.send(job.prompt);
-    } catch (err: any) {
-      if (active.killed) return;
-      console.error(`Cronjob run ${runId} input error:`, err.message);
-      writeLog(active, "error", `Failed to send prompt: ${err.message || String(err)}`, eventHandler);
-      try {
-        session.close();
-      } catch {}
-      finalizeRun(active, "failed", err.message || String(err));
-    }
-  })();
-
-  return run;
+  return fireCronjobRunWithDeps(runStartDeps(), job, trigger, triggeredBy);
 }
 
 function buildRunSessionOptions(job: Cronjob, jobId: string, runId: string, env: { [key: string]: string | undefined } | undefined): CreateSessionOptions {
@@ -319,35 +237,7 @@ function buildRunSessionOptions(job: Cronjob, jobId: string, runId: string, env:
 }
 
 function recordSkippedRun(job: Cronjob): CronjobRun {
-  const runId = generateCronjobRunId();
-  const now = Date.now();
-  // Skipped runs never open a session, so there's deliberately no
-  // <runId>/<sessionId>.jsonl on disk. The "skipped-<runId>" placeholder
-  // satisfies the type; CronjobRunView shows "This run was skipped" without
-  // attempting to render a transcript (loadRunLog returns [] for missing
-  // files, which is handled by the empty-state branch).
-  const run: CronjobRun = {
-    id: runId,
-    cronjobId: job.id,
-    cronjobName: job.name,
-    trigger: "scheduled",
-    status: "skipped",
-    startedAt: now,
-    endedAt: now,
-    errorReason: "previous scheduled run still in flight",
-    promptSnapshot: job.prompt,
-    agentTypeSnapshot: job.agentType,
-    modelFamilySnapshot: job.modelFamily,
-    effortSnapshot: job.effort,
-    cwdSnapshot: job.cwd,
-    permissionModeSnapshot: job.permissionMode,
-    ...(job.codexSandbox ? { codexSandboxSnapshot: job.codexSandbox } : {}),
-    rootSessionId: `skipped-${runId}`,
-    previewText: "",
-  };
-  appendRun(job.id, run);
-  eventHandler({ type: "cronjob_run_updated", run });
-  return run;
+  return recordSkippedRunWithDeps({ appendRun, emitEvent: (event) => eventHandler(event) }, job);
 }
 
 function hasInFlightScheduledRun(jobId: string): boolean {
