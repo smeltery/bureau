@@ -2,65 +2,9 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useAppState, useDispatch } from "../store.tsx";
 import { send } from "../ws.ts";
 import { RoomSettingsModal } from "../components/modals/RoomSettingsModal.tsx";
-import { GhostGraphic } from "./ghostVariants.tsx";
 import type { PresenceInfo } from "../../shared/types.ts";
-
-const MINI_GHOST_SIZE = 12;
-const MAX_MINI_GHOSTS = 3;
-const MINI_GHOST_OVERLAP = -8;
-
-function MiniGhostCluster({ presences, selfConnectionId }: { presences: PresenceInfo[]; selfConnectionId: string | null }) {
-  const visible = (selfConnectionId ? presences.filter((presence) => presence.connectionId !== selfConnectionId) : presences).slice(0, MAX_MINI_GHOSTS);
-  if (visible.length === 0) return null;
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0, verticalAlign: "middle" }}>
-      {visible.map((presence, index) => {
-        const title = presence.device ? `${presence.username} (${presence.device})` : presence.username;
-        return (
-          <span
-            key={presence.connectionId}
-            title={title}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginLeft: index === 0 ? 0 : MINI_GHOST_OVERLAP,
-              opacity: presence.viewMode === "away" ? 0.4 : 1,
-              transform: "translateY(1px)",
-            }}
-          >
-            <GhostGraphic variant={presence.avatarVariant} color={presence.avatarColor} size={MINI_GHOST_SIZE} animated={false} shadow={false} />
-          </span>
-        );
-      })}
-    </span>
-  );
-}
-
-function TotalOnlineChip({ count }: { count: number }) {
-  if (count <= 0) return null;
-  const label = count === 1 ? "1 online user" : `${count} online users`;
-  return (
-    <span
-      title={label}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        marginLeft: "auto",
-        paddingLeft: 12,
-        color: "var(--text-dim)",
-        fontStyle: "italic",
-        fontSize: 11,
-        flexShrink: 0,
-        lineHeight: 1,
-      }}
-    >
-      <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 4px var(--green)", flexShrink: 0 }} />
-      {label}
-    </span>
-  );
-}
+import { RoomContextMenu } from "./RoomContextMenu.tsx";
+import { MiniGhostCluster, TotalOnlineChip } from "./RoomPresenceChips.tsx";
 
 export function RoomTabBar() {
   const { agents, currentRoom, rooms, needsAttention, presences, totalOnlineUsers, sessionContext } = useAppState();
@@ -387,77 +331,9 @@ export function RoomTabBar() {
       </button>
       <TotalOnlineChip count={totalOnlineUsers} />
 
-      {ctxMenu &&
-        (() => {
-          const room = rooms[ctxMenu.roomIdx];
-          if (!room) return null;
-          const roomAgents = agents.filter((a) => a.room === ctxMenu.roomIdx);
-          const canClose = ctxMenu.roomIdx > 0 && roomAgents.length === 0;
-          return (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: "fixed",
-                left: Math.min(ctxMenu.x, window.innerWidth - 180),
-                top: Math.min(ctxMenu.y, window.innerHeight - 140),
-                background: "var(--bg-overlay)",
-                border: "1px solid var(--border-light)",
-                borderRadius: 8,
-                boxShadow: "0 10px 30px var(--shadow-heavy)",
-                padding: 4,
-                minWidth: 160,
-                zIndex: 950,
-                fontFamily: "'DM Sans',sans-serif",
-                fontSize: 12,
-              }}
-            >
-              <button
-                style={ctxItemStyle}
-                onClick={() => {
-                  setCtxMenu(null);
-                  startEditing(ctxMenu.roomIdx);
-                }}
-              >
-                Rename
-              </button>
-              <button
-                style={ctxItemStyle}
-                onClick={() => {
-                  setCtxMenu(null);
-                  setSettingsRoomId(room.id);
-                }}
-              >
-                Room settings…
-              </button>
-              <button
-                style={{ ...ctxItemStyle, color: canClose ? "var(--text-dim)" : "var(--text-ghost)", cursor: canClose ? "pointer" : "not-allowed" }}
-                disabled={!canClose}
-                onClick={() => {
-                  setCtxMenu(null);
-                  if (canClose) send({ type: "close_room", roomId: room.id });
-                }}
-              >
-                Close room
-              </button>
-            </div>
-          );
-        })()}
+      {ctxMenu && <RoomContextMenu ctxMenu={ctxMenu} rooms={rooms} agents={agents} onClose={() => setCtxMenu(null)} onRename={startEditing} onSettings={setSettingsRoomId} />}
 
       {settingsRoomId && <RoomSettingsModal roomId={settingsRoomId} onClose={() => setSettingsRoomId(null)} />}
     </div>
   );
 }
-
-const ctxItemStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  textAlign: "left",
-  padding: "7px 12px",
-  background: "transparent",
-  border: "none",
-  color: "var(--text-dim)",
-  fontSize: 12,
-  cursor: "pointer",
-  fontFamily: "'DM Sans',sans-serif",
-  borderRadius: 4,
-};
