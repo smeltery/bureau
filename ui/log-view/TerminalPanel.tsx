@@ -6,54 +6,7 @@ import { useTheme } from "../store.tsx";
 import type { ServerMessage } from "../../shared/types.ts";
 import { applyCtrl, ensureMobileTerminalStyle, MobileInputProxy, MobileSoftKeyBar, type SoftKey } from "./terminal-mobile.tsx";
 import { useMobileTerminalTouch } from "./useMobileTerminalTouch.ts";
-
-const DARK_THEME = {
-  background: "#0a0e16",
-  foreground: "#c0c8d8",
-  cursor: "#50B86C",
-  cursorAccent: "#0a0e16",
-  selectionBackground: "rgba(126,184,255,0.2)",
-  black: "#1a2030",
-  red: "#E85D75",
-  green: "#50B86C",
-  yellow: "#F5A623",
-  blue: "#7eb8ff",
-  magenta: "#9B6DFF",
-  cyan: "#56d4dd",
-  white: "#c0c8d8",
-  brightBlack: "#5a6f8f",
-  brightRed: "#ff7b92",
-  brightGreen: "#6fd88a",
-  brightYellow: "#ffc44d",
-  brightBlue: "#a0d0ff",
-  brightMagenta: "#b98eff",
-  brightCyan: "#7eeef5",
-  brightWhite: "#e0e8f5",
-};
-
-const LIGHT_THEME = {
-  background: "#f0f2f6",
-  foreground: "#3a4a60",
-  cursor: "#16a34a",
-  cursorAccent: "#f0f2f6",
-  selectionBackground: "rgba(59,130,246,0.2)",
-  black: "#1a2030",
-  red: "#dc2626",
-  green: "#16a34a",
-  yellow: "#d97706",
-  blue: "#3b82f6",
-  magenta: "#7c3aed",
-  cyan: "#0891b2",
-  white: "#3a4a60",
-  brightBlack: "#7a8a9a",
-  brightRed: "#ef4444",
-  brightGreen: "#22c55e",
-  brightYellow: "#eab308",
-  brightBlue: "#60a5fa",
-  brightMagenta: "#a78bfa",
-  brightCyan: "#22d3ee",
-  brightWhite: "#1a2030",
-};
+import { DARK_TERMINAL_THEME, LIGHT_TERMINAL_THEME } from "./terminal-themes.ts";
 
 export function TerminalPanel({
   agentId,
@@ -139,7 +92,7 @@ export function TerminalPanel({
       fontSize: mobile ? 14 : 13,
       lineHeight: 1.4,
       cursorBlink: true,
-      theme: mode === "dark" ? DARK_THEME : LIGHT_THEME,
+      theme: mode === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME,
       allowProposedApi: true,
     });
 
@@ -212,7 +165,7 @@ export function TerminalPanel({
   // Update theme without re-creating terminal
   useEffect(() => {
     if (termRef.current) {
-      termRef.current.options.theme = mode === "dark" ? DARK_THEME : LIGHT_THEME;
+      termRef.current.options.theme = mode === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME;
     }
   }, [mode]);
 
