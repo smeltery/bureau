@@ -39,7 +39,7 @@ while IFS= read -r path; do
   esac
 
   case "$path" in
-    .github/workflows/*|.github/actionlint.yaml)
+    .github/workflows/*|.github/actionlint.yaml|scripts/detect-ci-areas.sh)
       workflow=true
       ;;
   esac
