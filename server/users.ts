@@ -1,15 +1,12 @@
-import type { RoomWire, SessionContext, SessionWire, UserRecord, UserRole } from "../shared/types.ts";
+import type { RoomWire, UserRecord, UserRole } from "../shared/types.ts";
 import { loadUsers, saveUsers, normalizeUserKey, generateUserId } from "./persistence.ts";
 import { defaultGhostColorForUserId, isGhostVariant, isHexColor, normalizeHexColor } from "../shared/avatar.ts";
 import { normalizeAllowedRooms, reconcileUserRooms } from "./user-room-projection.ts";
+import { bindWsUser, getBoundWsUser } from "./user-sockets.ts";
 export { projectAgents, projectRooms } from "./user-room-projection.ts";
+export { clearWsUser, getSessionContext, listActiveSessions, setWsSessionPrefix } from "./user-sockets.ts";
 
 const users = new Map<string, UserRecord>();
-const wsUsers = new WeakMap<import("bun").ServerWebSocket<unknown>, UserRecord>();
-const sessionPrefixes = new WeakMap<import("bun").ServerWebSocket<unknown>, string>();
-const connectedAt = new WeakMap<import("bun").ServerWebSocket<unknown>, number>();
-const lastSeenAt = new WeakMap<import("bun").ServerWebSocket<unknown>, number>();
-const activeSockets = new Set<import("bun").ServerWebSocket<unknown>>();
 
 for (const user of loadUsers()) users.set(normalizeUserKey(user.name), user);
 
@@ -199,46 +196,12 @@ export function claimUser(ws: import("bun").ServerWebSocket<unknown>, username: 
     persist();
   }
   user = ensureUserRooms(user, allRoomIds);
-  wsUsers.set(ws, user);
-  activeSockets.add(ws);
-  if (!sessionPrefixes.has(ws)) sessionPrefixes.set(ws, Math.random().toString(16).slice(2, 10).padEnd(8, "0"));
-  if (!connectedAt.has(ws)) connectedAt.set(ws, Date.now());
-  lastSeenAt.set(ws, Date.now());
+  bindWsUser(ws, user);
   return user;
 }
 
 export function getWsUser(ws: import("bun").ServerWebSocket<unknown>): UserRecord | null {
-  const user = wsUsers.get(ws);
-  return user ?? null;
-}
-
-// Replace the random per-WS session prefix with the authoritative
-// auth-session prefix so the UI's "this is my row" check in the Access pane
-// uses the actual session id. Called from the WS-open path right after
-// claimUser binds the auth-session's user. No-op for loopback connections
-// that arrive without a session.
-export function setWsSessionPrefix(ws: import("bun").ServerWebSocket<unknown>, prefix: string) {
-  if (prefix) sessionPrefixes.set(ws, prefix);
-}
-
-export function clearWsUser(ws: import("bun").ServerWebSocket<unknown>) {
-  wsUsers.delete(ws);
-  activeSockets.delete(ws);
-  sessionPrefixes.delete(ws);
-  connectedAt.delete(ws);
-  lastSeenAt.delete(ws);
-}
-
-export function getSessionContext(ws: import("bun").ServerWebSocket<unknown>): SessionContext | null {
-  const user = getWsUser(ws);
-  if (!user) return null;
-  return {
-    userId: user.id,
-    username: user.name,
-    role: user.role,
-    currentSessionPrefix: sessionPrefixes.get(ws) ?? "",
-    connectionId: sessionPrefixes.get(ws) ?? "",
-  };
+  return getBoundWsUser(ws);
 }
 
 export function listUsers(rooms: RoomWire[]): UserRecord[] {
@@ -327,23 +290,4 @@ export function canSeeRoom(user: UserRecord | null, roomId: string): boolean {
   if (!user) return true;
   if (user.role === "owner") return true;
   return user.allowedRooms.includes(roomId);
-}
-
-export function listActiveSessions(): SessionWire[] {
-  const now = Date.now();
-  return [...activeSockets]
-    .map((ws) => {
-      const user = wsUsers.get(ws);
-      const sessionPrefix = sessionPrefixes.get(ws);
-      if (!user || !sessionPrefix) return null;
-      return {
-        sessionPrefix,
-        username: user.name,
-        createdAt: connectedAt.get(ws) ?? now,
-        lastSeenAt: lastSeenAt.get(ws) ?? now,
-        expiresAt: now + 30 * 86400000,
-        absoluteExpiresAt: now + 365 * 86400000,
-      } satisfies SessionWire;
-    })
-    .filter((s): s is SessionWire => s !== null);
 }
