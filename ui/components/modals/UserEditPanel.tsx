@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import type { UserRecord, UserRole } from "../../../shared/types.ts";
-import { GHOST_COLOR_PALETTE, GHOST_VARIANTS, type GhostVariant } from "../../../shared/avatar.ts";
-import { GhostGraphic } from "../../office/ghostVariants.tsx";
+import type { GhostVariant } from "../../../shared/avatar.ts";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import { notificationPermission, requestNotificationPermission, type NotifPermission } from "../../notifications.ts";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
+import { UserAvatarPicker } from "./UserAvatarPicker.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
@@ -111,46 +111,7 @@ export function UserEditPanel({
     <div style={{ padding: "0 12px 12px 12px" }}>
       <label style={dialogLabel}>Display name</label>
       <input value={name} onChange={(e) => setName(e.target.value)} style={dialogInput} />
-      <label style={{ ...dialogLabel, marginTop: 12 }}>Avatar</label>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
-        {GHOST_VARIANTS.map((variant) => (
-          <button
-            key={variant}
-            type="button"
-            onClick={() => setAvatarVariant(variant)}
-            title={variant}
-            style={{
-              height: 58,
-              border: `1px solid ${avatarVariant === variant ? "var(--accent)" : "var(--border)"}`,
-              background: avatarVariant === variant ? "var(--bg-hover)" : "var(--btn-surface)",
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
-          >
-            <GhostGraphic variant={variant} color={avatarColor} size={28} />
-          </button>
-        ))}
-      </div>
-      <label style={{ ...dialogLabel, marginTop: 12 }}>Avatar color</label>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {GHOST_COLOR_PALETTE.map((color) => (
-          <button
-            key={color}
-            type="button"
-            onClick={() => setAvatarColor(color)}
-            title={color}
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 999,
-              border: `2px solid ${avatarColor.toLowerCase() === color ? "var(--text-primary)" : "var(--border)"}`,
-              background: color,
-              cursor: "pointer",
-            }}
-          />
-        ))}
-        <input value={avatarColor} onChange={(e) => setAvatarColor(e.target.value.slice(0, 7))} style={{ ...dialogInput, width: 98, height: 28, padding: "4px 8px" }} />
-      </div>
+      <UserAvatarPicker color={avatarColor} variant={avatarVariant} onColorChange={setAvatarColor} onVariantChange={setAvatarVariant} />
       {canEditAccess && (
         <>
           <label style={{ ...dialogLabel, marginTop: 12 }}>Role</label>
