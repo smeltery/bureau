@@ -24,7 +24,9 @@ import { KILLED_AGENT_CHIP_CAP } from "../shared/types.ts";
 import { connect } from "./ws.ts";
 import { shouldNotifyRoom } from "../shared/notifications.ts";
 import { showDesktopNotification, markAttention } from "./notifications.ts";
+import { playNotificationSound } from "./notification-sound.ts";
 import { applyRoomClose, resolveSelectedRoomId, roomIndexById } from "./roomSelection.ts";
+import { readSidePanels, writeSidePanels, type SidePanel } from "./store-side-panels.ts";
 export { FeaturesProvider, ThemeProvider, useFeatures, useTheme } from "./theme-context.tsx";
 
 export interface AppState {
@@ -75,38 +77,13 @@ export interface AppState {
   // Per-agent side panel state: which side panel (if any) is open next to
   // the chat. Persisted to localStorage per-agent so switching between
   // agents and reloading both restore the right panel.
-  sidePanels: Map<string, "terminal" | "editor" | null>;
+  sidePanels: Map<string, SidePanel>;
   // ACL-filtered list of currently-killed agents available to revive from the
   // spawn menu. Server-capped and ACL-filtered per session; the UI just
   // renders the array as chips sorted killedAt desc. The server pushes
   // additions/removals via killed_agent_added / killed_agent_removed events as
   // kills and revivals happen.
   killedAgents: KilledAgentSummary[];
-}
-
-const SIDE_PANEL_KEY = "bureau:side-panels";
-
-function readSidePanels(): Map<string, "terminal" | "editor" | null> {
-  if (typeof localStorage === "undefined") return new Map();
-  try {
-    const raw = localStorage.getItem(SIDE_PANEL_KEY);
-    if (!raw) return new Map();
-    const obj = JSON.parse(raw) as Record<string, "terminal" | "editor" | null>;
-    return new Map(Object.entries(obj));
-  } catch {
-    return new Map();
-  }
-}
-
-function writeSidePanels(map: Map<string, "terminal" | "editor" | null>) {
-  if (typeof localStorage === "undefined") return;
-  try {
-    const obj: Record<string, "terminal" | "editor" | null> = {};
-    map.forEach((v, k) => {
-      if (v) obj[k] = v;
-    });
-    localStorage.setItem(SIDE_PANEL_KEY, JSON.stringify(obj));
-  } catch {}
 }
 
 type Action =
@@ -153,7 +130,7 @@ type Action =
   | SettingsSaveResponse
   | SettingsValidationResponse
   | { type: "update_status"; updateAvailable: boolean; current: { sha: string; message: string; date: string }; latest: { sha: string; message: string; date: string } }
-  | { type: "set_side_panel"; agentId: string; panel: "terminal" | "editor" | null };
+  | { type: "set_side_panel"; agentId: string; panel: SidePanel };
 
 // States that warrant attention
 const ATTENTION_STATES = new Set(["idle", "error", "waiting_for_response"]);
@@ -435,38 +412,6 @@ const initialState: AppState = {
 
 const StateCtx = createContext<AppState>(initialState);
 const DispatchCtx = createContext<Dispatch<Action>>(() => {});
-
-// Notification sound — AudioContext initialized on first user interaction
-let audioCtx: AudioContext | null = null;
-
-function ensureAudioContext() {
-  if (!audioCtx) {
-    audioCtx = new AudioContext();
-  }
-  return audioCtx;
-}
-
-// Initialize audio on first click anywhere
-if (typeof document !== "undefined") {
-  document.addEventListener("click", () => ensureAudioContext(), { once: true });
-}
-
-function playNotificationSound() {
-  try {
-    const ctx = ensureAudioContext();
-    if (ctx.state === "suspended") ctx.resume();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.setValueAtTime(800, ctx.currentTime);
-    osc.frequency.setValueAtTime(600, ctx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.3);
-  } catch {}
-}
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
