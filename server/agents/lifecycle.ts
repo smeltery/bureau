@@ -3,17 +3,16 @@ import { rmSync } from "fs";
 import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, SkillInfo } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES } from "../../shared/types.ts";
 import { listAgentSessions, loadAgentHistory, loadAgents, loadLogWithAncestors, saveAgentHistory } from "../persistence.ts";
-import { generateOutfit } from "./outfit.ts";
 import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
-import { resolveCwd } from "./session/paths.ts";
 import { createSession, installSession } from "./session/runtime.ts";
 import { getBackend } from "../backends/index.ts";
-import { findRoomIndex, updateState } from "./state.ts";
+import { updateState } from "./state.ts";
 import { sidecarSend } from "./terminal.ts";
 import { BUREAU_DIR } from "../persistence/paths.ts";
 import { mintAgentToken, revokeAgentToken } from "./tokens.ts";
 import { createManagedAgent } from "./managed-factory.ts";
+import { buildSpawnAgentDraft } from "./lifecycle-spawn.ts";
 import { buildKilledAgentSummary } from "./revive.ts";
 
 export { emitAgentDiff, emitAgentEditFile, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
@@ -83,65 +82,33 @@ export async function spawn(
   effort?: AgentInfo["effort"],
   userId?: string | null,
 ): Promise<AgentInfo | null> {
-  // Reject duplicate names across all rooms
-  const nameLower = name.trim().toLowerCase();
-  for (const a of agents.values()) {
-    if (a.info.name.toLowerCase() === nameLower) return null;
-  }
-  let targetRoom = 0;
-  if (roomId) {
-    const idx = findRoomIndex(roomId);
-    if (idx >= 0) targetRoom = idx;
-  }
-  const roomAgents = [...agents.values()].filter((a) => a.info.room === targetRoom);
-  const taken = new Set(roomAgents.map((a) => a.info.desk));
-  if (desk !== undefined && !taken.has(desk)) {
-    // Use the requested desk
-  } else {
-    // Find first free desk in the target room
-    desk = -1;
-    for (let i = 0; i < 8; i++) {
-      if (!taken.has(i)) {
-        desk = i;
-        break;
-      }
-    }
-  }
-  if (desk === -1) return null;
-
-  const resolvedCwd = resolveCwd(cwd);
-  const id = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-
-  const info: AgentInfo = {
-    id,
+  const draft = buildSpawnAgentDraft({
     name,
-    userId: userId ?? null,
     desk,
-    room: targetRoom,
-    cwd: resolvedCwd,
-    outfit: outfit ?? generateOutfit(),
+    cwd,
     permissionMode,
-    modelFamily: modelFamily ?? "opus",
+    customInstructions,
+    roomId,
+    outfit,
+    modelFamily,
     agentType,
-    capabilities: getBackend(agentType).capabilities ?? DEFAULT_AGENT_CAPABILITIES,
-    privileged: false,
-    ...(codexSandbox ? { codexSandbox } : {}),
-    ...(effort ? { effort } : {}),
-    state: "idle",
-    topic: null,
-    topicStale: false,
-    customInstructions: customInstructions || null,
-    queue: [],
-  };
+    codexSandbox,
+    effort,
+    userId,
+    agents: agents.values(),
+    rooms: roomList,
+  });
+  if (!draft) return null;
 
+  const { info, resolvedCwd } = draft;
   const managed = createManagedAgent({ info, skillCwd: resolvedCwd });
-  agents.set(id, managed);
-  mintAgentToken(id, info.userId ?? null, info.privileged ?? false);
+  agents.set(info.id, managed);
+  mintAgentToken(info.id, info.userId ?? null, info.privileged ?? false);
   emit({ type: "agent_added", agent: info });
   // Send commands immediately so autocomplete works before SDK init
   emit({
     type: "slash_commands",
-    agentId: id,
+    agentId: info.id,
     commands: managed.slashCommands,
     skills: managed.skills,
   } as any);
@@ -149,13 +116,13 @@ export async function spawn(
 
   // Create V2 session
   try {
-    installSession(id, managed, createSession(managed));
-    addLogEntry(id, "system", `${agentType === "codex" ? "Codex" : "Claude"} agent "${name}" ready. Working in ${resolvedCwd}. Permission mode: ${permissionMode}.`);
+    installSession(info.id, managed, createSession(managed));
+    addLogEntry(info.id, "system", `${agentType === "codex" ? "Codex" : "Claude"} agent "${name}" ready. Working in ${resolvedCwd}. Permission mode: ${permissionMode}.`);
     // First stream() will deliver system/init + response to the first send().
   } catch (err: any) {
     console.error(`Failed to create session for ${name}:`, err.message);
-    addLogEntry(id, "error", `Failed to start: ${err.message}`);
-    updateState(id, "error");
+    addLogEntry(info.id, "error", `Failed to start: ${err.message}`);
+    updateState(info.id, "error");
   }
 
   return info;
