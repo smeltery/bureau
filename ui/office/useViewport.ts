@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { clampScale, DEFAULT_STATE, PAN_BLOCKER_SELECTOR, TOUCH_PAN_BLOCKER_SELECTOR, VIEWPORT, type Gesture, type ViewportState } from "./viewport-model.ts";
+import { clampPanToBounds, measureSceneBounds as measureSceneBoundsFor, zoomStateAt, type SceneBounds } from "./viewport-geometry.ts";
 
 /**
  * Hook that manages zoom/pan for the office scene. Attaches wheel, pointer,
@@ -47,12 +48,7 @@ export function useViewport(layoutKey: string, enabled: boolean) {
   const state = useRef<ViewportState>({ ...DEFAULT_STATE });
   const gesture = useRef<Gesture>({ kind: "idle" });
   /** Scene content bounds in viewport-layer-local coords (pre-zoom). Null until measured. */
-  const sceneBounds = useRef<{
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-  } | null>(null);
+  const sceneBounds = useRef<SceneBounds | null>(null);
   /** True if the most recent pointer gesture became a pan — used to suppress click-to-focus */
   const didPan = useRef(false);
   const resetClearTimer = useRef<number | null>(null);
@@ -125,21 +121,7 @@ export function useViewport(layoutKey: string, enabled: boolean) {
       sceneBounds.current = null;
       return;
     }
-    const crect = container.getBoundingClientRect();
-    const rect = content.getBoundingClientRect();
-    if (crect.width === 0 || crect.height === 0 || rect.width === 0 || rect.height === 0) {
-      // Hidden containers/content report zero rects; keep bounds unset so clampPan
-      // becomes a no-op until a visible re-measure arrives.
-      sceneBounds.current = null;
-      return;
-    }
-    const { x, y, scale } = state.current;
-    sceneBounds.current = {
-      left: (rect.left - crect.left - x) / scale,
-      right: (rect.right - crect.left - x) / scale,
-      top: (rect.top - crect.top - y) / scale,
-      bottom: (rect.bottom - crect.top - y) / scale,
-    };
+    sceneBounds.current = measureSceneBoundsFor(container, content, state.current);
   }
 
   function clampPan() {
@@ -148,25 +130,11 @@ export function useViewport(layoutKey: string, enabled: boolean) {
     if (!container || !b) {
       return;
     }
-    const { scale } = state.current;
-    const cw = container.clientWidth;
-    const ch = container.clientHeight;
-    // Keep PAN_MARGIN of the container spanned by the scene at each edge.
-    const maxX = (1 - VIEWPORT.PAN_MARGIN) * cw - scale * b.left;
-    const minX = VIEWPORT.PAN_MARGIN * cw - scale * b.right;
-    const maxY = (1 - VIEWPORT.PAN_MARGIN) * ch - scale * b.top;
-    const minY = VIEWPORT.PAN_MARGIN * ch - scale * b.bottom;
-    state.current.x = Math.max(minX, Math.min(maxX, state.current.x));
-    state.current.y = Math.max(minY, Math.min(maxY, state.current.y));
+    clampPanToBounds(state.current, container, b);
   }
 
   function zoomAt(cx: number, cy: number, newScale: number) {
-    const s = state.current;
-    const clamped = clampScale(newScale);
-    const ratio = clamped / s.scale;
-    s.x = cx - ratio * (cx - s.x);
-    s.y = cy - ratio * (cy - s.y);
-    s.scale = clamped;
+    zoomStateAt(state.current, cx, cy, newScale);
     clampPan();
     applyTransform();
   }
