@@ -13,21 +13,9 @@ import {
   type CronjobPermissionMode,
   type EffortLevel,
   type ModelFamily,
-  type Schedule,
 } from "../../../shared/types.ts";
 import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
-
-const WEEKDAYS: { value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }[] = [
-  { value: 0, label: "Sunday" },
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-];
-
-type ScheduleType = "daily" | "weekly" | "interval";
+import { buildCronjobSchedule, CronjobScheduleFields, type ScheduleType } from "./CronjobScheduleFields.tsx";
 
 export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjob; username: string; onClose: () => void }) {
   const isEdit = !!cronjob;
@@ -46,13 +34,6 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
   const [weekday, setWeekday] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6>(cronjob?.schedule.type === "weekly" ? cronjob.schedule.weekday : 1);
   const [intervalStr, setIntervalStr] = useState(String(initialInterval));
 
-  function clamp(n: number, lo: number, hi: number): number {
-    return Math.max(lo, Math.min(hi, n));
-  }
-  function parseIntOr(s: string, fallback: number): number {
-    const n = parseInt(s, 10);
-    return Number.isFinite(n) ? n : fallback;
-  }
   const [prompt, setPrompt] = useState(cronjob?.prompt ?? "");
   const [cwd, setCwd] = useState(cronjob?.cwd ?? "~");
   const [agentType, setAgentType] = useState<AgentBackendType>(cronjob?.agentType ?? "claude");
@@ -89,15 +70,6 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
     return () => window.removeEventListener("keydown", handleKey, true);
   }, [onClose]);
 
-  function buildSchedule(): Schedule {
-    const hour = clamp(parseIntOr(hourStr, 0), 0, 23);
-    const minute = clamp(parseIntOr(minuteStr, 0), 0, 59);
-    const intervalMinutes = Math.max(5, parseIntOr(intervalStr, 5));
-    if (scheduleType === "daily") return { type: "daily", hour, minute };
-    if (scheduleType === "weekly") return { type: "weekly", weekday, hour, minute };
-    return { type: "interval", minutes: intervalMinutes };
-  }
-
   function handleSave() {
     if (!prompt.trim()) {
       setError("Prompt cannot be empty.");
@@ -128,7 +100,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
         id: cronjob!.id,
         changes: {
           name: name.trim() || cronjob!.name,
-          schedule: buildSchedule(),
+          schedule: buildCronjobSchedule({ scheduleType, hourStr, minuteStr, weekday, intervalStr }),
           prompt,
           cwd,
           modelFamily,
@@ -143,7 +115,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
         type: "add_cronjob",
         requestId: reqId,
         name: name.trim() || "Untitled cron job",
-        schedule: buildSchedule(),
+        schedule: buildCronjobSchedule({ scheduleType, hourStr, minuteStr, weekday, intervalStr }),
         prompt,
         cwd,
         modelFamily,
@@ -205,67 +177,20 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           <label style={labelStyle}>Name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Daily summary" autoFocus={!isEdit} style={inputStyle} />
 
-          <label style={{ ...labelStyle, marginTop: 14 }}>Schedule</label>
-          <select value={scheduleType} onChange={(e) => setScheduleType(e.target.value as ScheduleType)} style={{ ...inputStyle, appearance: "none", cursor: "pointer", marginBottom: 6 }}>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="interval">Every N minutes</option>
-          </select>
-          {scheduleType === "weekly" && (
-            <select
-              value={weekday}
-              onChange={(e) => setWeekday(parseInt(e.target.value, 10) as 0 | 1 | 2 | 3 | 4 | 5 | 6)}
-              style={{ ...inputStyle, appearance: "none", cursor: "pointer", marginBottom: 6 }}
-            >
-              {WEEKDAYS.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {(scheduleType === "daily" || scheduleType === "weekly") && (
-            <div style={{ display: "flex", gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hour (0-23)</div>
-                <input
-                  type="number"
-                  min={0}
-                  max={23}
-                  value={hourStr}
-                  onChange={(e) => setHourStr(e.target.value)}
-                  onBlur={() => setHourStr(String(clamp(parseIntOr(hourStr, 0), 0, 23)))}
-                  style={inputStyle}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Minute (0-59)</div>
-                <input
-                  type="number"
-                  min={0}
-                  max={59}
-                  value={minuteStr}
-                  onChange={(e) => setMinuteStr(e.target.value)}
-                  onBlur={() => setMinuteStr(String(clamp(parseIntOr(minuteStr, 0), 0, 59)))}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-          )}
-          {scheduleType === "interval" && (
-            <div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Interval (minutes, min 5)</div>
-              <input
-                type="number"
-                min={5}
-                value={intervalStr}
-                onChange={(e) => setIntervalStr(e.target.value)}
-                onBlur={() => setIntervalStr(String(Math.max(5, parseIntOr(intervalStr, 5))))}
-                style={inputStyle}
-              />
-            </div>
-          )}
-          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "6px 0 0" }}>Times are server-local.</p>
+          <CronjobScheduleFields
+            scheduleType={scheduleType}
+            setScheduleType={setScheduleType}
+            weekday={weekday}
+            setWeekday={setWeekday}
+            hourStr={hourStr}
+            setHourStr={setHourStr}
+            minuteStr={minuteStr}
+            setMinuteStr={setMinuteStr}
+            intervalStr={intervalStr}
+            setIntervalStr={setIntervalStr}
+            labelStyle={labelStyle}
+            inputStyle={inputStyle}
+          />
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Prompt</label>
           <textarea
