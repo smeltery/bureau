@@ -9,7 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
 import { send, addRawListener, removeRawListener } from "../ws.ts";
 import { dialogSaveBtn } from "./modals/dialog-styles.ts";
-import { InvitesTable, SessionsTable, MintedUrlBox, renderListSection, sectionHeader, subsectionHeader, hint, cardStyle } from "./AccessPane.tsx";
+import { InvitesTable, SessionsTable, renderListSection, sectionHeader } from "./AccessPane.tsx";
+import { cardStyle, hint, MintedUrlBox, subsectionHeader } from "./AccessPaneShared.tsx";
 
 export function MyDevicesPane() {
   const { invitesList, invitesLoaded, activeSessions, activeSessionsLoaded } = useAppState();
