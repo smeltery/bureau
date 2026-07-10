@@ -25,7 +25,7 @@ import {
   loadRunLogWithAncestors,
   listAllCronjobIdsOnDisk,
 } from "../persistence.ts";
-import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "../agents/session/paths.ts";
+import { validateCwd } from "../agents/session/paths.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
 import { getUserByName } from "../users.ts";
 import { computeNextFire } from "./schedule.ts";
@@ -36,42 +36,13 @@ import { readCronjobLifetimeUsage as readCronjobLifetimeUsageFromDisk } from "./
 import { writeLog, type ActiveRun } from "./run-events.ts";
 import { finalizeRunWithDeps, runConsumerWithDeps, startRunHardTimeout, writeAffordanceLogWithDeps, type RunLifecycleDeps } from "./run-lifecycle.ts";
 import { addCronjobDefinition, deleteCronjobDefinition, updateCronjobDefinition, type AddCronjobInput, type UpdateCronjobChanges } from "./definitions.ts";
-import { editRunMessageWithDeps } from "./run-edit.ts";
 import { startCronjobSchedulerWithDeps } from "./scheduler.ts";
-import {
-  buildCronjobEnv,
-  buildRunResumeOptions as buildRunResumeOptionsWithDeps,
-  buildRunSessionOptions as buildRunSessionOptionsWithDeps,
-  cronjobBackend,
-  cronRunBackend,
-  withRunTokenEnv,
-} from "./session-options.ts";
+import { buildCronjobEnv, buildRunSessionOptions as buildRunSessionOptionsWithDeps, cronjobBackend, withRunTokenEnv } from "./session-options.ts";
+import { editRunMessageWithDeps, sendRunMessageWithDeps, type RunContinuationDeps } from "./run-continuation.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
 export { buildCronjobMemoryPrompt };
-
-function checkCronRunSessionFile(run: CronjobRun, leaf: string, action: "resume" | "edit"): boolean {
-  if ((run.agentTypeSnapshot ?? "claude") !== "claude") return true;
-  let env: { [key: string]: string | undefined } | undefined;
-  try {
-    const job = cronjobs.find((c) => c.id === run.cronjobId);
-    env = buildCronjobEnv(job?.userId ?? null);
-  } catch (err: any) {
-    emitRunErrorEntry(run.cronjobId, run.id, `Cannot ${action}: env file is invalid: ${err.message || String(err)}`);
-    return false;
-  }
-  if (claudeSessionFileExists(run.cwdSnapshot, leaf, env)) return true;
-
-  const prefix = action === "resume" ? `Cannot resume session ${leaf.slice(0, 8)}…` : `Cannot edit: session ${leaf.slice(0, 8)}…`;
-  emitRunErrorEntry(
-    run.cronjobId,
-    run.id,
-    `${prefix}: its file is missing from ${claudeProjectDir(run.cwdSnapshot, env)}. ` +
-      `Most commonly this happens after the cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd.`,
-  );
-  return false;
-}
 
 // ---------------------------------------------------------------------------
 // In-memory state
@@ -218,6 +189,19 @@ async function runConsumer(active: ActiveRun) {
 
 function finalizeRun(active: ActiveRun, status: CronjobRun["status"], errorReason: string | null = null) {
   finalizeRunWithDeps(lifecycleDeps(), active, status, errorReason);
+}
+
+function continuationDeps(): RunContinuationDeps {
+  return {
+    activeRuns,
+    startingRuns,
+    getCronjobs: () => cronjobs,
+    buildSystemPrompt: buildCronjobSystemPrompt,
+    lifecycleDeps,
+    runConsumer,
+    finalizeRun,
+    emitEvent: (event) => eventHandler(event),
+  };
 }
 
 function fire(job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string): CronjobRun | null {
@@ -388,131 +372,11 @@ export function runCronjobNow(id: string, username: string, device?: string): Cr
 // Resume / edit-to-fork — follow-up turns into a finalized run
 // ---------------------------------------------------------------------------
 
-// Append a one-off log entry without an active session. Used to surface
-// pre-flight errors (cwd invalid, leaf is a placeholder, etc.) so the user
-// sees them in the run transcript instead of the message vanishing.
-function emitRunErrorEntry(jobId: string, runId: string, message: string) {
-  const run = findRun(jobId, runId);
-  if (!run) return;
-  const sessionId = run.currentSessionId ?? run.rootSessionId;
-  const entry: LogEntry = {
-    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    agentId: cronjobRunStreamId(runId),
-    timestamp: Date.now(),
-    kind: "error",
-    content: message,
-  };
-  appendRunLog(jobId, runId, sessionId, entry);
-  eventHandler({ type: "log_entry", entry });
-}
-
-function buildRunResumeOptions(run: CronjobRun, resumeSessionId: string): CreateSessionOptions {
-  const job = cronjobs.find((c) => c.id === run.cronjobId);
-  const runToken = mintRunToken(run.cronjobId, run.id, job?.userId ?? null);
-  return buildRunResumeOptionsWithDeps({
-    run,
-    resumeSessionId,
-    cronjobs,
-    runToken,
-    buildSystemPrompt: buildCronjobSystemPrompt,
-  });
-}
-
-// Wire up an ActiveRun around a backend session (resumed or freshly forked).
-// Marks the run row "running", starts the consumer + hard timeout, and
-// returns the active so callers can persist log entries / call session.send.
-function installResumedActive(run: CronjobRun, session: BackendSession, sessionId: string): ActiveRun {
-  const streamId = cronjobRunStreamId(run.id);
-  const active: ActiveRun = {
-    jobId: run.cronjobId,
-    runId: run.id,
-    streamId,
-    session,
-    sessionId,
-    rootSessionId: run.rootSessionId,
-    consumerPromise: Promise.resolve(),
-    hardTimeoutTimer: null,
-    lastWrittenEntryId: null,
-    lastAssistantText: "",
-    // Force trigger="manual" for resumed turns regardless of the run row's
-    // original trigger. hasInFlightScheduledRun uses active.trigger to gate
-    // the cron scheduler — if a user resumes a scheduled run, we don't want
-    // the scheduler to suppress the cronjob's next regular fire while the
-    // user-driven follow-up is in flight. (run.trigger on disk is unchanged
-    // — that's history, not in-flight semantics.)
-    trigger: "manual",
-    killed: false,
-    pendingEntries: [],
-    isResume: true,
-  };
-  activeRuns.set(run.id, active);
-  // Reset terminal state — the run row goes back to "running" until finalize.
-  const updated = updateRun(run.cronjobId, run.id, { status: "running", endedAt: null, errorReason: null });
-  if (updated) eventHandler({ type: "cronjob_run_updated", run: updated });
-  active.consumerPromise = runConsumer(active);
-  startRunHardTimeout(lifecycleDeps(), active);
-  return active;
-}
-
 // Send a follow-up message into a finalized run by resuming the leaf session.
 // No-op if the run is missing, currently in flight, or has no real SDK
 // session to resume (skipped or pre-init failed).
 export async function sendRunMessage(jobId: string, runId: string, text: string, username?: string): Promise<void> {
-  const run = findRun(jobId, runId);
-  if (!run) return;
-  // Synchronous claim — must happen before any await so a concurrent
-  // send/edit for the same runId bails immediately. installResumedActive's
-  // activeRuns.set keeps the slot held; the `finally` below releases it.
-  if (activeRuns.has(runId) || startingRuns.has(runId)) return;
-  if (run.status === "skipped") {
-    emitRunErrorEntry(jobId, runId, "Cannot resume a skipped run — it never opened a session.");
-    return;
-  }
-  const leaf = run.currentSessionId ?? run.rootSessionId;
-  if (leaf.startsWith("pending-") || leaf.startsWith("skipped-")) {
-    emitRunErrorEntry(jobId, runId, "Cannot resume: the original run never reached backend init.");
-    return;
-  }
-  try {
-    validateCwd(run.cwdSnapshot);
-  } catch (err: any) {
-    emitRunErrorEntry(jobId, runId, `Cannot resume: cwd is invalid: ${err.message || String(err)}`);
-    return;
-  }
-  if (!checkCronRunSessionFile(run, leaf, "resume")) return;
-
-  startingRuns.add(runId);
-  try {
-    let session: BackendSession;
-    try {
-      session = cronRunBackend(run).resumeSession(leaf, buildRunResumeOptions(run, leaf));
-    } catch (err: any) {
-      revokeRunToken(runId);
-      emitRunErrorEntry(jobId, runId, `Failed to resume: ${err.message || String(err)}`);
-      return;
-    }
-
-    const active = installResumedActive(run, session, leaf);
-    // Persist the user message so it shows up in the transcript.
-    writeLog(active, "user_message", text, eventHandler, username ? { username } : undefined);
-
-    const prefixedText = username ? `[${username}] ${text}` : text;
-    (async () => {
-      try {
-        await session.send(prefixedText);
-      } catch (err: any) {
-        if (active.killed) return;
-        console.error(`Cronjob run ${runId} send error:`, err.message);
-        writeLog(active, "error", `Failed to send: ${err.message || String(err)}`, eventHandler);
-        try {
-          session.close();
-        } catch {}
-        finalizeRun(active, "failed", err.message || String(err));
-      }
-    })();
-  } finally {
-    startingRuns.delete(runId);
-  }
+  await sendRunMessageWithDeps(continuationDeps(), jobId, runId, text, username);
 }
 
 // Edit-to-fork a user message in a finalized run. Mirrors agent-manager's
@@ -520,53 +384,7 @@ export async function sendRunMessage(jobId: string, runId: string, text: string,
 // fork lineage in the run's sessions.json, then resumes
 // the new leaf and sends the edited text.
 export async function editRunMessage(jobId: string, runId: string, logEntryId: string, newText: string, username?: string): Promise<void> {
-  const run = findRun(jobId, runId);
-  if (!run) return;
-  // Synchronous claim — see sendRunMessage. Without this, getSessionMessages
-  // and forkSession below would race against a second concurrent submission.
-  if (activeRuns.has(runId) || startingRuns.has(runId)) return;
-  if (run.status === "skipped") {
-    emitRunErrorEntry(jobId, runId, "Cannot edit a skipped run — it never opened a session.");
-    return;
-  }
-  const leaf = run.currentSessionId ?? run.rootSessionId;
-  if (leaf.startsWith("pending-") || leaf.startsWith("skipped-")) {
-    emitRunErrorEntry(jobId, runId, "Cannot edit: the original run never reached backend init.");
-    return;
-  }
-  try {
-    validateCwd(run.cwdSnapshot);
-  } catch (err: any) {
-    emitRunErrorEntry(jobId, runId, `Cannot edit: cwd is invalid: ${err.message || String(err)}`);
-    return;
-  }
-  if (!checkCronRunSessionFile(run, leaf, "edit")) return;
-
-  startingRuns.add(runId);
-  try {
-    await editRunMessageImpl(run, logEntryId, newText, leaf, username);
-  } finally {
-    startingRuns.delete(runId);
-  }
-}
-
-async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: string, leaf: string, username?: string): Promise<void> {
-  await editRunMessageWithDeps(
-    {
-      cronRunBackend,
-      buildRunResumeOptions,
-      emitRunErrorEntry,
-      installResumedActive,
-      finalizeRun,
-      revokeRunToken,
-      emitEvent: eventHandler,
-    },
-    run,
-    logEntryId,
-    newText,
-    leaf,
-    username,
-  );
+  await editRunMessageWithDeps(continuationDeps(), jobId, runId, logEntryId, newText, username);
 }
 
 // ---------------------------------------------------------------------------
