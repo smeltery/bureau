@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefCallback } from "react";
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
-import { send } from "../ws.ts";
 import { useAppState, useDispatch, useFeatures } from "../store.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
 import { serializeEntries } from "./entries/index.tsx";
@@ -13,7 +12,7 @@ import { usePinnedUserMessage } from "./hooks/usePinnedUserMessage.ts";
 import { useSlashAutocomplete } from "./hooks/useSlashAutocomplete.ts";
 import { useVoiceInput } from "./hooks/useVoiceInput.ts";
 import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
-import { useSidePanelLayout } from "./hooks/useSidePanelLayout.ts";
+import { useLogViewPanels } from "./hooks/useLogViewPanels.ts";
 import { useSelectionCite } from "./useSelectionCite.ts";
 import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 import { LogMessagesPane } from "./LogMessagesPane.tsx";
@@ -40,30 +39,10 @@ export function LogView({
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
 }) {
-  const { drafts, slashCommands, stateChangedAt, isMobile, connected, sidePanels } = useAppState();
+  const { drafts, slashCommands, stateChangedAt, isMobile, connected } = useAppState();
   const dispatch = useDispatch();
   const features = useFeatures();
-  const sidePanel = sidePanels.get(agent.id) ?? null;
-  const terminalOpen = sidePanel === "terminal";
-  const editorOpen = sidePanel === "editor";
-  const setTerminalOpen = useCallback(
-    (value: boolean | ((prev: boolean) => boolean)) => {
-      const prev = sidePanels.get(agent.id) === "terminal";
-      const next = typeof value === "function" ? value(prev) : value;
-      dispatch({ type: "set_side_panel", agentId: agent.id, panel: next ? "terminal" : null });
-    },
-    [dispatch, agent.id, sidePanels],
-  );
-  const setEditorOpen = useCallback(
-    (value: boolean | ((prev: boolean) => boolean)) => {
-      const prev = sidePanels.get(agent.id) === "editor";
-      const next = typeof value === "function" ? value(prev) : value;
-      dispatch({ type: "set_side_panel", agentId: agent.id, panel: next ? "editor" : null });
-    },
-    [dispatch, agent.id, sidePanels],
-  );
-
-  const { terminalWidth, editorWidth, terminalContainerRef, editorContainerRef, commitTerminalWidth, commitEditorWidth, getTerminalMax, getEditorMax } = useSidePanelLayout();
+  const panels = useLogViewPanels(agent.id);
 
   // Input draft + textarea ref
   const input = drafts.get(agent.id) ?? "";
@@ -136,41 +115,6 @@ export function LogView({
 
   const isBusy = agent.state === "thinking" || agent.state === "tool_executing";
 
-  // Open the editor side panel and focus the file. Path is held in local
-  // state so the editor panel can read it on mount and clear it after.
-  const [editorInitialPath, setEditorInitialPath] = useState<string | null>(null);
-  const openInEditor = useCallback(
-    (path: string) => {
-      setEditorInitialPath(path);
-      dispatch({ type: "set_side_panel", agentId: agent.id, panel: "editor" });
-    },
-    [dispatch, agent.id],
-  );
-
-  // Open the terminal panel and prefill the command at the prompt without
-  // executing it. The 250ms delay covers the panel-mount → terminal_open
-  // → PTY-spawn → first-prompt sequence; if the panel was already open it
-  // just adds a tiny lag before the bytes appear. WS messages are ordered
-  // per-connection, so terminal_open (sent on panel mount) lands before
-  // terminal_input only because of this delay — sending synchronously
-  // would race ahead of mount and the bytes would hit a non-existent PTY.
-  // After sending, focus xterm's helper textarea so Enter goes to the
-  // shell instead of re-firing the still-focused button (which would
-  // re-copy).
-  const copyToTerminal = useCallback(
-    (command: string) => {
-      const wasOpen = sidePanels.get(agent.id) === "terminal";
-      dispatch({ type: "set_side_panel", agentId: agent.id, panel: "terminal" });
-      const delay = wasOpen ? 0 : 250;
-      setTimeout(() => {
-        send({ type: "terminal_input", agentId: agent.id, data: command });
-        const helper = (terminalContainerRef.current ?? document).querySelector(".xterm-helper-textarea") as HTMLTextAreaElement | null;
-        helper?.focus();
-      }, delay);
-    },
-    [dispatch, agent.id, sidePanels],
-  );
-
   // Dismiss edit textarea when agent is no longer idle (e.g. another tab sent a message)
   useEffect(() => {
     if (agent.state !== "waiting_for_response" && editingLogEntryId) {
@@ -193,12 +137,12 @@ export function LogView({
       if (isMobile || !features.terminal) return;
       if (e.key === "`" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        setTerminalOpen((prev) => !prev);
+        panels.setTerminalOpen((prev) => !prev);
       }
     }
     window.addEventListener("keydown", handleTerminalShortcut);
     return () => window.removeEventListener("keydown", handleTerminalShortcut);
-  }, [isMobile, features.terminal]);
+  }, [isMobile, features.terminal, panels.setTerminalOpen]);
 
   const getConversationText = useCallback(() => serializeEntries(logs), [logs]);
 
@@ -294,10 +238,10 @@ export function LogView({
           onOpenTasks={onOpenTasks}
           showAvatar={showAvatar}
           toggleAvatar={toggleAvatar}
-          terminalOpen={terminalOpen}
-          setTerminalOpen={setTerminalOpen}
-          editorOpen={editorOpen}
-          setEditorOpen={setEditorOpen}
+          terminalOpen={panels.terminalOpen}
+          setTerminalOpen={panels.setTerminalOpen}
+          editorOpen={panels.editorOpen}
+          setEditorOpen={panels.setEditorOpen}
           getConversationText={getConversationText}
         />
 
@@ -316,8 +260,8 @@ export function LogView({
           editingLogEntryId={editingLogEntryId}
           setEditingLogEntryId={setEditingLogEntryId}
           getUserMsgRefCb={getUserMsgRefCb}
-          onOpenInEditor={features.editor ? openInEditor : undefined}
-          onCopyToTerminal={features.terminal ? copyToTerminal : undefined}
+          onOpenInEditor={features.editor ? panels.openInEditor : undefined}
+          onCopyToTerminal={features.terminal ? panels.copyToTerminal : undefined}
           stateChangedAt={stateChangedAt.get(agent.id)}
         />
 
@@ -368,31 +312,31 @@ export function LogView({
           partial={autocomplete.partial}
         />
       </div>
-      {features.terminal && !isMobile && terminalOpen && (
+      {features.terminal && !isMobile && panels.terminalOpen && (
         <DesktopTerminalSidePanel
           agentId={agent.id}
-          panelRef={terminalContainerRef}
-          width={terminalWidth}
-          getMax={getTerminalMax}
-          onCommit={commitTerminalWidth}
-          onClose={() => setTerminalOpen(false)}
+          panelRef={panels.terminalContainerRef}
+          width={panels.terminalWidth}
+          getMax={panels.getTerminalMax}
+          onCommit={panels.commitTerminalWidth}
+          onClose={() => panels.setTerminalOpen(false)}
         />
       )}
-      {features.editor && !isMobile && editorOpen && (
+      {features.editor && !isMobile && panels.editorOpen && (
         <DesktopEditorSidePanel
           agentId={agent.id}
-          panelRef={editorContainerRef}
-          width={editorWidth}
-          getMax={getEditorMax}
-          onCommit={commitEditorWidth}
-          initialPath={editorInitialPath}
-          onClose={() => setEditorOpen(false)}
-          onPathOpened={() => setEditorInitialPath(null)}
+          panelRef={panels.editorContainerRef}
+          width={panels.editorWidth}
+          getMax={panels.getEditorMax}
+          onCommit={panels.commitEditorWidth}
+          initialPath={panels.editorInitialPath}
+          onClose={() => panels.setEditorOpen(false)}
+          onPathOpened={panels.clearEditorInitialPath}
         />
       )}
-      {isMobile && features.terminal && terminalOpen && <MobileTerminalSidePanel agentId={agent.id} onClose={() => setTerminalOpen(false)} />}
-      {isMobile && features.editor && editorOpen && (
-        <MobileEditorSidePanel agentId={agent.id} initialPath={editorInitialPath} onClose={() => setEditorOpen(false)} onPathOpened={() => setEditorInitialPath(null)} />
+      {isMobile && features.terminal && panels.terminalOpen && <MobileTerminalSidePanel agentId={agent.id} onClose={() => panels.setTerminalOpen(false)} />}
+      {isMobile && features.editor && panels.editorOpen && (
+        <MobileEditorSidePanel agentId={agent.id} initialPath={panels.editorInitialPath} onClose={() => panels.setEditorOpen(false)} onPathOpened={panels.clearEditorInitialPath} />
       )}
       {cite && scrollRef.current && <CiteSelectionButton cite={cite} containerRect={scrollRef.current.getBoundingClientRect()} onClick={() => handleCite(cite.text)} />}
     </div>
