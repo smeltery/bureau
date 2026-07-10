@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode, type Dispatch } from "react";
+import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from "react";
 import type {
   AgentInfo,
   CCPluginsState,
@@ -8,7 +8,6 @@ import type {
   KilledAgentSummary,
   LogEntry,
   SessionInfo,
-  ServerMessage,
   SkillInfo,
   TaskItem,
   OfficeSettings,
@@ -21,12 +20,10 @@ import type {
   UserRecord,
 } from "../shared/types.ts";
 import { KILLED_AGENT_CHIP_CAP } from "../shared/types.ts";
-import { connect } from "./ws.ts";
-import { shouldNotifyRoom } from "../shared/notifications.ts";
-import { showDesktopNotification, markAttention } from "./notifications.ts";
-import { playNotificationSound } from "./notification-sound.ts";
 import { applyRoomClose, resolveSelectedRoomId, roomIndexById } from "./roomSelection.ts";
-import { readSidePanels, writeSidePanels, type SidePanel } from "./store-side-panels.ts";
+import { writeSidePanels, type SidePanel } from "./store-side-panels.ts";
+import { useStoreEffects } from "./store-effects.ts";
+import { initialState } from "./store-initial-state.ts";
 export { FeaturesProvider, ThemeProvider, useFeatures, useTheme } from "./theme-context.tsx";
 
 export interface AppState {
@@ -86,7 +83,7 @@ export interface AppState {
   killedAgents: KilledAgentSummary[];
 }
 
-type Action =
+export type Action =
   | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[]; killedAgents: KilledAgentSummary[] }
   | { type: "session_context"; context: SessionContext | null }
   | { type: "presence_list"; entries: PresenceInfo[]; totalOnlineUsers: number }
@@ -368,115 +365,12 @@ function reducer(state: AppState, action: Action): AppState {
   }
 }
 
-const initialState: AppState = {
-  agents: [],
-  logs: new Map(),
-  focusedAgentId: null,
-  connected: false,
-  hasReceivedInitialState: false,
-  isMobile: typeof window !== "undefined" ? window.innerWidth < 768 : false,
-  mobileViewMode: typeof localStorage !== "undefined" && localStorage.getItem("bureau-mobile-view") === "list" ? "list" : "office",
-  needsAttention: new Set(),
-  sessionsList: new Map(),
-  soundTrigger: { seq: 0, roomId: null, agentId: null, agentName: null },
-  drafts: new Map(),
-  recentCwds: [],
-  slashCommands: new Map(),
-  stateChangedAt: new Map(),
-  office: { prompt: null, envFile: null },
-  rooms: [],
-  allRooms: [],
-  users: new Map(),
-  sessionContext: null,
-  activeSessions: [],
-  activeSessionsLoaded: false,
-  invitesList: [],
-  invitesLoaded: false,
-  presences: [],
-  totalOnlineUsers: 0,
-  tasks: [],
-  tasksLoaded: false,
-  currentRoom: 0,
-  cronjobs: [],
-  cronjobsLoaded: false,
-  cronjobsPrompt: null,
-  cronjobRunsByJob: new Map(),
-  cronjobRunsLoaded: false,
-  ccPlugins: null,
-  updateAvailable: false,
-  updateCurrent: { sha: "", message: "", date: "" },
-  updateLatest: { sha: "", message: "", date: "" },
-  sidePanels: readSidePanels(),
-  killedAgents: [],
-};
-
 const StateCtx = createContext<AppState>(initialState);
 const DispatchCtx = createContext<Dispatch<Action>>(() => {});
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-
-  useEffect(() => {
-    connect(
-      (msg: ServerMessage) => {
-        dispatch(msg as Action);
-        if (msg.type === "full_state") dispatch({ type: "connected" });
-        // Server-initiated session invalidation (revoke / logout / expiry /
-        // delete-user fanout). The server sends `session_expired` immediately
-        // before force-closing the WS, so reload here lets the login wall take
-        // over instead of looping reconnect against a 401-returning upgrade.
-        if (msg.type === "session_expired") {
-          if (typeof window !== "undefined") window.location.reload();
-        }
-      },
-      (isConnected: boolean) => {
-        if (!isConnected) dispatch({ type: "disconnected" });
-      },
-    );
-  }, []);
-
-  // Track mobile viewport
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    function handleResize() {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        dispatch({ type: "set_mobile", isMobile: window.innerWidth < 768 });
-      }, 150);
-    }
-    window.addEventListener("resize", handleResize);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
-
-  // When the tab is hidden and an agent finishes work, alert the user — gated
-  // by their per-room notification preference (server-stored notifRooms). The
-  // sound is the in-tab cue; the desktop toast + title/favicon badge reach the
-  // user when the tab isn't even visible.
-  const prevSoundTriggerSeq = useRef(0);
-  useEffect(() => {
-    const trigger = state.soundTrigger;
-    if (trigger.seq > prevSoundTriggerSeq.current && document.hidden) {
-      const me = state.sessionContext ? state.users.get(state.sessionContext.username.trim().toLocaleLowerCase()) : undefined;
-      const notifRooms = me?.notifRooms ?? [];
-      if (shouldNotifyRoom(trigger.roomId, notifRooms)) {
-        playNotificationSound();
-        markAttention();
-        if (trigger.agentId) {
-          const agentId = trigger.agentId;
-          showDesktopNotification({
-            title: `${trigger.agentName ?? "An agent"} is done`,
-            body: "Ready for your reply in Bureau.",
-            tag: agentId,
-            onClick: () => dispatch({ type: "focus", agentId }),
-          });
-        }
-      }
-    }
-    prevSoundTriggerSeq.current = trigger.seq;
-  }, [state.soundTrigger, state.sessionContext, state.users]);
+  useStoreEffects(state, dispatch);
 
   return (
     <StateCtx.Provider value={state}>
