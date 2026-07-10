@@ -28,7 +28,7 @@ import {
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "../agents/session/paths.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
 import { getUserByName } from "../users.ts";
-import { clampSchedule, computeNextFire } from "./schedule.ts";
+import { computeNextFire } from "./schedule.ts";
 import { mintRunToken, revokeRunToken } from "./tokens.ts";
 import { buildCronjobMemoryPrompt, buildCronjobSystemPrompt as buildCronjobSystemPromptWithInstructions } from "./system-prompt.ts";
 import { emitRunDiffWithDeps, emitRunReadFileWithDeps, type AffordanceActiveRun, type RunAffordanceResult } from "./run-affordances.ts";
@@ -37,6 +37,7 @@ import { writeLog, type ActiveRun } from "./run-events.ts";
 import { finalizeRunWithDeps, runConsumerWithDeps, startRunHardTimeout, writeAffordanceLogWithDeps, type RunLifecycleDeps } from "./run-lifecycle.ts";
 import { addCronjobDefinition, deleteCronjobDefinition, updateCronjobDefinition, type AddCronjobInput, type UpdateCronjobChanges } from "./definitions.ts";
 import { editRunMessageWithDeps } from "./run-edit.ts";
+import { startCronjobSchedulerWithDeps } from "./scheduler.ts";
 import {
   buildCronjobEnv,
   buildRunResumeOptions as buildRunResumeOptionsWithDeps,
@@ -365,35 +366,11 @@ function recordSkippedRun(job: Cronjob): CronjobRun {
   return run;
 }
 
-// ---------------------------------------------------------------------------
-// Scheduler tick
-// ---------------------------------------------------------------------------
-
 function hasInFlightScheduledRun(jobId: string): boolean {
   for (const a of activeRuns.values()) {
     if (a.jobId === jobId && a.trigger === "scheduled") return true;
   }
   return false;
-}
-
-function tick() {
-  const now = Date.now();
-  for (const job of cronjobs) {
-    if (!job.enabled) continue;
-    if (now < job.nextFireAt) continue;
-    if (hasInFlightScheduledRun(job.id)) {
-      recordSkippedRun(job);
-      job.nextFireAt = computeNextFire(job.schedule, job.lastFireAt ?? job.createdAt, now);
-      saveCronjobs(cronjobs);
-      eventHandler({ type: "cronjob_updated", cronjob: job });
-      continue;
-    }
-    job.lastFireAt = now;
-    job.nextFireAt = computeNextFire(job.schedule, job.lastFireAt, now);
-    saveCronjobs(cronjobs);
-    eventHandler({ type: "cronjob_updated", cronjob: job });
-    fire(job, "scheduled");
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -597,48 +574,27 @@ async function editRunMessageImpl(run: CronjobRun, logEntryId: string, newText: 
 // ---------------------------------------------------------------------------
 
 export function startCronjobScheduler() {
-  // Load configs and cronjobsPrompt.
-  cronjobs = loadCronjobs();
-  cronjobsPrompt = loadCronjobsPrompt();
-
-  // Recompute nextFireAt for every cronjob from current time forward.
-  const now = Date.now();
-  let dirty = false;
-  for (const job of cronjobs) {
-    if (!job.userId && job.username) {
-      const owner = getUserByName(job.username);
-      if (owner) {
-        job.userId = owner.id;
-        dirty = true;
-      }
-    }
-    const schedule = clampSchedule(job.schedule);
-    const anchor = job.lastFireAt ?? job.createdAt;
-    const next = computeNextFire(schedule, anchor, now);
-    if (next !== job.nextFireAt) {
-      job.nextFireAt = next;
-      dirty = true;
-    }
-  }
-  if (dirty) saveCronjobs(cronjobs);
-
-  // Mark any "running" rows on disk as failed — server crashed mid-run.
-  for (const jobId of listAllCronjobIdsOnDisk()) {
-    const runs = loadRuns(jobId);
-    let mutated = false;
-    for (const r of runs) {
-      if (r.status === "running") {
-        r.status = "failed";
-        r.endedAt = now;
-        r.errorReason = "server restarted during run";
-        mutated = true;
-      }
-    }
-    if (mutated) saveRuns(jobId, runs);
-  }
-
-  setTimeout(() => tick(), 5_000); // initial tick after small delay
-  setInterval(() => tick(), TICK_INTERVAL_MS);
+  startCronjobSchedulerWithDeps({
+    getCronjobs: () => cronjobs,
+    setCronjobs: (next) => {
+      cronjobs = next;
+    },
+    loadCronjobs,
+    saveCronjobs,
+    loadCronjobsPrompt,
+    setCronjobsPrompt: (next) => {
+      cronjobsPrompt = next;
+    },
+    listAllCronjobIdsOnDisk,
+    loadRuns,
+    saveRuns,
+    getUserByName,
+    hasInFlightScheduledRun,
+    recordSkippedRun,
+    fire,
+    emitEvent: (event) => eventHandler(event),
+    tickIntervalMs: TICK_INTERVAL_MS,
+  });
 }
 
 // ---------------------------------------------------------------------------
