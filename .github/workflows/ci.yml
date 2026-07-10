@@ -2,42 +2,8 @@ name: CI
 
 on:
   pull_request:
-    paths:
-      - "api/**"
-      - "demo/**"
-      - "scripts/**"
-      - "server/**"
-      - "shared/**"
-      - "skills/**"
-      - "ui/**"
-      - ".flox/**"
-      - ".github/workflows/**"
-      - ".githooks/**"
-      - ".github/actionlint.yaml"
-      - "bun.lock"
-      - "package.json"
-      - "tsconfig.json"
-      - "website/**"
-      - "vercel.json"
   push:
     branches: [master]
-    paths:
-      - "api/**"
-      - "demo/**"
-      - "scripts/**"
-      - "server/**"
-      - "shared/**"
-      - "skills/**"
-      - "ui/**"
-      - ".flox/**"
-      - ".github/workflows/**"
-      - ".githooks/**"
-      - ".github/actionlint.yaml"
-      - "bun.lock"
-      - "package.json"
-      - "tsconfig.json"
-      - "website/**"
-      - "vercel.json"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -54,6 +20,7 @@ jobs:
     outputs:
       app: ${{ steps.changed.outputs.app }}
       website: ${{ steps.changed.outputs.website }}
+      workflow: ${{ steps.changed.outputs.workflow }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,16 +46,22 @@ jobs:
 
           app=false
           website=false
+          workflow=false
           while IFS= read -r path; do
             [[ -z "$path" ]] && continue
             case "$path" in
-              website/*|vercel.json|.github/workflows/*|.github/actionlint.yaml)
+              website/*|vercel.json)
                 website=true
                 ;;
             esac
             case "$path" in
-              api/*|demo/*|scripts/*|server/*|shared/*|skills/*|ui/*|.flox/*|.githooks/*|bun.lock|package.json|tsconfig.json|.github/workflows/*|.github/actionlint.yaml)
+              api/*|demo/*|scripts/*|server/*|shared/*|skills/*|ui/*|.flox/*|.githooks/*|bun.lock|package.json|tsconfig.json)
                 app=true
+                ;;
+            esac
+            case "$path" in
+              .github/workflows/*|.github/actionlint.yaml)
+                workflow=true
                 ;;
             esac
           done <<< "$changed_files"
@@ -96,7 +69,21 @@ jobs:
           {
             echo "app=$app"
             echo "website=$website"
+            echo "workflow=$workflow"
           } >> "$GITHUB_OUTPUT"
+
+  workflow-ci:
+    name: workflow-ci
+    needs: changes
+    if: needs.changes.outputs.workflow == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint
+        uses: docker://rhysd/actionlint:1.7.7
+        with:
+          args: -config-file .github/actionlint.yaml
 
   app-ci:
     name: app-ci
