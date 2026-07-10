@@ -4,6 +4,7 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import type { AgentBackendType, AgentInfo, Attachment, UserRecord } from "../../shared/types.ts";
+import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 
 const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -267,99 +268,8 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
     }
   }
 
-  if (req.method === "POST") {
-    const identity = resolveAgentToken(readBearerToken(req));
-    if (!identity) {
-      return new Response(JSON.stringify({ error: "missing or invalid bearer token" }), { status: 401, headers: JSON_HEADERS });
-    }
-    if (parts.length === 3 && parts[2] === "diff") {
-      const agentId = parts[1]!;
-      if (identity.agentId !== agentId) return new Response(JSON.stringify({ error: "token does not match agent" }), { status: 403, headers: JSON_HEADERS });
-      let dir: string | undefined;
-      let commit: string | undefined;
-      try {
-        const body = (await req.json()) as Record<string, unknown> | null;
-        if (body && typeof body.dir === "string") dir = body.dir;
-        if (body && typeof body.commit === "string") commit = body.commit;
-      } catch {}
-      const result = AgentManager.emitAgentDiff(agentId, dir, commit);
-      if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
-      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
-    }
-    if (parts.length === 3 && parts[2] === "edit-file") {
-      const agentId = parts[1]!;
-      if (identity.agentId !== agentId) return new Response(JSON.stringify({ error: "token does not match agent" }), { status: 403, headers: JSON_HEADERS });
-      let path: string | undefined;
-      try {
-        const body = (await req.json()) as Record<string, unknown> | null;
-        if (body && typeof body.path === "string") path = body.path;
-      } catch {}
-      if (!path) return new Response(JSON.stringify({ error: "missing path" }), { status: 400, headers: JSON_HEADERS });
-      const result = AgentManager.emitAgentEditFile(agentId, path);
-      if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
-      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
-    }
-    if (parts.length === 3 && parts[2] === "read-file") {
-      const agentId = parts[1]!;
-      if (identity.agentId !== agentId) return new Response(JSON.stringify({ error: "token does not match agent" }), { status: 403, headers: JSON_HEADERS });
-      let path: string | undefined;
-      try {
-        const body = (await req.json()) as Record<string, unknown> | null;
-        if (body && typeof body.path === "string") path = body.path;
-      } catch {}
-      if (!path) return new Response(JSON.stringify({ error: "missing path" }), { status: 400, headers: JSON_HEADERS });
-      const result = AgentManager.emitAgentReadFile(agentId, path);
-      if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
-      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
-    }
-    if (parts.length === 3 && parts[2] === "terminal-command") {
-      const agentId = parts[1]!;
-      if (identity.agentId !== agentId) return new Response(JSON.stringify({ error: "token does not match agent" }), { status: 403, headers: JSON_HEADERS });
-      let command: string | undefined;
-      try {
-        const body = (await req.json()) as Record<string, unknown> | null;
-        if (body && typeof body.command === "string") command = body.command;
-      } catch {}
-      if (!command) return new Response(JSON.stringify({ error: "missing command" }), { status: 400, headers: JSON_HEADERS });
-      const result = AgentManager.emitAgentTerminalCommand(agentId, command);
-      if (!result.ok) return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
-      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
-    }
-    if (parts.length === 3 && parts[2] === "message") {
-      // The sender's identity (name + room) is looked up server-side from
-      // senderAgentId so callers can't spoof identity or inject
-      // prefix-delimiter characters into the prompt the receiver sees.
-      const receiverId = parts[1]!;
-      let body: Record<string, unknown> | null = null;
-      try {
-        body = (await req.json()) as Record<string, unknown> | null;
-      } catch {}
-      if (!body) return new Response(JSON.stringify({ error: "invalid JSON body" }), { status: 400, headers: JSON_HEADERS });
-      const text = typeof body.text === "string" ? body.text : null;
-      const senderAgentId = typeof body.senderAgentId === "string" ? body.senderAgentId : null;
-      if (!text || !senderAgentId) {
-        return new Response(JSON.stringify({ error: "required: text, senderAgentId" }), { status: 400, headers: JSON_HEADERS });
-      }
-      if (identity.agentId !== senderAgentId) {
-        return new Response(JSON.stringify({ error: "token does not match senderAgentId" }), { status: 403, headers: JSON_HEADERS });
-      }
-      if (senderAgentId === receiverId) {
-        return new Response(JSON.stringify({ error: "cannot send to self" }), { status: 400, headers: JSON_HEADERS });
-      }
-      const senderInfo = AgentManager.getAgentDisplay(senderAgentId);
-      if (!senderInfo) {
-        return new Response(JSON.stringify({ error: "senderAgentId is not a known agent" }), { status: 400, headers: JSON_HEADERS });
-      }
-      const result = AgentManager.enqueueMessage(receiverId, {
-        sender: { kind: "agent", agentId: senderAgentId, agentName: senderInfo.name, roomName: senderInfo.roomName },
-        text,
-      });
-      if (!result.ok) {
-        return new Response(JSON.stringify({ error: result.error }), { status: result.status, headers: JSON_HEADERS });
-      }
-      return new Response(JSON.stringify(result), { headers: JSON_HEADERS });
-    }
-  }
+  const bearerResponse = await handleAgentBearerPost(req, parts);
+  if (bearerResponse) return bearerResponse;
 
   return null;
 }
