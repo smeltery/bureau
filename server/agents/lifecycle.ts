@@ -2,20 +2,19 @@ import { join } from "path";
 import { rmSync } from "fs";
 import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, SkillInfo } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES } from "../../shared/types.ts";
-import { listAgentSessions, loadAgentHistory, loadAgents, loadLogWithAncestors, saveAgentHistory } from "../persistence.ts";
+import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
 import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { createSession, installSession } from "./session/runtime.ts";
 import { getBackend } from "../backends/index.ts";
 import { updateState } from "./state.ts";
-import { sidecarSend } from "./terminal.ts";
 import { BUREAU_DIR } from "../persistence/paths.ts";
-import { mintAgentToken, revokeAgentToken } from "./tokens.ts";
+import { mintAgentToken } from "./tokens.ts";
 import { createManagedAgent } from "./managed-factory.ts";
 import { buildSpawnAgentDraft } from "./lifecycle-spawn.ts";
-import { buildKilledAgentSummary } from "./revive.ts";
 
 export { emitAgentDiff, emitAgentEditFile, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
+export { kill } from "./lifecycle-kill.ts";
 export { getKilledAgentSummaries, revive } from "./revive.ts";
 
 // ---------------------------------------------------------------------------
@@ -126,83 +125,6 @@ export async function spawn(
   }
 
   return info;
-}
-
-// ---------------------------------------------------------------------------
-// kill — tear down an agent
-// ---------------------------------------------------------------------------
-
-export async function kill(agentId: string) {
-  const managed = agents.get(agentId);
-  if (!managed) return;
-  // Stamp the history entry with killedAt + a full config snapshot BEFORE
-  // removing the agent from the live map. After deletion, updateAgentHistory
-  // (run by persistAll below) skips this entry — its loop iterates live
-  // agents only — so this write is the authoritative kill-time snapshot the
-  // revive chip rehydrates from.
-  const killedSummary = buildKilledAgentSummary(agentId, managed);
-  {
-    const room = roomList[managed.info.room];
-    if (room) {
-      const history = loadAgentHistory();
-      history[agentId] = {
-        name: managed.info.name,
-        userId: managed.info.userId ?? null,
-        lastRoomId: room.id,
-        lastRoomName: room.name,
-        killedAt: Date.now(),
-        cwd: managed.info.cwd,
-        outfit: managed.info.outfit,
-        permissionMode: managed.info.permissionMode,
-        modelFamily: managed.info.modelFamily,
-        effort: managed.info.effort,
-        agentType: managed.info.agentType,
-        privileged: managed.info.privileged ?? false,
-        codexSandbox: managed.info.codexSandbox,
-        lastSessionId: managed.sessionId,
-        topic: managed.info.topic,
-        customInstructions: managed.info.customInstructions,
-      };
-      saveAgentHistory(history);
-    }
-  }
-  // Bump the cancel token so any concurrent runAgentTurn that hasn't yet
-  // installed pendingTurn (pre-send plugin retrieval) bails on its next
-  // await checkpoint instead of calling session.send on a dying session.
-  managed.turnCancelToken++;
-  if (managed.pendingPermission) {
-    managed.pendingPermission = null;
-  }
-  const turn = managed.pendingTurn;
-  managed.pendingTurn = null;
-  if (turn) {
-    try {
-      turn.reject(new Error("Agent killed."));
-    } catch {}
-  }
-  const oldConsumer = managed.consumerPromise;
-  try {
-    managed.session?.close();
-  } catch {}
-  managed.session = null;
-  // Remove from the map so the consumer's outer `agents.has(agentId)` guard exits.
-  agents.delete(agentId);
-  revokeAgentToken(agentId);
-  logCache.delete(agentId);
-  if (oldConsumer) {
-    try {
-      await oldConsumer;
-    } catch {}
-  }
-  try {
-    sidecarSend(managed, { type: "kill" });
-    managed.ptySidecar?.kill();
-  } catch {}
-  emit({ type: "agent_removed", agentId });
-  persistAll();
-  if (killedSummary) {
-    emit({ type: "killed_agent_added", agent: killedSummary });
-  }
 }
 
 // ---------------------------------------------------------------------------
