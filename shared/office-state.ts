@@ -2,6 +2,7 @@ import type { AgentInfo, AgentOutfit, TaskItem, TaskPriority, RoomWire, OfficeSe
 import type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 import { generateRoomId } from "./types.ts";
 import { createAgentInfo, firstOpenDesk, hasDuplicateAgentName, roomIndexById } from "./office-agents.ts";
+import { closeRoomInList, createRoomInList, moveAgentToRoom, renameRoomInList } from "./office-rooms.ts";
 import { addTaskToList, deleteTaskFromList, updateTaskInList } from "./office-tasks.ts";
 export type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 
@@ -171,57 +172,26 @@ export class OfficeState {
   }
 
   createRoom(name?: string): OfficeEvent[] {
-    const existingIds = this._rooms.map((r) => r.id);
-    const room: RoomWire = {
-      id: generateRoomId(existingIds),
-      name: name || `Room ${this._rooms.length + 1}`,
-      prompt: null,
-      envFile: null,
-    };
-    this._rooms.push(room);
-    return [{ type: "room_created", room }];
+    const result = createRoomInList(this._rooms, name);
+    this._rooms = result.rooms;
+    return result.events;
   }
 
   closeRoom(roomId: string): OfficeEvent[] {
-    const room = this._rooms.findIndex((r) => r.id === roomId);
-    if (room <= 0) return [];
-    const roomAgents = [...this.agents.values()].filter((a) => a.room === room);
-    if (roomAgents.length > 0) return [];
-
-    this._rooms.splice(room, 1);
-    const events: OfficeEvent[] = [];
-    for (const agent of this.agents.values()) {
-      if (agent.room > room) {
-        agent.room--;
-        events.push({ type: "agent_updated", agentId: agent.id, changes: { room: agent.room } });
-      }
-    }
-    events.push({ type: "room_closed", roomId });
-    return events;
+    const result = closeRoomInList(this._rooms, this.agents.values(), roomId);
+    this._rooms = result.rooms;
+    return result.events;
   }
 
   renameRoom(roomId: string, name: string): OfficeEvent[] {
-    const room = this._rooms.findIndex((r) => r.id === roomId);
-    if (room < 0) return [];
-    const trimmed = name.trim().slice(0, 40);
-    if (!trimmed) return [];
-    this._rooms[room] = { ...this._rooms[room], name: trimmed };
-    return [{ type: "room_renamed", roomId, name: trimmed }];
+    const result = renameRoomInList(this._rooms, roomId, name);
+    this._rooms = result.rooms;
+    return result.events;
   }
 
   moveAgent(agentId: string, targetRoomId: string): OfficeEvent[] {
-    const agent = this.agents.get(agentId);
-    if (!agent) return [];
     const targetRoom = this._rooms.findIndex((r) => r.id === targetRoomId);
-    if (targetRoom < 0) return [];
-    if (agent.room === targetRoom) return [];
-
-    const newDesk = firstOpenDesk(this.agents.values(), targetRoom);
-    if (newDesk === -1) return [];
-
-    agent.room = targetRoom;
-    agent.desk = newDesk;
-    return [{ type: "agent_updated", agentId, changes: { room: targetRoom, desk: newDesk } }];
+    return moveAgentToRoom(this.agents.values(), agentId, targetRoom);
   }
 
   setOfficeSettings(prompt: string | null, envFile: string | null): OfficeEvent[] {
