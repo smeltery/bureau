@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefCallback } from "react";
+import { useCallback, useEffect, useRef, useState, type RefCallback } from "react";
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
 import { useAppState, useDispatch, useFeatures } from "../store.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
@@ -13,9 +13,8 @@ import { useSlashAutocomplete } from "./hooks/useSlashAutocomplete.ts";
 import { useVoiceInput } from "./hooks/useVoiceInput.ts";
 import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
 import { useLogViewPanels } from "./hooks/useLogViewPanels.ts";
-import { useCiteInsertion } from "./hooks/useCiteInsertion.ts";
 import { useLogViewInput } from "./hooks/useLogViewInput.ts";
-import { useSelectionCite } from "./useSelectionCite.ts";
+import { useLogViewCite } from "./hooks/useLogViewCite.ts";
 import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 import { LogMessagesPane } from "./LogMessagesPane.tsx";
 import { LogViewPanelHost } from "./side-panels/LogViewPanelHost.tsx";
@@ -79,25 +78,16 @@ export function LogView({
   const { autoScroll, setAutoScroll, handleScroll: handleAutoScroll } = useAutoScroll(scrollRef, logs, agent.state);
   const { pinnedMessage, scrollToPinnedMessage, getUserMsgRefCb, recomputePinned } = usePinnedUserMessage(scrollRef, logs, agent.state);
 
-  // Cite-from-selection: when the boss highlights text in the chat log, show
-  // a floating "Cite" pill that inserts the selection into the draft as a
-  // triple-quoted block. Gated to pointer-fine devices for v1 — mobile
-  // scroll is already finicky and the selection layer makes it worse.
-  // The hook is a pure observer; the click handler below (handleCite) is
-  // the only place we mutate draft / focus / selection. Scroll-hide lives
-  // in handleScroll below — keeping the hook selection-only, with the
-  // chat's existing scroll path owning geometry invalidation.
-  const isTouchPrimary = useMemo(() => typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches, []);
-  const citeEnabled = !isTouchPrimary && !editingLogEntryId;
-  const { cite, clearCite } = useSelectionCite(scrollRef, citeEnabled);
-
-  const handleScroll = useCallback(() => {
-    handleAutoScroll();
-    recomputePinned();
-    // Hide cite pill when the chat scrolls — its cached viewport rect goes
-    // stale and `selectionchange` won't fire for a pure scroll.
-    if (cite) clearCite();
-  }, [handleAutoScroll, recomputePinned, cite, clearCite]);
+  const { cite, handleCite, handleScroll } = useLogViewCite({
+    inputRef,
+    textareaRef,
+    setInput,
+    autoResize,
+    editingLogEntryId,
+    scrollRef,
+    handleAutoScroll,
+    recomputePinned,
+  });
   const autocomplete = useSlashAutocomplete(input, slashCommands.get(agent.id));
   const voice = useVoiceInput({
     inputRef,
@@ -109,14 +99,6 @@ export function LogView({
   const attachments = useAttachmentUpload(agent.id);
 
   const isBusy = agent.state === "thinking" || agent.state === "tool_executing";
-  const handleCite = useCiteInsertion({
-    inputRef,
-    textareaRef,
-    setInput,
-    clearCite,
-    autoResize,
-  });
-
   // Dismiss edit textarea when agent is no longer idle (e.g. another tab sent a message)
   useEffect(() => {
     if (agent.state !== "waiting_for_response" && editingLogEntryId) {
