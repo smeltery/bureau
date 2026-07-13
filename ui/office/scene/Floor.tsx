@@ -1,17 +1,8 @@
 import { useState, useEffect } from "react";
 import { SCENE_W, SCENE_H, VB_X, VB_Y } from "../grid.ts";
-import { useAppState } from "../../store.tsx";
 import { WallDoor, type DoorProps } from "./WallDoor.tsx";
 import { Corkboard, OfficePromptSign } from "./WallDecor.tsx";
-
-const NEON_COLORS = [
-  "#ff6ec7", // hot pink (original)
-  "#6effb4", // mint green
-  "#6ec7ff", // sky blue
-  "#ffb46e", // warm amber
-  "#c76eff", // purple
-  "#ff6e6e", // coral red
-];
+import { WallWindow } from "./WallWindow.tsx";
 
 const SVG_STYLE: React.CSSProperties = {
   position: "absolute",
@@ -22,8 +13,6 @@ const SVG_STYLE: React.CSSProperties = {
 const VB = `${VB_X} ${VB_Y} ${SCENE_W} ${SCENE_H}`;
 
 export function Floor() {
-  const { currentRoom } = useAppState();
-  const neon = NEON_COLORS[currentRoom % NEON_COLORS.length];
   // Floor diamond matches wall bottom edges (2:1 isometric ratio):
   // back=(120,40), left=(-260,230), right=(500,230), front=(120,420)
   const backX = 120,
@@ -75,8 +64,6 @@ export function Walls({
   leftDoor?: DoorProps | null;
   rightDoor?: DoorProps | null;
 }) {
-  const { currentRoom } = useAppState();
-  const neon = NEON_COLORS[currentRoom % NEON_COLORS.length];
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000);
@@ -98,106 +85,15 @@ export function Walls({
   const mx = mLen * Math.sin((minuteAngle * Math.PI) / 180);
   const my = -mLen * Math.cos((minuteAngle * Math.PI) / 180);
 
-  // Moon phase: day of month 1-31 maps to crescent offset
-  const dayOfMonth = now.getDate();
-  const moonPhase = (dayOfMonth / 30) * 2 - 1; // -1 to ~1, controls crescent offset
-
-  // Stars — placed in parallelogram coords, then projected
-  // Pane corners: TL(-295,30) TR(-155,-40) BL(-295,120) BR(-155,50)
-  // u=0..1 is left-to-right, v=0..1 is top-to-bottom
-  const starUV: Array<[number, number, number]> = [
-    [0.1, 0.2, 0.6],
-    [0.3, 0.1, 0.9],
-    [0.5, 0.3, 0.5],
-    [0.8, 0.15, 0.7],
-    [0.15, 0.5, 0.5],
-    [0.4, 0.4, 0.8],
-    [0.65, 0.2, 0.6],
-    [0.9, 0.35, 0.5],
-    [0.2, 0.75, 0.9],
-    [0.45, 0.6, 0.6],
-    [0.7, 0.5, 0.7],
-    [0.85, 0.7, 0.5],
-    [0.05, 0.9, 0.5],
-    [0.35, 0.8, 0.7],
-    [0.6, 0.75, 0.6],
-    [0.95, 0.55, 0.8],
-    [0.25, 0.35, 0.5],
-    [0.55, 0.85, 0.6],
-    [0.75, 0.4, 0.7],
-    [0.1, 0.65, 0.5],
-    [0.5, 0.15, 0.8],
-    [0.7, 0.9, 0.5],
-    [0.85, 0.1, 0.6],
-    [0.3, 0.55, 0.5],
-  ];
-  const stars = starUV.map(([u, v, r]) => {
-    const topY = 25 + u * (-45 - 25); // top edge: 25 to -45
-    const botY = 115 + u * (45 - 115); // bottom edge: 115 to 45
-    const x = -285 + u * 140;
-    const y = topY + v * (botY - topY);
-    return [x, y, r] as [number, number, number];
-  });
-
   return (
     <svg style={SVG_STYLE} width={SCENE_W} height={SCENE_H} viewBox={VB} overflow="visible">
-      <defs>
-        {/* Clip the sky scene to the window pane (iso parallelogram) */}
-        <clipPath id="window-clip">
-          <path d="M-285 115 L-145 45 L-145 -45 L-285 25 Z" />
-        </clipPath>
-      </defs>
-
       {/* Left wall (2:1 iso ratio) */}
       <path d="M-355 277.5 L-355 37.5 L120 -200 L120 40 Z" fill="var(--wall-left)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
       {/* Right wall (2:1 iso ratio) */}
       <path d="M120 -200 L120 40 L595 277.5 L595 37.5 Z" fill="var(--wall-right)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
 
       {/* Window on left wall */}
-      {/* Frame */}
-      <path d="M-290 120 L-140 45 L-140 -50 L-290 25 Z" fill="var(--wall-decor)" stroke="var(--wall-stroke)" strokeWidth="1" />
-      {/* Pane area */}
-      <path d="M-285 115 L-145 45 L-145 -45 L-285 25 Z" fill="#0a0e1a" />
-
-      {/* Night scene (dark mode) */}
-      <g clipPath="url(#window-clip)" className="window-night">
-        <path d="M-285 115 L-145 45 L-145 -45 L-285 25 Z" fill="#0a0e1a" />
-        {/* Stars */}
-        {stars.map(([sx, sy, sr], i) => (
-          <circle key={i} cx={sx} cy={sy} r={sr} fill="white" opacity={0.4 + (i % 4) * 0.15}>
-            {i % 5 === 0 && <animate attributeName="opacity" values={`${0.3 + (i % 3) * 0.1};${0.7 + (i % 2) * 0.2};${0.3 + (i % 3) * 0.1}`} dur={`${2 + (i % 3)}s`} repeatCount="indefinite" />}
-          </circle>
-        ))}
-        {/* Moon — crescent via overlapping circles (clickable to toggle theme) */}
-        <g data-no-pan onClick={onToggleTheme} style={{ cursor: "pointer", pointerEvents: "auto" }}>
-          <circle cx={-203} cy={-8} r={18} fill="transparent" />
-          <circle cx={-203} cy={-8} r={12} fill="#E8E0C8" />
-          <circle cx={-203 + moonPhase * 10} cy={-9} r={10} fill="#0a0e1a" />
-          {/* Moon glow */}
-          <circle cx={-203} cy={-8} r={18} fill="#E8E0C8" opacity="0.05" />
-        </g>
-      </g>
-
-      {/* Day scene (light mode) */}
-      <g clipPath="url(#window-clip)" className="window-day">
-        <path d="M-285 115 L-145 45 L-145 -45 L-285 25 Z" fill="#87CEEB" />
-        {/* Sun (clickable to toggle theme) */}
-        <g data-no-pan onClick={onToggleTheme} style={{ cursor: "pointer", pointerEvents: "auto" }}>
-          <circle cx={-205} cy={-5} r={20} fill="transparent" />
-          <circle cx={-205} cy={-5} r={14} fill="#F5D060" />
-          <circle cx={-205} cy={-5} r={20} fill="#F5D060" opacity="0.15" />
-        </g>
-        {/* Clouds */}
-        <ellipse cx={-240} cy={40} rx={18} ry={6} fill="white" opacity="0.7" />
-        <ellipse cx={-230} cy={37} rx={12} ry={5} fill="white" opacity="0.6" />
-        <ellipse cx={-175} cy={5} rx={14} ry={5} fill="white" opacity="0.5" />
-        <ellipse cx={-165} cy={3} rx={10} ry={4} fill="white" opacity="0.45" />
-      </g>
-
-      {/* Window crossbar (vertical center divider) */}
-      <line x1={-215} y1={80} x2={-215} y2={-10} stroke="var(--wall-decor)" strokeWidth="2" />
-      {/* Window crossbar (horizontal, following iso slope) */}
-      <path d="M-285 70 L-145 0" stroke="var(--wall-decor)" strokeWidth="2" fill="none" />
+      <WallWindow now={now} onToggleTheme={onToggleTheme} />
 
       <Corkboard taskCount={taskCount} onOpenTasks={onOpenTasks} />
       <OfficePromptSign hasOfficePrompt={hasOfficePrompt} onWallPanelClick={onWallPanelClick} />
