@@ -11,20 +11,7 @@
 // "stream id" used for log routing is `cronjobRunStreamId(runId)`.
 
 import { type Attachment, type Cronjob, type CronjobRun, type LogEntry } from "../../shared/types.ts";
-import {
-  loadCronjobs,
-  saveCronjobs,
-  loadCronjobsPrompt,
-  saveCronjobsPrompt,
-  loadRuns,
-  saveRuns,
-  appendRun,
-  updateRun,
-  findRun,
-  appendRunLog,
-  loadRunLogWithAncestors,
-  listAllCronjobIdsOnDisk,
-} from "../persistence.ts";
+import { loadCronjobs, saveCronjobs, loadCronjobsPrompt, loadRuns, saveRuns, appendRun, updateRun, findRun, appendRunLog, loadRunLogWithAncestors, listAllCronjobIdsOnDisk } from "../persistence.ts";
 import { validateCwd } from "../agents/session/paths.ts";
 import type { CreateSessionOptions } from "../backends/types.ts";
 import { getUserByName } from "../users.ts";
@@ -35,19 +22,32 @@ import { emitRunDiffWithDeps, emitRunReadFileWithDeps, type AffordanceActiveRun,
 import { readCronjobLifetimeUsage as readCronjobLifetimeUsageFromDisk } from "./usage.ts";
 import { writeLog, type ActiveRun } from "./run-events.ts";
 import { finalizeRunWithDeps, runConsumerWithDeps, startRunHardTimeout, writeAffordanceLogWithDeps, type RunLifecycleDeps } from "./run-lifecycle.ts";
-import { addCronjobDefinition, deleteCronjobDefinition, updateCronjobDefinition, type AddCronjobInput, type UpdateCronjobChanges } from "./definitions.ts";
 import { startCronjobSchedulerWithDeps } from "./scheduler.ts";
 import { buildCronjobEnv, buildRunSessionOptions as buildRunSessionOptionsWithDeps, cronjobBackend, withRunTokenEnv } from "./session-options.ts";
 import { editRunMessageWithDeps, sendRunMessageWithDeps, type RunContinuationDeps } from "./run-continuation.ts";
 import { fireCronjobRunWithDeps, recordSkippedRunWithDeps, type RunStartDeps } from "./run-start.ts";
+import {
+  addCronjob,
+  deleteCronjob,
+  emitCronjobEvent,
+  findCronjob,
+  getCronjobDefinitions,
+  getCronjobsPrompt,
+  listCronjobs,
+  onCronjobEvent,
+  setCronjobDefinitions,
+  setCronjobsPrompt,
+  setLoadedCronjobsPrompt,
+  updateCronjob,
+  type AddCronjobInput,
+  type CronjobEvent,
+} from "./cronjob-store.ts";
 // Re-exported so external callers can use the same scheduler math (kept for
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
 export { buildCronjobMemoryPrompt };
-
-// ---------------------------------------------------------------------------
-// In-memory state
-// ---------------------------------------------------------------------------
+export { addCronjob, deleteCronjob, getCronjobsPrompt, listCronjobs, onCronjobEvent, setCronjobsPrompt, updateCronjob };
+export type { CronjobEvent };
 
 const activeRuns = new Map<string, ActiveRun>(); // runId -> ActiveRun
 
@@ -58,70 +58,10 @@ const activeRuns = new Map<string, ActiveRun>(); // runId -> ActiveRun
 // fork twice, and end up overwriting each other's ActiveRun entries.
 const startingRuns = new Set<string>();
 
-let cronjobs: Cronjob[] = [];
-let cronjobsPrompt: string | null = null;
-
 const HARD_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const TICK_INTERVAL_MS = 60 * 1000;
 
-// ---------------------------------------------------------------------------
-// Event bus (server/index.ts wires this to the WebSocket broadcast)
-// ---------------------------------------------------------------------------
-
-export type CronjobEvent =
-  | { type: "cronjob_added"; cronjob: Cronjob }
-  | { type: "cronjob_updated"; cronjob: Cronjob }
-  | { type: "cronjob_deleted"; id: string }
-  | { type: "cronjobs_prompt_updated"; value: string | null }
-  | { type: "cronjob_run_updated"; run: CronjobRun }
-  | { type: "log_entry"; entry: LogEntry }
-  | { type: "clear_logs"; agentId: string };
-
-let eventHandler: (e: CronjobEvent) => void = () => {};
-
-export function onCronjobEvent(handler: (e: CronjobEvent) => void) {
-  eventHandler = handler;
-}
-
-// ---------------------------------------------------------------------------
-// CRUD
-// ---------------------------------------------------------------------------
-
-export function listCronjobs(): Cronjob[] {
-  return cronjobs;
-}
-
-export function getCronjobsPrompt(): string | null {
-  return cronjobsPrompt;
-}
-
-export function setCronjobsPrompt(value: string | null) {
-  const normalized = value && value.trim() ? value.trim() : null;
-  cronjobsPrompt = normalized;
-  saveCronjobsPrompt(normalized);
-  eventHandler({ type: "cronjobs_prompt_updated", value: normalized });
-}
-
 export type { AddCronjobInput };
-
-export function addCronjob(input: AddCronjobInput): Cronjob {
-  const cronjob = addCronjobDefinition(cronjobs, input);
-  eventHandler({ type: "cronjob_added", cronjob });
-  return cronjob;
-}
-
-export function updateCronjob(id: string, changes: UpdateCronjobChanges): Cronjob | null {
-  const next = updateCronjobDefinition(cronjobs, id, changes);
-  if (!next) return null;
-  eventHandler({ type: "cronjob_updated", cronjob: next });
-  return next;
-}
-
-export function deleteCronjob(id: string): boolean {
-  if (!deleteCronjobDefinition(cronjobs, id)) return false;
-  eventHandler({ type: "cronjob_deleted", id });
-  return true;
-}
 
 export function getRunsForCronjob(jobId: string): CronjobRun[] {
   return loadRuns(jobId);
@@ -150,7 +90,7 @@ export function getRunTranscript(jobId: string, runId: string): { run: CronjobRu
 // ---------------------------------------------------------------------------
 
 export function buildCronjobSystemPrompt(cronjob: Cronjob, jobId: string, runId: string, memoryPrompt?: string | null): string {
-  return buildCronjobSystemPromptWithInstructions(cronjob, jobId, runId, cronjobsPrompt, memoryPrompt);
+  return buildCronjobSystemPromptWithInstructions(cronjob, jobId, runId, getCronjobsPrompt(), memoryPrompt);
 }
 
 // ---------------------------------------------------------------------------
@@ -168,7 +108,7 @@ export function emitRunDiff(jobId: string, runId: string, dir?: string, commit?:
 function lifecycleDeps(): RunLifecycleDeps {
   return {
     activeRuns,
-    emitEvent: (e) => eventHandler(e),
+    emitEvent: (e) => emitCronjobEvent(e),
     hardTimeoutMs: HARD_TIMEOUT_MS,
   };
 }
@@ -196,12 +136,12 @@ function continuationDeps(): RunContinuationDeps {
   return {
     activeRuns,
     startingRuns,
-    getCronjobs: () => cronjobs,
+    getCronjobs: getCronjobDefinitions,
     buildSystemPrompt: buildCronjobSystemPrompt,
     lifecycleDeps,
     runConsumer,
     finalizeRun,
-    emitEvent: (event) => eventHandler(event),
+    emitEvent: emitCronjobEvent,
   };
 }
 
@@ -211,8 +151,8 @@ function runStartDeps(): RunStartDeps {
     appendRun,
     updateRun,
     saveCronjobs,
-    getCronjobs: () => cronjobs,
-    emitEvent: (event) => eventHandler(event),
+    getCronjobs: getCronjobDefinitions,
+    emitEvent: emitCronjobEvent,
     validateCwd,
     buildEnv: buildCronjobEnv,
     mintRunToken,
@@ -237,7 +177,7 @@ function buildRunSessionOptions(job: Cronjob, jobId: string, runId: string, env:
 }
 
 function recordSkippedRun(job: Cronjob): CronjobRun {
-  return recordSkippedRunWithDeps({ appendRun, emitEvent: (event) => eventHandler(event) }, job);
+  return recordSkippedRunWithDeps({ appendRun, emitEvent: emitCronjobEvent }, job);
 }
 
 function hasInFlightScheduledRun(jobId: string): boolean {
@@ -252,7 +192,7 @@ function hasInFlightScheduledRun(jobId: string): boolean {
 // ---------------------------------------------------------------------------
 
 export function runCronjobNow(id: string, username: string, device?: string): CronjobRun | null {
-  const job = cronjobs.find((c) => c.id === id);
+  const job = findCronjob(id);
   if (!job) return null;
   const triggeredBy = device && device !== username ? `${username} (${device})` : username;
   return fire(job, "manual", triggeredBy);
@@ -283,15 +223,15 @@ export async function editRunMessage(jobId: string, runId: string, logEntryId: s
 
 export function startCronjobScheduler() {
   startCronjobSchedulerWithDeps({
-    getCronjobs: () => cronjobs,
+    getCronjobs: getCronjobDefinitions,
     setCronjobs: (next) => {
-      cronjobs = next;
+      setCronjobDefinitions(next);
     },
     loadCronjobs,
     saveCronjobs,
     loadCronjobsPrompt,
     setCronjobsPrompt: (next) => {
-      cronjobsPrompt = next;
+      setLoadedCronjobsPrompt(next);
     },
     listAllCronjobIdsOnDisk,
     loadRuns,
@@ -300,7 +240,7 @@ export function startCronjobScheduler() {
     hasInFlightScheduledRun,
     recordSkippedRun,
     fire,
-    emitEvent: (event) => eventHandler(event),
+    emitEvent: emitCronjobEvent,
     tickIntervalMs: TICK_INTERVAL_MS,
   });
 }
