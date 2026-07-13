@@ -1,17 +1,16 @@
 import { join } from "path";
 import { rmSync } from "fs";
 import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, SkillInfo } from "../../shared/types.ts";
-import { DEFAULT_AGENT_CAPABILITIES } from "../../shared/types.ts";
 import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
 import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { createSession, installSession } from "./session/runtime.ts";
-import { getBackend } from "../backends/index.ts";
 import { updateState } from "./state.ts";
 import { BUREAU_DIR } from "../persistence/paths.ts";
 import { mintAgentToken } from "./tokens.ts";
 import { createManagedAgent } from "./managed-factory.ts";
 import { buildSpawnAgentDraft } from "./lifecycle-spawn.ts";
+import { buildRestoredAgentInfo } from "./lifecycle-restore.ts";
 
 export { emitAgentDiff, emitAgentEditFile, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
 export { kill } from "./lifecycle-kill.ts";
@@ -148,31 +147,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
       // history below, this lets us decide whether the persisted topic has
       // drifted since the topic was last generated.
       const persistedTopicCount = p.lastSessionId ? (listAgentSessions(p.id).find((s) => s.sessionId === p.lastSessionId)?.topicMessageCount ?? 0) : 0;
-      const info: AgentInfo = {
-        id: p.id,
-        name: p.name,
-        userId: p.userId ?? null,
-        desk: p.desk,
-        room: roomIdx,
-        cwd: p.cwd,
-        outfit: p.outfit,
-        permissionMode: p.permissionMode,
-        modelFamily: p.modelFamily ?? "opus",
-        agentType: p.agentType ?? "claude",
-        capabilities: getBackend(p.agentType ?? "claude").capabilities ?? DEFAULT_AGENT_CAPABILITIES,
-        privileged: p.privileged ?? false,
-        ...(p.codexSandbox ? { codexSandbox: p.codexSandbox } : {}),
-        ...(p.effort ? { effort: p.effort } : {}),
-        state: p.lastSessionId ? "waiting_for_response" : "idle",
-        topic: p.topic ?? null,
-        // Stale-on-load is determined by the textCount scan below (after
-        // logs are loaded into the cache). Default to false here so a clean
-        // restart doesn't flash the ↻ button on agents whose topic is
-        // actually current.
-        topicStale: false,
-        customInstructions: p.customInstructions ?? null,
-        queue: [],
-      };
+      const info = buildRestoredAgentInfo(p, roomIdx);
       mintAgentToken(p.id, info.userId ?? null, info.privileged ?? false);
       const managed = createManagedAgent({
         info,
