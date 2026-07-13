@@ -14,6 +14,7 @@ import { useVoiceInput } from "./hooks/useVoiceInput.ts";
 import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
 import { useLogViewPanels } from "./hooks/useLogViewPanels.ts";
 import { useCiteInsertion } from "./hooks/useCiteInsertion.ts";
+import { useLogViewInput } from "./hooks/useLogViewInput.ts";
 import { useSelectionCite } from "./useSelectionCite.ts";
 import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 import { LogMessagesPane } from "./LogMessagesPane.tsx";
@@ -47,14 +48,7 @@ export function LogView({
 
   // Input draft + textarea ref
   const input = drafts.get(agent.id) ?? "";
-  const inputRef = useRef(input);
-  inputRef.current = input;
-  const setInput = useCallback((text: string) => dispatch({ type: "set_draft", agentId: agent.id, text }), [dispatch, agent.id]);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const autoResize = useCallback((el: HTMLTextAreaElement) => {
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 200) + "px";
-  }, []);
+  const { inputRef, setInput, textareaRef, autoResize } = useLogViewInput(agent.id, input, dispatch);
 
   // Scroll container ref + swipe-to-cycle-agent (mobile)
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -129,15 +123,6 @@ export function LogView({
       setEditingLogEntryId(null);
     }
   }, [agent.state]);
-
-  // Auto-resize textarea and place cursor at end when draft is restored
-  useEffect(() => {
-    if (textareaRef.current && input) {
-      autoResize(textareaRef.current);
-      const len = textareaRef.current.value.length;
-      textareaRef.current.setSelectionRange(len, len);
-    }
-  }, []);
 
   // Ctrl+` to toggle terminal panel
   useEffect(() => {
