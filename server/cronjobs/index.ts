@@ -11,7 +11,7 @@
 // "stream id" used for log routing is `cronjobRunStreamId(runId)`.
 
 import { type Attachment, type Cronjob, type CronjobRun, type LogEntry } from "../../shared/types.ts";
-import { loadCronjobs, saveCronjobs, loadCronjobsPrompt, loadRuns, saveRuns, appendRun, updateRun, findRun, appendRunLog, loadRunLogWithAncestors, listAllCronjobIdsOnDisk } from "../persistence.ts";
+import { loadCronjobs, saveCronjobs, loadCronjobsPrompt, loadRuns, saveRuns, appendRun, updateRun, appendRunLog, listAllCronjobIdsOnDisk } from "../persistence.ts";
 import { validateCwd } from "../agents/session/paths.ts";
 import type { CreateSessionOptions } from "../backends/types.ts";
 import { getUserByName } from "../users.ts";
@@ -23,6 +23,7 @@ import { readCronjobLifetimeUsage as readCronjobLifetimeUsageFromDisk } from "./
 import { writeLog, type ActiveRun } from "./run-events.ts";
 import { finalizeRunWithDeps, runConsumerWithDeps, startRunHardTimeout, writeAffordanceLogWithDeps, type RunLifecycleDeps } from "./run-lifecycle.ts";
 import { startCronjobSchedulerWithDeps } from "./scheduler.ts";
+import { getAllRunsByJob, getRunsForCronjob, getRunTranscript } from "./run-history.ts";
 import { buildCronjobEnv, buildRunSessionOptions as buildRunSessionOptionsWithDeps, cronjobBackend, withRunTokenEnv } from "./session-options.ts";
 import { editRunMessageWithDeps, sendRunMessageWithDeps, type RunContinuationDeps } from "./run-continuation.ts";
 import { fireCronjobRunWithDeps, recordSkippedRunWithDeps, type RunStartDeps } from "./run-start.ts";
@@ -46,7 +47,7 @@ import {
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
 export { buildCronjobMemoryPrompt };
-export { addCronjob, deleteCronjob, getCronjobsPrompt, listCronjobs, onCronjobEvent, setCronjobsPrompt, updateCronjob };
+export { addCronjob, deleteCronjob, getAllRunsByJob, getCronjobsPrompt, getRunsForCronjob, getRunTranscript, listCronjobs, onCronjobEvent, setCronjobsPrompt, updateCronjob };
 export type { CronjobEvent };
 
 const activeRuns = new Map<string, ActiveRun>(); // runId -> ActiveRun
@@ -62,28 +63,6 @@ const HARD_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const TICK_INTERVAL_MS = 60 * 1000;
 
 export type { AddCronjobInput };
-
-export function getRunsForCronjob(jobId: string): CronjobRun[] {
-  return loadRuns(jobId);
-}
-
-// Returns one entry per cronjob id that has a runs.json on disk — including
-// jobs whose configs have since been deleted. The Runs tab uses this so
-// historical runs from deleted cronjobs remain visible.
-export function getAllRunsByJob(): { jobId: string; runs: CronjobRun[] }[] {
-  return listAllCronjobIdsOnDisk().map((jobId) => ({ jobId, runs: loadRuns(jobId) }));
-}
-
-export function getRunTranscript(jobId: string, runId: string): { run: CronjobRun | null; entries: LogEntry[] } {
-  const run = findRun(jobId, runId);
-  if (!run) return { run: null, entries: [] };
-  // Walk back from the leaf of the fork chain so edit-to-fork transcripts
-  // render correctly. Old runs without currentSessionId fall back to the
-  // root — equivalent to the un-forked case.
-  const leaf = run.currentSessionId ?? run.rootSessionId;
-  const entries = loadRunLogWithAncestors(jobId, runId, leaf);
-  return { run, entries };
-}
 
 // ---------------------------------------------------------------------------
 // System prompt for cronjobs
