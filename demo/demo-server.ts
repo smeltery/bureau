@@ -1,8 +1,8 @@
 import { OfficeState } from "../shared/office-state.ts";
-import type { ClientCommand, Cronjob, ServerMessage } from "../shared/types.ts";
-import { generateCronjobId } from "../shared/types.ts";
+import type { ClientCommand, ServerMessage } from "../shared/types.ts";
 import { shimEmit } from "../ui/ws.ts";
-import { computeNextFireDemo, cronjobs, cronjobsPrompt, seedCronjobs, setCronjobsPrompt } from "./demo-cronjobs.ts";
+import { cronjobs, cronjobsPrompt, seedCronjobs } from "./demo-cronjobs.ts";
+import { handleDemoCronjobCommand } from "./demo-cronjob-commands.ts";
 import { emitEvents } from "./demo-events.ts";
 import { abortDemoMessage, emitDemoSystemLog, seedLogs, sendDemoMessage } from "./demo-logs.ts";
 import { OFFICE_CHARACTERS } from "./demo-fixtures.ts";
@@ -209,65 +209,12 @@ export function handleCommand(cmd: ClientCommand) {
       abortDemoMessage(cmd.agentId);
       break;
     }
-    case "add_cronjob": {
-      const now = Date.now();
-      const id = generateCronjobId(cronjobs.map((c) => c.id));
-      const cronjob: Cronjob = {
-        id,
-        name: cmd.name,
-        schedule: cmd.schedule,
-        prompt: cmd.prompt,
-        cwd: cmd.cwd,
-        modelFamily: cmd.modelFamily,
-        permissionMode: cmd.permissionMode,
-        enabled: true,
-        createdBy: cmd.username,
-        device: cmd.device ?? null,
-        createdAt: now,
-        lastFireAt: null,
-        nextFireAt: computeNextFireDemo(cmd.schedule, now, now),
-      };
-      cronjobs.push(cronjob);
-      shimEmit({ type: "cronjob_added", cronjob });
-      if (cmd.requestId) {
-        shimEmit({ type: "agent_save_response", requestId: cmd.requestId, ok: true });
-      }
-      break;
-    }
-    case "update_cronjob": {
-      const idx = cronjobs.findIndex((c) => c.id === cmd.id);
-      if (idx >= 0) {
-        const merged: Cronjob = { ...cronjobs[idx], ...cmd.changes };
-        if (cmd.changes.schedule) {
-          const anchor = merged.lastFireAt ?? merged.createdAt;
-          merged.nextFireAt = computeNextFireDemo(cmd.changes.schedule, anchor, Date.now());
-        }
-        cronjobs[idx] = merged;
-        shimEmit({ type: "cronjob_updated", cronjob: merged });
-      }
-      if (cmd.requestId) {
-        shimEmit({ type: "agent_save_response", requestId: cmd.requestId, ok: true });
-      }
-      break;
-    }
-    case "delete_cronjob": {
-      const idx = cronjobs.findIndex((c) => c.id === cmd.id);
-      if (idx >= 0) {
-        cronjobs.splice(idx, 1);
-        shimEmit({ type: "cronjob_deleted", id: cmd.id });
-      }
-      break;
-    }
-    case "update_cronjobs_prompt": {
-      const value = setCronjobsPrompt(cmd.value);
-      shimEmit({ type: "cronjobs_prompt_updated", value });
-      shimEmit({ type: "settings_save_response", requestId: cmd.requestId, ok: true });
-      break;
-    }
+    case "add_cronjob":
+    case "update_cronjob":
+    case "delete_cronjob":
+    case "update_cronjobs_prompt":
     case "list_all_cronjob_runs": {
-      // Demo cron jobs never actually fire, so there are no runs to send.
-      // Still emit the sentinel so the client flips its "runs loaded" flag.
-      shimEmit({ type: "cronjob_runs_complete" });
+      handleDemoCronjobCommand(cmd);
       break;
     }
     // Silent no-ops
