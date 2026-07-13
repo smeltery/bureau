@@ -4,10 +4,11 @@ import { CODEX_MODELS, familyAllowsAutoPermission, MODEL_FAMILIES, modelVersionL
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
 import { useAppState } from "../../store.tsx";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
+import { AgentDialogFrame } from "./AgentDialogFrame.tsx";
 import { AgentAppearanceEditor, makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
 import { AgentMoveRoomSection } from "./AgentMoveRoomSection.tsx";
 import { AgentWorkingDirectoryField } from "./AgentWorkingDirectoryField.tsx";
-import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
+import { dialogInput, dialogLabel } from "./dialog-styles.ts";
 
 type EditAgentDialogProps = {
   onClose: () => void;
@@ -163,139 +164,86 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     }
   }
 
+  const title = isSpawn ? "Spawn New Agent" : "Edit Agent";
+  const subtitle = isSpawn ? `Desk #${props.deskIndex! + 1}` : `${roomCount > 1 ? `${rooms[agent!.room]?.name ?? `Room ${agent!.room + 1}`}, ` : ""}Desk #${agent!.desk + 1}`;
+
   return (
-    <div
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 900,
-        background: "rgba(0,0,0,0.55)",
-        backdropFilter: "blur(10px)",
-        display: "flex",
-        alignItems: isMobile ? "stretch" : "center",
-        justifyContent: "center",
-        overflowY: "auto",
-      }}
-    >
-      <div
-        style={{
-          background: "var(--bg-overlay)",
-          backdropFilter: "blur(16px)",
-          border: isMobile ? "none" : "1px solid var(--border-light)",
-          borderRadius: isMobile ? 0 : 16,
-          display: "flex",
-          flexDirection: "column",
-          width: isMobile ? "100%" : 380,
-          maxWidth: isMobile ? "100%" : undefined,
-          height: isMobile ? "100dvh" : undefined,
-          maxHeight: isMobile ? "100dvh" : "90vh",
-          boxShadow: isMobile ? "none" : "0 20px 60px var(--shadow-heavy)",
-          animation: "hudIn 0.2s ease-out",
+    <AgentDialogFrame isMobile={isMobile} isSpawn={isSpawn} onClose={onClose} onSave={handleSave} saving={saving} subtitle={subtitle} title={title}>
+      <label style={labelStyle}>Name</label>
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isSpawn ? `Agent ${props.deskIndex! + 1}` : undefined} autoFocus={isSpawn} style={inputStyle} />
+
+      <AgentWorkingDirectoryField
+        cwd={cwd}
+        cwdError={cwdError}
+        inputStyle={inputStyle}
+        labelStyle={labelStyle}
+        recentCwds={recentCwds}
+        setCwd={setCwd}
+        setCwdError={setCwdError}
+        showNextConversationHint={!isSpawn}
+      />
+
+      <label style={{ ...labelStyle, marginTop: 12 }}>Permission Mode</label>
+      <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as AgentInfo["permissionMode"])} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+        {familyAllowsAutoPermission(modelFamily) && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
+        <option value="default">Default (ask for everything)</option>
+        <option value="acceptEdits">Accept Edits (auto-approve file changes)</option>
+        <option value="bypassPermissions">Bypass (auto-approve all)</option>
+      </select>
+
+      {canTogglePrivileged && (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
+          <input type="checkbox" checked={privileged} onChange={(e) => setPrivileged(e.target.checked)} style={{ width: 14, height: 14, accentColor: "var(--accent)" }} />
+          Privileged operator token
+        </label>
+      )}
+
+      <label style={{ ...labelStyle, marginTop: 12 }}>Model</label>
+      <select
+        value={modelFamily}
+        onChange={(e) => {
+          const next = e.target.value;
+          setModelFamily(next);
+          if (!familyAllowsAutoPermission(next) && permissionMode === "auto") setPermissionMode("bypassPermissions");
         }}
+        style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
       >
-        <div style={{ overflowY: "auto", flex: 1, padding: isMobile ? "max(24px, env(safe-area-inset-top)) 20px 16px" : "24px 28px 16px" }}>
-          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{isSpawn ? "Spawn New Agent" : "Edit Agent"}</h3>
-          <p style={{ fontSize: 12, color: "var(--text-faint)", margin: "2px 0 18px" }}>
-            {isSpawn ? `Desk #${props.deskIndex! + 1}` : `${roomCount > 1 ? `${rooms[agent!.room]?.name ?? `Room ${agent!.room + 1}`}, ` : ""}Desk #${agent!.desk + 1}`}
-          </p>
+        {modelOptions.map((m) => (
+          <option key={m.family} value={m.family}>
+            {agentType === "claude" ? `${m.label} (${modelVersionLabel(m.family as any)})` : m.label}
+          </option>
+        ))}
+      </select>
 
-          <label style={labelStyle}>Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isSpawn ? `Agent ${props.deskIndex! + 1}` : undefined} autoFocus={isSpawn} style={inputStyle} />
+      <label style={{ ...labelStyle, marginTop: 14 }}>Appearance</label>
+      <AgentAppearanceEditor outfit={outfit} onChange={setOutfit} selectStyle={selectStyle} />
 
-          <AgentWorkingDirectoryField
-            cwd={cwd}
-            cwdError={cwdError}
-            inputStyle={inputStyle}
-            labelStyle={labelStyle}
-            recentCwds={recentCwds}
-            setCwd={setCwd}
-            setCwdError={setCwdError}
-            showNextConversationHint={!isSpawn}
-          />
+      <label style={{ ...labelStyle, marginTop: 14 }}>
+        Custom Instructions <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
+      </label>
+      <textarea
+        value={customInstructions}
+        onChange={(e) => setCustomInstructions(e.target.value)}
+        placeholder='e.g. "You are a backend specialist. Always write tests."'
+        rows={3}
+        style={{ ...inputStyle, resize: "vertical" }}
+      />
+      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>
+        Run <code>/bureau-system-prompt</code> in a chat to see the agent's full system prompt.
+        {!isSpawn && " Changes take effect on next conversation."}
+      </p>
 
-          <label style={{ ...labelStyle, marginTop: 12 }}>Permission Mode</label>
-          <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as AgentInfo["permissionMode"])} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-            {familyAllowsAutoPermission(modelFamily) && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
-            <option value="default">Default (ask for everything)</option>
-            <option value="acceptEdits">Accept Edits (auto-approve file changes)</option>
-            <option value="bypassPermissions">Bypass (auto-approve all)</option>
-          </select>
-
-          {canTogglePrivileged && (
-            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
-              <input type="checkbox" checked={privileged} onChange={(e) => setPrivileged(e.target.checked)} style={{ width: 14, height: 14, accentColor: "var(--accent)" }} />
-              Privileged operator token
-            </label>
-          )}
-
-          <label style={{ ...labelStyle, marginTop: 12 }}>Model</label>
-          <select
-            value={modelFamily}
-            onChange={(e) => {
-              const next = e.target.value;
-              setModelFamily(next);
-              if (!familyAllowsAutoPermission(next) && permissionMode === "auto") setPermissionMode("bypassPermissions");
-            }}
-            style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
-          >
-            {modelOptions.map((m) => (
-              <option key={m.family} value={m.family}>
-                {agentType === "claude" ? `${m.label} (${modelVersionLabel(m.family as any)})` : m.label}
-              </option>
-            ))}
-          </select>
-
-          <label style={{ ...labelStyle, marginTop: 14 }}>Appearance</label>
-          <AgentAppearanceEditor outfit={outfit} onChange={setOutfit} selectStyle={selectStyle} />
-
+      {!isSpawn && (
+        <>
           <label style={{ ...labelStyle, marginTop: 14 }}>
-            Custom Instructions <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
+            Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for this agent)</span>
           </label>
-          <textarea
-            value={customInstructions}
-            onChange={(e) => setCustomInstructions(e.target.value)}
-            placeholder='e.g. "You are a backend specialist. Always write tests."'
-            rows={3}
-            style={{ ...inputStyle, resize: "vertical" }}
-          />
-          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>
-            Run <code>/bureau-system-prompt</code> in a chat to see the agent's full system prompt.
-            {!isSpawn && " Changes take effect on next conversation."}
-          </p>
+          <textarea value={agentMemory.memory} onChange={(e) => agentMemory.setMemory(e.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} disabled={!agentMemory.loaded} />
+        </>
+      )}
 
-          {!isSpawn && (
-            <>
-              <label style={{ ...labelStyle, marginTop: 14 }}>
-                Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for this agent)</span>
-              </label>
-              <textarea value={agentMemory.memory} onChange={(e) => agentMemory.setMemory(e.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} disabled={!agentMemory.loaded} />
-            </>
-          )}
-
-          {!isSpawn && <AgentMoveRoomSection agent={agent!} agents={agents} rooms={rooms} labelStyle={labelStyle} onClose={onClose} />}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: isMobile ? "16px 20px max(24px, env(safe-area-inset-bottom))" : "20px 28px 22px",
-            borderTop: "1px solid var(--border)",
-            flexShrink: 0,
-          }}
-        >
-          <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>
-            Cancel
-          </button>
-          <button onClick={handleSave} style={saveBtnStyle} disabled={saving}>
-            {saving ? "Saving…" : isSpawn ? "Spawn" : "Save"}
-          </button>
-        </div>
-      </div>
-    </div>
+      {!isSpawn && <AgentMoveRoomSection agent={agent!} agents={agents} rooms={rooms} labelStyle={labelStyle} onClose={onClose} />}
+    </AgentDialogFrame>
   );
 }
 
@@ -308,6 +256,3 @@ const selectStyle: React.CSSProperties = {
   cursor: "pointer",
   width: "100%",
 };
-
-const cancelBtnStyle: React.CSSProperties = dialogCancelBtn;
-const saveBtnStyle: React.CSSProperties = dialogSaveBtn;
