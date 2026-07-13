@@ -1,6 +1,5 @@
 import type { AgentState, Attachment } from "../../../shared/types.ts";
 import type { ApprovalDecision } from "../../backends/types.ts";
-import { MODEL_FAMILIES, EFFORT_LEVELS, familyDisplayLabel, effortDisplayLabel } from "../../../shared/types.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, isAgentBusy, logCache, persistAll, updateState } from "../state.ts";
 import { SessionSwappedError, createSession, installSession, replaceSession } from "../session/runtime.ts";
@@ -8,6 +7,7 @@ import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { generateTopic, persistCurrentSessionTopic, shouldAutoRegenerateTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
 import { handleSlashCommand } from "./slash-commands.ts";
 import { enqueueUserMessage, QUEUE_MAX } from "./message-queue.ts";
+import { handlePendingEffortPick, handlePendingModelPick } from "./pending-picks.ts";
 
 export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[]) {
   const managed = agents.get(agentId);
@@ -179,59 +179,9 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     }
   }
 
-  // Handle /model two-step: if pendingModelPick, check if input is a number pick
-  if (managed.pendingModelPick) {
-    managed.pendingModelPick = false;
-    const trimmed = text.trim();
-    const num = parseInt(trimmed, 10);
-    if (!isNaN(num) && num >= 1 && num <= MODEL_FAMILIES.length) {
-      const userMeta = username ? { username } : undefined;
-      emitEphemeralLog(agentId, "user_message", text, userMeta);
-      const picked = MODEL_FAMILIES[num - 1];
-      const label = familyDisplayLabel(picked.family);
-      if (picked.family === managed.info.modelFamily) {
-        emitEphemeralLog(agentId, "system", `Already using ${label}.`);
-      } else {
-        managed.info.modelFamily = picked.family;
-        const sessionId = managed.sessionId;
-        const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
-        await replaceSession(agentId, managed, newSession);
-        emit({ type: "agent_updated", agentId, changes: { modelFamily: picked.family } });
-        persistAll();
-        addLogEntry(agentId, "system", `Model switched to ${label}. The agent's context may still say they are a different model — the correct model is shown in the top bar.`);
-      }
-      return;
-    } else {
-      emitEphemeralLog(agentId, "system", "Model selection cancelled.");
-    }
-  }
+  if (await handlePendingModelPick(agentId, managed, text, username)) return;
 
-  // Handle /effort two-step: if pendingEffortPick, check if input is a number pick
-  if (managed.pendingEffortPick) {
-    managed.pendingEffortPick = false;
-    const trimmed = text.trim();
-    const num = parseInt(trimmed, 10);
-    if (!isNaN(num) && num >= 1 && num <= EFFORT_LEVELS.length) {
-      const userMeta = username ? { username } : undefined;
-      emitEphemeralLog(agentId, "user_message", text, userMeta);
-      const picked = EFFORT_LEVELS[num - 1];
-      const label = effortDisplayLabel(picked.level);
-      if (picked.level === managed.info.effort) {
-        emitEphemeralLog(agentId, "system", `Already using ${label}.`);
-      } else {
-        managed.info.effort = picked.level;
-        const sessionId = managed.sessionId;
-        const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
-        await replaceSession(agentId, managed, newSession);
-        emit({ type: "agent_updated", agentId, changes: { effort: picked.level } });
-        persistAll();
-        addLogEntry(agentId, "system", `Thinking effort set to ${label}.`);
-      }
-      return;
-    } else {
-      emitEphemeralLog(agentId, "system", "Effort selection cancelled.");
-    }
-  }
+  if (await handlePendingEffortPick(agentId, managed, text, username)) return;
 
   // Intercept slash commands that are handled locally, not by the LLM
   if (isSlash) {
