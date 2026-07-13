@@ -1,11 +1,11 @@
 import { forkSession, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
-import type { LogEntry } from "../../../shared/types.ts";
-import { listAgentSessions, loadLog, loadSessionsMap, persistSessionFork } from "../../persistence.ts";
+import { persistSessionFork } from "../../persistence.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, updateState } from "../state.ts";
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
-import { runAgentTurn, stripPluginPrefix } from "../../plugins/run-agent-turn.ts";
+import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
+import { entriesBefore, findForkSourceSession, findOwnerSessionHint, findSdkUserMessageIndex, prefixedUserContent, topicMessageCount, userMessageOccurrenceIndex } from "./edit-helpers.ts";
 
 export async function editMessage(agentId: string, logEntryId: string, newText: string, username?: string) {
   const managed = agents.get(agentId);
@@ -37,44 +37,13 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
 
     // 2. Get SDK session messages and match by content + occurrence index
     const sdkMessages = await getSessionMessages(oldSessionId);
-    const targetUsername = targetEntry.metadata?.username as string | undefined;
-    const prefixedContent = targetUsername ? `[${targetUsername}] ${targetEntry.content}` : targetEntry.content;
-
-    // Count which occurrence of this exact content this is among user_message log entries
-    const userLogEntries = oldLogCache.filter((e) => e.kind === "user_message");
-    let occurrenceIndex = 0;
-    for (const e of userLogEntries) {
-      const u = e.metadata?.username as string | undefined;
-      const prefixed = u ? `[${u}] ${e.content}` : e.content;
-      if (prefixed === prefixedContent) {
-        if (e.id === logEntryId) break;
-        occurrenceIndex++;
-      }
-    }
+    const prefixedContent = prefixedUserContent(targetEntry);
+    const occurrenceIndex = userMessageOccurrenceIndex(oldLogCache, logEntryId, prefixedContent);
 
     // Find the matching SDK user message, and track the message just before it.
     // forkSession's upToMessageId is inclusive, so we fork at the predecessor to
     // exclude the original message — the edited text replaces it.
-    let matchCount = 0;
-    let targetIdx = -1;
-    for (let i = 0; i < sdkMessages.length; i++) {
-      const m = sdkMessages[i];
-      if (m.type !== "user") continue;
-      // SDK message format: { role: "user", content: [{ type: "text", text: "..." }, ...] }
-      const msg = m.message as any;
-      const contentBlocks = Array.isArray(msg?.content) ? msg.content : Array.isArray(msg) ? msg : typeof msg === "string" ? [{ type: "text", text: msg }] : [];
-      const msgContent = contentBlocks
-        .filter((b: any) => b.type === "text")
-        .map((b: any) => b.text)
-        .join("");
-      if (stripPluginPrefix(msgContent) === prefixedContent) {
-        if (matchCount === occurrenceIndex) {
-          targetIdx = i;
-          break;
-        }
-        matchCount++;
-      }
-    }
+    const targetIdx = findSdkUserMessageIndex(sdkMessages, prefixedContent, occurrenceIndex);
 
     if (targetIdx === -1) {
       // Walk the agent's on-disk sessions to find which one owns the entry,
@@ -82,17 +51,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       // chat can show entries from a session that isn't the current backend
       // session — e.g. ContextMenu "New conversation" or message edits that
       // branched the timeline can leave entries from a prior session in view.
-      let ownerHint = "";
-      try {
-        for (const s of listAgentSessions(agentId)) {
-          if (s.sessionId === oldSessionId) continue;
-          if (loadLog(agentId, s.sessionId).some((e) => e.id === logEntryId)) {
-            const label = s.topic ?? s.sessionId.slice(0, 8) + "...";
-            ownerHint = ` This message lives in a different session ("${label}"). Use /resume to switch to it first, then edit.`;
-            break;
-          }
-        }
-      } catch {}
+      const ownerHint = findOwnerSessionHint(agentId, oldSessionId, logEntryId);
       addLogEntry(agentId, "error", `Cannot edit: could not locate message in SDK session.${ownerHint}`);
       return;
     }
@@ -119,22 +78,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       // If the edited entry lives in an ancestor's JSONL (not the current session's own),
       // point forkedFrom at that ancestor directly. This collapses the chain so
       // loadLogWithAncestors cuts at the right level.
-      let forkFromSessionId = oldSessionId;
-      const ownEntries = loadLog(agentId, oldSessionId);
-      if (!ownEntries.some((e) => e.id === logEntryId)) {
-        const sessMap = loadSessionsMap(agentId);
-        let walk: string | undefined = sessMap[oldSessionId]?.forkedFrom;
-        const visited = new Set<string>([oldSessionId]);
-        while (walk && !visited.has(walk)) {
-          visited.add(walk);
-          const ancestorEntries = loadLog(agentId, walk);
-          if (ancestorEntries.some((e) => e.id === logEntryId)) {
-            forkFromSessionId = walk;
-            break;
-          }
-          walk = sessMap[walk]?.forkedFrom;
-        }
-      }
+      const forkFromSessionId = findForkSourceSession(agentId, oldSessionId, logEntryId);
       // Find the parent's cumulative usage at the exact fork point (not the
       // parent's *current* cumulative, which may include later turns the user
       // continued in the original branch). Walk parent's log to find the fork
@@ -145,13 +89,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       // the baseline for measuring drift on the new branch. Persisting it
       // alongside the inherited topic lets a later /resume of this fork
       // correctly recognize that the topic is in sync (or not).
-      let parentTopicMessageCount = 0;
-      for (const entry of oldLogCache) {
-        if (entry.id === logEntryId) break;
-        if (entry.kind === "user_message" || entry.kind === "text") {
-          parentTopicMessageCount++;
-        }
-      }
+      const parentTopicMessageCount = topicMessageCount(entriesBefore(oldLogCache, logEntryId));
       // Fork inherits the active session's cwd (cwd is per-session), so the new
       // branch keeps working in the same directory.
       persistSessionFork(agentId, newSessionId, forkFromSessionId, logEntryId, oldTopic, parentTopicMessageCount, managed.info.cwd, parentBase);
@@ -168,16 +106,12 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // --- Phase 2: UI/cache mutations (point of no return) ---
 
     // 6. Build parent entries (everything before the edited message)
-    const parentEntries: LogEntry[] = [];
-    for (const entry of oldLogCache) {
-      if (entry.id === logEntryId) break;
-      parentEntries.push(entry);
-    }
+    const parentEntries = entriesBefore(oldLogCache, logEntryId);
     // Anchor drift detection to the parent's text count at the fork point.
     // Zeroing here would trip the regen threshold on the very first new
     // exchange in the fork — defeating the threshold's debounce. Match what's
     // persisted alongside the inherited topic above.
-    managed.topicMessageCount = parentEntries.filter((e) => e.kind === "user_message" || e.kind === "text").length;
+    managed.topicMessageCount = topicMessageCount(parentEntries);
 
     // 7. Clear UI and replay parent entries (not persisted — ancestors are loaded
     //    via loadLogWithAncestors on resume, avoiding log duplication on disk)
