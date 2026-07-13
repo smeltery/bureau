@@ -1,10 +1,9 @@
 import { useRef } from "react";
 import type { AgentInfo, Attachment } from "../../shared/types.ts";
 import { send } from "../ws.ts";
-import { sendAbortDebounced } from "../utils/abort.ts";
 import { useAppState } from "../store.tsx";
 import { AttachmentChips } from "./AttachmentChips.tsx";
-import { InputAutocomplete } from "./InputAutocomplete.tsx";
+import { InputComposerField } from "./input/InputComposerField.tsx";
 import { MobileInputAction } from "./MobileInputAction.tsx";
 import { VoiceInputControl } from "./VoiceInputControl.tsx";
 import type { StagedAttachment } from "./hooks/useAttachmentUpload.ts";
@@ -143,106 +142,25 @@ export function InputBar({
           </svg>
         </button>
         <span style={{ color: isBusy ? "var(--text-ghost)" : "var(--green)", fontWeight: 600, lineHeight: "20px", position: "relative", top: -2 }}>&#10095;</span>
-        <div style={{ flex: 1, position: "relative", top: -2 }}>
-          {showAutocomplete && filteredCommands.length > 0 && (
-            <InputAutocomplete
-              filteredCommands={filteredCommands}
-              skillOrigins={skillOrigins}
-              commandDescriptions={commandDescriptions}
-              selectedIdx={selectedIdx}
-              setSelectedIdx={setSelectedIdx}
-              setInput={setInput}
-              textareaRef={textareaRef}
-            />
-          )}
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onPaste={handlePaste}
-            onChange={(e) => {
-              setInput(e.target.value);
-              autoResize(e.target);
-            }}
-            onKeyDown={(e) => {
-              // While an OS IME is composing (CJK / accent input), let the
-              // composition consume Enter and other keys instead of sending.
-              if (e.nativeEvent.isComposing) return;
-              // Autocomplete navigation
-              if (showAutocomplete && filteredCommands.length > 0) {
-                if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  setSelectedIdx((prev) => (prev > 0 ? prev - 1 : filteredCommands.length - 1));
-                  return;
-                }
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  setSelectedIdx((prev) => (prev < filteredCommands.length - 1 ? prev + 1 : 0));
-                  return;
-                }
-                if (e.key === "Tab") {
-                  e.preventDefault();
-                  const selected = filteredCommands[selectedIdx];
-                  if (selected) {
-                    setInput(`/${selected} `);
-                  }
-                  return;
-                }
-                if (e.key === "Enter" && !e.shiftKey) {
-                  const selected = filteredCommands[selectedIdx];
-                  // If exact match, send it; otherwise autocomplete
-                  if (selected && partial === selected.toLowerCase()) {
-                    // Exact match — fall through to send
-                  } else if (selected) {
-                    e.preventDefault();
-                    setInput(`/${selected} `);
-                    return;
-                  }
-                }
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  setInput("");
-                  return;
-                }
-              }
-              if (e.key === "Enter" && !e.shiftKey && !isMobile) {
-                e.preventDefault();
-                handleSend();
-              }
-              if (e.key === "c" && (e.ctrlKey || e.metaKey) && isBusy) {
-                e.preventDefault();
-                sendAbortDebounced(agent.id);
-              }
-            }}
-            placeholder={
-              editingLogEntryId
-                ? "Editing message above..."
-                : isBusy
-                  ? isMobile
-                    ? "Agent is busy..."
-                    : "Agent is busy — Ctrl+C to interrupt..."
-                  : isMobile
-                    ? "Type a message..."
-                    : "Type a message or / for commands..."
-            }
-            autoFocus={!isMobile}
-            rows={1}
-            style={{
-              width: "100%",
-              background: "transparent",
-              border: "none",
-              outline: "none",
-              color: isBusy || editingLogEntryId ? "var(--text-muted)" : "var(--text-secondary)",
-              fontFamily: "'JetBrains Mono',monospace",
-              fontSize: isMobile ? 16 : 13,
-              caretColor: "var(--green)",
-              resize: "none",
-              padding: "0 0 4px",
-              lineHeight: "20px",
-              maxHeight: 200,
-              overflowY: "auto",
-            }}
-          />
-        </div>
+        <InputComposerField
+          agentId={agent.id}
+          autoResize={autoResize}
+          commandDescriptions={commandDescriptions}
+          editingLogEntryId={editingLogEntryId}
+          filteredCommands={filteredCommands}
+          handlePaste={handlePaste}
+          handleSend={handleSend}
+          input={input}
+          isBusy={isBusy}
+          isMobile={isMobile}
+          partial={partial}
+          selectedIdx={selectedIdx}
+          setInput={setInput}
+          setSelectedIdx={setSelectedIdx}
+          showAutocomplete={showAutocomplete}
+          skillOrigins={skillOrigins}
+          textareaRef={textareaRef}
+        />
         <VoiceInputControl
           isListening={isListening}
           startListening={startListening}
