@@ -30,7 +30,6 @@ import type { ApprovalDecision, AttachmentSpec, BackendSession, NormalizedEvent 
 import { JsonRpcLiteClient, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
 import { mapApprovalDecision } from "./approvals.ts";
 import { buildCodexUserInput } from "./user-input.ts";
-import { AUTH_ERROR_PATTERNS } from "./config.ts";
 import { CodexUsageTracker } from "./session-usage.ts";
 import { CodexAuthSignalGate } from "./session-auth-gate.ts";
 import { rejectPendingApprovalsOnClose, resolvePendingApprovalsOnAbort } from "./session-approval-cleanup.ts";
@@ -40,6 +39,7 @@ import { CodexSessionEventBuffer } from "./session-event-buffer.ts";
 import { handleCodexNotification } from "./session-notifications.ts";
 import { codexSubprocessExitEvent, handleCodexSessionStderr } from "./session-process-events.ts";
 import { handleCodexServerRequest, type PendingApproval } from "./session-requests.ts";
+import { startCodexTurn } from "./session-turn-start.ts";
 
 // ---------------------------------------------------------------------------
 // CodexSession
@@ -167,37 +167,17 @@ export class CodexSession implements BackendSession {
     }
 
     const input = buildCodexUserInput(text, attachments, this.opts.agentId);
-    // Open the auth-stderr gate before turn/start. The gate must be open
-    // during turn/start's await window because codex's websocket retry burst
-    // can land on stderr before the RPC returns. If turn/start itself throws,
-    // close the gate so subsequent unsolicited codex stderr stays silent.
-    this.authGate.openTurn();
     // Only flip turnInFlight after turn/start succeeds. If the request throws
     // (e.g. wire error) we don't want handleSubprocessExit to later synthesize
     // a phantom failed turn_completed for a turn that never actually started
     // — the orchestrator would surface a bogus mid-turn failure.
-    try {
-      await this.client.request("turn/start", {
-        threadId: this.threadId,
-        input,
-      });
-    } catch (err) {
-      // If turn/start itself rejects with an auth-shaped error (a future
-      // codex revision could pre-check auth before accepting the turn),
-      // emit the same single auth signal we'd emit from stderr so the
-      // user still gets the sign-in card. Without this, flushQueue's
-      // generic catch logs "Error flushing queue: ..." with no auth
-      // detection and the login card is lost on this code path. The
-      // helper enforces the once-per-turn latch; the post-throw clears
-      // also close the gate so any remaining auth-shaped notification
-      // for this dead turn stays silent.
-      const message = errMessage(err);
-      if (AUTH_ERROR_PATTERNS.test(message)) {
-        this.enqueueAuthAwareSystemText(`Codex auth error during turn start: ${message}`);
-      }
-      this.authGate.resetTurn();
-      throw err;
-    }
+    await startCodexTurn({
+      client: this.client,
+      threadId: this.threadId,
+      input,
+      authGate: this.authGate,
+      enqueueAuthAwareSystemText: (message) => this.enqueueAuthAwareSystemText(message),
+    });
     this.turnInFlight = true;
   }
 
