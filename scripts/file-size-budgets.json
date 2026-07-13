@@ -1,6 +1,7 @@
 {
-  "default_lines": 350,
+  "default_lines": 340,
   "files": {
-    "articles/punching-in-building-an-office-for-ai-agents.md": 600
+    "articles/punching-in-building-an-office-for-ai-agents.md": 600,
+    "docs/features/multi-office-design.md": 360
   }
 }
