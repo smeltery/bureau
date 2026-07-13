@@ -4,6 +4,7 @@ import { LogEntryCard } from "../log-view/entries/index.tsx";
 import { send } from "../ws.ts";
 import { cronjobRunStreamId, type CronjobRun, type LogEntry } from "../../shared/types.ts";
 import { CronjobRunHeader, CronjobRunSummary } from "./cronjob-run-details.tsx";
+import { CronjobRunComposer } from "./CronjobRunComposer.tsx";
 
 // Cronjob runs are resumable: any boss can send follow-up turns into a past
 // run, and edit-to-fork lets them branch from any prior user message. The
@@ -191,98 +192,20 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
       </div>
 
       {/* Input — replaces the old read-only banner. Hidden for unresumable runs. */}
-      {canResume ? (
-        <div
-          style={{
-            flexShrink: 0,
-            padding: isMobile ? "10px 12px 10px 11px" : "10px 24px 10px 11px",
-            paddingBottom: isMobile ? "calc(10px + env(safe-area-inset-bottom, 0px))" : undefined,
-            borderTop: "2px solid var(--border-strong)",
-            background: "var(--bg-surface)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-            <span style={{ color: "var(--green)", fontWeight: 600, lineHeight: "20px", position: "relative", top: -2 }}>&#10095;</span>
-            <div style={{ flex: 1, position: "relative", top: -2 }}>
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  autoResize(e.target);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey && !isMobile && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder={editingLogEntryId ? "Editing message above..." : "Send a follow-up"}
-                autoFocus={!isMobile}
-                rows={1}
-                disabled={!!editingLogEntryId}
-                style={{
-                  width: "100%",
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  color: editingLogEntryId ? "var(--text-muted)" : "var(--text-secondary)",
-                  fontFamily: "'JetBrains Mono',monospace",
-                  fontSize: isMobile ? 16 : 13,
-                  caretColor: "var(--green)",
-                  resize: "none",
-                  padding: "0 0 4px",
-                  lineHeight: "20px",
-                  maxHeight: 200,
-                  overflowY: "auto",
-                }}
-              />
-            </div>
-            {isMobile && (
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || !!editingLogEntryId}
-                style={{
-                  flexShrink: 0,
-                  alignSelf: "flex-end",
-                  width: 36,
-                  height: 36,
-                  borderRadius: 8,
-                  border: "none",
-                  background: input.trim() && !editingLogEntryId ? "var(--green)" : "var(--bg-hover)",
-                  color: input.trim() && !editingLogEntryId ? "var(--bg-base)" : "var(--text-ghost)",
-                  fontSize: 16,
-                  cursor: input.trim() && !editingLogEntryId ? "pointer" : "default",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  lineHeight: 1,
-                }}
-                title="Send"
-              >
-                ▲
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div
-          style={{
-            padding: "10px 16px",
-            borderTop: "1px solid var(--border-subtle)",
-            background: "var(--bg-surface)",
-            fontSize: 11,
-            color: "var(--text-muted)",
-            textAlign: "center",
-          }}
-        >
-          {isRunning
-            ? "Run in progress — wait for it to finish before sending a follow-up."
-            : run?.status === "skipped"
-              ? "Skipped runs have no session to resume."
-              : "This run can't be resumed (no session was established)."}
-        </div>
-      )}
+      <CronjobRunComposer
+        canResume={canResume}
+        editingLogEntryId={editingLogEntryId}
+        input={input}
+        isMobile={isMobile}
+        isRunning={isRunning}
+        runStatus={run?.status ?? null}
+        textareaRef={textareaRef}
+        onInputChange={(value, textarea) => {
+          setInput(value);
+          autoResize(textarea);
+        }}
+        onSend={handleSend}
+      />
     </div>
   );
 }
