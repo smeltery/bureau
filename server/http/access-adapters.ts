@@ -1,84 +1,16 @@
-import type { ServerMessage, UserRecord } from "../../shared/types.ts";
-import type { InviteWire } from "../../shared/types.ts";
+import type { UserRecord } from "../../shared/types.ts";
 import { normalizePublicOrigin } from "../../shared/public-origin.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { browsers } from "../ws/broadcast.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
 import { refreshPresenceForUser } from "../presence.ts";
 import { loadOfficeConfig, saveOfficeConfig } from "../persistence.ts";
-import {
-  buildPublicOrigin,
-  evictSessionsForUserId,
-  isProcessBoundLoopback,
-  logoutBySessionHash,
-  mintInvite,
-  resolveSessionHashByPrefix,
-  revokeActiveSessionByPrefixForUserId,
-  revokeInviteByPrefix,
-  revokeOutstandingInviteByPrefixForUsername,
-  revokeSessionByPrefix,
-  setOfficeName,
-  wouldRevokeLeaveOfficeUnreachable,
-} from "../auth/auth.ts";
+import { evictSessionsForUserId, isProcessBoundLoopback, mintInvite, setOfficeName } from "../auth/auth.ts";
 import { deleteUserById, getUserById, getUserByName, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
-import { broadcastToOwners, pushInvitesListToEachWs, pushSessionsListToEachWs } from "../access-broadcasts.ts";
+import { pushInvitesListToEachWs } from "../access-broadcasts.ts";
 import type { AccessSettingsWire, SetAccessResult } from "./access.ts";
-import type { InviteMintResult, InviteRevokeResult } from "./invites.ts";
-import type { SessionRevokeResult } from "./sessions.ts";
 import type { UserDeleteResult, UserMutationResult, UserRecordChanges } from "./users.ts";
 import type { ViewChangeInput } from "./view.ts";
-
-export async function revokeSessionForApi(userId: string, role: "owner" | "member", sessionPrefix: string): Promise<SessionRevokeResult> {
-  if (role === "owner") {
-    const targetHash = resolveSessionHashByPrefix(sessionPrefix);
-    if (targetHash && wouldRevokeLeaveOfficeUnreachable(targetHash)) return "would_strand_office";
-    const result = await revokeSessionByPrefix(sessionPrefix);
-    if (result === "ok") {
-      broadcastToOwners({ type: "session_revoked", sessionPrefix } as ServerMessage);
-      pushSessionsListToEachWs();
-    }
-    return result;
-  }
-  const result = await revokeActiveSessionByPrefixForUserId(sessionPrefix, userId);
-  if (result === "ok") pushSessionsListToEachWs();
-  return result;
-}
-
-export async function logoutSessionForApi(sessionIdHash: string): Promise<SessionRevokeResult> {
-  if (wouldRevokeLeaveOfficeUnreachable(sessionIdHash)) return "would_strand_office";
-  const ok = await logoutBySessionHash(sessionIdHash);
-  if (ok) pushSessionsListToEachWs();
-  return ok ? "ok" : "not_found";
-}
-
-export async function mintInviteForApi(input: { username: string; role: "owner" | "member"; allowExisting: boolean; createdBy: string }): Promise<InviteMintResult> {
-  const result = await mintInvite(input);
-  if (!result.ok) return { ok: false, error: result.error };
-  const { origin } = buildPublicOrigin();
-  pushInvitesListToEachWs();
-  return { ok: true, url: `${origin}/i/${result.rawToken}`, invite: wireInvite(result.invite) };
-}
-
-export async function mintSelfInviteForApi(input: { username: string; role: "owner" | "member"; createdBy: string }): Promise<InviteMintResult> {
-  const result = await mintInvite({
-    ...input,
-    allowExisting: true,
-    replacePriorForUsername: true,
-  });
-  if (!result.ok) return { ok: false, error: result.error };
-  const { origin } = buildPublicOrigin();
-  pushInvitesListToEachWs();
-  return { ok: true, url: `${origin}/i/${result.rawToken}`, invite: wireInvite(result.invite) };
-}
-
-export async function revokeInviteForApi(username: string, role: "owner" | "member", tokenPrefix: string): Promise<InviteRevokeResult> {
-  const result = role === "owner" ? await revokeInviteByPrefix(tokenPrefix) : await revokeOutstandingInviteByPrefixForUsername(tokenPrefix, username);
-  if (result === "ok") {
-    broadcastToOwners({ type: "invite_revoked", tokenPrefix } as ServerMessage);
-    pushInvitesListToEachWs();
-  }
-  return result;
-}
 
 export function readAccessSettingsForApi(): AccessSettingsWire {
   const cfg = loadOfficeConfig();
@@ -200,26 +132,6 @@ export async function deleteUserForApi(actorUserId: string, actorRole: "owner" |
   for (const browser of browsers) sendInitialPayload(browser);
   await evictSessionsForUserId(target.id);
   return { ok: true };
-}
-
-function wireInvite(invite: {
-  tokenPrefix: string;
-  username: string | null;
-  role: "owner" | "member";
-  createdBy: string | null;
-  createdAt: number;
-  expiresAt: number;
-  bootstrap: boolean;
-}): InviteWire {
-  return {
-    tokenPrefix: invite.tokenPrefix,
-    username: invite.username,
-    role: invite.role,
-    createdBy: invite.createdBy,
-    createdAt: invite.createdAt,
-    expiresAt: invite.expiresAt,
-    ...(invite.bootstrap ? { bootstrap: true as const } : {}),
-  };
 }
 
 function pushUserViewUpdate(user: Pick<UserRecord, "id" | "name" | "avatarColor" | "avatarVariant" | "allowedRooms">) {

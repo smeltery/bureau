@@ -7,19 +7,9 @@ import { tryHandleAuthRoute } from "../auth/auth-routes.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "../public-origin.ts";
 import { pushPresenceListToEachWs } from "../ws-initial-payload.ts";
 import type { WsData } from "../ws/websocket-handlers.ts";
-import {
-  applyViewPreference,
-  deleteUserForApi,
-  logoutSessionForApi,
-  mintInviteForApi,
-  mintSelfInviteForApi,
-  readAccessSettingsForApi,
-  revokeInviteForApi,
-  revokeSessionForApi,
-  saveAccessSettingsForApi,
-  setUserAccessForApi,
-  updateUserForApi,
-} from "./access-adapters.ts";
+import { applyViewPreference, deleteUserForApi, readAccessSettingsForApi, saveAccessSettingsForApi, setUserAccessForApi, updateUserForApi } from "./access-adapters.ts";
+import { mintInviteForApi, mintSelfInviteForApi, revokeInviteForApi } from "./access-invite-adapters.ts";
+import { logoutSessionForApi, revokeSessionForApi } from "./access-session-adapters.ts";
 import { handleAccessRequest } from "./access.ts";
 import { handleAgentsRequest } from "./agents.ts";
 import { handleBackendsRequest } from "./backends.ts";
