@@ -4,9 +4,9 @@ import { FitAddon } from "@xterm/addon-fit";
 import { send, addRawListener, removeRawListener } from "../ws.ts";
 import { useTheme } from "../store.tsx";
 import type { ServerMessage } from "../../shared/types.ts";
-import { applyCtrl, ensureMobileTerminalStyle, MobileSoftKeyBar, type SoftKey } from "./terminal-mobile.tsx";
+import { ensureMobileTerminalStyle, MobileSoftKeyBar } from "./terminal-mobile.tsx";
 import { useMobileTerminalTouch } from "./useMobileTerminalTouch.ts";
-import { useMobileKeyboardOpen } from "./terminal/useMobileKeyboardOpen.ts";
+import { useTerminalSoftKeys } from "./terminal/useTerminalSoftKeys.ts";
 import { DARK_TERMINAL_THEME, LIGHT_TERMINAL_THEME } from "./terminal-themes.ts";
 import { TerminalHeader } from "./terminal-chrome.tsx";
 import { TerminalPanelBody } from "./terminal/TerminalPanelBody.tsx";
@@ -42,16 +42,6 @@ export function TerminalPanel({
   const scrollMovedRef = useRef<(() => boolean) | null>(null);
   const { mode } = useTheme();
   const [exited, setExited] = useState<number | null>(null);
-  const [ctrlActive, setCtrlActive] = useState(false);
-  const ctrlActiveRef = useRef(false);
-  const keyboardOpen = useMobileKeyboardOpen(mobile);
-  // Wrap the state setter so the ref stays in sync without a render-time
-  // write. sendInput / handleSoftKey both read the ref synchronously inside
-  // event handlers, so it must lead the React render.
-  const setCtrl = useCallback((v: boolean) => {
-    ctrlActiveRef.current = v;
-    setCtrlActive(v);
-  }, []);
 
   // Handle server messages for this terminal
   const handleRawMessage = useCallback(
@@ -68,18 +58,13 @@ export function TerminalPanel({
     [agentId],
   );
 
-  // Send keystrokes to the PTY, applying the sticky Ctrl modifier if armed.
   const sendInput = useCallback(
     (data: string) => {
-      let toSend = data;
-      if (ctrlActiveRef.current) {
-        toSend = applyCtrl(data);
-        setCtrl(false);
-      }
-      send({ type: "terminal_input", agentId, data: toSend });
+      send({ type: "terminal_input", agentId, data });
     },
-    [agentId, setCtrl],
+    [agentId],
   );
+  const { ctrlActive, handleSoftKey, keyboardOpen, sendModifiedInput } = useTerminalSoftKeys({ inputProxyRef, mobile, sendInput, termRef });
 
   // Initialize terminal
   useEffect(() => {
@@ -127,7 +112,7 @@ export function TerminalPanel({
     });
 
     term.onData((data) => {
-      sendInput(data);
+      sendModifiedInput(data);
     });
 
     termRef.current = term;
@@ -187,47 +172,6 @@ export function TerminalPanel({
     // Close old PTY (if still around) and open a new one
     send({ type: "terminal_close", agentId });
     setTimeout(() => send({ type: "terminal_open", agentId }), 100);
-  }
-
-  async function doPaste() {
-    // Try the async Clipboard API first. Requires a secure context, so on
-    // plain-HTTP tailnet access (the common case here) it'll usually reject
-    // and we fall back to window.prompt, where the user long-presses to
-    // paste from the iOS/Android system paste menu. term.paste handles
-    // bracketed-paste wrapping based on whether the shell enabled it.
-    let text = "";
-    try {
-      if (navigator.clipboard?.readText) {
-        text = await navigator.clipboard.readText();
-      }
-    } catch {}
-    if (!text) {
-      const fromPrompt = window.prompt("Paste:");
-      if (fromPrompt) text = fromPrompt;
-    }
-    if (text) termRef.current?.paste(text);
-    inputProxyRef.current?.focus();
-  }
-
-  function handleSoftKey(key: SoftKey) {
-    if (key.toggleCtrl) {
-      setCtrl(!ctrlActiveRef.current);
-      // Re-focus the proxy so the next typed key from the on-screen keyboard
-      // is still captured.
-      inputProxyRef.current?.focus();
-      return;
-    }
-    if (key.action === "paste") {
-      void doPaste();
-      return;
-    }
-    if (key.arrow) {
-      // Arrow keys honor the Ctrl modifier (for word-jump in shells).
-      sendInput(key.arrow);
-    } else if (key.data !== undefined) {
-      sendInput(key.data);
-    }
-    inputProxyRef.current?.focus();
   }
 
   return (
