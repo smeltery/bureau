@@ -1,22 +1,9 @@
-import type { UserRole, SessionContext } from "../../shared/types.ts";
 import { getUserById } from "../users.ts";
+import { fireSessionsChangedHook, setOnSessionsChanged } from "./session-events.ts";
 import { forceExpireSocketsForSession } from "./session-sockets.ts";
-import { hashOf, safeHashEq } from "./tokens.ts";
 import { ensureLoaded, mutate, persistSessions, sessionStore } from "./store.ts";
-
-let onSessionsChangedHook: () => void = () => {};
-
-export function setOnSessionsChanged(cb: () => void): void {
-  onSessionsChangedHook = cb;
-}
-
-function fireSessionsChangedHook(): void {
-  try {
-    onSessionsChangedHook();
-  } catch (err) {
-    console.error("[auth] onSessionsChangedHook threw:", err);
-  }
-}
+export { setOnSessionsChanged };
+export { revalidateByHash, sessionContextFor, validateSession, type SessionLookup } from "./session-validation.ts";
 
 export type SessionRevokeResult = "ok" | "not_found" | "ambiguous";
 
@@ -85,77 +72,6 @@ export async function evictSessionsForUserId(userId: string): Promise<number> {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Validation (per-request hot path: must be O(1), no IO).
-
-export interface SessionLookup {
-  sessionIdHash: string;
-  sessionPrefix: string;
-  userId: string;
-  username: string;
-  role: UserRole;
-  needsRolling: boolean;
-}
-
-let lastPersist = 0;
-const PERSIST_THROTTLE_MS = 30_000;
-
-export function validateSession(rawCookie: string | null): SessionLookup | null {
-  if (!rawCookie) return null;
-  ensureLoaded();
-  const hash = hashOf(rawCookie);
-  return validateByHash(hash);
-}
-
-export function revalidateByHash(sessionIdHash: string): SessionLookup | null {
-  ensureLoaded();
-  return validateByHash(sessionIdHash);
-}
-
-function validateByHash(hash: string): SessionLookup | null {
-  const session = sessionStore().get(hash);
-  if (!session) return null;
-  if (!safeHashEq(session.sessionIdHash, hash)) return null;
-  const now = Date.now();
-  if (session.expiresAt < now || session.absoluteExpiresAt < now) {
-    sessionStore().delete(hash);
-    forceExpireSocketsForSession(hash);
-    fireSessionsChangedHook();
-    return null;
-  }
-  const user = getUserById(session.userId);
-  if (!user) {
-    sessionStore().delete(hash);
-    forceExpireSocketsForSession(hash);
-    fireSessionsChangedHook();
-    return null;
-  }
-  const rollingTtlMs = 30 * 24 * 60 * 60 * 1000;
-  const newExpires = Math.min(now + rollingTtlMs, session.absoluteExpiresAt);
-  let needsRolling = false;
-  if (newExpires > session.expiresAt + 60_000) {
-    session.expiresAt = newExpires;
-    needsRolling = true;
-  }
-  session.lastSeenAt = now;
-  if (now - lastPersist > PERSIST_THROTTLE_MS) {
-    lastPersist = now;
-    try {
-      persistSessions();
-    } catch (err) {
-      console.error("[auth] throttled sessions persist failed:", err);
-    }
-  }
-  return {
-    sessionIdHash: hash,
-    sessionPrefix: session.sessionPrefix,
-    userId: user.id,
-    username: user.name,
-    role: user.role,
-    needsRolling,
-  };
-}
-
 export type ScopedSessionRevokeResult = SessionRevokeResult | "would_strand_office";
 
 export async function revokeActiveSessionByPrefixForUserId(prefix: string, userId: string): Promise<ScopedSessionRevokeResult> {
@@ -190,16 +106,6 @@ export async function revokeActiveSessionByPrefixForUserId(prefix: string, userI
     fireSessionsChangedHook();
     return "ok";
   });
-}
-
-export function sessionContextFor(lookup: SessionLookup, connectionId: string): SessionContext {
-  return {
-    userId: lookup.userId,
-    username: lookup.username,
-    role: lookup.role,
-    currentSessionPrefix: lookup.sessionPrefix,
-    connectionId,
-  };
 }
 
 // ---------------------------------------------------------------------------
