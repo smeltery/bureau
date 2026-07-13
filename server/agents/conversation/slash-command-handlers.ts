@@ -1,4 +1,4 @@
-import { MODEL_FAMILIES, EFFORT_LEVELS, familyDisplayLabel, effortDisplayLabel } from "../../../shared/types.ts";
+import { familyDisplayLabel } from "../../../shared/types.ts";
 import { listAgentSessions } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { createSession, emitLoginInstructions, replaceSession } from "../session/runtime.ts";
@@ -7,6 +7,7 @@ import { persistCurrentSessionTopic } from "../topic.ts";
 import { renderUsageReport } from "../usage.ts";
 import { handleHelpCommand } from "./slash-help.ts";
 import { handleBureauDiffCommand, handleBureauEditCommand, handleBureauMessageCommand } from "./slash-bureau-tools.ts";
+import { handleEffortCommand, handleModelCommand } from "./slash-model-effort.ts";
 import { handleBureauCronjobSystemPromptCommand, handleBureauSystemPromptCommand } from "./slash-prompt-commands.ts";
 
 type HandlerFn = (agentId: string, managed: ManagedAgent, args: string[], rawText: string, username?: string) => Promise<boolean>;
@@ -158,39 +159,8 @@ export const commandHandlers: Record<string, HandlerFn> = {
     return true;
   },
 
-  async model(agentId, managed, _args, rawText, username) {
-    const userMeta = username ? { username } : undefined;
-    emitEphemeralLog(agentId, "user_message", rawText, userMeta);
-    const currentLabel = familyDisplayLabel(managed.info.modelFamily);
-    const lines: string[] = [`Switch model (current: **${currentLabel}**):\n`];
-    for (let i = 0; i < MODEL_FAMILIES.length; i++) {
-      const m = MODEL_FAMILIES[i];
-      const marker = m.family === managed.info.modelFamily ? " (current)" : "";
-      lines.push(`  ${i + 1}. ${familyDisplayLabel(m.family)}${marker}`);
-    }
-    lines.push("\nReply with a number to switch, or anything else to cancel.");
-    emitEphemeralLog(agentId, "system", lines.join("\n"));
-    managed.pendingModelPick = true;
-    updateState(agentId, "waiting_for_response");
-    return true;
-  },
-
-  async effort(agentId, managed, _args, rawText, username) {
-    const userMeta = username ? { username } : undefined;
-    emitEphemeralLog(agentId, "user_message", rawText, userMeta);
-    const currentLabel = effortDisplayLabel(managed.info.effort);
-    const lines: string[] = [`Switch thinking effort (current: **${currentLabel}**):\n`];
-    for (let i = 0; i < EFFORT_LEVELS.length; i++) {
-      const e = EFFORT_LEVELS[i];
-      const marker = e.level === managed.info.effort ? " (current)" : "";
-      lines.push(`  ${i + 1}. ${effortDisplayLabel(e.level)}${marker}`);
-    }
-    lines.push("\nReply with a number to switch, or anything else to cancel.");
-    emitEphemeralLog(agentId, "system", lines.join("\n"));
-    managed.pendingEffortPick = true;
-    updateState(agentId, "waiting_for_response");
-    return true;
-  },
+  model: handleModelCommand,
+  effort: handleEffortCommand,
 
   async bureauAllHands(agentId, _managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
