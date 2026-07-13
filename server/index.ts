@@ -6,8 +6,7 @@ import { loadPlugins } from "./plugins/registry.ts";
 import { join as joinPath } from "path";
 import { onUpdateChange, startUpdateChecker } from "./update-checker.ts";
 import { getBackupStatus, startBackupScheduler } from "./backup.ts";
-import { broadcast, browsers } from "./ws/broadcast.ts";
-import { getWsUser } from "./users.ts";
+import { broadcast } from "./ws/broadcast.ts";
 import { closeEditorWatch, findBrowserConnection, watchEditorFile } from "./editor-watchers.ts";
 export { editorWatchers } from "./editor-watchers.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "./ws-initial-payload.ts";
@@ -34,21 +33,10 @@ import { handleAccessRequest } from "./http/access.ts";
 import { handleUsersRequest } from "./http/users.ts";
 import { handleStaticRequest } from "./http/static.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "./public-origin.ts";
-import { authenticate, setOnOwnerCreated, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
-import {
-  getOfficeName,
-  isProcessPreClaim,
-  setOfficeName,
-  setOnInviteConsumed,
-  setOnSessionsChanged,
-  setRoomsSnapshotProvider,
-  isProcessBoundLoopback,
-  listActiveSessions,
-  listActiveSessionsForUserId,
-  listInvites,
-  listInvitesForUsername,
-} from "./auth/auth.ts";
+import { authenticate, tryHandleAuthRoute } from "./auth/auth-middleware.ts";
+import { getOfficeName, isProcessPreClaim, listActiveSessions, listActiveSessionsForUserId, listInvites, listInvitesForUsername } from "./auth/auth.ts";
 import { startAdminSocket } from "./auth/admin-socket.ts";
+import { installAuthCallbacks } from "./auth/auth-callbacks.ts";
 import { boundExternal, initializeAccessConfig } from "./boot-access.ts";
 import { printStartupBanner, resolveListenOptions } from "./boot-listen.ts";
 import {
@@ -83,45 +71,7 @@ if (Bun.argv[2] === "owner-login") {
 
 initializeAccessConfig();
 
-// Inject the room snapshot provider auth.ts uses when seeding a new owner's
-// allowedRooms at invite-acceptance time. The provider closes over
-// AgentManager.getRooms() rather than auth.ts importing agent-manager
-// directly — keeps the dependency graph one-way.
-setRoomsSnapshotProvider(() => AgentManager.getRooms().map((r) => r.id));
-
-// When an invite is consumed (typically via HTTP POST /auth/accept, which
-// never touches the WS dispatch loop), fan out an updated invites list to
-// every owner WS so their Access pane re-renders in real time.
-setOnInviteConsumed(() => {
-  for (const browser of browsers) {
-    const user = getWsUser(browser);
-    if (user?.role === "owner") {
-      browser.send(JSON.stringify({ type: "invites_list", invites: listInvites() } as ServerMessage));
-      browser.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessions() } as ServerMessage));
-    }
-  }
-});
-
-// Owner sessions table stays fresh on any server-initiated session
-// invalidation: revoke, logout, delete-user fanout, and the hot-path
-// expiry / orphan branches.
-setOnSessionsChanged(() => {
-  for (const browser of browsers) {
-    const user = getWsUser(browser);
-    if (user?.role === "owner") {
-      browser.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessions() } as ServerMessage));
-    }
-  }
-});
-
-// First-claim hook: seed the office at the moment the first owner is
-// created (tokenless claim form or legacy bootstrap-invite accept). Bureau
-// starts empty (the first agent is spawned by the user on demand), so this
-// hook is intentionally a no-op for now. It exists as the supported extension
-// point for seeding welcome agents into a freshly claimed office.
-setOnOwnerCreated(async ({ username }) => {
-  void username;
-});
+installAuthCallbacks(() => AgentManager.getRooms());
 
 wireAgentAndCronjobEvents();
 
