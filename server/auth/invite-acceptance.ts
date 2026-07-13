@@ -2,7 +2,8 @@ import type { UserRole } from "../../shared/types.ts";
 import { claimUserByName, getUserByName, hasOwner } from "../users.ts";
 import { commitBootstrapOwnerUser, snapshotRoomIds } from "./bootstrap-owner.ts";
 import { markAllUnconsumedBootstrapInvitesConsumed } from "./bootstrap-invites.ts";
-import { hashOf, randomToken, safeHashEq } from "./tokens.ts";
+import { createSessionForUser } from "./session-creation.ts";
+import { hashOf, safeHashEq } from "./tokens.ts";
 import { ensureLoaded, inviteStore, mutate, persistInvites, persistSessions, sessionStore } from "./store.ts";
 
 let onInviteConsumedHook: () => void = () => {};
@@ -107,20 +108,8 @@ export async function acceptInvite(rawToken: string, ctx: { userAgent: string | 
       });
     }
 
-    const { raw: rawSessionId, hash: sessionHash, prefix } = randomToken();
+    const { rawSessionId, sessionHash, session } = createSessionForUser(userRecord.id, ctx.userAgent);
     const now = Date.now();
-    const rollingTtlMs = 30 * 24 * 60 * 60 * 1000;
-    const absoluteTtlMs = 365 * 24 * 60 * 60 * 1000;
-    const session = {
-      sessionIdHash: sessionHash,
-      sessionPrefix: prefix,
-      userId: userRecord.id,
-      createdAt: now,
-      lastSeenAt: now,
-      expiresAt: now + rollingTtlMs,
-      absoluteExpiresAt: now + absoluteTtlMs,
-      userAgent: ctx.userAgent,
-    };
 
     // Fail-closed ordering: persist the invite-consumed flag BEFORE the
     // session. If we issued a cookie but the invite stayed live, the
@@ -208,20 +197,7 @@ export async function claimOwnership(rawChosenName: string, ctx: { userAgent: st
 
     const { user: userRecord, rollback } = commitBootstrapOwnerUser(chosenName);
 
-    const { raw: rawSessionId, hash: sessionHash, prefix } = randomToken();
-    const now = Date.now();
-    const rollingTtlMs = 30 * 24 * 60 * 60 * 1000;
-    const absoluteTtlMs = 365 * 24 * 60 * 60 * 1000;
-    const session = {
-      sessionIdHash: sessionHash,
-      sessionPrefix: prefix,
-      userId: userRecord.id,
-      createdAt: now,
-      lastSeenAt: now,
-      expiresAt: now + rollingTtlMs,
-      absoluteExpiresAt: now + absoluteTtlMs,
-      userAgent: ctx.userAgent,
-    };
+    const { rawSessionId, sessionHash, session } = createSessionForUser(userRecord.id, ctx.userAgent);
     sessionStore().set(sessionHash, session);
     try {
       persistSessions();
