@@ -16,6 +16,7 @@ import diff from "highlight.js/lib/languages/diff";
 import yaml from "highlight.js/lib/languages/yaml";
 import markdown from "highlight.js/lib/languages/markdown";
 import plaintext from "highlight.js/lib/languages/plaintext";
+import { renderMermaidBlocks } from "./markdown/mermaid.ts";
 
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("js", javascript);
@@ -101,32 +102,6 @@ marked.use({
     },
   ],
 });
-
-// Lazy singleton: mermaid is ~1MB minified, so we only fetch it the first
-// time a message containing a mermaid block reaches the renderer.
-let mermaidPromise: Promise<typeof import("mermaid").default> | null = null;
-// Monotonically-unique per-render id. Mermaid uses the id we pass to render()
-// as a prefix for internal SVG defs/markers/clipPath etc., and same-document
-// id collisions cause url(#...) refs to resolve to the wrong element. A
-// counter (rather than Date.now() + index) keeps every render unique even if
-// many Markdown components mount on the same tick.
-let mermaidIdCounter = 0;
-function getMermaid() {
-  if (!mermaidPromise) {
-    mermaidPromise = import("mermaid").then((mod) => {
-      const m = mod.default;
-      const mode = document.documentElement.getAttribute("data-theme-mode") === "dark" ? "dark" : "default";
-      m.initialize({
-        startOnLoad: false,
-        theme: mode,
-        securityLevel: "strict",
-        fontFamily: "DM Sans, sans-serif",
-      });
-      return m;
-    });
-  }
-  return mermaidPromise;
-}
 
 const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5a1.5 1.5 0 0 0-1.5-1.5H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>`;
 const CHECK_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></svg>`;
@@ -214,43 +189,7 @@ export function Markdown({ content }: { content: string }) {
   useEffect(() => {
     const root = containerRef.current;
     if (!root) return;
-    const nodes = Array.from(root.querySelectorAll<HTMLElement>(".mermaid:not([data-processed])"));
-    if (nodes.length === 0) return;
-    const sources = nodes.map((n) => n.getAttribute("data-mermaid-source") ?? "");
-    let cancelled = false;
-    const markError = (node: HTMLElement, prefix: string, msg: string, src: string) => {
-      const wrapper = node.closest<HTMLElement>(".mermaid-wrapper");
-      if (wrapper) wrapper.setAttribute("data-mermaid-error", "true");
-      node.textContent = `${prefix}: ${msg}\n\n${src}`;
-      node.setAttribute("data-processed", "true");
-    };
-    getMermaid()
-      .then(async (m) => {
-        if (cancelled) return;
-        for (let i = 0; i < nodes.length; i++) {
-          if (cancelled) return;
-          const node = nodes[i];
-          try {
-            const id = `mmd-${++mermaidIdCounter}`;
-            const { svg } = await m.render(id, sources[i]);
-            node.innerHTML = svg;
-            node.setAttribute("data-processed", "true");
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            markError(node, "Mermaid error", msg, sources[i]);
-          }
-        }
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        const msg = e instanceof Error ? e.message : String(e);
-        nodes.forEach((node, i) => {
-          markError(node, "Failed to load mermaid", msg, sources[i]);
-        });
-      });
-    return () => {
-      cancelled = true;
-    };
+    return renderMermaidBlocks(root);
   }, [html]);
 
   return <div ref={containerRef} className="md-content" onClick={(e) => void onClick(e)} />;
