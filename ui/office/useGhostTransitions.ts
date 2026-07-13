@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentInfo, PresenceInfo } from "../../shared/types.ts";
-import { computeNaturalPlacements, mapsEqual, type DoorCoord, type GhostPlacement } from "./ghost-placement.ts";
+import { resolveGhostTransitionUpdate } from "./ghost-transition-detection.ts";
+import { computeNaturalPlacements, type DoorCoord, type GhostPlacement } from "./ghost-placement.ts";
 
 // CSS transition duration (ms) for ghost left/top — must match the
 // `transition: left ... top ...` declaration in Ghost.tsx's motionStyle.
@@ -79,79 +80,18 @@ export function useGhostTransitions(
   // value reflects them. React discards the just-returned output and
   // re-renders with the updated state before painting.
   if (presences !== prevPresences || currentRoom !== prevOwnRoom) {
-    const ownChanged = prevOwnRoom !== currentRoom;
-
-    if (ownChanged) {
-      // The viewer moved. Their natural appearance/disappearance from our
-      // view is from our movement, not theirs — drop any in-flight
-      // animations. The exit-timer / rAF cleanup happens in the [entering]
-      // and [exiting] sync effects when the maps reduce to empty.
-      if (entering.size > 0) setEntering(new Map());
-      if (exiting.size > 0) setExiting(new Map());
-    } else {
-      const newEnteringEntries = new Map<string, DoorCoord>();
-      const newExitingEntries = new Map<string, GhostPlacement>();
-
-      for (const p of presences) {
-        const prevRoom = prevRoomByCid.get(p.connectionId);
-        const currRoom = p.currentRoom;
-        if (prevRoom === undefined) continue;
-        if (prevRoom === currRoom) continue;
-        if (prevRoom === null || currRoom === null) continue;
-
-        const goingForward = currRoom > prevRoom;
-        if (prevRoom === currentRoom) {
-          const door = goingForward ? rightDoor : leftDoor;
-          newExitingEntries.set(p.connectionId, {
-            presence: p,
-            left: door.left,
-            top: door.top,
-            dimmed: p.viewMode === "away",
-          });
-        } else if (currRoom === currentRoom) {
-          const door = goingForward ? leftDoor : rightDoor;
-          newEnteringEntries.set(p.connectionId, {
-            left: door.left,
-            top: door.top,
-          });
-        }
-      }
-
-      if (newEnteringEntries.size > 0) {
-        // Merge per-cid: preserve any still-pending entering overrides
-        // from a prior render (within the rAF clear window) so a second
-        // arrival's door-coord paint doesn't wipe out an earlier one.
-        const mergedEntering = new Map(entering);
-        let enteringChanged = false;
-        for (const [cid, door] of newEnteringEntries) {
-          if (mergedEntering.get(cid) !== door) {
-            mergedEntering.set(cid, door);
-            enteringChanged = true;
-          }
-        }
-        if (enteringChanged) setEntering(mergedEntering);
-      }
-
-      // Rebound (someone re-entered while a phantom of theirs was active):
-      // dropping the phantom lets the natural placement take over; the
-      // existing DOM element transitions from door back to natural.
-      //
-      // Known edge case: if the entry door differs from the exit door
-      // (presence went R -> R+1 -> R-1 -> R fast enough to land while
-      // the phantom is still alive), the same DOM element slides across
-      // the entire scene instead of remount-popping at the new door.
-      // Requires three room hops within EXIT_PHANTOM_LIFETIME_MS — rare.
-      // Fix would be a per-cid remount-generation key, but that
-      // complicates the common same-door rebound. Deferred for v1.
-      const enteredCids = Array.from(newEnteringEntries.keys());
-      const rebounds = enteredCids.filter((cid) => exiting.has(cid));
-      if (newExitingEntries.size > 0 || rebounds.length > 0) {
-        const mergedExiting = new Map(exiting);
-        for (const cid of rebounds) mergedExiting.delete(cid);
-        for (const [cid, ph] of newExitingEntries) mergedExiting.set(cid, ph);
-        if (!mapsEqual(exiting, mergedExiting)) setExiting(mergedExiting);
-      }
-    }
+    const update = resolveGhostTransitionUpdate({
+      presences,
+      currentRoom,
+      prevOwnRoom,
+      prevRoomByCid,
+      entering,
+      exiting,
+      leftDoor,
+      rightDoor,
+    });
+    if (update.entering) setEntering(update.entering);
+    if (update.exiting) setExiting(update.exiting);
 
     setPrevPresences(presences);
     setPrevOwnRoom(currentRoom);
