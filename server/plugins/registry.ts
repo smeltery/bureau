@@ -29,13 +29,14 @@
  * what code I'm pulling in." See docs/features/plugin-system.md.
  */
 
-import { appendFileSync, existsSync, mkdirSync, realpathSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync, realpathSync } from "fs";
+import { join } from "path";
 import { homedir } from "os";
 import { pathToFileURL } from "url";
 import type { BureauPlugin } from "../../shared/plugin-types.ts";
+import { errMessage } from "../../shared/errors.ts";
 import type { EnabledPluginEntry } from "../persistence.ts";
-import { PLUGINS_LOG_FILE } from "../persistence/paths.ts";
+import { logPluginFailure } from "./failure-log.ts";
 
 export interface LoadedPlugin {
   plugin: BureauPlugin;
@@ -204,65 +205,4 @@ function materializePlugin(candidate: Record<string, unknown>): BureauPlugin | n
     plugin.afterTurn = candidate.afterTurn as BureauPlugin["afterTurn"];
   }
   return plugin;
-}
-
-// ---------------------------------------------------------------------------
-// Failure logging — JSONL stream at ~/.bureau/logs/plugins.jsonl
-// ---------------------------------------------------------------------------
-//
-// Hook failures and load errors are cross-agent and sometimes pre-agent
-// (boot discovery). A dedicated stream keeps them out of chat-log entries
-// (a noisy memory plugin would otherwise degrade core chat) while still
-// being grep-able for forensics. Records include enough routing fields
-// (agentId, roomId, origin) for operators to scope down. Full message text
-// is NOT logged — plugin prefixes and user turns can contain secrets.
-
-export interface PluginFailureRecord {
-  pluginId: string;
-  hook: "discovery" | "load" | "beforeTurn" | "afterTurn";
-  agentId?: string;
-  roomId?: string;
-  origin?: "user" | "queued" | "skill" | "edit-fork";
-  durationMs: number;
-  error: unknown;
-}
-
-export function logPluginFailure(rec: PluginFailureRecord): void {
-  const errorSummary = rec.error instanceof Error ? `${rec.error.name}: ${rec.error.message}` : typeof rec.error === "string" ? rec.error : safeStringify(rec.error);
-  const line = JSON.stringify({
-    ts: Date.now(),
-    pluginId: rec.pluginId,
-    hook: rec.hook,
-    agentId: rec.agentId,
-    roomId: rec.roomId,
-    origin: rec.origin,
-    durationMs: rec.durationMs,
-    error: errorSummary,
-  });
-  try {
-    mkdirSync(dirname(PLUGINS_LOG_FILE), { recursive: true });
-    appendFileSync(PLUGINS_LOG_FILE, line + "\n");
-  } catch (err) {
-    // Fallback to stderr — operator needs to know failures aren't being
-    // captured to disk. Don't swallow silently.
-    console.error("[plugins] failed to write failure log:", err, "record was:", line);
-  }
-  // Also echo to stderr so failures surface in journalctl / equivalent.
-  // A consistently misbehaving plugin will be loud here, prompting the
-  // operator to disable it.
-  console.error(`[plugins] failure: ${line}`);
-}
-
-function safeStringify(v: unknown): string {
-  try {
-    return JSON.stringify(v);
-  } catch {
-    return String(v);
-  }
-}
-
-function errMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  if (typeof err === "string") return err;
-  return safeStringify(err);
 }

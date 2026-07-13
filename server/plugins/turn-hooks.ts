@@ -2,7 +2,7 @@ import type { LogEntry } from "../../shared/types.ts";
 import type { BureauPlugin, PluginAfterTurnInput, PluginTurnContext } from "../../shared/plugin-types.ts";
 import type { ManagedAgent } from "../agents/state.ts";
 import type { TurnOrigin } from "./run-agent-turn.ts";
-import { logPluginFailure } from "./registry.ts";
+import { logPluginFailure } from "./failure-log.ts";
 
 const BEFORE_TURN_TIMEOUT_MS = 5000;
 const AFTER_TURN_TIMEOUT_MS = 10000;
