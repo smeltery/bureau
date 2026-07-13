@@ -10,10 +10,6 @@ import {
   buildPublicOrigin,
   evictSessionsForUserId,
   isProcessBoundLoopback,
-  listActiveSessions,
-  listActiveSessionsForUserId,
-  listInvites,
-  listInvitesForUsername,
   logoutBySessionHash,
   mintInvite,
   resolveSessionHashByPrefix,
@@ -24,37 +20,13 @@ import {
   setOfficeName,
   wouldRevokeLeaveOfficeUnreachable,
 } from "../auth/auth.ts";
-import { deleteUserById, getUserById, getUserByName, getWsUser, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
+import { deleteUserById, getUserById, getUserByName, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
+import { broadcastToOwners, pushInvitesListToEachWs, pushSessionsListToEachWs } from "../access-broadcasts.ts";
 import type { AccessSettingsWire, SetAccessResult } from "./access.ts";
 import type { InviteMintResult, InviteRevokeResult } from "./invites.ts";
 import type { SessionRevokeResult } from "./sessions.ts";
 import type { UserDeleteResult, UserMutationResult, UserRecordChanges } from "./users.ts";
 import type { ViewChangeInput } from "./view.ts";
-
-export function pushSessionsListToEachWs() {
-  for (const browser of browsers) {
-    const user = getWsUser(browser);
-    if (!user) continue;
-    const sessions = user.role === "owner" ? listActiveSessions() : listActiveSessionsForUserId(user.id);
-    browser.send(JSON.stringify({ type: "sessions_active_list", sessions } as ServerMessage));
-  }
-}
-
-export function pushInvitesListToEachWs() {
-  for (const browser of browsers) {
-    const user = getWsUser(browser);
-    if (!user) continue;
-    const invites = user.role === "owner" ? listInvites() : listInvitesForUsername(user.name);
-    browser.send(JSON.stringify({ type: "invites_list", invites } as ServerMessage));
-  }
-}
-
-export function broadcastToOwners(msg: ServerMessage) {
-  const data = JSON.stringify(msg);
-  for (const ws of browsers) {
-    if (getWsUser(ws)?.role === "owner") ws.send(data);
-  }
-}
 
 export async function revokeSessionForApi(userId: string, role: "owner" | "member", sessionPrefix: string): Promise<SessionRevokeResult> {
   if (role === "owner") {

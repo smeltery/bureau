@@ -1,13 +1,8 @@
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
-import { browsers } from "./broadcast.ts";
 import { getSessionContext, getWsUser } from "../users.ts";
 import {
   buildPublicOrigin,
-  listActiveSessions as listAuthSessions,
-  listActiveSessionsForUserId,
-  listInvites,
-  listInvitesForUsername,
   logoutBySessionHash,
   mintInvite,
   resolveSessionHashByPrefix,
@@ -18,41 +13,7 @@ import {
   wouldRevokeLeaveOfficeUnreachable,
 } from "../auth/auth.ts";
 import { handleAccessSettingsCommand } from "./access-settings-commands.ts";
-
-function isOwner(ws: ServerWebSocket<unknown>): boolean {
-  return getWsUser(ws)?.role === "owner";
-}
-
-function pushInvitesListToEachWs() {
-  for (const browser of browsers) {
-    const user = getWsUser(browser);
-    if (!user) continue;
-    if (user.role === "owner") {
-      browser.send(JSON.stringify({ type: "invites_list", invites: listInvites() } as ServerMessage));
-    } else {
-      browser.send(JSON.stringify({ type: "invites_list", invites: listInvitesForUsername(user.name) } as ServerMessage));
-    }
-  }
-}
-
-function pushSessionsListToEachWs() {
-  for (const browser of browsers) {
-    const user = getWsUser(browser);
-    if (!user) continue;
-    if (user.role === "owner") {
-      browser.send(JSON.stringify({ type: "sessions_active_list", sessions: listAuthSessions() } as ServerMessage));
-    } else {
-      browser.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessionsForUserId(user.id) } as ServerMessage));
-    }
-  }
-}
-
-function broadcastToOwners(msg: ServerMessage) {
-  const data = JSON.stringify(msg);
-  for (const ws of browsers) {
-    if (isOwner(ws)) ws.send(data);
-  }
-}
+import { broadcastToOwners, pushInvitesListToEachWs, pushSessionsListToEachWs, sendInvitesListToWs, sendSessionsListToWs } from "../access-broadcasts.ts";
 
 export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>): Promise<boolean> {
   switch (cmd.type) {
@@ -62,11 +23,7 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
         ws.send(JSON.stringify({ type: "sessions_active_list", sessions: [] } as ServerMessage));
         return true;
       }
-      if (user.role === "owner") {
-        ws.send(JSON.stringify({ type: "sessions_active_list", sessions: listAuthSessions() } as ServerMessage));
-      } else {
-        ws.send(JSON.stringify({ type: "sessions_active_list", sessions: listActiveSessionsForUserId(user.id) } as ServerMessage));
-      }
+      sendSessionsListToWs(ws);
       return true;
     }
     case "revoke_session": {
@@ -130,11 +87,7 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
     case "list_invites": {
       const user = getWsUser(ws);
       if (!user) return true;
-      if (user.role === "owner") {
-        ws.send(JSON.stringify({ type: "invites_list", invites: listInvites() } as ServerMessage));
-      } else {
-        ws.send(JSON.stringify({ type: "invites_list", invites: listInvitesForUsername(user.name) } as ServerMessage));
-      }
+      sendInvitesListToWs(ws);
       return true;
     }
     case "mint_invite": {

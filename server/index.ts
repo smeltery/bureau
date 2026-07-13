@@ -44,8 +44,6 @@ import {
   deleteUserForApi,
   mintInviteForApi,
   mintSelfInviteForApi,
-  pushInvitesListToEachWs,
-  pushSessionsListToEachWs,
   readAccessSettingsForApi,
   revokeInviteForApi,
   revokeSessionForApi,
@@ -54,6 +52,7 @@ import {
   setUserAccessForApi,
   updateUserForApi,
 } from "./http/access-adapters.ts";
+import { pushInvitesListToEachWs, pushSessionsListToEachWs } from "./access-broadcasts.ts";
 
 // ---------------------------------------------------------------------------
 // CLI sub-command fast-path. The operator invokes
