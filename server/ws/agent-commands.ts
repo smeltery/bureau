@@ -4,7 +4,8 @@ import * as AgentManager from "../agent-manager.ts";
 import { pushPresenceListToEachWs } from "../index.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import { getWsUser } from "../users.ts";
-import { broadcast } from "./broadcast.ts";
+import { handleAgentConversationCommand } from "./agent-conversation-commands.ts";
+import { handleAgentTerminalCommand } from "./agent-terminal-commands.ts";
 import { handleEditorCommand } from "./editor-commands.ts";
 import { canUseRoom } from "./user-commands.ts";
 
@@ -74,27 +75,11 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
       await AgentManager.abort(cmd.agentId);
       return true;
     case "send_message":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      // Don't await — let it stream in the background
-      AgentManager.sendMessage(cmd.agentId, cmd.text, cmd.username, cmd.attachments);
-      return true;
     case "dequeue_message":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      AgentManager.dequeueMessage(cmd.agentId, cmd.queuedId);
-      return true;
     case "send_now":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      AgentManager.sendNow(cmd.agentId).catch((err: any) => {
-        console.error(`sendNow failed for ${cmd.agentId}:`, err.message);
-      });
-      return true;
     case "new_conversation":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      await AgentManager.newConversation(cmd.agentId);
-      return true;
     case "resume":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      await AgentManager.resume(cmd.agentId, cmd.sessionId);
+      await handleAgentConversationCommand(cmd, (agentId) => canUseAgent(ws, agentId));
       return true;
     case "edit_agent": {
       if (!canUseAgent(ws, cmd.agentId)) return true;
@@ -156,48 +141,15 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
       AgentManager.swapDesks(cmd.deskA, cmd.deskB, cmd.roomId);
       return true;
     case "set_topic":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      AgentManager.setTopic(cmd.agentId, cmd.topic);
-      return true;
     case "reset_topic":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      AgentManager.resetTopic(cmd.agentId);
+    case "list_sessions":
+      await handleAgentConversationCommand(cmd, (agentId) => canUseAgent(ws, agentId));
       return true;
-    case "list_sessions": {
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      const sessions = AgentManager.listSessions(cmd.agentId);
-      const currentSessionId = AgentManager.getCurrentSessionId(cmd.agentId);
-      broadcast({
-        type: "sessions_list",
-        agentId: cmd.agentId,
-        sessions,
-        currentSessionId,
-      } as ServerMessage);
-      return true;
-    }
-    case "terminal_open": {
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      const opened = AgentManager.openTerminal(cmd.agentId);
-      if (opened) {
-        // Replay buffered output so the browser catches up
-        const buffer = AgentManager.getTerminalBuffer(cmd.agentId);
-        if (buffer) {
-          broadcast({ type: "terminal_output", agentId: cmd.agentId, data: buffer } as ServerMessage);
-        }
-      }
-      return true;
-    }
+    case "terminal_open":
     case "terminal_input":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      AgentManager.terminalInput(cmd.agentId, cmd.data);
-      return true;
     case "terminal_resize":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      AgentManager.terminalResize(cmd.agentId, cmd.cols, cmd.rows);
-      return true;
     case "terminal_close":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      AgentManager.closeTerminal(cmd.agentId);
+      handleAgentTerminalCommand(cmd, (agentId) => canUseAgent(ws, agentId));
       return true;
     case "editor_open":
     case "editor_save":
@@ -228,9 +180,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
       pushPresenceListToEachWs();
       return true;
     case "edit_message":
-      if (!canUseAgent(ws, cmd.agentId)) return true;
-      // Don't await — let it stream in the background (like send_message)
-      AgentManager.editMessage(cmd.agentId, cmd.logEntryId, cmd.newText, cmd.username);
+      await handleAgentConversationCommand(cmd, (agentId) => canUseAgent(ws, agentId));
       return true;
     default:
       return false;
