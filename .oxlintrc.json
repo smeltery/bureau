@@ -41,6 +41,18 @@
       "rules": {
         "no-empty": "off"
       }
+    },
+    {
+      "files": ["website/next-env.d.ts"],
+      "rules": {
+        "@typescript-eslint/triple-slash-reference": "off"
+      }
+    },
+    {
+      "files": ["website/app/layout.tsx"],
+      "rules": {
+        "import/no-unassigned-import": "off"
+      }
     }
   ],
   "ignorePatterns": [
