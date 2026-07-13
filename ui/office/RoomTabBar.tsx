@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useAppState, useDispatch } from "../store.tsx";
 import { send } from "../ws.ts";
 import { RoomSettingsModal } from "../components/modals/RoomSettingsModal.tsx";
 import type { PresenceInfo } from "../../shared/types.ts";
 import { RoomContextMenu } from "./RoomContextMenu.tsx";
 import { MiniGhostCluster, TotalOnlineChip } from "./RoomPresenceChips.tsx";
+import { useRoomTabInteractions } from "./useRoomTabInteractions.ts";
 
 export function RoomTabBar() {
   const { agents, currentRoom, rooms, needsAttention, presences, totalOnlineUsers, sessionContext } = useAppState();
@@ -12,15 +13,30 @@ export function RoomTabBar() {
   const roomNames = rooms.map((r) => r.name);
   const dispatch = useDispatch();
   const selfConnectionId = sessionContext?.connectionId ?? null;
-  const [editingRoom, setEditingRoom] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [dragFrom, setDragFrom] = useState<number | null>(null);
-  const [dragOver, setDragOver] = useState<number | null>(null);
-  const [ctxMenu, setCtxMenu] = useState<{ roomIdx: number; x: number; y: number } | null>(null);
-  const [settingsRoomId, setSettingsRoomId] = useState<string | null>(null);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFired = useRef(false);
+  const {
+    cancelEdit,
+    cancelLongPress,
+    commitEdit,
+    ctxMenu,
+    dragFrom,
+    dragOver,
+    editingRoom,
+    editValue,
+    handleDragEnd,
+    handleDragLeave,
+    handleDragOver,
+    handleDragStart,
+    handleDrop,
+    handleTouchStart,
+    inputRef,
+    longPressFired,
+    openCtxMenu,
+    setCtxMenu,
+    setEditValue,
+    setSettingsRoomId,
+    settingsRoomId,
+    startEditing,
+  } = useRoomTabInteractions(rooms, roomNames);
   const presencesByRoom = useMemo(() => {
     const buckets = new Map<number, PresenceInfo[]>();
     for (const presence of presences) {
@@ -33,110 +49,7 @@ export function RoomTabBar() {
     return buckets;
   }, [presences, rooms]);
 
-  // Focus input when editing starts — must be before any early returns (rules of hooks)
-  useEffect(() => {
-    if (editingRoom !== null && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editingRoom]);
-
-  // Dismiss context menu on any outside click / scroll / resize
-  useEffect(() => {
-    if (!ctxMenu) return;
-    function dismiss() {
-      setCtxMenu(null);
-    }
-    window.addEventListener("click", dismiss);
-    window.addEventListener("scroll", dismiss, true);
-    window.addEventListener("resize", dismiss);
-    return () => {
-      window.removeEventListener("click", dismiss);
-      window.removeEventListener("scroll", dismiss, true);
-      window.removeEventListener("resize", dismiss);
-    };
-  }, [ctxMenu]);
-
   // Always visible so room controls (including add room) are discoverable.
-
-  function startEditing(i: number) {
-    setEditingRoom(i);
-    setEditValue(roomNames[i] ?? `Room ${i + 1}`);
-  }
-
-  function commitEdit() {
-    if (editingRoom === null) return;
-    const trimmed = editValue.trim();
-    const roomId = rooms[editingRoom]?.id;
-    if (trimmed && roomId && trimmed !== roomNames[editingRoom]) {
-      send({ type: "rename_room", roomId, name: trimmed });
-    }
-    setEditingRoom(null);
-  }
-
-  function openCtxMenu(roomIdx: number, x: number, y: number) {
-    setCtxMenu({ roomIdx, x, y });
-  }
-
-  function handleTouchStart(e: React.TouchEvent, i: number) {
-    const touch = e.touches[0];
-    const x = touch.clientX;
-    const y = touch.clientY;
-    longPressFired.current = false;
-    longPressTimer.current = setTimeout(() => {
-      longPressFired.current = true;
-      openCtxMenu(i, x, y);
-    }, 500);
-  }
-
-  function cancelLongPress() {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }
-
-  function cancelEdit() {
-    setEditingRoom(null);
-  }
-
-  function handleDragStart(e: React.DragEvent, i: number) {
-    setDragFrom(i);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(i));
-  }
-
-  function handleDragOver(e: React.DragEvent, i: number) {
-    if (dragFrom === null || dragFrom === i) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOver(i);
-  }
-
-  function handleDragLeave() {
-    setDragOver(null);
-  }
-
-  function handleDrop(e: React.DragEvent, dropIdx: number) {
-    e.preventDefault();
-    setDragOver(null);
-    if (dragFrom === null || dragFrom === dropIdx) {
-      setDragFrom(null);
-      return;
-    }
-
-    // Build new order as roomId[] — remove dragFrom, insert at dropIdx
-    const order = rooms.map((r) => r.id);
-    const [removed] = order.splice(dragFrom, 1);
-    order.splice(dropIdx, 0, removed);
-    send({ type: "reorder_rooms", order });
-    setDragFrom(null);
-  }
-
-  function handleDragEnd() {
-    setDragFrom(null);
-    setDragOver(null);
-  }
 
   return (
     <div
