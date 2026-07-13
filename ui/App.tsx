@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState } from "react";
 import { useAppState, useDispatch } from "./store.tsx";
-import { OfficeView, type ViewportControls } from "./office/OfficeView.tsx";
+import { OfficeView } from "./office/OfficeView.tsx";
 import { LogView } from "./log-view/LogView.tsx";
 import { AgentListView } from "./components/overlays/AgentListView.tsx";
 import { ContextMenu } from "./components/overlays/ContextMenu.tsx";
@@ -17,29 +17,10 @@ import { UpdateModal } from "./components/modals/UpdateModal.tsx";
 import { ConnectionBanner } from "./components/ConnectionBanner.tsx";
 import { CSS } from "./styles.ts";
 import type { AgentBackendType, AgentInfo } from "../shared/types.ts";
-import { send } from "./ws.ts";
-import { getDevice } from "./device-settings.ts";
-
-/** Cycle to the next/previous agent in the current room, matching Tab/Shift+Tab logic. */
-function cycleAgent(agents: AgentInfo[], drafts: Map<string, string>, currentRoom: number, focusedAgentId: string | null, direction: "next" | "prev"): string | null {
-  const roomAgents = agents.filter((a) => a.room === currentRoom);
-  const sorted = [...roomAgents].sort((a, b) => a.desk - b.desk);
-  const nonIdle = sorted.filter((a) => (a.state !== "idle" && a.state !== "stopped") || (drafts.get(a.id) ?? "").length > 0);
-  const pool = nonIdle.length > 0 ? nonIdle : sorted;
-  if (pool.length === 0) return null;
-  const idx = pool.findIndex((a) => a.id === focusedAgentId);
-  if (idx !== -1 && pool.length <= 1) return null;
-  const next = idx === -1 ? (direction === "prev" ? pool[pool.length - 1] : pool[0]) : direction === "prev" ? pool[(idx - 1 + pool.length) % pool.length] : pool[(idx + 1) % pool.length];
-  return next.id;
-}
-
-function sendClaim(username: string) {
-  send({ type: "claim_user", username });
-}
+import { useAppNavigation } from "./useAppNavigation.ts";
 
 export function App() {
   const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext } = useAppState();
-  const roomCount = rooms.length;
   const dispatch = useDispatch();
   const [spawnDesk, setSpawnDesk] = useState<number | null>(null);
   const [spawnAgentType, setSpawnAgentType] = useState<AgentBackendType | null>(null);
@@ -61,141 +42,30 @@ export function App() {
   const [pluginsOpen, setPluginsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
 
-  const viewportControlsRef = useRef<ViewportControls | null>(null);
-  const focusedAgent = focusedAgentId ? agents.find((a) => a.id === focusedAgentId) : null;
-
-  useEffect(() => {
-    if (username && connected) sendClaim(username);
-  }, [username, connected]);
-
+  const focusedAgent = focusedAgentId ? (agents.find((a) => a.id === focusedAgentId) ?? null) : null;
   const anyModalOpen = editingUsername || editingDeviceSettings || editingOfficePrompt || editingRoomSettings !== null || updateOpen;
-  const viewMode: "office" | "log" | "away" = tasksOpen || cronjobsOpen || pluginsOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
-  const presenceRoom = focusedAgent?.room ?? currentRoom;
-  const presenceRoomId = focusedAgent?.roomId ?? rooms[presenceRoom]?.id ?? null;
-  useEffect(() => {
-    if (!sessionContext) return;
-    send({ type: "presence_update", currentRoom: presenceRoom, currentRoomId: presenceRoomId, focusedAgentId, viewMode, device: getDevice() });
-  }, [sessionContext, presenceRoom, presenceRoomId, focusedAgentId, viewMode]);
-
-  const swipeRoomNext = useCallback(() => {
-    if (roomCount <= 1) return;
-    dispatch({ type: "set_current_room", room: (currentRoom + 1) % roomCount });
-  }, [dispatch, currentRoom, roomCount]);
-
-  const swipeRoomPrev = useCallback(() => {
-    if (roomCount <= 1) return;
-    dispatch({ type: "set_current_room", room: (currentRoom - 1 + roomCount) % roomCount });
-  }, [dispatch, currentRoom, roomCount]);
-
-  const swipeAgentNext = useCallback(() => {
-    const nextId = cycleAgent(agents, drafts, currentRoom, focusedAgentId, "next");
-    if (nextId) dispatch({ type: "focus", agentId: nextId });
-  }, [dispatch, agents, drafts, currentRoom, focusedAgentId]);
-
-  const swipeAgentPrev = useCallback(() => {
-    const nextId = cycleAgent(agents, drafts, currentRoom, focusedAgentId, "prev");
-    if (nextId) dispatch({ type: "focus", agentId: nextId });
-  }, [dispatch, agents, drafts, currentRoom, focusedAgentId]);
-
-  // Browser back button: navigate to office view instead of leaving the page.
-  // Model: office = home, any other view = one level deep. Only one history
-  // entry is ever pushed. All "return to office" paths go through goHome(),
-  // which calls history.back() so the popstate handler does the actual cleanup.
-  const deepRef = useRef(false);
-
-  const goHome = useCallback(() => {
-    if (deepRef.current) {
-      window.history.back(); // popstate handler will reset state
-    } else {
-      // Safety fallback — shouldn't happen, but don't break if it does
-      setTasksOpen(false);
-      setCronjobsOpen(false);
-      setPluginsOpen(false);
-      dispatch({ type: "focus", agentId: null });
-    }
-  }, [dispatch]);
-
-  // Keyboard shortcuts: Escape → office, 1-8 → jump to agent at desk
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement)?.tagName;
-      const isInput = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
-      if (e.key === "Escape") {
-        goHome();
-        setSpawnDesk(null);
-        setCtxMenu(null);
-        setEditAgent(null);
-      }
-      // Viewport zoom/pan shortcuts (only from office view): 0 → reset,
-      // +/= → zoom in, - → zoom out. "=" accepted as an alias for "+" so
-      // users don't need Shift on US layouts. Ref is null when OfficeView
-      // isn't mounted — don't swallow the key in those cases.
-      const vp = viewportControlsRef.current;
-      if (vp && !isInput && !focusedAgentId && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (e.key === "0") {
-          e.preventDefault();
-          vp.resetView();
-        } else if (e.key === "+" || e.key === "=") {
-          e.preventDefault();
-          vp.zoomIn();
-        } else if (e.key === "-") {
-          e.preventDefault();
-          vp.zoomOut();
-        }
-      }
-      // Number keys 1-8: focus agent at that desk in current room (only from office view)
-      if (!isInput && !focusedAgentId && e.key >= "1" && e.key <= "8" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        const deskIndex = parseInt(e.key) - 1;
-        const agent = agents.find((a) => a.desk === deskIndex && a.room === currentRoom);
-        if (agent) {
-          e.preventDefault();
-          dispatch({ type: "focus", agentId: agent.id });
-        }
-      }
-      // Tab/Shift+Tab in office view: switch rooms
-      if (!isInput && !focusedAgentId && e.key === "Tab" && roomCount > 1 && !e.defaultPrevented) {
-        e.preventDefault();
-        const next = e.shiftKey ? (currentRoom - 1 + roomCount) % roomCount : (currentRoom + 1) % roomCount;
-        dispatch({ type: "set_current_room", room: next });
-      }
-      // Tab: cycle to next agent within current room (Shift+Tab: previous) when viewing an agent
-      // Skip if autocomplete already consumed this Tab (it calls preventDefault)
-      if (focusedAgentId && e.key === "Tab" && agents.length > 1 && !e.defaultPrevented) {
-        e.preventDefault();
-        const nextId = cycleAgent(agents, drafts, currentRoom, focusedAgentId, e.shiftKey ? "prev" : "next");
-        if (nextId) dispatch({ type: "focus", agentId: nextId });
-      }
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [dispatch, goHome, focusedAgentId, agents, drafts, currentRoom, roomCount]);
-
-  // Sync history stack with view state
-  const isDeep = tasksOpen || cronjobsOpen || pluginsOpen || focusedAgentId !== null;
-  useEffect(() => {
-    if (isDeep && !deepRef.current) {
-      window.history.pushState({ bureau: true }, "");
-      deepRef.current = true;
-    } else if (isDeep && deepRef.current) {
-      // Deep → deep transition (e.g. tasks→log, agent cycling): keep one entry
-      window.history.replaceState({ bureau: true }, "");
-    } else if (!isDeep && deepRef.current) {
-      // Returned to office — entry was consumed by history.back()
-      deepRef.current = false;
-    }
-  }, [isDeep, focusedAgentId, tasksOpen]);
-
-  useEffect(() => {
-    function handlePopState() {
-      deepRef.current = false;
-      setTasksOpen(false);
-      setCronjobsOpen(false);
-      setPluginsOpen(false);
-      dispatch({ type: "focus", agentId: null });
-    }
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [dispatch]);
+  const { goHome, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
+    agents,
+    connected,
+    currentRoom,
+    dispatch,
+    drafts,
+    focusedAgent,
+    focusedAgentId,
+    sessionContext,
+    rooms,
+    username,
+    tasksOpen,
+    cronjobsOpen,
+    pluginsOpen,
+    anyModalOpen,
+    setTasksOpen,
+    setCronjobsOpen,
+    setPluginsOpen,
+    setSpawnDesk,
+    setCtxMenu,
+    setEditAgent,
+  });
 
   return (
     <>
