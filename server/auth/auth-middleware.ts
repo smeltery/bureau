@@ -3,7 +3,6 @@
 import type { Server } from "bun";
 import {
   acceptInvite,
-  claimOwnership,
   clearCookieHeader,
   logoutBySessionHash,
   peekInvite,
@@ -13,9 +12,9 @@ import {
   wouldRevokeLeaveOfficeUnreachable,
   type SessionLookup,
 } from "./auth.ts";
-import { hasOwner } from "../users.ts";
-import { renderAcceptPage, renderClaimPage, renderInviteError, renderLockoutBlocked, renderLoginPage, securityHeaders } from "./auth-pages.ts";
-import { checkOrigin, isLoopbackOrigin, originValidForAuthPost, requestIsLoopback } from "./auth-request-guards.ts";
+import { renderAcceptPage, renderInviteError, renderLockoutBlocked, renderLoginPage, securityHeaders } from "./auth-pages.ts";
+import { checkOrigin, originValidForAuthPost, requestIsLoopback } from "./auth-request-guards.ts";
+import { handleClaim, handleClaimForm, shouldShowClaimForm } from "./auth-claim-routes.ts";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -202,11 +201,11 @@ export async function tryHandleAuthRoute<T>(req: Request, url: URL, officeName: 
   // surface is unreachable from off-box; we still layer a strict same-origin
   // + loopback-peer-IP check on the POST as defense-in-depth in case the
   // bind is widened by operator override.
-  if (req.method === "GET" && url.pathname === "/" && !hasOwner()) {
+  if (shouldShowClaimForm(req, url)) {
     return handleClaimForm(officeName);
   }
   if (req.method === "POST" && url.pathname === "/auth/claim") {
-    return handleClaim(req, server, officeName);
+    return handleClaim(req, server, officeName, onOwnerCreated);
   }
   // GET /i/<token> — peek + render accept page (NEVER consumes).
   if (req.method === "GET" && url.pathname.startsWith("/i/")) {
@@ -221,81 +220,4 @@ export async function tryHandleAuthRoute<T>(req: Request, url: URL, officeName: 
     return handleLogout(req, officeName);
   }
   return null;
-}
-
-// GET / when !hasOwner(): render the tokenless name-picker form. Routes
-// here BEFORE the cookie gate. After claim, hasOwner() flips and this
-// branch goes dead.
-//
-// The claim page uses `tokenInUrl: false` so `Referrer-Policy: no-referrer`
-// is omitted: there's no token in the URL to leak, and Chrome's coupling
-// between that header and `Origin: null` on top-level form POSTs would
-// otherwise make the form's strict same-origin check reject the real
-// browser submit with 403.
-function handleClaimForm(officeName: string | null): Response {
-  return new Response(renderClaimPage(null, officeName), {
-    status: 200,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      ...securityHeaders({ tokenInUrl: false }),
-    },
-  });
-}
-
-// POST /auth/claim — consume the tokenless form, create the owner record,
-// set the cookie. Locality is enforced at multiple layers:
-//   1. The server bind (127.0.0.1 pre-claim) keeps off-box clients off the
-//      TCP socket entirely;
-//   2. requestIsLoopback rejects non-loopback peers if the bind has been
-//      widened by operator override;
-//   3. A strict same-origin check rejects ordinary browser POSTs from
-//      pages on other origins (CSRF defense).
-//
-// The strict-Origin check does NOT close the "non-browser client forges
-// Origin over a same-host proxy" case — curl can set Origin to anything,
-// including the exact loopback value. This is an inherent topology limit;
-// the documented mitigation is operator discipline (claim first, expose
-// later — see docs/features/access-and-invites.md "Bootstrap-window
-// exposure").
-async function handleClaim<T>(req: Request, server: Server<T>, officeName: string | null): Promise<Response> {
-  if (!requestIsLoopback(req, server)) {
-    return new Response("forbidden", { status: 403 });
-  }
-  const origin = req.headers.get("origin");
-  if (!origin || !isLoopbackOrigin(origin)) {
-    return new Response("bad origin", { status: 403 });
-  }
-  const form = await req.formData().catch(() => null);
-  const nameField = form?.get("name");
-  const name = typeof nameField === "string" ? nameField : "";
-  const ua = req.headers.get("user-agent");
-  const result = await claimOwnership(name, { userAgent: ua });
-  if (!result.ok) {
-    const errorMsg =
-      result.error === "owner_exists"
-        ? "This office already has an owner. Refresh and sign in with an invite link instead."
-        : "Please pick a display name (letters, numbers, spaces, periods, hyphens, apostrophes, or underscores).";
-    return new Response(renderClaimPage(errorMsg, officeName), {
-      status: 400,
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        ...securityHeaders({ tokenInUrl: false }),
-      },
-    });
-  }
-  if (onOwnerCreated) {
-    try {
-      await onOwnerCreated({ username: result.username });
-    } catch (err) {
-      console.error("[auth] onOwnerCreated threw:", err);
-    }
-  }
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: "/",
-      "Set-Cookie": setCookieHeader(result.rawSessionId, result.absoluteExpiresAt),
-      ...securityHeaders({ tokenInUrl: false }),
-    },
-  });
 }
