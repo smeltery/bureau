@@ -1,7 +1,7 @@
 import type { AgentInfo, AgentOutfit, TaskItem, TaskPriority, RoomWire, OfficeSettings } from "./types.ts";
 import type { OfficeEvent, OfficeStateData } from "./office-events.ts";
-import { DEFAULT_AGENT_CAPABILITIES, generateRoomId } from "./types.ts";
-import { generateOutfit } from "./office-outfit.ts";
+import { generateRoomId } from "./types.ts";
+import { createAgentInfo, firstOpenDesk, hasDuplicateAgentName, roomIndexById } from "./office-agents.ts";
 import { addTaskToList, deleteTaskFromList, updateTaskInList } from "./office-tasks.ts";
 export type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 
@@ -75,53 +75,22 @@ export class OfficeState {
     roomId?: string;
     customInstructions?: string;
   }): { agent: AgentInfo; events: OfficeEvent[] } | null {
-    // Reject duplicate names
-    const nameLower = opts.name.trim().toLowerCase();
-    for (const a of this.agents.values()) {
-      if (a.name.toLowerCase() === nameLower) return null;
-    }
+    if (hasDuplicateAgentName(this.agents.values(), opts.name)) return null;
 
-    let targetRoom = 0;
-    if (opts.roomId) {
-      const idx = this._rooms.findIndex((r) => r.id === opts.roomId);
-      if (idx >= 0) targetRoom = idx;
-    }
-    const roomAgents = [...this.agents.values()].filter((a) => a.room === targetRoom);
-    const taken = new Set(roomAgents.map((a) => a.desk));
-
-    let desk: number;
-    if (opts.desk !== undefined && !taken.has(opts.desk)) {
-      desk = opts.desk;
-    } else {
-      desk = -1;
-      for (let i = 0; i < 8; i++) {
-        if (!taken.has(i)) {
-          desk = i;
-          break;
-        }
-      }
-    }
+    const targetRoom = roomIndexById(this._rooms, opts.roomId);
+    const desk = firstOpenDesk(this.agents.values(), targetRoom, opts.desk);
     if (desk === -1) return null; // room full
 
-    const id = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const agent: AgentInfo = {
-      id,
+    const agent = createAgentInfo({
       name: opts.name,
+      cwd: opts.cwd,
       desk,
       room: targetRoom,
-      cwd: opts.cwd,
-      outfit: generateOutfit(),
       permissionMode: opts.permissionMode,
-      modelFamily: "opus",
-      agentType: "claude",
-      capabilities: DEFAULT_AGENT_CAPABILITIES,
-      state: "idle",
-      topic: null,
-      topicStale: false,
-      customInstructions: opts.customInstructions || null,
-    };
+      customInstructions: opts.customInstructions,
+    });
 
-    this.agents.set(id, agent);
+    this.agents.set(agent.id, agent);
 
     // Track cwd
     this.addRecentCwd(opts.cwd);
@@ -145,9 +114,7 @@ export class OfficeState {
     const updated: Partial<AgentInfo> = {};
 
     if (changes.name && changes.name !== agent.name) {
-      const nameLower = changes.name.trim().toLowerCase();
-      const duplicate = [...this.agents.values()].some((a) => a.id !== agentId && a.name.toLowerCase() === nameLower);
-      if (!duplicate) {
+      if (!hasDuplicateAgentName(this.agents.values(), changes.name, agentId)) {
         agent.name = changes.name;
         updated.name = changes.name;
       }
@@ -249,16 +216,7 @@ export class OfficeState {
     if (targetRoom < 0) return [];
     if (agent.room === targetRoom) return [];
 
-    const targetAgents = [...this.agents.values()].filter((a) => a.room === targetRoom);
-    if (targetAgents.length >= 8) return [];
-    const taken = new Set(targetAgents.map((a) => a.desk));
-    let newDesk = -1;
-    for (let i = 0; i < 8; i++) {
-      if (!taken.has(i)) {
-        newDesk = i;
-        break;
-      }
-    }
+    const newDesk = firstOpenDesk(this.agents.values(), targetRoom);
     if (newDesk === -1) return [];
 
     agent.room = targetRoom;
