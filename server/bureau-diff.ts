@@ -1,8 +1,10 @@
 import type { DiffFileSummary, DiffPayload } from "../shared/types.ts";
 import { execSync } from "child_process";
-import { closeSync, openSync, readSync, statSync } from "fs";
+import { statSync } from "fs";
 import { isAbsolute, join, resolve } from "path";
 import { homedir } from "os";
+import { applyNameStatus, applyNumstat } from "./bureau-diff-summary.ts";
+import { synthesizeUntrackedPatches } from "./bureau-diff-untracked.ts";
 
 export type ComputeDiffResult =
   | { kind: "ok"; cwd: string; summary: string; payload: DiffPayload }
@@ -153,140 +155,9 @@ export function computeBureauDiff(cwd: string, opts?: { commit?: string }): Comp
   }
 
   const fileMap = new Map<string, DiffFileSummary>();
-
-  if (nameStatus) {
-    for (const line of nameStatus.split("\n")) {
-      const cols = line.split("\t");
-      const code = cols[0] ?? "";
-      let status: DiffFileSummary["status"];
-      let oldPath: string | undefined;
-      let newPath: string;
-      if (code.startsWith("R")) {
-        status = "renamed";
-        oldPath = cols[1] ?? "";
-        newPath = cols[2] ?? "";
-      } else if (code.startsWith("C")) {
-        status = "copied";
-        oldPath = cols[1] ?? "";
-        newPath = cols[2] ?? "";
-      } else if (code === "A") {
-        status = "added";
-        newPath = cols[1] ?? "";
-      } else if (code === "D") {
-        status = "deleted";
-        newPath = cols[1] ?? "";
-      } else {
-        status = "modified";
-        newPath = cols[1] ?? "";
-      }
-      if (!newPath) continue;
-      fileMap.set(newPath, {
-        path: newPath,
-        oldPath,
-        status,
-        additions: 0,
-        deletions: 0,
-        lineCount: 0,
-        inlineEligible: false,
-      });
-    }
-  }
-
-  // numstat formats renames as `old => new` or `prefix{old => new}suffix`;
-  // pull the post-image path so we merge counts into the name-status row.
-  const extractPostImagePath = (raw: string): string => {
-    const brace = raw.match(/^(.*)\{([^{}]*?) => ([^{}]*?)\}(.*)$/);
-    if (brace) return `${brace[1]}${brace[3]}${brace[4]}`.replace(/\/{2,}/g, "/");
-    const arrow = raw.indexOf(" => ");
-    if (arrow !== -1) return raw.slice(arrow + 4);
-    return raw;
-  };
-  if (numstat) {
-    for (const line of numstat.split("\n")) {
-      const parts = line.split("\t");
-      if (parts.length < 3) continue;
-      const addRaw = parts[0]!;
-      const delRaw = parts[1]!;
-      const path = extractPostImagePath(parts.slice(2).join("\t"));
-      const isBinary = addRaw === "-" && delRaw === "-";
-      const additions = isBinary ? 0 : parseInt(addRaw, 10) || 0;
-      const deletions = isBinary ? 0 : parseInt(delRaw, 10) || 0;
-      const existing = fileMap.get(path);
-      if (existing) {
-        existing.additions = additions;
-        existing.deletions = deletions;
-        existing.lineCount = additions + deletions;
-        if (isBinary) existing.status = "binary";
-      } else {
-        fileMap.set(path, {
-          path,
-          status: isBinary ? "binary" : "modified",
-          additions,
-          deletions,
-          lineCount: additions + deletions,
-          inlineEligible: false,
-        });
-      }
-    }
-  }
-
-  // Probe an untracked file: read first 8 KB to check for null bytes, stat for
-  // size, then read the rest only if it fits in a synthesized patch.
-  const UNTRACKED_MAX_BYTES = 1_000_000;
-  const probeUntracked = (abs: string): { kind: "binary" | "tooLarge" | "ok" | "error"; content?: string } => {
-    let fd: number | null = null;
-    try {
-      fd = openSync(abs, "r");
-      const probe = Buffer.alloc(8192);
-      const read = readSync(fd, probe, 0, 8192, 0);
-      for (let i = 0; i < read; i++) if (probe[i] === 0) return { kind: "binary" };
-      const st = statSync(abs);
-      if (st.size > UNTRACKED_MAX_BYTES) return { kind: "tooLarge" };
-      if (st.size <= read) return { kind: "ok", content: probe.subarray(0, st.size).toString("utf8") };
-      const buf = Buffer.alloc(st.size);
-      probe.copy(buf, 0, 0, read);
-      let off = read;
-      while (off < st.size) {
-        const r = readSync(fd, buf, off, st.size - off, off);
-        if (r === 0) break;
-        off += r;
-      }
-      return { kind: "ok", content: buf.subarray(0, off).toString("utf8") };
-    } catch {
-      return { kind: "error" };
-    } finally {
-      if (fd !== null)
-        try {
-          closeSync(fd);
-        } catch {}
-    }
-  };
-
-  const untrackedPatches: string[] = [];
-  for (const path of untracked) {
-    const probe = probeUntracked(join(cwd, path));
-    if (probe.kind === "error") continue;
-    if (probe.kind === "binary") {
-      fileMap.set(path, { path, status: "binary", additions: 0, deletions: 0, lineCount: 0, inlineEligible: false });
-      continue;
-    }
-    if (probe.kind === "tooLarge") {
-      // Re-use "untracked" status to flag "we saw it but didn't synthesize"
-      // — the overlay surfaces a friendly explanation.
-      fileMap.set(path, { path, status: "untracked", additions: 0, deletions: 0, lineCount: 0, inlineEligible: false });
-      continue;
-    }
-    const content = probe.content!;
-    const lines = content === "" ? [] : content.split("\n");
-    const trailingNewline = content.endsWith("\n");
-    const realLines = trailingNewline ? lines.slice(0, -1) : lines;
-    const additions = realLines.length;
-    const header = [`diff --git a/${path} b/${path}`, "new file mode 100644", "--- /dev/null", `+++ b/${path}`, `@@ -0,0 +1,${additions} @@`];
-    const body = realLines.map((l) => `+${l}`);
-    if (!trailingNewline && realLines.length > 0) body.push("\\ No newline at end of file");
-    untrackedPatches.push([...header, ...body].join("\n"));
-    fileMap.set(path, { path, status: "added", additions, deletions: 0, lineCount: additions, inlineEligible: false });
-  }
+  applyNameStatus(fileMap, nameStatus);
+  applyNumstat(fileMap, numstat);
+  const untrackedPatches = synthesizeUntrackedPatches(cwd, untracked, fileMap);
 
   let patchText: string | null = diff;
   if (untrackedPatches.length > 0) {
