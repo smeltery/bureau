@@ -42,6 +42,8 @@ import { beginTurn, logCache, rooms } from "../agents/state.ts";
 import { SessionSwappedError, createTurnDeferred } from "../agents/session/runtime.ts";
 import { getEnabledPlugins } from "./registry.ts";
 import { assistantTextFromEntries, runAfterTurn, runBeforeTurnHooks } from "./turn-hooks.ts";
+import { applyPluginPrefixes } from "./plugin-prefix.ts";
+export { stripPluginPrefix } from "./plugin-prefix.ts";
 
 export type TurnOrigin = "user" | "queued" | "skill" | "edit-fork";
 
@@ -154,11 +156,7 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   }
 
   // 5. Assemble the final outgoing text.
-  let finalText = sdkText;
-  if (prefixes.length > 0) {
-    const blocks = prefixes.map(({ id, prefix }) => `--- begin plugin: ${id} ---\n${prefix}\n--- end plugin: ${id} ---`).join("\n\n");
-    finalText = `${blocks}\n\nUser message:\n${sdkText}`;
-  }
+  const finalText = applyPluginPrefixes(prefixes, sdkText);
 
   // Final pre-send cancel check. Catches a Stop/swap that fires after the
   // beforeTurn loop returned but before createTurnDeferred runs — small
@@ -242,17 +240,4 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
     // Error subclass.
     throw thrown as Error;
   }
-}
-
-export function stripPluginPrefix(text: string): string {
-  if (!text.startsWith("--- begin plugin: ")) return text;
-  let offset = 0;
-  while (text.startsWith("--- begin plugin: ", offset)) {
-    const endMatch = text.slice(offset).match(/\n--- end plugin: [^\n]+ ---\n\n/);
-    if (!endMatch || endMatch.index === undefined) return text;
-    offset += endMatch.index + endMatch[0].length;
-  }
-  const marker = "User message:\n";
-  if (!text.startsWith(marker, offset)) return text;
-  return text.slice(offset + marker.length);
 }
