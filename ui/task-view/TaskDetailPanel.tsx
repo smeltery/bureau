@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { send } from "../ws.ts";
 import type { TaskItem, TaskPriority, TaskStatus } from "../../shared/types.ts";
-import { timeAgo } from "../utils/time.ts";
-import { dialogInput, dialogLabel } from "../components/modals/dialog-styles.ts";
+import { TaskDetailFields } from "./TaskDetailFields.tsx";
 import { TaskDetailFooter } from "./TaskDetailFooter.tsx";
 
 export function TaskDetailPanel({
@@ -110,15 +109,6 @@ export function TaskDetailPanel({
     onClose();
   }
 
-  const inputStyle: React.CSSProperties = {
-    ...dialogInput,
-    padding: "8px 10px",
-    borderRadius: 6,
-    fontSize: 13,
-  };
-
-  const labelStyle: React.CSSProperties = dialogLabel;
-
   // Mobile full-page uses --bg-base (opaque) since --bg-surface is rgba(...,~0.95)
   // and would show the underlying task table through. Desktop side-panel keeps
   // --bg-surface for its elevated look.
@@ -173,96 +163,23 @@ export function TaskDetailPanel({
         </button>
       </div>
 
-      {/* Scrollable body — minHeight:0 lets the flex child shrink so it scrolls
-          rather than the outer container. overscrollBehavior:contain prevents
-          touch-passthrough to underlying scroll on iOS. */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          overscrollBehavior: "contain",
-          padding: fullScreen ? "14px 20px" : "14px 24px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-        }}
-      >
-        <div>
-          <label style={labelStyle}>Title</label>
-          <input
-            autoFocus={mode === "create"}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            style={inputStyle}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSave();
-              e.stopPropagation();
-            }}
-          />
-        </div>
-
-        <div>
-          <label style={labelStyle}>Description</label>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} style={{ ...inputStyle, resize: "vertical" }} onKeyDown={(e) => e.stopPropagation()} />
-        </div>
-
-        <div style={{ display: "flex", gap: 10 }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Priority</label>
-            <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority | "")} style={inputStyle}>
-              <option value="">None</option>
-              <option value="P0">P0</option>
-              <option value="P1">P1</option>
-              <option value="P2">P2</option>
-              <option value="P3">P3</option>
-            </select>
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Status</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)} style={inputStyle}>
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="backlog">Backlog</option>
-              <option value="done">Done</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label style={labelStyle}>Assignee</label>
-          <input value={assignee} onChange={(e) => setAssignee(e.target.value)} style={inputStyle} placeholder="Unassigned" onKeyDown={(e) => e.stopPropagation()} />
-          {agents.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-              {agents.map((a) => (
-                <button
-                  key={a.name}
-                  onClick={() => setAssignee(a.name)}
-                  style={{
-                    padding: "3px 8px",
-                    borderRadius: 6,
-                    border: `1px solid ${assignee === a.name ? "var(--accent)" : "var(--border)"}`,
-                    background: assignee === a.name ? "var(--accent-muted, rgba(88,166,255,0.15))" : "var(--btn-surface)",
-                    color: assignee === a.name ? "var(--accent)" : "var(--text-muted)",
-                    fontSize: 10,
-                    cursor: "pointer",
-                    fontFamily: "'JetBrains Mono',monospace",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {a.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {mode === "edit" && task && (
-          <div style={{ fontSize: 11, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace" }}>
-            Created by {task.createdBy} &middot; {timeAgo(task.createdAt)}
-          </div>
-        )}
-      </div>
+      <TaskDetailFields
+        agents={agents}
+        assignee={assignee}
+        description={description}
+        fullScreen={fullScreen}
+        mode={mode}
+        priority={priority}
+        status={status}
+        task={task}
+        title={title}
+        onAssigneeChange={setAssignee}
+        onDescriptionChange={setDescription}
+        onPriorityChange={setPriority}
+        onSave={handleSave}
+        onStatusChange={setStatus}
+        onTitleChange={setTitle}
+      />
 
       <TaskDetailFooter
         confirmDelete={confirmDelete}
