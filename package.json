@@ -14,7 +14,7 @@
     "server:watch": "bun --watch server/index.ts",
     "server": "bun run server/index.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint --react-plugin server shared ui",
+    "lint": "bun node_modules/oxlint/bin/oxlint --react-plugin server shared ui",
     "budget": "bun run scripts/check-loc-budgets.ts",
     "format": "prettier --write 'server/**/*.{ts,tsx}' 'shared/**/*.{ts,tsx}' 'ui/**/*.{ts,tsx}'",
     "format:check": "prettier --check 'server/**/*.{ts,tsx}' 'shared/**/*.{ts,tsx}' 'ui/**/*.{ts,tsx}'",
