@@ -1,9 +1,8 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentState, Attachment } from "../../../shared/types.ts";
-import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, loadLogWithAncestors, saveFile } from "../../persistence.ts";
-import { autocompleteCommands } from "../commands.ts";
-import { agents, addLogEntry, emit, emitEphemeralLog, logCache, persistAll, updateState } from "../state.ts";
-import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
+import { accumulateSessionUsage, appendSessionUsageSnapshot, saveFile } from "../../persistence.ts";
+import { agents, addLogEntry, emitEphemeralLog, updateState } from "../state.ts";
+import { handleInitMessage } from "./init-message.ts";
 export { buildUserMessage } from "./user-message-builder.ts";
 
 // ---------------------------------------------------------------------------
@@ -61,57 +60,7 @@ export function processMessage(agentId: string, msg: SDKMessage) {
       if (subtype === "init") {
         const sessionId = (msg as any).session_id;
         const managed = agents.get(agentId);
-        if (managed && sessionId) {
-          const hadPreviousSession = !!managed.sessionId;
-          // Load prior log history if this session was seen before (walks fork ancestry)
-          if (!managed.sessionId && sessionId) {
-            const history = loadLogWithAncestors(agentId, sessionId);
-            if (history.length > 0) {
-              for (const entry of history) {
-                emit({ type: "log_entry", entry });
-              }
-            }
-          }
-          // If we already had a session and got a new init, this is a /clear
-          if (hadPreviousSession && sessionId !== managed.sessionId) {
-            logCache.set(agentId, []);
-            emit({ type: "clear_logs", agentId } as any);
-            addLogEntry(agentId, "system", "Conversation cleared.");
-          }
-          managed.sessionId = sessionId;
-          // Backfill: write any cached log entries that were created before sessionId was known
-          if (!hadPreviousSession) {
-            const cached = logCache.get(agentId) ?? [];
-            for (const entry of cached) {
-              appendLog(agentId, sessionId, entry);
-            }
-          }
-          persistAll();
-        }
-        // Capture available slash commands and skills from init
-        const sdkCommands: string[] = (msg as any).slash_commands ?? [];
-        // Filter out MCP internal command names (mcp__...) — they clutter autocomplete
-        const filteredSdkCommands = sdkCommands.filter((c) => !c.startsWith("mcp__"));
-        // Store SDK-reported commands for pass-through resolution (step 4)
-        if (managed) {
-          managed.sdkReportedCommands = filteredSdkCommands;
-        }
-        // Autocomplete: config entries with autocomplete:true + all discovered skills
-        // SDK-reported commands are NOT added to autocomplete (per design)
-        // Skills are listed in priority order; deduplicate by name (highest priority wins)
-        const discoveredSkills = managed ? [...discoverUserSkills(), ...discoverProjectSkills(managed.info.cwd), ...discoverPluginSkills(), ...discoverBundledSkills()] : [];
-        const uniqueSkills = deduplicateSkills(discoveredSkills);
-        const configCommands = autocompleteCommands();
-        if (managed) {
-          managed.slashCommands = configCommands;
-          managed.skills = uniqueSkills;
-        }
-        emit({
-          type: "slash_commands",
-          agentId,
-          commands: configCommands,
-          skills: uniqueSkills,
-        } as any);
+        handleInitMessage(agentId, managed, sessionId, (msg as any).slash_commands ?? []);
       } else if (subtype === "local_command_output") {
         const content = (msg as any).content;
         if (content) {
