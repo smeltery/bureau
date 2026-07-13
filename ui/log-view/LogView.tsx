@@ -18,7 +18,7 @@ import { useLogViewInput } from "./hooks/useLogViewInput.ts";
 import { useSelectionCite } from "./useSelectionCite.ts";
 import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 import { LogMessagesPane } from "./LogMessagesPane.tsx";
-import { DesktopEditorSidePanel, DesktopTerminalSidePanel, MobileEditorSidePanel, MobileTerminalSidePanel } from "./LogViewSidePanels.tsx";
+import { LogViewPanelHost } from "./side-panels/LogViewPanelHost.tsx";
 import { PinnedUserMessageBanner } from "./PinnedUserMessageBanner.tsx";
 import { ScrollToBottomButton } from "./ScrollToBottomButton.tsx";
 
@@ -255,32 +255,7 @@ export function LogView({
           partial={autocomplete.partial}
         />
       </div>
-      {features.terminal && !isMobile && panels.terminalOpen && (
-        <DesktopTerminalSidePanel
-          agentId={agent.id}
-          panelRef={panels.terminalContainerRef}
-          width={panels.terminalWidth}
-          getMax={panels.getTerminalMax}
-          onCommit={panels.commitTerminalWidth}
-          onClose={() => panels.setTerminalOpen(false)}
-        />
-      )}
-      {features.editor && !isMobile && panels.editorOpen && (
-        <DesktopEditorSidePanel
-          agentId={agent.id}
-          panelRef={panels.editorContainerRef}
-          width={panels.editorWidth}
-          getMax={panels.getEditorMax}
-          onCommit={panels.commitEditorWidth}
-          initialPath={panels.editorInitialPath}
-          onClose={() => panels.setEditorOpen(false)}
-          onPathOpened={panels.clearEditorInitialPath}
-        />
-      )}
-      {isMobile && features.terminal && panels.terminalOpen && <MobileTerminalSidePanel agentId={agent.id} onClose={() => panels.setTerminalOpen(false)} />}
-      {isMobile && features.editor && panels.editorOpen && (
-        <MobileEditorSidePanel agentId={agent.id} initialPath={panels.editorInitialPath} onClose={() => panels.setEditorOpen(false)} onPathOpened={panels.clearEditorInitialPath} />
-      )}
+      <LogViewPanelHost agentId={agent.id} isMobile={isMobile} terminalEnabled={features.terminal} editorEnabled={features.editor} panels={panels} />
       {cite && scrollRef.current && <CiteSelectionButton cite={cite} containerRect={scrollRef.current.getBoundingClientRect()} onClick={() => handleCite(cite.text)} />}
     </div>
   );
