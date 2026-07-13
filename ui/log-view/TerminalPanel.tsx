@@ -4,10 +4,12 @@ import { FitAddon } from "@xterm/addon-fit";
 import { send, addRawListener, removeRawListener } from "../ws.ts";
 import { useTheme } from "../store.tsx";
 import type { ServerMessage } from "../../shared/types.ts";
-import { applyCtrl, ensureMobileTerminalStyle, MobileInputProxy, MobileSoftKeyBar, type SoftKey } from "./terminal-mobile.tsx";
+import { applyCtrl, ensureMobileTerminalStyle, MobileSoftKeyBar, type SoftKey } from "./terminal-mobile.tsx";
 import { useMobileTerminalTouch } from "./useMobileTerminalTouch.ts";
+import { useMobileKeyboardOpen } from "./terminal/useMobileKeyboardOpen.ts";
 import { DARK_TERMINAL_THEME, LIGHT_TERMINAL_THEME } from "./terminal-themes.ts";
-import { TerminalExitOverlay, TerminalHeader } from "./terminal-chrome.tsx";
+import { TerminalHeader } from "./terminal-chrome.tsx";
+import { TerminalPanelBody } from "./terminal/TerminalPanelBody.tsx";
 
 export function TerminalPanel({
   agentId,
@@ -42,11 +44,7 @@ export function TerminalPanel({
   const [exited, setExited] = useState<number | null>(null);
   const [ctrlActive, setCtrlActive] = useState(false);
   const ctrlActiveRef = useRef(false);
-  // Tracks whether the soft keyboard is currently up (visualViewport noticeably
-  // shorter than layout viewport). When up, the env(safe-area-inset-bottom)
-  // padding under the soft-key bar is wasted space — the home indicator zone
-  // is hidden behind the keyboard — so we drop it.
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const keyboardOpen = useMobileKeyboardOpen(mobile);
   // Wrap the state setter so the ref stays in sync without a render-time
   // write. sendInput / handleSoftKey both read the ref synchronously inside
   // event handlers, so it must lead the React render.
@@ -170,24 +168,6 @@ export function TerminalPanel({
     }
   }, [mode]);
 
-  // Track keyboard-open state by comparing visualViewport.height to
-  // window.innerHeight. 100px threshold ignores toolbar appear/disappear and
-  // only flips when a full soft keyboard opens. Calibrated for iPhone soft
-  // keyboards (≥250px tall); the iPad split / floating mini keyboard is
-  // shorter and won't cross the threshold — revisit if iPad becomes a
-  // first-class target.
-  useEffect(() => {
-    if (!mobile) return;
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const update = () => {
-      setKeyboardOpen(window.innerHeight - vv.height > 100);
-    };
-    update();
-    vv.addEventListener("resize", update);
-    return () => vv.removeEventListener("resize", update);
-  }, [mobile]);
-
   useMobileTerminalTouch({ mobile, agentId, bodyRef, termRef, fitRef, scrollMovedRef });
 
   // Tap on the terminal body focuses our input proxy so the soft keyboard
@@ -267,24 +247,16 @@ export function TerminalPanel({
 
       {/* Terminal body. position:relative so the exit overlay anchors to the
           body bottom (above the soft-key bar) without a hard-coded offset. */}
-      <div
-        ref={bodyRef}
-        className={mobile ? "bureau-mobile-term-body" : undefined}
-        onClick={handleBodyTap}
-        style={{
-          flex: 1,
-          minHeight: 0,
-          padding: 4,
-          overflow: "hidden",
-          position: "relative",
-        }}
-      >
-        <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
-        {mobile && <MobileInputProxy ref={inputProxyRef} onInput={sendInput} />}
-        {/* Exit overlay — anchored to the body so it floats above whatever
-            sits below (soft-key bar on mobile, nothing on desktop). */}
-        {exited !== null && <TerminalExitOverlay exitCode={exited} onRestart={handleRespawn} />}
-      </div>
+      <TerminalPanelBody
+        bodyRef={bodyRef}
+        containerRef={containerRef}
+        exited={exited}
+        inputProxyRef={inputProxyRef}
+        mobile={mobile}
+        onBodyTap={handleBodyTap}
+        onRespawn={handleRespawn}
+        onSendInput={sendInput}
+      />
 
       {/* Soft-key bar (mobile only). Adds the home-indicator safe-area
           inset only when the soft keyboard is dismissed — when it's up, the
