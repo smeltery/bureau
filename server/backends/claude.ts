@@ -1,22 +1,18 @@
 import {
   forkSession as sdkForkSession,
   getSessionMessages as sdkGetSessionMessages,
-  query,
   type CanUseTool,
   type Options,
   type PermissionResult,
   type PermissionUpdate,
-  type Query,
-  type SDKMessage,
-  type SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
-import { existsSync } from "fs";
-import { join } from "path";
 
 import { FAMILY_TO_MODEL, MODEL_FAMILIES, type ModelFamily } from "../../shared/types.ts";
+import { CLAUDE_NATIVE_BIN } from "../agents/session/claude-native.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
 import { isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
 import { buildUserMessage, extractMessageText, normalizeClaudeMessage } from "./claude-messages.ts";
+import { RawClaudeSession, runClaudeOneShot } from "./claude-raw-session.ts";
 import type {
   ApprovalDecision,
   AttachmentSpec,
@@ -34,6 +30,8 @@ import type {
   OneShotOptions,
   PermissionModeOption,
 } from "./types.ts";
+
+export { runClaudeOneShot } from "./claude-raw-session.ts";
 
 const LOGIN_INSTRUCTIONS = `To authenticate Claude Code:
 1. Open the built-in terminal
@@ -57,23 +55,6 @@ Alternative: add \`ANTHROPIC_API_KEY\` to your envFile (User Settings -> Env Fil
 
 const AUTH_ERROR_PATTERNS = /unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|not logged in|run \/login|403|401/i;
 
-const CLAUDE_NATIVE_BIN = resolveClaudeNativeBinary();
-
-function resolveClaudeNativeBinary(): string {
-  const anthropicDir = join(import.meta.dir, "..", "..", "node_modules", "@anthropic-ai");
-  const binName = process.platform === "win32" ? "claude.exe" : "claude";
-  if (process.platform === "linux") {
-    const muslArch = process.arch === "arm64" ? "aarch64" : "x86_64";
-    const isMusl = existsSync(`/lib/ld-musl-${muslArch}.so.1`);
-    const variants = isMusl ? [`linux-${process.arch}-musl`, `linux-${process.arch}`] : [`linux-${process.arch}`, `linux-${process.arch}-musl`];
-    for (const v of variants) {
-      const p = join(anthropicDir, `claude-agent-sdk-${v}`, binName);
-      if (existsSync(p)) return p;
-    }
-  }
-  return join(anthropicDir, `claude-agent-sdk-${process.platform}-${process.arch}`, binName);
-}
-
 const CAPABILITIES: BackendCapabilities = {
   fork: true,
   hooks: true,
@@ -91,88 +72,6 @@ const PERMISSION_MODES: PermissionModeOption[] = [
   { value: "bypassPermissions", label: "Bypass permissions" },
   { value: "auto", label: "Ask in Bureau" },
 ];
-
-// Push-able async iterable of user turns. In 0.3.x the SDK consumes a
-// streaming-input prompt (AsyncIterable<SDKUserMessage>) for the session's
-// lifetime — each pushed message drives one assistant turn. Replaces the
-// 0.2.x interactive session's `.send()`. Closing the queue completes the
-// prompt iterable, which lets the query() generator finish and unblocks the
-// parked stream() consumer.
-const QUEUE_DONE = Symbol("queue-done");
-
-class InputQueue implements AsyncIterable<SDKUserMessage> {
-  private pending: SDKUserMessage[] = [];
-  private waiter: ((v: SDKUserMessage | typeof QUEUE_DONE) => void) | null = null;
-  private closed = false;
-
-  push(msg: SDKUserMessage): void {
-    if (this.closed) return;
-    if (this.waiter) {
-      const w = this.waiter;
-      this.waiter = null;
-      w(msg);
-    } else {
-      this.pending.push(msg);
-    }
-  }
-
-  close(): void {
-    if (this.closed) return;
-    this.closed = true;
-    if (this.waiter) {
-      const w = this.waiter;
-      this.waiter = null;
-      w(QUEUE_DONE);
-    }
-  }
-
-  async *[Symbol.asyncIterator](): AsyncIterator<SDKUserMessage> {
-    while (true) {
-      if (this.pending.length > 0) {
-        yield this.pending.shift()!;
-        continue;
-      }
-      if (this.closed) return;
-      const next = await new Promise<SDKUserMessage | typeof QUEUE_DONE>((resolve) => {
-        this.waiter = resolve;
-      });
-      if (next === QUEUE_DONE) return;
-      yield next;
-    }
-  }
-}
-
-// Low-level wrapper over query() that restores the 0.2.x interactive-session
-// shape (stream / send / close) on top of 0.3.x's streaming-input model. The
-// ClaudeBackendSession wraps this in normalized backend events and approvals.
-export class RawClaudeSession {
-  private readonly input = new InputQueue();
-  readonly query: Query;
-  private closed = false;
-
-  constructor(options: Options) {
-    this.query = query({ prompt: this.input, options });
-  }
-
-  // The query generator yields every SDKMessage across all turns until close.
-  stream(): AsyncIterable<SDKMessage> {
-    return this.query;
-  }
-
-  async send(msg: string | SDKUserMessage): Promise<void> {
-    this.input.push(typeof msg === "string" ? ({ type: "user", message: { role: "user", content: msg }, parent_tool_use_id: null } as SDKUserMessage) : msg);
-  }
-
-  close(): void {
-    if (this.closed) return;
-    this.closed = true;
-    // End the input stream (completes the query generator) and interrupt any
-    // in-flight turn. interrupt() rejects if the query already finished, so
-    // swallow — close() is idempotent and must not throw.
-    this.input.close();
-    void this.query.interrupt().catch(() => {});
-  }
-}
 
 class ClaudeBackendSession implements BackendSession {
   private pendingApprovals = new Map<string, { input: Record<string, unknown>; suggestions?: PermissionUpdate[]; resolve: (r: PermissionResult) => void }>();
@@ -249,25 +148,6 @@ class ClaudeBackendSession implements BackendSession {
       );
     });
   }
-}
-
-// Run a single stateless prompt to completion and return the terminal result.
-// Centralizes native-binary resolution and the drain-to-result loop so both
-// the backend's oneShotPrompt and topic-label generation share one path. A
-// string prompt (vs. a streaming iterable) makes query() run exactly one turn
-// and complete after the result message.
-export async function runClaudeOneShot(prompt: string, options: Options): Promise<{ subtype: "success" | "error"; result: string }> {
-  const q = query({
-    prompt,
-    options: { pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN, ...options },
-  });
-  let out: { subtype: "success" | "error"; result: string } = { subtype: "error", result: "" };
-  for await (const msg of q) {
-    if (msg.type === "result") {
-      out = msg.subtype === "success" ? { subtype: "success", result: msg.result } : { subtype: "error", result: "" };
-    }
-  }
-  return out;
 }
 
 export const claudeBackend: Backend = {
