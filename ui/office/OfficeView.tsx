@@ -15,6 +15,7 @@ import { OfficeHints } from "./OfficeHints.tsx";
 import { RoomDoorDropZones } from "./RoomDoorDropZones.tsx";
 import { OfficeTopHud } from "./OfficeTopHud.tsx";
 import { OfficePeopleLayer } from "./OfficePeopleLayer.tsx";
+import { useOfficeDoorFeedback } from "./hooks/useOfficeDoorFeedback.ts";
 
 // Pixel coords (scene-container space) where ghosts park when sliding
 // to/from a door on a room switch. Roughly centered horizontally on the
@@ -105,19 +106,8 @@ export function OfficeView({
   // overrides for ghosts whose presence just crossed into / out of our current
   // room. The hook owns all per-ghost coordinate state; OfficeView just renders.
   const ghostPlacements = useGhostTransitions(presences, roomAgents, currentRoom, sessionContext?.connectionId ?? null, LEFT_DOOR_COORD, RIGHT_DOOR_COORD);
-  const [leftDoorDragOver, setLeftDoorDragOver] = useState(false);
-  const [rightDoorDragOver, setRightDoorDragOver] = useState(false);
-  const [leftDoorReject, setLeftDoorReject] = useState(false);
-  const [rightDoorReject, setRightDoorReject] = useState(false);
+  const doorFeedback = useOfficeDoorFeedback();
   const [wallMenu, setWallMenu] = useState<{ x: number; y: number } | null>(null);
-  const rejectLeftDoor = useCallback(() => {
-    setLeftDoorReject(true);
-    setTimeout(() => setLeftDoorReject(false), 400);
-  }, []);
-  const rejectRightDoor = useCallback(() => {
-    setRightDoorReject(true);
-    setTimeout(() => setRightDoorReject(false), 400);
-  }, []);
   const setCurrentRoom = useCallback(
     (room: number) => {
       dispatch({ type: "set_current_room", room });
@@ -201,8 +191,8 @@ export function OfficeView({
                   ? {
                       label: roomNames[currentRoom - 1] ?? `Room ${currentRoom}`,
                       onClick: () => dispatch({ type: "set_current_room", room: currentRoom - 1 }),
-                      dragOver: leftDoorDragOver,
-                      reject: leftDoorReject,
+                      dragOver: doorFeedback.leftDoorDragOver,
+                      reject: doorFeedback.leftDoorReject,
                     }
                   : null
               }
@@ -211,8 +201,8 @@ export function OfficeView({
                   ? {
                       label: roomNames[currentRoom + 1] ?? `Room ${currentRoom + 2}`,
                       onClick: () => dispatch({ type: "set_current_room", room: currentRoom + 1 }),
-                      dragOver: rightDoorDragOver,
-                      reject: rightDoorReject,
+                      dragOver: doorFeedback.rightDoorDragOver,
+                      reject: doorFeedback.rightDoorReject,
                     }
                   : null
               }
@@ -226,10 +216,10 @@ export function OfficeView({
               rooms={rooms}
               roomCount={roomCount}
               onSetRoom={setCurrentRoom}
-              onLeftDragOverChange={setLeftDoorDragOver}
-              onRightDragOverChange={setRightDoorDragOver}
-              onLeftReject={rejectLeftDoor}
-              onRightReject={rejectRightDoor}
+              onLeftDragOverChange={doorFeedback.setLeftDoorDragOver}
+              onRightDragOverChange={doorFeedback.setRightDoorDragOver}
+              onLeftReject={doorFeedback.rejectLeftDoor}
+              onRightReject={doorFeedback.rejectRightDoor}
             />
             <OfficePeopleLayer
               roomAgents={roomAgents}
