@@ -1,0 +1,192 @@
+import { useEffect, useRef, useState } from "react";
+import type { AgentInfo, AgentOutfit, ClientCommand } from "../../../shared/types.ts";
+import { CODEX_MODELS, familyAllowsAutoPermission, MODEL_FAMILIES } from "../../../shared/types.ts";
+import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
+import { useAppState } from "../../store.tsx";
+import { addRawListener, removeRawListener, send } from "../../ws.ts";
+import { makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
+import type { EditAgentDialogProps } from "./EditAgentDialog.tsx";
+
+export function useEditAgentDialogController(props: EditAgentDialogProps) {
+  const { onClose } = props;
+  const isSpawn = !props.agent;
+  const agent = props.agent;
+  const agentType = agent?.agentType ?? props.agentType ?? "claude";
+
+  const { recentCwds: allRecentCwds, isMobile, agents, rooms, sessionContext } = useAppState();
+  const roomCount = rooms.length;
+  const [name, setName] = useState(agent?.name ?? "");
+  const [cwd, setCwd] = useState(agent?.cwd ?? props.defaultCwd ?? "~");
+  const [outfit, setOutfit] = useState<AgentOutfit>(agent ? { ...agent.outfit } : makeRandomOutfit);
+  const [customInstructions, setCustomInstructions] = useState(agent?.customInstructions ?? "");
+  const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
+  const [modelFamily, setModelFamily] = useState<string>(agent?.modelFamily ?? modelOptions[0].family);
+  const initialPermissionMode: AgentInfo["permissionMode"] =
+    agent?.permissionMode === "auto" && !familyAllowsAutoPermission(agent?.modelFamily ?? MODEL_FAMILIES[0].family) ? "bypassPermissions" : (agent?.permissionMode ?? "auto");
+  const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
+  const [privileged, setPrivileged] = useState(agent?.privileged ?? false);
+  const canTogglePrivileged = !isSpawn && sessionContext?.role === "owner";
+  const [saving, setSaving] = useState(false);
+  const [cwdError, setCwdError] = useState<string | null>(null);
+  const pendingListener = useRef<((data: string) => void) | null>(null);
+  const savePhase = useRef<"edit" | "privileged" | null>(null);
+  const recentCwds = allRecentCwds.filter((c) => c !== cwd);
+  const agentMemory = useMemoryEditor("agent", agent?.id ?? null, !isSpawn && !!agent);
+
+  useEffect(() => {
+    return () => {
+      if (pendingListener.current) removeRawListener(pendingListener.current);
+    };
+  }, []);
+
+  // Validate the existing cwd when the edit dialog opens, so the user sees
+  // immediately if the stored directory is gone.
+  useEffect(() => {
+    if (isSpawn || !agent) return;
+    const initialCwd = agent.cwd;
+    const reqId = `cwd-check-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const listener = (data: string) => {
+      try {
+        const msg = JSON.parse(data);
+        if (msg.type === "cwd_validation" && msg.requestId === reqId) {
+          removeRawListener(listener);
+          if (!msg.ok) setCwdError(msg.error || "Invalid directory");
+        }
+      } catch {}
+    };
+    addRawListener(listener);
+    send({ type: "request_cwd_validation", requestId: reqId, cwd: initialCwd });
+    return () => removeRawListener(listener);
+  }, [isSpawn, agent?.id]);
+
+  async function handleSave() {
+    if (!isSpawn) {
+      const memoryResult = await agentMemory.save();
+      if (!memoryResult.ok) {
+        setCwdError(memoryResult.message);
+        return;
+      }
+    }
+    const reqId = `agent-save-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const listener = (data: string) => {
+      try {
+        const msg = JSON.parse(data);
+        if (msg.type === "agent_save_response" && msg.requestId === reqId) {
+          if (msg.ok && savePhase.current === "edit" && canTogglePrivileged && privileged !== (agent!.privileged ?? false)) {
+            savePhase.current = "privileged";
+            send({ type: "set_agent_privileged", requestId: reqId, agentId: agent!.id, privileged });
+            return;
+          }
+          removeRawListener(listener);
+          pendingListener.current = null;
+          setSaving(false);
+          if (msg.ok) {
+            savePhase.current = null;
+            onClose();
+          } else {
+            savePhase.current = null;
+            setCwdError(msg.error || "Save failed");
+          }
+        }
+      } catch {}
+    };
+
+    if (isSpawn) {
+      const targetRoomId = rooms[props.room!]?.id;
+      setCwdError(null);
+      setSaving(true);
+      addRawListener(listener);
+      pendingListener.current = listener;
+      send({
+        type: "spawn",
+        requestId: reqId,
+        name: name || `Agent ${props.deskIndex! + 1}`,
+        cwd,
+        permissionMode,
+        desk: props.deskIndex!,
+        roomId: targetRoomId,
+        outfit,
+        customInstructions: customInstructions.trim() || undefined,
+        modelFamily,
+        agentType,
+      });
+    } else {
+      const cmd: Extract<ClientCommand, { type: "edit_agent" }> = { type: "edit_agent", agentId: agent!.id };
+      if (name.trim() && name.trim() !== agent!.name) cmd.name = name.trim();
+      if (cwd.trim() && cwd.trim() !== agent!.cwd) cmd.cwd = cwd.trim();
+      if (JSON.stringify(outfit) !== JSON.stringify(agent!.outfit)) cmd.outfit = outfit;
+      const trimmedInstructions = customInstructions.trim();
+      if (trimmedInstructions !== (agent!.customInstructions ?? "")) cmd.customInstructions = trimmedInstructions;
+      if (modelFamily !== agent!.modelFamily) cmd.modelFamily = modelFamily;
+      if (permissionMode !== agent!.permissionMode) cmd.permissionMode = permissionMode;
+      const privilegedChanged = canTogglePrivileged && privileged !== (agent!.privileged ?? false);
+      const hasAgentChanges = !!(cmd.name || cmd.cwd || cmd.outfit || cmd.customInstructions !== undefined || cmd.modelFamily || cmd.permissionMode);
+      if (!hasAgentChanges && !privilegedChanged) {
+        onClose();
+        return;
+      }
+      setCwdError(null);
+      if (privilegedChanged) {
+        setSaving(true);
+        addRawListener(listener);
+        pendingListener.current = listener;
+        if (hasAgentChanges) {
+          cmd.requestId = reqId;
+          savePhase.current = "edit";
+          send(cmd);
+        } else {
+          savePhase.current = "privileged";
+          send({ type: "set_agent_privileged", requestId: reqId, agentId: agent!.id, privileged });
+        }
+      } else if (cmd.cwd) {
+        // Only round-trip through the server when we need cwd validation; other
+        // edits have no failure mode worth blocking the dialog on.
+        cmd.requestId = reqId;
+        setSaving(true);
+        savePhase.current = "edit";
+        addRawListener(listener);
+        pendingListener.current = listener;
+        send(cmd);
+      } else {
+        send(cmd);
+        onClose();
+      }
+    }
+  }
+
+  const title = isSpawn ? "Spawn New Agent" : "Edit Agent";
+  const subtitle = isSpawn ? `Desk #${props.deskIndex! + 1}` : `${roomCount > 1 ? `${rooms[agent!.room]?.name ?? `Room ${agent!.room + 1}`}, ` : ""}Desk #${agent!.desk + 1}`;
+
+  return {
+    agent,
+    agentMemory,
+    agentType,
+    agents,
+    canTogglePrivileged,
+    customInstructions,
+    cwd,
+    cwdError,
+    handleSave,
+    isMobile,
+    isSpawn,
+    modelFamily,
+    modelOptions,
+    name,
+    outfit,
+    permissionMode,
+    privileged,
+    recentCwds,
+    rooms,
+    saving,
+    setCustomInstructions,
+    setCwd,
+    setCwdError,
+    setModelFamily,
+    setName,
+    setOutfit,
+    setPermissionMode,
+    setPrivileged,
+    subtitle,
+    title,
+  };
+}
