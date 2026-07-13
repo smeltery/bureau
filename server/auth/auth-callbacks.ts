@@ -3,7 +3,7 @@ import type { RoomWire } from "../../shared/types.ts";
 import { browsers } from "../ws/broadcast.ts";
 import { getWsUser } from "../users.ts";
 import { listActiveSessions, listInvites, setOnInviteConsumed, setOnSessionsChanged, setRoomsSnapshotProvider } from "./auth.ts";
-import { setOnOwnerCreated } from "./auth-middleware.ts";
+import { setOnOwnerCreated } from "./auth-routes.ts";
 
 export function installAuthCallbacks(getRooms: () => RoomWire[]) {
   // Inject the room snapshot provider auth.ts uses when seeding a new owner's

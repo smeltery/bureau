@@ -76,7 +76,7 @@ A separate **shared-device** risk applies to anyone who opens Bureau on a comput
 **Mitigations.**
 
 - **Tight TTL.** Owner-issued invite links expire 24 hours after issuing (`INVITE_TTL_MS` in `server/auth/auth.ts`). Self-device invite links expire 1 hour after issuing (`SELF_INVITE_TTL_MS`). Neither TTL is configurable.
-- **`Referrer-Policy: no-referrer`** on `/i/<token>`, the accept page, the SPA shell, and all auth pages that may carry a bearer token in the URL (`server/auth/auth-middleware.ts:securityHeaders()`), so the token cannot leak via the Referer header on outbound navigations from the accept page. The first-owner claim form intentionally omits this header so Chrome doesn't downgrade its form-POST Origin to `null`; the claim URL has no token to leak.
+- **`Referrer-Policy: no-referrer`** on `/i/<token>`, the accept page, the SPA shell, and all auth pages that may carry a bearer token in the URL (`server/auth/auth-pages.ts:securityHeaders()`), so the token cannot leak via the Referer header on outbound navigations from the accept page. The first-owner claim form intentionally omits this header so Chrome doesn't downgrade its form-POST Origin to `null`; the claim URL has no token to leak.
 - **One-time use.** Once the legitimate recipient clicks accept, the invite is permanently consumed (`server/auth/auth.ts`). Any subsequent leak is inert.
 - **Mutex-serialized acceptance.** Two concurrent clicks on the same URL cannot both succeed (`server/auth/auth.ts`); whichever runs second sees `consumed=true` and is rejected.
 
@@ -85,7 +85,7 @@ A separate **shared-device** risk applies to anyone who opens Bureau on a comput
 **Affected files & lines.**
 
 - `server/auth/auth.ts` — `INVITE_TTL_MS` and `SELF_INVITE_TTL_MS` constants.
-- `server/auth/auth-middleware.ts` — `securityHeaders()` helper, spread into token-bearing auth/invite HTML responses and the SPA shell; first-owner claim responses omit `Referrer-Policy` because their URL contains no bearer token (`securityHeaders({ tokenInUrl: false })`).
+- `server/auth/auth-pages.ts` — `securityHeaders()` helper, spread into token-bearing auth/invite HTML responses and the SPA shell; first-owner claim responses omit `Referrer-Policy` because their URL contains no bearer token (`securityHeaders({ tokenInUrl: false })`).
 - `server/auth/auth.ts` — one-time consumption.
 
 **Operator guidance.** Send invites over channels you trust, and ask invitees to click promptly. The TTL is short enough that a leaked link generally expires before a casual leaker (a shared device's next user, a forgotten-to-log-out chat archive) can act on it.
@@ -189,7 +189,7 @@ The command dispatcher uses `session.username` server-side rather than trusting 
 
 ### 5.16 Security headers on every HTML surface
 
-`Referrer-Policy: no-referrer` on every HTML response that may carry a bearer token in the URL (`server/auth/auth-middleware.ts:securityHeaders()`); explicitly omitted on the first-owner claim form response, whose URL has no token to leak, so Chrome's privacy coupling doesn't downgrade the form-POST Origin to `null`. `Strict-Transport-Security: max-age=31536000` added when the resolved public origin is HTTPS. `includeSubDomains` deliberately not set — the operator may not own siblings of the office origin (Tailscale Funnel, Cloudflare, Caddy under various parent domains); operators wanting subdomain-wide HSTS can layer it at their reverse proxy.
+`Referrer-Policy: no-referrer` on every HTML response that may carry a bearer token in the URL (`server/auth/auth-pages.ts:securityHeaders()`); explicitly omitted on the first-owner claim form response, whose URL has no token to leak, so Chrome's privacy coupling doesn't downgrade the form-POST Origin to `null`. `Strict-Transport-Security: max-age=31536000` added when the resolved public origin is HTTPS. `includeSubDomains` deliberately not set — the operator may not own siblings of the office origin (Tailscale Funnel, Cloudflare, Caddy under various parent domains); operators wanting subdomain-wide HSTS can layer it at their reverse proxy.
 
 ### 5.17 Owner-login CLI is gated by Unix-socket file permissions
 
@@ -253,6 +253,8 @@ Primary auth modules:
 
 - `server/auth/auth.ts`
 - `server/auth/auth-middleware.ts`
+- `server/auth/auth-routes.ts`
+- `server/auth/auth-pages.ts`
 - `server/users.ts`
 - `server/index.ts` (auth-relevant slices: WS upgrade, command dispatch, `/auth` routes, `/tasks`, `/cronjobs`, `/agents/:id/*`, `/api/upload`, `/api/files`)
 - `server/cronjob-manager.ts` (auth-relevant slices)
