@@ -24,68 +24,19 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import type { CCAvailablePlugin, CCInstalledPlugin, CCMarketplace, CCPluginScope, CCPluginsState, ServerMessage } from "../../shared/types.ts";
-import { CLAUDE_NATIVE_BIN } from "../agents/session/runtime.ts";
 import { broadcast } from "../ws/broadcast.ts";
+import { CCPluginError, LIST_TIMEOUT_MS, MUTATION_TIMEOUT_MS, assertSafeCliArg, cliFailureMessage, runCli } from "./cc-plugin-cli.ts";
 
 const CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR?.trim() || join(homedir(), ".claude");
-
-// Installs do git clones (and marketplace adds fetch the repo); lists read
-// local caches and finish in <1s but get headroom for cold starts.
-const LIST_TIMEOUT_MS = 60_000;
-const MUTATION_TIMEOUT_MS = 180_000;
 
 // Serve the cached snapshot for this long unless a caller forces a refresh.
 // Mutations always refresh. The catalog only changes when this process (or a
 // CLI session the user runs by hand) changes it, so staleness risk is low.
 const CACHE_TTL_MS = 60_000;
 
-export class CCPluginError extends Error {}
+export { CCPluginError };
 
 let cachedState: CCPluginsState | null = null;
-
-// ---------------------------------------------------------------------------
-// CLI plumbing
-// ---------------------------------------------------------------------------
-
-let cliChain: Promise<unknown> = Promise.resolve();
-
-/** Run `claude <args>` with all invocations serialized process-wide. */
-function runCli(args: string[], timeoutMs: number): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  const run = async () => {
-    const proc = Bun.spawn([CLAUDE_NATIVE_BIN, ...args], {
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
-      env: { ...process.env },
-    });
-    const killTimer = setTimeout(() => proc.kill(), timeoutMs);
-    try {
-      const [stdout, stderr, exitCode] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
-      return { stdout, stderr, exitCode };
-    } finally {
-      clearTimeout(killTimer);
-    }
-  };
-  const result = cliChain.then(run, run);
-  cliChain = result.catch(() => {});
-  return result;
-}
-
-/** Reject anything that could read as a CLI flag or shell-ish garbage. Args
- *  are passed as argv (no shell), so this is about flag injection and about
- *  keeping error messages sane, not command injection. */
-function assertSafeCliArg(value: string, what: string): void {
-  if (!value || value.length > 300) throw new CCPluginError(`${what} is empty or too long`);
-  if (value.startsWith("-")) throw new CCPluginError(`${what} must not start with "-"`);
-  if (!/^[A-Za-z0-9@._\/:~-]+$/.test(value)) {
-    throw new CCPluginError(`${what} contains unsupported characters`);
-  }
-}
-
-function cliFailureMessage(action: string, res: { stdout: string; stderr: string; exitCode: number }): string {
-  const detail = (res.stderr.trim() || res.stdout.trim()).split("\n").slice(-4).join("\n");
-  return `${action} failed (exit ${res.exitCode})${detail ? `: ${detail}` : ""}`;
-}
 
 // ---------------------------------------------------------------------------
 // State reads
