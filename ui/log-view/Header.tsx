@@ -1,14 +1,11 @@
-import { useState } from "react";
 import type { AgentInfo } from "../../shared/types.ts";
 import { familyDisplayLabel } from "../../shared/types.ts";
-import { useAppState, useFeatures, useTheme } from "../store.tsx";
-import { CopyButton } from "../components/controls/CopyButton.tsx";
-import { MoonIcon, PersonIcon, SunIcon } from "../components/controls/Icons.tsx";
-import { ThemePicker } from "../components/ThemePicker.tsx";
+import { useAppState } from "../store.tsx";
 import { StatusLight } from "../office/scene/StatusLight.tsx";
 import { HeaderTimer, STATE_LABELS } from "./StateIndicators.tsx";
 import { HeaderTopic } from "./HeaderTopic.tsx";
 import { HeaderMobile } from "./HeaderMobile.tsx";
+import { HeaderActions } from "./header/HeaderActions.tsx";
 
 export function Header({
   agent,
@@ -38,10 +35,6 @@ export function Header({
   getConversationText: () => string;
 }) {
   const { stateChangedAt, isMobile } = useAppState();
-  const { mode } = useTheme();
-  const features = useFeatures();
-
-  const [themePickerOpen, setThemePickerOpen] = useState(false);
 
   if (isMobile) {
     return (
@@ -130,104 +123,17 @@ export function Header({
           {familyDisplayLabel(agent.modelFamily)}
         </span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end", flexShrink: 0, marginLeft: 12 }}>
-        {onOpenTasks && (
-          <button
-            onClick={onOpenTasks}
-            style={{
-              padding: "4px 10px",
-              borderRadius: 6,
-              border: "1px solid var(--border-medium)",
-              background: "var(--btn-surface)",
-              color: "var(--text-dim)",
-              fontSize: 11,
-              cursor: "pointer",
-            }}
-          >
-            Tasks
-          </button>
-        )}
-        {logs.length > 0 && <CopyButton getText={getConversationText} />}
-        <button
-          onClick={toggleAvatar}
-          title={showAvatar ? "Hide agent avatar" : "Show agent avatar"}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "4px 8px",
-            borderRadius: 6,
-            border: "1px solid var(--border-medium)",
-            background: "var(--btn-surface)",
-            color: "var(--text-dim)",
-            cursor: "pointer",
-            opacity: showAvatar ? 1 : 0.35,
-            transition: "opacity 0.2s",
-          }}
-        >
-          <PersonIcon />
-        </button>
-        <button
-          onClick={() => setThemePickerOpen(true)}
-          title="Change theme"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "4px 8px",
-            borderRadius: 6,
-            border: "1px solid var(--border-medium)",
-            background: "var(--btn-surface)",
-            color: "var(--text-dim)",
-            cursor: "pointer",
-          }}
-        >
-          {mode === "dark" ? <MoonIcon /> : <SunIcon />}
-        </button>
-        <ThemePicker open={themePickerOpen} onClose={() => setThemePickerOpen(false)} />
-        {features.editor && (
-          <button
-            onClick={() => setEditorOpen((prev) => !prev)}
-            title={editorOpen ? "Close editor" : "Open editor"}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "4px 10px",
-              borderRadius: 6,
-              border: `1px solid ${editorOpen ? "var(--green-border)" : "var(--border-medium)"}`,
-              background: editorOpen ? "var(--green-bg)" : "var(--btn-surface)",
-              color: editorOpen ? "var(--green)" : "var(--text-dim)",
-              fontSize: 12,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{}</span>
-          </button>
-        )}
-        {features.terminal && (
-          <button
-            onClick={() => setTerminalOpen((prev) => !prev)}
-            title={terminalOpen ? "Close terminal (Ctrl+`)" : "Open terminal (Ctrl+`)"}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "4px 10px",
-              borderRadius: 6,
-              border: `1px solid ${terminalOpen ? "var(--green-border)" : "var(--border-medium)"}`,
-              background: terminalOpen ? "var(--green-bg)" : "var(--btn-surface)",
-              color: terminalOpen ? "var(--green)" : "var(--text-dim)",
-              fontSize: 12,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>&gt;_</span>
-          </button>
-        )}
-      </div>
+      <HeaderActions
+        logs={logs}
+        onOpenTasks={onOpenTasks}
+        showAvatar={showAvatar}
+        toggleAvatar={toggleAvatar}
+        terminalOpen={terminalOpen}
+        setTerminalOpen={setTerminalOpen}
+        editorOpen={editorOpen}
+        setEditorOpen={setEditorOpen}
+        getConversationText={getConversationText}
+      />
     </div>
   );
 }
