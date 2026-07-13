@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentBackendType, AgentInfo, AgentOutfit, ClientCommand } from "../../../shared/types.ts";
-import { CODEX_MODELS, familyAllowsAutoPermission, MODEL_FAMILIES, modelVersionLabel } from "../../../shared/types.ts";
+import { CODEX_MODELS, familyAllowsAutoPermission, MODEL_FAMILIES } from "../../../shared/types.ts";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
 import { useAppState } from "../../store.tsx";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { AgentDialogFrame } from "./AgentDialogFrame.tsx";
 import { AgentAppearanceEditor, makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
+import { AgentModelPermissionFields } from "./AgentModelPermissionFields.tsx";
 import { AgentMoveRoomSection } from "./AgentMoveRoomSection.tsx";
 import { AgentWorkingDirectoryField } from "./AgentWorkingDirectoryField.tsx";
 import { dialogInput, dialogLabel } from "./dialog-styles.ts";
@@ -183,37 +184,19 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
         showNextConversationHint={!isSpawn}
       />
 
-      <label style={{ ...labelStyle, marginTop: 12 }}>Permission Mode</label>
-      <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as AgentInfo["permissionMode"])} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-        {familyAllowsAutoPermission(modelFamily) && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
-        <option value="default">Default (ask for everything)</option>
-        <option value="acceptEdits">Accept Edits (auto-approve file changes)</option>
-        <option value="bypassPermissions">Bypass (auto-approve all)</option>
-      </select>
-
-      {canTogglePrivileged && (
-        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
-          <input type="checkbox" checked={privileged} onChange={(e) => setPrivileged(e.target.checked)} style={{ width: 14, height: 14, accentColor: "var(--accent)" }} />
-          Privileged operator token
-        </label>
-      )}
-
-      <label style={{ ...labelStyle, marginTop: 12 }}>Model</label>
-      <select
-        value={modelFamily}
-        onChange={(e) => {
-          const next = e.target.value;
-          setModelFamily(next);
-          if (!familyAllowsAutoPermission(next) && permissionMode === "auto") setPermissionMode("bypassPermissions");
-        }}
-        style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
-      >
-        {modelOptions.map((m) => (
-          <option key={m.family} value={m.family}>
-            {agentType === "claude" ? `${m.label} (${modelVersionLabel(m.family as any)})` : m.label}
-          </option>
-        ))}
-      </select>
+      <AgentModelPermissionFields
+        agentType={agentType}
+        canTogglePrivileged={canTogglePrivileged}
+        inputStyle={inputStyle}
+        labelStyle={labelStyle}
+        modelFamily={modelFamily}
+        modelOptions={modelOptions}
+        permissionMode={permissionMode}
+        privileged={privileged}
+        setModelFamily={setModelFamily}
+        setPermissionMode={setPermissionMode}
+        setPrivileged={setPrivileged}
+      />
 
       <label style={{ ...labelStyle, marginTop: 14 }}>Appearance</label>
       <AgentAppearanceEditor outfit={outfit} onChange={setOutfit} selectStyle={selectStyle} />
