@@ -2,43 +2,11 @@ import { join } from "path";
 import { homedir } from "os";
 import { existsSync, readFileSync, readdirSync } from "fs";
 import type { SkillInfo } from "../../shared/types.ts";
+import { extractBundledSkillFrontmatter, extractSkillDescription, hasUserInvocableFalse, readSkillFile } from "./skills-files.ts";
 
 // Skills bundled with bureau itself (available to all users regardless of their config)
 export const BUNDLED_SKILLS_DIR = join(import.meta.dir, "..", "..", "skills");
-
-// Extract description from SKILL.md / command .md YAML frontmatter
-export function extractSkillDescription(filePath: string): string | undefined {
-  try {
-    const content = readFileSync(filePath, "utf-8");
-    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    if (!fmMatch) return undefined;
-    const descMatch = fmMatch[1].match(/description:\s*(.+)/);
-    return descMatch ? descMatch[1].trim() : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-// Extract description + optional alias from SKILL.md frontmatter. Only
-// bundled skills honor `alias:`; user/project/plugin skills don't.
-function extractBundledSkillFrontmatter(filePath: string): {
-  description?: string;
-  alias?: string;
-} {
-  try {
-    const content = readFileSync(filePath, "utf-8");
-    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    if (!fmMatch) return {};
-    const descMatch = fmMatch[1].match(/description:\s*(.+)/);
-    const aliasMatch = fmMatch[1].match(/alias:\s*(.+)/);
-    return {
-      description: descMatch ? descMatch[1].trim() : undefined,
-      alias: aliasMatch ? aliasMatch[1].trim() : undefined,
-    };
-  } catch {
-    return {};
-  }
-}
+export { extractSkillDescription };
 
 // Scan disk for user-defined skills and commands that the SDK doesn't report
 export function discoverUserSkills(): SkillInfo[] {
@@ -138,11 +106,7 @@ export function discoverPluginSkills(): SkillInfo[] {
           if (!d.isDirectory()) continue;
           const skillMd = join(skillsDir, d.name, "SKILL.md");
           if (!existsSync(skillMd)) continue;
-          try {
-            const content = readFileSync(skillMd, "utf-8");
-            const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-            if (fmMatch && /user-invocable:\s*false/i.test(fmMatch[1])) continue;
-          } catch {}
+          if (hasUserInvocableFalse(skillMd)) continue;
           const description = extractSkillDescription(skillMd);
           skills.push({ name: `${pluginName}:${d.name}`, origin: "plugin", description });
         }
@@ -176,18 +140,6 @@ export function deduplicateSkills(skills: SkillInfo[]): SkillInfo[] {
     }
   }
   return result;
-}
-
-// Read a skill file, stripping YAML frontmatter
-function readSkillFile(path: string): string | null {
-  if (!existsSync(path)) return null;
-  try {
-    const content = readFileSync(path, "utf-8");
-    const stripped = content.replace(/^---\n[\s\S]*?\n---\n*/, "");
-    return stripped.trim();
-  } catch {
-    return null;
-  }
 }
 
 // Resolve a plugin-namespaced skill (e.g., "codex:rescue") to its prompt text
