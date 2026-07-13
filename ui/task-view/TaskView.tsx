@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAppState } from "../store.tsx";
-import type { TaskStatus } from "../../shared/types.ts";
 import { TaskDetailPanel } from "./TaskDetailPanel.tsx";
 import { TaskTable } from "./TaskTable.tsx";
-import { PRIORITY_ORDER, STATUS_ORDER, type SortDir, type SortField } from "./constants.ts";
+import { type SortDir, type SortField } from "./constants.ts";
+import { filterAndSortTasks, type TaskStatusFilter } from "./taskFilters.ts";
 
 export function TaskView({ username, onClose, onFocusAgent }: { username: string; onClose: () => void; onFocusAgent?: (agentId: string) => void }) {
   const { tasks, tasksLoaded, agents, isMobile } = useAppState();
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<TaskStatus | "all" | "active">("active");
+  const [filterStatus, setFilterStatus] = useState<TaskStatusFilter>("active");
   const [creating, setCreating] = useState(false);
   const [filterAssignee, setFilterAssignee] = useState("");
   const [sortField, setSortField] = useState<SortField>("createdAt");
@@ -62,48 +62,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
   }, [agents]);
 
   const filtered = useMemo(() => {
-    let list = tasks;
-    if (filterStatus === "active") {
-      list = list.filter((t) => t.status !== "done" && t.status !== "backlog");
-    } else if (filterStatus !== "all") {
-      list = list.filter((t) => t.status === filterStatus);
-    }
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((t) => t.id.toLowerCase().includes(q) || t.title.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q)));
-    }
-    if (filterAssignee) {
-      const q = filterAssignee.toLowerCase();
-      list = list.filter((t) => t.assignee?.toLowerCase().includes(q));
-    }
-    const sorted = [...list].sort((a, b) => {
-      let cmp = 0;
-      switch (sortField) {
-        case "status":
-          cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-          break;
-        case "priority": {
-          const pa = a.priority ? PRIORITY_ORDER[a.priority] : 99;
-          const pb = b.priority ? PRIORITY_ORDER[b.priority] : 99;
-          cmp = pa - pb;
-          break;
-        }
-        case "title":
-          cmp = a.title.localeCompare(b.title);
-          break;
-        case "assignee":
-          cmp = (a.assignee || "").localeCompare(b.assignee || "");
-          break;
-        case "createdBy":
-          cmp = a.createdBy.localeCompare(b.createdBy);
-          break;
-        case "createdAt":
-          cmp = a.createdAt - b.createdAt;
-          break;
-      }
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-    return sorted;
+    return filterAndSortTasks(tasks, filterStatus, search, filterAssignee, sortField, sortDir);
   }, [tasks, filterStatus, search, filterAssignee, sortField, sortDir]);
 
   function renderName(name: string | undefined) {
@@ -243,7 +202,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
           </button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as TaskStatus | "all" | "active")} style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as TaskStatusFilter)} style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}>
             <option value="active">Open + In Progress</option>
             <option value="open">Open</option>
             <option value="in_progress">In Progress</option>

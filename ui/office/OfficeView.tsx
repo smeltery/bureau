@@ -2,13 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useAppState, useDispatch, useTheme, useFeatures } from "../store.tsx";
 import { Floor, Walls } from "./scene/Floor.tsx";
 import { RoomProps } from "./scene/RoomProps.tsx";
-import { DeskUnit } from "./scene/DeskUnit.tsx";
-import { EmptySlot } from "./scene/EmptySlot.tsx";
-import { StatusLight } from "./scene/StatusLight.tsx";
 import { SCENE_W, SCENE_H } from "./grid.ts";
 import { useGhostTransitions, type DoorCoord } from "./useGhostTransitions.ts";
-import { GhostBody, GhostTag } from "./Ghost.tsx";
-import { send } from "../ws.ts";
 import { getRoomCounts } from "../components/overlays/MobileHeader.tsx";
 import { WallPanelMenu, type WallPanelMenuItem } from "../components/overlays/WallPanelMenu.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
@@ -19,8 +14,7 @@ import { BuildingIcon, DoorIcon } from "./OfficeHeader.tsx";
 import { OfficeHints } from "./OfficeHints.tsx";
 import { RoomDoorDropZones } from "./RoomDoorDropZones.tsx";
 import { OfficeTopHud } from "./OfficeTopHud.tsx";
-
-const GHOST_SIZE = 40;
+import { OfficePeopleLayer } from "./OfficePeopleLayer.tsx";
 
 // Pixel coords (scene-container space) where ghosts park when sliding
 // to/from a door on a room switch. Roughly centered horizontally on the
@@ -237,75 +231,18 @@ export function OfficeView({
               onLeftReject={rejectLeftDoor}
               onRightReject={rejectRightDoor}
             />
-            {Array.from({ length: 8 }, (_, i) => {
-              const agent = roomAgents.find((a) => a.desk === i);
-              if (agent) {
-                return (
-                  <DeskUnit
-                    key={agent.id}
-                    agent={agent}
-                    onClick={() => dispatch({ type: "focus", agentId: agent.id })}
-                    onContextMenu={(e) => onContextMenu(e.clientX, e.clientY, agent)}
-                    needsAttention={needsAttention.has(agent.id)}
-                    onSwap={(a, b) => {
-                      const rid = rooms[currentRoom]?.id;
-                      if (rid) send({ type: "swap_desks", deskA: a, deskB: b, roomId: rid });
-                    }}
-                    stateChangedAt={stateChangedAt.get(agent.id)}
-                  />
-                );
-              }
-              return (
-                <EmptySlot
-                  key={`empty-${i}`}
-                  deskIndex={i}
-                  onClick={() => onSpawn(i)}
-                  onSwap={(a, b) => {
-                    const rid = rooms[currentRoom]?.id;
-                    if (rid) send({ type: "swap_desks", deskA: a, deskB: b, roomId: rid });
-                  }}
-                />
-              );
-            })}
-            {/* Two layers, two stable per-connection keys per layer. The body
-                and tag layers are independent React siblings, each iterating
-                placements in connectionId order. Body/tag never interleave in
-                the DOM, so a new arrival's body insertion can't shift an
-                existing ghost's tag (or vice versa). Combined with the
-                connectionId-sorted output from useGhostTransitions, no
-                existing ghost's DOM node moves when an unrelated anchor
-                changes — which keeps CSS transitions intact and prevents
-                browsers from re-attach-restarting any inline animations. */}
-            {ghostPlacements.map((p) => (
-              <GhostBody
-                key={`body-${p.presence.connectionId}`}
-                left={p.left}
-                top={p.top}
-                size={GHOST_SIZE}
-                variant={p.presence.avatarVariant}
-                color={p.presence.avatarColor}
-                username={p.presence.username}
-                device={p.presence.device}
-                userId={p.presence.userId}
-                dimmed={p.dimmed}
-                onClick={onOpenUserSettingsForUser}
-              />
-            ))}
-            {ghostPlacements.map((p) => (
-              <GhostTag
-                key={`tag-${p.presence.connectionId}`}
-                left={p.left}
-                top={p.top}
-                size={GHOST_SIZE}
-                variant={p.presence.avatarVariant}
-                color={p.presence.avatarColor}
-                username={p.presence.username}
-                device={p.presence.device}
-                userId={p.presence.userId}
-                dimmed={p.dimmed}
-                onClick={onOpenUserSettingsForUser}
-              />
-            ))}
+            <OfficePeopleLayer
+              roomAgents={roomAgents}
+              rooms={rooms}
+              currentRoom={currentRoom}
+              needsAttention={needsAttention}
+              stateChangedAt={stateChangedAt}
+              ghostPlacements={ghostPlacements}
+              onSpawn={onSpawn}
+              onFocusAgent={(agentId) => dispatch({ type: "focus", agentId })}
+              onContextMenu={onContextMenu}
+              onOpenUserSettingsForUser={onOpenUserSettingsForUser}
+            />
           </div>
         </div>
 

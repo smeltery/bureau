@@ -1,12 +1,20 @@
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
-import { canSeeRoom, getUserById } from "../users.ts";
 import { saveRecentCwd } from "../persistence.ts";
-import type { AgentBackendType, AgentInfo, Attachment, UserRecord } from "../../shared/types.ts";
+import type { AgentBackendType, AgentInfo, Attachment } from "../../shared/types.ts";
 import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
-
-const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+import {
+  agentRouteParts,
+  JSON_HEADERS,
+  jsonError,
+  readJsonBody,
+  requireOwnerAgentAccess,
+  requireUserAgentAccess,
+  requireUserRoomAccess,
+  requireUserSession,
+  sessionUser,
+} from "./agent-route-helpers.ts";
 
 /**
  * Handle agent-scoped HTTP routes:
@@ -274,63 +282,6 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
   return null;
 }
 
-async function readJsonBody(req: Request): Promise<Record<string, unknown> | null> {
-  try {
-    const body = await req.json();
-    return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-function jsonError(status: number, error: string): Response {
-  return new Response(JSON.stringify({ error }), { status, headers: JSON_HEADERS });
-}
-
-function sessionUser(auth: AuthResult | undefined): UserRecord | null {
-  if (auth?.kind !== "ok") return null;
-  return getUserById(auth.session.userId);
-}
-
-function requireUserAgentAccess(auth: AuthResult | undefined, agentId: string): Response | null {
-  const agent = AgentManager.getAgent(agentId);
-  if (!agent) return jsonError(404, "agent not found");
-  if (auth?.kind === "loopback") return null;
-  const user = sessionUser(auth);
-  if (!user) return jsonError(401, "unauthenticated");
-  const roomId = AgentManager.getRooms()[agent.room]?.id;
-  if (!roomId || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
-  return null;
-}
-
-function requireUserSession(auth: AuthResult | undefined): Response | null {
-  if (auth?.kind === "ok") return null;
-  return jsonError(401, "unauthenticated");
-}
-
-function requireUserRoomAccess(auth: AuthResult | undefined, roomId: string): Response | null {
-  const denied = requireUserSession(auth);
-  if (denied) return denied;
-  const user = sessionUser(auth);
-  if (!user || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
-  return null;
-}
-
-function requireOwnerAgentAccess(auth: AuthResult | undefined, agentId: string): Response | null {
-  const denied = requireUserAgentAccess(auth, agentId);
-  if (denied) return denied;
-  const user = sessionUser(auth);
-  if (!user || user.role !== "owner") return jsonError(403, "owner access required");
-  return null;
-}
-
 function parseAgentType(value: unknown): AgentBackendType | null {
   return value === "claude" || value === "codex" ? value : null;
-}
-
-function agentRouteParts(pathname: string): string[] | null {
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] === "agents") return parts;
-  if (parts[0] === "api" && parts[1] === "agents") return parts.slice(1);
-  return null;
 }
