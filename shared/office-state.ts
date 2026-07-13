@@ -1,27 +1,9 @@
 import type { AgentInfo, AgentOutfit, TaskItem, TaskPriority, RoomWire, OfficeSettings } from "./types.ts";
+import type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 import { DEFAULT_AGENT_CAPABILITIES, generateRoomId } from "./types.ts";
 import { generateOutfit } from "./office-outfit.ts";
 import { addTaskToList, deleteTaskFromList, updateTaskInList } from "./office-tasks.ts";
-
-// Domain events — callers translate these to ServerMessage
-export type OfficeEvent =
-  | { type: "agent_added"; agent: AgentInfo }
-  | { type: "agent_removed"; agentId: string }
-  | { type: "agent_updated"; agentId: string; changes: Partial<AgentInfo> }
-  | { type: "room_created"; room: RoomWire }
-  | { type: "room_closed"; roomId: string }
-  | { type: "room_renamed"; roomId: string; name: string }
-  | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
-  | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
-  | { type: "tasks_changed"; tasks: TaskItem[] };
-
-export interface OfficeStateData {
-  agents: AgentInfo[];
-  rooms: RoomWire[];
-  office: OfficeSettings;
-  tasks: TaskItem[];
-  recentCwds: string[];
-}
+export type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 
 export class OfficeState {
   private agents = new Map<string, AgentInfo>();

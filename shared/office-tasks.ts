@@ -1,6 +1,6 @@
 import type { TaskItem, TaskPriority, TaskStatus } from "./types.ts";
 import { generateTaskId } from "./types.ts";
-import type { OfficeEvent } from "./office-state.ts";
+import type { OfficeEvent } from "./office-events.ts";
 
 export function addTaskToList(
   tasks: TaskItem[],

@@ -1,4 +1,4 @@
-import type { OfficeEvent } from "../shared/office-state.ts";
+import type { OfficeEvent } from "../shared/office-events.ts";
 import { shimEmit } from "../ui/ws.ts";
 
 export function emitEvents(events: OfficeEvent[]) {
