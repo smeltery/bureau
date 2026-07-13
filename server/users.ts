@@ -1,8 +1,8 @@
 import type { RoomWire, UserRecord, UserRole } from "../shared/types.ts";
 import { loadUsers, saveUsers, normalizeUserKey, generateUserId } from "./persistence.ts";
-import { defaultGhostColorForUserId, isGhostVariant, isHexColor, normalizeHexColor } from "../shared/avatar.ts";
-import { normalizeAllowedRooms, reconcileUserRooms } from "./user-room-projection.ts";
+import { reconcileUserRooms } from "./user-room-projection.ts";
 import { bindWsUser, getBoundWsUser } from "./user-sockets.ts";
+import { applyBootstrapUserChanges, applyInteractiveUserChanges, createUserRecord, type UserRecordChanges } from "./user-record-updates.ts";
 export { projectAgents, projectRooms } from "./user-room-projection.ts";
 export { clearWsUser, getSessionContext, listActiveSessions, setWsSessionPrefix } from "./user-sockets.ts";
 
@@ -67,21 +67,7 @@ export function claimUserByName(name: string, opts: { role?: UserRole; allowedRo
   const role: UserRole = opts.role ?? (users.size === 0 ? "owner" : "member");
   const id = generateUserId([...users.values()].map((u) => u.id));
   const allowedRooms = opts.allowedRooms ?? [];
-  const created: UserRecord = {
-    id,
-    name: trimmed,
-    role,
-    envFile: null,
-    memberPrompt: null,
-    allowedRooms,
-    hidden: [],
-    order: [],
-    defaultRoomId: allowedRooms[0] ?? null,
-    notifRooms: [...allowedRooms],
-    avatarColor: defaultGhostColorForUserId(id),
-    avatarVariant: "classic",
-    createdAt: Date.now(),
-  };
+  const created = createUserRecord({ id, name: trimmed, role, allowedRooms });
   users.set(key, created);
   persist();
   return created;
@@ -102,43 +88,10 @@ export function setUserRoleById(userId: string, role: UserRole): void {
 // snapshots from AgentManager so the values are known-good. Returns ok/err
 // so the caller can propagate disk failures (auth's rollback closure needs
 // to know whether to invoke).
-export function updateUserById(
-  userId: string,
-  changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
-): { ok: true; user: UserRecord } | { ok: false; error: string } {
+export function updateUserById(userId: string, changes: UserRecordChanges): { ok: true; user: UserRecord } | { ok: false; error: string } {
   const target = getUserById(userId);
   if (!target) return { ok: false, error: `user ${userId} not found` };
-  const next: UserRecord = { ...target };
-  if (typeof changes.name === "string") {
-    const name = changes.name.trim().slice(0, 64);
-    if (name) next.name = name;
-  }
-  if (changes.role === "owner" || changes.role === "member") next.role = changes.role;
-  if (Array.isArray(changes.allowedRooms)) {
-    next.allowedRooms = changes.allowedRooms.filter((id): id is string => typeof id === "string");
-  }
-  if (Array.isArray(changes.hidden)) {
-    next.hidden = changes.hidden.filter((id): id is string => typeof id === "string");
-  }
-  if (Array.isArray(changes.order)) {
-    next.order = changes.order.filter((id): id is string => typeof id === "string");
-  }
-  if (changes.defaultRoomId !== undefined) {
-    next.defaultRoomId = typeof changes.defaultRoomId === "string" ? changes.defaultRoomId : null;
-  }
-  if (Array.isArray(changes.notifRooms)) {
-    next.notifRooms = changes.notifRooms.filter((id): id is string => typeof id === "string" && next.allowedRooms.includes(id));
-  }
-  if (changes.envFile !== undefined) {
-    const envFile = typeof changes.envFile === "string" ? changes.envFile.trim() : "";
-    next.envFile = envFile || null;
-  }
-  if (changes.memberPrompt !== undefined) {
-    const memberPrompt = typeof changes.memberPrompt === "string" ? changes.memberPrompt.trim() : "";
-    next.memberPrompt = memberPrompt || null;
-  }
-  if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
-  if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;
+  const next = applyBootstrapUserChanges(target, changes);
   users.delete(normalizeUserKey(target.name));
   users.set(normalizeUserKey(next.name), next);
   try {
@@ -177,21 +130,7 @@ export function claimUser(ws: import("bun").ServerWebSocket<unknown>, username: 
   if (!user) {
     const role: UserRole = users.size === 0 ? "owner" : "member";
     const id = generateUserId([...users.values()].map((u) => u.id));
-    user = {
-      id,
-      name,
-      role,
-      envFile: null,
-      memberPrompt: null,
-      allowedRooms: allRoomIds,
-      hidden: [],
-      order: [],
-      defaultRoomId: allRoomIds[0] ?? null,
-      notifRooms: [...allRoomIds],
-      avatarColor: defaultGhostColorForUserId(id),
-      avatarVariant: "classic",
-      createdAt: Date.now(),
-    };
+    user = createUserRecord({ id, name, role, allowedRooms: allRoomIds });
     users.set(key, user);
     persist();
   }
@@ -209,68 +148,14 @@ export function listUsers(rooms: RoomWire[]): UserRecord[] {
   return [...users.values()].map((u) => ensureUserRooms(u, allRoomIds)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function updateUser(
-  actor: UserRecord | null,
-  userId: string,
-  changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>,
-  rooms: RoomWire[],
-): UserRecord | null {
+export function updateUser(actor: UserRecord | null, userId: string, changes: UserRecordChanges, rooms: RoomWire[]): UserRecord | null {
   if (!actor) return null;
   const target = [...users.values()].find((u) => u.id === userId);
   if (!target) return null;
   const canEdit = actor.role === "owner" || actor.id === target.id;
   if (!canEdit) return null;
   const allRoomIds = rooms.map((r) => r.id);
-  const next: UserRecord = { ...target };
-  if (typeof changes.name === "string") {
-    const name = changes.name.trim().slice(0, 64);
-    if (name) next.name = name;
-  }
-  if (actor.role === "owner") {
-    if (changes.role === "owner" || changes.role === "member") next.role = changes.role;
-    if (changes.allowedRooms) next.allowedRooms = normalizeAllowedRooms(changes.allowedRooms, allRoomIds);
-  }
-  const accessRooms = next.role === "owner" ? allRoomIds : next.allowedRooms;
-  if (Array.isArray(changes.hidden)) {
-    next.hidden = changes.hidden.filter((id): id is string => typeof id === "string" && accessRooms.includes(id));
-  } else {
-    next.hidden = (next.hidden ?? []).filter((id) => accessRooms.includes(id));
-  }
-  if (Array.isArray(changes.order)) {
-    const seen = new Set<string>();
-    next.order = changes.order.filter((id): id is string => {
-      if (typeof id !== "string" || !accessRooms.includes(id) || seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    });
-  } else {
-    next.order = (next.order ?? []).filter((id) => accessRooms.includes(id));
-  }
-  const hiddenSet = new Set(next.hidden);
-  const shownRooms = accessRooms.filter((id) => !hiddenSet.has(id));
-  if (changes.defaultRoomId !== undefined) {
-    next.defaultRoomId = typeof changes.defaultRoomId === "string" && shownRooms.includes(changes.defaultRoomId) ? changes.defaultRoomId : null;
-  } else if (next.defaultRoomId && !shownRooms.includes(next.defaultRoomId)) {
-    next.defaultRoomId = shownRooms[0] ?? null;
-  }
-  // notifRooms is a self-editable preference (owner or self, already gated by
-  // canEdit above). Keep it within the rooms the user can actually see.
-  if (Array.isArray(changes.notifRooms)) {
-    next.notifRooms = changes.notifRooms.filter((id): id is string => typeof id === "string" && shownRooms.includes(id));
-  }
-  if (changes.envFile !== undefined) {
-    const envFile = typeof changes.envFile === "string" ? changes.envFile.trim() : "";
-    next.envFile = envFile || null;
-  }
-  if (changes.memberPrompt !== undefined) {
-    const memberPrompt = typeof changes.memberPrompt === "string" ? changes.memberPrompt.trim() : "";
-    next.memberPrompt = memberPrompt || null;
-  }
-  if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
-  if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;
-  if (next.role === "owner" && next.allowedRooms.length === 0) next.allowedRooms = allRoomIds;
-  // Drop any notifRooms that fell outside a shrunken shown-room set.
-  next.notifRooms = next.notifRooms.filter((id) => shownRooms.includes(id));
+  const next = applyInteractiveUserChanges(target, actor, changes, allRoomIds);
   users.delete(normalizeUserKey(target.name));
   users.set(normalizeUserKey(next.name), next);
   persist();
