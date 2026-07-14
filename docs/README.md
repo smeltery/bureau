@@ -46,6 +46,7 @@ Deep dives into bugs, SDK behavior, and architectural decisions.
 | Document                                                                     | Description                                                             |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | [Held-Back Messages Bug](investigations/held-back-messages-investigation.md) | Persistent consumer loop fix                                            |
+| [Source Feature Gap Options](investigations/source-feature-gap-options.md)   | Accepted, rejected, and deferred source-parity options                  |
 | [SDK Investigation](investigations/sdk-investigation.md)                     | SDK v0.2.85 research and findings                                       |
 | [SDK Upgrade Assessment](investigations/sdk-upgrade-assessment.md)           | v0.2.86 → v0.2.92 upgrade notes                                         |
 | [Security Audit](security-audit.md)                                          | Invite-link auth, session, CSRF/CSWSH, and external-access threat model |

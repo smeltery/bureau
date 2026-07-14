@@ -16,6 +16,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   topics, and status.
 - Shared `agents-summary.json` discovery manifest for inter-agent awareness.
 - Agents can read other agents' logs and send messages to one another.
+- Agents can schedule one-off future messages, including self-reminders.
 - Durable shared memory with office, room, person, and agent scopes. Agents can
   append attributed facts through the local API, users can curate raw memory in
   settings dialogs, and relevant notes load into future agent prompts.
@@ -64,10 +65,12 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Rich diff cards via `/bureau-diff`.
 - Copy-to-terminal cards for commands an agent wants to hand to the user.
 - File-view cards for agent-exposed files.
+- Browser preview cards for local/private development URLs.
 
 ## Scheduling And Persistence
 
 - Cron jobs with daily, weekly, and interval schedules.
+- One-off scheduled agent messages persist in `scheduled-messages.json`.
 - Per-run transcripts, manual run-now, resume, and fork from prior runs.
 - File-system persistence under `~/.bureau/` or `BUREAU_HOME`.
 - Daily backup tarballs with retention.

@@ -1,6 +1,7 @@
 import type { ServerMessage } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
+import { startScheduledMessageScheduler } from "./scheduled-messages.ts";
 import { loadEnabledPlugins } from "./persistence.ts";
 import { loadPlugins } from "./plugins/registry.ts";
 import { join as joinPath } from "path";
@@ -107,6 +108,7 @@ void (async () => {
   if (restored.length > 0) {
     console.log(`Restored ${restored.length} agent(s): ${restored.map((a) => a.name).join(", ")}`);
   }
+  startScheduledMessageScheduler();
 })();
 
 // Boot cronjob scheduler (loads configs, reconciles stale "running" rows, starts tick).

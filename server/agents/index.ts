@@ -15,6 +15,7 @@ export {
   getCurrentSessionId,
   emitAgentDiff,
   emitAgentEditFile,
+  emitAgentPreviewUrl,
   emitAgentReadFile,
   emitAgentTerminalCommand,
   openEditorFile,

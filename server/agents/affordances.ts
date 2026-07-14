@@ -4,6 +4,7 @@ import { existsSync, readFileSync, statSync } from "fs";
 import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
 import { saveFile as savePersistedFile } from "../persistence.ts";
 import { mimeTypeForFilename } from "../mime-types.ts";
+import { capturePreview } from "../preview-capture.ts";
 import { openFile as openFileImpl, resolveEditorPath, saveFile as saveFileImpl, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
 import { addLogEntry, agents, emitEphemeralLog } from "./state.ts";
 
@@ -104,6 +105,17 @@ export function emitAgentReadFile(agentId: string, rawPath: string): { ok: true 
     return { ok: true };
   }
   addLogEntry(agentId, "file-view", originalName, undefined, [att]);
+  return { ok: true };
+}
+
+export async function emitAgentPreviewUrl(agentId: string, body: unknown): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const managed = agents.get(agentId);
+  if (!managed) return { ok: false, status: 404, error: "agent not found" };
+  const result = await capturePreview(body);
+  if (!result.ok) return { ok: false, status: result.status, error: result.error };
+  const att = savePersistedFile(agentId, result.png, "image/png", result.filename);
+  if (!att) return { ok: false, status: 500, error: "failed to save preview image" };
+  addLogEntry(agentId, "file-view", result.caption, undefined, [att]);
   return { ok: true };
 }
 

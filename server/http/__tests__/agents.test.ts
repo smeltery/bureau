@@ -105,6 +105,56 @@ describe("handleAgentsRequest", () => {
     expect(await res?.json()).toEqual({ error: "missing or invalid bearer token" });
   });
 
+  test("rejects user-scope scheduled messages instead of sending immediately", async () => {
+    const req = request("/api/agents/agent-1/messages", {
+      body: JSON.stringify({ text: "later", deliverAt: "2026-07-14T18:30:00Z" }),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "deliverAt is only supported for agent bearer messages" });
+  });
+
+  test("requires timezone-qualified RFC3339 for scheduled agent messages", async () => {
+    const token = mintAgentToken("agent-1", "user-1");
+    const req = request("/api/agents/agent-1/messages", {
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text: "later", deliverAt: "2026-07-14T18:30:00" }),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "deliverAt must be RFC3339 with a timezone" });
+  });
+
+  test("allows scheduled self-send past immediate self-send guard", async () => {
+    const token = mintAgentToken("agent-1", "user-1");
+    const soon = new Date(Date.now() + 60_000).toISOString();
+    const req = request("/api/agents/agent-1/messages", {
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text: "future reminder", deliverAt: soon }),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "sender agent is not known" });
+  });
+
+  test("requires matching bearer token to list scheduled outbox", async () => {
+    const token = mintAgentToken("agent-2", "user-1");
+    const req = new Request("http://local.test/api/agents/agent-1/scheduled-messages", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(403);
+    expect(await res?.json()).toEqual({ error: "token does not match agent" });
+  });
+
   test("handles conversation session routes under /api/agents", async () => {
     const req = new Request("http://local.test/api/agents/missing/sessions");
 

@@ -95,8 +95,22 @@ export interface QueuedMessage {
   // at flush time to warn the agent that the sender hadn't yet seen its
   // most recent reply when sending this.
   queuedDuringBusyTurn?: boolean;
+  scheduledFor?: number;
+  scheduledSenderGone?: boolean;
   attachments?: Attachment[];
   queuedAt: number;
+}
+
+export interface ScheduledMessageEntry {
+  id: string;
+  senderAgentId: string;
+  senderName: string;
+  senderRoomName: string;
+  receiverAgentId: string;
+  text: string;
+  clientMessageId?: string;
+  deliverAt: number;
+  createdAt: number;
 }
 
 export type MemoryScope = "office" | "room" | "agent" | "boss";

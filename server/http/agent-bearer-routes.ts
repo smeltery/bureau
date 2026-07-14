@@ -38,6 +38,15 @@ export async function handleAgentBearerPost(req: Request, parts: string[]): Prom
     if (!result.ok) return jsonError(result.status, result.error);
     return jsonOk();
   }
+  if (parts.length === 3 && parts[2] === "preview-url") {
+    const agentId = parts[1]!;
+    if (identity.agentId !== agentId) return tokenMismatch();
+    const body = await readOptionalJson(req);
+    if (!body) return jsonError(400, "invalid JSON body");
+    const result = await AgentManager.emitAgentPreviewUrl(agentId, body);
+    if (!result.ok) return jsonError(result.status, result.error);
+    return jsonOk();
+  }
   if (parts.length === 3 && parts[2] === "terminal-command") {
     const agentId = parts[1]!;
     if (identity.agentId !== agentId) return tokenMismatch();

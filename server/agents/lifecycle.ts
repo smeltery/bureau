@@ -12,7 +12,7 @@ import { createManagedAgent } from "./managed-factory.ts";
 import { buildSpawnAgentDraft } from "./lifecycle-spawn.ts";
 import { buildRestoredAgentInfo } from "./lifecycle-restore.ts";
 
-export { emitAgentDiff, emitAgentEditFile, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
+export { emitAgentDiff, emitAgentEditFile, emitAgentPreviewUrl, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
 export { kill } from "./lifecycle-kill.ts";
 export { getKilledAgentSummaries, revive } from "./revive.ts";
 

@@ -13,6 +13,7 @@ export const USERS_FILE = join(BUREAU_DIR, "users.json");
 export const AGENT_HISTORY_FILE = join(BUREAU_DIR, "agent-history.json");
 export const MANIFEST_FILE = join(BUREAU_DIR, "agents-summary.json");
 export const RECENT_CWDS_FILE = join(BUREAU_DIR, "recent-cwds.json");
+export const SCHEDULED_MESSAGES_FILE = join(BUREAU_DIR, "scheduled-messages.json");
 
 // Auth state — invite-link auth and cookie sessions. Both written atomically
 // and serialized through the auth mutex (see server/auth/auth.ts) so an

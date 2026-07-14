@@ -25,6 +25,7 @@ export type {
   MemoryScope,
   QueuedMessage,
   QueuedSender,
+  ScheduledMessageEntry,
   SessionInfo,
   SkillInfo,
   SkillOrigin,

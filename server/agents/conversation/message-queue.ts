@@ -23,7 +23,10 @@ function generateQueuedId(existing: QueuedMessage[]): string {
 // an explicit failure so they can retry or fall back.
 export type EnqueueResult = { ok: true; queued: boolean; messageId: string } | { ok: false; error: string; status: number };
 
-export function enqueueMessage(receiverId: string, msg: { sender: QueuedSender; text: string; sdkText?: string; attachments?: Attachment[] }): EnqueueResult {
+export function enqueueMessage(
+  receiverId: string,
+  msg: { sender: QueuedSender; text: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean },
+): EnqueueResult {
   const managed = agents.get(receiverId);
   if (!managed) return { ok: false, error: "agent not found", status: 404 };
   const state = managed.info.state;
@@ -41,6 +44,8 @@ export function enqueueMessage(receiverId: string, msg: { sender: QueuedSender; 
     text: msg.text,
     ...(msg.sdkText ? { sdkText: msg.sdkText } : {}),
     ...(canFlushNow ? {} : { queuedDuringBusyTurn: true }),
+    ...(msg.scheduledFor ? { scheduledFor: msg.scheduledFor } : {}),
+    ...(msg.scheduledSenderGone ? { scheduledSenderGone: true } : {}),
     attachments: msg.attachments,
     queuedAt: Date.now(),
   });
@@ -74,6 +79,13 @@ function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
         sender_agent_room: sender.roomName,
       };
   }
+}
+
+function scheduledPrefix(m: QueuedMessage): string | null {
+  if (!m.scheduledFor) return null;
+  const when = new Date(m.scheduledFor).toISOString();
+  const gone = m.scheduledSenderGone ? " The sender agent no longer exists." : "";
+  return `[Scheduled message for ${when}.${gone}]`;
 }
 
 export function enqueueUserMessage(agentId: string, managed: ManagedAgent, text: string, username: string | undefined, attachments: Attachment[] | undefined): boolean {
@@ -147,8 +159,9 @@ export async function flushQueue(agentId: string): Promise<void> {
     }
     for (const m of items) {
       const body = m.sdkText ?? m.text;
-      promptParts.push(`${senderPrefixText(m.sender)}${body}`);
-      unprefixedParts.push(body);
+      const scheduleNote = scheduledPrefix(m);
+      promptParts.push(`${scheduleNote ? `${scheduleNote}\n` : ""}${senderPrefixText(m.sender)}${body}`);
+      unprefixedParts.push(scheduleNote ? `${scheduleNote}\n${body}` : body);
       if (m.attachments) allAttachments.push(...m.attachments);
     }
     const prompt = promptParts.join("\n\n");
@@ -169,7 +182,8 @@ export async function flushQueue(agentId: string): Promise<void> {
         onSendAccepted: () => {
           for (const m of items) {
             const base = senderMeta(m.sender);
-            const meta = m.sdkText ? { ...(base ?? {}), sdkText: m.sdkText } : base;
+            const withSchedule = m.scheduledFor ? { ...(base ?? {}), scheduledFor: m.scheduledFor, scheduledSenderGone: m.scheduledSenderGone ?? false } : base;
+            const meta = m.sdkText ? { ...(withSchedule ?? {}), sdkText: m.sdkText } : withSchedule;
             addLogEntry(agentId, "user_message", m.text, meta, m.attachments);
           }
         },

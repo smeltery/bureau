@@ -2,6 +2,7 @@ import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import type { Attachment } from "../../shared/types.ts";
+import { cancelScheduledMessage, listScheduledMessages, parseDeliverAt, scheduleAgentMessage } from "../scheduled-messages.ts";
 import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
@@ -26,6 +27,8 @@ import { agentRouteParts, JSON_HEADERS, jsonError, readJsonBody, requireUserAgen
  *   POST /api/agents/:id/message          — queue an agent-to-agent message into the
  *                                           receiver's chat (body: { text, senderAgentId }).
  *   POST /api/agents/:id/messages         — send a user or bearer agent message.
+ *   GET  /api/agents/:id/scheduled-messages — list pending messages scheduled by an agent.
+ *   DELETE /api/agents/:id/scheduled-messages/:msg — cancel a pending scheduled message.
  *   PATCH /api/agents/:id/messages/:entry — edit a prior user message.
  *   GET  /api/agents/:id/sessions         — list resumable sessions.
  *   POST /api/agents/:id/resume           — resume a session.
@@ -68,15 +71,56 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       return new Response(null, { status: 204, headers: JSON_HEADERS });
     }
 
+    if (req.method === "GET" && parts.length === 3 && parts[2] === "scheduled-messages") {
+      const rawBearer = readBearerToken(req);
+      const bearer = resolveAgentToken(rawBearer);
+      if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
+      if (bearer) {
+        if (bearer.agentId !== agentId) return jsonError(403, "token does not match agent");
+      } else {
+        const denied = requireUserAgentAccess(auth, agentId);
+        if (denied) return denied;
+      }
+      return new Response(JSON.stringify({ scheduled: listScheduledMessages(agentId) }), { headers: JSON_HEADERS });
+    }
+
+    if (req.method === "DELETE" && parts.length === 4 && parts[2] === "scheduled-messages") {
+      const rawBearer = readBearerToken(req);
+      const bearer = resolveAgentToken(rawBearer);
+      if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
+      if (bearer) {
+        if (bearer.agentId !== agentId) return jsonError(403, "token does not match agent");
+      } else {
+        const denied = requireUserAgentAccess(auth, agentId);
+        if (denied) return denied;
+      }
+      if (!cancelScheduledMessage(agentId, parts[3]!)) return jsonError(404, "scheduled message not found");
+      return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+
     if (req.method === "POST" && parts.length === 3 && parts[2] === "messages") {
       const body = await readJsonBody(req);
       const text = typeof body?.text === "string" ? body.text : "";
       if (!text && !Array.isArray(body?.attachments)) return jsonError(400, "text is required");
+      const deliverAtRaw = body?.deliverAt;
       const rawBearer = readBearerToken(req);
       const bearer = resolveAgentToken(rawBearer);
       if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
       if (bearer) {
         if (!text) return jsonError(400, "text is required");
+        const deliverAt = typeof deliverAtRaw === "string" ? parseDeliverAt(deliverAtRaw) : null;
+        if (deliverAtRaw !== undefined) {
+          if (typeof deliverAtRaw !== "string" || deliverAt === null) return jsonError(400, "deliverAt must be RFC3339 with a timezone");
+          const result = scheduleAgentMessage({
+            senderAgentId: bearer.agentId,
+            receiverAgentId: agentId,
+            text,
+            deliverAt,
+            clientMessageId: typeof body?.clientMessageId === "string" ? body.clientMessageId : undefined,
+          });
+          if (!result.ok) return jsonError(result.status, result.error);
+          return new Response(JSON.stringify({ scheduledId: result.entry.id, deliverAt: new Date(result.entry.deliverAt).toISOString() }), { headers: JSON_HEADERS });
+        }
         if (bearer.agentId === agentId) return jsonError(400, "cannot send to self");
         const senderInfo = AgentManager.getAgentDisplay(bearer.agentId);
         if (!senderInfo) return jsonError(400, "sender agent is not known");
@@ -87,6 +131,7 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
         if (!result.ok) return jsonError(result.status, result.error);
         return new Response(JSON.stringify({ messageId: result.messageId }), { headers: JSON_HEADERS });
       }
+      if (deliverAtRaw !== undefined) return jsonError(400, "deliverAt is only supported for agent bearer messages");
       const denied = requireUserAgentAccess(auth, agentId);
       if (denied) return denied;
       const username = sessionUser(auth)?.name;
