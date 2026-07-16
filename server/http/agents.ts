@@ -36,13 +36,12 @@ import { agentRouteParts, JSON_HEADERS, jsonError, readJsonBody, requireUserAgen
  *   POST /api/agents/:id/send-now         — flush queued messages.
  *   DELETE /api/agents/:id/queue/:msg     — drop a queued message.
  *
- * Legacy /agents/:id/... aliases stay accepted for older agent prompts.
- *
  * Returns null for any other URL so the caller can fall through.
  */
 export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthResult): Promise<Response | null> {
   const parts = agentRouteParts(url.pathname);
   if (!parts) return null;
+  if (isRetiredLegacyAgentAffordance(url.pathname, parts, req.method)) return null;
 
   if (parts[0] === "agents" && parts.length === 1 && req.method === "POST") {
     return handleAgentSpawnRequest(req, auth);
@@ -169,4 +168,11 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
   if (bearerResponse) return bearerResponse;
 
   return null;
+}
+
+function isRetiredLegacyAgentAffordance(pathname: string, parts: string[], method: string): boolean {
+  if (!pathname.startsWith("/agents/")) return false;
+  if (method !== "POST") return false;
+  if (parts.length !== 3) return false;
+  return parts[2] === "diff" || parts[2] === "edit-file" || parts[2] === "read-file" || parts[2] === "terminal-command" || parts[2] === "message";
 }

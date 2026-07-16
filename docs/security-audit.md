@@ -306,10 +306,10 @@ Known **post-acceptance** authorization gaps fall outside this report's external
 
 ### C.4 Loopback agent-API trusts any same-host process as an agent
 
-- `server/index.ts` — `POST /agents/:id/diff|edit-file|read-file|terminal-command|message` are loopback-bypassable; the handlers validate `senderAgentId` exists but do not authenticate that the calling process _is_ that agent.
-- A same-host process can post messages and surface UI cards purporting to come from any other agent.
+- Legacy `POST /agents/:id/diff|edit-file|read-file|terminal-command|message` aliases have been retired. Agent self-affordances and inter-agent messages use token-authenticated `/api/agents/:id/...` routes.
+- A same-host process without a valid agent bearer token can no longer post messages or surface UI cards through those retired legacy aliases.
 
-**Status:** documented in `docs/features/access-and-invites.md` as "Not protection against rogue agents." Tightening requires per-agent auth tokens on `/agents/:id/*` calls.
+**Status:** closed for the legacy agent self-affordance/message aliases. The broader trust model still treats invited users and their agents as powerful local actors.
 
 ### C.5 HTTP `POST /tasks` accepts client-controlled attribution
 

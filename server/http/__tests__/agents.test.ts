@@ -56,17 +56,25 @@ describe("handleAgentsRequest", () => {
     expect(await res?.json()).toEqual({ error: "agent not found" });
   });
 
-  test("keeps legacy /agents affordance routes working", async () => {
+  test("rejects retired legacy /agents affordance and message routes", async () => {
     const token = mintAgentToken("agent-1", "user-1");
-    const req = request("/agents/agent-1/read-file", {
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ path: "plot.png" }),
-    });
+    const endpoints = [
+      { path: "/agents/agent-1/diff", body: {} },
+      { path: "/agents/agent-1/edit-file", body: { path: "plot.png" } },
+      { path: "/agents/agent-1/read-file", body: { path: "plot.png" } },
+      { path: "/agents/agent-1/terminal-command", body: { command: "bun test" } },
+      { path: "/agents/agent-1/message", body: { text: "hello", senderAgentId: "agent-1" } },
+    ];
 
-    const res = await handleAgentsRequest(req, new URL(req.url));
+    for (const endpoint of endpoints) {
+      const req = request(endpoint.path, {
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(endpoint.body),
+      });
+      const res = await handleAgentsRequest(req, new URL(req.url));
 
-    expect(res?.status).toBe(404);
-    expect(await res?.json()).toEqual({ error: "agent not found" });
+      expect(res).toBeNull();
+    }
   });
 
   test("requires a bearer token before parsing the body", async () => {

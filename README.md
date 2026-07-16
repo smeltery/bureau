@@ -77,17 +77,17 @@ Then open **http://localhost:4000** and click an empty desk.
 
 ### 🛠️ Workspace tools
 
-- **File editor side panel** — built-in CodeMirror editor with tabs, syntax highlighting, dirty-buffer tracking, and external-change detection; agents can offer `[Open in editor]` cards via `POST /agents/:id/edit-file`
-- **Embedded terminal** — per-agent shell access with a mobile full-screen overlay (Tab / Esc / Ctrl+C / Paste soft-keys, IME-friendly textarea); agents can offer `[Copy to terminal]` cards via `POST /agents/:id/terminal-command` that prefill a command at the prompt without executing
+- **File editor side panel** — built-in CodeMirror editor with tabs, syntax highlighting, dirty-buffer tracking, and external-change detection; agents can offer `[Open in editor]` cards via `POST /api/agents/:id/edit-file`
+- **Embedded terminal** — per-agent shell access with a mobile full-screen overlay (Tab / Esc / Ctrl+C / Paste soft-keys, IME-friendly textarea); agents can offer `[Copy to terminal]` cards via `POST /api/agents/:id/terminal-command` that prefill a command at the prompt without executing
 - **Resizable side panels** — drag the splitter to size the terminal or editor; widths persist
-- **Rich diff viewer** — `/bureau-diff` (or `POST /agents/:id/diff`) renders uncommitted changes as a per-file card with status badges, +/- counts, and unified/split toggle
-- **File attachments** — images, PDFs, arbitrary files; agents can surface their own files via `POST /agents/:id/read-file` (images render inline, others as clickable chips)
+- **Rich diff viewer** — `/bureau-diff` (or `POST /api/agents/:id/diff`) renders uncommitted changes as a per-file card with status badges, +/- counts, and unified/split toggle
+- **File attachments** — images, PDFs, arbitrary files; agents can surface their own files via `POST /api/agents/:id/read-file` (images render inline, others as clickable chips)
 - **Mermaid diagrams in chat** — agent messages with ```` ```mermaid ```` fenced blocks render as inline SVG (lazy-loaded, theme-aware). Parse failures show the offending source in-place instead of a silent blank.
 
 ### 🤝 Collaboration & tasks
 
 - **Shared task board** — humans and agents create, assign, and close tasks (with a Backlog status for deferred work); search by id, title, or description
-- **Inter-agent discovery & messaging** — agents can read each other's conversations and send messages directly via `POST /agents/:id/message`; the receiver sees them in the same queue as human-typed input, prefixed so they can tell agent senders from human bosses
+- **Inter-agent discovery & messaging** — agents can read each other's conversations and send messages directly via `POST /api/agents/:id/messages`; the receiver sees them in the same queue as human-typed input, prefixed so they can tell agent senders from human bosses
 - **Conversation branching** — fork any past message, preserve the original
 - **Slash commands** — `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`, `/bureau-subagent-review`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-edit`, `/bureau-system-prompt`, `/bureau-cronjob-system-prompt`, `/usage`, `/resume`, `/model`, `/effort`, and more
 

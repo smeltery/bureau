@@ -77,7 +77,7 @@ export interface AgentInfo {
 
 // A pending message waiting for the agent to finish its current turn.
 // Senders can be human bosses (typed at the textarea) or other agents
-// (POST /api/agents/:id/message); both go through the same queue and flush
+// (POST /api/agents/:id/messages); both go through the same queue and flush
 // together. The receiver sees one chat bubble per item with the right
 // kind of prefix so it can tell them apart.
 export type QueuedSender = { kind: "user"; username?: string } | { kind: "agent"; agentId: string; agentName: string; roomName: string };
