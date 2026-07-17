@@ -138,6 +138,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Each agent can read every other agent's current conversation logs
 - You can ask one agent "What do you think of Agent X's approach?" and it just works — it reads the other agent's conversation and gives feedback
 - Shared task board: humans and agents can create, assign, claim, and close tasks — full interop via UI and HTTP API
+- Owners can mark selected agents with a privileged operator token from the agent settings dialog. Privileged agents receive explicit system-prompt context and server-side authorization for operator-directed office-management actions; normal agents do not get that authority.
 
 ### Persistence & Lifecycle
 - Agents persist across server restarts — sessions are recreated from disk

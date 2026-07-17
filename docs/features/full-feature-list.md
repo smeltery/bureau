@@ -25,6 +25,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Messages from humans and agents share one receiver queue while an agent is
   busy.
 - Shared task board with create, assign, claim, backlog, and done states.
+- Owner-controlled privileged operator tokens for selected agents, giving those
+  agents server-side authorization for explicit office-management requests.
 - Office-wide, room-level, and per-agent prompt composition.
 - Bundled collaboration skills and Bureau slash commands, including peer
   review, pair programming, soft handoff, subagent review, and guided Bureau bug
