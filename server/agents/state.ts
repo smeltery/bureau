@@ -105,7 +105,7 @@ export function updateState(agentId: string, state: AgentState) {
   emit({ type: "agent_updated", agentId, changes: { state } });
   // Transitioning out of a busy state: flush any queued messages. Dynamic
   // import dodges the state↔queue circular dependency.
-  if (wasBusy && !isAgentBusy(state) && managed.messageQueue.length > 0) {
+  if (wasBusy && !isAgentBusy(state) && state !== "error" && state !== "stopped" && managed.messageQueue.length > 0) {
     import("./conversation/message-queue.ts")
       .then(({ flushQueue }) =>
         flushQueue(agentId).catch((err: any) => {

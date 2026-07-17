@@ -63,7 +63,8 @@ export function createTurnDeferred(managed: ManagedAgent): Promise<void> {
     resolve = res;
     reject = rej;
   });
-  managed.pendingTurn = { resolve, reject };
+  promise.catch(() => {});
+  managed.pendingTurn = { promise, resolve, reject };
   return promise;
 }
 

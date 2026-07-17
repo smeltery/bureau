@@ -12,7 +12,7 @@ export interface ManagedAgent {
   consumerPromise: Promise<void> | null;
   // Per-turn deferred. sendMessage/executeSkill await this; the consumer
   // resolves it when the turn's `stream()` iterator ends at `result`.
-  pendingTurn: { resolve: () => void; reject: (err: unknown) => void } | null;
+  pendingTurn: { promise: Promise<void>; resolve: () => void; reject: (err: unknown) => void } | null;
   // The aggregate `afterTurn` promise for the most recent turn — all plugins'
   // afterTurn hooks raced against their per-plugin timeout, joined here.
   // runAgentTurn awaits this before starting the next turn so memory writes

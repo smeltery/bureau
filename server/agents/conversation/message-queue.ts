@@ -127,6 +127,14 @@ export async function flushQueue(agentId: string): Promise<void> {
 
   managed.flushInProgress = true;
   try {
+    const pending = managed.pendingTurn;
+    if (pending) {
+      await pending.promise.catch(() => {});
+      if (!agents.has(agentId)) return;
+      if (managed.messageQueue.length === 0) return;
+      if (isAgentBusy(managed.info.state)) return;
+      if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick) return;
+    }
     if (!managed.session) {
       const tail = (logCache.get(agentId) ?? []).at(-1);
       if (tail?.kind === "user_message") {
@@ -143,8 +151,6 @@ export async function flushQueue(agentId: string): Promise<void> {
       }
     }
     const items = managed.messageQueue.slice();
-    managed.messageQueue = [];
-    emitQueueUpdate(agentId, managed);
     const promptParts: string[] = [];
     const unprefixedParts: string[] = [];
     const allAttachments: Attachment[] = [];
@@ -180,6 +186,9 @@ export async function flushQueue(agentId: string): Promise<void> {
         origin: "queued",
         humanInput: items.some((m) => m.sender.kind === "user"),
         onSendAccepted: () => {
+          const sentIds = new Set(items.map((m) => m.id));
+          managed.messageQueue = managed.messageQueue.filter((m) => !sentIds.has(m.id));
+          emitQueueUpdate(agentId, managed);
           for (const m of items) {
             const base = senderMeta(m.sender);
             const withSchedule = m.scheduledFor ? { ...(base ?? {}), scheduledFor: m.scheduledFor, scheduledSenderGone: m.scheduledSenderGone ?? false } : base;
@@ -195,6 +204,20 @@ export async function flushQueue(agentId: string): Promise<void> {
     }
   } finally {
     managed.flushInProgress = false;
+    if (
+      managed.messageQueue.length > 0 &&
+      managed.info.state !== "error" &&
+      managed.info.state !== "stopped" &&
+      !isAgentBusy(managed.info.state) &&
+      !managed.pendingPermission &&
+      !managed.pendingResume &&
+      !managed.pendingModelPick &&
+      !managed.pendingEffortPick
+    ) {
+      flushQueue(agentId).catch((err: any) => {
+        console.error(`flushQueue (post-flush retry) failed for ${agentId}:`, err.message);
+      });
+    }
   }
 }
 
