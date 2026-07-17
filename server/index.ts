@@ -2,6 +2,7 @@ import type { ServerMessage } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
 import { startScheduledMessageScheduler } from "./scheduled-messages.ts";
+import { startIdleSessionEvictor } from "./agents/idle-sessions.ts";
 import { loadEnabledPlugins } from "./persistence.ts";
 import { loadPlugins } from "./plugins/registry.ts";
 import { join as joinPath } from "path";
@@ -113,6 +114,9 @@ void (async () => {
 
 // Boot cronjob scheduler (loads configs, reconciles stale "running" rows, starts tick).
 CronjobManager.startCronjobScheduler();
+
+// Release quiet backend sessions; the next user message resumes from disk.
+startIdleSessionEvictor();
 
 // Daily ~/.bureau/ backup tarball with N=7 retention. See server/backup.ts.
 startBackupScheduler();

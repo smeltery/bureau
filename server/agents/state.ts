@@ -101,6 +101,7 @@ export function updateState(agentId: string, state: AgentState) {
     managed.thinkingStartedAt = Date.now();
   }
   const wasBusy = isAgentBusy(managed.info.state);
+  managed.lastActivityAt = Date.now();
   managed.info = { ...managed.info, state };
   emit({ type: "agent_updated", agentId, changes: { state } });
   // Transitioning out of a busy state: flush any queued messages. Dynamic
@@ -144,6 +145,7 @@ export function addLogEntry(
   emit({ type: "log_entry", entry });
 
   const managed = agents.get(agentId);
+  if (managed) managed.lastActivityAt = entry.timestamp;
   if (managed?.sessionId) {
     appendLog(agentId, managed.sessionId, entry);
     // Track the last entry actually written to this session's JSONL so that

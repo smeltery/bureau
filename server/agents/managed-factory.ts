@@ -17,6 +17,7 @@ export function createManagedAgent(input: {
     info: input.info,
     session: null,
     sessionId: input.sessionId ?? null,
+    lastActivityAt: Date.now(),
     consumerPromise: null,
     pendingTurn: null,
     afterTurnPromise: null,
