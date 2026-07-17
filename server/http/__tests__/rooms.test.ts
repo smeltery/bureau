@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
+import * as AgentManager from "../../agent-manager.ts";
 import { handleRoomsRequest } from "../rooms.ts";
 
 const ownerAuth: AuthResult = {
@@ -77,6 +78,27 @@ describe("handleRoomsRequest", () => {
 
     expect(res?.status).toBe(422);
     expect(await res?.json()).toEqual({ error: "name is required" });
+  });
+
+  test("returns room settings to authorized sessions", async () => {
+    const room = AgentManager.getRooms()[0]!;
+    AgentManager.setRoomSettings(room.id, "Keep reviews short.", null);
+    const req = request(`/api/rooms/${room.id}/settings`);
+
+    const res = await handleRoomsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toEqual({ prompt: "Keep reviews short.", envFile: null });
+    AgentManager.setRoomSettings(room.id, null, null);
+  });
+
+  test("returns not found for missing room settings after auth passes", async () => {
+    const req = request("/api/rooms/missing/settings");
+
+    const res = await handleRoomsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(404);
+    expect(await res?.json()).toEqual({ error: "room not found" });
   });
 
   test("validates swap desk indexes", async () => {

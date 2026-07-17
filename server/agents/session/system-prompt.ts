@@ -27,6 +27,9 @@ Messages are prefixed with the boss's name in brackets.
 
 How to discover other office agents and their conversation logs: read ~/.bureau/agents-summary.json.
 
+How to read this room's current settings before proposing changes: call GET localhost:${PORT}/api/rooms/<roomId>/settings with your bearer token. Find your room id in ~/.bureau/agents-summary.json.
+  curl -s localhost:${PORT}/api/rooms/<roomId>/settings -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
+
 How to use the task board (localhost:${PORT}/api/tasks): only touch it when the boss asks. When you do:
   curl -s localhost:${PORT}/api/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                                          # list active tasks (excludes done and backlog)
   curl -s localhost:${PORT}/api/tasks?status=all -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                               # include done and backlog

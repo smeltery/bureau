@@ -1,5 +1,6 @@
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import * as AgentManager from "../agent-manager.ts";
+import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 
 const jsonHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
@@ -35,6 +36,14 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
   }
 
   if (!roomId) return error(404, "not found");
+
+  if (req.method === "GET" && action === "settings") {
+    if (!canReadRoomSettings(req, auth, roomId)) return error(403, "room access required");
+    const settings = AgentManager.getRoomSettings(roomId);
+    if (!settings) return error(404, "room not found");
+    return new Response(JSON.stringify(settings), { headers: jsonHeaders });
+  }
+
   if (!sessionCanSeeRoom(auth, roomId)) return error(403, "room access required");
 
   if (req.method === "DELETE" && !action) {
@@ -100,4 +109,14 @@ function sessionCanSeeRoom(auth: AuthResult, roomId: string): boolean {
   if (auth.kind !== "ok") return false;
   if (auth.session.role === "owner") return true;
   return canSeeRoom(getUserById(auth.session.userId), roomId);
+}
+
+function canReadRoomSettings(req: Request, auth: AuthResult, roomId: string): boolean {
+  if (sessionCanSeeRoom(auth, roomId)) return true;
+  const identity = resolveAgentToken(readBearerToken(req));
+  if (!identity) return false;
+  const agent = AgentManager.getAgent(identity.agentId);
+  if (!agent) return false;
+  const room = AgentManager.getRooms()[agent.room];
+  return room?.id === roomId;
 }

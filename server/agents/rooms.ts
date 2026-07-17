@@ -31,6 +31,13 @@ export function setRoomSettings(roomId: string, prompt: string | null, envFile: 
   return true;
 }
 
+export function getRoomSettings(roomId: string): { prompt: string | null; envFile: string | null } | null {
+  const idx = findRoomIndex(roomId);
+  if (idx < 0) return null;
+  const room = rooms[idx];
+  return { prompt: room.prompt, envFile: room.envFile };
+}
+
 // Validate an env file path. Returns key count on success, throws on failure.
 export function validateEnvPath(path: string): number {
   const parsed = readEnvFile(path);
