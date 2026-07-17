@@ -22,6 +22,16 @@ survives logout. Verify the service is running before you finish.
 On macOS, use a launchd agent instead. On Windows, use Task Scheduler or a
 service wrapper.
 
+## Browser Preview Cards
+
+Bureau can let agents capture screenshots of local or private development URLs
+and attach them to chat as preview cards. Install a Chrome-family browser on the
+host if you want agents to use `POST /api/agents/:id/preview-url`.
+
+Preview capture preflights the target URL, rejects public internet hosts, and
+is intended for services reachable from the Bureau host, such as
+`http://127.0.0.1:3000`.
+
 ## Make It Reachable
 
 Bureau starts on `localhost:4000`. Before exposing it to another device, claim

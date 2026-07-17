@@ -72,6 +72,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Visual office metaphor** — isometric desks, animated characters, status lights
 - **Multi-agent orchestration** — spawn, manage, and monitor concurrent Claude Code sessions
 - **Real-time sync** — WebSocket keeps every connected device in lockstep
+- **Live presence** — other users and devices appear in the office with customizable ghosts, so shared rooms show who is around
 - **Per-agent message queue** — typing while an agent is busy queues messages as chips above the input; they flush automatically when the agent idles, and you can cancel any of them before they send
 - **Session-swap indicator** — chat shows a brief "Restarting session..." hint during `/resume`, `/model`, or fork-from-edit so the drain → install gap isn't silent
 
@@ -82,6 +83,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Resizable side panels** — drag the splitter to size the terminal or editor; widths persist
 - **Rich diff viewer** — `/bureau-diff` (or `POST /api/agents/:id/diff`) renders uncommitted changes as a per-file card with status badges, +/- counts, and unified/split toggle
 - **File attachments** — images, PDFs, arbitrary files; agents can surface their own files via `POST /api/agents/:id/read-file` (images render inline, others as clickable chips)
+- **Browser preview cards** — agents can screenshot local or private development URLs via `POST /api/agents/:id/preview-url` and show the result inline
 - **Mermaid diagrams in chat** — agent messages with ```` ```mermaid ```` fenced blocks render as inline SVG (lazy-loaded, theme-aware). Parse failures show the offending source in-place instead of a silent blank.
 
 ### 🤝 Collaboration & tasks
@@ -103,6 +105,7 @@ Then open **http://localhost:4000** and click an empty desk.
 
 - **Self-hosted with invite-link auth** — the first visitor on the host machine claims ownership at a localhost-only form; owners then mint one-time invite URLs from the Access pane to add devices or other people. Sessions are cookie-gated end-to-end (HTTP + WebSocket), with per-message revocation, role-scoped per-user views, and a `bun run server/index.ts owner-login --name <you>` recovery CLI over a Unix-domain admin socket. See [Access & invites](docs/features/access-and-invites.md)
 - **Mobile & PWA** — touch-optimized UI, installable on any device
+- **Room-scoped notifications** — opt into sound and desktop alerts for the rooms you care about when agents finish in the background
 - **Voice I/O** — speech-to-text prompts, text-to-speech responses
 - **6 color themes** — Dark, Light, Nord, Dracula, Solarized Dark, Solarized Light; pick from the theme picker in the header. First load follows your OS `prefers-color-scheme` (and live-updates if you flip it system-wide) until you make an explicit choice. Per-mode last-pick is remembered, so a quick moon/sun toggle swaps between your two favorites instead of resetting to canonical Dark/Light
 
