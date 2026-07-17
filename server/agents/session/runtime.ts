@@ -81,10 +81,25 @@ export function installSession(agentId: string, managed: ManagedAgent, session: 
   managed.consumerPromise = runConsumer(agentId, managed, session);
 }
 
+export const SESSION_REPLACE_CONSUMER_DRAIN_TIMEOUT_MS = 5_000;
+
+export async function waitForConsumerDrain(consumer: Promise<void>, timeoutMs = SESSION_REPLACE_CONSUMER_DRAIN_TIMEOUT_MS): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), timeoutMs);
+  });
+  try {
+    const drained = await Promise.race([consumer.then(() => true).catch(() => true), timeout]);
+    return drained;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 // Swap the agent's session: close the current one, await its consumer to
 // drain, install the new session + consumer. Rejects any in-flight turn so
 // callers awaiting sendMessage's deferred don't hang.
-export async function replaceSession(agentId: string, managed: ManagedAgent, newSession: BackendSession) {
+export async function replaceSession(agentId: string, managed: ManagedAgent, newSession: BackendSession, consumerDrainTimeoutMs = SESSION_REPLACE_CONSUMER_DRAIN_TIMEOUT_MS) {
   // Bump the cancel token first so any concurrent runAgentTurn in its
   // pre-send plugin-retrieval window bails on the next await checkpoint —
   // the in-flight `pendingTurn` rejection below only covers the post-send
@@ -107,9 +122,7 @@ export async function replaceSession(agentId: string, managed: ManagedAgent, new
     } catch {}
     managed.session = null;
     if (oldConsumer) {
-      try {
-        await oldConsumer;
-      } catch {}
+      await waitForConsumerDrain(oldConsumer, consumerDrainTimeoutMs);
     }
     installSession(agentId, managed, newSession);
   } finally {
