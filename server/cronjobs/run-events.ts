@@ -49,6 +49,9 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
     case "system_text":
       writeLog(active, "system", ev.text, emitEvent);
       break;
+    case "task_lifecycle":
+      writeLog(active, "system", ev.label, emitEvent, { taskEvent: { phase: ev.phase, taskId: ev.taskId } });
+      break;
     case "thinking":
       writeLog(active, "thinking", ev.text, emitEvent, ev.durationMs != null ? { duration_ms: ev.durationMs } : undefined);
       break;

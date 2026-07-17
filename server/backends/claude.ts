@@ -11,7 +11,7 @@ import { FAMILY_TO_MODEL, MODEL_FAMILIES, type ModelFamily } from "../../shared/
 import { CLAUDE_NATIVE_BIN } from "../agents/session/claude-native.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
 import { isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
-import { buildUserMessage, extractMessageText, normalizeClaudeMessage } from "./claude-messages.ts";
+import { buildUserMessage, extractMessageText, normalizeClaudeMessage, TaskBreadcrumbTracker } from "./claude-messages.ts";
 import { RawClaudeSession, runClaudeOneShot } from "./claude-raw-session.ts";
 import type {
   ApprovalDecision,
@@ -76,6 +76,7 @@ const PERMISSION_MODES: PermissionModeOption[] = [
 class ClaudeBackendSession implements BackendSession {
   private pendingApprovals = new Map<string, { input: Record<string, unknown>; suggestions?: PermissionUpdate[]; resolve: (r: PermissionResult) => void }>();
   private readonly raw: RawClaudeSession;
+  private readonly taskBreadcrumbs = new TaskBreadcrumbTracker();
 
   constructor(
     private readonly opts: CreateSessionOptions,
@@ -98,6 +99,7 @@ class ClaudeBackendSession implements BackendSession {
   async *stream(): AsyncIterable<NormalizedEvent> {
     for await (const msg of this.raw.stream()) {
       for (const ev of normalizeClaudeMessage(msg, this.opts.agentId)) yield ev;
+      for (const ev of this.taskBreadcrumbs.observe(msg)) yield ev;
     }
   }
 

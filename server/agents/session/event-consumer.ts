@@ -100,6 +100,9 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       emitLoginInstructionsIfAuth(agentId, managed, ev.text);
       break;
     }
+    case "task_lifecycle":
+      addLogEntry(agentId, "system", ev.label, { taskEvent: { phase: ev.phase, taskId: ev.taskId } });
+      break;
     case "thinking": {
       const managed = agents.get(agentId);
       const duration_ms = ev.durationMs ?? (managed?.thinkingStartedAt ? Date.now() - managed.thinkingStartedAt : undefined);

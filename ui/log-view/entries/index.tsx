@@ -1,6 +1,6 @@
 import type { LogEntry } from "../../../shared/types.ts";
 import { UserMessage, EditableUserMessage } from "./UserMessage.tsx";
-import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage } from "./AssistantEntries.tsx";
+import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage, TaskBreadcrumb } from "./AssistantEntries.tsx";
 import { findMatchingToolResult, isFoldedToolResult, ToolCall, ToolResult } from "./ToolEntries.tsx";
 import { DiffCard } from "../DiffCard.tsx";
 import { EditRequestCard } from "../EditRequestCard.tsx";
@@ -97,6 +97,9 @@ export function LogEntryCard({
     case "error":
       return <ErrorBlock content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     case "system":
+      if (entry.metadata?.taskEvent && typeof entry.metadata.taskEvent === "object") {
+        return <TaskBreadcrumb content={entry.content} phase={(entry.metadata.taskEvent as { phase?: unknown }).phase} isMobile={isMobile} />;
+      }
       return <SystemMessage content={entry.content} isMobile={isMobile} />;
     case "diff": {
       if (!entry.diff) return <SystemMessage content={entry.content} isMobile={isMobile} />;

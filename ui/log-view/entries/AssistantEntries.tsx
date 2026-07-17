@@ -126,3 +126,32 @@ export function SystemMessage({ content, isMobile }: { content: string; isMobile
     </div>
   );
 }
+
+export function TaskBreadcrumb({ content, phase, isMobile }: { content: string; phase?: unknown; isMobile?: boolean }) {
+  const dotColor = phase === "failed" ? "var(--red)" : phase === "completed" ? "var(--green)" : "var(--text-ghost)";
+  return (
+    <div
+      style={{
+        margin: "8px 0",
+        padding: "6px 0",
+        textAlign: "center",
+        color: "var(--text-ghost)",
+        fontSize: isMobile ? 13 : 11,
+        fontStyle: "italic",
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: dotColor,
+          marginRight: 6,
+          verticalAlign: "middle",
+        }}
+      />
+      {content}
+    </div>
+  );
+}

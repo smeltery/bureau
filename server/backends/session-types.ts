@@ -59,7 +59,13 @@ export type NormalizedEvent =
   | { kind: "usage_update"; tokenUsage: TokenUsage }
   | { kind: "compacted"; summary?: string }
   | { kind: "error"; message: string; code?: string }
-  | { kind: "system_text"; text: string };
+  | { kind: "system_text"; text: string }
+  | {
+      kind: "task_lifecycle";
+      phase: "started" | "completed" | "failed" | "stopped";
+      taskId: string;
+      label: string;
+    };
 
 export type ApprovalDecision = { kind: "allow_persistent" } | { kind: "allow_once" } | { kind: "deny"; reason?: string };
 

@@ -105,6 +105,86 @@ export function extractMessageText(m: any): string {
     .join("");
 }
 
+const TASK_LABEL_MAX = 200;
+const TRACKED_TASKS_MAX = 200;
+const BACKGROUND_TOOL_IDS_MAX = 500;
+
+export function sanitizeTaskLabel(text: string): string {
+  const oneLine = text.replace(/\s+/g, " ").trim();
+  return oneLine.length > TASK_LABEL_MAX ? `${oneLine.slice(0, TASK_LABEL_MAX - 3)}...` : oneLine;
+}
+
+export class TaskBreadcrumbTracker {
+  private tracked = new Map<string, { desc: string; silent: boolean }>();
+  private backgroundToolUseIds = new Set<string>();
+
+  observe(msg: SDKMessage): NormalizedEvent[] {
+    const raw = msg as any;
+    if (msg.type === "assistant") {
+      const content = raw.message?.content;
+      if (!Array.isArray(content)) return [];
+      for (const block of content) {
+        if (block?.type === "tool_use" && block.input?.run_in_background === true && typeof block.id === "string") {
+          this.backgroundToolUseIds.add(block.id);
+          trimInsertionOrdered(this.backgroundToolUseIds, BACKGROUND_TOOL_IDS_MAX);
+        }
+      }
+      return [];
+    }
+
+    if (msg.type !== "system") return [];
+    if (raw.subtype === "task_started") return this.observeStarted(raw);
+    if (raw.subtype === "task_updated") return this.observeUpdated(raw);
+    if (raw.subtype === "task_notification") return this.observeNotification(raw);
+    return [];
+  }
+
+  private observeStarted(msg: any): NormalizedEvent[] {
+    const taskId = typeof msg.task_id === "string" ? msg.task_id : "";
+    if (!taskId || this.tracked.has(taskId)) return [];
+    const toolUseId = typeof msg.tool_use_id === "string" ? msg.tool_use_id : undefined;
+    const isBackground = msg.task_type === "local_bash" || msg.task_type === "local_workflow" || (toolUseId != null && this.backgroundToolUseIds.has(toolUseId));
+    if (!isBackground) return [];
+    if (toolUseId) this.backgroundToolUseIds.delete(toolUseId);
+    const desc = sanitizeTaskLabel(typeof msg.description === "string" && msg.description ? msg.description : taskId);
+    const silent = msg.skip_transcript === true;
+    this.tracked.set(taskId, { desc, silent });
+    trimInsertionOrdered(this.tracked, TRACKED_TASKS_MAX);
+    if (silent) return [];
+    const kindWord = msg.task_type === "local_workflow" ? "Workflow" : msg.task_type === "local_agent" ? "Background agent" : "Background task";
+    return [{ kind: "task_lifecycle", phase: "started", taskId, label: sanitizeTaskLabel(`${kindWord} started: ${desc}`) }];
+  }
+
+  private observeUpdated(msg: any): NormalizedEvent[] {
+    const taskId = typeof msg.task_id === "string" ? msg.task_id : "";
+    if (!taskId || this.tracked.has(taskId) || msg.patch?.is_backgrounded !== true) return [];
+    const desc = sanitizeTaskLabel(typeof msg.patch?.description === "string" && msg.patch.description ? msg.patch.description : taskId);
+    this.tracked.set(taskId, { desc, silent: false });
+    trimInsertionOrdered(this.tracked, TRACKED_TASKS_MAX);
+    return [{ kind: "task_lifecycle", phase: "started", taskId, label: sanitizeTaskLabel(`Task moved to background: ${desc}`) }];
+  }
+
+  private observeNotification(msg: any): NormalizedEvent[] {
+    const taskId = typeof msg.task_id === "string" ? msg.task_id : "";
+    const rec = taskId ? this.tracked.get(taskId) : undefined;
+    if (!taskId || !rec) return [];
+    this.tracked.delete(taskId);
+    if (rec.silent || msg.skip_transcript === true) return [];
+    const rawStatus = typeof msg.status === "string" ? msg.status : "completed";
+    const phase = rawStatus === "failed" || rawStatus === "stopped" ? rawStatus : "completed";
+    const label = sanitizeTaskLabel(typeof msg.summary === "string" && msg.summary ? msg.summary : `Background task ${phase}: ${rec.desc}`);
+    return [{ kind: "task_lifecycle", phase, taskId, label }];
+  }
+}
+
+function trimInsertionOrdered(coll: Map<string, unknown> | Set<string>, max: number) {
+  while (coll.size > max) {
+    const oldest = coll.keys().next().value;
+    if (oldest === undefined) break;
+    coll.delete(oldest);
+  }
+}
+
 function attachmentsFromClaudeToolResult(agentId: string, content: unknown): AttachmentSpec[] | undefined {
   if (!Array.isArray(content)) return undefined;
   const attachments: AttachmentSpec[] = [];
