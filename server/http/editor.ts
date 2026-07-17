@@ -9,7 +9,7 @@ const CONNECTION_ID_HEADER = "X-Bureau-Connection-Id";
 
 export interface EditorHttpDeps {
   verifyConnection(connectionId: string, sessionIdHash: string): boolean;
-  watchFile(agentId: string, absPath: string, connectionId: string): void;
+  watchFile(agentId: string, absPath: string, connectionId: string, baselineSig?: string): void;
   closeWatch(agentId: string, absPath: string, connectionId: string): void;
 }
 
@@ -35,7 +35,7 @@ export async function handleEditorRequest(req: Request, url: URL, auth: AuthResu
     if (!probe.ok) return jsonError(probe.error === "not_agent" ? 404 : 400, probe.error === "not_agent" ? "not_found" : "bad_path", probe.error === "not_agent" ? "agent not found" : "invalid path");
     const result = probe.result;
     if (result.kind !== "ok") return openFileError(result);
-    deps.watchFile(agentId, result.path, bind.connectionId);
+    deps.watchFile(agentId, result.path, bind.connectionId, result.sig);
     return new Response(JSON.stringify({ path: result.path, content: result.content, mtime: result.mtime, language: result.language, size: result.size }), {
       headers: JSON_HEADERS,
     });

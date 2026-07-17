@@ -79,10 +79,15 @@ function handleEditorOpen(cmd: Extract<EditorCommand, { type: "editor_open" }>, 
   const key = editorKey(cmd.agentId, result.path);
   const old = map.get(key);
   if (old) stopWatch(old);
-  const watcher = watchFile(result.path, cmd.agentId, (mtime) => {
-    ws.send(JSON.stringify({ type: "editor_external_change", agentId: cmd.agentId, path: result.path, mtime } as ServerMessage));
-  });
-  if (watcher) map.set(key, watcher);
+  const watcher = watchFile(
+    result.path,
+    cmd.agentId,
+    (mtime) => {
+      ws.send(JSON.stringify({ type: "editor_external_change", agentId: cmd.agentId, path: result.path, mtime } as ServerMessage));
+    },
+    result.sig,
+  );
+  map.set(key, watcher);
 }
 
 function handleEditorSave(cmd: Extract<EditorCommand, { type: "editor_save" }>, ws: ServerWebSocket<unknown>, canUseAgent: (agentId: string) => boolean) {

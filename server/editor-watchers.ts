@@ -18,7 +18,7 @@ export function findBrowserConnection(connectionId: string, sessionIdHash: strin
   return null;
 }
 
-export function watchEditorFile(agentId: string, absPath: string, connectionId: string) {
+export function watchEditorFile(agentId: string, absPath: string, connectionId: string, baselineSig?: string) {
   for (const ws of browsers) {
     if (getSessionContext(ws)?.connectionId !== connectionId) continue;
     const map = editorWatchers.get(ws) ?? new Map<string, FileWatcher>();
@@ -26,10 +26,15 @@ export function watchEditorFile(agentId: string, absPath: string, connectionId: 
     const key = editorKey(agentId, absPath);
     const old = map.get(key);
     if (old) stopWatch(old);
-    const watcher = watchFile(absPath, agentId, (mtime) => {
-      ws.send(JSON.stringify({ type: "editor_external_change", agentId, path: absPath, mtime } as ServerMessage));
-    });
-    if (watcher) map.set(key, watcher);
+    const watcher = watchFile(
+      absPath,
+      agentId,
+      (mtime) => {
+        ws.send(JSON.stringify({ type: "editor_external_change", agentId, path: absPath, mtime } as ServerMessage));
+      },
+      baselineSig,
+    );
+    map.set(key, watcher);
     return;
   }
 }

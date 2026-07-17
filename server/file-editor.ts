@@ -1,11 +1,11 @@
-import { closeSync, existsSync, openSync, readFileSync, readSync, statSync, watch as fsWatch, writeFileSync, type FSWatcher } from "fs";
+import { closeSync, existsSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "fs";
 import { extname, isAbsolute, join, resolve } from "path";
 import { homedir } from "os";
 
 export type ResolvePathResult = { kind: "ok"; path: string } | { kind: "bad_path"; attempted: string };
 
 export type OpenFileResult =
-  | { kind: "ok"; path: string; content: string; mtime: number; language: string; size: number }
+  | { kind: "ok"; path: string; content: string; mtime: number; language: string; size: number; sig: string }
   | { kind: "not_found"; path: string }
   | { kind: "not_file"; path: string }
   | { kind: "binary"; path: string }
@@ -15,6 +15,11 @@ export type OpenFileResult =
 export type SaveFileResult = { kind: "ok"; path: string; mtime: number } | { kind: "stale"; path: string; currentMtime: number } | { kind: "io_error"; path: string; message: string };
 
 const MAX_FILE_BYTES = 1_000_000;
+const WATCH_POLL_MS = 1000;
+
+function fileSig(st: { mtimeMs: number; ino: number | bigint; size: number }): string {
+  return `${st.mtimeMs}:${st.ino}:${st.size}`;
+}
 
 // Resolve a user-supplied editor path against the agent's cwd. Yields an
 // absolute path — existence/type checks happen later in openFile.
@@ -98,7 +103,7 @@ export function openFile(absPath: string): OpenFileResult {
   } catch (err: any) {
     return { kind: "io_error", path: absPath, message: err?.message ?? String(err) };
   }
-  return { kind: "ok", path: absPath, content, mtime: Math.floor(st.mtimeMs), language: detectLanguage(absPath), size: st.size };
+  return { kind: "ok", path: absPath, content, mtime: Math.floor(st.mtimeMs), language: detectLanguage(absPath), size: st.size, sig: fileSig(st) };
 }
 
 export function saveFile(absPath: string, content: string, expectedMtime: number, force: boolean): SaveFileResult {
@@ -130,29 +135,36 @@ export function saveFile(absPath: string, content: string, expectedMtime: number
 export interface FileWatcher {
   agentId: string;
   path: string;
-  watcher: FSWatcher;
+  timer: ReturnType<typeof setInterval>;
 }
 
-export function watchFile(absPath: string, agentId: string, onChange: (mtime: number) => void): FileWatcher | null {
-  try {
-    const watcher = fsWatch(absPath, { persistent: false }, () => {
-      // fs.watch fires multiple times per save in some editors; the client
-      // treats editor_external_change idempotently so duplicates are fine.
+export function watchFile(absPath: string, agentId: string, onChange: (mtime: number) => void, baselineSig?: string): FileWatcher {
+  let lastSig =
+    baselineSig ??
+    (() => {
       try {
-        const st = statSync(absPath);
-        onChange(Math.floor(st.mtimeMs));
+        return fileSig(statSync(absPath));
       } catch {
-        // File deleted — silent for v1.
+        return "";
       }
-    });
-    return { agentId, path: absPath, watcher };
-  } catch {
-    return null;
-  }
+    })();
+  const timer = setInterval(() => {
+    try {
+      const st = statSync(absPath);
+      const sig = fileSig(st);
+      if (sig === lastSig) return;
+      lastSig = sig;
+      onChange(Math.floor(st.mtimeMs));
+    } catch {
+      // Missing during delete or atomic replace: keep polling so a re-created
+      // file still emits on the next successful stat.
+      lastSig = "";
+    }
+  }, WATCH_POLL_MS);
+  timer.unref?.();
+  return { agentId, path: absPath, timer };
 }
 
 export function stopWatch(w: FileWatcher) {
-  try {
-    w.watcher.close();
-  } catch {}
+  clearInterval(w.timer);
 }

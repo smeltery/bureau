@@ -1,0 +1,55 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, renameSync, rmSync, writeFileSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+
+import { openFile, stopWatch, watchFile, type FileWatcher } from "./file-editor.ts";
+
+const tempDirs: string[] = [];
+const watchers: FileWatcher[] = [];
+
+afterEach(() => {
+  while (watchers.length) stopWatch(watchers.pop()!);
+  while (tempDirs.length) rmSync(tempDirs.pop()!, { recursive: true, force: true });
+});
+
+describe("watchFile", () => {
+  test("emits for atomic rename-replace saves", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bureau-editor-"));
+    tempDirs.push(dir);
+    const path = join(dir, "notes.txt");
+    writeFileSync(path, "before", "utf8");
+    const opened = openFile(path);
+    expect(opened.kind).toBe("ok");
+    if (opened.kind !== "ok") return;
+
+    const seen = new Promise<number>((resolve) => {
+      watchers.push(watchFile(path, "agent-1", resolve, opened.sig));
+    });
+    const tmp = join(dir, "notes.txt.tmp");
+    writeFileSync(tmp, "after", "utf8");
+    renameSync(tmp, path);
+
+    await expect(seen).resolves.toBeGreaterThanOrEqual(opened.mtime);
+  });
+
+  test("uses read-time signature as the first poll baseline", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bureau-editor-"));
+    tempDirs.push(dir);
+    const path = join(dir, "notes.txt");
+    writeFileSync(path, "before", "utf8");
+    const opened = openFile(path);
+    expect(opened.kind).toBe("ok");
+    if (opened.kind !== "ok") return;
+
+    const tmp = join(dir, "notes.txt.tmp");
+    writeFileSync(tmp, "after", "utf8");
+    renameSync(tmp, path);
+
+    const seen = new Promise<number>((resolve) => {
+      watchers.push(watchFile(path, "agent-1", resolve, opened.sig));
+    });
+
+    await expect(seen).resolves.toBeGreaterThanOrEqual(opened.mtime);
+  });
+});
