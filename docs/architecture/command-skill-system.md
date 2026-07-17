@@ -37,11 +37,15 @@ Claude Code commands that Bureau doesn't implement. These return type-aware "not
 - **Config**: `/config`, `/settings`, `/hooks`, `/permissions`, `/memory`, `/mcp`, `/agents`, `/skills`, `/sandbox`
 - **System**: `/tasks`, `/bashes`, `/doctor`, `/feedback`, `/bug`, `/status`, `/tag`, `/init`
 
-Some have custom messages (e.g., `/login` directs to the built-in terminal, `/plugin` gives step-by-step instructions).
+Some have custom messages (e.g., `/login` directs to the built-in terminal, `/plugin` gives step-by-step instructions). Bureau's native bug-reporting flow is the bundled `/report-bureau-bug` skill rather than Claude Code's `/bug` command.
 
 ### Bundled Skills
 
 Claude Code skills bundled with Bureau, overridable by user/project skills:
+
+`/bureau-pair-programming`, `/bureau-peer-review`, `/bureau-review`, `/bureau-review-and-commit`, `/bureau-second-opinion`, `/bureau-soft-handoff`, `/bureau-subagent-review`, `/grill-me`, `/report-bureau-bug`
+
+Claude Code bundled skills that Bureau knows about but does not implement natively:
 
 `/batch`, `/claude-api`, `/claude-in-chrome`, `/debug`, `/loop`, `/review`, `/schedule`, `/security-review`, `/simplify`, `/skillify`, `/stuck`, `/ultrareview`
 

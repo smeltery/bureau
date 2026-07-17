@@ -26,7 +26,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   busy.
 - Shared task board with create, assign, claim, backlog, and done states.
 - Office-wide, room-level, and per-agent prompt composition.
-- Bundled collaboration skills and Bureau slash commands.
+- Bundled collaboration skills and Bureau slash commands, including peer
+  review, pair programming, soft handoff, subagent review, and guided Bureau bug
+  reports.
 
 ## Multi-User And Multi-Device
 
