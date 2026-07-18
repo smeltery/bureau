@@ -82,6 +82,16 @@ export function TerminalPanel({
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+    if (!(navigator.platform || "").includes("Mac")) {
+      term.attachCustomKeyEventHandler((event) => {
+        if (event.type !== "keydown") return true;
+        if (!event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return true;
+        const key = event.key.toLowerCase();
+        if (key === "c" && term.hasSelection()) return false;
+        if (key === "v") return false;
+        return true;
+      });
+    }
     term.open(containerRef.current);
 
     // Fit and (optionally) focus after open. requestAnimationFrame so the

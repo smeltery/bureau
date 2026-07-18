@@ -63,7 +63,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 ## Developer Tools
 
-- Embedded terminal per agent.
+- Embedded terminal per agent, with standard copy/paste shortcuts across
+  platforms.
 - Built-in file editor with tabs, syntax highlighting, dirty-buffer tracking,
   and external-change detection.
 - Rich diff cards via `/bureau-diff`.
