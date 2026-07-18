@@ -71,6 +71,8 @@ export interface ManagedAgent {
   // and aggregates per agent. Forked sessions subtract the parent's
   // cumulative-at-the-fork-point so shared turns aren't double-counted.
   lastWrittenEntryId: string | null;
+  contextNudgesSent: Set<50 | 75>;
+  pendingContextNotices: string[];
 }
 
 export type AgentEvent =

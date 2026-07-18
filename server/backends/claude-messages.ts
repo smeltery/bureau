@@ -13,6 +13,18 @@ export function normalizeClaudeMessage(msg: SDKMessage, agentId: string): Normal
         return [{ kind: "system_init", sessionId: m.session_id, slashCommands: m.slash_commands, model: m.model }];
       }
       if (m.subtype === "local_command_output" && m.content) return [{ kind: "system_text", text: m.content }];
+      if (m.subtype === "permission_denied") {
+        return [
+          {
+            kind: "permission_denied",
+            toolUseId: typeof m.tool_use_id === "string" ? m.tool_use_id : "",
+            toolName: typeof m.tool_name === "string" ? m.tool_name : "Tool",
+            message: sanitizeTaskLabel(typeof m.message === "string" ? m.message : ""),
+            ...(typeof m.decision_reason === "string" ? { decisionReason: sanitizeTaskLabel(m.decision_reason) } : {}),
+            ...(typeof m.agent_id === "string" ? { agentId: m.agent_id } : {}),
+          },
+        ];
+      }
       return [];
     }
     case "assistant": {

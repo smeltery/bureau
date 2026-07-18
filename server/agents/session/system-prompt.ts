@@ -66,6 +66,9 @@ How to offer the boss to run a command in their terminal side panel: call POST l
 How to check how full your context window is: call GET localhost:${PORT}/api/agents/${agentId}/context with your bearer token. Response when a measurement exists: {"available":true,"model":"...","totalTokens":132400,"maxTokens":200000,"percentage":66.2,"sampledAtMs":...}. When there is nothing to report you get {"available":false,"reason":"no_session"|"not_yet_measured"}. Use this when your instructions set a context budget or before taking on a large task late in a long conversation.
   curl -s localhost:${PORT}/api/agents/${agentId}/context -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 
+How to read an agent's personal custom instructions before suggesting edits: call GET localhost:${PORT}/api/agents/<id>/instructions with your bearer token. You can read agents visible to your manager's room access. The response is {"customInstructions":null} or {"customInstructions":"..."}; propose changes to the boss instead of editing instructions silently.
+  curl -s localhost:${PORT}/api/agents/<id>/instructions -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
+
 How to send a message to another agent's chat: call POST localhost:${PORT}/api/agents/<receiver-id>/message. If the receiver is busy, your message is queued and delivered with the receiver's next turn; if idle, it's delivered right away. The receiver decides whether to reply — replies are just another POST in the opposite direction; there is no automatic back-and-forth. Find the receiver's id in the agent manifest.
   curl -s -X POST localhost:${PORT}/api/agents/<receiver-id>/message -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"text":"...","senderAgentId":"${agentId}"}'
 

@@ -17,6 +17,7 @@ export {
 } from "./agent-models.ts";
 export type {
   AgentBackendType,
+  AgentContextUsageSnapshot,
   AgentInfo,
   AgentOutfit,
   AgentState,

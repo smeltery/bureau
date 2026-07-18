@@ -65,6 +65,14 @@ export type NormalizedEvent =
       phase: "started" | "completed" | "failed" | "stopped";
       taskId: string;
       label: string;
+    }
+  | {
+      kind: "permission_denied";
+      toolUseId: string;
+      toolName: string;
+      message: string;
+      decisionReason?: string;
+      agentId?: string;
     };
 
 export type ApprovalDecision = { kind: "allow_persistent" } | { kind: "allow_once" } | { kind: "deny"; reason?: string };

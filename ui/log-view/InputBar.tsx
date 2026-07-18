@@ -1,11 +1,12 @@
-import { useRef } from "react";
-import type { AgentInfo, Attachment } from "../../shared/types.ts";
+import { useRef, useState } from "react";
+import type { AgentInfo, Attachment, SkillInfo } from "../../shared/types.ts";
 import { send } from "../ws.ts";
 import { useAppState } from "../store.tsx";
 import { AttachmentChips } from "./AttachmentChips.tsx";
 import { InputComposerField } from "./input/InputComposerField.tsx";
 import { MobileInputAction } from "./MobileInputAction.tsx";
 import { VoiceInputControl } from "./VoiceInputControl.tsx";
+import { SkillsPopover, type CommandEntry } from "./components/SkillsPopover.tsx";
 import type { StagedAttachment } from "./hooks/useAttachmentUpload.ts";
 
 export function InputBar({
@@ -44,6 +45,8 @@ export function InputBar({
   selectedIdx,
   setSelectedIdx,
   partial,
+  availableCommands,
+  availableSkills,
 }: {
   agent: AgentInfo;
   input: string;
@@ -77,9 +80,12 @@ export function InputBar({
   selectedIdx: number;
   setSelectedIdx: (v: number | ((prev: number) => number)) => void;
   partial: string;
+  availableCommands: CommandEntry[];
+  availableSkills: SkillInfo[];
 }) {
   const { isMobile } = useAppState();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [skillsOpen, setSkillsOpen] = useState(false);
 
   function handleSend() {
     const text = input.trim();
@@ -99,6 +105,7 @@ export function InputBar({
   return (
     <div
       style={{
+        position: "relative",
         flexShrink: 0,
         padding: isMobile ? "10px 12px 10px 11px" : "10px 24px 10px 11px",
         paddingBottom: isMobile ? "calc(10px + env(safe-area-inset-bottom, 0px))" : undefined,
@@ -119,6 +126,19 @@ export function InputBar({
         }}
       />
       <AttachmentChips stagedAttachments={stagedAttachments} isMobile={isMobile} removeStaged={removeStaged} />
+      {skillsOpen && (
+        <SkillsPopover
+          skills={availableSkills}
+          commands={availableCommands}
+          isMobile={isMobile}
+          onClose={() => setSkillsOpen(false)}
+          onPick={(name) => {
+            setInput(`/${name} `);
+            setSkillsOpen(false);
+            requestAnimationFrame(() => textareaRef.current?.focus());
+          }}
+        />
+      )}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -140,6 +160,27 @@ export function InputBar({
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
           </svg>
+        </button>
+        <button
+          data-skills-toggle
+          onClick={() => setSkillsOpen((open) => !open)}
+          disabled={isBusy}
+          style={{
+            background: "none",
+            border: "1px solid var(--border)",
+            borderRadius: 5,
+            padding: "1px 5px",
+            color: isBusy ? "var(--text-ghost)" : skillsOpen ? "var(--green)" : "var(--text-muted)",
+            cursor: isBusy ? "default" : "pointer",
+            lineHeight: "16px",
+            fontSize: 11,
+            fontFamily: "'JetBrains Mono',monospace",
+            flexShrink: 0,
+            opacity: isBusy ? 0.4 : 0.85,
+          }}
+          title="Browse skills and commands"
+        >
+          Sk
         </button>
         <span style={{ color: isBusy ? "var(--text-ghost)" : "var(--green)", fontWeight: 600, lineHeight: "20px", position: "relative", top: -2 }}>&#10095;</span>
         <InputComposerField

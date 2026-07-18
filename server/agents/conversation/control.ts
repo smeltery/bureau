@@ -125,9 +125,12 @@ export async function newConversation(agentId: string) {
     managed.sessionId = null;
     managed.topicGenerating = false;
     managed.topicMessageCount = 0;
+    managed.contextNudgesSent.clear();
+    managed.pendingContextNotices = [];
     managed.info.topic = null;
     managed.info.topicStale = false;
-    emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false } });
+    managed.info.contextUsage = null;
+    emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false, contextUsage: null } });
     // Match /clear's behavior: wipe the chat. Without this, the timeline
     // continues across session boundaries and editing an old entry hits
     // the cross-session dead-end.
@@ -164,6 +167,9 @@ export async function resume(agentId: string, sessionId: string) {
       throw err;
     }
     managed.sessionId = sessionId;
+    managed.contextNudgesSent.clear();
+    managed.pendingContextNotices = [];
+    managed.info.contextUsage = null;
     // Record the cwd we actually resumed in: backfill a legacy/missing value, or
     // repair a present-but-invalid one so it isn't sticky on future resumes.
     recordResumedSessionCwd(agentId, sessionId, managed.info.cwd, storedCwdInvalid);
@@ -191,7 +197,7 @@ export async function resume(agentId: string, sessionId: string) {
     const drift = replayedTextCount - restoredCount;
     managed.info.topic = restoredTopic;
     managed.info.topicStale = drift > 0;
-    emit({ type: "agent_updated", agentId, changes: { topic: managed.info.topic, topicStale: drift > 0 } });
+    emit({ type: "agent_updated", agentId, changes: { topic: managed.info.topic, topicStale: drift > 0, contextUsage: null } });
 
     updateState(agentId, "waiting_for_response");
     addLogEntry(agentId, "system", `Resumed session: ${restoredTopic || sessionId.slice(0, 8) + "..."}`);

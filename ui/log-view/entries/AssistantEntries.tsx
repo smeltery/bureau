@@ -155,3 +155,28 @@ export function TaskBreadcrumb({ content, phase, isMobile }: { content: string; 
     </div>
   );
 }
+
+export function PermissionDeniedCard({ denial, isMobile }: { denial: { toolName?: string; message?: string; decisionReason?: string }; isMobile?: boolean }) {
+  const reason = denial.decisionReason || denial.message;
+  return (
+    <div
+      style={{
+        margin: "8px 0",
+        padding: "6px 10px",
+        borderLeft: "3px solid var(--red)",
+        borderRadius: 4,
+        background: "var(--bg-code)",
+        fontSize: isMobile ? 13 : 12,
+        display: "flex",
+        gap: 6,
+        alignItems: "baseline",
+        flexWrap: "wrap",
+      }}
+      title={denial.message}
+    >
+      <span style={{ color: "var(--red)", fontWeight: 600, flexShrink: 0 }}>Denied</span>
+      {denial.toolName && <span style={{ color: "var(--text-primary)", fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, flexShrink: 0 }}>{denial.toolName}</span>}
+      {reason && <span style={{ color: "var(--text-dim)", overflowWrap: "anywhere" }}>{reason}</span>}
+    </div>
+  );
+}

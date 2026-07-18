@@ -3,6 +3,7 @@ import { CopyButton } from "../components/controls/CopyButton.tsx";
 import { PersonIcon } from "../components/controls/Icons.tsx";
 import { StatusLight } from "../office/scene/StatusLight.tsx";
 import { HeaderTimer, STATE_LABELS } from "./StateIndicators.tsx";
+import { ContextMeter } from "./components/ContextMeter.tsx";
 
 export function HeaderMobile({
   agent,
@@ -81,6 +82,7 @@ export function HeaderMobile({
             )}
           </span>
           {STATE_LABELS[agent.state] && <HeaderTimer state={agent.state} stateChangedAt={stateChangedAt} />}
+          <ContextMeter usage={agent.contextUsage} />
           {logs.length > 0 && <CopyButton getText={getConversationText} />}
           <button
             onClick={toggleAvatar}

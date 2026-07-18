@@ -86,6 +86,8 @@ export interface RunAgentTurnOpts {
 export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   const { managed, sdkText, originalText, visibleText, attachments, origin, humanInput, username, onSendAccepted } = opts;
   const agentId = managed.info.id;
+  const contextNoticeText = managed.pendingContextNotices.length > 0 ? managed.pendingContextNotices.map((notice) => `[${notice}]`).join("\n") : "";
+  const sdkTextWithNotices = contextNoticeText ? `${contextNoticeText}\n\n${sdkText}` : sdkText;
 
   // 1. Claim the turn lifecycle immediately, BEFORE any await. The
   // afterTurnPromise gate (up to 10s) plus per-plugin beforeTurn (up to 5s
@@ -140,7 +142,7 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
     username,
     visibleText,
     originalText,
-    sdkText,
+    sdkText: sdkTextWithNotices,
   };
 
   // 4. Run beforeTurn for every enabled plugin in parallel. getEnabledPlugins
@@ -156,7 +158,7 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   }
 
   // 5. Assemble the final outgoing text.
-  const finalText = applyPluginPrefixes(prefixes, sdkText);
+  const finalText = applyPluginPrefixes(prefixes, sdkTextWithNotices);
 
   // Final pre-send cancel check. Catches a Stop/swap that fires after the
   // beforeTurn loop returned but before createTurnDeferred runs — small
@@ -183,6 +185,7 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
       throw new Error("Cannot send: agent has no session.");
     }
     await managed.session.send(finalText, attachments);
+    if (contextNoticeText) managed.pendingContextNotices = [];
     if (onSendAccepted) {
       try {
         onSendAccepted();

@@ -7,6 +7,7 @@ export { onEvent, getOfficeSettings } from "./state.ts";
 export { getRooms, getRoomSettings, setOfficeSettings, setRoomSettings, validateEnvPath, swapDesks, createRoom, closeRoom, renameRoom, reorderRooms, moveAgent } from "./rooms.ts";
 export {
   getAgent,
+  getAgentInstructions,
   getAgentDisplay,
   getAllAgents,
   getAgentLogs,

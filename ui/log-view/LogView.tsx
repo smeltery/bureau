@@ -236,6 +236,8 @@ export function LogView({
           selectedIdx={autocomplete.selectedIdx}
           setSelectedIdx={autocomplete.setSelectedIdx}
           partial={autocomplete.partial}
+          availableCommands={slashCommands.get(agent.id)?.commands ?? []}
+          availableSkills={slashCommands.get(agent.id)?.skills ?? []}
         />
       </div>
       <LogViewPanelHost agentId={agent.id} isMobile={isMobile} terminalEnabled={features.terminal} editorEnabled={features.editor} panels={panels} onSendTerminalToChat={handleTerminalSendToChat} />

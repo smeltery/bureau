@@ -5,6 +5,7 @@ import { autocompleteCommands } from "../commands.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { diagnoseProcessExit, emitLoginInstructions as emitLoginInstructionsImpl, emitLoginInstructionsIfAuth, isAuthErrorForAgent } from "./diagnostics.ts";
+import { maybeNudgeForContextUsage, refreshContextUsage } from "../context-usage.ts";
 
 // Persistent consumer. Runs for the session's lifetime, iterating `stream()`
 // in a loop so events that arrive between turns (notably `task_notification`
@@ -103,6 +104,17 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
     case "task_lifecycle":
       addLogEntry(agentId, "system", ev.label, { taskEvent: { phase: ev.phase, taskId: ev.taskId } });
       break;
+    case "permission_denied":
+      addLogEntry(agentId, "system", ev.decisionReason || ev.message || `${ev.toolName} denied.`, {
+        permissionDenied: {
+          toolUseId: ev.toolUseId,
+          toolName: ev.toolName,
+          message: ev.message,
+          ...(ev.decisionReason ? { decisionReason: ev.decisionReason } : {}),
+          ...(ev.agentId ? { agentId: ev.agentId } : {}),
+        },
+      });
+      break;
     case "thinking": {
       const managed = agents.get(agentId);
       const duration_ms = ev.durationMs ?? (managed?.thinkingStartedAt ? Date.now() - managed.thinkingStartedAt : undefined);
@@ -150,6 +162,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         managed.pendingTurn = null;
         turn.resolve();
       }
+      if (managed && ev.status === "completed") void refreshContextUsage(agentId, managed).then(() => maybeNudgeForContextUsage(agentId, managed));
       break;
     }
     case "usage_update": {

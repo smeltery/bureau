@@ -11,17 +11,7 @@ import { mintAgentToken } from "./tokens.ts";
 import { createManagedAgent } from "./managed-factory.ts";
 import { buildSpawnAgentDraft } from "./lifecycle-spawn.ts";
 import { buildRestoredAgentInfo } from "./lifecycle-restore.ts";
-
-export type AgentContextUsageResponse =
-  | {
-      available: true;
-      model: string;
-      totalTokens: number;
-      maxTokens: number;
-      percentage: number;
-      sampledAtMs: number;
-    }
-  | { available: false; reason: "no_session" | "not_yet_measured" };
+import { getAgentContextUsage as getAgentContextUsageForManaged, type AgentContextUsageResponse } from "./context-usage.ts";
 
 export { emitAgentDiff, emitAgentEditFile, emitAgentPreviewUrl, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
 export { kill } from "./lifecycle-kill.ts";
@@ -33,6 +23,12 @@ export { getKilledAgentSummaries, revive } from "./revive.ts";
 
 export function getAgent(agentId: string): AgentInfo | undefined {
   return agents.get(agentId)?.info;
+}
+
+export function getAgentInstructions(agentId: string): { customInstructions: string | null } | null {
+  const agent = agents.get(agentId)?.info;
+  if (!agent) return null;
+  return { customInstructions: agent.customInstructions };
 }
 
 // Resolve an agent's display identity (name + room) for prefixing
@@ -74,21 +70,7 @@ export function getCurrentSessionId(agentId: string): string | null {
 }
 
 export async function getAgentContextUsage(agentId: string): Promise<AgentContextUsageResponse> {
-  const managed = agents.get(agentId);
-  if (!managed) return { available: false, reason: "no_session" };
-  if (!managed.session && !managed.sessionId) return { available: false, reason: "no_session" };
-  if (!managed.session) return { available: false, reason: "not_yet_measured" };
-
-  const ctx = await managed.session.getContextUsage().catch(() => null);
-  if (!ctx) return { available: false, reason: "not_yet_measured" };
-  return {
-    available: true,
-    model: ctx.model,
-    totalTokens: ctx.totalTokens,
-    maxTokens: ctx.maxTokens,
-    percentage: ctx.percentage,
-    sampledAtMs: Date.now(),
-  };
+  return getAgentContextUsageForManaged(agentId, agents.get(agentId));
 }
 
 // ---------------------------------------------------------------------------

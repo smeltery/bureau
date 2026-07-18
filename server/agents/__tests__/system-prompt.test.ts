@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildSystemPrompt, memorySection } from "../session/system-prompt.ts";
+import { autocompleteCommands, commands } from "../commands.ts";
 
 describe("buildSystemPrompt memory affordance", () => {
   test("documents all durable memory scopes without filesystem paths", () => {
@@ -58,6 +59,13 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("$BUREAU_AGENT_TOKEN");
   });
 
+  test("documents custom instructions read access", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("/api/agents/<id>/instructions");
+    expect(prompt).toContain("customInstructions");
+  });
+
   test("documents the agent manager before configurable instructions", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room", "OFFICE-MARK", "ROOM-MARK", "AGENT-MARK", "MEMORY-MARK", "Boss One");
 
@@ -88,5 +96,16 @@ describe("memorySection", () => {
     expect(section).toContain("## Durable Memory");
     expect(section).toContain("context to weigh");
     expect(section).toContain("- Boss, 2026-07-04: Prefer short updates.");
+  });
+});
+
+describe("handoff commands", () => {
+  test("registers /handoff and keeps /handoff-apply manual-only", () => {
+    expect(commands.handoff.supported).toBe(true);
+    expect(commands.handoff.handler).toBe("handoff");
+    expect(commands["handoff-apply"].supported).toBe(true);
+    expect(commands["handoff-apply"].handler).toBe("handoffApply");
+    expect(autocompleteCommands().map((cmd) => cmd.name)).toContain("handoff");
+    expect(autocompleteCommands().map((cmd) => cmd.name)).not.toContain("handoff-apply");
   });
 });

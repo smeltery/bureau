@@ -1,10 +1,11 @@
 import { familyDisplayLabel } from "../../../shared/types.ts";
 import { listAgentSessions } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
-import { createSession, emitLoginInstructions, replaceSession } from "../session/runtime.ts";
+import { createSession, emitLoginInstructions, replaceSession, SessionSwappedError } from "../session/runtime.ts";
 import { tildifyCwd } from "../session/paths.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { renderUsageReport } from "../usage.ts";
+import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { handleHelpCommand } from "./slash-help.ts";
 import { handleBureauDiffCommand, handleBureauEditCommand, handleBureauMessageCommand } from "./slash-bureau-tools.ts";
 import { handleContextCommand } from "./slash-context.ts";
@@ -38,11 +39,14 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.sessionId = null;
     managed.topicGenerating = false;
     managed.topicMessageCount = 0;
+    managed.contextNudgesSent.clear();
+    managed.pendingContextNotices = [];
     managed.info.topic = null;
     managed.info.topicStale = false;
+    managed.info.contextUsage = null;
     logCache.set(agentId, []);
     emit({ type: "clear_logs", agentId } as any);
-    emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false } });
+    emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false, contextUsage: null } });
     emitEphemeralLog(agentId, "system", "Conversation cleared.");
     updateState(agentId, "idle");
     persistAll();
@@ -58,6 +62,100 @@ export const commandHandlers: Record<string, HandlerFn> = {
   },
 
   context: handleContextCommand,
+
+  async handoff(agentId, managed, _args, rawText, username) {
+    const userMeta = username ? { username } : undefined;
+    addLogEntry(agentId, "user_message", rawText, userMeta);
+    const prompt = [
+      "Prepare a handoff prompt for a fresh session of yourself.",
+      "",
+      "Include:",
+      "- current objective and latest state",
+      "- important decisions and constraints",
+      "- changed files or commands already run",
+      "- exact next steps",
+      "- risks or open questions",
+      "",
+      "Keep it concise but sufficient. End by asking the boss to approve the reset by running:",
+      "`/handoff-apply <your handoff prompt>`",
+      "",
+      "Do not clear anything yourself.",
+    ].join("\n");
+    try {
+      await runAgentTurn({
+        managed,
+        visibleText: rawText,
+        originalText: prompt,
+        sdkText: username ? `[${username}] ${prompt}` : prompt,
+        username: username ?? null,
+        origin: "skill",
+        humanInput: true,
+      });
+    } catch (err: any) {
+      if (err instanceof SessionSwappedError) return true;
+      addLogEntry(agentId, "error", `Handoff error: ${err.message}`);
+      updateState(agentId, "error");
+    }
+    return true;
+  },
+
+  async handoffApply(agentId, managed, _args, rawText, username) {
+    const handoffPrompt = rawText.replace(/^\/handoff-apply\s*/u, "").trim();
+    if (!handoffPrompt) {
+      emitEphemeralLog(agentId, "user_message", rawText, username ? { username } : undefined);
+      emitEphemeralLog(agentId, "system", "Usage: `/handoff-apply <handoff prompt>`");
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
+    let newSession;
+    try {
+      newSession = createSession(managed);
+    } catch (err: any) {
+      emitEphemeralLog(agentId, "error", `Failed to start handoff session: ${err.message}`);
+      updateState(agentId, "error");
+      return true;
+    }
+    managed.pendingResume = false;
+    managed.pendingResumeSessions = [];
+    managed.pendingModelPick = false;
+    managed.pendingEffortPick = false;
+    if (managed.messageQueue.length > 0) {
+      managed.messageQueue = [];
+      emit({ type: "agent_updated", agentId, changes: { queue: [] } });
+    }
+    persistCurrentSessionTopic(agentId, managed);
+    await replaceSession(agentId, managed, newSession);
+    managed.sessionId = null;
+    managed.topicGenerating = false;
+    managed.topicMessageCount = 0;
+    managed.contextNudgesSent.clear();
+    managed.pendingContextNotices = [];
+    managed.info.topic = null;
+    managed.info.topicStale = false;
+    managed.info.contextUsage = null;
+    logCache.set(agentId, []);
+    emit({ type: "clear_logs", agentId } as any);
+    emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false, contextUsage: null } });
+    addLogEntry(agentId, "system", "Handoff approved. Starting fresh from the handoff prompt.");
+    addLogEntry(agentId, "user_message", handoffPrompt, username ? { username } : undefined);
+    persistAll();
+    try {
+      await runAgentTurn({
+        managed,
+        visibleText: handoffPrompt,
+        originalText: handoffPrompt,
+        sdkText: username ? `[${username}] ${handoffPrompt}` : handoffPrompt,
+        username: username ?? null,
+        origin: "user",
+        humanInput: true,
+      });
+    } catch (err: any) {
+      if (err instanceof SessionSwappedError) return true;
+      addLogEntry(agentId, "error", `Handoff restart error: ${err.message}`);
+      updateState(agentId, "error");
+    }
+    return true;
+  },
 
   async help(agentId, managed, _args, rawText, username) {
     return handleHelpCommand(agentId, managed, rawText, username);

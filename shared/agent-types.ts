@@ -72,6 +72,15 @@ export interface AgentInfo {
   // Pending user messages that arrived while the agent was busy. Flushed
   // together as the agent transitions back to an idle state.
   queue?: QueuedMessage[];
+  contextUsage?: AgentContextUsageSnapshot | null;
+}
+
+export interface AgentContextUsageSnapshot {
+  model: string;
+  totalTokens: number;
+  maxTokens: number;
+  percentage: number;
+  sampledAtMs: number;
 }
 
 // A pending message waiting for the agent to finish its current turn.

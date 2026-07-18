@@ -6,6 +6,7 @@ import { HeaderTimer, STATE_LABELS } from "./StateIndicators.tsx";
 import { HeaderTopic } from "./HeaderTopic.tsx";
 import { HeaderMobile } from "./HeaderMobile.tsx";
 import { HeaderActions } from "./header/HeaderActions.tsx";
+import { ContextMeter } from "./components/ContextMeter.tsx";
 
 export function Header({
   agent,
@@ -122,6 +123,7 @@ export function Header({
         >
           {familyDisplayLabel(agent.modelFamily)}
         </span>
+        <ContextMeter usage={agent.contextUsage} />
       </div>
       <HeaderActions
         logs={logs}

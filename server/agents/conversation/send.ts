@@ -135,6 +135,9 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         await replaceSession(agentId, managed, newSession);
         managed.sessionId = picked.sessionId;
         managed.topicGenerating = false;
+        managed.contextNudgesSent.clear();
+        managed.pendingContextNotices = [];
+        managed.info.contextUsage = null;
         // Restore the textCount baseline from sessions.json so drift is
         // measured against the replayed history, not from zero (otherwise
         // any first new message after resume trivially trips the threshold).
@@ -155,7 +158,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         const drift = replayedTextCount - picked.topicMessageCount;
         managed.info.topic = picked.topic;
         managed.info.topicStale = drift > 0;
-        emit({ type: "agent_updated", agentId, changes: { topic: picked.topic, topicStale: drift > 0 } });
+        emit({ type: "agent_updated", agentId, changes: { topic: picked.topic, topicStale: drift > 0, contextUsage: null } });
         emitEphemeralLog(agentId, "system", `Resumed session: ${picked.topic || picked.sessionId.slice(0, 8) + "..."}`);
         updateState(agentId, "waiting_for_response");
         persistAll();

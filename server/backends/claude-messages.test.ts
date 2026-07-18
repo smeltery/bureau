@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { sanitizeTaskLabel, TaskBreadcrumbTracker } from "./claude-messages.ts";
+import { normalizeClaudeMessage, sanitizeTaskLabel, TaskBreadcrumbTracker } from "./claude-messages.ts";
 
 describe("TaskBreadcrumbTracker", () => {
   test("surfaces local bash background task start and completion", () => {
@@ -113,5 +113,31 @@ describe("TaskBreadcrumbTracker", () => {
     ).toEqual([]);
 
     expect(sanitizeTaskLabel(`  ${"word ".repeat(80)}  `)).toHaveLength(200);
+  });
+
+  test("normalizes permission denied system events", () => {
+    expect(
+      normalizeClaudeMessage(
+        {
+          type: "system",
+          subtype: "permission_denied",
+          tool_use_id: "tool-1",
+          tool_name: "Bash",
+          message: "blocked by policy",
+          decision_reason: "deny rule matched",
+          agent_id: "subagent-1",
+        } as any,
+        "agent-1",
+      ),
+    ).toEqual([
+      {
+        kind: "permission_denied",
+        toolUseId: "tool-1",
+        toolName: "Bash",
+        message: "blocked by policy",
+        decisionReason: "deny rule matched",
+        agentId: "subagent-1",
+      },
+    ]);
   });
 });

@@ -19,11 +19,14 @@ import { CSS } from "./styles.ts";
 import type { AgentBackendType, AgentInfo } from "../shared/types.ts";
 import { useAppNavigation } from "./useAppNavigation.ts";
 import { normalizeDraftUser, pruneDraftsForUser, readDraftsForUser, writeDraftForUser } from "./store-drafts.ts";
+import { readSavedView, writeSavedView } from "./store-view.ts";
 
 export function App() {
   const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext, hasReceivedInitialState } = useAppState();
   const dispatch = useDispatch();
   const restoredDraftUserRef = useRef<string | null>(null);
+  const restoredViewUserRef = useRef<string | null>(null);
+  const hasRestoredViewRef = useRef(false);
   const persistedDraftsRef = useRef<Map<string, string>>(new Map());
   const [spawnDesk, setSpawnDesk] = useState<number | null>(null);
   const [spawnAgentType, setSpawnAgentType] = useState<AgentBackendType | null>(null);
@@ -73,6 +76,30 @@ export function App() {
 
     persistedDraftsRef.current = new Map(drafts);
   }, [draftUser, drafts]);
+
+  useEffect(() => {
+    if (!hasReceivedInitialState || !draftUser || restoredViewUserRef.current === draftUser) return;
+    const saved = readSavedView(draftUser);
+    restoredViewUserRef.current = draftUser;
+    hasRestoredViewRef.current = true;
+    if (!saved) return;
+
+    const roomIndex = saved.roomId ? rooms.findIndex((room) => room.id === saved.roomId) : -1;
+    const agent = saved.agentId ? agents.find((candidate) => candidate.id === saved.agentId) : null;
+    if (roomIndex >= 0) dispatch({ type: "set_current_room", room: roomIndex });
+    if (agent) dispatch({ type: "focus", agentId: agent.id });
+    if (saved.panel === "tasks") setTasksOpen(true);
+    else if (saved.panel === "cronjobs") setCronjobsOpen(true);
+    else if (saved.panel === "plugins") setPluginsOpen(true);
+  }, [agents, dispatch, draftUser, hasReceivedInitialState, rooms]);
+
+  useEffect(() => {
+    if (!draftUser || !hasRestoredViewRef.current) return;
+    const focused = focusedAgentId ? (agents.find((agent) => agent.id === focusedAgentId) ?? null) : null;
+    const roomId = focused?.roomId ?? rooms[currentRoom]?.id ?? null;
+    const panel = tasksOpen ? "tasks" : cronjobsOpen ? "cronjobs" : pluginsOpen ? "plugins" : null;
+    writeSavedView(draftUser, { roomId, agentId: focusedAgentId, panel });
+  }, [agents, cronjobsOpen, currentRoom, draftUser, focusedAgentId, pluginsOpen, rooms, tasksOpen]);
 
   const { goHome, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
     agents,

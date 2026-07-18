@@ -41,5 +41,7 @@ export function createManagedAgent(input: {
     messageQueue: [],
     flushInProgress: false,
     lastWrittenEntryId: null,
+    contextNudgesSent: new Set(),
+    pendingContextNotices: [],
   };
 }

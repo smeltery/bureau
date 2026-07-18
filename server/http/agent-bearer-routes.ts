@@ -1,5 +1,6 @@
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
+import { canSeeRoom, getUserById } from "../users.ts";
 
 const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -14,6 +15,15 @@ export async function handleAgentBearerPost(req: Request, parts: string[]): Prom
     const agentId = parts[1]!;
     if (identity.agentId !== agentId) return tokenMismatch();
     return new Response(JSON.stringify(await AgentManager.getAgentContextUsage(agentId)), { headers: JSON_HEADERS });
+  }
+
+  if (req.method === "GET" && parts.length === 3 && parts[2] === "instructions") {
+    const agentId = parts[1]!;
+    const denied = denyInvisibleAgent(identity, agentId);
+    if (denied) return denied;
+    const instructions = AgentManager.getAgentInstructions(agentId);
+    if (!instructions) return jsonError(404, "agent not found");
+    return new Response(JSON.stringify(instructions), { headers: JSON_HEADERS });
   }
 
   if (req.method !== "POST") return null;
@@ -92,6 +102,7 @@ export async function handleAgentBearerPost(req: Request, parts: string[]): Prom
 function isAgentBearerRoute(method: string, parts: string[]): boolean {
   if (parts.length !== 3) return false;
   if (method === "GET" && parts[2] === "context") return true;
+  if (method === "GET" && parts[2] === "instructions") return true;
   if (method !== "POST") return false;
   return parts[2] === "diff" || parts[2] === "edit-file" || parts[2] === "read-file" || parts[2] === "preview-url" || parts[2] === "terminal-command" || parts[2] === "message";
 }
@@ -122,4 +133,14 @@ function jsonOk(): Response {
 
 function tokenMismatch(): Response {
   return jsonError(403, "token does not match agent");
+}
+
+function denyInvisibleAgent(identity: { agentId: string; userId: string | null }, agentId: string): Response | null {
+  const agent = AgentManager.getAgent(agentId);
+  if (!agent) return jsonError(404, "agent not found");
+  if (!identity.userId) return identity.agentId === agentId ? null : tokenMismatch();
+  const user = getUserById(identity.userId);
+  const roomId = AgentManager.getRooms()[agent.room]?.id ?? agent.roomId;
+  if (!user || !roomId || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
+  return null;
 }

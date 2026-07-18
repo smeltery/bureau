@@ -56,6 +56,22 @@ export const commands: Record<string, CommandConfig> = {
     handler: "context",
     description: "Visualize context window usage",
   },
+  handoff: {
+    type: "hardcoded",
+    supported: true,
+    autocomplete: true,
+    overridable: false,
+    handler: "handoff",
+    description: "Draft a restart prompt for a fresh session",
+  },
+  "handoff-apply": {
+    type: "hardcoded",
+    supported: true,
+    autocomplete: false,
+    overridable: false,
+    handler: "handoffApply",
+    description: "Clear this session and restart from a handoff prompt",
+  },
   help: {
     type: "hardcoded",
     supported: true,
