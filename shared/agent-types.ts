@@ -70,8 +70,7 @@ export interface AgentInfo {
   // answers and idles) stays silent. In-memory only — never persisted.
   turnHadHumanInput?: boolean;
   // Pending user messages that arrived while the agent was busy. Flushed
-  // together as the agent transitions back to an idle state. In-memory
-  // only — never persisted.
+  // together as the agent transitions back to an idle state.
   queue?: QueuedMessage[];
 }
 

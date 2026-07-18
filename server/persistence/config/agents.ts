@@ -1,6 +1,6 @@
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
-import type { AgentCapabilities, AgentInfo, ClaudeModel } from "../../../shared/types.ts";
+import type { AgentCapabilities, AgentInfo, ClaudeModel, QueuedMessage } from "../../../shared/types.ts";
 import { familyFromLegacyModel, generateRoomId } from "../../../shared/types.ts";
 import { AGENTS_FILE, atomicWriteFileSync, LOGS_DIR, MANIFEST_FILE } from "../paths.ts";
 
@@ -21,6 +21,7 @@ export interface PersistedAgent {
   lastSessionId: string | null;
   topic: string | null;
   customInstructions: string | null;
+  queue?: QueuedMessage[];
 }
 
 // Migrate a persisted agent that may have the legacy `model: "claude-opus-4-6"`

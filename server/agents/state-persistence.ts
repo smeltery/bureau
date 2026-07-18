@@ -86,6 +86,7 @@ export function saveLiveAgents(agents: Iterable<ManagedAgent>, rooms: InternalRo
         lastSessionId: a.sessionId,
         topic: a.info.topic,
         customInstructions: a.info.customInstructions,
+        queue: a.messageQueue,
       });
     }
   }

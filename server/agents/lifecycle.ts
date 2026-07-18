@@ -155,6 +155,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         sessionId: p.lastSessionId,
         topicMessageCount: persistedTopicCount,
       });
+      managed.messageQueue = Array.isArray(p.queue) ? [...p.queue] : [];
       agents.set(p.id, managed);
 
       // Load log history into cache (browsers connect later, so we cache it).
@@ -220,5 +221,17 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
   // fields (room ids, prompt/envFile defaults) that weren't present before.
   // Must run AFTER agents are populated or persistAll writes empty rooms.
   persistAll();
+  for (const managed of agents.values()) {
+    if (managed.messageQueue.length === 0 || managed.info.state === "error" || managed.info.state === "stopped") continue;
+    import("./conversation/message-queue.ts")
+      .then(({ flushQueue }) =>
+        flushQueue(managed.info.id).catch((err: any) => {
+          console.error(`flushQueue failed for restored agent ${managed.info.id}:`, err.message);
+        }),
+      )
+      .catch((err) => {
+        console.error("failed to load flushQueue module:", err);
+      });
+  }
   return [...agents.values()].map((a) => a.info);
 }

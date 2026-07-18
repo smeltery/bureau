@@ -1,6 +1,6 @@
-import type { Attachment, QueuedMessage, QueuedSender } from "../../../shared/types.ts";
+import type { AgentState, Attachment, QueuedMessage, QueuedSender } from "../../../shared/types.ts";
 import { formatAgentSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
-import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, updateState, type ManagedAgent } from "../state.ts";
+import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { SessionSwappedError, createSession, installSession } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 
@@ -50,6 +50,7 @@ export function enqueueMessage(
     queuedAt: Date.now(),
   });
   emitQueueUpdate(receiverId, managed);
+  persistAll();
   if (canFlushNow) {
     flushQueue(receiverId).catch((err: any) => {
       console.error(`flushQueue (post-enqueue) failed for ${receiverId}:`, err.message);
@@ -103,6 +104,7 @@ export function enqueueUserMessage(agentId: string, managed: ManagedAgent, text:
   };
   managed.messageQueue.push(item);
   emitQueueUpdate(agentId, managed);
+  persistAll();
   return true;
 }
 
@@ -114,6 +116,7 @@ export async function flushQueue(agentId: string): Promise<void> {
   if (!managed) return;
   if (managed.flushInProgress) return;
   if (managed.messageQueue.length === 0) return;
+  if (managed.info.state === "error" || managed.info.state === "stopped") return;
   if (isAgentBusy(managed.info.state)) return;
   if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick) return;
   if (managed.abortPromise) {
@@ -189,6 +192,7 @@ export async function flushQueue(agentId: string): Promise<void> {
           const sentIds = new Set(items.map((m) => m.id));
           managed.messageQueue = managed.messageQueue.filter((m) => !sentIds.has(m.id));
           emitQueueUpdate(agentId, managed);
+          persistAll();
           for (const m of items) {
             const base = senderMeta(m.sender);
             const withSchedule = m.scheduledFor ? { ...(base ?? {}), scheduledFor: m.scheduledFor, scheduledSenderGone: m.scheduledSenderGone ?? false } : base;
@@ -204,11 +208,12 @@ export async function flushQueue(agentId: string): Promise<void> {
     }
   } finally {
     managed.flushInProgress = false;
+    const stateAfterFlush = managed.info.state as AgentState;
     if (
       managed.messageQueue.length > 0 &&
-      managed.info.state !== "error" &&
-      managed.info.state !== "stopped" &&
-      !isAgentBusy(managed.info.state) &&
+      stateAfterFlush !== "error" &&
+      stateAfterFlush !== "stopped" &&
+      !isAgentBusy(stateAfterFlush) &&
       !managed.pendingPermission &&
       !managed.pendingResume &&
       !managed.pendingModelPick &&
@@ -229,5 +234,6 @@ export function dequeueMessage(agentId: string, queuedId: string): boolean {
   managed.messageQueue = managed.messageQueue.filter((m) => m.id !== queuedId);
   if (managed.messageQueue.length === before) return false;
   emitQueueUpdate(agentId, managed);
+  persistAll();
   return true;
 }
