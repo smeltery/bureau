@@ -1,7 +1,9 @@
 import * as AgentManager from "../agent-manager.ts";
+import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
+import { buildAgentsManifest } from "../persistence.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
-import type { UserRecord } from "../../shared/types.ts";
+import { FAMILY_TO_MODEL, type AgentInfo, type UserRecord } from "../../shared/types.ts";
 
 export const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -53,6 +55,60 @@ export function requireOwnerAgentAccess(auth: AuthResult | undefined, agentId: s
   const user = sessionUser(auth);
   if (!user || user.role !== "owner") return jsonError(403, "owner access required");
   return null;
+}
+
+export function projectedAgentsManifest(req: Request, auth: AuthResult | undefined): Response | unknown[] {
+  const rawBearer = readBearerToken(req);
+  const bearer = resolveAgentToken(rawBearer);
+  if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
+
+  const rooms = AgentManager.getRooms();
+  let agents: AgentInfo[];
+  if (bearer) {
+    const user = bearer.userId ? getUserById(bearer.userId) : null;
+    agents = user ? projectAgentsForUser(user, rooms) : AgentManager.getAllAgents().filter((agent) => agent.id === bearer.agentId);
+  } else if (auth?.kind === "loopback") {
+    agents = AgentManager.getAllAgents();
+  } else if (auth?.kind === "ok" && auth.session.role === "owner") {
+    agents = AgentManager.getAllAgents();
+  } else {
+    const user = sessionUser(auth);
+    if (!user) return jsonError(401, "unauthenticated");
+    agents = projectAgentsForUser(user, rooms);
+  }
+
+  return buildAgentsManifest(
+    agents.map((agent) => {
+      const room = rooms[agent.room];
+      return {
+        id: agent.id,
+        name: agent.name,
+        userId: agent.userId ?? null,
+        managerName: agent.userId ? (getUserById(agent.userId)?.name ?? null) : null,
+        privileged: agent.privileged ?? false,
+        desk: agent.desk,
+        room: agent.room,
+        roomId: room?.id ?? agent.roomId ?? "",
+        roomName: room?.name ?? `Room ${agent.room + 1}`,
+        topic: agent.topic,
+        cwd: agent.cwd,
+        agentType: agent.agentType,
+        capabilities: agent.capabilities,
+        modelFamily: agent.modelFamily,
+        model: FAMILY_TO_MODEL[agent.modelFamily as keyof typeof FAMILY_TO_MODEL] ?? agent.modelFamily,
+        lastSessionId: AgentManager.getCurrentSessionId(agent.id),
+      };
+    }),
+  );
+}
+
+function projectAgentsForUser(user: UserRecord, rooms: ReturnType<typeof AgentManager.getRooms>): AgentInfo[] {
+  if (user.role === "owner") return AgentManager.getAllAgents();
+  const visibleRoomIds = new Set(rooms.filter((room) => canSeeRoom(user, room.id)).map((room) => room.id));
+  return AgentManager.getAllAgents().filter((agent) => {
+    const roomId = rooms[agent.room]?.id ?? agent.roomId;
+    return !!roomId && visibleRoomIds.has(roomId);
+  });
 }
 
 export function agentRouteParts(pathname: string): string[] | null {

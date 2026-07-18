@@ -6,10 +6,11 @@ import { cancelScheduledMessage, listScheduledMessages, parseDeliverAt, schedule
 import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
-import { agentRouteParts, JSON_HEADERS, jsonError, readJsonBody, requireUserAgentAccess, sessionUser } from "./agent-route-helpers.ts";
+import { agentRouteParts, JSON_HEADERS, jsonError, projectedAgentsManifest, readJsonBody, requireUserAgentAccess, sessionUser } from "./agent-route-helpers.ts";
 
 /**
  * Handle agent-scoped HTTP routes:
+ *   GET  /api/agents                     — list the caller-visible agent discovery manifest.
  *   POST /api/agents                     — spawn an agent.
  *   DELETE /api/agents/:id               — kill an agent.
  *   PATCH /api/agents/:id                — edit agent metadata/session settings.
@@ -45,6 +46,12 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
 
   if (parts[0] === "agents" && parts.length === 1 && req.method === "POST") {
     return handleAgentSpawnRequest(req, auth);
+  }
+
+  if (parts[0] === "agents" && parts.length === 1 && req.method === "GET") {
+    const manifest = projectedAgentsManifest(req, auth);
+    if (manifest instanceof Response) return manifest;
+    return new Response(JSON.stringify(manifest, null, 2), { headers: JSON_HEADERS });
   }
 
   if (parts[0] === "agents" && parts.length >= 2) {

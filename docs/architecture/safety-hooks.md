@@ -86,7 +86,7 @@ Blocks all writes to `~/.bureau/` — the directory managed by the server:
 
 `cat`, `ls`, `head`, `tail`, `less`, `grep`, `rg`, `find`, `stat`, `wc`, `file`, `diff`, `bat`, `jq`, `tree`
 
-Agents need read access to `~/.bureau/agents-summary.json` for peer discovery and to `logs/` for reading other agents' conversations.
+Agents should use `GET /api/agents` with their bearer token for peer discovery and need read access to `logs/` for reading other agents' conversations.
 
 ## 4. Secrets Protection
 

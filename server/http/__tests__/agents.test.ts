@@ -43,6 +43,36 @@ const memberAuth: AuthResult = {
 };
 
 describe("handleAgentsRequest", () => {
+  test("lists the caller-visible agent discovery manifest", async () => {
+    const req = request("/api/agents", { method: "GET" });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toEqual([]);
+  });
+
+  test("requires an authenticated caller for the agent discovery manifest", async () => {
+    const req = request("/api/agents", { method: "GET" });
+
+    const res = await handleAgentsRequest(req, new URL(req.url));
+
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "unauthenticated" });
+  });
+
+  test("rejects invalid bearer tokens on the agent discovery manifest", async () => {
+    const req = request("/api/agents", {
+      method: "GET",
+      headers: { Authorization: "Bearer missing" },
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "missing or invalid bearer token" });
+  });
+
   test("accepts /api/agents affordance routes", async () => {
     const token = mintAgentToken("agent-1", "user-1");
     const req = request("/api/agents/agent-1/read-file", {

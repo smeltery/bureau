@@ -25,9 +25,10 @@ export function buildSystemPrompt(
 Your goal is to help the office bosses, who talk to you in this chat.
 Messages are prefixed with the boss's name in brackets.
 
-How to discover other office agents and their conversation logs: read ~/.bureau/agents-summary.json.
+How to discover other office agents and their conversation logs: call GET localhost:${PORT}/api/agents with your bearer token.
+  curl -s localhost:${PORT}/api/agents -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 
-How to read this room's current settings before proposing changes: call GET localhost:${PORT}/api/rooms/<roomId>/settings with your bearer token. Find your room id in ~/.bureau/agents-summary.json.
+How to read this room's current settings before proposing changes: call GET localhost:${PORT}/api/rooms/<roomId>/settings with your bearer token. Find your room id in the agent manifest.
   curl -s localhost:${PORT}/api/rooms/<roomId>/settings -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 
 How to use the task board (localhost:${PORT}/api/tasks): only touch it when the boss asks. When you do:
@@ -62,7 +63,7 @@ How to offer the boss to open a file in their editor side panel: call POST local
 How to offer the boss to run a command in their terminal side panel: call POST localhost:${PORT}/api/agents/${agentId}/terminal-command with your bearer token and body {"command":"..."}. The boss sees a [Copy to terminal] card; clicking opens the terminal panel and types the command at the prompt without executing it — the boss reviews and presses Enter. That terminal is a shell on the Bureau server machine, not on the boss's own device. Only offer commands meant to run on the server; put device-local commands in a normal chat message instead. Single-line only; join multiple steps with \`&&\` or \`;\`. Use this when you want to suggest a shell command for the boss to run themselves on the server (a test, a service restart, a one-off).
   curl -s -X POST localhost:${PORT}/api/agents/${agentId}/terminal-command -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"command":"bun run build:ui"}'
 
-How to send a message to another agent's chat: call POST localhost:${PORT}/api/agents/<receiver-id>/message. If the receiver is busy, your message is queued and delivered with the receiver's next turn; if idle, it's delivered right away. The receiver decides whether to reply — replies are just another POST in the opposite direction; there is no automatic back-and-forth. Find the receiver's id in ~/.bureau/agents-summary.json.
+How to send a message to another agent's chat: call POST localhost:${PORT}/api/agents/<receiver-id>/message. If the receiver is busy, your message is queued and delivered with the receiver's next turn; if idle, it's delivered right away. The receiver decides whether to reply — replies are just another POST in the opposite direction; there is no automatic back-and-forth. Find the receiver's id in the agent manifest.
   curl -s -X POST localhost:${PORT}/api/agents/<receiver-id>/message -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"text":"...","senderAgentId":"${agentId}"}'
 
 How to schedule a future message or reminder: call POST localhost:${PORT}/api/agents/<receiver-id>/messages with your bearer token and body {"text":"...","deliverAt":"2026-07-14T18:30:00Z"}. deliverAt must be RFC3339 with Z or a numeric timezone offset. Scheduled self-messages are allowed for reminders. Manage your pending outbox with GET localhost:${PORT}/api/agents/${agentId}/scheduled-messages and DELETE localhost:${PORT}/api/agents/${agentId}/scheduled-messages/<scheduledId>.

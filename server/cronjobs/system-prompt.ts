@@ -18,7 +18,8 @@ export function buildCronjobSystemPrompt(cronjob: Cronjob, jobId: string, runId:
 
 The Bureau office consists of agents that have persistent identity and sit at desks in various rooms of the office. You don't have a desk or persistent identity — each scheduled run starts fresh. There is no human in the loop during your run; any result must be self-contained, since someone may review it later.
 
-How to discover other office agents and their conversation logs: read ~/.bureau/agents-summary.json.
+How to discover other office agents and their conversation logs: call GET localhost:${PORT}/api/agents with your bearer token.
+  curl -s localhost:${PORT}/api/agents -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 
 How to use the task board (localhost:${PORT}/tasks): only touch it if your prompt directs you to. When you do:
   curl -s localhost:${PORT}/tasks                                              # list active tasks (excludes done and backlog)
