@@ -1,6 +1,7 @@
 import { KILLED_AGENT_CHIP_CAP } from "../shared/types.ts";
 import { applyRoomClose, resolveSelectedRoomId, roomIndexById } from "./roomSelection.ts";
 import { applyAgentUpdated, applyRoomsReordered } from "./store-reducer-helpers.ts";
+import { writeDraftForUser, normalizeDraftUser } from "./store-drafts.ts";
 import { writeSidePanels } from "./store-side-panels.ts";
 import type { Action, AppState } from "./store.tsx";
 
@@ -25,11 +26,20 @@ export function reducer(state: AppState, action: Action): AppState {
         hasReceivedInitialState: true,
       };
     }
-    case "session_context":
+    case "session_context": {
       // Reset both invite + session loaded flags on session_context so the
       // Access pane re-fetches across WS reconnects. The new context could
       // be a different user; previously-cached owner lists must not leak.
-      return { ...state, sessionContext: action.context, activeSessionsLoaded: false, invitesLoaded: false };
+      const previousUser = normalizeDraftUser(state.sessionContext?.username);
+      const nextUser = normalizeDraftUser(action.context?.username);
+      return {
+        ...state,
+        sessionContext: action.context,
+        activeSessionsLoaded: false,
+        invitesLoaded: false,
+        drafts: previousUser !== nextUser ? new Map() : state.drafts,
+      };
+    }
     case "users_list":
       return { ...state, users: new Map(action.users.map((u) => [u.name.trim().toLocaleLowerCase(), u])) };
     case "sessions_active_list":
@@ -60,11 +70,17 @@ export function reducer(state: AppState, action: Action): AppState {
       needsAttention.delete(action.agentId);
       const sidePanels = new Map(state.sidePanels);
       if (sidePanels.delete(action.agentId)) writeSidePanels(sidePanels);
+      const drafts = new Map(state.drafts);
+      if (drafts.delete(action.agentId)) {
+        const username = normalizeDraftUser(state.sessionContext?.username);
+        if (username) writeDraftForUser(username, action.agentId, "");
+      }
       return {
         ...state,
         agents: state.agents.filter((a) => a.id !== action.agentId),
         logs,
         needsAttention,
+        drafts,
         sidePanels,
         focusedAgentId: state.focusedAgentId === action.agentId ? null : state.focusedAgentId,
       };

@@ -26,7 +26,7 @@ ws.onmessage = (event) => {
 The store manages both server-driven and local-only state:
 
 - **Server-driven**: agents, rooms, office settings, tasks, log entries, slash commands
-- **Local-only**: input drafts (preserved when switching agents), attention tracking, focused agent, UI visibility states
+- **Local-only**: user-scoped input drafts (preserved when switching agents and reloading), attention tracking, focused agent, UI visibility states
 
 ### Adding New Server Events
 
@@ -145,7 +145,7 @@ The PTY sidecar is spawned on-demand (not per-agent by default) to conserve reso
 ## Key Design Decisions
 
 - **Server messages as actions**: Eliminates action-creator boilerplate. One type definition, end-to-end.
-- **Local-only state in store**: Input drafts, attention tracking — all in the same reducer.
+- **Local-only state in store**: Input drafts, attention tracking — all in the same reducer; drafts are also persisted per user and agent in browser storage.
 - **Raw SVG**: No canvas, no DOM libraries. SVG is declarative, themeable, and scales perfectly.
 - **No build tooling beyond Bun**: Simple, fast, no config drift.
 - **Mobile-first gestures**: Swipe navigation, collapsible panels, agent list fallback.

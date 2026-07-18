@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppState, useDispatch } from "./store.tsx";
 import { OfficeView } from "./office/OfficeView.tsx";
 import { LogView } from "./log-view/LogView.tsx";
@@ -18,10 +18,13 @@ import { ConnectionBanner } from "./components/ConnectionBanner.tsx";
 import { CSS } from "./styles.ts";
 import type { AgentBackendType, AgentInfo } from "../shared/types.ts";
 import { useAppNavigation } from "./useAppNavigation.ts";
+import { normalizeDraftUser, pruneDraftsForUser, readDraftsForUser, writeDraftForUser } from "./store-drafts.ts";
 
 export function App() {
-  const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext } = useAppState();
+  const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext, hasReceivedInitialState } = useAppState();
   const dispatch = useDispatch();
+  const restoredDraftUserRef = useRef<string | null>(null);
+  const persistedDraftsRef = useRef<Map<string, string>>(new Map());
   const [spawnDesk, setSpawnDesk] = useState<number | null>(null);
   const [spawnAgentType, setSpawnAgentType] = useState<AgentBackendType | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; agent: AgentInfo } | null>(null);
@@ -44,6 +47,33 @@ export function App() {
 
   const focusedAgent = focusedAgentId ? (agents.find((a) => a.id === focusedAgentId) ?? null) : null;
   const anyModalOpen = editingUsername || editingDeviceSettings || editingOfficePrompt || editingRoomSettings !== null || updateOpen;
+  const draftUser = normalizeDraftUser(sessionContext?.username ?? username);
+
+  useEffect(() => {
+    if (!hasReceivedInitialState || !draftUser || restoredDraftUserRef.current === draftUser) return;
+    const liveAgentIds = new Set(agents.map((agent) => agent.id));
+    const restoredDrafts = readDraftsForUser(draftUser, liveAgentIds);
+    restoredDrafts.forEach((text, agentId) => dispatch({ type: "set_draft", agentId, text }));
+    pruneDraftsForUser(draftUser, liveAgentIds);
+    persistedDraftsRef.current = new Map(drafts);
+    restoredDraftUserRef.current = draftUser;
+  }, [agents, dispatch, draftUser, drafts, hasReceivedInitialState]);
+
+  useEffect(() => {
+    if (!draftUser || restoredDraftUserRef.current !== draftUser) return;
+    const previousDrafts = persistedDraftsRef.current;
+
+    drafts.forEach((text, agentId) => {
+      if (previousDrafts.get(agentId) !== text) writeDraftForUser(draftUser, agentId, text);
+    });
+
+    previousDrafts.forEach((_text, agentId) => {
+      if (!drafts.has(agentId)) writeDraftForUser(draftUser, agentId, "");
+    });
+
+    persistedDraftsRef.current = new Map(drafts);
+  }, [draftUser, drafts]);
+
   const { goHome, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
     agents,
     connected,
