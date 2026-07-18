@@ -82,8 +82,12 @@ function handleEditorOpen(cmd: Extract<EditorCommand, { type: "editor_open" }>, 
   const watcher = watchFile(
     result.path,
     cmd.agentId,
-    (mtime) => {
-      ws.send(JSON.stringify({ type: "editor_external_change", agentId: cmd.agentId, path: result.path, mtime } as ServerMessage));
+    (event) => {
+      if (event.kind === "deleted") {
+        ws.send(JSON.stringify({ type: "editor_file_deleted", agentId: cmd.agentId, path: result.path } as ServerMessage));
+      } else {
+        ws.send(JSON.stringify({ type: "editor_external_change", agentId: cmd.agentId, path: result.path, mtime: event.mtime } as ServerMessage));
+      }
     },
     result.sig,
   );
@@ -110,6 +114,17 @@ function handleEditorSave(cmd: Extract<EditorCommand, { type: "editor_save" }>, 
         reason: "stale",
         currentMtime: result.currentMtime,
         error: "File changed on disk since you opened it.",
+      } as ServerMessage),
+    );
+  } else if (result.kind === "deleted") {
+    ws.send(
+      JSON.stringify({
+        type: "editor_save_response",
+        agentId: cmd.agentId,
+        path: result.path,
+        ok: false,
+        reason: "deleted",
+        error: "File was deleted on disk.",
       } as ServerMessage),
     );
   } else {

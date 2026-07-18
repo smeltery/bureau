@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, renameSync, rmSync, writeFileSync } from "fs";
+import { mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -23,14 +23,14 @@ describe("watchFile", () => {
     expect(opened.kind).toBe("ok");
     if (opened.kind !== "ok") return;
 
-    const seen = new Promise<number>((resolve) => {
+    const seen = new Promise((resolve) => {
       watchers.push(watchFile(path, "agent-1", resolve, opened.sig));
     });
     const tmp = join(dir, "notes.txt.tmp");
     writeFileSync(tmp, "after", "utf8");
     renameSync(tmp, path);
 
-    await expect(seen).resolves.toBeGreaterThanOrEqual(opened.mtime);
+    await expect(seen).resolves.toMatchObject({ kind: "change" });
   });
 
   test("uses read-time signature as the first poll baseline", async () => {
@@ -46,10 +46,27 @@ describe("watchFile", () => {
     writeFileSync(tmp, "after", "utf8");
     renameSync(tmp, path);
 
-    const seen = new Promise<number>((resolve) => {
+    const seen = new Promise((resolve) => {
       watchers.push(watchFile(path, "agent-1", resolve, opened.sig));
     });
 
-    await expect(seen).resolves.toBeGreaterThanOrEqual(opened.mtime);
+    await expect(seen).resolves.toMatchObject({ kind: "change" });
+  });
+
+  test("emits a deletion event after the watched file stays missing", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bureau-editor-"));
+    tempDirs.push(dir);
+    const path = join(dir, "notes.txt");
+    writeFileSync(path, "before", "utf8");
+    const opened = openFile(path);
+    expect(opened.kind).toBe("ok");
+    if (opened.kind !== "ok") return;
+
+    const seen = new Promise((resolve) => {
+      watchers.push(watchFile(path, "agent-1", resolve, opened.sig));
+    });
+    unlinkSync(path);
+
+    await expect(seen).resolves.toEqual({ kind: "deleted" });
   });
 });

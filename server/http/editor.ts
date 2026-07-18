@@ -58,6 +58,9 @@ export async function handleEditorRequest(req: Request, url: URL, auth: AuthResu
     if (result.kind === "stale") {
       return jsonError(409, "stale", "File changed on disk since you opened it.", { currentMtime: result.currentMtime });
     }
+    if (result.kind === "deleted") {
+      return jsonError(409, "deleted", "File was deleted on disk.");
+    }
     return jsonError(500, "io_error", result.message);
   }
 

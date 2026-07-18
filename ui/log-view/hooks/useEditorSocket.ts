@@ -92,6 +92,9 @@ export function useEditorSocket({
             if (m.reason === "stale" && m.currentMtime !== undefined) {
               return { ...t, banner: { kind: "stale", currentMtime: m.currentMtime } };
             }
+            if (m.reason === "deleted") {
+              return { ...t, banner: { kind: "deleted" } };
+            }
             return { ...t, banner: { kind: "save_error", message: m.error ?? "save failed" } };
           }),
         );
@@ -104,6 +107,11 @@ export function useEditorSocket({
         } else {
           send({ type: "editor_open", agentId, path: m.path });
         }
+      } else if (msg.type === "editor_file_deleted" && msg.agentId === agentId) {
+        const m = msg;
+        const existing = tabsRef.current.find((t) => t.path === m.path);
+        if (!existing) return;
+        setTabsAndPersist((prev) => prev.map((t) => (t.path === m.path ? { ...t, banner: { kind: "deleted" } } : t)));
       }
     };
     addRawListener(handler);

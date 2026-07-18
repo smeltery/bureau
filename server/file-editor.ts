@@ -12,7 +12,11 @@ export type OpenFileResult =
   | { kind: "too_large"; path: string; size: number }
   | { kind: "io_error"; path: string; message: string };
 
-export type SaveFileResult = { kind: "ok"; path: string; mtime: number } | { kind: "stale"; path: string; currentMtime: number } | { kind: "io_error"; path: string; message: string };
+export type SaveFileResult =
+  | { kind: "ok"; path: string; mtime: number }
+  | { kind: "stale"; path: string; currentMtime: number }
+  | { kind: "deleted"; path: string }
+  | { kind: "io_error"; path: string; message: string };
 
 const MAX_FILE_BYTES = 1_000_000;
 const WATCH_POLL_MS = 1000;
@@ -114,8 +118,9 @@ export function saveFile(absPath: string, content: string, expectedMtime: number
   try {
     const st = statSync(absPath);
     currentMtime = Math.floor(st.mtimeMs);
-  } catch {
-    if (!force) return { kind: "stale", path: absPath, currentMtime: 0 };
+  } catch (err: any) {
+    if (err?.code !== "ENOENT") return { kind: "io_error", path: absPath, message: err?.message ?? String(err) };
+    if (!force) return { kind: "deleted", path: absPath };
   }
   if (!force && currentMtime > expectedMtime) {
     return { kind: "stale", path: absPath, currentMtime };
@@ -138,7 +143,11 @@ export interface FileWatcher {
   timer: ReturnType<typeof setInterval>;
 }
 
-export function watchFile(absPath: string, agentId: string, onChange: (mtime: number) => void, baselineSig?: string): FileWatcher {
+export type WatchFileEvent = { kind: "change"; mtime: number } | { kind: "deleted" };
+
+const DELETE_CONFIRM_POLLS = 2;
+
+export function watchFile(absPath: string, agentId: string, onEvent: (event: WatchFileEvent) => void, baselineSig?: string): FileWatcher {
   let lastSig =
     baselineSig ??
     (() => {
@@ -148,16 +157,22 @@ export function watchFile(absPath: string, agentId: string, onChange: (mtime: nu
         return "";
       }
     })();
+  let missingPolls = 0;
   const timer = setInterval(() => {
     try {
       const st = statSync(absPath);
+      missingPolls = 0;
       const sig = fileSig(st);
       if (sig === lastSig) return;
       lastSig = sig;
-      onChange(Math.floor(st.mtimeMs));
-    } catch {
-      // Missing during delete or atomic replace: keep polling so a re-created
-      // file still emits on the next successful stat.
+      onEvent({ kind: "change", mtime: Math.floor(st.mtimeMs) });
+    } catch (err: any) {
+      if (err?.code !== "ENOENT") return;
+      missingPolls += 1;
+      if (missingPolls === DELETE_CONFIRM_POLLS) onEvent({ kind: "deleted" });
+      // Keep polling so a re-created file still emits on the next successful
+      // stat. The confirmation threshold avoids transient unlink/recreate
+      // save styles showing as deletion.
       lastSig = "";
     }
   }, WATCH_POLL_MS);

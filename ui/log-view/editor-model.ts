@@ -14,7 +14,7 @@ export interface Tab {
   language: string;
   size: number;
   dirty: boolean;
-  banner: null | { kind: "stale"; currentMtime: number } | { kind: "external"; mtime: number } | { kind: "save_error"; message: string };
+  banner: null | { kind: "stale"; currentMtime: number } | { kind: "external"; mtime: number } | { kind: "deleted" } | { kind: "save_error"; message: string };
 }
 
 const TABS_KEY = (agentId: string) => `bureau:editor:tabs:${agentId}`;

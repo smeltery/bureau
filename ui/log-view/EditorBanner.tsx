@@ -5,6 +5,8 @@ export function EditorBanner({
   pendingError,
   onOverwrite,
   onReload,
+  onRecreate,
+  onCloseTab,
   onDismissBanner,
   onDismissError,
 }: {
@@ -12,6 +14,8 @@ export function EditorBanner({
   pendingError: string | null;
   onOverwrite: () => void;
   onReload: () => void;
+  onRecreate: () => void;
+  onCloseTab: () => void;
   onDismissBanner: () => void;
   onDismissError: () => void;
 }) {
@@ -50,6 +54,17 @@ export function EditorBanner({
               </button>
               <button onClick={onDismissBanner} style={bannerBtn("var(--text-secondary)")}>
                 Dismiss
+              </button>
+            </>
+          )}
+          {activeTab.banner.kind === "deleted" && (
+            <>
+              <span style={{ flex: 1 }}>File was deleted on disk. Saving will recreate it from this buffer.</span>
+              <button onClick={onRecreate} style={bannerBtn("var(--orange)")}>
+                Save to recreate
+              </button>
+              <button onClick={onCloseTab} style={bannerBtn("var(--text-secondary)")}>
+                Close tab
               </button>
             </>
           )}

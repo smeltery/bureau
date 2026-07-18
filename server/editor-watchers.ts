@@ -29,8 +29,12 @@ export function watchEditorFile(agentId: string, absPath: string, connectionId: 
     const watcher = watchFile(
       absPath,
       agentId,
-      (mtime) => {
-        ws.send(JSON.stringify({ type: "editor_external_change", agentId, path: absPath, mtime } as ServerMessage));
+      (event) => {
+        if (event.kind === "deleted") {
+          ws.send(JSON.stringify({ type: "editor_file_deleted", agentId, path: absPath } as ServerMessage));
+        } else {
+          ws.send(JSON.stringify({ type: "editor_external_change", agentId, path: absPath, mtime: event.mtime } as ServerMessage));
+        }
       },
       baselineSig,
     );

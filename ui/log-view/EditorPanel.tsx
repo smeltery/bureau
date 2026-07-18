@@ -135,6 +135,10 @@ export function EditorPanel({
     });
   }, [activeTab, agentId]);
 
+  const recreateFromBuffer = useCallback(() => {
+    overwrite();
+  }, [overwrite]);
+
   const reloadFromDisk = useCallback(() => {
     if (!activeTab) return;
     send({ type: "editor_open", agentId, path: activeTab.path });
@@ -179,7 +183,18 @@ export function EditorPanel({
         onClose={onClose}
       />
 
-      <EditorBanner activeTab={activeTab} pendingError={pendingError} onOverwrite={overwrite} onReload={reloadFromDisk} onDismissBanner={dismissBanner} onDismissError={() => setPendingError(null)} />
+      <EditorBanner
+        activeTab={activeTab}
+        pendingError={pendingError}
+        onOverwrite={overwrite}
+        onReload={reloadFromDisk}
+        onRecreate={recreateFromBuffer}
+        onCloseTab={() => {
+          if (activeTab) closeTab(activeTab.path);
+        }}
+        onDismissBanner={dismissBanner}
+        onDismissError={() => setPendingError(null)}
+      />
 
       {/* Editor body */}
       <div
