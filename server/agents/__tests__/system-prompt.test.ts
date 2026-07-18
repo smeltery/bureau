@@ -36,6 +36,20 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain('If you can\'t tell, use "A".');
   });
 
+  test("explains that terminal-command cards run on the server", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("That terminal is a shell on the Bureau server machine");
+    expect(prompt).toContain("put device-local commands in a normal chat message");
+  });
+
+  test("steers long waits to scheduled self-messages", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("For waits that may outlast an idle session");
+    expect(prompt).toContain("scheduled messages live on the server and still fire");
+  });
+
   test("documents the agent manager before configurable instructions", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room", "OFFICE-MARK", "ROOM-MARK", "AGENT-MARK", "MEMORY-MARK", "Boss One");
 
