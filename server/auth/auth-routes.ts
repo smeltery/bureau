@@ -2,6 +2,7 @@ import type { Server } from "bun";
 import { acceptInvite, clearCookieHeader, logoutBySessionHash, peekInvite, readSessionCookie, setCookieHeader, validateSession, wouldRevokeLeaveOfficeUnreachable } from "./auth.ts";
 import { renderAcceptPage, renderInviteError, renderLockoutBlocked, securityHeaders } from "./auth-pages.ts";
 import { handleClaim, handleClaimForm, shouldShowClaimForm } from "./auth-claim-routes.ts";
+import { checkAuthRateLimit } from "./auth-rate-limit.ts";
 import { originValidForAuthPost } from "./auth-request-guards.ts";
 
 // Fires after the office gets its first owner — either through the tokenless
@@ -16,7 +17,9 @@ export function setOnOwnerCreated(cb: OwnerCreatedCb | null): void {
   onOwnerCreated = cb;
 }
 
-export function handleInvitePeek(_req: Request, token: string, officeName: string | null): Response {
+export function handleInvitePeek(req: Request, token: string, officeName: string | null): Response {
+  const limited = checkAuthRateLimit(req, "invite_peek");
+  if (limited) return limited;
   const peek = peekInvite(token);
   if ("error" in peek) return renderInviteError(peek.error, officeName);
   return new Response(renderAcceptPage(token, peek.needsName, null, officeName), {
@@ -32,6 +35,8 @@ export async function handleAccept(req: Request, officeName: string | null): Pro
   if (!originValidForAuthPost(req)) {
     return new Response("bad origin", { status: 403 });
   }
+  const limited = checkAuthRateLimit(req, "invite_accept");
+  if (limited) return limited;
   const form = await req.formData().catch(() => null);
   const tokenField = form?.get("token");
   const nameField = form?.get("name");

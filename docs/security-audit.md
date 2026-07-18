@@ -229,7 +229,7 @@ Public origin is never inferred from `Host` or `X-Forwarded-Host` (Section 5.7).
 
 ### 7.1 No rate limiting on `/i/<token>` or `/auth/accept`
 
-Neither endpoint has rate limiting. With 256-bit token entropy this is not an actionable brute-force surface for full tokens. A global rate limit (e.g. 10 invite-peek requests per IP per minute, 5 accept attempts per IP per minute) would be cheap insurance and would surface attacker scanning in the access log. Not currently implemented.
+Both endpoints have lightweight in-memory rate limiting: invite-peek requests are capped at 10 per client per minute, and accept attempts are capped at 5 per client per minute. With 256-bit token entropy this is not required for brute-force resistance, but it is cheap insurance and helps dampen scanning noise.
 
 ### 7.2 Localhost fallback is plaintext but bind-confined
 
