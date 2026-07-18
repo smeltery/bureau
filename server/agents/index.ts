@@ -11,6 +11,7 @@ export {
   getAllAgents,
   getAgentLogs,
   getAgentCommands,
+  getAgentContextUsage,
   listSessions,
   getCurrentSessionId,
   emitAgentDiff,

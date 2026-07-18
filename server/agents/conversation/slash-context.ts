@@ -8,12 +8,11 @@ export async function handleContextCommand(agentId: string, managed: ManagedAgen
     return true;
   }
   try {
-    const query = (managed.session as any).query;
-    if (!query?.getContextUsage) {
+    const ctx = await managed.session.getContextUsage();
+    if (!ctx) {
       addLogEntry(agentId, "system", "Context usage not available for this session.");
       return true;
     }
-    const ctx = await query.getContextUsage();
     const lines: string[] = [];
 
     const pct = Math.round(ctx.percentage);
@@ -23,9 +22,9 @@ export async function handleContextCommand(agentId: string, managed: ManagedAgen
     lines.push(`**${ctx.model}** \u2014 ${ctx.totalTokens.toLocaleString()} / ${ctx.maxTokens.toLocaleString()} tokens (${pct}%)`);
     lines.push(`\`${bar}\``);
 
-    if (ctx.categories?.length > 0) {
+    if ((ctx.categories?.length ?? 0) > 0) {
       lines.push("");
-      for (const cat of ctx.categories) {
+      for (const cat of ctx.categories ?? []) {
         if (cat.tokens > 0) {
           const catPct = ((cat.tokens / ctx.maxTokens) * 100).toFixed(1);
           lines.push(`  ${cat.name}: ${cat.tokens.toLocaleString()} tokens (${catPct}%)`);
@@ -33,16 +32,16 @@ export async function handleContextCommand(agentId: string, managed: ManagedAgen
       }
     }
 
-    if (ctx.memoryFiles?.length > 0) {
+    if ((ctx.memoryFiles?.length ?? 0) > 0) {
       lines.push("\n**Memory files:**");
-      for (const f of ctx.memoryFiles) {
+      for (const f of ctx.memoryFiles ?? []) {
         lines.push(`  ${f.path} (${f.tokens.toLocaleString()} tokens)`);
       }
     }
 
-    if (ctx.systemPromptSections?.length > 0) {
+    if ((ctx.systemPromptSections?.length ?? 0) > 0) {
       lines.push("\n**System prompt:**");
-      for (const s of ctx.systemPromptSections) {
+      for (const s of ctx.systemPromptSections ?? []) {
         lines.push(`  ${s.name}: ${s.tokens.toLocaleString()} tokens`);
       }
     }

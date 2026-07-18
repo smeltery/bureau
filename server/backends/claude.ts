@@ -104,7 +104,18 @@ class ClaudeBackendSession implements BackendSession {
   }
 
   async getContextUsage(): Promise<ContextUsage | null> {
-    return null;
+    const ctx = await this.raw.query.getContextUsage();
+    return {
+      model: ctx.model,
+      totalTokens: ctx.totalTokens,
+      maxTokens: ctx.maxTokens,
+      percentage: ctx.percentage,
+      categories: ctx.categories?.map((cat) => ({ name: cat.name, tokens: cat.tokens })),
+      memoryFiles: ctx.memoryFiles?.map((file) => ({ path: file.path, tokens: file.tokens })),
+      systemPromptSections: ctx.systemPromptSections?.map((section) => ({ name: section.name, tokens: section.tokens })),
+      isAutoCompactEnabled: ctx.isAutoCompactEnabled,
+      autoCompactThreshold: ctx.autoCompactThreshold,
+    };
   }
 
   async send(text: string, attachments?: AttachmentSpec[]): Promise<void> {

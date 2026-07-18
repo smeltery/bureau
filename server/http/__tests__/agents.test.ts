@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
+import { agents } from "../../agents/state.ts";
+import { createManagedAgent } from "../../agents/managed-factory.ts";
 import { handleAgentsRequest } from "../agents.ts";
+import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
+import type { BackendSession } from "../../backends/types.ts";
 
 afterEach(() => {
   _testResetAgentTokens();
+  agents.clear();
 });
 
 function request(path: string, init: RequestInit = {}): Request {
@@ -41,6 +46,40 @@ const memberAuth: AuthResult = {
     needsRolling: false,
   },
 };
+
+function installAgentWithContext(id: string) {
+  const info: AgentInfo = {
+    id,
+    name: "Context Agent",
+    desk: 0,
+    room: 0,
+    cwd: process.cwd(),
+    outfit: { hat: "none", color: "#000000", hair: "#000000", hairStyle: "short", skin: "#000000", beard: "none", accessory: null },
+    permissionMode: "default",
+    modelFamily: "sonnet",
+    agentType: "claude",
+    capabilities: DEFAULT_AGENT_CAPABILITIES,
+    state: "idle",
+    topic: null,
+    topicStale: false,
+    customInstructions: null,
+  };
+  const managed = createManagedAgent({ info, skillCwd: process.cwd(), slashCommands: [], skills: [] });
+  managed.session = {
+    async *stream() {},
+    async getContextUsage() {
+      return { model: "claude-sonnet", totalTokens: 42, maxTokens: 200, percentage: 21 };
+    },
+    async send() {},
+    async approve() {},
+    async abort() {},
+    canAbortInPlace() {
+      return false;
+    },
+    close() {},
+  } satisfies BackendSession;
+  agents.set(id, managed);
+}
 
 describe("handleAgentsRequest", () => {
   test("lists the caller-visible agent discovery manifest", async () => {
@@ -123,6 +162,39 @@ describe("handleAgentsRequest", () => {
     const req = request("/api/agents/agent-1/diff", {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({}),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url));
+
+    expect(res?.status).toBe(403);
+    expect(await res?.json()).toEqual({ error: "token does not match agent" });
+  });
+
+  test("returns agent context usage to the owning bearer token", async () => {
+    installAgentWithContext("agent-1");
+    const token = mintAgentToken("agent-1", "user-1");
+    const req = new Request("http://local.test/api/agents/agent-1/context", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url));
+    const body = await res?.json();
+
+    expect(res?.status).toBe(200);
+    expect(body).toMatchObject({
+      available: true,
+      model: "claude-sonnet",
+      totalTokens: 42,
+      maxTokens: 200,
+      percentage: 21,
+    });
+    expect(typeof body.sampledAtMs).toBe("number");
+  });
+
+  test("requires matching bearer token for agent context usage", async () => {
+    const token = mintAgentToken("agent-2", "user-1");
+    const req = new Request("http://local.test/api/agents/agent-1/context", {
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     const res = await handleAgentsRequest(req, new URL(req.url));

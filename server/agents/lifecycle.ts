@@ -12,6 +12,17 @@ import { createManagedAgent } from "./managed-factory.ts";
 import { buildSpawnAgentDraft } from "./lifecycle-spawn.ts";
 import { buildRestoredAgentInfo } from "./lifecycle-restore.ts";
 
+export type AgentContextUsageResponse =
+  | {
+      available: true;
+      model: string;
+      totalTokens: number;
+      maxTokens: number;
+      percentage: number;
+      sampledAtMs: number;
+    }
+  | { available: false; reason: "no_session" | "not_yet_measured" };
+
 export { emitAgentDiff, emitAgentEditFile, emitAgentPreviewUrl, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
 export { kill } from "./lifecycle-kill.ts";
 export { getKilledAgentSummaries, revive } from "./revive.ts";
@@ -60,6 +71,24 @@ export function listSessions(agentId: string) {
 
 export function getCurrentSessionId(agentId: string): string | null {
   return agents.get(agentId)?.sessionId ?? null;
+}
+
+export async function getAgentContextUsage(agentId: string): Promise<AgentContextUsageResponse> {
+  const managed = agents.get(agentId);
+  if (!managed) return { available: false, reason: "no_session" };
+  if (!managed.session && !managed.sessionId) return { available: false, reason: "no_session" };
+  if (!managed.session) return { available: false, reason: "not_yet_measured" };
+
+  const ctx = await managed.session.getContextUsage().catch(() => null);
+  if (!ctx) return { available: false, reason: "not_yet_measured" };
+  return {
+    available: true,
+    model: ctx.model,
+    totalTokens: ctx.totalTokens,
+    maxTokens: ctx.maxTokens,
+    percentage: ctx.percentage,
+    sampledAtMs: Date.now(),
+  };
 }
 
 // ---------------------------------------------------------------------------

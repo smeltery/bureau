@@ -50,6 +50,14 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("scheduled messages live on the server and still fire");
   });
 
+  test("documents the agent context usage self-check", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("/api/agents/agent-1/context");
+    expect(prompt).toContain('"not_yet_measured"');
+    expect(prompt).toContain("$BUREAU_AGENT_TOKEN");
+  });
+
   test("documents the agent manager before configurable instructions", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room", "OFFICE-MARK", "ROOM-MARK", "AGENT-MARK", "MEMORY-MARK", "Boss One");
 
