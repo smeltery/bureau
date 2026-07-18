@@ -25,11 +25,11 @@ export function WallPanelMenu({ x, y, items, onClose }: Props) {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-    document.addEventListener("mousedown", handleDismiss);
+    document.addEventListener("pointerdown", handleDismiss);
     document.addEventListener("touchstart", handleDismiss);
     document.addEventListener("keydown", handleKey);
     return () => {
-      document.removeEventListener("mousedown", handleDismiss);
+      document.removeEventListener("pointerdown", handleDismiss);
       document.removeEventListener("touchstart", handleDismiss);
       document.removeEventListener("keydown", handleKey);
     };

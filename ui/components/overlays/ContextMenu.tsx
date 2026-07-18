@@ -24,10 +24,10 @@ export function ContextMenu({ x, y, agent, onClose, onEdit }: ContextMenuProps) 
       const target = (e as TouchEvent).touches?.[0]?.target ?? e.target;
       if (ref.current && !ref.current.contains(target as Node)) onClose();
     }
-    document.addEventListener("mousedown", handleDismiss);
+    document.addEventListener("pointerdown", handleDismiss);
     document.addEventListener("touchstart", handleDismiss);
     return () => {
-      document.removeEventListener("mousedown", handleDismiss);
+      document.removeEventListener("pointerdown", handleDismiss);
       document.removeEventListener("touchstart", handleDismiss);
     };
   }, [onClose]);
