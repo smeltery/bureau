@@ -7,12 +7,14 @@ export function LogViewPanelHost({
   terminalEnabled,
   editorEnabled,
   panels,
+  onSendTerminalToChat,
 }: {
   agentId: string;
   isMobile: boolean;
   terminalEnabled: boolean;
   editorEnabled: boolean;
   panels: ReturnType<typeof useLogViewPanels>;
+  onSendTerminalToChat?: (text: string) => void;
 }) {
   return (
     <>
@@ -24,6 +26,7 @@ export function LogViewPanelHost({
           getMax={panels.getTerminalMax}
           onCommit={panels.commitTerminalWidth}
           onClose={() => panels.setTerminalOpen(false)}
+          onSendToChat={onSendTerminalToChat}
         />
       )}
       {editorEnabled && !isMobile && panels.editorOpen && (
@@ -38,7 +41,7 @@ export function LogViewPanelHost({
           onPathOpened={panels.clearEditorInitialPath}
         />
       )}
-      {isMobile && terminalEnabled && panels.terminalOpen && <MobileTerminalSidePanel agentId={agentId} onClose={() => panels.setTerminalOpen(false)} />}
+      {isMobile && terminalEnabled && panels.terminalOpen && <MobileTerminalSidePanel agentId={agentId} onClose={() => panels.setTerminalOpen(false)} onSendToChat={onSendTerminalToChat} />}
       {isMobile && editorEnabled && panels.editorOpen && (
         <MobileEditorSidePanel agentId={agentId} initialPath={panels.editorInitialPath} onClose={() => panels.setEditorOpen(false)} onPathOpened={panels.clearEditorInitialPath} />
       )}

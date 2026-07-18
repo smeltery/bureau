@@ -16,6 +16,7 @@ export function TerminalPanel({
   onClose,
   autoFocus = true,
   mobile = false,
+  onSendToChat,
 }: {
   agentId: string;
   onClose: () => void;
@@ -30,6 +31,9 @@ export function TerminalPanel({
   // overrides that make xterm's hidden helper textarea focusable enough
   // for iOS Safari to surface the keyboard.
   mobile?: boolean;
+  // When set, a "Send to chat" action appears while terminal text is
+  // selected and inserts the selected output into the chat draft.
+  onSendToChat?: (text: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -42,6 +46,7 @@ export function TerminalPanel({
   const scrollMovedRef = useRef<(() => boolean) | null>(null);
   const { mode } = useTheme();
   const [exited, setExited] = useState<number | null>(null);
+  const [hasSelection, setHasSelection] = useState(false);
 
   // Handle server messages for this terminal
   const handleRawMessage = useCallback(
@@ -125,6 +130,10 @@ export function TerminalPanel({
       sendModifiedInput(data);
     });
 
+    term.onSelectionChange(() => {
+      setHasSelection(term.hasSelection());
+    });
+
     termRef.current = term;
     fitRef.current = fitAddon;
 
@@ -176,6 +185,13 @@ export function TerminalPanel({
     inputProxyRef.current?.focus();
   }, [mobile]);
 
+  const sendSelectionToChat = useCallback(() => {
+    const term = termRef.current;
+    const text = term?.getSelection() ?? "";
+    if (text.trim()) onSendToChat?.(text);
+    term?.clearSelection();
+  }, [onSendToChat]);
+
   function handleRespawn() {
     setExited(null);
     termRef.current?.clear();
@@ -210,6 +226,7 @@ export function TerminalPanel({
         onBodyTap={handleBodyTap}
         onRespawn={handleRespawn}
         onSendInput={sendInput}
+        onSendToChat={onSendToChat && hasSelection ? sendSelectionToChat : undefined}
       />
 
       {/* Soft-key bar (mobile only). Adds the home-indicator safe-area

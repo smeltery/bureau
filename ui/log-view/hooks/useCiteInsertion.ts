@@ -14,10 +14,10 @@ export function useCiteInsertion({
   autoResize: (el: HTMLTextAreaElement) => void;
 }) {
   return useCallback(
-    (text: string) => {
+    (text: string, title = "Cited text") => {
       const ta = textareaRef.current;
       const current = inputRef.current;
-      const block = `Cited text:\n"""\n${text}\n"""\n`;
+      const block = `${title}:\n"""\n${text}\n"""\n`;
 
       let newDraft: string;
       let caretPos: number;

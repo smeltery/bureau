@@ -10,6 +10,7 @@ export function DesktopTerminalSidePanel({
   getMax,
   onCommit,
   onClose,
+  onSendToChat,
 }: {
   agentId: string;
   panelRef: React.RefObject<HTMLDivElement | null>;
@@ -17,11 +18,12 @@ export function DesktopTerminalSidePanel({
   getMax: () => number;
   onCommit: (width: number) => void;
   onClose: () => void;
+  onSendToChat?: (text: string) => void;
 }) {
   return (
     <div ref={panelRef} style={{ width, flexShrink: 0, position: "relative" }}>
       <PanelResizer panelRef={panelRef} min={PANEL_MIN.terminal} getMax={getMax} onCommit={onCommit} />
-      <TerminalPanel agentId={agentId} onClose={onClose} />
+      <TerminalPanel agentId={agentId} onClose={onClose} onSendToChat={onSendToChat} />
     </div>
   );
 }
@@ -53,7 +55,7 @@ export function DesktopEditorSidePanel({
   );
 }
 
-export function MobileTerminalSidePanel({ agentId, onClose }: { agentId: string; onClose: () => void }) {
+export function MobileTerminalSidePanel({ agentId, onClose, onSendToChat }: { agentId: string; onClose: () => void; onSendToChat?: (text: string) => void }) {
   return (
     <div
       style={{
@@ -70,7 +72,7 @@ export function MobileTerminalSidePanel({ agentId, onClose }: { agentId: string;
         flexDirection: "column",
       }}
     >
-      <TerminalPanel agentId={agentId} onClose={onClose} mobile />
+      <TerminalPanel agentId={agentId} onClose={onClose} onSendToChat={onSendToChat} mobile />
     </div>
   );
 }

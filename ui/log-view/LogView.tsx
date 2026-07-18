@@ -88,6 +88,7 @@ export function LogView({
     handleAutoScroll,
     recomputePinned,
   });
+  const handleTerminalSendToChat = useCallback((text: string) => handleCite(text, "Terminal output"), [handleCite]);
   const autocomplete = useSlashAutocomplete(input, slashCommands.get(agent.id));
   const voice = useVoiceInput({
     inputRef,
@@ -237,7 +238,7 @@ export function LogView({
           partial={autocomplete.partial}
         />
       </div>
-      <LogViewPanelHost agentId={agent.id} isMobile={isMobile} terminalEnabled={features.terminal} editorEnabled={features.editor} panels={panels} />
+      <LogViewPanelHost agentId={agent.id} isMobile={isMobile} terminalEnabled={features.terminal} editorEnabled={features.editor} panels={panels} onSendTerminalToChat={handleTerminalSendToChat} />
       {cite && scrollRef.current && <CiteSelectionButton cite={cite} containerRect={scrollRef.current.getBoundingClientRect()} onClick={() => handleCite(cite.text)} />}
     </div>
   );
