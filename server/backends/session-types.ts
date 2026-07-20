@@ -1,8 +1,9 @@
 import type { Attachment } from "../../shared/types.ts";
 
 // Backends use `filename` (relative to the agent's attachments dir, resolved
-// via persistence.getFilePath) to read the bytes and embed them in whatever
-// shape the underlying transport wants.
+// via persistence.getFilePath) to pass path notices into the model. The model
+// opens attachment files lazily with its own tools instead of receiving bytes
+// inlined into every turn.
 export type AttachmentSpec = Attachment;
 
 // Same shape Claude's `result` message reports, normalized to camelCase. Codex

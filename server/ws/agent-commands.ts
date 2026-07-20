@@ -79,7 +79,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
     case "send_now":
     case "new_conversation":
     case "resume":
-      await handleAgentConversationCommand(cmd, (agentId) => canUseAgent(ws, agentId));
+      await handleAgentConversationCommand(cmd, (agentId) => canUseAgent(ws, agentId), getWsUser(ws)?.id ?? null);
       return true;
     case "edit_agent": {
       if (!canUseAgent(ws, cmd.agentId)) return true;
@@ -143,7 +143,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
     case "set_topic":
     case "reset_topic":
     case "list_sessions":
-      await handleAgentConversationCommand(cmd, (agentId) => canUseAgent(ws, agentId));
+      await handleAgentConversationCommand(cmd, (agentId) => canUseAgent(ws, agentId), getWsUser(ws)?.id ?? null);
       return true;
     case "terminal_open":
     case "terminal_input":
@@ -180,7 +180,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
       pushPresenceListToEachWs();
       return true;
     case "edit_message":
-      await handleAgentConversationCommand(cmd, (agentId) => canUseAgent(ws, agentId));
+      await handleAgentConversationCommand(cmd, (agentId) => canUseAgent(ws, agentId), getWsUser(ws)?.id ?? null);
       return true;
     default:
       return false;

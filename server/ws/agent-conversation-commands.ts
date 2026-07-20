@@ -15,12 +15,12 @@ export type AgentConversationCommand = Extract<
   | { type: "edit_message" }
 >;
 
-export async function handleAgentConversationCommand(cmd: AgentConversationCommand, canUseAgent: (agentId: string) => boolean): Promise<void> {
+export async function handleAgentConversationCommand(cmd: AgentConversationCommand, canUseAgent: (agentId: string) => boolean, userId?: string | null): Promise<void> {
   if (!canUseAgent(cmd.agentId)) return;
   switch (cmd.type) {
     case "send_message":
       // Don't await -- let it stream in the background.
-      AgentManager.sendMessage(cmd.agentId, cmd.text, cmd.username, cmd.attachments);
+      AgentManager.sendMessage(cmd.agentId, cmd.text, cmd.username, cmd.attachments, userId);
       return;
     case "dequeue_message":
       AgentManager.dequeueMessage(cmd.agentId, cmd.queuedId);

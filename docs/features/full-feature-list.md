@@ -31,15 +31,15 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Bundled collaboration skills and Bureau slash commands, including peer
   review, pair programming, soft handoff, subagent review, and guided Bureau bug
   reports.
-- Composer skills browser with filterable commands and skills, plus local
-  most-used counts for quick access to go-to workflows.
+- Composer skills browser with filterable commands and skills, plus per-user
+  most-used counts for quick access to go-to workflows across devices.
 
 ## Multi-User And Multi-Device
 
 - Invite-link authentication with owner and member roles.
 - Active session revocation and one-time invite management.
 - Live user/device presence in the office.
-- Per-user device settings and ghost appearance.
+- Per-user device settings, self-service device links, and ghost appearance.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers.
 
@@ -57,7 +57,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 - Markdown, syntax highlighting, Mermaid diagrams, citations, and rich cards.
 - Collapsible thinking/tool-call cards with timing.
-- File attachments, inline image display, and PDF handling.
+- File attachments via path notices, inline image display, and PDF handling.
 - Voice input and speech synthesis where supported by the browser.
 - Per-agent drafts and queued message chips.
 - Conversation branching by editing a past user message.

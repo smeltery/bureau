@@ -42,7 +42,7 @@ Setup:
 Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Sessions are created by opening invite links the office owner generates. No accounts or passwords.
 
 - First boot: the server binds 127.0.0.1 only and serves a localhost-only first-time-setup form at \`/\`. Whoever pulls it up on the host machine picks a display name and becomes the office owner. The boot banner spells out the SSH \`-L\` incantation to reach the form from another machine.
-- Once claimed, the owner opens \`User Settings → Access\` to mint invite URLs (one-time, 24h expiry) and revoke either invites or active sessions. Members can mint self-invites for their own additional devices (1h expiry, max 1 active).
+- Once claimed, the owner opens \`User Settings → Access\` to mint invite URLs (one-time, 24h expiry) and revoke either invites or active sessions. Every signed-in user can mint self-invites for their own additional devices from My devices (1h expiry, max 1 active).
 - \`External access\` toggle in the Access pane controls whether the server binds 0.0.0.0 (post-restart) and which \`Public URL\` is used for invite URLs, cookie Secure flag, and the Origin allowlist. Off by default; the office stays reachable only from the host or via SSH tunnel until the operator flips it on.
 - Lost your only owner session? Run \`bun run server/index.ts owner-login --name "<your-name>"\` from a shell on the box. It mints a 15-minute recovery URL via a Unix-domain socket at \`~/.bureau/admin.sock\` (mode 0600 — only the user running bureau can connect).
 - Pair with Tailscale Funnel or Caddy + your own DNS for a public URL; or stay tailnet-only for invitees willing to join Tailscale. Full doc: docs/features/access-and-invites.md.
@@ -84,7 +84,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Collapsible thinking and tool-call cards with timing for each step
 - Copy buttons on code blocks, user messages, full agent turns, and entire conversations
 - Send disabled while agent is busy — type ahead freely, send when ready
-- File attachments: agents understand images and PDFs. Upload via button, drag-and-drop, or paste
+- File attachments: uploads are passed to agents as saved-file path notices, so agents open images, PDFs, or other files only when needed. Upload via button, drag-and-drop, or paste
 - Image display: agents can show images inline in the conversation (e.g., matplotlib plots)
 - Embedded terminal for direct shell access per agent — mobile gets a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys and an IME-friendly textarea
 - File editor side panel — built-in CodeMirror editor with tabs, syntax highlighting, dirty-buffer tracking, and external-change detection; toggleable from the chat header
@@ -131,7 +131,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Bureau-specific: /bureau-diff (rich diff card), /bureau-edit (open a file in the editor side panel), /bureau-system-prompt (inspect your effective system prompt), /bureau-cronjob-system-prompt (inspect a cron job's system prompt by name or id), /bureau-usage (per-agent + per-room + per-cron-job cost report)
 - User skills from ~/.claude/skills/ and project commands
 - Bureau-bundled skills like /bureau-peer-review (tells an agent to review another agent's work), /bureau-pair-programming (walks an agent through scoping, design review with a peer, and implementation review — escalates to the boss after 5 rounds or on architectural tradeoffs), /bureau-second-opinion (ping a peer for a one-shot take on a question and keep driving), /bureau-soft-handoff (brief a peer when your context is filling up, then stay around as a reference), /bureau-subagent-review (spawn a subagent to review uncommitted changes for bugs and principled-vs-hacky before committing), and /bureau-all-hands (shows what everyone is up to)
-- Autocomplete dropdown with keyboard navigation, plus an Sk composer button that opens a filterable skills/commands browser with the user's most-used picks and counts at the top
+- Autocomplete dropdown with keyboard navigation, plus an Sk composer button that opens a filterable skills/commands browser with the user's per-user most-used picks and counts at the top
 
 ### Inter-agent Communication
 - Agents discover each other via a shared manifest (agents-summary.json)

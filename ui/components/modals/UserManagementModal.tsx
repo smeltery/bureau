@@ -125,7 +125,8 @@ export function UserManagementModal({
         </button>
       </div>
 
-      {isOwner ? <AccessPane /> : sessionContext && <MyDevicesPane />}
+      {isOwner && <AccessPane />}
+      {sessionContext && <MyDevicesPane />}
 
       {sessionContext && (
         <div style={{ marginTop: 22 }}>

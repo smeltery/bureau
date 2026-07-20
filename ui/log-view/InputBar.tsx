@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AgentInfo, Attachment, SkillInfo } from "../../shared/types.ts";
 import { send } from "../ws.ts";
 import { useAppState } from "../store.tsx";
@@ -8,19 +8,6 @@ import { MobileInputAction } from "./MobileInputAction.tsx";
 import { VoiceInputControl } from "./VoiceInputControl.tsx";
 import { SkillsPopover, type CommandEntry } from "./components/SkillsPopover.tsx";
 import type { StagedAttachment } from "./hooks/useAttachmentUpload.ts";
-
-const SKILL_USAGE_KEY = "bureau:skill-command-usage";
-
-function readSkillUsageCounts(): Record<string, number> {
-  if (typeof localStorage === "undefined") return {};
-  try {
-    const parsed = JSON.parse(localStorage.getItem(SKILL_USAGE_KEY) ?? "{}");
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    return Object.fromEntries(Object.entries(parsed).filter(([, count]) => typeof count === "number" && Number.isFinite(count) && count > 0)) as Record<string, number>;
-  } catch {
-    return {};
-  }
-}
 
 function commandNameFromText(text: string): string | null {
   const match = text.trim().match(/^\/([^\s/]+)\b/);
@@ -104,18 +91,19 @@ export function InputBar({
   const { isMobile } = useAppState();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [skillsOpen, setSkillsOpen] = useState(false);
-  const [skillUsageCounts, setSkillUsageCounts] = useState(readSkillUsageCounts);
+  const [skillUsageCounts, setSkillUsageCounts] = useState<Record<string, number>>({});
 
-  function recordSkillUsage(name: string) {
-    setSkillUsageCounts((current) => {
-      const next = { ...current, [name]: (current[name] ?? 0) + 1 };
-      if (typeof localStorage !== "undefined") {
-        try {
-          localStorage.setItem(SKILL_USAGE_KEY, JSON.stringify(next));
-        } catch {}
-      }
-      return next;
-    });
+  useEffect(() => {
+    fetch("/api/skill-usage", { credentials: "same-origin" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.counts && typeof data.counts === "object") setSkillUsageCounts(data.counts);
+      })
+      .catch(() => {});
+  }, []);
+
+  function recordLocalSkillUsage(name: string) {
+    setSkillUsageCounts((current) => ({ ...current, [name]: (current[name] ?? 0) + 1 }));
   }
 
   function handleSend() {
@@ -131,7 +119,7 @@ export function InputBar({
       textareaRef.current.style.height = "auto";
     }
     const commandName = commandNameFromText(text);
-    if (commandName) recordSkillUsage(commandName);
+    if (commandName) recordLocalSkillUsage(commandName);
     onSent();
   }
 

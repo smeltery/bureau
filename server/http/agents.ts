@@ -141,8 +141,9 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       const denied = requireUserAgentAccess(auth, agentId);
       if (denied) return denied;
       const username = sessionUser(auth)?.name;
+      const userId = auth?.kind === "ok" ? auth.session.userId : null;
       const attachments = Array.isArray(body?.attachments) ? (body.attachments as Attachment[]) : undefined;
-      void AgentManager.sendMessage(agentId, text, username, attachments);
+      void AgentManager.sendMessage(agentId, text, username, attachments, userId);
       return new Response(JSON.stringify({ messageId: "" }), { headers: JSON_HEADERS });
     }
 

@@ -43,6 +43,8 @@ How to use the task board (localhost:${PORT}/api/tasks): only touch it when the 
 Optional fields on create/update: description, priority (P0-P3), assignee.
 On create, set createdBy to the boss name in brackets when you can tell who asked (for example, "[Nil] add task X" means createdBy:"Nil"). If you can't tell, use "${agentName}".
 
+Boss-uploaded attachments are passed to you as path notices, not inline content. Open an attachment with your file/image/PDF tools before answering about its contents.
+
 How to show a file to the boss (images render inline; other files render as a clickable file chip): call POST localhost:${PORT}/api/agents/${agentId}/read-file with your bearer token and body {"path":"..."}. The path can be relative to your cwd, absolute, or \`~/...\`. Use this when you've produced or want to surface a file (a plot, screenshot, generated PDF, log snippet) to the boss.
   curl -s -X POST localhost:${PORT}/api/agents/${agentId}/read-file -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"path":"plot.png"}'
 

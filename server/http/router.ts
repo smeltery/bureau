@@ -23,6 +23,7 @@ import { handleOfficeSettingsRequest } from "./office-settings.ts";
 import { handlePluginsRequest } from "./plugins.ts";
 import { handleRoomsRequest } from "./rooms.ts";
 import { handleSessionsRequest } from "./sessions.ts";
+import { handleSkillUsageRequest } from "./skill-usage.ts";
 import { handleStaticRequest } from "./static.ts";
 import { handleSystemRequest } from "./system.ts";
 import { handleTasksRequest } from "./tasks.ts";
@@ -112,6 +113,9 @@ export function createFetchHandler() {
 
     const systemResp = handleSystemRequest(req, url, httpAuth, { getBackupStatus });
     if (systemResp) return systemResp;
+
+    const skillUsageResp = handleSkillUsageRequest(req, url, httpAuth);
+    if (skillUsageResp) return skillUsageResp;
 
     const sessionsResp = await handleSessionsRequest(req, url, httpAuth, {
       list: (userId, role) => (role === "owner" ? listActiveSessions() : listActiveSessionsForUserId(userId)),

@@ -9,7 +9,7 @@ import { handleSlashCommand } from "./slash-commands.ts";
 import { enqueueUserMessage, QUEUE_MAX } from "./message-queue.ts";
 import { handlePendingEffortPick, handlePendingModelPick } from "./pending-picks.ts";
 
-export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[]) {
+export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[], userId?: string | null) {
   const managed = agents.get(agentId);
   if (!managed) return;
   // Queue the message if the agent is busy. Multi-step prompts (pendingResume
@@ -189,7 +189,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   // Intercept slash commands that are handled locally, not by the LLM
   if (isSlash) {
     const [cmd, ...args] = text.slice(1).trim().split(/\s+/);
-    const handled = await handleSlashCommand(agentId, managed, cmd, args, text, username);
+    const handled = await handleSlashCommand(agentId, managed, cmd, args, text, username, userId);
     if (handled) return;
   }
 

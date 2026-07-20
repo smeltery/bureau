@@ -8,12 +8,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
 import { send, addRawListener, removeRawListener } from "../ws.ts";
+import { lowercaseKey } from "../../shared/identity.ts";
 import { dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { InvitesTable, SessionsTable, renderListSection, sectionHeader } from "./AccessPane.tsx";
 import { cardStyle, hint, MintedUrlBox, subsectionHeader } from "./AccessPaneShared.tsx";
 
 export function MyDevicesPane() {
-  const { invitesList, invitesLoaded, activeSessions, activeSessionsLoaded } = useAppState();
+  const { invitesList, invitesLoaded, activeSessions, activeSessionsLoaded, sessionContext } = useAppState();
+  const usernameKey = sessionContext ? lowercaseKey(sessionContext.username) : null;
+  const myInvites = invitesList.filter((invite) => invite.username !== null && usernameKey !== null && lowercaseKey(invite.username) === usernameKey);
+  const mySessions = activeSessions.filter((session) => usernameKey !== null && lowercaseKey(session.username) === usernameKey);
 
   // Server-side lockout-prevention rejections (revoke_blocked) are
   // owner-relevant in practice — a member's session can't be the office's
@@ -90,13 +94,13 @@ export function MyDevicesPane() {
 
       <GenerateDeviceLinkForm />
 
-      <h5 style={subsectionHeader}>Outstanding invites</h5>
-      {renderListSection(invitesList, invitesLoaded, (rows) => (
+      <h5 style={subsectionHeader}>Outstanding device links</h5>
+      {renderListSection(myInvites, invitesLoaded, (rows) => (
         <InvitesTable invites={rows} />
       ))}
 
-      <h5 style={subsectionHeader}>Active sessions</h5>
-      {renderListSection(activeSessions, activeSessionsLoaded, (rows) => (
+      <h5 style={subsectionHeader}>My active sessions</h5>
+      {renderListSection(mySessions, activeSessionsLoaded, (rows) => (
         <SessionsTable sessions={rows} />
       ))}
     </div>

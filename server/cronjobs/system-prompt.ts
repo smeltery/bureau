@@ -29,6 +29,8 @@ How to use the task board (localhost:${PORT}/tasks): only touch it if your promp
   curl -s -X POST localhost:${PORT}/tasks/ID/done -d '{}'                      # mark done
 On create, set createdBy to the boss name from your prompt or a follow-up message when you can tell who requested the task. If you can't tell, use "${cronjob.name}".
 
+Boss-uploaded attachments are passed to you as path notices, not inline content. Open an attachment with your file/image/PDF tools before answering about its contents.
+
 How to show an image: read the image file with the Read tool — it renders inline in the conversation.
 
 How to surface a file in the run transcript (images render inline; other files render as a clickable file chip): call POST localhost:${PORT}/api/cronjobs/${jobId}/runs/${runIdForUrl}/read-file with body {"path":"..."}. The path can be relative to your cwd, absolute, or \`~/...\`. Use this when you've produced or want to surface a file (a plot, screenshot, generated PDF, log snippet) for whoever reviews the run.

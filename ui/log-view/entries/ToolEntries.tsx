@@ -164,15 +164,25 @@ function SectionLabel({ text, isMobile, isError, marginTop }: { text: string; is
 
 export function ToolResult({ entry, isLastInTurn, turnEntries, isMobile }: { entry: LogEntry; isLastInTurn?: boolean; turnEntries?: LogEntry[]; isMobile?: boolean }) {
   const [open, setOpen] = useState(false);
+  const [echoOpen, setEchoOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const content = entry.content;
   const isLong = content.length > 200;
   const preview = isLong ? content.slice(0, 150) + "..." : content;
   const isError = entry.metadata?.isError === true;
-  const hasMatchingToolCall = entry.metadata?.toolUseId != null && !!turnEntries?.some((e) => e.kind === "tool_call" && e.metadata?.toolId === entry.metadata?.toolUseId);
+  const matchingToolCall = entry.metadata?.toolUseId != null ? turnEntries?.find((e) => e.kind === "tool_call" && e.metadata?.toolId === entry.metadata?.toolUseId) : undefined;
+  const hasMatchingToolCall = !!matchingToolCall;
   const showText = !hasMatchingToolCall || isError;
   const borderColor = isError ? "var(--red)" : "var(--green-border)";
   const textColor = isError ? "var(--red)" : "var(--text-dim)";
+  const calledPath = (matchingToolCall?.metadata?.input as { file_path?: unknown } | undefined)?.file_path;
+  const calledFilename = typeof calledPath === "string" ? calledPath.split(/[\\/]/).pop() : null;
+  const isAttachmentEcho =
+    matchingToolCall?.content === "Read" &&
+    typeof calledPath === "string" &&
+    calledPath.includes(`/logs/${entry.agentId}/files/`) &&
+    (entry.attachments ?? []).length > 0 &&
+    (entry.attachments ?? []).every((attachment) => attachment.mediaType.startsWith("image/") && (!calledFilename || attachment.filename === calledFilename));
 
   return (
     <div
@@ -207,9 +217,29 @@ export function ToolResult({ entry, isLastInTurn, turnEntries, isMobile }: { ent
           {open ? "Show less" : "Show more"}
         </button>
       )}
-      {entry.attachments && entry.attachments.length > 0 && (
-        <AttachmentDisplay attachments={entry.attachments} agentId={entry.agentId} isMobile={isMobile} lightboxSrc={lightboxSrc} setLightboxSrc={setLightboxSrc} hasContent={showText && !!content} />
-      )}
+      {entry.attachments &&
+        entry.attachments.length > 0 &&
+        (isAttachmentEcho && !echoOpen ? (
+          <button
+            onClick={() => setEchoOpen(true)}
+            title="The agent viewed an image attached earlier in this chat. Click to show it."
+            style={{
+              display: "block",
+              marginTop: showText && content ? 6 : 0,
+              padding: "2px 8px",
+              border: "1px solid var(--border-light)",
+              background: "var(--expand-btn)",
+              borderRadius: 4,
+              color: "var(--text-faint)",
+              fontSize: isMobile ? 12 : 10,
+              cursor: "pointer",
+            }}
+          >
+            Viewed {entry.attachments.length === 1 ? entry.attachments[0].originalName : `${entry.attachments.length} attached images`} (click to show)
+          </button>
+        ) : (
+          <AttachmentDisplay attachments={entry.attachments} agentId={entry.agentId} isMobile={isMobile} lightboxSrc={lightboxSrc} setLightboxSrc={setLightboxSrc} hasContent={showText && !!content} />
+        ))}
       {isLastInTurn && <TurnCopyButton turnEntries={turnEntries} />}
     </div>
   );

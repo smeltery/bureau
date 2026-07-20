@@ -1,8 +1,8 @@
 import type { SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages/messages.mjs";
-import { readFileSync, statSync } from "fs";
 
-import { getFilePath, saveFile } from "../persistence.ts";
+import { formatAttachmentLines, resolveAttachmentNotices } from "../attachment-prompt.ts";
+import { saveFile } from "../persistence.ts";
 import type { AttachmentSpec, NormalizedEvent } from "./types.ts";
 
 export function normalizeClaudeMessage(msg: SDKMessage, agentId: string): NormalizedEvent[] {
@@ -89,21 +89,8 @@ export function normalizeClaudeMessage(msg: SDKMessage, agentId: string): Normal
 
 export function buildUserMessage(agentId: string, text: string, attachments: AttachmentSpec[]): SDKUserMessage {
   const content: ContentBlockParam[] = [{ type: "text", text }];
-  for (const att of attachments) {
-    const path = getFilePath(agentId, att.filename);
-    if (!path) continue;
-    const data = readFileSync(path);
-    const base64 = data.toString("base64");
-    const mediaType = att.mediaType as any;
-    if (att.mediaType.startsWith("image/")) {
-      content.push({ type: "image", source: { type: "base64", media_type: mediaType, data: base64 } } as any);
-    } else if (att.mediaType === "application/pdf") {
-      content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } } as any);
-    } else {
-      const st = statSync(path);
-      content.push({ type: "text", text: `\n\n[Attached file: ${att.originalName}, ${att.mediaType}, ${st.size} bytes]\n${data.toString("utf8")}` });
-    }
-  }
+  const attachmentLines = formatAttachmentLines(resolveAttachmentNotices(agentId, attachments));
+  if (attachmentLines.length > 0) content.push({ type: "text", text: attachmentLines.join("\n") });
   return { type: "user", message: { role: "user", content }, parent_tool_use_id: null } as SDKUserMessage;
 }
 

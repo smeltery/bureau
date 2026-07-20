@@ -5,6 +5,7 @@ import { resolveSkillPrompt } from "../skills-discovery.ts";
 import { SessionSwappedError } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { commandHandlers } from "./slash-command-handlers.ts";
+import { recordSkillUse } from "../../skill-usage.ts";
 
 // Startup assertion: every supported command with a handler key must have a matching handler
 for (const [name, cfg] of Object.entries(commands)) {
@@ -17,13 +18,15 @@ for (const [name, cfg] of Object.entries(commands)) {
 // Slash command resolution — 5-step priority order (see docs/slash-command-design.md)
 // ---------------------------------------------------------------------------
 
-export async function handleSlashCommand(agentId: string, managed: ManagedAgent, cmd: string, args: string[], rawText: string, username?: string): Promise<boolean> {
+export async function handleSlashCommand(agentId: string, managed: ManagedAgent, cmd: string, args: string[], rawText: string, username?: string, userId?: string | null): Promise<boolean> {
   const userMeta = username ? { username } : undefined;
   const cfg: CommandConfig | undefined = commands[cmd];
+  const recordHandled = () => recordSkillUse(userId, cmd);
 
   // Step 1: Config lookup (non-overridable)
   if (cfg && !cfg.overridable) {
     if (cfg.supported && cfg.handler && commandHandlers[cfg.handler]) {
+      recordHandled();
       return commandHandlers[cfg.handler](agentId, managed, args, rawText, username);
     }
     // Unsupported non-overridable command — show message
@@ -35,12 +38,14 @@ export async function handleSlashCommand(agentId: string, managed: ManagedAgent,
   // Step 2: Skill override check (for overridable config entries OR unknown commands)
   const skillPrompt = resolveSkillPrompt(cmd, managed.info.cwd);
   if (skillPrompt) {
+    recordHandled();
     return executeSkill(agentId, managed, skillPrompt, args, rawText, username);
   }
 
   // Step 3: Config lookup (overridable, no skill found)
   if (cfg && cfg.overridable) {
     if (cfg.supported && cfg.handler && commandHandlers[cfg.handler]) {
+      recordHandled();
       return commandHandlers[cfg.handler](agentId, managed, args, rawText, username);
     }
     // Unsupported overridable command with no skill override
@@ -51,6 +56,7 @@ export async function handleSlashCommand(agentId: string, managed: ManagedAgent,
 
   // Step 4: SDK-reported commands — pass through to the agent via session.send()
   if (managed.sdkReportedCommands.includes(cmd)) {
+    recordHandled();
     return false; // let sendMessage() pass it through
   }
 
