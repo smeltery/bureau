@@ -27,4 +27,13 @@ describe("filterAndSortTasks", () => {
   test("sorts by priority order with unprioritized tasks last", () => {
     expect(filterAndSortTasks(tasks, "all", "", "", "priority", "asc").map((task) => task.id)).toEqual(["task-3", "task-2", "task-1", "task-4"]);
   });
+
+  test("sorts office-wide tasks before room-scoped tasks", () => {
+    const roomTasks: TaskItem[] = [
+      { ...tasks[0], id: "office", roomId: undefined },
+      { ...tasks[1], id: "room-b", roomId: "room-b" },
+      { ...tasks[2], id: "room-a", roomId: "room-a" },
+    ];
+    expect(filterAndSortTasks(roomTasks, "all", "", "", "room", "asc").map((task) => task.id)).toEqual(["office", "room-a", "room-b"]);
+  });
 });

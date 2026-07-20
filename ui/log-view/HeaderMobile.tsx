@@ -10,6 +10,7 @@ export function HeaderMobile({
   logs,
   onBack,
   onEditAgent,
+  onOpenTasks,
   showAvatar,
   toggleAvatar,
   stateChangedAt,
@@ -19,6 +20,7 @@ export function HeaderMobile({
   logs: unknown[];
   onBack: () => void;
   onEditAgent: () => void;
+  onOpenTasks?: () => void;
   showAvatar: boolean;
   toggleAvatar: () => void;
   stateChangedAt?: number;
@@ -83,6 +85,23 @@ export function HeaderMobile({
           </span>
           {STATE_LABELS[agent.state] && <HeaderTimer state={agent.state} stateChangedAt={stateChangedAt} />}
           <ContextMeter usage={agent.contextUsage} />
+          {onOpenTasks && (
+            <button
+              onClick={onOpenTasks}
+              style={{
+                padding: "2px 7px",
+                borderRadius: 6,
+                border: "1px solid var(--border-medium)",
+                background: "var(--btn-surface)",
+                color: "var(--text-dim)",
+                fontSize: 11,
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              Tasks
+            </button>
+          )}
           {logs.length > 0 && <CopyButton getText={getConversationText} />}
           <button
             onClick={toggleAvatar}

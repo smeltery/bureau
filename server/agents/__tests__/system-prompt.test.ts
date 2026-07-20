@@ -30,11 +30,12 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("var(--accent)");
   });
 
-  test("documents boss attribution when creating tasks", () => {
+  test("documents server attribution and task rooms when creating tasks", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room");
 
-    expect(prompt).toContain('"createdBy":"<boss-name>"');
-    expect(prompt).toContain('If you can\'t tell, use "A".');
+    expect(prompt).toContain('"roomId":"<roomId>"');
+    expect(prompt).toContain("the server attributes the task to your agent token");
+    expect(prompt).toContain("omit it for office-wide work");
   });
 
   test("explains that terminal-command cards run on the server", () => {

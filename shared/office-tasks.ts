@@ -6,7 +6,7 @@ export function addTaskToList(
   tasks: TaskItem[],
   title: string,
   createdBy: string,
-  opts?: { description?: string; priority?: TaskPriority; assignee?: string },
+  opts?: { description?: string; priority?: TaskPriority; assignee?: string; roomId?: string },
 ): { tasks: TaskItem[]; events: OfficeEvent[] } {
   const nextTasks = [...tasks];
   const task: TaskItem = {
@@ -16,6 +16,7 @@ export function addTaskToList(
     priority: opts?.priority,
     status: "open",
     assignee: opts?.assignee,
+    roomId: opts?.roomId,
     createdBy,
     createdAt: Date.now(),
   };
@@ -26,7 +27,7 @@ export function addTaskToList(
 export function updateTaskInList(
   tasks: TaskItem[],
   id: string,
-  changes: Partial<Pick<TaskItem, "title" | "description" | "priority" | "status" | "assignee">>,
+  changes: Partial<Pick<TaskItem, "title" | "description" | "priority" | "status" | "assignee" | "roomId">>,
 ): { tasks: TaskItem[]; events: OfficeEvent[] } {
   const nextTasks = tasks.map((task) => (task.id === id ? { ...task, ...changes } : task));
   if (nextTasks === tasks || !tasks.some((task) => task.id === id)) return { tasks, events: [] };

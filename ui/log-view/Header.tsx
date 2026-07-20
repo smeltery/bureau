@@ -44,6 +44,7 @@ export function Header({
         logs={logs}
         onBack={onBack}
         onEditAgent={onEditAgent}
+        onOpenTasks={onOpenTasks}
         showAvatar={showAvatar}
         toggleAvatar={toggleAvatar}
         stateChangedAt={stateChangedAt.get(agent.id)}

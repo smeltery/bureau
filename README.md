@@ -78,7 +78,7 @@ Then open **http://localhost:4000** and click an empty desk.
 
 ### 🛠️ Workspace tools
 
-- **File editor side panel** — built-in CodeMirror editor with tabs, syntax highlighting, dirty-buffer tracking, and external-change detection; agents can offer `[Open in editor]` cards via `POST /api/agents/:id/edit-file`
+- **File editor side panel** — built-in CodeMirror editor with tabs, syntax highlighting, dirty-buffer tracking, external-change detection, and an empty state when no file is open; agents can offer `[Open in editor]` cards via `POST /api/agents/:id/edit-file`
 - **Embedded terminal** — per-agent shell access with a mobile full-screen overlay (Tab / Esc / Ctrl+C / Paste soft-keys, IME-friendly textarea); agents can offer `[Copy to terminal]` cards via `POST /api/agents/:id/terminal-command` that prefill a command at the prompt without executing
 - **Resizable side panels** — drag the splitter to size the terminal or editor; widths persist
 - **Rich diff viewer** — `/bureau-diff` (or `POST /api/agents/:id/diff`) renders uncommitted changes as a per-file card with status badges, +/- counts, and unified/split toggle
@@ -88,7 +88,7 @@ Then open **http://localhost:4000** and click an empty desk.
 
 ### 🤝 Collaboration & tasks
 
-- **Shared task board** — humans and agents create, assign, and close tasks (with a Backlog status for deferred work); search by id, title, or description
+- **Shared task board** — humans and agents create, assign to rooms, and close tasks (with a Backlog status for deferred work); search by id, title, or description
 - **Inter-agent discovery & messaging** — agents can read each other's conversations and send messages directly via `POST /api/agents/:id/messages`; the receiver sees them in the same queue as human-typed input, prefixed so they can tell agent senders from human bosses
 - **Privileged operator agents** — owners can grant selected agents a privileged server-side token for explicit operator-directed office actions
 - **Conversation branching** — fork any past message, preserve the original
@@ -104,7 +104,7 @@ Then open **http://localhost:4000** and click an empty desk.
 
 ### 🔐 Access & platform
 
-- **Self-hosted with invite-link auth** — the first visitor on the host machine claims ownership at a localhost-only form; owners then mint one-time invite URLs from the Access pane, while every signed-in user can mint self-service links for their own devices. Sessions are cookie-gated end-to-end (HTTP + WebSocket), with per-message revocation, role-scoped per-user views, and a `bun run server/index.ts owner-login --name <you>` recovery CLI over a Unix-domain admin socket. See [Access & invites](docs/features/access-and-invites.md)
+- **Self-hosted with invite-link auth** — the first visitor on the host machine claims ownership at a localhost-only form; owners then mint one-time invite URLs from the full-page User Settings view, while every signed-in user can mint self-service links for their own devices. Sessions are cookie-gated end-to-end (HTTP + WebSocket), with per-message revocation, role-scoped per-user views, and a `bun run server/index.ts owner-login --name <you>` recovery CLI over a Unix-domain admin socket. See [Access & invites](docs/features/access-and-invites.md)
 - **Mobile & PWA** — touch-optimized UI, installable on any device
 - **Room-scoped notifications** — opt into sound and desktop alerts for the rooms you care about when agents finish in the background
 - **Voice I/O** — speech-to-text prompts, text-to-speech responses

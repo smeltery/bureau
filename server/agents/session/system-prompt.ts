@@ -36,12 +36,12 @@ How to use the task board (localhost:${PORT}/api/tasks): only touch it when the 
   curl -s localhost:${PORT}/api/tasks?status=all -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                               # include done and backlog
   curl -s localhost:${PORT}/api/tasks?status=backlog -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                           # only backlog tasks
   curl -s -X POST localhost:${PORT}/api/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' \\
-    -d '{"title":"...","createdBy":"<boss-name>"}'                      # create
+    -d '{"title":"...","roomId":"<roomId>"}'                            # create
   curl -s -X POST localhost:${PORT}/api/tasks/ID/claim -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' \\
     -d '{"assignee":"${agentName}"}'                                    # claim
   curl -s -X POST localhost:${PORT}/api/tasks/ID/done -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'                  # mark done
-Optional fields on create/update: description, priority (P0-P3), assignee.
-On create, set createdBy to the boss name in brackets when you can tell who asked (for example, "[Nil] add task X" means createdBy:"Nil"). If you can't tell, use "${agentName}".
+Optional fields on create/update: description, priority (P0-P3), assignee, roomId.
+On create, the server attributes the task to your agent token. Include roomId when the task belongs to a specific room; omit it for office-wide work.
 
 Boss-uploaded attachments are passed to you as path notices, not inline content. Open an attachment with your file/image/PDF tools before answering about its contents.
 

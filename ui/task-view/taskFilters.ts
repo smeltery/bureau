@@ -38,6 +38,8 @@ function compareTasks(a: TaskItem, b: TaskItem, sortField: SortField): number {
     }
     case "title":
       return a.title.localeCompare(b.title);
+    case "room":
+      return (a.roomId || "").localeCompare(b.roomId || "");
     case "assignee":
       return (a.assignee || "").localeCompare(b.assignee || "");
     case "createdBy":

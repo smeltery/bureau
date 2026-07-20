@@ -1,6 +1,6 @@
 import type { TaskPriority, TaskStatus } from "../../shared/types.ts";
 
-export type SortField = "status" | "priority" | "title" | "assignee" | "createdBy" | "createdAt";
+export type SortField = "status" | "priority" | "title" | "room" | "assignee" | "createdBy" | "createdAt";
 export type SortDir = "asc" | "desc";
 
 export const STATUS_ORDER: Record<TaskStatus, number> = { in_progress: 0, open: 1, backlog: 2, done: 3 };

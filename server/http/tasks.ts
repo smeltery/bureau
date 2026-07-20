@@ -91,6 +91,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
       priority: body.priority as TaskItem["priority"],
       status: "open",
       assignee: body.assignee ? String(body.assignee) : undefined,
+      roomId: body.roomId ? String(body.roomId) : undefined,
       createdBy,
       createdAt: Date.now(),
     };
@@ -122,6 +123,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (body.status !== undefined) task.status = body.status as TaskItem["status"];
     if (body.priority !== undefined) task.priority = body.priority ? (body.priority as TaskItem["priority"]) : undefined;
     if (body.assignee !== undefined) task.assignee = body.assignee ? String(body.assignee) : undefined;
+    if (body.roomId !== undefined) task.roomId = body.roomId ? String(body.roomId) : undefined;
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);
     return new Response(JSON.stringify(task), { headers: corsHeaders });

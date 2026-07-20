@@ -15,6 +15,7 @@ export function TaskTable({
   onSort,
   onSelect,
   renderName,
+  roomNameById,
 }: {
   tasks: TaskItem[];
   tasksLoaded: boolean;
@@ -27,6 +28,7 @@ export function TaskTable({
   onSort: (field: SortField) => void;
   onSelect: (task: TaskItem) => void;
   renderName: (name: string | undefined) => ReactNode;
+  roomNameById: (roomId: string | undefined) => string;
 }) {
   return (
     <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: isMobile ? "fixed" : undefined }}>
@@ -41,6 +43,11 @@ export function TaskTable({
           <th style={thStyle} onClick={() => onSort("title")}>
             TITLE{sortField === "title" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
           </th>
+          {!isMobile && (
+            <th style={{ ...thStyle, width: 120 }} onClick={() => onSort("room")}>
+              ROOM{sortField === "room" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
+            </th>
+          )}
           <th style={{ ...thStyle, width: isMobile ? 60 : 100 }} onClick={() => onSort("assignee")}>
             ASSIGNEE{sortField === "assignee" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
           </th>
@@ -57,7 +64,7 @@ export function TaskTable({
       <tbody>
         {tasks.length === 0 ? (
           <tr>
-            <td colSpan={isMobile ? 5 : 6} style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
+            <td colSpan={isMobile ? 5 : 7} style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
               {tasksLoaded ? "No tasks" : "Loading..."}
             </td>
           </tr>
@@ -106,6 +113,20 @@ export function TaskTable({
                   </span>
                 )}
               </td>
+              {!isMobile && (
+                <td
+                  style={{
+                    padding: cellPad,
+                    fontSize: 11,
+                    color: "var(--text-hint)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {roomNameById(task.roomId)}
+                </td>
+              )}
               <td
                 style={{
                   padding: cellPad,

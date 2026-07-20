@@ -7,6 +7,7 @@ import { ContextMenu } from "./components/overlays/ContextMenu.tsx";
 import { EditAgentDialog } from "./components/modals/EditAgentDialog.tsx";
 import { EngineChooserDialog } from "./components/modals/EngineChooserDialog.tsx";
 import { UserManagementModal } from "./components/modals/UserManagementModal.tsx";
+import { UserSettingsView } from "./components/UserSettingsView.tsx";
 import { DeviceSettingsModal } from "./components/modals/DeviceSettingsModal.tsx";
 import { OfficePromptModal } from "./components/modals/OfficePromptModal.tsx";
 import { RoomSettingsModal } from "./components/modals/RoomSettingsModal.tsx";
@@ -129,10 +130,9 @@ export function App() {
       <style>{CSS}</style>
       <ConnectionBanner />
       {username === null && <UserManagementModal currentUsername={null} forceCreate onSwitchUser={setUsername} />}
-      {editingUsername && username !== null && (
-        <UserManagementModal
+      {editingUsername && username !== null ? (
+        <UserSettingsView
           currentUsername={username}
-          forceCreate={false}
           initialUserId={editingUserId}
           onSwitchUser={setUsername}
           onClose={() => {
@@ -140,8 +140,7 @@ export function App() {
             setEditingUserId(null);
           }}
         />
-      )}
-      {pluginsOpen ? (
+      ) : pluginsOpen ? (
         <PluginsView onClose={goHome} />
       ) : cronjobsOpen ? (
         <CronjobsView username={username ?? ""} onClose={goHome} />

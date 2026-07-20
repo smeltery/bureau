@@ -18,6 +18,9 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
     isMobile,
     panelOpen,
     renderName,
+    roomNameById,
+    rooms,
+    currentRoomId,
     search,
     selectStyle,
     selectedId,
@@ -105,6 +108,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
               onSort={handleSort}
               onSelect={(task) => handleSelectTask(task.id)}
               renderName={renderName}
+              roomNameById={roomNameById}
             />
           </div>
         </div>
@@ -112,18 +116,18 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
         {/* Detail panel */}
         {!isMobile &&
           (creating ? (
-            <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} />
+            <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} rooms={rooms} defaultRoomId={currentRoomId} />
           ) : selectedTask ? (
-            <TaskDetailPanel closeRef={closeRef} task={selectedTask} onClose={() => setSelectedId(null)} username={username} agents={agents} />
+            <TaskDetailPanel closeRef={closeRef} task={selectedTask} onClose={() => setSelectedId(null)} username={username} agents={agents} rooms={rooms} />
           ) : null)}
       </div>
 
       {/* Mobile detail panel as full-page */}
       {isMobile &&
         (creating ? (
-          <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} fullScreen />
+          <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} rooms={rooms} defaultRoomId={currentRoomId} fullScreen />
         ) : selectedTask ? (
-          <TaskDetailPanel closeRef={closeRef} task={selectedTask} onClose={() => setSelectedId(null)} username={username} agents={agents} fullScreen />
+          <TaskDetailPanel closeRef={closeRef} task={selectedTask} onClose={() => setSelectedId(null)} username={username} agents={agents} rooms={rooms} fullScreen />
         ) : null)}
     </div>
   );

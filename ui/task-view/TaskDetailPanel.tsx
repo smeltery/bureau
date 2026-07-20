@@ -10,6 +10,8 @@ export function TaskDetailPanel({
   username,
   mode = "edit",
   agents = [],
+  rooms = [],
+  defaultRoomId,
   closeRef,
   fullScreen = false,
 }: {
@@ -18,6 +20,8 @@ export function TaskDetailPanel({
   username: string;
   mode?: "edit" | "create";
   agents?: { name: string }[];
+  rooms?: { id: string; name: string }[];
+  defaultRoomId?: string | null;
   closeRef?: React.MutableRefObject<(() => void) | null>;
   fullScreen?: boolean;
 }) {
@@ -26,6 +30,7 @@ export function TaskDetailPanel({
   const [priority, setPriority] = useState<TaskPriority | "">(task?.priority || "");
   const [status, setStatus] = useState<TaskStatus>(task?.status || "open");
   const [assignee, setAssignee] = useState(task?.assignee || "");
+  const [roomId, setRoomId] = useState(task?.roomId ?? defaultRoomId ?? "");
 
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -37,23 +42,32 @@ export function TaskDetailPanel({
       setPriority(task.priority || "");
       setStatus(task.status);
       setAssignee(task.assignee || "");
+      setRoomId(task.roomId ?? "");
     } else {
       setTitle("");
       setDescription("");
       setPriority("");
       setStatus("open");
       setAssignee("");
+      setRoomId(defaultRoomId ?? "");
     }
     setConfirmDelete(false);
     setConfirmDiscard(false);
-  }, [task]);
+  }, [defaultRoomId, task]);
 
   function isDirty(): boolean {
     if (mode === "create") {
-      return !!(title.trim() || description.trim() || priority || assignee.trim());
+      return !!(title.trim() || description.trim() || priority || assignee.trim() || roomId !== (defaultRoomId ?? ""));
     }
     if (!task) return false;
-    return title !== task.title || description !== (task.description || "") || priority !== (task.priority || "") || status !== task.status || assignee !== (task.assignee || "");
+    return (
+      title !== task.title ||
+      description !== (task.description || "") ||
+      priority !== (task.priority || "") ||
+      status !== task.status ||
+      assignee !== (task.assignee || "") ||
+      roomId !== (task.roomId ?? "")
+    );
   }
 
   function requestClose() {
@@ -82,6 +96,7 @@ export function TaskDetailPanel({
         description: description.trim() || undefined,
         priority: priority || undefined,
         assignee: assignee.trim() || undefined,
+        roomId: roomId || undefined,
         username,
       });
     } else if (task) {
@@ -94,6 +109,7 @@ export function TaskDetailPanel({
           priority: priority || undefined,
           status,
           assignee: assignee.trim() || undefined,
+          roomId: roomId || undefined,
         },
       });
     }
@@ -170,12 +186,15 @@ export function TaskDetailPanel({
         fullScreen={fullScreen}
         mode={mode}
         priority={priority}
+        roomId={roomId}
+        rooms={rooms}
         status={status}
         task={task}
         title={title}
         onAssigneeChange={setAssignee}
         onDescriptionChange={setDescription}
         onPriorityChange={setPriority}
+        onRoomChange={setRoomId}
         onSave={handleSave}
         onStatusChange={setStatus}
         onTitleChange={setTitle}

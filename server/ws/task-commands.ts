@@ -13,6 +13,7 @@ export function handleTaskCommand(cmd: ClientCommand): boolean {
         priority: cmd.priority && isValidPriority(cmd.priority) ? cmd.priority : undefined,
         status: "open",
         assignee: cmd.assignee,
+        roomId: cmd.roomId,
         createdBy: cmd.username,
         createdAt: Date.now(),
       };
@@ -28,6 +29,7 @@ export function handleTaskCommand(cmd: ClientCommand): boolean {
         if (c.title !== undefined) task.title = String(c.title);
         if (c.description !== undefined) task.description = c.description ? String(c.description) : undefined;
         if (c.assignee !== undefined) task.assignee = c.assignee ? String(c.assignee) : undefined;
+        if (c.roomId !== undefined) task.roomId = c.roomId ? String(c.roomId) : undefined;
         if (c.status !== undefined && isValidStatus(c.status)) task.status = c.status;
         if (c.priority !== undefined && isValidPriority(c.priority)) task.priority = c.priority;
         saveTasks(tasks);

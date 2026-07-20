@@ -24,7 +24,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   agent's chat (attributed to the sending desk; queues if the target is busy).
 - Messages from humans and agents share one receiver queue while an agent is
   busy.
-- Shared task board with create, assign, claim, backlog, and done states.
+- Shared task board with create, room assignment, claim, backlog, and done
+  states.
 - Owner-controlled privileged operator tokens for selected agents, giving those
   agents server-side authorization for explicit office-management requests.
 - Office-wide, room-level, and per-agent prompt composition.
@@ -39,7 +40,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Invite-link authentication with owner and member roles.
 - Active session revocation and one-time invite management.
 - Live user/device presence in the office.
-- Per-user device settings, self-service device links, and ghost appearance.
+- Full-page user settings for profiles, access, self-service device links, and
+  ghost appearance.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers.
 
@@ -67,7 +69,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 - Embedded terminal per agent, with standard copy/paste shortcuts across
   platforms.
-- Built-in file editor with tabs, syntax highlighting, dirty-buffer tracking,
+- Built-in file editor with tabs, syntax highlighting, empty-state guidance,
+  dirty-buffer tracking,
   and external-change detection.
 - Rich diff cards via `/bureau-diff`.
 - Copy-to-terminal cards for commands an agent wants to hand to the user.

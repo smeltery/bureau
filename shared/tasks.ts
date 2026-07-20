@@ -9,6 +9,7 @@ export interface TaskItem {
   priority?: TaskPriority;
   status: TaskStatus;
   assignee?: string;
+  roomId?: string;
   createdBy: string;
   createdAt: number;
 }

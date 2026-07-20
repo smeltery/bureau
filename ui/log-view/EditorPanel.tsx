@@ -204,8 +204,25 @@ export function EditorPanel({
           overflow: "auto",
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: 13,
+          display: activeTab ? undefined : "none",
         }}
       />
+
+      {!activeTab && (
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--text-ghost)",
+            fontSize: 13,
+            borderTop: "1px solid var(--border-subtle)",
+          }}
+        >
+          No file open
+        </div>
+      )}
 
       <EditorFooter activeTab={activeTab} mobile={mobile} />
     </div>

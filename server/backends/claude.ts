@@ -86,7 +86,7 @@ class ClaudeBackendSession implements BackendSession {
       model: FAMILY_TO_MODEL[opts.modelFamily as ModelFamily] ?? opts.modelFamily,
       permissionMode: opts.permissionMode as Options["permissionMode"],
       pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
-      executableArgs: ["--append-system-prompt", opts.systemPrompt],
+      systemPrompt: { type: "preset", preset: "claude_code", append: opts.systemPrompt },
       cwd: opts.cwd,
       hooks: createSafetyHooks(),
       canUseTool: ((toolName, input, callbackOpts) => this.requestPermission(toolName, input, callbackOpts)) as CanUseTool,

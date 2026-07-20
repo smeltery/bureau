@@ -81,7 +81,7 @@ describe("handleTasksRequest", () => {
   test("creates tasks using authenticated user attribution", async () => {
     const req = new Request("http://local.test/api/tasks", {
       method: "POST",
-      body: JSON.stringify({ title: "Write tests", createdBy: "spoofed" }),
+      body: JSON.stringify({ title: "Write tests", createdBy: "spoofed", roomId: "room-a" }),
     });
 
     const res = await handleTasksRequest(req, new URL(req.url), auth);
@@ -89,8 +89,30 @@ describe("handleTasksRequest", () => {
 
     expect(res?.status).toBe(201);
     expect(body.createdBy).toBe("Boss");
+    expect(body.roomId).toBe("room-a");
 
     const cleanup = new Request(`http://local.test/api/tasks/${body.id}`, { method: "DELETE" });
+    await handleTasksRequest(cleanup, new URL(cleanup.url), auth);
+  });
+
+  test("updates task room over the api", async () => {
+    const createReq = new Request("http://local.test/api/tasks", {
+      method: "POST",
+      body: JSON.stringify({ title: "Move me" }),
+    });
+    const created = await (await handleTasksRequest(createReq, new URL(createReq.url), auth))?.json();
+    const updateReq = new Request(`http://local.test/api/tasks/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ roomId: "room-b" }),
+    });
+
+    const res = await handleTasksRequest(updateReq, new URL(updateReq.url), auth);
+    const body = await res?.json();
+
+    expect(res?.status).toBe(200);
+    expect(body.roomId).toBe("room-b");
+
+    const cleanup = new Request(`http://local.test/api/tasks/${created.id}`, { method: "DELETE" });
     await handleTasksRequest(cleanup, new URL(cleanup.url), auth);
   });
 

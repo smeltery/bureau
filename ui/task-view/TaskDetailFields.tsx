@@ -10,12 +10,15 @@ export function TaskDetailFields({
   fullScreen,
   mode,
   priority,
+  roomId,
+  rooms,
   status,
   task,
   title,
   onAssigneeChange,
   onDescriptionChange,
   onPriorityChange,
+  onRoomChange,
   onSave,
   onStatusChange,
   onTitleChange,
@@ -26,12 +29,15 @@ export function TaskDetailFields({
   fullScreen: boolean;
   mode: "edit" | "create";
   priority: TaskPriority | "";
+  roomId: string;
+  rooms: { id: string; name: string }[];
   status: TaskStatus;
   task?: TaskItem;
   title: string;
   onAssigneeChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onPriorityChange: (value: TaskPriority | "") => void;
+  onRoomChange: (value: string) => void;
   onSave: () => void;
   onStatusChange: (value: TaskStatus) => void;
   onTitleChange: (value: string) => void;
@@ -125,6 +131,18 @@ export function TaskDetailFields({
             ))}
           </div>
         )}
+      </div>
+
+      <div>
+        <label style={labelStyle}>Room</label>
+        <select value={roomId} onChange={(e) => onRoomChange(e.target.value)} style={inputStyle}>
+          <option value="">Office-wide</option>
+          {rooms.map((room) => (
+            <option key={room.id} value={room.id}>
+              {room.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {mode === "edit" && task && (

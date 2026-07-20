@@ -4,7 +4,7 @@ import { type SortDir, type SortField } from "./constants.ts";
 import { filterAndSortTasks, type TaskStatusFilter } from "./taskFilters.ts";
 
 export function useTaskViewController({ onClose, onFocusAgent }: { onClose: () => void; onFocusAgent?: (agentId: string) => void }) {
-  const { tasks, tasksLoaded, agents, isMobile } = useAppState();
+  const { tasks, tasksLoaded, agents, isMobile, rooms, currentRoom } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<TaskStatusFilter>("active");
   const [creating, setCreating] = useState(false);
@@ -83,6 +83,11 @@ export function useTaskViewController({ onClose, onFocusAgent }: { onClose: () =
     return name;
   }
 
+  function roomNameById(roomId: string | undefined) {
+    if (!roomId) return "Office-wide";
+    return rooms.find((room) => room.id === roomId)?.name ?? "Unknown room";
+  }
+
   function handleSort(field: SortField) {
     if (sortField === field) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -147,6 +152,9 @@ export function useTaskViewController({ onClose, onFocusAgent }: { onClose: () =
     isMobile,
     panelOpen,
     renderName,
+    roomNameById,
+    rooms,
+    currentRoomId: rooms[currentRoom]?.id ?? null,
     search,
     selectStyle,
     selectedId,

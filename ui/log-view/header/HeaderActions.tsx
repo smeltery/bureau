@@ -103,7 +103,7 @@ export function HeaderActions({
             transition: "all 0.15s",
           }}
         >
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{}</span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>Ed</span>
         </button>
       )}
       {features.terminal && (
