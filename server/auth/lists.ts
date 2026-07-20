@@ -19,6 +19,7 @@ function toSessionWire(v: StoredSession): SessionWire {
   const user = getUserById(v.userId);
   return {
     sessionPrefix: v.sessionPrefix,
+    userId: v.userId,
     username: user?.name ?? "(deleted)",
     createdAt: v.createdAt,
     lastSeenAt: v.lastSeenAt,

@@ -57,6 +57,7 @@ export interface PresenceInfo {
 
 export interface SessionWire {
   sessionPrefix: string;
+  userId: string;
   username: string;
   createdAt: number;
   lastSeenAt: number;

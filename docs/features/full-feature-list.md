@@ -40,8 +40,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Invite-link authentication with owner and member roles.
 - Active session revocation and one-time invite management.
 - Live user/device presence in the office.
-- Full-page user settings for profiles, access, self-service device links, and
-  ghost appearance.
+- Full-page user settings for profiles, access, self-service device links,
+  ghost appearance, and roster online/session summaries.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers.
 

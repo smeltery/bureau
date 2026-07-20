@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
 import { send } from "../ws.ts";
-import type { UserRecord, UserRole } from "../../shared/types.ts";
+import type { UserRole } from "../../shared/types.ts";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { AccessPane, sectionHeader } from "./AccessPane.tsx";
 import { MyDevicesPane } from "./MyDevicesPane.tsx";
+import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
 import { UserEditPanel } from "./modals/UserEditPanel.tsx";
 type AccountSection = "access" | "devices" | "signout";
 type Selection = { kind: "user"; id: string } | { kind: "section"; section: AccountSection };
@@ -19,7 +20,7 @@ export function UserSettingsView({
   onSwitchUser: (name: string) => void;
   onClose: () => void;
 }) {
-  const { users, rooms, allRooms, sessionContext, isMobile } = useAppState();
+  const { users, rooms, allRooms, sessionContext, activeSessions, activeSessionsLoaded, presences, isMobile } = useAppState();
   const isOwner = sessionContext?.role === "owner";
   const userList = useMemo(() => [...users.values()].sort((a, b) => a.name.localeCompare(b.name)), [users]);
   const editorRooms = allRooms.length ? allRooms : rooms;
@@ -58,6 +59,10 @@ export function UserSettingsView({
       setSelection({ kind: "user", id: sessionContext.userId });
     }
   }, [isMobile, selection, sessionContext?.userId, userList]);
+
+  useEffect(() => {
+    if (isOwner && !activeSessionsLoaded) send({ type: "list_active_sessions" });
+  }, [isOwner, activeSessionsLoaded]);
 
   function guardDirty(): boolean {
     return !editIsDirtyRef.current || window.confirm("Discard unsaved changes?");
@@ -150,9 +155,7 @@ export function UserSettingsView({
                         {isMe ? " (you)" : ""}
                       </span>
                       <RoleBadge role={user.role} />
-                      <span style={{ gridColumn: "1 / -1", fontSize: 10, color: "var(--text-hint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {summarizeUser(user, editorRooms)}
-                      </span>
+                      <UserSettingsRosterMeta user={user} rooms={editorRooms} presences={presences} sessions={activeSessions} showSessionStats={isOwner} />
                     </button>
                     {!isMe && (
                       <button style={smallBtn} onClick={() => switchUser(user.name)}>
@@ -258,13 +261,6 @@ function RoleBadge({ role }: { role: UserRole }) {
       {role}
     </span>
   );
-}
-
-function summarizeUser(user: UserRecord, rooms: { id: string; name: string }[]) {
-  if (user.allowedRooms.length === rooms.length) return "All rooms";
-  if (user.allowedRooms.length === 0) return "No rooms";
-  const names = user.allowedRooms.map((id) => rooms.find((room) => room.id === id)?.name).filter(Boolean);
-  return names.join(", ");
 }
 
 function headerStyle(isMobile: boolean): React.CSSProperties {

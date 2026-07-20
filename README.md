@@ -72,7 +72,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Visual office metaphor** — isometric desks, animated characters, status lights
 - **Multi-agent orchestration** — spawn, manage, and monitor concurrent Claude Code sessions
 - **Real-time sync** — WebSocket keeps every connected device in lockstep
-- **Live presence** — other users and devices appear in the office with customizable ghosts, so shared rooms show who is around
+- **Live presence** — other users and devices appear in the office with customizable ghosts, so shared rooms show who is around; User Settings also shows online state and owner-visible session recency in the user roster
 - **Per-agent message queue** — typing while an agent is busy queues messages as chips above the input; they flush automatically when the agent idles, and you can cancel any of them before they send
 - **Session-swap indicator** — chat shows a brief "Restarting session..." hint during `/resume`, `/model`, or fork-from-edit so the drain → install gap isn't silent
 

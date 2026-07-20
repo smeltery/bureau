@@ -52,6 +52,7 @@ export function listActiveSessions(): SessionWire[] {
       if (!user || !sessionPrefix) return null;
       return {
         sessionPrefix,
+        userId: user.id,
         username: user.name,
         createdAt: connectedAt.get(ws) ?? now,
         lastSeenAt: lastSeenAt.get(ws) ?? now,
