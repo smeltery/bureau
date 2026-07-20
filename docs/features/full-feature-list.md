@@ -31,6 +31,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Bundled collaboration skills and Bureau slash commands, including peer
   review, pair programming, soft handoff, subagent review, and guided Bureau bug
   reports.
+- Composer skills browser with filterable commands and skills, plus local
+  most-used counts for quick access to go-to workflows.
 
 ## Multi-User And Multi-Device
 

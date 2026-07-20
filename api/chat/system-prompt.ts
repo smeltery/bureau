@@ -131,7 +131,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Bureau-specific: /bureau-diff (rich diff card), /bureau-edit (open a file in the editor side panel), /bureau-system-prompt (inspect your effective system prompt), /bureau-cronjob-system-prompt (inspect a cron job's system prompt by name or id), /bureau-usage (per-agent + per-room + per-cron-job cost report)
 - User skills from ~/.claude/skills/ and project commands
 - Bureau-bundled skills like /bureau-peer-review (tells an agent to review another agent's work), /bureau-pair-programming (walks an agent through scoping, design review with a peer, and implementation review — escalates to the boss after 5 rounds or on architectural tradeoffs), /bureau-second-opinion (ping a peer for a one-shot take on a question and keep driving), /bureau-soft-handoff (brief a peer when your context is filling up, then stay around as a reference), /bureau-subagent-review (spawn a subagent to review uncommitted changes for bugs and principled-vs-hacky before committing), and /bureau-all-hands (shows what everyone is up to)
-- Autocomplete dropdown with keyboard navigation
+- Autocomplete dropdown with keyboard navigation, plus an Sk composer button that opens a filterable skills/commands browser with the user's most-used picks and counts at the top
 
 ### Inter-agent Communication
 - Agents discover each other via a shared manifest (agents-summary.json)

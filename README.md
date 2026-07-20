@@ -92,7 +92,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Inter-agent discovery & messaging** — agents can read each other's conversations and send messages directly via `POST /api/agents/:id/messages`; the receiver sees them in the same queue as human-typed input, prefixed so they can tell agent senders from human bosses
 - **Privileged operator agents** — owners can grant selected agents a privileged server-side token for explicit operator-directed office actions
 - **Conversation branching** — fork any past message, preserve the original
-- **Slash commands** — `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`, `/bureau-subagent-review`, `/report-bureau-bug`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-edit`, `/bureau-system-prompt`, `/bureau-cronjob-system-prompt`, `/usage`, `/resume`, `/model`, `/effort`, and more
+- **Slash commands and skills browser** — `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`, `/bureau-subagent-review`, `/report-bureau-bug`, `/bureau-all-hands`, `/bureau-diff`, `/bureau-edit`, `/bureau-system-prompt`, `/bureau-cronjob-system-prompt`, `/usage`, `/resume`, `/model`, `/effort`, and more. The composer `Sk` button opens a filterable list with your most-used picks and counts at the top.
 
 ### ⚙️ Automation & extensibility
 

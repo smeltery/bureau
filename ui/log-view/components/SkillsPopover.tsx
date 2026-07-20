@@ -8,6 +8,7 @@ export interface CommandEntry {
 }
 
 type GroupKey = "commands" | "bundled" | "user" | "project" | "plugin";
+type PopoverEntry = { name: string; description?: string; count?: number };
 
 const GROUP_ORDER: GroupKey[] = ["commands", "bundled", "user", "project", "plugin"];
 
@@ -27,12 +28,14 @@ function groupForOrigin(origin: SkillOrigin): GroupKey {
 export function SkillsPopover({
   skills,
   commands,
+  usageCounts,
   isMobile,
   onPick,
   onClose,
 }: {
   skills: SkillInfo[];
   commands: CommandEntry[];
+  usageCounts: Record<string, number>;
   isMobile: boolean;
   onPick: (name: string) => void;
   onClose: () => void;
@@ -70,23 +73,35 @@ export function SkillsPopover({
     const aliasTargets = new Set([...skills, ...commands].filter((entry) => entry.aliasFor).map((entry) => entry.aliasFor as string));
     const q = filter.trim().toLowerCase();
     const matches = (name: string, description?: string) => !q || name.toLowerCase().includes(q) || (description ?? "").toLowerCase().includes(q);
-    const byGroup = new Map<GroupKey, { name: string; description?: string }[]>();
+    const availableByName = new Map<string, PopoverEntry>();
+    const byGroup = new Map<GroupKey, PopoverEntry[]>();
     const add = (group: GroupKey, name: string, description?: string) => {
       if (aliasTargets.has(name) || !matches(name, description)) return;
+      const entry = { name, description, count: usageCounts[name] };
+      availableByName.set(name, entry);
       const list = byGroup.get(group) ?? [];
-      list.push({ name, description });
+      list.push(entry);
       byGroup.set(group, list);
     };
 
     for (const command of commands) add("commands", command.name, command.description);
     for (const skill of skills) add(groupForOrigin(skill.origin), skill.name, skill.description);
 
-    return GROUP_ORDER.filter((group) => byGroup.has(group)).map((group) => ({
-      key: group,
-      label: GROUP_LABELS[group],
-      entries: byGroup.get(group)!.sort((a, b) => a.name.localeCompare(b.name)),
-    }));
-  }, [commands, filter, skills]);
+    const topEntries = Object.entries(usageCounts)
+      .map(([name, count]) => ({ ...availableByName.get(name), name, count }))
+      .filter((entry): entry is PopoverEntry & { count: number } => Boolean(entry.description !== undefined || availableByName.has(entry.name)) && entry.count > 0)
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, 8);
+
+    return [
+      ...(topEntries.length > 0 ? [{ key: "most-used" as const, label: "Most Used", entries: topEntries }] : []),
+      ...GROUP_ORDER.filter((group) => byGroup.has(group)).map((group) => ({
+        key: group,
+        label: GROUP_LABELS[group],
+        entries: byGroup.get(group)!.sort((a, b) => a.name.localeCompare(b.name)),
+      })),
+    ];
+  }, [commands, filter, skills, usageCounts]);
 
   return (
     <div
@@ -154,7 +169,10 @@ export function SkillsPopover({
                   e.currentTarget.style.background = "transparent";
                 }}
               >
-                <span style={{ color: "var(--green)", fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>/{entry.name}</span>
+                <span style={{ color: "var(--green)", fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+                  /{entry.name}
+                  {entry.count ? <span style={{ color: "var(--text-muted)", fontSize: 11, marginLeft: 5 }}>×{entry.count}</span> : null}
+                </span>
                 {entry.description && (
                   <span
                     style={{
