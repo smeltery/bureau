@@ -1,9 +1,10 @@
 import { BOOK_VARIANTS } from "./deskSpriteData.ts";
+import { styleForModel } from "../../model-styles.ts";
 
 export function DeskModelItem({ modelFamily, deskIndex }: { modelFamily?: string; deskIndex: number }) {
-  if (modelFamily === "haiku") return <HaikuDeskItem />;
-  if (modelFamily === "opus") return <OpusDeskItem deskIndex={deskIndex} />;
-  if (modelFamily === "fable") return <FableDeskItem />;
+  const deskProp = styleForModel(modelFamily).deskProp;
+  if (deskProp === "crayons") return <HaikuDeskItem />;
+  if (deskProp === "book") return modelFamily === "fable" ? <FableDeskItem /> : <OpusDeskItem deskIndex={deskIndex} />;
   return null;
 }
 

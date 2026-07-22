@@ -4,12 +4,7 @@ import { send } from "../ws.ts";
 import { Character } from "../office/scene/Character.tsx";
 import { ActivityIndicator, SessionSwapIndicator } from "./StateIndicators.tsx";
 import { isFoldedToolResult, LogEntryCard } from "./entries/index.tsx";
-
-const MODEL_TINT: Record<string, { border: string; bg: string }> = {
-  opus: { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
-  sonnet: { border: "rgba(218,165,32,0.80)", bg: "rgba(218,165,32,0.32)" },
-  haiku: { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
-};
+import { styleForModel } from "../model-styles.ts";
 
 export function LogMessagesPane({
   agent,
@@ -45,6 +40,7 @@ export function LogMessagesPane({
   stateChangedAt?: number;
 }) {
   const turnData = useLogTurnData(logs);
+  const modelStyle = styleForModel(agent.modelFamily);
 
   return (
     <div
@@ -73,8 +69,8 @@ export function LogMessagesPane({
           alignItems: "center",
           justifyContent: "center",
           borderRadius: 8,
-          border: `2px solid ${MODEL_TINT[agent.modelFamily]?.border ?? "var(--border-medium)"}`,
-          background: MODEL_TINT[agent.modelFamily]?.bg ?? "rgba(128,128,128,0.2)",
+          border: `2px solid ${modelStyle.border}`,
+          background: modelStyle.bg,
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
           cursor: "pointer",

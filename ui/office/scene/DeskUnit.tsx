@@ -4,12 +4,7 @@ import { DeskSprite } from "./DeskSprite.tsx";
 import { Character } from "./Character.tsx";
 import { StatusLight } from "./StatusLight.tsx";
 import { deskPixelPos, DESK_SLOTS } from "../grid.ts";
-
-const MODEL_TINT: Record<string, { border: string; bg: string }> = {
-  opus: { border: "rgba(100,160,255,0.85)", bg: "rgba(100,160,255,0.35)" },
-  sonnet: { border: "rgba(218,165,32,0.80)", bg: "rgba(218,165,32,0.32)" },
-  haiku: { border: "rgba(230,130,180,0.80)", bg: "rgba(230,130,180,0.32)" },
-};
+import { styleForModel } from "../../model-styles.ts";
 
 export function DeskUnit({
   agent,
@@ -93,6 +88,7 @@ export function DeskUnit({
   const pos = DESK_SLOTS[agent.desk];
   const { left: pxLeft, top: pxTop } = deskPixelPos(pos.row, pos.col);
   const z = (pos.row * 2 + pos.col + 1) * 10;
+  const modelStyle = styleForModel(agent.modelFamily);
 
   return (
     <div
@@ -171,10 +167,10 @@ export function DeskUnit({
             alignItems: "center",
             gap: 6,
             padding: "3px 10px 3px 7px",
-            background: MODEL_TINT[agent.modelFamily]?.bg ?? "var(--bg-tag)",
+            background: modelStyle.bg,
             backdropFilter: "blur(10px)",
             borderRadius: 20,
-            border: `1px solid ${MODEL_TINT[agent.modelFamily]?.border ?? "var(--border-medium)"}`,
+            border: `1px solid ${modelStyle.border}`,
             opacity: hov ? 1 : 0.8,
             transition: "opacity 0.2s, background 0.3s, border 0.3s",
             animation: needsAttention ? "dotPulse 2s ease-in-out infinite" : undefined,
