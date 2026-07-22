@@ -1,19 +1,21 @@
 import { useEffect } from "react";
 import type { ServerMessage } from "../../../shared/types.ts";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
-import type { Tab } from "../editor-model.ts";
+import { rememberRecentFile, type Tab } from "../editor-model.ts";
 
 export function useEditorSocket({
   agentId,
   setPendingError,
   setActivePath,
   setTabsAndPersist,
+  setRecentPaths,
   tabsRef,
 }: {
   agentId: string;
   setPendingError: (value: string | null) => void;
   setActivePath: (updater: (prev: string | null) => string | null) => void;
   setTabsAndPersist: (updater: (prev: Tab[]) => Tab[]) => void;
+  setRecentPaths: (paths: string[]) => void;
   tabsRef: React.MutableRefObject<Tab[]>;
 }) {
   useEffect(() => {
@@ -27,6 +29,7 @@ export function useEditorSocket({
       if (!msg) return;
       if (msg.type === "editor_content" && msg.agentId === agentId) {
         const m = msg;
+        setRecentPaths(rememberRecentFile(agentId, m.path));
         setTabsAndPersist((prev) => {
           const idx = prev.findIndex((t) => t.path === m.path);
           if (idx >= 0) {
@@ -116,5 +119,5 @@ export function useEditorSocket({
     };
     addRawListener(handler);
     return () => removeRawListener(handler);
-  }, [agentId, setActivePath, setPendingError, setTabsAndPersist, tabsRef]);
+  }, [agentId, setActivePath, setPendingError, setRecentPaths, setTabsAndPersist, tabsRef]);
 }

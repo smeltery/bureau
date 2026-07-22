@@ -2,7 +2,7 @@ import { useRef, useCallback, useState, useMemo } from "react";
 import { send } from "../ws.ts";
 import { useTheme } from "../store.tsx";
 import { getEditorState } from "./editor-state.ts";
-import { writeTabs, type Tab } from "./editor-model.ts";
+import { basename, dirname, readRecentFiles, writeTabs, type Tab } from "./editor-model.ts";
 import { EditorBanner } from "./EditorBanner.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
 import { EditorTabsHeader } from "./EditorTabsHeader.tsx";
@@ -53,6 +53,7 @@ export function EditorPanel({
   });
   const [pendingError, setPendingError] = useState<string | null>(null);
   const [tabMenuOpen, setTabMenuOpen] = useState(false);
+  const [recentPaths, setRecentPaths] = useState<string[]>(() => readRecentFiles(agentId));
   const tabMenuRef = useRef<HTMLDivElement>(null);
   const tabMenuButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -74,7 +75,7 @@ export function EditorPanel({
   );
   const { containerRef, viewRef, activePathRef } = useCodeMirrorEditor({ mode, mobile, tabs, activePath, setTabsAndPersist });
 
-  useEditorSocket({ agentId, setPendingError, setActivePath, setTabsAndPersist, tabsRef });
+  useEditorSocket({ agentId, setPendingError, setActivePath, setTabsAndPersist, setRecentPaths, tabsRef });
 
   const saveActiveTab = useCallback(() => {
     const path = activePathRef.current;
@@ -83,6 +84,15 @@ export function EditorPanel({
     if (!tab) return;
     send({ type: "editor_save", agentId, path, content: tab.content, expectedMtime: tab.mtime });
   }, [agentId]);
+
+  const openRecentPath = useCallback(
+    (path: string) => {
+      setPendingError(null);
+      setActivePath(path);
+      send({ type: "editor_open", agentId, path });
+    },
+    [agentId],
+  );
 
   useEditorPanelLifecycle({
     activePath,
@@ -207,6 +217,82 @@ export function EditorPanel({
           display: activeTab ? undefined : "none",
         }}
       />
+
+      {tabs.length === 0 && recentPaths.length > 0 && (
+        <div
+          style={{
+            padding: mobile ? "12px 12px 8px" : "10px 12px 6px",
+            borderTop: "1px solid var(--border-subtle)",
+            borderBottom: "1px solid var(--border)",
+            background: "var(--bg-surface)",
+            flexShrink: 0,
+            overflowY: "auto",
+            maxHeight: "60%",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              color: "var(--text-ghost)",
+              marginBottom: 6,
+            }}
+          >
+            Recently opened
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {recentPaths.map((path) => (
+              <button
+                key={path}
+                onClick={() => openRecentPath(path)}
+                title={path}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 8,
+                  width: "100%",
+                  textAlign: "left",
+                  padding: mobile ? "8px 8px" : "4px 8px",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontFamily: "'JetBrains Mono',monospace",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--bg-subtle)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: mobile ? 14 : 12,
+                    color: "var(--text-secondary)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {basename(path)}
+                </span>
+                <span
+                  style={{
+                    fontSize: mobile ? 11 : 10,
+                    color: "var(--text-ghost)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {dirname(path)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!activeTab && (
         <div
