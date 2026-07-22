@@ -121,6 +121,57 @@ describe("handleTasksRequest", () => {
     await handleTasksRequest(cleanup, new URL(cleanup.url), auth);
   });
 
+  test("replays api task creates with the same idempotency key", async () => {
+    const firstReq = new Request("http://local.test/api/tasks", {
+      method: "POST",
+      headers: { "Idempotency-Key": `task-create-${randomUUID()}` },
+      body: JSON.stringify({ title: "Create once" }),
+    });
+    const secondReq = new Request("http://local.test/api/tasks", {
+      method: "POST",
+      headers: firstReq.headers,
+      body: JSON.stringify({ title: "Create once" }),
+    });
+
+    const firstRes = await handleTasksRequest(firstReq, new URL(firstReq.url), auth);
+    const secondRes = await handleTasksRequest(secondReq, new URL(secondReq.url), auth);
+    const first = await firstRes?.json();
+    const second = await secondRes?.json();
+
+    expect(firstRes?.status).toBe(201);
+    expect(secondRes?.status).toBe(201);
+    expect(second.id).toBe(first.id);
+    expect(second.title).toBe("Create once");
+
+    await deleteTask(first.id, auth);
+  });
+
+  test("scopes task create idempotency keys to the caller", async () => {
+    const member = claimUserByName(`Tasks Member Retry ${randomUUID()}`, { role: "member", allowedRooms: [AgentManager.getRooms()[0]!.id] });
+    const memberAuth = authFor(member.id, member.name, "member");
+    const key = `shared-create-${randomUUID()}`;
+    const ownerReq = new Request("http://local.test/api/tasks", {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: JSON.stringify({ title: "Owner task" }),
+    });
+    const memberReq = new Request("http://local.test/api/tasks", {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: JSON.stringify({ title: "Member task" }),
+    });
+
+    const ownerTask = await (await handleTasksRequest(ownerReq, new URL(ownerReq.url), auth))?.json();
+    const memberTask = await (await handleTasksRequest(memberReq, new URL(memberReq.url), memberAuth))?.json();
+
+    expect(ownerTask.id).not.toBe(memberTask.id);
+    expect(ownerTask.title).toBe("Owner task");
+    expect(memberTask.title).toBe("Member task");
+
+    await deleteTask(ownerTask.id, auth);
+    await deleteTask(memberTask.id, auth);
+  });
+
   test("filters api task reads to rooms the member can access", async () => {
     const allowedRoom = AgentManager.getRooms()[0]!;
     const hiddenRoomId = AgentManager.createRoom("Hidden tasks");

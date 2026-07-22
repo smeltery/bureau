@@ -8,6 +8,7 @@ import { canSeeRoom, getUserById } from "../users.ts";
 import { broadcast, tasks } from "../ws/broadcast.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+const createTaskIdempotency = new Map<string, string>();
 
 /**
  * Handle every /tasks and /api/tasks request. Returns null for unrelated URLs
@@ -72,6 +73,11 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
 
   // POST /tasks — create
   if (req.method === "POST" && !taskId) {
+    const idempotencyCacheKey = api ? taskCreateIdempotencyKey(req, bearer, auth) : null;
+    const replayedTask = idempotencyCacheKey ? tasks.find((t) => t.id === createTaskIdempotency.get(idempotencyCacheKey)) : undefined;
+    if (replayedTask && canAccessTask(replayedTask, bearer, auth, true)) {
+      return new Response(JSON.stringify(replayedTask), { status: 201, headers: corsHeaders });
+    }
     let body: Record<string, unknown>;
     try {
       body = (await req.json()) as Record<string, unknown>;
@@ -101,6 +107,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
       createdAt: Date.now(),
     };
     tasks.push(task);
+    if (idempotencyCacheKey) createTaskIdempotency.set(idempotencyCacheKey, task.id);
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);
     return new Response(JSON.stringify(task), { status: 201, headers: corsHeaders });
@@ -199,6 +206,14 @@ function taskAttribution(bearer: ReturnType<typeof resolveAgentToken>, auth: Aut
 
 function legacyCreatedBy(body: Record<string, unknown>): string {
   return typeof body.createdBy === "string" && body.createdBy.trim() ? body.createdBy.trim() : "Bureau";
+}
+
+function taskCreateIdempotencyKey(req: Request, bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined): string | null {
+  const key = req.headers.get("Idempotency-Key")?.trim();
+  if (!key) return null;
+  if (bearer) return `agent:${bearer.agentId}:${key}`;
+  if (auth?.kind === "ok") return `user:${auth.session.userId}:${key}`;
+  return null;
 }
 
 function tasksForCaller(allTasks: TaskItem[], bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined, api: boolean): TaskItem[] {
