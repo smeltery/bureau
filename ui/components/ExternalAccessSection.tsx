@@ -10,7 +10,13 @@ import { cardStyle, codeBlockStyle, hint, MintedUrlBox, restartBoxStyle, subLabe
 // owner self-invite bound to the NEW origin (the running process still has
 // the old bind in place, so this URL won't resolve until restart), and
 // prompts the operator to restart bureau.
-export function ExternalAccessSection() {
+type AccessSnapshot = { enabled: boolean; urlInput: string; officeNameInput: string };
+
+export function hasExternalAccessChanges(enabled: boolean, urlInput: string, officeNameInput: string, savedSnapshot: AccessSnapshot): boolean {
+  return enabled !== savedSnapshot.enabled || urlInput.trim() !== savedSnapshot.urlInput || officeNameInput.trim() !== savedSnapshot.officeNameInput;
+}
+
+export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
   const [loaded, setLoaded] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -29,7 +35,7 @@ export function ExternalAccessSection() {
 
   // Snapshot of the last-saved state. Compared against the form during
   // render to drive the Save-button enabled/disabled state.
-  const [savedSnapshot, setSavedSnapshot] = useState<{ enabled: boolean; urlInput: string; officeNameInput: string }>({ enabled: false, urlInput: "", officeNameInput: "" });
+  const [savedSnapshot, setSavedSnapshot] = useState<AccessSnapshot>({ enabled: false, urlInput: "", officeNameInput: "" });
 
   useEffect(() => {
     const fn = (data: string) => {
@@ -103,7 +109,12 @@ export function ExternalAccessSection() {
     });
   }
 
-  const dirty = enabled !== savedSnapshot.enabled || urlInput.trim() !== savedSnapshot.urlInput || officeNameInput.trim() !== savedSnapshot.officeNameInput;
+  const dirty = hasExternalAccessChanges(enabled, urlInput, officeNameInput, savedSnapshot);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
 
   // Apply the same normalization the server uses, so the env-conflict /
   // env-match notes don't flash a false warning when the operator types

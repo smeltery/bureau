@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
 import { send } from "../ws.ts";
 import type { UserRole } from "../../shared/types.ts";
@@ -90,6 +90,10 @@ export function UserSettingsView({
     switchUser(name);
     setNewName("");
   }
+
+  const setDetailDirty = useCallback((dirty: boolean) => {
+    editIsDirtyRef.current = dirty;
+  }, []);
 
   const showSidebar = !isMobile || selection === null;
   const showDetail = !isMobile || selection !== null;
@@ -206,7 +210,7 @@ export function UserSettingsView({
                 />
               </section>
             ) : selection?.kind === "section" && selection.section === "access" ? (
-              <AccessPane />
+              <AccessPane onDirtyChange={setDetailDirty} />
             ) : selection?.kind === "section" && selection.section === "invites" ? (
               <InvitesPane />
             ) : selection?.kind === "section" && selection.section === "sessions" ? (
