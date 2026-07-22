@@ -78,7 +78,8 @@ describe("handleTasksRequest", () => {
     expect(body.createdBy).toBe("Scheduler");
 
     const cleanup = new Request(`http://local.test/tasks/${body.id}`, { method: "DELETE" });
-    await handleTasksRequest(cleanup, new URL(cleanup.url), { kind: "loopback" });
+    expect((await handleTasksRequest(cleanup, new URL(cleanup.url), { kind: "loopback" }))?.status).toBe(405);
+    await deleteTask(body.id, auth);
   });
 
   test("keeps legacy task routes global-only", async () => {

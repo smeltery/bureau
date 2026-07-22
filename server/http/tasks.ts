@@ -187,6 +187,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
 
   // DELETE /tasks/:id
   if (req.method === "DELETE" && taskId && !action) {
+    if (!api) return new Response(JSON.stringify({ error: "method not allowed" }), { status: 405, headers: corsHeaders });
     if (!taskAttribution(bearer, auth)) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     const index = tasks.findIndex((t) => t.id === taskId);
     if (index === -1) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
