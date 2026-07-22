@@ -75,6 +75,7 @@ export interface InviteWire {
   createdBy: string | null; // null for bootstrap (no owner existed yet)
   createdAt: number;
   expiresAt: number;
+  allowedRooms?: string[]; // present when a member invite pre-grants room access
   bootstrap?: true; // present on bootstrap invites so the UI can label them
 }
 

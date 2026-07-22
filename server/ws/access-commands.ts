@@ -108,6 +108,7 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
         role: cmd.role,
         createdBy: user.name,
         allowExisting: !!cmd.allowExisting,
+        ...(cmd.allowedRooms !== undefined ? { allowedRooms: cmd.allowedRooms } : {}),
       });
       if (!result.ok) {
         ws.send(
@@ -134,6 +135,7 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
             createdBy: result.invite.createdBy,
             createdAt: result.invite.createdAt,
             expiresAt: result.invite.expiresAt,
+            ...(result.invite.allowedRooms ? { allowedRooms: result.invite.allowedRooms } : {}),
           },
         } as ServerMessage),
       );

@@ -11,6 +11,7 @@ function toInviteWire(v: StoredInvite): InviteWire {
     createdBy: v.createdBy,
     createdAt: v.createdAt,
     expiresAt: v.expiresAt,
+    ...(v.allowedRooms ? { allowedRooms: v.allowedRooms } : {}),
     ...(v.bootstrap ? { bootstrap: true as const } : {}),
   };
 }

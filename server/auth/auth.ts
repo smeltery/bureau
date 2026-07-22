@@ -14,6 +14,7 @@ import { randomToken } from "./tokens.ts";
 import { setHasOwnerProvider } from "./http-env.ts";
 export { forceExpireSocketsForSession, registerSocket, unregisterSocket } from "./session-sockets.ts";
 export { setRoomsSnapshotProvider } from "./bootstrap-owner.ts";
+import { snapshotRoomIds } from "./bootstrap-owner.ts";
 import { ensureLoaded, inviteStore, mutate, persistInvites, type StoredInvite } from "./store.ts";
 export { listActiveSessions, listActiveSessionsForUserId, listInvites, listInvitesForUsername } from "./lists.ts";
 export { revokeInviteByPrefix, revokeOutstandingInviteByPrefixForUsername, type RevokeResult } from "./invite-revocation.ts";
@@ -84,6 +85,7 @@ export interface MintOptions {
   // SELF_INVITE_TTL_MS so a misbehaving client can't shorten or lengthen
   // tokens it issues to third parties.
   ttlMsOverride?: number;
+  allowedRooms?: string[];
 }
 
 export interface MintResult {
@@ -94,13 +96,14 @@ export interface MintResult {
 export interface MintErr {
   ok: false;
   error: string;
-  code: "INVALID_USERNAME" | "USER_EXISTS" | "INVALID_ROLE" | "ROLE_MISMATCH";
+  code: "INVALID_USERNAME" | "USER_EXISTS" | "INVALID_ROLE" | "ROLE_MISMATCH" | "INVALID_ALLOWED_ROOMS";
 }
 
 export async function mintInvite(opts: MintOptions): Promise<MintResult | MintErr> {
   return mutate(() => {
     ensureLoaded();
     const trimmedName = opts.username?.trim() ?? null;
+    let allowedRooms: string[] | undefined;
     if (!opts.bootstrap) {
       if (!trimmedName) return { ok: false, error: "Username required", code: "INVALID_USERNAME" };
       if (opts.role !== "owner" && opts.role !== "member") return { ok: false, error: "Invalid role", code: "INVALID_ROLE" };
@@ -118,6 +121,19 @@ export async function mintInvite(opts: MintOptions): Promise<MintResult | MintEr
           error: `Invite role (${opts.role}) does not match existing user role (${existing.role}). Change the user's role first.`,
           code: "ROLE_MISMATCH",
         };
+      }
+      if (opts.allowedRooms !== undefined) {
+        if (opts.role !== "member") return { ok: false, error: "Room grants are only supported for member invites", code: "INVALID_ALLOWED_ROOMS" };
+        if (existing) return { ok: false, error: "Room grants are only supported for new users", code: "INVALID_ALLOWED_ROOMS" };
+        if (!Array.isArray(opts.allowedRooms) || !opts.allowedRooms.every((id) => typeof id === "string")) {
+          return { ok: false, error: "allowedRooms must be an array of room ids", code: "INVALID_ALLOWED_ROOMS" };
+        }
+        const roomIds = new Set(snapshotRoomIds());
+        allowedRooms = [];
+        for (const roomId of opts.allowedRooms) {
+          if (!roomIds.has(roomId)) return { ok: false, error: "allowedRooms contains an unknown room id", code: "INVALID_ALLOWED_ROOMS" };
+          if (!allowedRooms.includes(roomId)) allowedRooms.push(roomId);
+        }
       }
     }
 
@@ -149,6 +165,7 @@ export async function mintInvite(opts: MintOptions): Promise<MintResult | MintEr
       consumed: false,
       consumedAt: null,
       bootstrap: !!opts.bootstrap,
+      ...(allowedRooms ? { allowedRooms } : {}),
     };
     inviteStore().set(hash, invite);
     try {

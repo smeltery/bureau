@@ -3,9 +3,9 @@ import { buildPublicOrigin, mintInvite, revokeInviteByPrefix, revokeOutstandingI
 import { broadcastToOwners, pushInvitesListToEachWs } from "../access-broadcasts.ts";
 import type { InviteMintResult, InviteRevokeResult } from "./invites.ts";
 
-export async function mintInviteForApi(input: { username: string; role: "owner" | "member"; allowExisting: boolean; createdBy: string }): Promise<InviteMintResult> {
+export async function mintInviteForApi(input: { username: string; role: "owner" | "member"; allowExisting: boolean; createdBy: string; allowedRooms?: string[] }): Promise<InviteMintResult> {
   const result = await mintInvite(input);
-  if (!result.ok) return { ok: false, error: result.error };
+  if (!result.ok) return { ok: false, error: result.error, ...(result.code === "INVALID_ALLOWED_ROOMS" ? { status: 400 } : {}) };
   const { origin } = buildPublicOrigin();
   pushInvitesListToEachWs();
   return { ok: true, url: `${origin}/i/${result.rawToken}`, invite: wireInvite(result.invite) };
@@ -39,6 +39,7 @@ function wireInvite(invite: {
   createdBy: string | null;
   createdAt: number;
   expiresAt: number;
+  allowedRooms?: string[];
   bootstrap: boolean;
 }): InviteWire {
   return {
@@ -48,6 +49,7 @@ function wireInvite(invite: {
     createdBy: invite.createdBy,
     createdAt: invite.createdAt,
     expiresAt: invite.expiresAt,
+    ...(invite.allowedRooms ? { allowedRooms: invite.allowedRooms } : {}),
     ...(invite.bootstrap ? { bootstrap: true as const } : {}),
   };
 }

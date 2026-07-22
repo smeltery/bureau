@@ -104,7 +104,7 @@ export async function acceptInvite(rawToken: string, ctx: { userAgent: string | 
       // create their own.
       userRecord = claimUserByName(chosenName, {
         role: invite.role,
-        ...(invite.role === "owner" ? { allowedRooms: snapshotRoomIds() } : {}),
+        ...(invite.role === "owner" ? { allowedRooms: snapshotRoomIds() } : invite.allowedRooms ? { allowedRooms: invite.allowedRooms } : {}),
       });
     }
 

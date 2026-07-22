@@ -100,7 +100,7 @@ describe("handleInvitesRequest", () => {
   test("mints owner-created invites", async () => {
     const req = request("/api/invites", {
       method: "POST",
-      body: JSON.stringify({ username: "Guest", role: "member", allowExisting: true }),
+      body: JSON.stringify({ username: "Guest", role: "member", allowExisting: true, allowedRooms: ["room-1"] }),
     });
     let minted: Parameters<InvitesHttpDeps["mint"]>[0] | null = null;
 
@@ -114,7 +114,19 @@ describe("handleInvitesRequest", () => {
 
     expect(res?.status).toBe(200);
     expect(await res?.json()).toEqual({ url: "http://local.test/i/token", invite });
-    expect(JSON.stringify(minted)).toBe(JSON.stringify({ username: "Guest", role: "member", allowExisting: true, createdBy: "Owner" }));
+    expect(JSON.stringify(minted)).toBe(JSON.stringify({ username: "Guest", role: "member", allowExisting: true, createdBy: "Owner", allowedRooms: ["room-1"] }));
+  });
+
+  test("rejects malformed invite room grants", async () => {
+    const req = request("/api/invites", {
+      method: "POST",
+      body: JSON.stringify({ username: "Guest", role: "member", allowedRooms: "room-1" }),
+    });
+
+    const res = await handleInvitesRequest(req, new URL(req.url), ownerAuth, deps);
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "allowedRooms must be an array of room ids" });
   });
 
   test("mints self invites from the caller identity", async () => {

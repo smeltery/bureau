@@ -129,6 +129,7 @@ export type ClientCommand =
       username: string;
       role: UserRole;
       allowExisting?: boolean;
+      allowedRooms?: string[];
     }
   | { type: "mint_self_invite"; requestId: string }
   | { type: "revoke_invite"; tokenPrefix: string }

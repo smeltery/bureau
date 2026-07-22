@@ -13,6 +13,7 @@ export interface StoredInvite {
   consumed: boolean;
   consumedAt: number | null;
   bootstrap: boolean;
+  allowedRooms?: string[];
 }
 
 export interface StoredSession {
