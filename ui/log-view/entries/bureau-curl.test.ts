@@ -23,4 +23,14 @@ describe("summarizeBureauCurl", () => {
   test("keeps the route summary when the body is not parseable JSON", () => {
     expect(summarizeBureauCurl(`curl -s localhost:4000/api/tasks -d '{broken'`)).toBe("Bureau API: tasks");
   });
+
+  test("summarizes agent control and context calls", () => {
+    expect(summarizeBureauCurl("curl -s localhost:4000/api/agents/desk-1/context")).toBe("Bureau API: check context");
+    expect(summarizeBureauCurl("curl -s -X POST localhost:4000/api/agents/desk-1/abort -d '{}'")).toBe("Bureau API: interrupt agent");
+    expect(summarizeBureauCurl("curl -s -X POST localhost:4000/api/agents/desk-1/send-now")).toBe("Bureau API: send queued messages now");
+  });
+
+  test("summarizes room settings calls", () => {
+    expect(summarizeBureauCurl("curl -s localhost:4000/api/rooms/room-1/settings")).toBe("Bureau API: room settings");
+  });
 });

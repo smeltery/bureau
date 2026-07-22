@@ -11,10 +11,14 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/agents\/[^/]+\/diff$/, "Bureau API: diff card"],
   [/^\/api\/agents\/[^/]+\/edit-file$/, "Bureau API: open file in editor"],
   [/^\/api\/agents\/[^/]+\/messages?$/, "Bureau API: message agent"],
+  [/^\/api\/agents\/[^/]+\/context$/, "Bureau API: check context"],
+  [/^\/api\/agents\/[^/]+\/abort$/, "Bureau API: interrupt agent"],
+  [/^\/api\/agents\/[^/]+\/send-now$/, "Bureau API: send queued messages now"],
   [/^\/api\/tasks(?:\/.*)?$/, "Bureau API: tasks"],
   [/^\/api\/version$/, "Bureau API: version"],
   [/^\/api\/memory(?:\/.*)?$/, "Bureau API: memory"],
   [/^\/api\/cronjobs(?:\/.*)?$/, "Bureau API: cron jobs"],
+  [/^\/api\/rooms\/[^/]+\/settings$/, "Bureau API: room settings"],
 ];
 
 const fieldOrder = ["path", "url", "command", "text", "title", "status", "assignee", "room"];
