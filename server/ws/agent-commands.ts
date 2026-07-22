@@ -20,6 +20,12 @@ function isOwner(ws: ServerWebSocket<unknown>): boolean {
   return getWsUser(ws)?.role === "owner";
 }
 
+function canManageAgent(ws: ServerWebSocket<unknown>, agentId: string): boolean {
+  const user = getWsUser(ws);
+  const agent = AgentManager.getAllAgents().find((a) => a.id === agentId);
+  return !!user && !!agent && (user.role === "owner" || agent.userId === user.id);
+}
+
 export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>): Promise<boolean> {
   switch (cmd.type) {
     case "ping":
@@ -116,7 +122,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
       return true;
     }
     case "set_agent_privileged": {
-      if (!isOwner(ws) || !canUseAgent(ws, cmd.agentId)) return true;
+      if (!canUseAgent(ws, cmd.agentId) || !canManageAgent(ws, cmd.agentId)) return true;
       try {
         await AgentManager.setAgentPrivileged(cmd.agentId, cmd.privileged);
         if (cmd.requestId) {

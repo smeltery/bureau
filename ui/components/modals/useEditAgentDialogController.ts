@@ -7,6 +7,10 @@ import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import { makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
 import type { EditAgentDialogProps } from "./EditAgentDialog.tsx";
 
+export function canToggleAgentPrivilege(isSpawn: boolean, sessionContext: { role: "owner" | "member"; userId: string } | null, agent: Pick<AgentInfo, "userId"> | undefined): boolean {
+  return !isSpawn && (sessionContext?.role === "owner" || (sessionContext?.userId != null && agent?.userId === sessionContext.userId));
+}
+
 export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const { onClose } = props;
   const isSpawn = !props.agent;
@@ -25,7 +29,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     agent?.permissionMode === "auto" && !familyAllowsAutoPermission(agent?.modelFamily ?? MODEL_FAMILIES[0].family) ? "bypassPermissions" : (agent?.permissionMode ?? "auto");
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
   const [privileged, setPrivileged] = useState(agent?.privileged ?? false);
-  const canTogglePrivileged = !isSpawn && sessionContext?.role === "owner";
+  const canTogglePrivileged = canToggleAgentPrivilege(isSpawn, sessionContext, agent);
   const [saving, setSaving] = useState(false);
   const [cwdError, setCwdError] = useState<string | null>(null);
   const pendingListener = useRef<((data: string) => void) | null>(null);

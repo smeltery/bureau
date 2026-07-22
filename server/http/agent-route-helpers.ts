@@ -57,6 +57,16 @@ export function requireOwnerAgentAccess(auth: AuthResult | undefined, agentId: s
   return null;
 }
 
+export function requireAgentManagerAccess(auth: AuthResult | undefined, agentId: string): Response | null {
+  const denied = requireUserAgentAccess(auth, agentId);
+  if (denied) return denied;
+  const user = sessionUser(auth);
+  const agent = AgentManager.getAgent(agentId);
+  if (!user || !agent) return jsonError(404, "agent not found");
+  if (user.role === "owner" || agent.userId === user.id) return null;
+  return jsonError(403, "owner or manager access required");
+}
+
 export function projectedAgentsManifest(req: Request, auth: AuthResult | undefined): Response | unknown[] {
   const rawBearer = readBearerToken(req);
   const bearer = resolveAgentToken(rawBearer);

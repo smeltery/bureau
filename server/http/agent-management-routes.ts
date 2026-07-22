@@ -2,7 +2,7 @@ import * as AgentManager from "../agent-manager.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import type { AgentInfo } from "../../shared/types.ts";
-import { JSON_HEADERS, jsonError, readJsonBody, requireOwnerAgentAccess, requireUserAgentAccess, requireUserRoomAccess } from "./agent-route-helpers.ts";
+import { JSON_HEADERS, jsonError, readJsonBody, requireAgentManagerAccess, requireUserAgentAccess, requireUserRoomAccess } from "./agent-route-helpers.ts";
 
 export async function handleAgentManagementRequest(req: Request, parts: string[], agentId: string, auth?: AuthResult): Promise<Response | null> {
   if (req.method === "DELETE" && parts.length === 2) {
@@ -67,7 +67,7 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
   }
 
   if (req.method === "PUT" && parts.length === 3 && parts[2] === "privileged") {
-    const denied = requireOwnerAgentAccess(auth, agentId);
+    const denied = requireAgentManagerAccess(auth, agentId);
     if (denied) return denied;
     const body = await readJsonBody(req);
     if (!body || typeof body.privileged !== "boolean") return jsonError(422, "privileged is required");
