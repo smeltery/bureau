@@ -10,6 +10,7 @@ import { InvitesTable, SessionsTable } from "./access-tables.tsx";
 import { ExternalAccessSection } from "./ExternalAccessSection.tsx";
 import { hint, subsectionHeader } from "./AccessPaneShared.tsx";
 import { IssueInviteForm } from "./IssueInviteForm.tsx";
+import { RecoveryInviteForm } from "./RecoveryInviteForm.tsx";
 export { InvitesTable, SessionsTable } from "./access-tables.tsx";
 
 export function AccessPane() {
@@ -79,6 +80,9 @@ export function AccessPane() {
       <ExternalAccessSection />
 
       <IssueInviteForm />
+
+      <h5 style={subsectionHeader}>Recovery links</h5>
+      <RecoveryInviteForm />
 
       <h5 style={subsectionHeader}>Outstanding invites</h5>
       {renderListSection(invitesList, invitesLoaded, (rows) => (
