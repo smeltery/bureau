@@ -22,6 +22,7 @@ import { handleLiveReloadRequest } from "./live-reload.ts";
 import { handleMemoryRequest } from "./memory.ts";
 import { handleOfficeSettingsRequest } from "./office-settings.ts";
 import { handlePluginsRequest } from "./plugins.ts";
+import { handleReadyRequest } from "./ready.ts";
 import { handleRoomsRequest } from "./rooms.ts";
 import { handleSessionsRequest } from "./sessions.ts";
 import { handleSkillUsageRequest } from "./skill-usage.ts";
@@ -35,6 +36,9 @@ import { handleViewRequest } from "./view.ts";
 export function createFetchHandler() {
   return async function fetch(req: Request, server: Server<WsData>) {
     const url = new URL(req.url);
+
+    const readyResp = handleReadyRequest(req, url, { server, now: Date.now });
+    if (readyResp) return readyResp;
 
     // Auth-state routes (claim form, invite peek/accept, logout). These run
     // BEFORE any cookie gate — they're how an unauthenticated visitor

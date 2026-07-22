@@ -13,6 +13,7 @@ All HTTP routing happens in a single `fetch` handler. Routes are evaluated by pa
 | Path | Method | Handler | Purpose |
 |------|--------|---------|---------|
 | `/ws` | GET (upgrade) | WebSocket handler | Browser client connections |
+| `/readyz` | GET | Readiness probe | Unauthenticated service health check with non-loopback rate limiting |
 | `/__live_reload` | GET | SSE stream | Dev-mode live reload via Server-Sent Events |
 | `/tasks` | GET | Task list | Filtered task board (excludes `done` by default) |
 | `/tasks/:id` | GET | Task detail | Single task lookup |
