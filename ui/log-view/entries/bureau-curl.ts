@@ -12,12 +12,18 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/agents\/[^/]+\/edit-file$/, "Bureau API: open file in editor"],
   [/^\/api\/agents\/[^/]+\/messages?$/, "Bureau API: message agent"],
   [/^\/api\/agents\/[^/]+\/context$/, "Bureau API: check context"],
+  [/^\/api\/agents\/[^/]+\/instructions$/, "Bureau API: read agent instructions"],
+  [/^\/api\/agents\/[^/]+\/scheduled-messages$/, "Bureau API: scheduled messages"],
+  [/^\/api\/agents\/[^/]+\/scheduled-messages\/[^/]+$/, "Bureau API: cancel scheduled message"],
+  [/^\/api\/agents\/[^/]+\/queue\/[^/]+$/, "Bureau API: cancel queued message"],
   [/^\/api\/agents\/[^/]+\/abort$/, "Bureau API: interrupt agent"],
   [/^\/api\/agents\/[^/]+\/send-now$/, "Bureau API: send queued messages now"],
   [/^\/api\/tasks(?:\/.*)?$/, "Bureau API: tasks"],
   [/^\/api\/version$/, "Bureau API: version"],
   [/^\/api\/memory(?:\/.*)?$/, "Bureau API: memory"],
+  [/^\/api\/skill-usage$/, "Bureau API: skill-use counts"],
   [/^\/api\/cronjobs(?:\/.*)?$/, "Bureau API: cron jobs"],
+  [/^\/api\/cron-runs$/, "Bureau API: recent cron runs"],
   [/^\/api\/rooms\/[^/]+\/settings$/, "Bureau API: room settings"],
 ];
 
