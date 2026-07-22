@@ -15,6 +15,7 @@ import type { ContextCompactedNotification } from "./v2/ContextCompactedNotifica
 import type { DeprecationNoticeNotification } from "./v2/DeprecationNoticeNotification";
 import type { ErrorNotification } from "./v2/ErrorNotification";
 import type { ExternalAgentConfigImportCompletedNotification } from "./v2/ExternalAgentConfigImportCompletedNotification";
+import type { ExternalAgentConfigImportProgressNotification } from "./v2/ExternalAgentConfigImportProgressNotification";
 import type { FileChangeOutputDeltaNotification } from "./v2/FileChangeOutputDeltaNotification";
 import type { FileChangePatchUpdatedNotification } from "./v2/FileChangePatchUpdatedNotification";
 import type { FsChangedNotification } from "./v2/FsChangedNotification";
@@ -29,6 +30,7 @@ import type { McpServerOauthLoginCompletedNotification } from "./v2/McpServerOau
 import type { McpServerStatusUpdatedNotification } from "./v2/McpServerStatusUpdatedNotification";
 import type { McpToolCallProgressNotification } from "./v2/McpToolCallProgressNotification";
 import type { ModelReroutedNotification } from "./v2/ModelReroutedNotification";
+import type { ModelSafetyBufferingUpdatedNotification } from "./v2/ModelSafetyBufferingUpdatedNotification";
 import type { ModelVerificationNotification } from "./v2/ModelVerificationNotification";
 import type { PlanDeltaNotification } from "./v2/PlanDeltaNotification";
 import type { ProcessExitedNotification } from "./v2/ProcessExitedNotification";
@@ -43,6 +45,7 @@ import type { SkillsChangedNotification } from "./v2/SkillsChangedNotification";
 import type { TerminalInteractionNotification } from "./v2/TerminalInteractionNotification";
 import type { ThreadArchivedNotification } from "./v2/ThreadArchivedNotification";
 import type { ThreadClosedNotification } from "./v2/ThreadClosedNotification";
+import type { ThreadDeletedNotification } from "./v2/ThreadDeletedNotification";
 import type { ThreadGoalClearedNotification } from "./v2/ThreadGoalClearedNotification";
 import type { ThreadGoalUpdatedNotification } from "./v2/ThreadGoalUpdatedNotification";
 import type { ThreadNameUpdatedNotification } from "./v2/ThreadNameUpdatedNotification";
@@ -54,12 +57,14 @@ import type { ThreadRealtimeSdpNotification } from "./v2/ThreadRealtimeSdpNotifi
 import type { ThreadRealtimeStartedNotification } from "./v2/ThreadRealtimeStartedNotification";
 import type { ThreadRealtimeTranscriptDeltaNotification } from "./v2/ThreadRealtimeTranscriptDeltaNotification";
 import type { ThreadRealtimeTranscriptDoneNotification } from "./v2/ThreadRealtimeTranscriptDoneNotification";
+import type { ThreadSettingsUpdatedNotification } from "./v2/ThreadSettingsUpdatedNotification";
 import type { ThreadStartedNotification } from "./v2/ThreadStartedNotification";
 import type { ThreadStatusChangedNotification } from "./v2/ThreadStatusChangedNotification";
 import type { ThreadTokenUsageUpdatedNotification } from "./v2/ThreadTokenUsageUpdatedNotification";
 import type { ThreadUnarchivedNotification } from "./v2/ThreadUnarchivedNotification";
 import type { TurnCompletedNotification } from "./v2/TurnCompletedNotification";
 import type { TurnDiffUpdatedNotification } from "./v2/TurnDiffUpdatedNotification";
+import type { TurnModerationMetadataNotification } from "./v2/TurnModerationMetadataNotification";
 import type { TurnPlanUpdatedNotification } from "./v2/TurnPlanUpdatedNotification";
 import type { TurnStartedNotification } from "./v2/TurnStartedNotification";
 import type { WarningNotification } from "./v2/WarningNotification";
@@ -74,12 +79,14 @@ export type ServerNotification =
   | { method: "thread/started"; params: ThreadStartedNotification }
   | { method: "thread/status/changed"; params: ThreadStatusChangedNotification }
   | { method: "thread/archived"; params: ThreadArchivedNotification }
+  | { method: "thread/deleted"; params: ThreadDeletedNotification }
   | { method: "thread/unarchived"; params: ThreadUnarchivedNotification }
   | { method: "thread/closed"; params: ThreadClosedNotification }
   | { method: "skills/changed"; params: SkillsChangedNotification }
   | { method: "thread/name/updated"; params: ThreadNameUpdatedNotification }
   | { method: "thread/goal/updated"; params: ThreadGoalUpdatedNotification }
   | { method: "thread/goal/cleared"; params: ThreadGoalClearedNotification }
+  | { method: "thread/settings/updated"; params: ThreadSettingsUpdatedNotification }
   | { method: "thread/tokenUsage/updated"; params: ThreadTokenUsageUpdatedNotification }
   | { method: "turn/started"; params: TurnStartedNotification }
   | { method: "hook/started"; params: HookStartedNotification }
@@ -109,6 +116,7 @@ export type ServerNotification =
   | { method: "account/rateLimits/updated"; params: AccountRateLimitsUpdatedNotification }
   | { method: "app/list/updated"; params: AppListUpdatedNotification }
   | { method: "remoteControl/status/changed"; params: RemoteControlStatusChangedNotification }
+  | { method: "externalAgentConfig/import/progress"; params: ExternalAgentConfigImportProgressNotification }
   | { method: "externalAgentConfig/import/completed"; params: ExternalAgentConfigImportCompletedNotification }
   | { method: "fs/changed"; params: FsChangedNotification }
   | { method: "item/reasoning/summaryTextDelta"; params: ReasoningSummaryTextDeltaNotification }
@@ -117,6 +125,8 @@ export type ServerNotification =
   | { method: "thread/compacted"; params: ContextCompactedNotification }
   | { method: "model/rerouted"; params: ModelReroutedNotification }
   | { method: "model/verification"; params: ModelVerificationNotification }
+  | { method: "turn/moderationMetadata"; params: TurnModerationMetadataNotification }
+  | { method: "model/safetyBuffering/updated"; params: ModelSafetyBufferingUpdatedNotification }
   | { method: "warning"; params: WarningNotification }
   | { method: "guardianWarning"; params: GuardianWarningNotification }
   | { method: "deprecationNotice"; params: DeprecationNoticeNotification }

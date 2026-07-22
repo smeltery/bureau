@@ -1,7 +1,7 @@
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import { normalizePublicOrigin } from "../../shared/public-origin.ts";
-import { loadOfficeConfig, saveOfficeConfig } from "../persistence.ts";
+import { loadOfficeConfig, normalizePreviewAllowHosts, saveOfficeConfig } from "../persistence.ts";
 import { getUserById, getWsUser } from "../users.ts";
 import { isProcessBoundLoopback, mintInvite, setOfficeName } from "../auth/auth.ts";
 
@@ -34,6 +34,7 @@ export async function handleAccessSettingsCommand(
           ok: true,
           externalAccess: effectiveExternal,
           publicOrigin: cfg.publicOrigin,
+          previewAllowHosts: cfg.previewAllowHosts,
           envOriginSet,
           envOrigin,
           boundLoopback: isProcessBoundLoopback(),
@@ -101,6 +102,7 @@ export async function handleAccessSettingsCommand(
       const rawOfficeName = typeof cmd.officeName === "string" ? cmd.officeName.trim().slice(0, 64) : "";
       const nextOfficeName: string | null = cmd.officeName === undefined ? (loadOfficeConfig().officeName ?? null) : rawOfficeName || null;
       const prevCfg = loadOfficeConfig();
+      const previewAllowHosts = Array.isArray(cmd.previewAllowHosts) ? normalizePreviewAllowHosts(cmd.previewAllowHosts) : prevCfg.previewAllowHosts;
       try {
         saveOfficeConfig({
           prompt: prevCfg.prompt,
@@ -108,6 +110,7 @@ export async function handleAccessSettingsCommand(
           publicOrigin,
           externalAccess: wantsExternal,
           officeName: nextOfficeName,
+          previewAllowHosts,
         });
       } catch (err) {
         ws.send(
@@ -147,6 +150,7 @@ export async function handleAccessSettingsCommand(
           ok: true,
           externalAccess: wantsExternal,
           publicOrigin,
+          previewAllowHosts,
           signInUrl,
           restartRequired: true,
           envOrigin,

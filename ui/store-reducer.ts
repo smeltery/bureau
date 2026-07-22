@@ -141,7 +141,7 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, mobileViewMode: next };
     }
     case "office_settings_updated":
-      return { ...state, office: { prompt: action.prompt, envFile: action.envFile } };
+      return { ...state, office: { ...state.office, prompt: action.prompt, envFile: action.envFile } };
     case "tasks":
       return { ...state, tasks: action.tasks, tasksLoaded: true };
     case "set_current_room":

@@ -25,6 +25,7 @@ export async function bootstrapCodexThread(client: JsonRpcLiteClient, opts: Code
     },
     capabilities: {
       experimentalApi: true,
+      requestAttestation: false,
       optOutNotificationMethods: null,
     },
   };

@@ -15,6 +15,7 @@ export interface PreviewCaptureDeps {
   findBrowser?: () => string | null;
   fetchFn?: typeof fetch;
   lookupFn?: (hostname: string) => Promise<Array<{ address: string; family: number }>>;
+  publicHostAllowlist?: string[];
   deadlineMs?: number;
   tmpBase?: string;
 }
@@ -144,17 +145,19 @@ function addressAllowed(address: string): boolean {
   return false;
 }
 
-async function assertPrivateHost(url: URL, lookupFn: PreviewCaptureDeps["lookupFn"]): Promise<PreviewResult | null> {
+async function assertAllowedHost(url: URL, deps: Pick<PreviewCaptureDeps, "lookupFn" | "publicHostAllowlist">): Promise<PreviewResult | null> {
+  const hostname = url.hostname.toLowerCase().replace(/\.$/u, "");
+  if (deps.publicHostAllowlist?.map((host) => host.toLowerCase()).includes(hostname)) return null;
   if (addressAllowed(url.hostname)) return null;
-  if (url.hostname.toLowerCase() === "localhost") return null;
+  if (hostname === "localhost") return null;
   let addresses: Array<{ address: string }>;
   try {
-    addresses = await (lookupFn ?? ((host) => lookup(host, { all: true })))(url.hostname);
+    addresses = await (deps.lookupFn ?? ((host) => lookup(host, { all: true })))(url.hostname);
   } catch {
     return fail(400, "invalid_request", "host could not be resolved");
   }
   if (addresses.length === 0 || addresses.some((a) => !addressAllowed(a.address))) {
-    return fail(400, "invalid_request", "only local or private network URLs are supported");
+    return fail(400, "invalid_request", "only local/private network URLs or preview-allowlisted hosts are supported");
   }
   return null;
 }
@@ -246,7 +249,7 @@ export async function capturePreview(body: unknown, deps: PreviewCaptureDeps = {
   if (!parsed.ok) return parsed;
   if (activeCaptures >= MAX_CONCURRENT_CAPTURES) return fail(429, "capture_busy", "too many preview captures are already running");
 
-  const policyError = await assertPrivateHost(parsed.url, deps.lookupFn);
+  const policyError = await assertAllowedHost(parsed.url, deps);
   if (policyError) return policyError;
 
   const browser = (deps.findBrowser ?? findBrowser)();

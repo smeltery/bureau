@@ -17,4 +17,5 @@ export type ListMcpServerStatusParams = {
    * Defaults to `Full` when omitted.
    */
   detail?: McpServerStatusDetail | null;
+  threadId?: string | null;
 };

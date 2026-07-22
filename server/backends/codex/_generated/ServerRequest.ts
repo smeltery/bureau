@@ -4,8 +4,10 @@
 import type { ApplyPatchApprovalParams } from "./ApplyPatchApprovalParams";
 import type { ExecCommandApprovalParams } from "./ExecCommandApprovalParams";
 import type { RequestId } from "./RequestId";
+import type { AttestationGenerateParams } from "./v2/AttestationGenerateParams";
 import type { ChatgptAuthTokensRefreshParams } from "./v2/ChatgptAuthTokensRefreshParams";
 import type { CommandExecutionRequestApprovalParams } from "./v2/CommandExecutionRequestApprovalParams";
+import type { CurrentTimeReadParams } from "./v2/CurrentTimeReadParams";
 import type { DynamicToolCallParams } from "./v2/DynamicToolCallParams";
 import type { FileChangeRequestApprovalParams } from "./v2/FileChangeRequestApprovalParams";
 import type { McpServerElicitationRequestParams } from "./v2/McpServerElicitationRequestParams";
@@ -23,5 +25,7 @@ export type ServerRequest =
   | { method: "item/permissions/requestApproval"; id: RequestId; params: PermissionsRequestApprovalParams }
   | { method: "item/tool/call"; id: RequestId; params: DynamicToolCallParams }
   | { method: "account/chatgptAuthTokens/refresh"; id: RequestId; params: ChatgptAuthTokensRefreshParams }
+  | { method: "attestation/generate"; id: RequestId; params: AttestationGenerateParams }
+  | { method: "currentTime/read"; id: RequestId; params: CurrentTimeReadParams }
   | { method: "applyPatchApproval"; id: RequestId; params: ApplyPatchApprovalParams }
   | { method: "execCommandApproval"; id: RequestId; params: ExecCommandApprovalParams };

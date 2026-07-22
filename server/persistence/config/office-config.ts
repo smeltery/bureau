@@ -19,6 +19,10 @@ export interface OfficeConfig {
   // bureau instances can tell them apart at a glance. null falls back to
   // the bare "Bureau — …" title.
   officeName: string | null;
+  // Public hostnames that agents may capture with the browser-preview
+  // affordance. Preview capture stays private-network-only unless a hostname
+  // is explicitly listed here.
+  previewAllowHosts: string[];
 }
 
 // A single entry in office-config.json's `enabledPlugins` array.
@@ -47,6 +51,7 @@ export function loadOfficeConfig(): OfficeConfig {
         publicOrigin: typeof parsed.publicOrigin === "string" && parsed.publicOrigin ? parsed.publicOrigin : null,
         externalAccess: typeof parsed.externalAccess === "boolean" ? parsed.externalAccess : null,
         officeName: typeof parsed.officeName === "string" && parsed.officeName.trim() ? parsed.officeName.trim().slice(0, 64) : null,
+        previewAllowHosts: parsePreviewAllowHosts(parsed.previewAllowHosts),
       };
     }
   } catch (err) {
@@ -60,7 +65,7 @@ export function loadOfficeConfig(): OfficeConfig {
       if (raw.trim()) legacyPrompt = raw;
     }
   } catch {}
-  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null, externalAccess: null, officeName: null };
+  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null, externalAccess: null, officeName: null, previewAllowHosts: [] };
   // Only persist if the legacy prompt actually had content — otherwise a fresh
   // install touches a new file for no reason, and the next save/set will write
   // it anyway once there's real data.
@@ -80,6 +85,31 @@ export function saveOfficeConfig(config: OfficeConfig) {
   } catch (err) {
     console.error("Failed to save office config:", err);
   }
+}
+
+export function normalizePreviewAllowHosts(value: string[]): string[] {
+  const seen = new Set<string>();
+  const hosts: string[] = [];
+  for (const raw of value) {
+    const host = raw.trim().toLowerCase().replace(/\.$/u, "");
+    if (!host || seen.has(host)) continue;
+    if (!isValidPreviewAllowHost(host)) continue;
+    seen.add(host);
+    hosts.push(host);
+  }
+  return hosts.slice(0, 50);
+}
+
+export function isValidPreviewAllowHost(host: string): boolean {
+  if (host.length > 253) return false;
+  if (host === "localhost") return true;
+  if (/^\d+\.\d+\.\d+\.\d+$/u.test(host)) return true;
+  return host.split(".").every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label));
+}
+
+function parsePreviewAllowHosts(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return normalizePreviewAllowHosts(value.filter((item): item is string => typeof item === "string"));
 }
 
 // Raw read of office-config.json — returns the parsed object verbatim without

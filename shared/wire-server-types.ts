@@ -31,6 +31,7 @@ export type ServerMessage =
       ok: boolean;
       externalAccess?: boolean;
       publicOrigin?: string | null;
+      previewAllowHosts?: string[];
       envOriginSet?: boolean;
       envOrigin?: string | null;
       boundLoopback?: boolean;
@@ -43,6 +44,7 @@ export type ServerMessage =
       ok: boolean;
       externalAccess?: boolean;
       publicOrigin?: string | null;
+      previewAllowHosts?: string[];
       signInUrl?: string | null;
       restartRequired?: boolean;
       envOrigin?: string | null;

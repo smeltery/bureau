@@ -20,6 +20,9 @@ import type { CommandExecWriteParams } from "./v2/CommandExecWriteParams";
 import type { ConfigBatchWriteParams } from "./v2/ConfigBatchWriteParams";
 import type { ConfigReadParams } from "./v2/ConfigReadParams";
 import type { ConfigValueWriteParams } from "./v2/ConfigValueWriteParams";
+import type { ConsumeAccountRateLimitResetCreditParams } from "./v2/ConsumeAccountRateLimitResetCreditParams";
+import type { EnvironmentAddParams } from "./v2/EnvironmentAddParams";
+import type { EnvironmentInfoParams } from "./v2/EnvironmentInfoParams";
 import type { ExperimentalFeatureEnablementSetParams } from "./v2/ExperimentalFeatureEnablementSetParams";
 import type { ExperimentalFeatureListParams } from "./v2/ExperimentalFeatureListParams";
 import type { ExternalAgentConfigDetectParams } from "./v2/ExternalAgentConfigDetectParams";
@@ -47,9 +50,12 @@ import type { McpServerToolCallParams } from "./v2/McpServerToolCallParams";
 import type { MockExperimentalMethodParams } from "./v2/MockExperimentalMethodParams";
 import type { ModelListParams } from "./v2/ModelListParams";
 import type { ModelProviderCapabilitiesReadParams } from "./v2/ModelProviderCapabilitiesReadParams";
+import type { PermissionProfileListParams } from "./v2/PermissionProfileListParams";
 import type { PluginInstallParams } from "./v2/PluginInstallParams";
+import type { PluginInstalledParams } from "./v2/PluginInstalledParams";
 import type { PluginListParams } from "./v2/PluginListParams";
 import type { PluginReadParams } from "./v2/PluginReadParams";
+import type { PluginShareCheckoutParams } from "./v2/PluginShareCheckoutParams";
 import type { PluginShareDeleteParams } from "./v2/PluginShareDeleteParams";
 import type { PluginShareListParams } from "./v2/PluginShareListParams";
 import type { PluginShareSaveParams } from "./v2/PluginShareSaveParams";
@@ -60,37 +66,50 @@ import type { ProcessKillParams } from "./v2/ProcessKillParams";
 import type { ProcessResizePtyParams } from "./v2/ProcessResizePtyParams";
 import type { ProcessSpawnParams } from "./v2/ProcessSpawnParams";
 import type { ProcessWriteStdinParams } from "./v2/ProcessWriteStdinParams";
+import type { RemoteControlClientsListParams } from "./v2/RemoteControlClientsListParams";
+import type { RemoteControlClientsRevokeParams } from "./v2/RemoteControlClientsRevokeParams";
+import type { RemoteControlDisableParams } from "./v2/RemoteControlDisableParams";
+import type { RemoteControlEnableParams } from "./v2/RemoteControlEnableParams";
+import type { RemoteControlPairingStartParams } from "./v2/RemoteControlPairingStartParams";
+import type { RemoteControlPairingStatusParams } from "./v2/RemoteControlPairingStatusParams";
 import type { ReviewStartParams } from "./v2/ReviewStartParams";
 import type { SendAddCreditsNudgeEmailParams } from "./v2/SendAddCreditsNudgeEmailParams";
 import type { SkillsConfigWriteParams } from "./v2/SkillsConfigWriteParams";
+import type { SkillsExtraRootsSetParams } from "./v2/SkillsExtraRootsSetParams";
 import type { SkillsListParams } from "./v2/SkillsListParams";
 import type { ThreadApproveGuardianDeniedActionParams } from "./v2/ThreadApproveGuardianDeniedActionParams";
 import type { ThreadArchiveParams } from "./v2/ThreadArchiveParams";
 import type { ThreadBackgroundTerminalsCleanParams } from "./v2/ThreadBackgroundTerminalsCleanParams";
+import type { ThreadBackgroundTerminalsListParams } from "./v2/ThreadBackgroundTerminalsListParams";
+import type { ThreadBackgroundTerminalsTerminateParams } from "./v2/ThreadBackgroundTerminalsTerminateParams";
 import type { ThreadCompactStartParams } from "./v2/ThreadCompactStartParams";
 import type { ThreadDecrementElicitationParams } from "./v2/ThreadDecrementElicitationParams";
+import type { ThreadDeleteParams } from "./v2/ThreadDeleteParams";
 import type { ThreadForkParams } from "./v2/ThreadForkParams";
 import type { ThreadGoalClearParams } from "./v2/ThreadGoalClearParams";
 import type { ThreadGoalGetParams } from "./v2/ThreadGoalGetParams";
 import type { ThreadGoalSetParams } from "./v2/ThreadGoalSetParams";
 import type { ThreadIncrementElicitationParams } from "./v2/ThreadIncrementElicitationParams";
 import type { ThreadInjectItemsParams } from "./v2/ThreadInjectItemsParams";
+import type { ThreadItemsListParams } from "./v2/ThreadItemsListParams";
 import type { ThreadListParams } from "./v2/ThreadListParams";
 import type { ThreadLoadedListParams } from "./v2/ThreadLoadedListParams";
 import type { ThreadMemoryModeSetParams } from "./v2/ThreadMemoryModeSetParams";
 import type { ThreadMetadataUpdateParams } from "./v2/ThreadMetadataUpdateParams";
 import type { ThreadReadParams } from "./v2/ThreadReadParams";
 import type { ThreadRealtimeAppendAudioParams } from "./v2/ThreadRealtimeAppendAudioParams";
+import type { ThreadRealtimeAppendSpeechParams } from "./v2/ThreadRealtimeAppendSpeechParams";
 import type { ThreadRealtimeAppendTextParams } from "./v2/ThreadRealtimeAppendTextParams";
 import type { ThreadRealtimeListVoicesParams } from "./v2/ThreadRealtimeListVoicesParams";
 import type { ThreadRealtimeStartParams } from "./v2/ThreadRealtimeStartParams";
 import type { ThreadRealtimeStopParams } from "./v2/ThreadRealtimeStopParams";
 import type { ThreadResumeParams } from "./v2/ThreadResumeParams";
 import type { ThreadRollbackParams } from "./v2/ThreadRollbackParams";
+import type { ThreadSearchParams } from "./v2/ThreadSearchParams";
 import type { ThreadSetNameParams } from "./v2/ThreadSetNameParams";
+import type { ThreadSettingsUpdateParams } from "./v2/ThreadSettingsUpdateParams";
 import type { ThreadShellCommandParams } from "./v2/ThreadShellCommandParams";
 import type { ThreadStartParams } from "./v2/ThreadStartParams";
-import type { ThreadTurnsItemsListParams } from "./v2/ThreadTurnsItemsListParams";
 import type { ThreadTurnsListParams } from "./v2/ThreadTurnsListParams";
 import type { ThreadUnarchiveParams } from "./v2/ThreadUnarchiveParams";
 import type { ThreadUnsubscribeParams } from "./v2/ThreadUnsubscribeParams";
@@ -108,6 +127,7 @@ export type ClientRequest =
   | { method: "thread/resume"; id: RequestId; params: ThreadResumeParams }
   | { method: "thread/fork"; id: RequestId; params: ThreadForkParams }
   | { method: "thread/archive"; id: RequestId; params: ThreadArchiveParams }
+  | { method: "thread/delete"; id: RequestId; params: ThreadDeleteParams }
   | { method: "thread/unsubscribe"; id: RequestId; params: ThreadUnsubscribeParams }
   | { method: "thread/increment_elicitation"; id: RequestId; params: ThreadIncrementElicitationParams }
   | { method: "thread/decrement_elicitation"; id: RequestId; params: ThreadDecrementElicitationParams }
@@ -116,6 +136,7 @@ export type ClientRequest =
   | { method: "thread/goal/get"; id: RequestId; params: ThreadGoalGetParams }
   | { method: "thread/goal/clear"; id: RequestId; params: ThreadGoalClearParams }
   | { method: "thread/metadata/update"; id: RequestId; params: ThreadMetadataUpdateParams }
+  | { method: "thread/settings/update"; id: RequestId; params: ThreadSettingsUpdateParams }
   | { method: "thread/memoryMode/set"; id: RequestId; params: ThreadMemoryModeSetParams }
   | { method: "memory/reset"; id: RequestId; params: undefined }
   | { method: "thread/unarchive"; id: RequestId; params: ThreadUnarchiveParams }
@@ -123,24 +144,30 @@ export type ClientRequest =
   | { method: "thread/shellCommand"; id: RequestId; params: ThreadShellCommandParams }
   | { method: "thread/approveGuardianDeniedAction"; id: RequestId; params: ThreadApproveGuardianDeniedActionParams }
   | { method: "thread/backgroundTerminals/clean"; id: RequestId; params: ThreadBackgroundTerminalsCleanParams }
+  | { method: "thread/backgroundTerminals/list"; id: RequestId; params: ThreadBackgroundTerminalsListParams }
+  | { method: "thread/backgroundTerminals/terminate"; id: RequestId; params: ThreadBackgroundTerminalsTerminateParams }
   | { method: "thread/rollback"; id: RequestId; params: ThreadRollbackParams }
   | { method: "thread/list"; id: RequestId; params: ThreadListParams }
+  | { method: "thread/search"; id: RequestId; params: ThreadSearchParams }
   | { method: "thread/loaded/list"; id: RequestId; params: ThreadLoadedListParams }
   | { method: "thread/read"; id: RequestId; params: ThreadReadParams }
   | { method: "thread/turns/list"; id: RequestId; params: ThreadTurnsListParams }
-  | { method: "thread/turns/items/list"; id: RequestId; params: ThreadTurnsItemsListParams }
+  | { method: "thread/items/list"; id: RequestId; params: ThreadItemsListParams }
   | { method: "thread/inject_items"; id: RequestId; params: ThreadInjectItemsParams }
   | { method: "skills/list"; id: RequestId; params: SkillsListParams }
+  | { method: "skills/extraRoots/set"; id: RequestId; params: SkillsExtraRootsSetParams }
   | { method: "hooks/list"; id: RequestId; params: HooksListParams }
   | { method: "marketplace/add"; id: RequestId; params: MarketplaceAddParams }
   | { method: "marketplace/remove"; id: RequestId; params: MarketplaceRemoveParams }
   | { method: "marketplace/upgrade"; id: RequestId; params: MarketplaceUpgradeParams }
   | { method: "plugin/list"; id: RequestId; params: PluginListParams }
+  | { method: "plugin/installed"; id: RequestId; params: PluginInstalledParams }
   | { method: "plugin/read"; id: RequestId; params: PluginReadParams }
   | { method: "plugin/skill/read"; id: RequestId; params: PluginSkillReadParams }
   | { method: "plugin/share/save"; id: RequestId; params: PluginShareSaveParams }
   | { method: "plugin/share/updateTargets"; id: RequestId; params: PluginShareUpdateTargetsParams }
   | { method: "plugin/share/list"; id: RequestId; params: PluginShareListParams }
+  | { method: "plugin/share/checkout"; id: RequestId; params: PluginShareCheckoutParams }
   | { method: "plugin/share/delete"; id: RequestId; params: PluginShareDeleteParams }
   | { method: "app/list"; id: RequestId; params: AppsListParams }
   | { method: "fs/readFile"; id: RequestId; params: FsReadFileParams }
@@ -161,15 +188,26 @@ export type ClientRequest =
   | { method: "thread/realtime/start"; id: RequestId; params: ThreadRealtimeStartParams }
   | { method: "thread/realtime/appendAudio"; id: RequestId; params: ThreadRealtimeAppendAudioParams }
   | { method: "thread/realtime/appendText"; id: RequestId; params: ThreadRealtimeAppendTextParams }
+  | { method: "thread/realtime/appendSpeech"; id: RequestId; params: ThreadRealtimeAppendSpeechParams }
   | { method: "thread/realtime/stop"; id: RequestId; params: ThreadRealtimeStopParams }
   | { method: "thread/realtime/listVoices"; id: RequestId; params: ThreadRealtimeListVoicesParams }
   | { method: "review/start"; id: RequestId; params: ReviewStartParams }
   | { method: "model/list"; id: RequestId; params: ModelListParams }
   | { method: "modelProvider/capabilities/read"; id: RequestId; params: ModelProviderCapabilitiesReadParams }
   | { method: "experimentalFeature/list"; id: RequestId; params: ExperimentalFeatureListParams }
+  | { method: "permissionProfile/list"; id: RequestId; params: PermissionProfileListParams }
   | { method: "experimentalFeature/enablement/set"; id: RequestId; params: ExperimentalFeatureEnablementSetParams }
+  | { method: "remoteControl/enable"; id: RequestId; params: RemoteControlEnableParams | null }
+  | { method: "remoteControl/disable"; id: RequestId; params: RemoteControlDisableParams | null }
+  | { method: "remoteControl/status/read"; id: RequestId; params: undefined }
+  | { method: "remoteControl/pairing/start"; id: RequestId; params: RemoteControlPairingStartParams }
+  | { method: "remoteControl/pairing/status"; id: RequestId; params: RemoteControlPairingStatusParams }
+  | { method: "remoteControl/client/list"; id: RequestId; params: RemoteControlClientsListParams }
+  | { method: "remoteControl/client/revoke"; id: RequestId; params: RemoteControlClientsRevokeParams }
   | { method: "collaborationMode/list"; id: RequestId; params: CollaborationModeListParams }
   | { method: "mock/experimentalMethod"; id: RequestId; params: MockExperimentalMethodParams }
+  | { method: "environment/add"; id: RequestId; params: EnvironmentAddParams }
+  | { method: "environment/info"; id: RequestId; params: EnvironmentInfoParams }
   | { method: "mcpServer/oauth/login"; id: RequestId; params: McpServerOauthLoginParams }
   | { method: "config/mcpServer/reload"; id: RequestId; params: undefined }
   | { method: "mcpServerStatus/list"; id: RequestId; params: ListMcpServerStatusParams }
@@ -181,6 +219,9 @@ export type ClientRequest =
   | { method: "account/login/cancel"; id: RequestId; params: CancelLoginAccountParams }
   | { method: "account/logout"; id: RequestId; params: undefined }
   | { method: "account/rateLimits/read"; id: RequestId; params: undefined }
+  | { method: "account/rateLimitResetCredit/consume"; id: RequestId; params: ConsumeAccountRateLimitResetCreditParams }
+  | { method: "account/usage/read"; id: RequestId; params: undefined }
+  | { method: "account/workspaceMessages/read"; id: RequestId; params: undefined }
   | { method: "account/sendAddCreditsNudgeEmail"; id: RequestId; params: SendAddCreditsNudgeEmailParams }
   | { method: "feedback/upload"; id: RequestId; params: FeedbackUploadParams }
   | { method: "command/exec"; id: RequestId; params: CommandExecParams }
@@ -194,6 +235,7 @@ export type ClientRequest =
   | { method: "config/read"; id: RequestId; params: ConfigReadParams }
   | { method: "externalAgentConfig/detect"; id: RequestId; params: ExternalAgentConfigDetectParams }
   | { method: "externalAgentConfig/import"; id: RequestId; params: ExternalAgentConfigImportParams }
+  | { method: "externalAgentConfig/import/readHistories"; id: RequestId; params: undefined }
   | { method: "config/value/write"; id: RequestId; params: ConfigValueWriteParams }
   | { method: "config/batchWrite"; id: RequestId; params: ConfigBatchWriteParams }
   | { method: "configRequirements/read"; id: RequestId; params: undefined }

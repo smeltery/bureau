@@ -6,7 +6,7 @@ import { saveFile as savePersistedFile } from "../persistence.ts";
 import { mimeTypeForFilename } from "../mime-types.ts";
 import { capturePreview } from "../preview-capture.ts";
 import { openFile as openFileImpl, resolveEditorPath, saveFile as saveFileImpl, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
-import { addLogEntry, agents, emitEphemeralLog } from "./state.ts";
+import { addLogEntry, agents, emitEphemeralLog, officeConfig } from "./state.ts";
 
 const TERMINAL_COMMAND_MAX_LEN = 4096;
 const EDIT_FILE_MAX_LEN = 4096;
@@ -111,7 +111,7 @@ export function emitAgentReadFile(agentId: string, rawPath: string): { ok: true 
 export async function emitAgentPreviewUrl(agentId: string, body: unknown): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const managed = agents.get(agentId);
   if (!managed) return { ok: false, status: 404, error: "agent not found" };
-  const result = await capturePreview(body);
+  const result = await capturePreview(body, { publicHostAllowlist: officeConfig.previewAllowHosts });
   if (!result.ok) return { ok: false, status: result.status, error: result.error };
   const att = savePersistedFile(agentId, result.png, "image/png", result.filename);
   if (!att) return { ok: false, status: 500, error: "failed to save preview image" };

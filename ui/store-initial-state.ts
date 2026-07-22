@@ -16,7 +16,7 @@ export const initialState: AppState = {
   recentCwds: [],
   slashCommands: new Map(),
   stateChangedAt: new Map(),
-  office: { prompt: null, envFile: null },
+  office: { prompt: null, envFile: null, previewAllowHosts: [] },
   rooms: [],
   allRooms: [],
   users: new Map(),

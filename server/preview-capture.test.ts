@@ -33,7 +33,24 @@ describe("preview capture", () => {
     expect(result).toMatchObject({
       ok: false,
       status: 400,
-      error: "only local or private network URLs are supported",
+      error: "only local/private network URLs or preview-allowlisted hosts are supported",
+    });
+  });
+
+  test("accepts explicitly allowlisted public hosts", async () => {
+    const result = await capturePreview(
+      { url: "https://staging.example.com/app" },
+      {
+        publicHostAllowlist: ["staging.example.com"],
+        lookupFn: async () => [{ address: "8.8.8.8", family: 4 }],
+        findBrowser: () => null,
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 500,
+      error: "no Chrome-compatible browser found on PATH",
     });
   });
 

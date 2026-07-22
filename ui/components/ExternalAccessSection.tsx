@@ -10,10 +10,15 @@ import { cardStyle, codeBlockStyle, hint, MintedUrlBox, restartBoxStyle, subLabe
 // owner self-invite bound to the NEW origin (the running process still has
 // the old bind in place, so this URL won't resolve until restart), and
 // prompts the operator to restart bureau.
-type AccessSnapshot = { enabled: boolean; urlInput: string; officeNameInput: string };
+type AccessSnapshot = { enabled: boolean; urlInput: string; officeNameInput: string; previewAllowHostsInput: string };
 
-export function hasExternalAccessChanges(enabled: boolean, urlInput: string, officeNameInput: string, savedSnapshot: AccessSnapshot): boolean {
-  return enabled !== savedSnapshot.enabled || urlInput.trim() !== savedSnapshot.urlInput || officeNameInput.trim() !== savedSnapshot.officeNameInput;
+export function hasExternalAccessChanges(enabled: boolean, urlInput: string, officeNameInput: string, previewAllowHostsInput: string, savedSnapshot: AccessSnapshot): boolean {
+  return (
+    enabled !== savedSnapshot.enabled ||
+    urlInput.trim() !== savedSnapshot.urlInput ||
+    officeNameInput.trim() !== savedSnapshot.officeNameInput ||
+    previewAllowHostsInput.trim() !== savedSnapshot.previewAllowHostsInput
+  );
 }
 
 export function shouldBlockExternalAccessUnload(loaded: boolean, dirty: boolean): boolean {
@@ -25,6 +30,7 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
   const [enabled, setEnabled] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [officeNameInput, setOfficeNameInput] = useState("");
+  const [previewAllowHostsInput, setPreviewAllowHostsInput] = useState("");
   const [envOriginSet, setEnvOriginSet] = useState(false);
   // The normalized env value, or null when the env var is absent OR set but
   // invalid (in which case envOriginSet is true while envOrigin is null —
@@ -39,7 +45,7 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
 
   // Snapshot of the last-saved state. Compared against the form during
   // render to drive the Save-button enabled/disabled state.
-  const [savedSnapshot, setSavedSnapshot] = useState<AccessSnapshot>({ enabled: false, urlInput: "", officeNameInput: "" });
+  const [savedSnapshot, setSavedSnapshot] = useState<AccessSnapshot>({ enabled: false, urlInput: "", officeNameInput: "", previewAllowHostsInput: "" });
 
   useEffect(() => {
     const fn = (data: string) => {
@@ -49,13 +55,15 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
           const nextEnabled = !!m.externalAccess;
           const nextUrl = typeof m.publicOrigin === "string" ? m.publicOrigin : "";
           const nextOfficeName = typeof m.officeName === "string" ? m.officeName : "";
+          const nextPreviewHosts = Array.isArray(m.previewAllowHosts) ? m.previewAllowHosts.filter((v: unknown): v is string => typeof v === "string").join("\n") : "";
           setEnabled(nextEnabled);
           setUrlInput(nextUrl);
           setOfficeNameInput(nextOfficeName);
+          setPreviewAllowHostsInput(nextPreviewHosts);
           setEnvOriginSet(!!m.envOriginSet);
           setEnvOrigin(typeof m.envOrigin === "string" ? m.envOrigin : null);
           setBoundLoopback(!!m.boundLoopback);
-          setSavedSnapshot({ enabled: nextEnabled, urlInput: nextUrl, officeNameInput: nextOfficeName });
+          setSavedSnapshot({ enabled: nextEnabled, urlInput: nextUrl, officeNameInput: nextOfficeName, previewAllowHostsInput: nextPreviewHosts });
           setLoaded(true);
         }
       } catch {}
@@ -90,10 +98,12 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
             const nextEnabled = !!m.externalAccess;
             const nextUrl = typeof m.publicOrigin === "string" ? m.publicOrigin : "";
             const nextOfficeName = typeof m.officeName === "string" ? m.officeName : "";
+            const nextPreviewHosts = Array.isArray(m.previewAllowHosts) ? m.previewAllowHosts.filter((v: unknown): v is string => typeof v === "string").join("\n") : previewAllowHostsInput.trim();
             setEnabled(nextEnabled);
             setUrlInput(nextUrl);
             setOfficeNameInput(nextOfficeName);
-            setSavedSnapshot({ enabled: nextEnabled, urlInput: nextUrl, officeNameInput: nextOfficeName });
+            setPreviewAllowHostsInput(nextPreviewHosts);
+            setSavedSnapshot({ enabled: nextEnabled, urlInput: nextUrl, officeNameInput: nextOfficeName, previewAllowHostsInput: nextPreviewHosts });
             setSignInUrl(typeof m.signInUrl === "string" ? m.signInUrl : null);
             setRestartRequired(!!m.restartRequired);
           } else {
@@ -110,10 +120,11 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
       externalAccess: enabled,
       publicOrigin: enabled ? trimmed : null,
       officeName: officeNameInput.trim() || null,
+      previewAllowHosts: parsePreviewAllowHostsInput(previewAllowHostsInput),
     });
   }
 
-  const dirty = hasExternalAccessChanges(enabled, urlInput, officeNameInput, savedSnapshot);
+  const dirty = hasExternalAccessChanges(enabled, urlInput, officeNameInput, previewAllowHostsInput, savedSnapshot);
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -167,6 +178,15 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
           <p style={hint}>Pattern: https://&lt;host&gt; (the address you'll open from your laptop / phone). Saving doesn't change the running server's bind on its own — restart bureau to apply.</p>
         </>
       )}
+      <div style={subLabel}>Browser preview public hosts</div>
+      <textarea
+        value={previewAllowHostsInput}
+        onChange={(e) => setPreviewAllowHostsInput(e.target.value)}
+        placeholder={"example.com\nstaging.example.com"}
+        rows={3}
+        style={{ ...dialogInput, resize: "vertical", minHeight: 72 }}
+      />
+      <p style={hint}>Optional hostnames agents may capture with browser preview even when they resolve publicly. Local and private-network URLs work without entries here.</p>
       {envOriginSet && !envOrigin && (
         <p style={{ ...hint, marginTop: 6 }}>
           Note: <code>BUREAU_PUBLIC_ORIGIN</code> is set in the environment but not a valid public origin, so the server ignores it. Remove it from your env file or set it to{" "}
@@ -211,4 +231,11 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
       )}
     </div>
   );
+}
+
+function parsePreviewAllowHostsInput(value: string): string[] {
+  return value
+    .split(/[\n,]/u)
+    .map((part) => part.trim())
+    .filter(Boolean);
 }

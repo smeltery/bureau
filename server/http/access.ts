@@ -5,6 +5,7 @@ const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "appl
 export interface AccessSettingsWire {
   externalAccess: boolean;
   publicOrigin: string | null;
+  previewAllowHosts: string[];
   envOriginSet: boolean;
   envOrigin: string | null;
   boundLoopback: boolean;
@@ -15,7 +16,7 @@ export type SetAccessResult = { ok: true; signInUrl: string | null; restartRequi
 
 export interface AccessHttpDeps {
   get(): AccessSettingsWire;
-  set(input: { externalAccess: boolean; publicOrigin: string }): Promise<SetAccessResult>;
+  set(input: { externalAccess: boolean; publicOrigin: string; previewAllowHosts: string[] }): Promise<SetAccessResult>;
 }
 
 export async function handleAccessRequest(req: Request, url: URL, auth: AuthResult | undefined, deps: AccessHttpDeps): Promise<Response | null> {
@@ -42,7 +43,8 @@ export async function handleAccessRequest(req: Request, url: URL, auth: AuthResu
     if (body instanceof Response) return body;
     if (typeof body.externalAccess !== "boolean") return jsonError(400, "externalAccess (boolean) is required");
     const publicOrigin = typeof body.publicOrigin === "string" ? body.publicOrigin : "";
-    const result = await deps.set({ externalAccess: body.externalAccess, publicOrigin });
+    const previewAllowHosts = Array.isArray(body.previewAllowHosts) ? body.previewAllowHosts.filter((item): item is string => typeof item === "string") : [];
+    const result = await deps.set({ externalAccess: body.externalAccess, publicOrigin, previewAllowHosts });
     return result.ok
       ? new Response(JSON.stringify({ signInUrl: result.signInUrl, restartRequired: result.restartRequired }), { headers: JSON_HEADERS })
       : jsonError(result.status, result.error, result.envOrigin);

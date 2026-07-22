@@ -4,7 +4,7 @@ import * as AgentManager from "../agent-manager.ts";
 import { browsers } from "../ws/broadcast.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
 import { refreshPresenceForUser } from "../presence.ts";
-import { loadOfficeConfig, saveOfficeConfig } from "../persistence.ts";
+import { loadOfficeConfig, normalizePreviewAllowHosts, saveOfficeConfig } from "../persistence.ts";
 import { evictSessionsForUserId, isProcessBoundLoopback, mintInvite, setOfficeName } from "../auth/auth.ts";
 import { deleteUserById, getUserById, getUserByName, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { pushInvitesListToEachWs } from "../access-broadcasts.ts";
@@ -20,6 +20,7 @@ export function readAccessSettingsForApi(): AccessSettingsWire {
   return {
     externalAccess: effectiveExternal,
     publicOrigin: cfg.publicOrigin,
+    previewAllowHosts: cfg.previewAllowHosts,
     envOriginSet: envRaw.length > 0,
     envOrigin,
     boundLoopback: isProcessBoundLoopback(),
@@ -27,7 +28,7 @@ export function readAccessSettingsForApi(): AccessSettingsWire {
   };
 }
 
-export async function saveAccessSettingsForApi(actorUserId: string, input: { externalAccess: boolean; publicOrigin: string }): Promise<SetAccessResult> {
+export async function saveAccessSettingsForApi(actorUserId: string, input: { externalAccess: boolean; publicOrigin: string; previewAllowHosts: string[] }): Promise<SetAccessResult> {
   const rawOrigin = input.publicOrigin.trim();
   const publicOrigin = rawOrigin ? normalizePublicOrigin(rawOrigin) : null;
   if (rawOrigin && !publicOrigin) {
@@ -49,6 +50,7 @@ export async function saveAccessSettingsForApi(actorUserId: string, input: { ext
   }
 
   const prevCfg = loadOfficeConfig();
+  const previewAllowHosts = normalizePreviewAllowHosts(input.previewAllowHosts);
   try {
     saveOfficeConfig({
       prompt: prevCfg.prompt,
@@ -56,6 +58,7 @@ export async function saveAccessSettingsForApi(actorUserId: string, input: { ext
       publicOrigin,
       externalAccess: input.externalAccess,
       officeName: prevCfg.officeName,
+      previewAllowHosts,
     });
   } catch (err) {
     return { ok: false, status: 500, error: err instanceof Error ? err.message : "failed to save access settings" };

@@ -11,6 +11,7 @@ import type { NonSteerableTurnKind } from "./NonSteerableTurnKind";
  */
 export type CodexErrorInfo =
   | "contextWindowExceeded"
+  | "sessionBudgetExceeded"
   | "usageLimitExceeded"
   | "serverOverloaded"
   | "cyberPolicy"

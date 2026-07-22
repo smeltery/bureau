@@ -30,6 +30,7 @@ const deps: AccessHttpDeps = {
   get: () => ({
     externalAccess: true,
     publicOrigin: "https://office.example",
+    previewAllowHosts: ["staging.example.com"],
     envOriginSet: false,
     envOrigin: null,
     boundLoopback: false,
@@ -82,6 +83,7 @@ describe("handleAccessRequest", () => {
     expect(await res?.json()).toEqual({
       externalAccess: true,
       publicOrigin: "https://office.example",
+      previewAllowHosts: ["staging.example.com"],
       envOriginSet: false,
       envOrigin: null,
       boundLoopback: false,
@@ -104,9 +106,9 @@ describe("handleAccessRequest", () => {
   test("saves access settings and returns the restart response", async () => {
     const req = request("/api/office/access", {
       method: "PUT",
-      body: JSON.stringify({ externalAccess: true, publicOrigin: "https://office.example" }),
+      body: JSON.stringify({ externalAccess: true, publicOrigin: "https://office.example", previewAllowHosts: ["staging.example.com"] }),
     });
-    let saved: { externalAccess: boolean; publicOrigin: string } | null = null;
+    let saved: { externalAccess: boolean; publicOrigin: string; previewAllowHosts: string[] } | null = null;
 
     const res = await handleAccessRequest(req, new URL(req.url), ownerAuth, {
       ...deps,
@@ -118,7 +120,7 @@ describe("handleAccessRequest", () => {
 
     expect(res?.status).toBe(200);
     expect(await res?.json()).toEqual({ signInUrl: "https://office.example/i/token", restartRequired: true });
-    expect(JSON.stringify(saved)).toBe(JSON.stringify({ externalAccess: true, publicOrigin: "https://office.example" }));
+    expect(JSON.stringify(saved)).toBe(JSON.stringify({ externalAccess: true, publicOrigin: "https://office.example", previewAllowHosts: ["staging.example.com"] }));
   });
 
   test("returns mapped save errors", async () => {

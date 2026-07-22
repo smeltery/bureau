@@ -37,7 +37,7 @@ export function findRoomIndex(roomId: string): number {
 }
 
 export function getOfficeSettings(): OfficeSettings {
-  return { prompt: officeConfig.prompt, envFile: officeConfig.envFile };
+  return { prompt: officeConfig.prompt, envFile: officeConfig.envFile, previewAllowHosts: officeConfig.previewAllowHosts };
 }
 
 // ---------------------------------------------------------------------------

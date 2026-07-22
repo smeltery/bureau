@@ -9,7 +9,7 @@ export type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 export class OfficeState {
   private agents = new Map<string, AgentInfo>();
   private _rooms: RoomWire[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null }];
-  private _office: OfficeSettings = { prompt: null, envFile: null };
+  private _office: OfficeSettings = { prompt: null, envFile: null, previewAllowHosts: [] };
   private _tasks: TaskItem[] = [];
   private _recentCwds: string[] = [];
 
@@ -196,7 +196,7 @@ export class OfficeState {
 
   setOfficeSettings(prompt: string | null, envFile: string | null): OfficeEvent[] {
     const normalizedPrompt = prompt && prompt.trim() ? prompt.trim() : null;
-    this._office = { prompt: normalizedPrompt, envFile: envFile || null };
+    this._office = { ...this._office, prompt: normalizedPrompt, envFile: envFile || null };
     return [{ type: "office_settings_updated", prompt: this._office.prompt, envFile: this._office.envFile }];
   }
 

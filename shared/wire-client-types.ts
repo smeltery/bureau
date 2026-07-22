@@ -140,6 +140,7 @@ export type ClientCommand =
       externalAccess: boolean;
       publicOrigin: string | null;
       officeName?: string | null;
+      previewAllowHosts?: string[];
     }
   | { type: "presence_update"; currentRoom: number | null; currentRoomId?: string | null; focusedAgentId: string | null; viewMode: "office" | "log" | "away"; device?: string | null }
   | { type: "ping" };

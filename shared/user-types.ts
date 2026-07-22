@@ -4,6 +4,7 @@ import type { GhostVariant } from "./avatar.ts";
 export interface OfficeSettings {
   prompt: string | null;
   envFile: string | null;
+  previewAllowHosts: string[];
 }
 
 export type UserRole = "owner" | "member";

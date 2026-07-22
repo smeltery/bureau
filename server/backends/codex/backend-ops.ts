@@ -21,6 +21,7 @@ export async function initializeCodexClient(client: JsonRpcLiteClient): Promise<
     },
     capabilities: {
       experimentalApi: true,
+      requestAttestation: false,
       optOutNotificationMethods: null,
     },
   });

@@ -26,5 +26,9 @@ export type Model = {
    */
   additionalSpeedTiers: Array<string>;
   serviceTiers: Array<ModelServiceTier>;
+  /**
+   * Catalog default service tier id for this model, when one is configured.
+   */
+  defaultServiceTier: string | null;
   isDefault: boolean;
 };
