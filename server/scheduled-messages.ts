@@ -1,6 +1,7 @@
 import type { QueuedSender, ScheduledMessageEntry } from "../shared/types.ts";
 import { loadScheduledMessages, saveScheduledMessages } from "./persistence.ts";
 import * as AgentManager from "./agent-manager.ts";
+import { addLogEntry } from "./agents/state.ts";
 
 const TICK_INTERVAL_MS = 30_000;
 const INITIAL_TICK_DELAY_MS = 5_000;
@@ -97,6 +98,17 @@ export function cancelScheduledMessage(senderAgentId: string, scheduledId: strin
   return true;
 }
 
+function notifySenderOfDroppedMessage(entry: ScheduledMessageEntry, error: string) {
+  const sender = AgentManager.getAgentDisplay(entry.senderAgentId);
+  if (!sender) return;
+  const when = new Date(entry.deliverAt).toISOString();
+  addLogEntry(entry.senderAgentId, "system", `Scheduled message ${entry.id} for ${when} could not be delivered: ${error}.`, {
+    scheduledId: entry.id,
+    receiverAgentId: entry.receiverAgentId,
+    deliverAt: entry.deliverAt,
+  });
+}
+
 export function tickScheduledMessages(now = Date.now()) {
   ensureLoaded();
   if (tickInProgress) return;
@@ -126,6 +138,7 @@ export function tickScheduledMessages(now = Date.now()) {
       }
       if (result.status === 404 || now - entry.deliverAt > DELIVERY_DEADLINE_MS) {
         delivered.add(entry.id);
+        notifySenderOfDroppedMessage(entry, result.error);
         console.warn(`[scheduled-messages] dropped ${entry.id}: ${result.error}`);
       } else {
         blockedReceivers.add(entry.receiverAgentId);
@@ -149,4 +162,11 @@ export function stopScheduledMessageScheduler() {
   if (intervalHandle) clearInterval(intervalHandle);
   initialHandle = null;
   intervalHandle = null;
+}
+
+export function _testResetScheduledMessages(next: ScheduledMessageEntry[] = []) {
+  entries = next;
+  loaded = true;
+  tickInProgress = false;
+  stopScheduledMessageScheduler();
 }
