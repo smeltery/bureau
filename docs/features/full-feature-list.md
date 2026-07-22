@@ -63,7 +63,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - File attachments via path notices, inline image display, and PDF handling.
 - Voice input and speech synthesis where supported by the browser.
 - Per-agent drafts and queued message chips, including restart-surviving queued
-  messages.
+  messages and Ctrl/Cmd+Enter send-now delivery.
 - Conversation branching by editing a past user message.
 - Session resume, new conversation, model/effort changes, and usage views.
 

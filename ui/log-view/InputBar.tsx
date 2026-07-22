@@ -106,12 +106,15 @@ export function InputBar({
     setSkillUsageCounts((current) => ({ ...current, [name]: (current[name] ?? 0) + 1 }));
   }
 
-  function handleSend() {
+  function handleSend(opts?: { sendNow?: boolean }) {
     const text = input.trim();
     if (!text && validAttachments.length === 0) return;
-    if (isBusy || hasUploading || editingLogEntryId) return;
+    if (hasUploading || editingLogEntryId) return;
     const attachments = validAttachments.length > 0 ? validAttachments.map(({ id: _id, uploading: _u, error: _e, ...att }) => att as Attachment) : undefined;
     send({ type: "send_message", agentId: agent.id, text, username, attachments });
+    if (opts?.sendNow && isBusy) {
+      send({ type: "send_now", agentId: agent.id });
+    }
     setInput("");
     clearAttachments();
     stopListening();

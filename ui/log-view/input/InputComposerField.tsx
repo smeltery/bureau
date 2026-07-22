@@ -2,6 +2,10 @@ import type { ClipboardEvent, RefObject } from "react";
 import { sendAbortDebounced } from "../../utils/abort.ts";
 import { InputAutocomplete } from "../InputAutocomplete.tsx";
 
+export function isSendNowShortcut(event: { key: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }, isMobile: boolean): boolean {
+  return !isMobile && event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.shiftKey;
+}
+
 export function InputComposerField({
   agentId,
   autoResize,
@@ -27,7 +31,7 @@ export function InputComposerField({
   editingLogEntryId: string | null;
   filteredCommands: string[];
   handlePaste: (e: ClipboardEvent) => void;
-  handleSend: () => void;
+  handleSend: (opts?: { sendNow?: boolean }) => void;
   input: string;
   isBusy: boolean;
   isMobile: boolean;
@@ -98,6 +102,11 @@ export function InputComposerField({
               setInput("");
               return;
             }
+          }
+          if (isSendNowShortcut(e, isMobile)) {
+            e.preventDefault();
+            handleSend({ sendNow: true });
+            return;
           }
           if (e.key === "Enter" && !e.shiftKey && !isMobile) {
             e.preventDefault();
