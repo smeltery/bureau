@@ -146,7 +146,10 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       const username = sessionUser(auth)?.name;
       const userId = auth?.kind === "ok" ? auth.session.userId : null;
       const attachments = Array.isArray(body?.attachments) ? (body.attachments as Attachment[]) : undefined;
-      void AgentManager.sendMessage(agentId, text, username, attachments, userId);
+      const send = AgentManager.sendMessage(agentId, text, username, attachments, userId);
+      if (body?.sendNow === true) {
+        void send.then(() => AgentManager.sendNow(agentId));
+      }
       return new Response(JSON.stringify({ messageId: "" }), { headers: JSON_HEADERS });
     }
 
