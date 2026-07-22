@@ -91,7 +91,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (body.priority !== undefined && !isValidPriority(body.priority)) {
       return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3" }), { status: 400, headers: corsHeaders });
     }
-    const requestedRoomId = api ? readTaskRoomId(body.roomId) : undefined;
+    const requestedRoomId = api ? readCreateTaskRoomId(body.roomId, bearer) : undefined;
     if (requestedRoomId instanceof Response) return requestedRoomId;
     if (api && requestedRoomId && !canAccessRoom(requestedRoomId, bearer, auth)) {
       return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
@@ -214,6 +214,14 @@ function readTaskRoomId(value: unknown): string | undefined | Response {
   if (value === undefined || value === "") return undefined;
   if (typeof value !== "string") return new Response(JSON.stringify({ error: "roomId must be a string" }), { status: 400, headers: corsHeaders });
   return value;
+}
+
+function readCreateTaskRoomId(value: unknown, bearer: ReturnType<typeof resolveAgentToken>): string | undefined | Response {
+  if (value !== undefined) return readTaskRoomId(value);
+  if (!bearer) return undefined;
+  const agent = AgentManager.getAgent(bearer.agentId);
+  const room = agent ? AgentManager.getRooms()[agent.room] : undefined;
+  return room?.id;
 }
 
 function taskCreateIdempotencyKey(req: Request, bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined): string | null {
