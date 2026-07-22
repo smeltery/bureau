@@ -25,13 +25,17 @@ export type EnqueueResult = { ok: true; queued: boolean; messageId: string } | {
 
 export function enqueueMessage(
   receiverId: string,
-  msg: { sender: QueuedSender; text: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean },
+  msg: { sender: QueuedSender; text: string; clientMessageId?: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean },
 ): EnqueueResult {
   const managed = agents.get(receiverId);
   if (!managed) return { ok: false, error: "agent not found", status: 404 };
   const state = managed.info.state;
   if (state === "error" || state === "stopped") {
     return { ok: false, error: "agent is not accepting messages", status: 409 };
+  }
+  if (msg.clientMessageId) {
+    const duplicate = managed.messageQueue.find((item) => item.clientMessageId === msg.clientMessageId && sameSender(item.sender, msg.sender));
+    if (duplicate) return { ok: true, queued: true, messageId: duplicate.id };
   }
   if (managed.messageQueue.length >= QUEUE_MAX) {
     return { ok: false, error: `queue full (limit ${QUEUE_MAX})`, status: 429 };
@@ -42,6 +46,7 @@ export function enqueueMessage(
     id,
     sender: msg.sender,
     text: msg.text,
+    ...(msg.clientMessageId ? { clientMessageId: msg.clientMessageId } : {}),
     ...(msg.sdkText ? { sdkText: msg.sdkText } : {}),
     ...(canFlushNow ? {} : { queuedDuringBusyTurn: true }),
     ...(msg.scheduledFor ? { scheduledFor: msg.scheduledFor } : {}),
@@ -58,6 +63,13 @@ export function enqueueMessage(
     return { ok: true, queued: false, messageId: id };
   }
   return { ok: true, queued: true, messageId: id };
+}
+
+function sameSender(a: QueuedSender, b: QueuedSender): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "user" && b.kind === "user") return a.username === b.username;
+  if (a.kind === "agent" && b.kind === "agent") return a.agentId === b.agentId;
+  return false;
 }
 
 function senderPrefixText(sender: QueuedSender): string {

@@ -94,6 +94,7 @@ export interface QueuedMessage {
   id: string; // short hex; UI uses this to cancel
   sender: QueuedSender;
   text: string; // what we show in chat (raw user input)
+  clientMessageId?: string;
   // What we send to the SDK in place of `text`. Set when the queued item
   // is a pre-expanded slash command (e.g. /bureau-peer-review → full skill
   // prompt). Stays undefined for plain user messages.

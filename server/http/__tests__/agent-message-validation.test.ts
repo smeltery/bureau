@@ -62,6 +62,28 @@ function installBusyAgent(id: string, sent: string[]) {
   return managed;
 }
 
+function installIdleAgent(id: string) {
+  const info: AgentInfo = {
+    id,
+    name: "Sender Test",
+    desk: 1,
+    room: 0,
+    cwd: process.cwd(),
+    outfit: { hat: "none", color: "#000000", hair: "#000000", hairStyle: "short", skin: "#000000", beard: "none", accessory: null },
+    permissionMode: "default",
+    modelFamily: "sonnet",
+    agentType: "claude",
+    capabilities: DEFAULT_AGENT_CAPABILITIES,
+    state: "idle",
+    topic: null,
+    topicStale: false,
+    customInstructions: null,
+  };
+  const managed = createManagedAgent({ info, skillCwd: process.cwd(), slashCommands: [], skills: [] });
+  agents.set(id, managed);
+  return managed;
+}
+
 async function settleAsyncWork() {
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -131,5 +153,24 @@ describe("agent message validation", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]).toContain("urgent");
     expect(sent[0]).toContain("queued while you were processing");
+  });
+
+  test("dedupes repeated bearer messages with the same client message id", async () => {
+    const sent: string[] = [];
+    const receiver = installBusyAgent("receiver-1", sent);
+    installIdleAgent("sender-1");
+    const token = mintAgentToken("sender-1", "user-1");
+    const headers = { Authorization: `Bearer ${token}` };
+    const body = { text: "retry once", clientMessageId: "client-msg-1" };
+
+    const first = await handleAgentsRequest(request("/api/agents/receiver-1/messages", body, headers), new URL("http://local.test/api/agents/receiver-1/messages"), { kind: "loopback" });
+    const second = await handleAgentsRequest(request("/api/agents/receiver-1/messages", body, headers), new URL("http://local.test/api/agents/receiver-1/messages"), { kind: "loopback" });
+    const firstBody = await first?.json();
+    const secondBody = await second?.json();
+
+    expect(first?.status).toBe(200);
+    expect(second?.status).toBe(200);
+    expect(firstBody.messageId).toBe(secondBody.messageId);
+    expect(receiver.messageQueue.map((m) => m.text)).toEqual(["retry once"]);
   });
 });

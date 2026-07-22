@@ -136,6 +136,7 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
         const result = AgentManager.enqueueMessage(agentId, {
           sender: { kind: "agent", agentId: bearer.agentId, agentName: senderInfo.name, roomName: senderInfo.roomName },
           text,
+          clientMessageId: typeof body?.clientMessageId === "string" ? body.clientMessageId : undefined,
         });
         if (!result.ok) return jsonError(result.status, result.error);
         return new Response(JSON.stringify({ messageId: result.messageId }), { headers: JSON_HEADERS });
