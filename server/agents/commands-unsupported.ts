@@ -15,13 +15,13 @@ export const unsupportedHardcodedCommands: Record<string, CommandConfig> = {
   export: { ...UNSUPPORTED_HARDCODED, description: "Export conversation to file" },
   plan: { ...UNSUPPORTED_HARDCODED, description: "Toggle plan mode" },
   rename: { ...UNSUPPORTED_HARDCODED, description: "Rename current session" },
-  reset: { type: "hardcoded", supported: true, autocomplete: false, overridable: false, handler: "clear", description: "Reset conversation" },
-  new: { type: "hardcoded", supported: true, autocomplete: false, overridable: false, handler: "clear", description: "Start new conversation" },
+  reset: { type: "hardcoded", supported: true, autocomplete: false, overridable: false, handler: "clear", description: "Reset conversation", autoRun: true },
+  new: { type: "hardcoded", supported: true, autocomplete: false, overridable: false, handler: "clear", description: "Start new conversation", autoRun: true },
 
   // --- Model & performance ---
-  model: { type: "hardcoded", supported: true, autocomplete: true, overridable: false, handler: "model", description: "Switch model" },
+  model: { type: "hardcoded", supported: true, autocomplete: true, overridable: false, handler: "model", description: "Switch model", autoRun: true },
   fast: { ...UNSUPPORTED_HARDCODED, description: "Toggle speed-optimized mode" },
-  effort: { type: "hardcoded", supported: true, autocomplete: true, overridable: false, handler: "effort", description: "Set thinking effort level" },
+  effort: { type: "hardcoded", supported: true, autocomplete: true, overridable: false, handler: "effort", description: "Set thinking effort level", autoRun: true },
   advisor: { ...UNSUPPORTED_HARDCODED, description: "Toggle advisor mode" },
 
   // --- Cost & usage ---
@@ -33,6 +33,7 @@ export const unsupportedHardcodedCommands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "usage",
     description: "Where to check subscription and office usage",
+    autoRun: true,
   },
   stats: { ...UNSUPPORTED_HARDCODED, description: "Usage patterns over time" },
   "extra-usage": { ...UNSUPPORTED_HARDCODED, description: "Extra usage options" },
@@ -47,6 +48,7 @@ export const unsupportedHardcodedCommands: Record<string, CommandConfig> = {
     handler: "bureauDiff",
     description: "Peek uncommitted changes in the agent's cwd (or pass a directory)",
     aliasFor: "bureau-diff",
+    autoRun: true,
   },
   rewind: { ...UNSUPPORTED_HARDCODED, description: "Undo changes and revert conversation" },
   checkpoint: { ...UNSUPPORTED_HARDCODED, description: "Undo changes and revert conversation" },

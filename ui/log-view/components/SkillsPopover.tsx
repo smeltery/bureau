@@ -6,6 +6,7 @@ export interface CommandEntry {
   name: string;
   description?: string;
   aliasFor?: string;
+  autoRun?: boolean;
 }
 
 export function SkillsPopover({
@@ -20,7 +21,7 @@ export function SkillsPopover({
   commands: CommandEntry[];
   usageCounts: Record<string, number>;
   isMobile: boolean;
-  onPick: (name: string) => void;
+  onPick: (name: string, autoRun?: boolean) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -103,7 +104,7 @@ export function SkillsPopover({
               <div
                 key={entry.name}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => onPick(entry.name)}
+                onClick={() => onPick(entry.name, entry.autoRun)}
                 title={!isMobile ? entry.description : undefined}
                 style={{
                   padding: isMobile ? "8px 12px" : "5px 12px",

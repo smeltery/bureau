@@ -42,7 +42,7 @@ export interface AppState {
   soundTrigger: { seq: number; roomId: string | null; agentId: string | null; agentName: string | null };
   drafts: Map<string, string>; // agentId → unsent chat input
   recentCwds: string[]; // persisted recent working directories
-  slashCommands: Map<string, { commands: { name: string; description?: string; aliasFor?: string }[]; skills: SkillInfo[] }>; // agentId → available commands
+  slashCommands: Map<string, { commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }>; // agentId → available commands
   stateChangedAt: Map<string, number>; // agentId → timestamp when agent state last changed
   office: OfficeSettings;
   rooms: RoomWire[];
@@ -102,7 +102,7 @@ export type Action =
   | { type: "disconnected" }
   | { type: "sessions_list"; agentId: string; sessions: SessionInfo[]; currentSessionId: string | null }
   | { type: "set_draft"; agentId: string; text: string }
-  | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string }[]; skills: SkillInfo[] }
+  | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }
   | { type: "clear_logs"; agentId: string }
   | { type: "set_mobile"; isMobile: boolean }
   | { type: "toggle_mobile_view" }

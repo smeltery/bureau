@@ -53,7 +53,7 @@ export function getAgentLogs(agentId: string): LogEntry[] {
   return logCache.get(agentId) ?? [];
 }
 
-export function getAgentCommands(agentId: string): { commands: { name: string; description?: string }[]; skills: SkillInfo[] } {
+export function getAgentCommands(agentId: string): { commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] } {
   const managed = agents.get(agentId);
   return {
     commands: managed?.slashCommands ?? [],

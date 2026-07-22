@@ -119,3 +119,38 @@ describe("unsupported commands", () => {
     expect(commands.loop.overridable).toBe(true);
   });
 });
+
+describe("command auto-run metadata", () => {
+  test("marks no-argument commands and emits only literal true on autocomplete entries", () => {
+    const expectedAutoRun = new Set([
+      "clear",
+      "context",
+      "handoff",
+      "help",
+      "bureau-usage",
+      "resume",
+      "login",
+      "bureau-all-hands",
+      "bureau-system-prompt",
+      "bureau-diff",
+      "usage",
+      "model",
+      "effort",
+      "diff",
+    ]);
+    const actualAutoRun = new Set(
+      Object.entries(commands)
+        .filter(([, config]) => config.autoRun === true)
+        .map(([name]) => name),
+    );
+    expect(actualAutoRun).toEqual(new Set([...expectedAutoRun, "reset", "new"]));
+
+    for (const command of autocompleteCommands()) {
+      if (expectedAutoRun.has(command.name)) {
+        expect(command.autoRun).toBe(true);
+      } else {
+        expect("autoRun" in command).toBe(false);
+      }
+    }
+  });
+});

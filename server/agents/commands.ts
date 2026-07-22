@@ -23,6 +23,8 @@ export type CommandConfig = {
   description?: string;
   /** Custom ephemeral message for unsupported commands (default is type-aware) */
   message?: string;
+  /** Bare `/name` is a complete command and can run directly from command pickers. */
+  autoRun?: boolean;
   /**
    * Marks this entry as an alias of another command. The other command is
    * the canonical name; this one is a friendlier shorthand. /help groups
@@ -47,6 +49,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "clear",
     description: "Wipe conversation history",
+    autoRun: true,
   },
   context: {
     type: "hardcoded",
@@ -55,6 +58,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "context",
     description: "Visualize context window usage",
+    autoRun: true,
   },
   handoff: {
     type: "hardcoded",
@@ -63,6 +67,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "handoff",
     description: "Draft a restart prompt for a fresh session",
+    autoRun: true,
   },
   "handoff-apply": {
     type: "hardcoded",
@@ -79,6 +84,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "help",
     description: "List all available commands",
+    autoRun: true,
   },
   "bureau-usage": {
     type: "hardcoded",
@@ -87,6 +93,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "bureauUsage",
     description: "Per-agent / per-room / per-cron-job token spend",
+    autoRun: true,
   },
   resume: {
     type: "hardcoded",
@@ -95,6 +102,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "resume",
     description: "Pick up a previous session",
+    autoRun: true,
   },
   login: {
     type: "hardcoded",
@@ -103,6 +111,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "login",
     description: "Log in to your Anthropic account",
+    autoRun: true,
   },
   logout: {
     type: "hardcoded",
@@ -119,6 +128,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "bureauAllHands",
     description: "Summary of all agents and their conversations",
+    autoRun: true,
   },
   "bureau-system-prompt": {
     type: "hardcoded",
@@ -127,6 +137,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "bureauSystemPrompt",
     description: "Show the full system prompt this agent receives",
+    autoRun: true,
   },
   "bureau-cronjob-system-prompt": {
     type: "hardcoded",
@@ -143,6 +154,7 @@ export const commands: Record<string, CommandConfig> = {
     overridable: false,
     handler: "bureauDiff",
     description: "Peek uncommitted changes in the agent's cwd (or pass a directory)",
+    autoRun: true,
   },
   "bureau-edit": {
     type: "hardcoded",
@@ -169,13 +181,14 @@ export const commands: Record<string, CommandConfig> = {
 // ---------------------------------------------------------------------------
 
 /** All command names that should appear in autocomplete from the config. */
-export function autocompleteCommands(): { name: string; description?: string; aliasFor?: string }[] {
+export function autocompleteCommands(): { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[] {
   return Object.entries(commands)
     .filter(([, cfg]) => cfg.autocomplete)
     .map(([name, cfg]) => ({
       name,
       description: cfg.description,
       ...(cfg.aliasFor ? { aliasFor: cfg.aliasFor } : {}),
+      ...(cfg.autoRun === true ? { autoRun: true } : {}),
     }));
 }
 

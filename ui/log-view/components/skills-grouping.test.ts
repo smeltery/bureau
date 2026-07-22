@@ -4,7 +4,7 @@ import { buildSkillsMenuGroups, MOST_USED_CAP } from "./skills-grouping.ts";
 import type { CommandEntry } from "./SkillsPopover.tsx";
 
 const skill = (name: string, origin: SkillInfo["origin"] = "user", aliasFor?: string): SkillInfo => ({ name, origin, aliasFor });
-const command = (name: string, aliasFor?: string): CommandEntry => ({ name, aliasFor });
+const command = (name: string, aliasFor?: string, autoRun?: boolean): CommandEntry => ({ name, aliasFor, ...(autoRun === true ? { autoRun: true } : {}) });
 
 const names = (groups: ReturnType<typeof buildSkillsMenuGroups>, key: string): string[] => groups.find((group) => group.key === key)?.entries.map((entry) => entry.name) ?? [];
 
@@ -75,5 +75,14 @@ describe("buildSkillsMenuGroups", () => {
     });
     expect(names(groups, "most-used")).toEqual(["tdd"]);
     expect(groups.find((group) => group.key === "commands")).toBeUndefined();
+  });
+
+  test("preserves auto-run metadata on command entries only", () => {
+    const groups = build({
+      commands: [command("context", undefined, true), command("bureau-edit")],
+      skills: [skill("context-helper")],
+    });
+    expect(groups.find((group) => group.key === "commands")?.entries).toEqual([expect.objectContaining({ name: "bureau-edit" }), expect.objectContaining({ name: "context", autoRun: true })]);
+    expect(groups.find((group) => group.key === "user")?.entries).toEqual([expect.not.objectContaining({ autoRun: true })]);
   });
 });

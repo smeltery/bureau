@@ -157,7 +157,14 @@ export function InputBar({
           usageCounts={skillUsageCounts}
           isMobile={isMobile}
           onClose={() => setSkillsOpen(false)}
-          onPick={(name) => {
+          onPick={(name, autoRun) => {
+            if (autoRun === true) {
+              send({ type: "send_message", agentId: agent.id, text: `/${name}`, username });
+              recordLocalSkillUsage(name);
+              setSkillsOpen(false);
+              onSent();
+              return;
+            }
             setInput(`/${name} `);
             setSkillsOpen(false);
             requestAnimationFrame(() => textareaRef.current?.focus());

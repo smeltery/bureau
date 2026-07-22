@@ -8,7 +8,7 @@ export function createManagedAgent(input: {
   skillCwd: string;
   sessionId?: string | null;
   topicMessageCount?: number;
-  slashCommands?: { name: string; description?: string }[];
+  slashCommands?: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[];
   skills?: SkillInfo[];
 }): ManagedAgent {
   const slashCommands = input.slashCommands ?? autocompleteCommands();

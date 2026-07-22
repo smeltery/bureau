@@ -19,6 +19,7 @@ export const MOST_USED_CAP = 8;
 export interface SkillsMenuEntry {
   name: string;
   description?: string;
+  autoRun?: boolean;
   count: number;
 }
 
@@ -45,13 +46,13 @@ export function buildSkillsMenuGroups(input: { skills: SkillInfo[]; commands: Co
   const countFor = (name: string, aliasFor?: string) => ownCount(name) + (aliasFor ? ownCount(aliasFor) : 0);
 
   const entries: { entry: SkillsMenuEntry; home: GroupKey }[] = [];
-  const add = (home: GroupKey, name: string, description?: string, aliasFor?: string) => {
+  const add = (home: GroupKey, name: string, description?: string, autoRun?: boolean, aliasFor?: string) => {
     if (aliasTargets.has(name) || !matches(name, description)) return;
-    entries.push({ home, entry: { name, description, count: countFor(name, aliasFor) } });
+    entries.push({ home, entry: { name, description, ...(autoRun === true ? { autoRun: true } : {}), count: countFor(name, aliasFor) } });
   };
 
-  for (const command of commands) add("commands", command.name, command.description, command.aliasFor);
-  for (const skill of skills) add(groupForOrigin(skill.origin), skill.name, skill.description, skill.aliasFor);
+  for (const command of commands) add("commands", command.name, command.description, command.autoRun, command.aliasFor);
+  for (const skill of skills) add(groupForOrigin(skill.origin), skill.name, skill.description, undefined, skill.aliasFor);
 
   const mostUsed = entries
     .filter((entry) => entry.entry.count > 0)
