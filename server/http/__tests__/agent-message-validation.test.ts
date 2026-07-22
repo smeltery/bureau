@@ -44,4 +44,29 @@ describe("agent message validation", () => {
     expect(res?.status).toBe(422);
     expect(await res?.json()).toEqual({ error: "deliverAt must be a string" });
   });
+
+  test("rejects malformed send-now flags", async () => {
+    const req = request("/api/agents/agent-1/messages", { text: "hello", sendNow: "yes" });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(422);
+    expect(await res?.json()).toEqual({ error: "sendNow must be a boolean" });
+  });
+
+  test("rejects send-now flags from bearer-token senders", async () => {
+    const token = mintAgentToken("agent-1", "user-1");
+    const req = request(
+      "/api/agents/agent-2/messages",
+      { text: "hello", sendNow: true },
+      {
+        Authorization: `Bearer ${token}`,
+      },
+    );
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "sendNow is only supported for user senders" });
+  });
 });

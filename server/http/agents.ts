@@ -115,6 +115,7 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       const bearer = resolveAgentToken(rawBearer);
       if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
       if (bearer) {
+        if (body?.sendNow !== undefined) return jsonError(400, "sendNow is only supported for user senders");
         if (!text) return jsonError(400, "text is required");
         const deliverAt = typeof deliverAtRaw === "string" ? parseDeliverAt(deliverAtRaw) : null;
         if (deliverAtRaw !== undefined) {
@@ -185,6 +186,7 @@ function malformedMessageFields(body: Record<string, unknown> | null): Response 
   if (body.attachments !== undefined && !Array.isArray(body.attachments)) return jsonError(422, "attachments must be an array");
   if (body.clientMessageId !== undefined && typeof body.clientMessageId !== "string") return jsonError(422, "clientMessageId must be a string");
   if (body.deliverAt !== undefined && typeof body.deliverAt !== "string") return jsonError(422, "deliverAt must be a string");
+  if (body.sendNow !== undefined && typeof body.sendNow !== "boolean") return jsonError(422, "sendNow must be a boolean");
   return null;
 }
 
