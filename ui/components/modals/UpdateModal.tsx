@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useAppState } from "../../store.tsx";
+import type { AgentInfo } from "../../../shared/types.ts";
 import { CopyButton } from "../controls/CopyButton.tsx";
 import { Modal } from "./Modal.tsx";
 
@@ -15,19 +16,36 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
-function buildPlainText(current: { sha: string; message: string; date: string }, latest: { sha: string; message: string; date: string }): string {
-  return [
+export function countBusyAgents(agents: Pick<AgentInfo, "state">[]): number {
+  return agents.filter((agent) => agent.state === "thinking" || agent.state === "tool_executing").length;
+}
+
+function busyAgentRestartWarning(busyAgents: number): string | null {
+  if (busyAgents === 0) return null;
+  return `${busyAgents} ${busyAgents === 1 ? "agent is" : "agents are"} currently working. Wait for ${busyAgents === 1 ? "it" : "them"} to finish before restarting if you do not want to interrupt active work.`;
+}
+
+export function buildPlainText(current: { sha: string; message: string; date: string }, latest: { sha: string; message: string; date: string }, busyAgents = 0): string {
+  const lines = [
     "Update Available",
     "",
     `- You are on commit ${shortSha(current.sha)}: ${current.message} (${formatDate(current.date)})`,
     `- GitHub is on commit ${shortSha(latest.sha)}: ${latest.message} (${formatDate(latest.date)})`,
+  ];
+
+  const warning = busyAgentRestartWarning(busyAgents);
+  if (warning) lines.push("", `Warning: ${warning}`);
+
+  lines.push(
     "",
     "To update:",
     "",
     "1. Pull the latest changes",
     "2. Run `bun install`",
     `3. Restart the server: run \`bun run dev\`, or something like \`systemctl --user restart bureau\` if using a persistent systemd service.`,
-  ].join("\n");
+  );
+
+  return lines.join("\n");
 }
 
 const code: React.CSSProperties = {
@@ -43,9 +61,11 @@ const textStyle: React.CSSProperties = {
 };
 
 export function UpdateModal({ onClose }: { onClose: () => void }) {
-  const { updateCurrent, updateLatest } = useAppState();
+  const { agents, updateCurrent, updateLatest } = useAppState();
+  const busyAgents = countBusyAgents(agents);
+  const warning = busyAgentRestartWarning(busyAgents);
 
-  const getText = useCallback(() => buildPlainText(updateCurrent, updateLatest), [updateCurrent, updateLatest]);
+  const getText = useCallback(() => buildPlainText(updateCurrent, updateLatest, busyAgents), [busyAgents, updateCurrent, updateLatest]);
 
   return (
     <Modal onClose={onClose} width={480}>
@@ -65,6 +85,22 @@ export function UpdateModal({ onClose }: { onClose: () => void }) {
           is on commit <code style={code}>{shortSha(updateLatest.sha)}</code>: {updateLatest.message} ({formatDate(updateLatest.date)})
         </li>
       </ul>
+
+      {warning && (
+        <p
+          style={{
+            ...textStyle,
+            margin: "16px 0 0",
+            padding: "10px 12px",
+            border: "1px solid var(--orange, #d29922)",
+            borderRadius: 8,
+            background: "color-mix(in srgb, var(--orange, #d29922) 12%, transparent)",
+            color: "var(--text-primary)",
+          }}
+        >
+          {warning}
+        </p>
+      )}
 
       <p style={{ ...textStyle, margin: "16px 0 6px", fontWeight: 600, color: "var(--text-primary)" }}>To update:</p>
       <ol style={{ ...textStyle, margin: 0, paddingLeft: 20 }}>
