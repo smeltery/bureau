@@ -107,7 +107,8 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
     if (req.method === "POST" && parts.length === 3 && parts[2] === "messages") {
       const body = await readJsonBody(req);
       const text = typeof body?.text === "string" ? body.text : "";
-      if (body?.attachments !== undefined && !Array.isArray(body.attachments)) return jsonError(422, "attachments must be an array");
+      const malformedFields = malformedMessageFields(body);
+      if (malformedFields) return malformedFields;
       if (!text && !Array.isArray(body?.attachments)) return jsonError(400, "text is required");
       const deliverAtRaw = body?.deliverAt;
       const rawBearer = readBearerToken(req);
@@ -176,6 +177,14 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
   const bearerResponse = await handleAgentBearerPost(req, parts);
   if (bearerResponse) return bearerResponse;
 
+  return null;
+}
+
+function malformedMessageFields(body: Record<string, unknown> | null): Response | null {
+  if (!body) return null;
+  if (body.attachments !== undefined && !Array.isArray(body.attachments)) return jsonError(422, "attachments must be an array");
+  if (body.clientMessageId !== undefined && typeof body.clientMessageId !== "string") return jsonError(422, "clientMessageId must be a string");
+  if (body.deliverAt !== undefined && typeof body.deliverAt !== "string") return jsonError(422, "deliverAt must be a string");
   return null;
 }
 
