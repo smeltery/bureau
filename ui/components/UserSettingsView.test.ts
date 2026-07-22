@@ -5,6 +5,7 @@ describe("buildAccountSections", () => {
   test("splits owner account management into access, sessions, devices, and signout", () => {
     expect(buildAccountSections(true, true)).toEqual([
       { section: "access", label: "Access" },
+      { section: "invites", label: "Invites" },
       { section: "sessions", label: "Sessions" },
       { section: "devices", label: "My devices" },
       { section: "signout", label: "Sign out" },

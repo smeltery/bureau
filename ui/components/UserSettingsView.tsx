@@ -4,6 +4,7 @@ import { send } from "../ws.ts";
 import type { UserRole } from "../../shared/types.ts";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { AccessPane, sectionHeader } from "./AccessPane.tsx";
+import { InvitesPane } from "./InvitesPane.tsx";
 import { MyDevicesPane } from "./MyDevicesPane.tsx";
 import { SessionsPane } from "./SessionsPane.tsx";
 import { buildAccountSections, type AccountSection } from "./UserSettingsSections.ts";
@@ -206,6 +207,8 @@ export function UserSettingsView({
               </section>
             ) : selection?.kind === "section" && selection.section === "access" ? (
               <AccessPane />
+            ) : selection?.kind === "section" && selection.section === "invites" ? (
+              <InvitesPane />
             ) : selection?.kind === "section" && selection.section === "sessions" ? (
               <SessionsPane />
             ) : selection?.kind === "section" && selection.section === "devices" ? (
