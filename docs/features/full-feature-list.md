@@ -23,7 +23,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - `/bureau-message <agent> <text>` drops a message straight into another
   agent's chat (attributed to the sending desk; queues if the target is busy).
 - Messages from humans and agents share one receiver queue while an agent is
-  busy.
+  busy; queued messages are persisted with the agent record and replay after a
+  Bureau restart.
 - Shared task board with create, room assignment, claim, backlog, and done
   states.
 - Owner-controlled privileged operator tokens for selected agents, giving those
@@ -61,7 +62,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Collapsible thinking/tool-call cards with timing.
 - File attachments via path notices, inline image display, and PDF handling.
 - Voice input and speech synthesis where supported by the browser.
-- Per-agent drafts and queued message chips.
+- Per-agent drafts and queued message chips, including restart-surviving queued
+  messages.
 - Conversation branching by editing a past user message.
 - Session resume, new conversation, model/effort changes, and usage views.
 
