@@ -107,6 +107,7 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
     if (req.method === "POST" && parts.length === 3 && parts[2] === "messages") {
       const body = await readJsonBody(req);
       const text = typeof body?.text === "string" ? body.text : "";
+      if (body?.attachments !== undefined && !Array.isArray(body.attachments)) return jsonError(422, "attachments must be an array");
       if (!text && !Array.isArray(body?.attachments)) return jsonError(400, "text is required");
       const deliverAtRaw = body?.deliverAt;
       const rawBearer = readBearerToken(req);

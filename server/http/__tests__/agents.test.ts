@@ -215,6 +215,18 @@ describe("handleAgentsRequest", () => {
     expect(await res?.json()).toEqual({ error: "missing or invalid bearer token" });
   });
 
+  test("rejects malformed attachments on conversation message routes", async () => {
+    installAgentWithContext("agent-1");
+    const req = request("/api/agents/agent-1/messages", {
+      body: JSON.stringify({ text: "hello", attachments: {} }),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(422);
+    expect(await res?.json()).toEqual({ error: "attachments must be an array" });
+  });
+
   test("rejects user-scope scheduled messages instead of sending immediately", async () => {
     const req = request("/api/agents/agent-1/messages", {
       body: JSON.stringify({ text: "later", deliverAt: "2026-07-14T18:30:00Z" }),
