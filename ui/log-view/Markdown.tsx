@@ -17,6 +17,7 @@ import yaml from "highlight.js/lib/languages/yaml";
 import markdown from "highlight.js/lib/languages/markdown";
 import plaintext from "highlight.js/lib/languages/plaintext";
 import { renderMermaidBlocks } from "./markdown/mermaid.ts";
+import { sanitizeSvg } from "./markdown/svg-sanitize.ts";
 
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("js", javascript);
@@ -80,6 +81,22 @@ const escapeHtmlAttr = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&q
 marked.use({
   extensions: [
     {
+      name: "svgInline",
+      level: "inline",
+      start(src: string) {
+        const idx = src.indexOf("<svg");
+        return idx >= 0 ? idx : undefined;
+      },
+      tokenizer(src: string) {
+        const match = /^<svg\b[\s\S]*?<\/svg>/.exec(src);
+        if (!match) return undefined;
+        return { type: "svgInline", raw: match[0], source: match[0] };
+      },
+      renderer(token) {
+        return sanitizeSvg((token as { source?: string }).source ?? "");
+      },
+    },
+    {
       name: "mermaidBlock",
       level: "block",
       start(src: string) {
@@ -107,14 +124,16 @@ const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" st
 const CHECK_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></svg>`;
 const COPY_BTN_HTML = `<button class="copy-btn code-copy-btn" title="Copy">${COPY_SVG}</button>`;
 
+export function renderMarkdown(content: string): string {
+  const raw = marked.parse(content) as string;
+  const withCode = raw.replace(/<pre>/g, `<div class="code-block-wrapper">${COPY_BTN_HTML}<pre>`).replace(/<\/pre>/g, `</pre></div>`);
+  return withCode.replace(/<table>/g, `<div class="table-wrapper"><table>`).replace(/<\/table>/g, `</table></div>`);
+}
+
 export function Markdown({ content }: { content: string }) {
   const html = useMemo(() => {
     try {
-      const raw = marked.parse(content) as string;
-      // Wrap <pre> blocks in a container so the copy button stays fixed outside the scroll area
-      const withCode = raw.replace(/<pre>/g, `<div class="code-block-wrapper">${COPY_BTN_HTML}<pre>`).replace(/<\/pre>/g, `</pre></div>`);
-      // Wrap <table> blocks so they scroll horizontally on narrow viewports instead of overflowing
-      return withCode.replace(/<table>/g, `<div class="table-wrapper"><table>`).replace(/<\/table>/g, `</table></div>`);
+      return renderMarkdown(content);
     } catch {
       return content;
     }
