@@ -88,7 +88,57 @@ describe("handleRoomsRequest", () => {
     const res = await handleRoomsRequest(req, new URL(req.url), ownerAuth);
 
     expect(res?.status).toBe(200);
-    expect(await res?.json()).toEqual({ prompt: "Keep reviews short.", envFile: null });
+    const body = await res?.json();
+    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, version: body.version });
+    expect(typeof body.version).toBe("string");
+    AgentManager.setRoomSettings(room.id, null, null);
+  });
+
+  test("requires the current room settings version when saving", async () => {
+    const room = AgentManager.getRooms()[0]!;
+    AgentManager.setRoomSettings(room.id, "current", null);
+    const current = await handleRoomsRequest(request(`/api/rooms/${room.id}/settings`), new URL(`http://local.test/api/rooms/${room.id}/settings`), ownerAuth);
+    expect(current).not.toBeNull();
+    const version = ((await current!.json()) as { version: string }).version;
+
+    const missing = await handleRoomsRequest(
+      request(`/api/rooms/${room.id}/settings`, {
+        method: "PUT",
+        body: JSON.stringify({ prompt: "next", envFile: null }),
+      }),
+      new URL(`http://local.test/api/rooms/${room.id}/settings`),
+      ownerAuth,
+    );
+    expect(missing?.status).toBe(400);
+    expect(await missing?.json()).toEqual({ error: "settings version is required" });
+    expect(AgentManager.getRoomSettings(room.id)?.prompt).toBe("current");
+
+    AgentManager.setRoomSettings(room.id, "newer", null);
+    const stale = await handleRoomsRequest(
+      request(`/api/rooms/${room.id}/settings`, {
+        method: "PUT",
+        body: JSON.stringify({ prompt: "stale write", envFile: null, version }),
+      }),
+      new URL(`http://local.test/api/rooms/${room.id}/settings`),
+      ownerAuth,
+    );
+    expect(stale?.status).toBe(409);
+    expect(await stale?.json()).toEqual({ error: "room settings changed; fetch the latest version and retry" });
+    expect(AgentManager.getRoomSettings(room.id)?.prompt).toBe("newer");
+
+    const latest = await handleRoomsRequest(request(`/api/rooms/${room.id}/settings`), new URL(`http://local.test/api/rooms/${room.id}/settings`), ownerAuth);
+    expect(latest).not.toBeNull();
+    const latestVersion = ((await latest!.json()) as { version: string }).version;
+    const saved = await handleRoomsRequest(
+      request(`/api/rooms/${room.id}/settings`, {
+        method: "PUT",
+        body: JSON.stringify({ prompt: "saved", envFile: null, version: latestVersion }),
+      }),
+      new URL(`http://local.test/api/rooms/${room.id}/settings`),
+      ownerAuth,
+    );
+    expect(saved?.status).toBe(204);
+    expect(AgentManager.getRoomSettings(room.id)?.prompt).toBe("saved");
     AgentManager.setRoomSettings(room.id, null, null);
   });
 
