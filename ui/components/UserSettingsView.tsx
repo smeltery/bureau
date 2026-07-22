@@ -5,9 +5,10 @@ import type { UserRole } from "../../shared/types.ts";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { AccessPane, sectionHeader } from "./AccessPane.tsx";
 import { MyDevicesPane } from "./MyDevicesPane.tsx";
+import { SessionsPane } from "./SessionsPane.tsx";
+import { buildAccountSections, type AccountSection } from "./UserSettingsSections.ts";
 import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
 import { UserEditPanel } from "./modals/UserEditPanel.tsx";
-type AccountSection = "access" | "devices" | "signout";
 type Selection = { kind: "user"; id: string } | { kind: "section"; section: AccountSection };
 export function UserSettingsView({
   currentUsername,
@@ -33,11 +34,7 @@ export function UserSettingsView({
   const editIsDirtyRef = useRef(false);
 
   const selectedUser = selection?.kind === "user" ? userList.find((user) => user.id === selection.id) : null;
-  const accountSections: { section: AccountSection; label: string }[] = [
-    ...(isOwner ? [{ section: "access" as const, label: "Access" }] : []),
-    ...(sessionContext ? [{ section: "devices" as const, label: "My devices" }] : []),
-    ...(sessionContext ? [{ section: "signout" as const, label: "Sign out" }] : []),
-  ];
+  const accountSections = buildAccountSections(isOwner, !!sessionContext);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -209,6 +206,8 @@ export function UserSettingsView({
               </section>
             ) : selection?.kind === "section" && selection.section === "access" ? (
               <AccessPane />
+            ) : selection?.kind === "section" && selection.section === "sessions" ? (
+              <SessionsPane />
             ) : selection?.kind === "section" && selection.section === "devices" ? (
               <MyDevicesPane />
             ) : selection?.kind === "section" && selection.section === "signout" ? (
