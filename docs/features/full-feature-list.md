@@ -78,6 +78,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Copy-to-terminal cards for commands an agent wants to hand to the user.
 - File-view cards for agent-exposed files.
 - Browser preview cards for local/private development URLs.
+- Local `curl` calls to Bureau affordance endpoints render as readable
+  tool-call summaries with key payload fields.
 
 ## Scheduling And Persistence
 

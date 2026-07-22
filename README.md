@@ -84,6 +84,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Rich diff viewer** — `/bureau-diff` (or `POST /api/agents/:id/diff`) renders uncommitted changes as a per-file card with status badges, +/- counts, and unified/split toggle
 - **File attachments** — images, PDFs, arbitrary files; uploads reach agents as path notices so they can open only what they need. Agents can surface their own files via `POST /api/agents/:id/read-file` (images render inline, others as clickable chips)
 - **Browser preview cards** — agents can screenshot local or private development URLs via `POST /api/agents/:id/preview-url` and show the result inline
+- **Readable Bureau API calls** — local `curl` calls to Bureau affordance endpoints show plain-language tool-call summaries instead of raw shell noise
 - **Mermaid diagrams in chat** — agent messages with ```` ```mermaid ```` fenced blocks render as inline SVG (lazy-loaded, theme-aware). Parse failures show the offending source in-place instead of a silent blank.
 
 ### 🤝 Collaboration & tasks

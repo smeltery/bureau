@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { LogEntry } from "../../../shared/types.ts";
+import { summarizeBureauCurl } from "./bureau-curl.ts";
 import { AttachmentDisplay, DurationLabel, TurnCopyButton } from "./shared.tsx";
 
 function extractToolSummary(toolName: string, input: unknown): string {
@@ -7,7 +8,7 @@ function extractToolSummary(toolName: string, input: unknown): string {
   const obj = input as Record<string, unknown>;
   switch (toolName) {
     case "Bash":
-      return typeof obj.command === "string" ? obj.command.slice(0, 80) : "";
+      return typeof obj.command === "string" ? (summarizeBureauCurl(obj.command) ?? obj.command.slice(0, 80)) : "";
     case "Read":
       return typeof obj.file_path === "string" ? obj.file_path : "";
     case "Write":
