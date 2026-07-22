@@ -5,6 +5,11 @@ import { handleClaim, handleClaimForm, shouldShowClaimForm } from "./auth-claim-
 import { checkAuthRateLimit } from "./auth-rate-limit.ts";
 import { originValidForAuthPost } from "./auth-request-guards.ts";
 
+type InviteErrorResponseDeps = {
+  readSessionCookie: typeof readSessionCookie;
+  validateSession: typeof validateSession;
+};
+
 // Fires after the office gets its first owner — either through the tokenless
 // claim form (handleClaim → claimOwnership) or the legacy bootstrap-invite
 // accept path (handleAccept where isBootstrap is true). Awaited best-effort
@@ -21,7 +26,7 @@ export function handleInvitePeek(req: Request, token: string, officeName: string
   const limited = checkAuthRateLimit(req, "invite_peek");
   if (limited) return limited;
   const peek = peekInvite(token);
-  if ("error" in peek) return renderInviteError(peek.error, officeName);
+  if ("error" in peek) return inviteErrorResponse(req, peek.error, officeName);
   return new Response(renderAcceptPage(token, peek.needsName, null, officeName), {
     status: 200,
     headers: {
@@ -55,7 +60,7 @@ export async function handleAccept(req: Request, officeName: string | null): Pro
         },
       });
     }
-    return renderInviteError(result.error, officeName);
+    return inviteErrorResponse(req, result.error, officeName);
   }
   if (result.isBootstrap && onOwnerCreated) {
     try {
@@ -72,6 +77,26 @@ export async function handleAccept(req: Request, officeName: string | null): Pro
       ...securityHeaders(),
     },
   });
+}
+
+function signedInRedirectForConsumedInvite(req: Request, deps: InviteErrorResponseDeps): Response | null {
+  const cookie = deps.readSessionCookie(req);
+  if (!deps.validateSession(cookie)) return null;
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: "/",
+      ...securityHeaders(),
+    },
+  });
+}
+
+export function inviteErrorResponse(req: Request, error: string, officeName: string | null, deps: InviteErrorResponseDeps = { readSessionCookie, validateSession }): Response {
+  if (error === "consumed") {
+    const redirect = signedInRedirectForConsumedInvite(req, deps);
+    if (redirect) return redirect;
+  }
+  return renderInviteError(error, officeName);
 }
 
 export async function handleLogout(req: Request, officeName: string | null): Promise<Response> {
