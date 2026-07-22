@@ -18,6 +18,7 @@ import markdown from "highlight.js/lib/languages/markdown";
 import plaintext from "highlight.js/lib/languages/plaintext";
 import { renderMermaidBlocks } from "./markdown/mermaid.ts";
 import { sanitizeSvg } from "./markdown/svg-sanitize.ts";
+import { copyText } from "../utils/clipboard.ts";
 
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("js", javascript);
@@ -149,18 +150,8 @@ export function Markdown({ content }: { content: string }) {
     if (!pre) return;
     const code = pre.querySelector("code");
     const text = code ? (code.textContent ?? "") : (pre.textContent ?? "");
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
+    const ok = await copyText(text);
+    if (!ok) return;
     btn.innerHTML = CHECK_SVG;
     (btn as HTMLElement).style.color = "var(--green)";
     (btn as HTMLElement).style.background = "var(--green-bg)";

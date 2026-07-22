@@ -1,20 +1,10 @@
 import { useCallback } from "react";
 import type { TerminalCommandPayload } from "../../shared/types.ts";
+import { copyText } from "../utils/clipboard.ts";
 
 export function TerminalCommandCard({ payload, onCopy }: { payload: TerminalCommandPayload; onCopy: (command: string) => void }) {
   const handleCopyClipboard = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(payload.command);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = payload.command;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
+    await copyText(payload.command);
   }, [payload.command]);
 
   return (
