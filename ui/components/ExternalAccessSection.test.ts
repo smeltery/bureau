@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { hasExternalAccessChanges } from "./ExternalAccessSection.tsx";
+import { hasExternalAccessChanges, shouldBlockExternalAccessUnload } from "./ExternalAccessSection.tsx";
 
 const saved = { enabled: false, urlInput: "", officeNameInput: "HQ" };
 
@@ -12,5 +12,13 @@ describe("hasExternalAccessChanges", () => {
     expect(hasExternalAccessChanges(true, "", "HQ", saved)).toBe(true);
     expect(hasExternalAccessChanges(false, "https://example.test", "HQ", saved)).toBe(true);
     expect(hasExternalAccessChanges(false, "", "Branch", saved)).toBe(true);
+  });
+});
+
+describe("shouldBlockExternalAccessUnload", () => {
+  test("blocks tab close only after loaded settings have dirty edits", () => {
+    expect(shouldBlockExternalAccessUnload(false, true)).toBe(false);
+    expect(shouldBlockExternalAccessUnload(true, false)).toBe(false);
+    expect(shouldBlockExternalAccessUnload(true, true)).toBe(true);
   });
 });

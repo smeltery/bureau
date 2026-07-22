@@ -16,6 +16,10 @@ export function hasExternalAccessChanges(enabled: boolean, urlInput: string, off
   return enabled !== savedSnapshot.enabled || urlInput.trim() !== savedSnapshot.urlInput || officeNameInput.trim() !== savedSnapshot.officeNameInput;
 }
 
+export function shouldBlockExternalAccessUnload(loaded: boolean, dirty: boolean): boolean {
+  return loaded && dirty;
+}
+
 export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
   const [loaded, setLoaded] = useState(false);
   const [enabled, setEnabled] = useState(false);
@@ -115,6 +119,15 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
     onDirtyChange?.(dirty);
     return () => onDirtyChange?.(false);
   }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (!shouldBlockExternalAccessUnload(loaded, dirty)) return;
+      e.preventDefault();
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty, loaded]);
 
   // Apply the same normalization the server uses, so the env-conflict /
   // env-match notes don't flash a false warning when the operator types
