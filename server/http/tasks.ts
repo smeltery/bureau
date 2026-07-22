@@ -91,7 +91,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (body.priority !== undefined && !isValidPriority(body.priority)) {
       return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3" }), { status: 400, headers: corsHeaders });
     }
-    const requestedRoomId = body.roomId ? String(body.roomId) : undefined;
+    const requestedRoomId = api && body.roomId ? String(body.roomId) : undefined;
     if (api && requestedRoomId && !canAccessRoom(requestedRoomId, bearer, auth)) {
       return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     }
@@ -217,12 +217,13 @@ function taskCreateIdempotencyKey(req: Request, bearer: ReturnType<typeof resolv
 }
 
 function tasksForCaller(allTasks: TaskItem[], bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined, api: boolean): TaskItem[] {
-  if (!api) return allTasks;
+  if (!api) return allTasks.filter((task) => !task.roomId);
   return allTasks.filter((task) => canAccessTask(task, bearer, auth, true));
 }
 
 function canAccessTask(task: TaskItem, bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined, api: boolean): boolean {
-  if (!api || !task.roomId) return true;
+  if (!task.roomId) return true;
+  if (!api) return false;
   return canAccessRoom(task.roomId, bearer, auth);
 }
 

@@ -81,6 +81,35 @@ describe("handleTasksRequest", () => {
     await handleTasksRequest(cleanup, new URL(cleanup.url), { kind: "loopback" });
   });
 
+  test("keeps legacy task routes global-only", async () => {
+    const roomId = AgentManager.getRooms()[0]!.id;
+    const roomTask = await createTask("Legacy hidden room task", roomId, auth);
+    const globalTask = await createTask("Legacy visible global task", undefined, auth);
+    const listReq = new Request("http://local.test/tasks?status=all");
+    const detailReq = new Request(`http://local.test/tasks/${roomTask.id}`);
+    const legacyCreateReq = new Request("http://local.test/tasks", {
+      method: "POST",
+      body: JSON.stringify({ title: "Legacy forced global", createdBy: "Scheduler", roomId }),
+    });
+
+    const listRes = await handleTasksRequest(listReq, new URL(listReq.url), { kind: "loopback" });
+    const list = (await listRes?.json()) as { id: string }[];
+    const detailRes = await handleTasksRequest(detailReq, new URL(detailReq.url), { kind: "loopback" });
+    const legacyCreateRes = await handleTasksRequest(legacyCreateReq, new URL(legacyCreateReq.url), { kind: "loopback" });
+    const legacyCreated = await legacyCreateRes?.json();
+
+    expect(listRes?.status).toBe(200);
+    expect(list.map((task) => task.id)).toContain(globalTask.id);
+    expect(list.map((task) => task.id)).not.toContain(roomTask.id);
+    expect(detailRes?.status).toBe(404);
+    expect(legacyCreateRes?.status).toBe(201);
+    expect(legacyCreated.roomId).toBeUndefined();
+
+    await deleteTask(roomTask.id, auth);
+    await deleteTask(globalTask.id, auth);
+    await deleteTask(legacyCreated.id, auth);
+  });
+
   test("creates tasks using authenticated user attribution", async () => {
     const room = AgentManager.getRooms()[0]!;
     const req = new Request("http://local.test/api/tasks", {
