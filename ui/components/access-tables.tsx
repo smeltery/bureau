@@ -3,12 +3,15 @@ import { useAppState } from "../store.tsx";
 import { send } from "../ws.ts";
 
 export function InvitesTable({ invites }: { invites: InviteWire[] }) {
+  const { rooms, allRooms } = useAppState();
+  const roomList = allRooms.length > 0 ? allRooms : rooms;
   return (
     <table style={tableStyle}>
       <thead>
         <tr>
           <th style={th}>For</th>
           <th style={th}>Role</th>
+          <th style={th}>Rooms</th>
           <th style={th}>Expires</th>
           <th style={th}>Prefix</th>
           <th style={th}></th>
@@ -19,6 +22,7 @@ export function InvitesTable({ invites }: { invites: InviteWire[] }) {
           <tr key={i.tokenPrefix}>
             <td style={td}>{i.username ?? <i>{i.bootstrap ? "(bootstrap)" : "—"}</i>}</td>
             <td style={td}>{i.role}</td>
+            <td style={td}>{formatInviteRooms(i, roomList)}</td>
             <td style={td}>{formatExpiry(i.expiresAt)}</td>
             <td style={mono}>{i.tokenPrefix}…</td>
             <td style={td}>
@@ -31,6 +35,11 @@ export function InvitesTable({ invites }: { invites: InviteWire[] }) {
       </tbody>
     </table>
   );
+}
+
+export function formatInviteRooms(invite: Pick<InviteWire, "allowedRooms">, rooms: Pick<import("../../shared/types.ts").RoomWire, "id" | "name">[]): string {
+  if (!invite.allowedRooms?.length) return "—";
+  return invite.allowedRooms.map((id) => rooms.find((room) => room.id === id)?.name ?? id).join(", ");
 }
 
 export function SessionsTable({ sessions }: { sessions: SessionWire[] }) {

@@ -7,14 +7,16 @@ import { dialogInput, dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { cardStyle, hint, MintedUrlBox, subLabel } from "./AccessPaneShared.tsx";
 
 export function IssueInviteForm() {
-  const { users } = useAppState();
+  const { users, rooms, allRooms } = useAppState();
   const [name, setName] = useState("");
   const [role, setRole] = useState<UserRole>("member");
   const [allowExisting, setAllowExisting] = useState(false);
+  const [grantRooms, setGrantRooms] = useState<string[]>([]);
   const [mintedUrl, setMintedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const pendingListenerRef = useRef<((data: string) => void) | null>(null);
+  const grantableRooms = allRooms.length > 0 ? allRooms : rooms;
 
   useEffect(() => {
     return () => {
@@ -35,6 +37,11 @@ export function IssueInviteForm() {
   // When the typed name matches an existing user, force the role to match
   // so the server's role_mismatch check doesn't fire at accept time.
   const effectiveRole: UserRole = existingUser ? existingUser.role : role;
+  const showRoomPicker = !existing && effectiveRole === "member";
+
+  function toggleGrantRoom(roomId: string) {
+    setGrantRooms((prev) => (prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId]));
+  }
 
   function submit() {
     const trimmed = name.trim();
@@ -54,6 +61,7 @@ export function IssueInviteForm() {
             setMintedUrl(msg.url);
             setName("");
             setAllowExisting(false);
+            setGrantRooms([]);
           } else {
             setError(msg.error || "Failed to mint invite");
           }
@@ -68,6 +76,7 @@ export function IssueInviteForm() {
       username: trimmed,
       role: effectiveRole,
       allowExisting: existing ? allowExisting : false,
+      ...(showRoomPicker && grantRooms.length > 0 ? { allowedRooms: grantRooms } : {}),
     });
   }
 
@@ -111,6 +120,24 @@ export function IssueInviteForm() {
         </label>
       </div>
       <p style={{ ...hint, marginTop: 6 }}>Invite link expires 24h after issuing if unused. Accepted sessions last up to 1 year (revocable from the Access pane any time).</p>
+      {showRoomPicker && (
+        <div style={{ marginTop: 8 }}>
+          <div style={subLabel}>Rooms</div>
+          <div style={roomPickerBox}>
+            {grantableRooms.length === 0 ? (
+              <div style={emptyRoomText}>No rooms yet.</div>
+            ) : (
+              grantableRooms.map((room) => (
+                <label key={room.id} style={roomOption}>
+                  <input type="checkbox" checked={grantRooms.includes(room.id)} onChange={() => toggleGrantRoom(room.id)} style={{ accentColor: "var(--accent)", cursor: "pointer" }} />
+                  <span style={roomNameText}>{room.name}</span>
+                </label>
+              ))
+            )}
+          </div>
+          <p style={{ ...hint, marginTop: 4 }}>Checked rooms are available as soon as the member accepts. Leave all unchecked to grant access later.</p>
+        </div>
+      )}
       {existing && (
         <label style={{ display: "flex", gap: 6, marginTop: 8, fontSize: 12 }}>
           <input type="checkbox" checked={allowExisting} onChange={(e) => setAllowExisting(e.target.checked)} />
@@ -136,3 +163,34 @@ export function IssueInviteForm() {
     </div>
   );
 }
+
+const roomPickerBox: React.CSSProperties = {
+  border: "1px solid var(--border)",
+  borderRadius: 6,
+  background: "var(--bg-base)",
+  padding: "4px 0",
+  maxHeight: 160,
+  overflowY: "auto",
+};
+
+const roomOption: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "5px 10px",
+  fontSize: 12,
+  color: "var(--text-primary)",
+  cursor: "pointer",
+};
+
+const roomNameText: React.CSSProperties = {
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const emptyRoomText: React.CSSProperties = {
+  padding: "6px 10px",
+  fontSize: 12,
+  color: "var(--text-ghost)",
+};
