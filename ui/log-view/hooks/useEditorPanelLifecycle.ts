@@ -51,6 +51,7 @@ export function useEditorPanelLifecycle({
       path: t.path,
       content: t.content,
       mtime: t.mtime,
+      rev: t.rev,
       language: t.language,
       size: t.size,
       dirty: t.dirty,

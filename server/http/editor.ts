@@ -16,7 +16,7 @@ export interface EditorHttpDeps {
 /**
  * Handle editor HTTP routes:
  *   GET    /api/agents/:id/file?path=...       — read a text file and arm a watcher.
- *   PUT    /api/agents/:id/file                — save a text file with mtime conflict checks.
+ *   PUT    /api/agents/:id/file                — save a text file with conflict checks.
  *   DELETE /api/agents/:id/file/watch?path=... — close an editor watcher.
  *
  * Returns null for any other URL so the caller can fall through.
@@ -36,7 +36,7 @@ export async function handleEditorRequest(req: Request, url: URL, auth: AuthResu
     const result = probe.result;
     if (result.kind !== "ok") return openFileError(result);
     deps.watchFile(agentId, result.path, bind.connectionId, result.sig);
-    return new Response(JSON.stringify({ path: result.path, content: result.content, mtime: result.mtime, language: result.language, size: result.size }), {
+    return new Response(JSON.stringify({ path: result.path, content: result.content, mtime: result.mtime, rev: result.rev, language: result.language, size: result.size }), {
       headers: JSON_HEADERS,
     });
   }
@@ -51,10 +51,13 @@ export async function handleEditorRequest(req: Request, url: URL, auth: AuthResu
       return jsonError(422, "invalid_request", "expectedMtime must be a finite number");
     }
     if (body.force !== undefined && typeof body.force !== "boolean") return jsonError(422, "invalid_request", "force must be a boolean");
+    if (body.expectedRev !== undefined && (typeof body.expectedRev !== "number" || !Number.isInteger(body.expectedRev))) {
+      return jsonError(422, "invalid_request", "expectedRev must be an integer");
+    }
     const absPath = AgentManager.resolveEditorPathForAgent(agentId, path);
     if (!absPath) return jsonError(404, "not_found", "agent not found");
-    const result = AgentManager.saveEditorFile(absPath, body.content, body.expectedMtime, body.force ?? false);
-    if (result.kind === "ok") return new Response(JSON.stringify({ ok: true, mtime: result.mtime }), { headers: JSON_HEADERS });
+    const result = AgentManager.saveEditorFile(absPath, body.content, body.expectedMtime, body.force ?? false, body.expectedRev);
+    if (result.kind === "ok") return new Response(JSON.stringify({ ok: true, mtime: result.mtime, rev: result.rev }), { headers: JSON_HEADERS });
     if (result.kind === "stale") {
       return jsonError(409, "stale", "File changed on disk since you opened it.", { currentMtime: result.currentMtime });
     }

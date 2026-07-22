@@ -5,7 +5,7 @@ import { homedir } from "os";
 export type ResolvePathResult = { kind: "ok"; path: string } | { kind: "bad_path"; attempted: string };
 
 export type OpenFileResult =
-  | { kind: "ok"; path: string; content: string; mtime: number; language: string; size: number; sig: string }
+  | { kind: "ok"; path: string; content: string; mtime: number; rev: number; language: string; size: number; sig: string }
   | { kind: "not_found"; path: string }
   | { kind: "not_file"; path: string }
   | { kind: "binary"; path: string }
@@ -13,7 +13,7 @@ export type OpenFileResult =
   | { kind: "io_error"; path: string; message: string };
 
 export type SaveFileResult =
-  | { kind: "ok"; path: string; mtime: number }
+  | { kind: "ok"; path: string; mtime: number; rev: number }
   | { kind: "stale"; path: string; currentMtime: number }
   | { kind: "deleted"; path: string }
   | { kind: "io_error"; path: string; message: string };
@@ -23,6 +23,17 @@ const WATCH_POLL_MS = 1000;
 
 function fileSig(st: { mtimeMs: number; ino: number | bigint; size: number }): string {
   return `${st.mtimeMs}:${st.ino}:${st.size}`;
+}
+
+const fileRevisions = new Map<string, { sig: string; rev: number }>();
+let nextFileRevision = 1;
+
+function revisionFor(absPath: string, sig: string): number {
+  const current = fileRevisions.get(absPath);
+  if (current?.sig === sig) return current.rev;
+  const rev = nextFileRevision++;
+  fileRevisions.set(absPath, { sig, rev });
+  return rev;
 }
 
 // Resolve a user-supplied editor path against the agent's cwd. Yields an
@@ -107,20 +118,26 @@ export function openFile(absPath: string): OpenFileResult {
   } catch (err: any) {
     return { kind: "io_error", path: absPath, message: err?.message ?? String(err) };
   }
-  return { kind: "ok", path: absPath, content, mtime: Math.floor(st.mtimeMs), language: detectLanguage(absPath), size: st.size, sig: fileSig(st) };
+  const sig = fileSig(st);
+  return { kind: "ok", path: absPath, content, mtime: Math.floor(st.mtimeMs), rev: revisionFor(absPath, sig), language: detectLanguage(absPath), size: st.size, sig };
 }
 
-export function saveFile(absPath: string, content: string, expectedMtime: number, force: boolean): SaveFileResult {
+export function saveFile(absPath: string, content: string, expectedMtime: number, force: boolean, expectedRev?: number): SaveFileResult {
   // Concurrency guard: if disk mtime is newer than what the client opened,
   // refuse unless `force`. The client surfaces a banner that lets the boss
   // pick Overwrite (force=true) or Reload.
   let currentMtime = 0;
+  let currentSig = "";
   try {
     const st = statSync(absPath);
     currentMtime = Math.floor(st.mtimeMs);
+    currentSig = fileSig(st);
   } catch (err: any) {
     if (err?.code !== "ENOENT") return { kind: "io_error", path: absPath, message: err?.message ?? String(err) };
     if (!force) return { kind: "deleted", path: absPath };
+  }
+  if (!force && expectedRev !== undefined && revisionFor(absPath, currentSig) !== expectedRev) {
+    return { kind: "stale", path: absPath, currentMtime };
   }
   if (!force && currentMtime > expectedMtime) {
     return { kind: "stale", path: absPath, currentMtime };
@@ -128,7 +145,8 @@ export function saveFile(absPath: string, content: string, expectedMtime: number
   try {
     writeFileSync(absPath, content, "utf8");
     const st = statSync(absPath);
-    return { kind: "ok", path: absPath, mtime: Math.floor(st.mtimeMs) };
+    const sig = fileSig(st);
+    return { kind: "ok", path: absPath, mtime: Math.floor(st.mtimeMs), rev: revisionFor(absPath, sig) };
   } catch (err: any) {
     return { kind: "io_error", path: absPath, message: err?.message ?? String(err) };
   }
@@ -165,6 +183,7 @@ export function watchFile(absPath: string, agentId: string, onEvent: (event: Wat
       const sig = fileSig(st);
       if (sig === lastSig) return;
       lastSig = sig;
+      revisionFor(absPath, sig);
       onEvent({ kind: "change", mtime: Math.floor(st.mtimeMs) });
     } catch (err: any) {
       if (err?.code !== "ENOENT") return;

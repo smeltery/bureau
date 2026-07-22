@@ -39,6 +39,7 @@ export function useEditorSocket({
               next[idx] = {
                 ...existing,
                 mtime: m.mtime,
+                rev: m.rev,
                 language: m.language,
                 size: m.size,
               };
@@ -47,6 +48,7 @@ export function useEditorSocket({
                 path: m.path,
                 content: m.content,
                 mtime: m.mtime,
+                rev: m.rev,
                 language: m.language,
                 size: m.size,
                 dirty: false,
@@ -61,6 +63,7 @@ export function useEditorSocket({
               path: m.path,
               content: m.content,
               mtime: m.mtime,
+              rev: m.rev,
               language: m.language,
               size: m.size,
               dirty: false,
@@ -90,7 +93,7 @@ export function useEditorSocket({
           prev.map((t) => {
             if (t.path !== m.path) return t;
             if (m.ok) {
-              return { ...t, mtime: m.mtime ?? t.mtime, dirty: false, banner: null };
+              return { ...t, mtime: m.mtime ?? t.mtime, rev: m.rev ?? t.rev, dirty: false, banner: null };
             }
             if (m.reason === "stale" && m.currentMtime !== undefined) {
               return { ...t, banner: { kind: "stale", currentMtime: m.currentMtime } };

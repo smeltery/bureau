@@ -69,6 +69,7 @@ function handleEditorOpen(cmd: Extract<EditorCommand, { type: "editor_open" }>, 
       path: result.path,
       content: result.content,
       mtime: result.mtime,
+      rev: result.rev,
       language: result.language,
       size: result.size,
     } as ServerMessage),
@@ -101,9 +102,9 @@ function handleEditorSave(cmd: Extract<EditorCommand, { type: "editor_save" }>, 
     ws.send(JSON.stringify({ type: "editor_save_response", agentId: cmd.agentId, path: cmd.path, ok: false, error: "agent not found" } as ServerMessage));
     return;
   }
-  const result = AgentManager.saveEditorFile(abs, cmd.content, cmd.expectedMtime, cmd.force ?? false);
+  const result = AgentManager.saveEditorFile(abs, cmd.content, cmd.expectedMtime, cmd.force ?? false, cmd.expectedRev);
   if (result.kind === "ok") {
-    ws.send(JSON.stringify({ type: "editor_save_response", agentId: cmd.agentId, path: result.path, ok: true, mtime: result.mtime } as ServerMessage));
+    ws.send(JSON.stringify({ type: "editor_save_response", agentId: cmd.agentId, path: result.path, ok: true, mtime: result.mtime, rev: result.rev } as ServerMessage));
   } else if (result.kind === "stale") {
     ws.send(
       JSON.stringify({

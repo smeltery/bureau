@@ -10,6 +10,7 @@ export interface PersistedTab {
   path: string;
   content: string;
   mtime: number;
+  rev?: number;
   language: string;
   size: number;
   dirty: boolean;

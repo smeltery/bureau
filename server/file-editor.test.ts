@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync } from "fs";
+import { mkdtempSync, renameSync, rmSync, unlinkSync, utimesSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
-import { openFile, stopWatch, watchFile, type FileWatcher } from "./file-editor.ts";
+import { openFile, saveFile, stopWatch, watchFile, type FileWatcher } from "./file-editor.ts";
 
 const tempDirs: string[] = [];
 const watchers: FileWatcher[] = [];
@@ -68,5 +68,40 @@ describe("watchFile", () => {
     unlinkSync(path);
 
     await expect(seen).resolves.toEqual({ kind: "deleted" });
+  });
+});
+
+describe("saveFile", () => {
+  test("rejects stale saves when disk mtime moves backwards", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bureau-editor-"));
+    tempDirs.push(dir);
+    const path = join(dir, "notes.txt");
+    writeFileSync(path, "before", "utf8");
+    const opened = openFile(path);
+    expect(opened.kind).toBe("ok");
+    if (opened.kind !== "ok") return;
+
+    writeFileSync(path, "changed", "utf8");
+    utimesSync(path, new Date(0), new Date(0));
+
+    const saved = saveFile(path, "overwrite", opened.mtime, false, opened.rev);
+
+    expect(saved).toMatchObject({ kind: "stale", path });
+  });
+
+  test("returns a bumped revision after a successful save", () => {
+    const dir = mkdtempSync(join(tmpdir(), "bureau-editor-"));
+    tempDirs.push(dir);
+    const path = join(dir, "notes.txt");
+    writeFileSync(path, "before", "utf8");
+    const opened = openFile(path);
+    expect(opened.kind).toBe("ok");
+    if (opened.kind !== "ok") return;
+
+    const saved = saveFile(path, "after with a longer body", opened.mtime, false, opened.rev);
+
+    expect(saved.kind).toBe("ok");
+    if (saved.kind !== "ok") return;
+    expect(saved.rev).toBeGreaterThan(opened.rev);
   });
 });

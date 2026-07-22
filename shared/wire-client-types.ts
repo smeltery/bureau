@@ -66,7 +66,7 @@ export type ClientCommand =
   | { type: "terminal_resize"; agentId: string; cols: number; rows: number }
   | { type: "terminal_close"; agentId: string }
   | { type: "editor_open"; agentId: string; path: string }
-  | { type: "editor_save"; agentId: string; path: string; content: string; expectedMtime: number; force?: boolean }
+  | { type: "editor_save"; agentId: string; path: string; content: string; expectedMtime: number; expectedRev?: number; force?: boolean }
   | { type: "editor_close"; agentId: string; path: string }
   | { type: "update_office_settings"; requestId: string; prompt: string | null; envFile: string | null }
   | { type: "update_room_settings"; requestId: string; roomId: string; prompt: string | null; envFile: string | null }

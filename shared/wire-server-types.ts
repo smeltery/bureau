@@ -66,8 +66,8 @@ export type ServerMessage =
   | { type: "clear_logs"; agentId: string }
   | { type: "terminal_output"; agentId: string; data: string }
   | { type: "terminal_exit"; agentId: string; exitCode: number }
-  | { type: "editor_content"; agentId: string; path: string; content: string; mtime: number; language: string; size: number }
-  | { type: "editor_save_response"; agentId: string; path: string; ok: boolean; mtime?: number; error?: string; reason?: "stale" | "deleted"; currentMtime?: number }
+  | { type: "editor_content"; agentId: string; path: string; content: string; mtime: number; rev: number; language: string; size: number }
+  | { type: "editor_save_response"; agentId: string; path: string; ok: boolean; mtime?: number; rev?: number; error?: string; reason?: "stale" | "deleted"; currentMtime?: number }
   | { type: "editor_external_change"; agentId: string; path: string; mtime: number }
   | { type: "editor_file_deleted"; agentId: string; path: string }
   | { type: "editor_open_error"; agentId: string; path: string; reason: "not_found" | "not_file" | "binary" | "too_large" | "io_error" | "bad_path"; message?: string; size?: number }

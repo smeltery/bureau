@@ -42,6 +42,7 @@ export function EditorPanel({
       path: t.path,
       content: t.content,
       mtime: t.mtime,
+      rev: t.rev ?? 0,
       language: t.language,
       size: t.size,
       dirty: t.dirty,
@@ -82,7 +83,7 @@ export function EditorPanel({
     if (!path) return;
     const tab = tabsRef.current.find((t) => t.path === path);
     if (!tab) return;
-    send({ type: "editor_save", agentId, path, content: tab.content, expectedMtime: tab.mtime });
+    send({ type: "editor_save", agentId, path, content: tab.content, expectedMtime: tab.mtime, expectedRev: tab.rev || undefined });
   }, [agentId]);
 
   const openRecentPath = useCallback(
@@ -141,6 +142,7 @@ export function EditorPanel({
       path: activeTab.path,
       content: activeTab.content,
       expectedMtime: activeTab.mtime,
+      expectedRev: activeTab.rev || undefined,
       force: true,
     });
   }, [activeTab, agentId]);

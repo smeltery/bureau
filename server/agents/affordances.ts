@@ -36,8 +36,8 @@ export function openEditorFile(agentId: string, rawPath: string): { ok: true; re
   return { ok: true, result: openFileImpl(resolved.path) };
 }
 
-export function saveEditorFile(absPath: string, content: string, expectedMtime: number, force: boolean): SaveFileResult {
-  return saveFileImpl(absPath, content, expectedMtime, force);
+export function saveEditorFile(absPath: string, content: string, expectedMtime: number, force: boolean, expectedRev?: number): SaveFileResult {
+  return saveFileImpl(absPath, content, expectedMtime, force, expectedRev);
 }
 
 export function resolveEditorPathForAgent(agentId: string, rawPath: string): string | null {
