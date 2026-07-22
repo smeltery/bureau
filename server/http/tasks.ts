@@ -4,7 +4,7 @@ import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import * as AgentManager from "../agent-manager.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveTasks } from "../persistence.ts";
-import { getUserById } from "../users.ts";
+import { canSeeRoom, getUserById } from "../users.ts";
 import { broadcast, tasks } from "../ws/broadcast.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
@@ -46,7 +46,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     const status = url.searchParams.get("status");
     const assignee = url.searchParams.get("assignee");
     const titleFilter = url.searchParams.get("title");
-    let filtered = tasks;
+    let filtered = tasksForCaller(tasks, bearer, auth, api);
     if (!status) {
       filtered = filtered.filter((t) => t.status !== "done" && t.status !== "backlog");
     } else if (status !== "all") {
@@ -66,6 +66,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
   if (req.method === "GET" && taskId && !action) {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+    if (!canAccessTask(task, bearer, auth, api)) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     return new Response(JSON.stringify(task), { headers: corsHeaders });
   }
 
@@ -84,6 +85,10 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (body.priority !== undefined && !isValidPriority(body.priority)) {
       return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3" }), { status: 400, headers: corsHeaders });
     }
+    const requestedRoomId = body.roomId ? String(body.roomId) : undefined;
+    if (api && requestedRoomId && !canAccessRoom(requestedRoomId, bearer, auth)) {
+      return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+    }
     const task: TaskItem = {
       id: generateTaskId(tasks.map((t) => t.id)),
       title: String(body.title).trim(),
@@ -91,7 +96,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
       priority: body.priority as TaskItem["priority"],
       status: "open",
       assignee: body.assignee ? String(body.assignee) : undefined,
-      roomId: body.roomId ? String(body.roomId) : undefined,
+      roomId: requestedRoomId,
       createdBy,
       createdAt: Date.now(),
     };
@@ -106,6 +111,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (!taskAttribution(bearer, auth)) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+    if (!canAccessTask(task, bearer, auth, api)) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     let body: Record<string, unknown>;
     try {
       body = (await req.json()) as Record<string, unknown>;
@@ -123,7 +129,13 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (body.status !== undefined) task.status = body.status as TaskItem["status"];
     if (body.priority !== undefined) task.priority = body.priority ? (body.priority as TaskItem["priority"]) : undefined;
     if (body.assignee !== undefined) task.assignee = body.assignee ? String(body.assignee) : undefined;
-    if (body.roomId !== undefined) task.roomId = body.roomId ? String(body.roomId) : undefined;
+    if (body.roomId !== undefined) {
+      const requestedRoomId = body.roomId ? String(body.roomId) : undefined;
+      if (requestedRoomId && !canAccessRoom(requestedRoomId, bearer, auth)) {
+        return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+      }
+      task.roomId = requestedRoomId;
+    }
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);
     return new Response(JSON.stringify(task), { headers: corsHeaders });
@@ -134,6 +146,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (!taskAttribution(bearer, auth)) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+    if (!canAccessTask(task, bearer, auth, api)) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     let body: Record<string, unknown>;
     try {
       body = (await req.json()) as Record<string, unknown>;
@@ -152,6 +165,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (!taskAttribution(bearer, auth)) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+    if (!canAccessTask(task, bearer, auth, api)) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     // Agents send `curl -d '{}'` — consume the body so Bun doesn't warn
     try {
       await req.json();
@@ -167,6 +181,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (!taskAttribution(bearer, auth)) return new Response(JSON.stringify({ error: "authenticated caller required" }), { status: 401, headers: corsHeaders });
     const index = tasks.findIndex((t) => t.id === taskId);
     if (index === -1) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+    if (!canAccessTask(tasks[index]!, bearer, auth, api)) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     tasks.splice(index, 1);
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);
@@ -184,6 +199,28 @@ function taskAttribution(bearer: ReturnType<typeof resolveAgentToken>, auth: Aut
 
 function legacyCreatedBy(body: Record<string, unknown>): string {
   return typeof body.createdBy === "string" && body.createdBy.trim() ? body.createdBy.trim() : "Bureau";
+}
+
+function tasksForCaller(allTasks: TaskItem[], bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined, api: boolean): TaskItem[] {
+  if (!api) return allTasks;
+  return allTasks.filter((task) => canAccessTask(task, bearer, auth, true));
+}
+
+function canAccessTask(task: TaskItem, bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined, api: boolean): boolean {
+  if (!api || !task.roomId) return true;
+  return canAccessRoom(task.roomId, bearer, auth);
+}
+
+function canAccessRoom(roomId: string, bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined): boolean {
+  const rooms = AgentManager.getRooms();
+  if (!rooms.some((room) => room.id === roomId)) return false;
+  if (bearer) {
+    const agent = AgentManager.getAgent(bearer.agentId);
+    return !!agent && rooms[agent.room]?.id === roomId;
+  }
+  if (auth?.kind !== "ok") return false;
+  if (auth.session.role === "owner") return true;
+  return canSeeRoom(getUserById(auth.session.userId), roomId);
 }
 
 function taskRouteParts(pathname: string): { parts: string[]; api: boolean } | null {
