@@ -39,6 +39,7 @@ const deps: InvitesHttpDeps = {
   list: () => [],
   mint: async () => ({ ok: true, url: "http://local.test/i/token", invite }),
   mintSelf: async () => ({ ok: true, url: "http://local.test/i/token", invite }),
+  mintRecovery: async () => ({ ok: true, url: "http://local.test/i/token", invite }),
   revoke: async () => "ok",
 };
 
@@ -143,6 +144,41 @@ describe("handleInvitesRequest", () => {
 
     expect(res?.status).toBe(200);
     expect(JSON.stringify(minted)).toBe(JSON.stringify({ username: "Member", role: "member", createdBy: "Member" }));
+  });
+
+  test("lets owners mint recovery invites for existing users", async () => {
+    const req = request("/api/invites/recovery", {
+      method: "POST",
+      body: JSON.stringify({ userId: "user-2" }),
+    });
+    let minted: Parameters<InvitesHttpDeps["mintRecovery"]>[0] | null = null;
+
+    const res = await handleInvitesRequest(req, new URL(req.url), ownerAuth, {
+      ...deps,
+      mintRecovery: async (input) => {
+        minted = input;
+        return { ok: true, url: "http://local.test/i/token", invite };
+      },
+    });
+
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toEqual({ url: "http://local.test/i/token", invite });
+    expect(JSON.stringify(minted)).toBe(JSON.stringify({ actorName: "Owner", userId: "user-2" }));
+  });
+
+  test("validates recovery invite requests", async () => {
+    const memberRes = await handleInvitesRequest(
+      request("/api/invites/recovery", { method: "POST", body: JSON.stringify({ userId: "user-2" }) }),
+      new URL("http://local.test/api/invites/recovery"),
+      memberAuth,
+      deps,
+    );
+    const missingRes = await handleInvitesRequest(request("/api/invites/recovery", { method: "POST", body: JSON.stringify({}) }), new URL("http://local.test/api/invites/recovery"), ownerAuth, deps);
+
+    expect(memberRes?.status).toBe(403);
+    expect(await memberRes?.json()).toEqual({ error: "owner access required" });
+    expect(missingRes?.status).toBe(400);
+    expect(await missingRes?.json()).toEqual({ error: "userId is required" });
   });
 
   test("revokes invites by prefix", async () => {

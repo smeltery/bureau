@@ -11,6 +11,7 @@ export interface InvitesHttpDeps {
   list(username: string, role: "owner" | "member"): InviteWire[];
   mint(input: { username: string; role: UserRole; allowExisting: boolean; createdBy: string; allowedRooms?: string[] }): Promise<InviteMintResult>;
   mintSelf(input: { username: string; role: UserRole; createdBy: string }): Promise<InviteMintResult>;
+  mintRecovery(input: { actorName: string; userId: string }): Promise<InviteMintResult>;
   revoke(username: string, role: "owner" | "member", tokenPrefix: string): Promise<InviteRevokeResult>;
 }
 
@@ -46,6 +47,15 @@ export async function handleInvitesRequest(req: Request, url: URL, auth: AuthRes
 
   if (req.method === "POST" && parts.length === 2 && parts[1] === "self") {
     return mintResponse(await deps.mintSelf({ username: auth.session.username, role: auth.session.role, createdBy: auth.session.username }));
+  }
+
+  if (req.method === "POST" && parts.length === 2 && parts[1] === "recovery") {
+    if (auth.session.role !== "owner") return jsonError(403, "owner access required");
+    const body = await readJson(req);
+    if (body instanceof Response) return body;
+    const userId = typeof body.userId === "string" ? body.userId : "";
+    if (!userId) return jsonError(400, "userId is required");
+    return mintResponse(await deps.mintRecovery({ actorName: auth.session.username, userId }));
   }
 
   if (req.method === "DELETE" && parts.length === 2) {

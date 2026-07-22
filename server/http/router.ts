@@ -9,7 +9,7 @@ import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "../p
 import { pushPresenceListToEachWs } from "../ws-initial-payload.ts";
 import type { WsData } from "../ws/websocket-handlers.ts";
 import { applyViewPreference, deleteUserForApi, readAccessSettingsForApi, saveAccessSettingsForApi, setUserAccessForApi, updateUserForApi } from "./access-adapters.ts";
-import { mintInviteForApi, mintSelfInviteForApi, revokeInviteForApi } from "./access-invite-adapters.ts";
+import { mintInviteForApi, mintRecoveryInviteForApi, mintSelfInviteForApi, revokeInviteForApi } from "./access-invite-adapters.ts";
 import { logoutSessionForApi, revokeSessionForApi } from "./access-session-adapters.ts";
 import { handleAccessRequest } from "./access.ts";
 import { handleAgentsRequest } from "./agents.ts";
@@ -133,6 +133,7 @@ export function createFetchHandler() {
       list: (username, role) => (role === "owner" ? listInvites() : listInvitesForUsername(username)),
       mint: mintInviteForApi,
       mintSelf: mintSelfInviteForApi,
+      mintRecovery: mintRecoveryInviteForApi,
       revoke: revokeInviteForApi,
     });
     if (invitesResp) return invitesResp;
