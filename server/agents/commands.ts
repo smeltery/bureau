@@ -110,7 +110,7 @@ export const commands: Record<string, CommandConfig> = {
     autocomplete: true,
     overridable: false,
     handler: "login",
-    description: "Log in to your Anthropic account",
+    description: "Show how to authenticate this agent",
     autoRun: true,
   },
   logout: {

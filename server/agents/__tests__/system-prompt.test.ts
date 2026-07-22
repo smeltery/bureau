@@ -154,6 +154,10 @@ describe("unsupported commands", () => {
 });
 
 describe("command auto-run metadata", () => {
+  test("uses provider-neutral login copy", () => {
+    expect(commands.login.description).toBe("Show how to authenticate this agent");
+  });
+
   test("marks no-argument commands and emits only literal true on autocomplete entries", () => {
     const expectedAutoRun = new Set([
       "clear",
