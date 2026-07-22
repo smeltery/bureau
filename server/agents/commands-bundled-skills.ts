@@ -13,7 +13,11 @@ export const bundledSkillCommands: Record<string, CommandConfig> = {
   "claude-in-chrome": { ...UNSUPPORTED_BUNDLED_SKILL, description: "Automate Chrome browser interactions" },
   debug: { ...UNSUPPORTED_BUNDLED_SKILL, description: "Diagnose session/tool issues from debug log" },
   "keybindings-help": { ...UNSUPPORTED_BUNDLED_SKILL, description: "Customize keyboard shortcuts" },
-  loop: { ...UNSUPPORTED_BUNDLED_SKILL, description: "Run a prompt on a recurring schedule" },
+  loop: {
+    ...UNSUPPORTED_BUNDLED_SKILL,
+    description: "Run a prompt on a recurring schedule",
+    message: "not supported natively; see if the Cronjobs tab or scheduled messages satisfy your use case",
+  },
   "lorem-ipsum": { ...UNSUPPORTED_BUNDLED_SKILL, description: "Generate placeholder text" },
   review: { ...UNSUPPORTED_BUNDLED_SKILL, description: "Code review for bugs, logic, and edge cases" },
   schedule: { ...UNSUPPORTED_BUNDLED_SKILL, description: "Create cron-scheduled remote agents" },

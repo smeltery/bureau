@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildSystemPrompt, memorySection } from "../session/system-prompt.ts";
-import { autocompleteCommands, commands } from "../commands.ts";
+import { autocompleteCommands, commands, unsupportedMessage } from "../commands.ts";
 
 describe("buildSystemPrompt memory affordance", () => {
   test("documents all durable memory scopes without filesystem paths", () => {
@@ -108,5 +108,14 @@ describe("handoff commands", () => {
     expect(commands["handoff-apply"].handler).toBe("handoffApply");
     expect(autocompleteCommands().map((cmd) => cmd.name)).toContain("handoff");
     expect(autocompleteCommands().map((cmd) => cmd.name)).not.toContain("handoff-apply");
+  });
+});
+
+describe("unsupported commands", () => {
+  test("points /loop at Bureau recurring-work affordances", () => {
+    expect(unsupportedMessage("loop")).toBe("not supported natively; see if the Cronjobs tab or scheduled messages satisfy your use case");
+    expect(commands.loop.type).toBe("bundled-skill");
+    expect(commands.loop.supported).toBe(false);
+    expect(commands.loop.overridable).toBe(true);
   });
 });
