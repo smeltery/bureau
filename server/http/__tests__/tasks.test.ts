@@ -146,6 +146,21 @@ describe("handleTasksRequest", () => {
     expect(res?.status).toBe(200);
     expect(body.roomId).toBe(roomId);
 
+    const badRoom = new Request(`http://local.test/api/tasks/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ roomId: 7 }),
+    });
+    const badRoomRes = await handleTasksRequest(badRoom, new URL(badRoom.url), auth);
+    expect(badRoomRes?.status).toBe(400);
+    expect(await badRoomRes?.json()).toEqual({ error: "roomId must be a string" });
+
+    const clearRoom = new Request(`http://local.test/api/tasks/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ roomId: "" }),
+    });
+    const cleared = await (await handleTasksRequest(clearRoom, new URL(clearRoom.url), auth))?.json();
+    expect(cleared.roomId).toBeUndefined();
+
     const cleanup = new Request(`http://local.test/api/tasks/${created.id}`, { method: "DELETE" });
     await handleTasksRequest(cleanup, new URL(cleanup.url), auth);
   });

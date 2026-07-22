@@ -91,7 +91,8 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (body.priority !== undefined && !isValidPriority(body.priority)) {
       return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3" }), { status: 400, headers: corsHeaders });
     }
-    const requestedRoomId = api && body.roomId ? String(body.roomId) : undefined;
+    const requestedRoomId = api ? readTaskRoomId(body.roomId) : undefined;
+    if (requestedRoomId instanceof Response) return requestedRoomId;
     if (api && requestedRoomId && !canAccessRoom(requestedRoomId, bearer, auth)) {
       return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     }
@@ -137,7 +138,8 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (body.priority !== undefined) task.priority = body.priority ? (body.priority as TaskItem["priority"]) : undefined;
     if (body.assignee !== undefined) task.assignee = body.assignee ? String(body.assignee) : undefined;
     if (body.roomId !== undefined) {
-      const requestedRoomId = body.roomId ? String(body.roomId) : undefined;
+      const requestedRoomId = readTaskRoomId(body.roomId);
+      if (requestedRoomId instanceof Response) return requestedRoomId;
       if (requestedRoomId && !canAccessRoom(requestedRoomId, bearer, auth)) {
         return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
       }
@@ -206,6 +208,12 @@ function taskAttribution(bearer: ReturnType<typeof resolveAgentToken>, auth: Aut
 
 function legacyCreatedBy(body: Record<string, unknown>): string {
   return typeof body.createdBy === "string" && body.createdBy.trim() ? body.createdBy.trim() : "Bureau";
+}
+
+function readTaskRoomId(value: unknown): string | undefined | Response {
+  if (value === undefined || value === "") return undefined;
+  if (typeof value !== "string") return new Response(JSON.stringify({ error: "roomId must be a string" }), { status: 400, headers: corsHeaders });
+  return value;
 }
 
 function taskCreateIdempotencyKey(req: Request, bearer: ReturnType<typeof resolveAgentToken>, auth: AuthResult | undefined): string | null {
