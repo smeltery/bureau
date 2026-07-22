@@ -14,6 +14,7 @@ export interface UpdateStatus {
 }
 
 const REPO = "dotbrains/bureau";
+const DEFAULT_BRANCH = "master";
 const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
 const PROJECT_ROOT = join(import.meta.dir, "..");
 
@@ -26,6 +27,10 @@ let status: UpdateStatus = {
 };
 
 let onChange: ((s: UpdateStatus) => void) | null = null;
+
+export function latestCommitUrl(repo = REPO, branch = DEFAULT_BRANCH): string {
+  return `https://api.github.com/repos/${repo}/commits/${branch}`;
+}
 
 function getLocalCommit(): CommitInfo | null {
   try {
@@ -40,7 +45,7 @@ function getLocalCommit(): CommitInfo | null {
 
 async function fetchLatestCommit(): Promise<CommitInfo | null> {
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/commits/main`, {
+    const res = await fetch(latestCommitUrl(), {
       headers: { Accept: "application/vnd.github.v3+json" },
       signal: AbortSignal.timeout(10000),
     });
