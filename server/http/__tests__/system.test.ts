@@ -25,17 +25,28 @@ const backupStatus = {
   running: true,
 };
 
+const versionInfo = {
+  version: "v2026.7.22",
+  commit: "abc123",
+  release: "v2026.7.22",
+};
+
+const deps = {
+  getBackupStatus: () => backupStatus,
+  getVersion: () => versionInfo,
+};
+
 describe("handleSystemRequest", () => {
   test("returns null for unrelated api routes", () => {
     const req = new Request("http://local.test/api/tasks");
 
-    expect(handleSystemRequest(req, new URL(req.url), auth, { getBackupStatus: () => backupStatus })).toBeNull();
+    expect(handleSystemRequest(req, new URL(req.url), auth, deps)).toBeNull();
   });
 
   test("requires a browser session for backup status", async () => {
     const req = new Request("http://local.test/api/backup/status");
 
-    const res = handleSystemRequest(req, new URL(req.url), { kind: "loopback" }, { getBackupStatus: () => backupStatus });
+    const res = handleSystemRequest(req, new URL(req.url), { kind: "loopback" }, deps);
 
     expect(res?.status).toBe(401);
     expect(await res?.json()).toEqual({ error: "unauthenticated" });
@@ -44,7 +55,7 @@ describe("handleSystemRequest", () => {
   test("returns normalized backup status", async () => {
     const req = new Request("http://local.test/api/backup/status");
 
-    const res = handleSystemRequest(req, new URL(req.url), auth, { getBackupStatus: () => backupStatus });
+    const res = handleSystemRequest(req, new URL(req.url), auth, deps);
 
     expect(res?.status).toBe(200);
     expect(await res?.json()).toEqual({
@@ -54,5 +65,32 @@ describe("handleSystemRequest", () => {
       retention: 7,
       destDir: "/backups",
     });
+  });
+
+  test("returns version info for browser sessions", async () => {
+    const req = new Request("http://local.test/api/version");
+
+    const res = handleSystemRequest(req, new URL(req.url), auth, deps);
+
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toEqual(versionInfo);
+  });
+
+  test("returns version info for loopback agents", async () => {
+    const req = new Request("http://local.test/api/version");
+
+    const res = handleSystemRequest(req, new URL(req.url), { kind: "loopback" }, deps);
+
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toEqual(versionInfo);
+  });
+
+  test("requires auth for version info", async () => {
+    const req = new Request("http://local.test/api/version");
+
+    const res = handleSystemRequest(req, new URL(req.url), undefined, deps);
+
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "unauthenticated" });
   });
 });

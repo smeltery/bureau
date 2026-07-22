@@ -1,6 +1,7 @@
 import type { Server } from "bun";
 import { getBackupStatus } from "../backup.ts";
 import { closeEditorWatch, findBrowserConnection, watchEditorFile } from "../editor-watchers.ts";
+import { getVersionInfo } from "../version.ts";
 import { getOfficeName, listActiveSessions, listActiveSessionsForUserId, listInvites, listInvitesForUsername } from "../auth/auth.ts";
 import { authenticate } from "../auth/auth-middleware.ts";
 import { tryHandleAuthRoute } from "../auth/auth-routes.ts";
@@ -111,7 +112,7 @@ export function createFetchHandler() {
     const backendsResp = await handleBackendsRequest(req, url, httpAuth);
     if (backendsResp) return backendsResp;
 
-    const systemResp = handleSystemRequest(req, url, httpAuth, { getBackupStatus });
+    const systemResp = handleSystemRequest(req, url, httpAuth, { getBackupStatus, getVersion: getVersionInfo });
     if (systemResp) return systemResp;
 
     const skillUsageResp = handleSkillUsageRequest(req, url, httpAuth);

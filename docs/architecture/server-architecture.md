@@ -23,6 +23,7 @@ All HTTP routing happens in a single `fetch` handler. Routes are evaluated by pa
 | `/api/upload/:agentId` | POST | File upload | Multipart file upload (max 5 files, 20MB each, 40MB total) |
 | `/api/files/:agentId/:filename` | GET | File serve | Serve uploaded files with caching |
 | `/api/images/:agentId/:filename` | GET | File serve (legacy) | Legacy path, redirects to files/ logic |
+| `/api/version` | GET | System info | Build version, commit, and release tag for signed-in users and local agents |
 | `/` + static | GET | Static file server | Serves `ui/dist/` with SPA fallback |
 
 ### Task API Design
