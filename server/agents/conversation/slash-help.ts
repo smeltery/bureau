@@ -1,4 +1,5 @@
 import type { SkillInfo, SkillOrigin } from "../../../shared/types.ts";
+import { buildPublicOrigin } from "../../auth/auth.ts";
 import { addLogEntry, updateState, type ManagedAgent } from "../state.ts";
 
 // Collapse alias entries into their canonical for display. Each output group
@@ -52,12 +53,18 @@ export async function handleHelpCommand(agentId: string, managed: ManagedAgent, 
   );
   lines.push('  • Type ahead while an agent is busy: messages queue and flush when it\'s idle. Hit "Send now" to interrupt and flush immediately.');
   lines.push("  • Use voice-to-text for faster prompting. The shortcut is ctrl+space.");
-  lines.push(
-    "  • Bureau works on your phone. The easiest way is to connect it to the same VPN (e.g., Tailscale - free) as the machine running it. On mobile the terminal opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.",
-  );
-  lines.push(
-    "  • Once the office is reachable from outside your VPN (e.g. via Tailscale Funnel — see https://github.com/dotbrains/bureau/blob/master/docs/features/access-and-invites.md), the owner can open `User Settings → Access` and mint one-time invite URLs. Recipients click and are signed in — no accounts, no passwords.",
-  );
+  const publicOrigin = buildPublicOrigin();
+  if (publicOrigin.source === "localhost") {
+    lines.push(
+      "  • Bureau works on your phone. The easiest way is to connect it to the same VPN (e.g., Tailscale - free) as the machine running it. On mobile the terminal opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.",
+    );
+    lines.push(
+      "  • Once the office is reachable from outside your VPN (e.g. via Tailscale Funnel — see https://github.com/dotbrains/bureau/blob/master/docs/features/access-and-invites.md), the owner can open `User Settings → Access` and mint one-time invite URLs. Recipients click and are signed in — no accounts, no passwords.",
+    );
+  } else {
+    lines.push(`  • Bureau works on your phone: open ${publicOrigin.origin}. On mobile the terminal opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.`);
+    lines.push("  • The owner can open `User Settings → Access` and mint one-time invite URLs. Recipients click and are signed in — no accounts, no passwords.");
+  }
   lines.push(
     "  • The built-in side-panel terminal is useful for one-off situations where you need to run something manually, like auth flows. The file editor side panel (toggle next to the terminal button) opens any file with CodeMirror.",
   );
