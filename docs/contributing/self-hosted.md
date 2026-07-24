@@ -9,7 +9,22 @@ invite-link auth to control access.
 
 For Linux hosts, create a systemd user service that rebuilds the UI on start,
 starts `bun run server/index.ts`, restarts on failure, and enables lingering so
-the service survives logout.
+the service survives logout. A template is available at
+[`bureau.service.example`](bureau.service.example).
+
+```sh
+mkdir -p ~/.config/systemd/user
+cp docs/contributing/bureau.service.example ~/.config/systemd/user/bureau.service
+$EDITOR ~/.config/systemd/user/bureau.service   # set WorkingDirectory to this checkout
+systemctl --user daemon-reload
+systemctl --user enable --now bureau
+sudo loginctl enable-linger "$USER"
+systemctl --user status bureau
+```
+
+Restarting this service interrupts active agents because the server process owns
+their backend sessions. Wait for agents to become idle before planned restarts
+when you do not want to cut off in-progress turns.
 
 A typical agent prompt for doing that from inside Bureau:
 
@@ -21,6 +36,52 @@ survives logout. Verify the service is running before you finish.
 
 On macOS, use a launchd agent instead. On Windows, use Task Scheduler or a
 service wrapper.
+
+## Fresh Ubuntu VPS
+
+On a minimal Ubuntu or Debian host, install the native build tools before
+running `bun install`. Bureau's terminal panel uses `node-pty` through a small
+Node sidecar, so Node and the C/C++ build chain need to be present even though
+Bureau itself runs on Bun.
+
+```sh
+sudo apt-get update
+sudo apt-get install -y git curl ca-certificates build-essential python3 make g++ nodejs
+curl -fsSL https://bun.sh/install | bash
+exec "$SHELL" -l
+git clone https://github.com/dotbrains/bureau.git ~/bureau
+cd ~/bureau
+bun install
+bun run build:ui
+bun run doctor
+```
+
+If your distribution's `nodejs` package is too old for `node-gyp` or
+`node-pty`, install a current Node.js release from NodeSource, your package
+manager of choice, or `nvm`, then rerun `bun install`.
+
+Use Tailscale, a reverse proxy, or a firewall rule so only intended users can
+reach port `4000`. Claim the office locally before enabling external access.
+
+## Health Check
+
+Run the install doctor after dependency changes, host moves, or failed preview
+or terminal sessions:
+
+```sh
+bun run doctor
+```
+
+It checks:
+
+- Bun is the runtime executing Bureau.
+- Node is available and can load `node-pty`.
+- A Chrome-family browser is available for optional browser preview cards.
+- `~/.bureau` or `BUREAU_HOME` is writable.
+- Git metadata is available for update notices.
+
+`WARN` lines identify optional or degraded capabilities. `FAIL` lines need to
+be fixed before considering the host healthy.
 
 ## Browser Preview Cards
 

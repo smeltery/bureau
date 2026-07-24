@@ -13,6 +13,7 @@
     "build:ui:watch": "bun build ui/index.tsx --outdir ui/dist --production --watch",
     "server:watch": "bun --watch server/index.ts",
     "server": "bun run server/index.ts",
+    "doctor": "bun run scripts/doctor.ts",
     "typecheck": "tsc --noEmit",
     "lint": "bun node_modules/oxlint/bin/oxlint --react-plugin server shared ui",
     "budget": "bun run scripts/check-loc-budgets.ts",

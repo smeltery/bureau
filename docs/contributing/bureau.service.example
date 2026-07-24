@@ -1,0 +1,17 @@
+[Unit]
+Description=Bureau office server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/bureau
+Environment=NODE_ENV=production
+Environment=BUREAU_HOME=%h/.bureau
+ExecStartPre=/usr/bin/env bun run build:ui
+ExecStart=/usr/bin/env bun run server/index.ts
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
