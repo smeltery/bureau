@@ -83,6 +83,8 @@ describe("buildSystemPrompt memory affordance", () => {
 
     expect(prompt).toContain("For waits that may outlast an idle session");
     expect(prompt).toContain("scheduled messages live on the server and still fire");
+    expect(prompt).toContain("For long-lived local processes such as dev servers");
+    expect(prompt).toContain("use the terminal panel or the host service manager");
   });
 
   test("documents the agent context usage self-check", () => {

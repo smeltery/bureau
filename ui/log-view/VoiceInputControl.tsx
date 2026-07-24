@@ -1,15 +1,13 @@
 export function VoiceInputControl({
   isListening,
-  startListening,
-  stopListening,
+  toggleListening,
   showMicHint,
   setShowMicHint,
   speechApiPresent,
   isSecureContext,
 }: {
   isListening: boolean;
-  startListening: () => void;
-  stopListening: () => void;
+  toggleListening: () => void;
   showMicHint: boolean;
   setShowMicHint: (v: boolean | ((prev: boolean) => boolean)) => void;
   speechApiPresent: boolean;
@@ -18,11 +16,7 @@ export function VoiceInputControl({
   if (speechApiPresent && isSecureContext) {
     return (
       <button
-        onMouseDown={startListening}
-        onMouseUp={stopListening}
-        onMouseLeave={stopListening}
-        onTouchStart={startListening}
-        onTouchEnd={stopListening}
+        onClick={toggleListening}
         style={{
           flexShrink: 0,
           width: 36,
@@ -42,7 +36,7 @@ export function VoiceInputControl({
           userSelect: "none",
           WebkitUserSelect: "none",
         }}
-        title="Hold to talk (Ctrl+Space)"
+        title={isListening ? "Stop dictation" : "Start dictation (Ctrl+Space to hold)"}
       >
         <MicIcon />
       </button>

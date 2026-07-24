@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Speech-recognition push-to-talk input.
+ * Speech-recognition input.
  *
  * Dictation appends to whatever's already in the draft. Ctrl+Space is the
- * global hold-to-talk shortcut; the mic button in the input bar is
- * mouse/touch hold-to-talk.
+ * global hold-to-talk shortcut; the mic button toggles dictation.
  *
  * `onTranscript` receives every result update (interim or final) and the
  * caller should reflect it in its draft state. `onGrow` fires after the
@@ -39,20 +38,16 @@ export function useVoiceInput({ inputRef, onTranscript, onGrow }: { inputRef: Re
     recognition.interimResults = true;
     recognition.lang = "en-US";
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalText = "";
       let interimText = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalText += t;
+          committedTextRef.current = joinSpoken(committedTextRef.current, t);
         } else {
-          interimText += t;
+          interimText = joinSpoken(interimText, t);
         }
       }
-      if (finalText) {
-        committedTextRef.current += finalText;
-      }
-      onTranscript(committedTextRef.current + interimText);
+      onTranscript(joinSpoken(committedTextRef.current, interimText));
       requestAnimationFrame(() => {
         onGrow();
       });
@@ -78,6 +73,14 @@ export function useVoiceInput({ inputRef, onTranscript, onGrow }: { inputRef: Re
       return;
     }
     recognition.stop();
+  }
+
+  function toggleListening() {
+    if (isListeningRef.current) {
+      stopListening();
+    } else {
+      startListening();
+    }
   }
 
   // Ctrl+Space push-to-talk
@@ -107,9 +110,17 @@ export function useVoiceInput({ inputRef, onTranscript, onGrow }: { inputRef: Re
     isListening,
     startListening,
     stopListening,
+    toggleListening,
     showMicHint,
     setShowMicHint,
     speechApiPresent,
     isSecureContext,
   };
+}
+
+export function joinSpoken(base: string, addition: string): string {
+  if (!base) return addition;
+  if (!addition) return base;
+  if (/\s$/.test(base) || /^\s/.test(addition)) return base + addition;
+  return `${base} ${addition}`;
 }

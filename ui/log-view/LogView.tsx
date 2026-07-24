@@ -223,8 +223,8 @@ export function LogView({
           handlePaste={attachments.handlePaste}
           draggingOver={attachments.draggingOver}
           isListening={voice.isListening}
-          startListening={voice.startListening}
           stopListening={voice.stopListening}
+          toggleListening={voice.toggleListening}
           showMicHint={voice.showMicHint}
           setShowMicHint={voice.setShowMicHint}
           speechApiPresent={voice.speechApiPresent}

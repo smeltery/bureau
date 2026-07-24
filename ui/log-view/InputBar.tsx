@@ -36,8 +36,8 @@ export function InputBar({
   draggingOver,
   // Voice props
   isListening,
-  startListening,
   stopListening,
+  toggleListening,
   showMicHint,
   setShowMicHint,
   speechApiPresent,
@@ -72,8 +72,8 @@ export function InputBar({
   handlePaste: (e: React.ClipboardEvent) => void;
   draggingOver: boolean;
   isListening: boolean;
-  startListening: () => void;
   stopListening: (opts?: { discard?: boolean }) => void;
+  toggleListening: () => void;
   showMicHint: boolean;
   setShowMicHint: (v: boolean | ((prev: boolean) => boolean)) => void;
   speechApiPresent: boolean;
@@ -236,8 +236,7 @@ export function InputBar({
         />
         <VoiceInputControl
           isListening={isListening}
-          startListening={startListening}
-          stopListening={stopListening}
+          toggleListening={toggleListening}
           showMicHint={showMicHint}
           setShowMicHint={setShowMicHint}
           speechApiPresent={speechApiPresent}
