@@ -63,7 +63,7 @@ export function OfficeView({
   onSwipeRight?: () => void;
   viewportControlsRef?: React.RefObject<ViewportControls | null>;
 }) {
-  const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateAvailable, presences, sessionContext } = useAppState();
+  const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateStatus, presences, sessionContext } = useAppState();
   const roomCount = rooms.length;
   const roomNames = rooms.map((r) => r.name);
   const officePrompt = office.prompt;
@@ -138,7 +138,7 @@ export function OfficeView({
         embed={embed}
         isMobile={isMobile}
         username={username}
-        updateAvailable={updateAvailable}
+        updateAvailable={updateStatus.updateAvailable}
         onEditUsername={onEditUsername}
         onOpenDeviceSettings={onOpenDeviceSettings}
         onEditOfficePrompt={onEditOfficePrompt}

@@ -73,7 +73,7 @@ const server = Bun.serve<WsData>({
 
 // Start update checker
 onUpdateChange((status) => {
-  broadcast({ type: "update_status", updateAvailable: status.updateAvailable, current: status.current, latest: status.latest } as ServerMessage);
+  broadcast({ type: "update_status", ...status } as ServerMessage);
 });
 startUpdateChecker();
 

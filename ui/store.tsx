@@ -19,6 +19,7 @@ import type {
   PresenceInfo,
   UserRecord,
 } from "../shared/types.ts";
+import type { UpdateStatusWire } from "../shared/update-types.ts";
 import { type SidePanel } from "./store-side-panels.ts";
 import { useStoreEffects } from "./store-effects.ts";
 import { initialState } from "./store-initial-state.ts";
@@ -67,9 +68,7 @@ export interface AppState {
   // until the Plugins panel first fetches it; server broadcasts keep every
   // open browser in sync after mutations.
   ccPlugins: CCPluginsState | null;
-  updateAvailable: boolean;
-  updateCurrent: { sha: string; message: string; date: string };
-  updateLatest: { sha: string; message: string; date: string };
+  updateStatus: UpdateStatusWire;
   // Per-agent side panel state: which side panel (if any) is open next to
   // the chat. Persisted to localStorage per-agent so switching between
   // agents and reloading both restore the right panel.
@@ -125,7 +124,7 @@ export type Action =
   | { type: "cronjob_run_updated"; run: CronjobRun }
   | SettingsSaveResponse
   | SettingsValidationResponse
-  | { type: "update_status"; updateAvailable: boolean; current: { sha: string; message: string; date: string }; latest: { sha: string; message: string; date: string } }
+  | ({ type: "update_status" } & UpdateStatusWire)
   | { type: "set_side_panel"; agentId: string; panel: SidePanel };
 
 const StateCtx = createContext<AppState>(initialState);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveVersionInfo, type GitRunner } from "../version.ts";
+import { resolveReachableRelease, resolveVersionInfo, type GitRunner } from "../version.ts";
 
 function fakeGit(outputs: Record<string, string | Error>): GitRunner {
   return (args) => {
@@ -17,7 +17,7 @@ describe("resolveVersionInfo", () => {
       fakeGit({
         "describe --tags --always --dirty --match v*": "v2026.7.22\n",
         "rev-parse HEAD": "abc123\n",
-        "describe --tags --exact-match --match v*": "v2026.7.22\n",
+        "tag --points-at HEAD": "v2026.7.22\n",
       }),
     );
 
@@ -33,7 +33,7 @@ describe("resolveVersionInfo", () => {
       fakeGit({
         "describe --tags --always --dirty --match v*": "v1.0.0\n",
         "rev-parse HEAD": "abc123\n",
-        "describe --tags --exact-match --match v*": "v1.0.0\n",
+        "tag --points-at HEAD": "v1.0.0\n",
       }),
     );
 
@@ -46,7 +46,7 @@ describe("resolveVersionInfo", () => {
       fakeGit({
         "describe --tags --always --dirty --match v*": missing,
         "rev-parse HEAD": missing,
-        "describe --tags --exact-match --match v*": missing,
+        "tag --points-at HEAD": missing,
       }),
     );
 
@@ -55,5 +55,29 @@ describe("resolveVersionInfo", () => {
       commit: "unknown",
       release: null,
     });
+  });
+
+  test("chooses the highest CalVer tag when multiple tags point at HEAD", () => {
+    const info = resolveVersionInfo(
+      fakeGit({
+        "describe --tags --always --dirty --match v*": "v2026.7.23\n",
+        "rev-parse HEAD": "abc123\n",
+        "tag --points-at HEAD": "v1.0.0\nv2026.7.22\nv2026.7.23\n",
+      }),
+    );
+
+    expect(info.release).toBe("v2026.7.23");
+  });
+});
+
+describe("resolveReachableRelease", () => {
+  test("returns the newest reachable CalVer release", () => {
+    expect(
+      resolveReachableRelease(
+        fakeGit({
+          "tag --merged HEAD --list v*": "v1.0.0\nv2026.7.20\nv2026.7.22\n",
+        }),
+      ),
+    ).toBe("v2026.7.22");
   });
 });

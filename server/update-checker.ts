@@ -1,96 +1,163 @@
-import { execSync } from "child_process";
-import { join } from "path";
-
-export interface CommitInfo {
-  sha: string;
-  message: string;
-  date: string; // ISO 8601
-}
-
-export interface UpdateStatus {
-  updateAvailable: boolean;
-  current: CommitInfo;
-  latest: CommitInfo;
-}
+import type { LatestRelease, UpdateStatusWire } from "../shared/update-types.ts";
+import { CALVER_TAG, getReachableRelease, getVersionInfo } from "./version.ts";
 
 const REPO = "dotbrains/bureau";
 const DEFAULT_BRANCH = "master";
 const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
-const PROJECT_ROOT = join(import.meta.dir, "..");
 
-const EMPTY_COMMIT: CommitInfo = { sha: "", message: "", date: "" };
+type CompareResult = { aheadBy: number; behindBy: number } | "unknown";
 
-let status: UpdateStatus = {
+let status: UpdateStatusWire = {
+  mode: "commit",
   updateAvailable: false,
-  current: { ...EMPTY_COMMIT },
-  latest: { ...EMPTY_COMMIT },
+  current: { release: null, sha: "" },
+  latest: null,
+  releaseStanding: "unknown",
+  mainAhead: 0,
 };
 
-let onChange: ((s: UpdateStatus) => void) | null = null;
+let onChange: ((s: UpdateStatusWire) => void) | null = null;
 
 export function latestCommitUrl(repo = REPO, branch = DEFAULT_BRANCH): string {
   return `https://api.github.com/repos/${repo}/commits/${branch}`;
 }
 
-function getLocalCommit(): CommitInfo | null {
-  try {
-    // Format: hash\nmessage\nISO date
-    const out = execSync('git log -1 --format="%H%n%s%n%aI"', { cwd: PROJECT_ROOT, timeout: 5000 }).toString().trim();
-    const [sha, message, date] = out.split("\n");
-    return { sha, message, date };
-  } catch {
-    return null;
-  }
+export function latestReleaseUrl(repo = REPO): string {
+  return `https://api.github.com/repos/${repo}/releases/latest`;
 }
 
-async function fetchLatestCommit(): Promise<CommitInfo | null> {
+export function compareUrl(repo = REPO, base: string, branch = DEFAULT_BRANCH): string {
+  return `https://api.github.com/repos/${repo}/compare/${encodeURIComponent(base)}...heads/${branch}?per_page=1`;
+}
+
+export function compareCalver(a: string, b: string): number {
+  const parse = (tag: string) =>
+    tag
+      .slice(1)
+      .split(".")
+      .map((n) => parseInt(n, 10));
+  const left = parse(a);
+  const right = parse(b);
+  for (let i = 0; i < 4; i++) {
+    const diff = (left[i] ?? 0) - (right[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+export function pickRelease(data: unknown): LatestRelease | "none" {
+  if (typeof data !== "object" || data === null) return "none";
+  const body = data as { tag_name?: unknown; published_at?: unknown; html_url?: unknown };
+  const tag = typeof body.tag_name === "string" ? body.tag_name : "";
+  if (!CALVER_TAG.test(tag)) return "none";
+  return {
+    tag,
+    publishedAt: typeof body.published_at === "string" ? body.published_at : null,
+    url: typeof body.html_url === "string" ? body.html_url : null,
+  };
+}
+
+export function parseCompare(data: unknown): { aheadBy: number; behindBy: number } | null {
+  if (typeof data !== "object" || data === null) return null;
+  const body = data as { ahead_by?: unknown; behind_by?: unknown };
+  const validCount = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;
+  if (!validCount(body.ahead_by) || !validCount(body.behind_by)) return null;
+  return { aheadBy: body.ahead_by, behindBy: body.behind_by };
+}
+
+export function pickCompareBase(tagAtHead: string | null, latestTag: string | null, sha: string): string {
+  if (!tagAtHead) return sha;
+  if (latestTag && compareCalver(latestTag, tagAtHead) > 0) return latestTag;
+  return tagAtHead;
+}
+
+export function computeCommitStatus(
+  current: { release: string | null; sha: string },
+  reachable: string | null,
+  latest: { tag: string; url: string | null } | null,
+  compare: CompareResult,
+): UpdateStatusWire {
+  let releaseStanding: UpdateStatusWire["releaseStanding"] = "unknown";
+  if (latest) {
+    const anchor = current.release ?? reachable;
+    if (current.release && compareCalver(current.release, latest.tag) === 0) {
+      releaseStanding = "current";
+    } else if (anchor) {
+      releaseStanding = compareCalver(latest.tag, anchor) > 0 ? "behind" : "ahead";
+    }
+  }
+
+  const quiet = compare === "unknown" || compare.behindBy > 0;
+  const mainAhead = quiet ? 0 : compare.aheadBy;
+
+  return {
+    mode: "commit",
+    updateAvailable: !quiet && (mainAhead > 0 || (latest !== null && releaseStanding === "behind")),
+    current,
+    latest,
+    releaseStanding,
+    mainAhead,
+  };
+}
+
+export function statusChanged(prev: UpdateStatusWire, next: UpdateStatusWire): boolean {
+  return JSON.stringify(prev) !== JSON.stringify(next);
+}
+
+async function fetchLatestRelease(): Promise<LatestRelease | "none" | null> {
   try {
-    const res = await fetch(latestCommitUrl(), {
+    const res = await fetch(latestReleaseUrl(), {
       headers: { Accept: "application/vnd.github.v3+json" },
       signal: AbortSignal.timeout(10000),
     });
+    if (res.status === 404) return "none";
     if (!res.ok) return null;
-    const data = await res.json();
-    return {
-      sha: data.sha,
-      message: data.commit?.message?.split("\n")[0] ?? "",
-      date: data.commit?.committer?.date ?? "",
-    };
+    return pickRelease(await res.json());
   } catch {
     return null;
   }
 }
 
-async function check() {
-  const current = getLocalCommit();
-  if (!current) return;
-
-  const latest = await fetchLatestCommit();
-  if (!latest) return;
-
-  const prev = status.updateAvailable;
-  status = {
-    updateAvailable: current.sha !== latest.sha,
-    current,
-    latest,
-  };
-
-  // Notify only when status changes
-  if (status.updateAvailable !== prev && onChange) {
-    onChange(status);
+async function fetchCompare(base: string): Promise<CompareResult | null> {
+  try {
+    const res = await fetch(compareUrl(REPO, base), {
+      headers: { Accept: "application/vnd.github.v3+json" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 404) return "unknown";
+    if (!res.ok) return null;
+    return parseCompare(await res.json());
+  } catch {
+    return null;
   }
 }
 
-export function getUpdateStatus(): UpdateStatus {
+function publish(next: UpdateStatusWire): void {
+  const changed = statusChanged(status, next);
+  status = next;
+  if (changed && onChange) onChange(status);
+}
+
+async function check() {
+  const current = getVersionInfo();
+  if (!current.commit || current.commit === "unknown") return;
+  const fetched = await fetchLatestRelease();
+  if (fetched === null) return;
+  const latest = fetched === "none" ? null : { tag: fetched.tag, url: fetched.url };
+  const compare = await fetchCompare(pickCompareBase(current.release, latest?.tag ?? null, current.commit));
+  if (compare === null) return;
+  publish(computeCommitStatus({ release: current.release, sha: current.commit }, getReachableRelease(), latest, compare));
+}
+
+export function getUpdateStatus(): UpdateStatusWire {
   return status;
 }
 
-export function onUpdateChange(cb: (s: UpdateStatus) => void) {
+export function onUpdateChange(cb: (s: UpdateStatusWire) => void) {
   onChange = cb;
 }
 
 export function startUpdateChecker() {
-  // Initial check after a short delay to not slow down startup
   setTimeout(() => check(), 5000);
   setInterval(() => check(), CHECK_INTERVAL);
 }

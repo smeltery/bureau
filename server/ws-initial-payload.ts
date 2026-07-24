@@ -87,7 +87,7 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
   );
   const update = getUpdateStatus();
   if (update.updateAvailable) {
-    ws.send(JSON.stringify({ type: "update_status", updateAvailable: true, current: update.current, latest: update.latest } as ServerMessage));
+    ws.send(JSON.stringify({ type: "update_status", ...update } as ServerMessage));
   }
   for (const agent of projectedAgents) {
     const logs = AgentManager.getAgentLogs(agent.id);

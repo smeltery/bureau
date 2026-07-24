@@ -69,10 +69,15 @@ export function useVoiceInput({ inputRef, onTranscript, onGrow }: { inputRef: Re
     recognition.start();
   }
 
-  function stopListening() {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
+  function stopListening(opts?: { discard?: boolean }) {
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+    if (opts?.discard) {
+      recognition.onresult = null;
+      recognition.abort();
+      return;
     }
+    recognition.stop();
   }
 
   // Ctrl+Space push-to-talk

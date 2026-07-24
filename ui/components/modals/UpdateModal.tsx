@@ -1,20 +1,11 @@
 import { useCallback } from "react";
 import { useAppState } from "../../store.tsx";
 import type { AgentInfo } from "../../../shared/types.ts";
+import { buildCommitNotice, type CommitNotice } from "../../../shared/update-notice.ts";
 import { CopyButton } from "../controls/CopyButton.tsx";
 import { Modal } from "./Modal.tsx";
 
 const REPO = "dotbrains/bureau";
-
-function shortSha(sha: string) {
-  return sha.slice(0, 7);
-}
-
-function formatDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-}
 
 export function countBusyAgents(agents: Pick<AgentInfo, "state">[]): number {
   return agents.filter((agent) => agent.state === "thinking" || agent.state === "tool_executing").length;
@@ -25,13 +16,8 @@ function busyAgentRestartWarning(busyAgents: number): string | null {
   return `${busyAgents} ${busyAgents === 1 ? "agent is" : "agents are"} currently working. Wait for ${busyAgents === 1 ? "it" : "them"} to finish before restarting if you do not want to interrupt active work.`;
 }
 
-export function buildPlainText(current: { sha: string; message: string; date: string }, latest: { sha: string; message: string; date: string }, busyAgents = 0): string {
-  const lines = [
-    "Update Available",
-    "",
-    `- You are on commit ${shortSha(current.sha)}: ${current.message} (${formatDate(current.date)})`,
-    `- GitHub is on commit ${shortSha(latest.sha)}: ${latest.message} (${formatDate(latest.date)})`,
-  ];
+export function buildPlainText(notice: CommitNotice, busyAgents = 0): string {
+  const lines = [notice.title, "", notice.notice];
 
   const warning = busyAgentRestartWarning(busyAgents);
   if (warning) lines.push("", `Warning: ${warning}`);
@@ -61,30 +47,34 @@ const textStyle: React.CSSProperties = {
 };
 
 export function UpdateModal({ onClose }: { onClose: () => void }) {
-  const { agents, updateCurrent, updateLatest } = useAppState();
+  const { agents, updateStatus } = useAppState();
   const busyAgents = countBusyAgents(agents);
   const warning = busyAgentRestartWarning(busyAgents);
+  const notice = buildCommitNotice(updateStatus);
 
-  const getText = useCallback(() => buildPlainText(updateCurrent, updateLatest, busyAgents), [busyAgents, updateCurrent, updateLatest]);
+  const getText = useCallback(() => (notice ? buildPlainText(notice, busyAgents) : ""), [busyAgents, notice]);
+
+  if (!notice) return null;
 
   return (
     <Modal onClose={onClose} width={480}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Update Available</h3>
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{notice.title}</h3>
         <CopyButton getText={getText} size={28} />
       </div>
 
-      <ul style={{ ...textStyle, margin: "16px 0 0", paddingLeft: 20 }}>
-        <li>
-          You are on commit <code style={code}>{shortSha(updateCurrent.sha)}</code>: {updateCurrent.message} ({formatDate(updateCurrent.date)})
-        </li>
-        <li style={{ marginTop: 4 }}>
+      <p style={{ ...textStyle, margin: "16px 0 0" }}>
+        {notice.notice}{" "}
+        {updateStatus.latest?.url ? (
+          <a href={updateStatus.latest.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--blue, #58a6ff)", textDecoration: "none" }}>
+            (release notes)
+          </a>
+        ) : (
           <a href={`https://github.com/${REPO}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--blue, #58a6ff)", textDecoration: "none" }}>
-            GitHub
-          </a>{" "}
-          is on commit <code style={code}>{shortSha(updateLatest.sha)}</code>: {updateLatest.message} ({formatDate(updateLatest.date)})
-        </li>
-      </ul>
+            (GitHub)
+          </a>
+        )}
+      </p>
 
       {warning && (
         <p

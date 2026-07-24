@@ -73,7 +73,7 @@ export function InputBar({
   draggingOver: boolean;
   isListening: boolean;
   startListening: () => void;
-  stopListening: () => void;
+  stopListening: (opts?: { discard?: boolean }) => void;
   showMicHint: boolean;
   setShowMicHint: (v: boolean | ((prev: boolean) => boolean)) => void;
   speechApiPresent: boolean;
@@ -117,7 +117,7 @@ export function InputBar({
     }
     setInput("");
     clearAttachments();
-    stopListening();
+    stopListening({ discard: true });
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }

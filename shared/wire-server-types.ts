@@ -5,6 +5,7 @@ import type { LogEntry } from "./log-types.ts";
 import type { TaskItem } from "./tasks.ts";
 import type { InviteWire, OfficeSettings, PresenceInfo, RoomWire, SessionContext, SessionWire, UserRecord } from "./user-types.ts";
 import type { AgentSaveResponse, CwdValidationResponse, SettingsSaveResponse, SettingsValidationResponse } from "./wire-response-types.ts";
+import type { UpdateStatusWire } from "./update-types.ts";
 
 // Server -> Browser messages
 export type ServerMessage =
@@ -84,7 +85,7 @@ export type ServerMessage =
   | SettingsValidationResponse
   | AgentSaveResponse
   | CwdValidationResponse
-  | { type: "update_status"; updateAvailable: boolean; current: { sha: string; message: string; date: string }; latest: { sha: string; message: string; date: string } }
+  | ({ type: "update_status" } & UpdateStatusWire)
   | { type: "cronjobs_state"; cronjobs: Cronjob[]; cronjobsPrompt: string | null }
   | { type: "cronjob_added"; cronjob: Cronjob }
   | { type: "cronjob_updated"; cronjob: Cronjob }

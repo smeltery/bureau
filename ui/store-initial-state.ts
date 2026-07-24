@@ -36,9 +36,14 @@ export const initialState: AppState = {
   cronjobRunsByJob: new Map(),
   cronjobRunsLoaded: false,
   ccPlugins: null,
-  updateAvailable: false,
-  updateCurrent: { sha: "", message: "", date: "" },
-  updateLatest: { sha: "", message: "", date: "" },
+  updateStatus: {
+    mode: "commit",
+    updateAvailable: false,
+    current: { release: null, sha: "" },
+    latest: null,
+    releaseStanding: "unknown",
+    mainAhead: 0,
+  },
   sidePanels: readSidePanels(),
   killedAgents: [],
 };

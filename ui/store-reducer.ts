@@ -149,7 +149,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case "room_created":
       return { ...state, rooms: [...state.rooms, action.room] };
     case "update_status":
-      return { ...state, updateAvailable: action.updateAvailable, updateCurrent: action.current, updateLatest: action.latest };
+      return { ...state, updateStatus: action };
     case "room_closed": {
       const currentRoomId = state.rooms[state.currentRoom]?.id ?? null;
       const result = applyRoomClose(state.rooms, action.roomId, currentRoomId);

@@ -36,7 +36,7 @@ export function AgentListView({
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
 }) {
-  const { agents, currentRoom, rooms, updateAvailable } = useAppState();
+  const { agents, currentRoom, rooms, updateStatus } = useAppState();
   const roomCount = rooms.length;
   const roomAgents = agents.filter((a) => a.room === currentRoom);
   const swipeRef = useSwipeLeftRight(onSwipeLeft ?? (() => {}), onSwipeRight ?? (() => {}), true);
@@ -60,7 +60,7 @@ export function AgentListView({
         onOpenDeviceSettings={onOpenDeviceSettings}
         onEditOfficePrompt={onEditOfficePrompt}
         onEditRoomSettings={onEditRoomSettings}
-        updateAvailable={updateAvailable}
+        updateAvailable={updateStatus.updateAvailable}
         onOpenUpdate={onOpenUpdate}
       />
 
