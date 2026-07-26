@@ -11,7 +11,7 @@ export function contextMeterView(usage?: AgentContextUsageSnapshot | null): { co
   if (!usage) {
     return {
       color: contextMeterColor(null),
-      label: "?",
+      label: "CTX",
       remaining: 0,
       title: "Context usage not measured yet. It updates when the agent finishes a turn.",
     };

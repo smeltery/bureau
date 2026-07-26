@@ -14,7 +14,7 @@ describe("ContextMeter", () => {
   test("renders an explicit unknown state when no usage has been measured", () => {
     expect(contextMeterView(null)).toEqual({
       color: "var(--text-ghost)",
-      label: "?",
+      label: "CTX",
       remaining: 0,
       title: "Context usage not measured yet. It updates when the agent finishes a turn.",
     });
