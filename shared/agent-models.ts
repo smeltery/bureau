@@ -31,8 +31,11 @@ export type ModelFamily = "opus" | "sonnet" | "haiku" | "fable";
 
 export type ClaudeModel = string;
 
+// Repointing a family at a newer model the bundled CLI may not know yet?
+// Bump @anthropic-ai/claude-agent-sdk in the same commit so the CLI reports
+// the model's real context window instead of falling back to a stale default.
 export const FAMILY_TO_MODEL: Record<ModelFamily, ClaudeModel> = {
-  opus: "claude-opus-4-8",
+  opus: "claude-opus-5",
   sonnet: "claude-sonnet-4-6",
   haiku: "claude-haiku-4-5-20251001",
   fable: "claude-fable-5",

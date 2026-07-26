@@ -24,6 +24,14 @@ describe("summarizeBureauCurl", () => {
     expect(summarizeBureauCurl(`curl -s localhost:4000/api/tasks -d '{broken'`)).toBe("Bureau API: tasks");
   });
 
+  test("summarizes JSON bodies fed directly to curl through heredoc stdin", () => {
+    expect(
+      summarizeBureauCurl(`curl -s -X POST localhost:4000/api/agents/desk-1/messages -d @- <<'JSON'
+{"text":"write the summary"}
+JSON`),
+    ).toBe("Bureau API: message agent - text=write the summary");
+  });
+
   test("summarizes agent control and context calls", () => {
     expect(summarizeBureauCurl("curl -s localhost:4000/api/agents/desk-1/context")).toBe("Bureau API: check context");
     expect(summarizeBureauCurl("curl -s -X POST localhost:4000/api/agents/desk-1/abort -d '{}'")).toBe("Bureau API: interrupt agent");

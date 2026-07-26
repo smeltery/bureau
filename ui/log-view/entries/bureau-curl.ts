@@ -1,6 +1,8 @@
 const LOCAL_BUREAU_URL_RE = /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1)(?::\d+)?\/[^\s'"\\)]+/g;
 
 const BODY_FLAG_RE = /(?:^|\s)(?:--data(?:-raw|-binary)?|-d)\s+(["'])([\s\S]*?)\1/;
+const STDIN_BODY_FLAG_RE = /(?:^|\s)(?:--data(?:-raw|-binary)?|-d)\s+@-/;
+const DIRECT_HEREDOC_RE = /<<-?\s*(["']?)([A-Za-z_][A-Za-z0-9_]*)\1\s*\n([\s\S]*?)\n\2\s*$/;
 
 type JsonObject = Record<string, unknown>;
 
@@ -60,7 +62,7 @@ function extractLocalBureauUrl(command: string): URL | null {
 }
 
 function extractBodyFields(command: string): string[] {
-  const body = BODY_FLAG_RE.exec(command)?.[2];
+  const body = BODY_FLAG_RE.exec(command)?.[2] ?? extractDirectHeredocBody(command);
   if (!body) return [];
 
   let parsed: unknown;
@@ -76,6 +78,12 @@ function extractBodyFields(command: string): string[] {
     .map((key) => formatField(key, parsed[key]))
     .filter((field): field is string => field !== null)
     .slice(0, 3);
+}
+
+function extractDirectHeredocBody(command: string): string | null {
+  if (!STDIN_BODY_FLAG_RE.test(command)) return null;
+  const match = DIRECT_HEREDOC_RE.exec(command);
+  return match ? match[3] : null;
 }
 
 function formatField(key: string, value: unknown): string | null {
