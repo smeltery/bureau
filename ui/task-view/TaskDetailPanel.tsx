@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { send } from "../ws.ts";
 import type { TaskItem, TaskPriority, TaskStatus } from "../../shared/types.ts";
+import { CopyButton } from "../components/controls/CopyButton.tsx";
 import { TaskDetailFields } from "./TaskDetailFields.tsx";
 import { TaskDetailFooter } from "./TaskDetailFooter.tsx";
 
@@ -162,7 +163,14 @@ export function TaskDetailPanel({
           flexShrink: 0,
         }}
       >
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{mode === "create" ? "New Task" : `#${task!.id}`}</span>
+        {mode === "create" ? (
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>New Task</span>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontFamily: "'JetBrains Mono',monospace" }}>#{task!.id}</span>
+            <CopyButton getText={() => task!.id} size={22} />
+          </div>
+        )}
         <button
           onClick={requestClose}
           style={{

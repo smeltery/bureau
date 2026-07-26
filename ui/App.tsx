@@ -102,6 +102,15 @@ export function App() {
     writeSavedView(draftUser, { roomId, agentId: focusedAgentId, panel });
   }, [agents, cronjobsOpen, currentRoom, draftUser, focusedAgentId, pluginsOpen, rooms, tasksOpen]);
 
+  const focusedAgentName = focusedAgent?.name ?? null;
+  const currentRoomName = rooms[currentRoom]?.name ?? null;
+  useEffect(() => {
+    if (!connected) return;
+    const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Cron Jobs" : pluginsOpen ? "Plugins" : null;
+    const label = panelTitle ?? focusedAgentName ?? currentRoomName ?? null;
+    document.title = label ? `${label} | Bureau` : "Bureau";
+  }, [connected, cronjobsOpen, currentRoomName, focusedAgentName, pluginsOpen, tasksOpen]);
+
   const { goHome, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
     agents,
     connected,
