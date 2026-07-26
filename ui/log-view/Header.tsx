@@ -20,6 +20,9 @@ export function Header({
   setTerminalOpen,
   editorOpen,
   setEditorOpen,
+  slideModeEnabled,
+  slideView,
+  setSlideView,
   getConversationText,
 }: {
   agent: AgentInfo;
@@ -33,6 +36,9 @@ export function Header({
   setTerminalOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
   editorOpen: boolean;
   setEditorOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
+  slideModeEnabled?: boolean;
+  slideView?: boolean;
+  setSlideView?: (active: boolean) => void;
   getConversationText: () => string;
 }) {
   const { stateChangedAt, isMobile } = useAppState();
@@ -49,6 +55,9 @@ export function Header({
         toggleAvatar={toggleAvatar}
         stateChangedAt={stateChangedAt.get(agent.id)}
         getConversationText={getConversationText}
+        slideModeEnabled={slideModeEnabled}
+        slideView={slideView}
+        setSlideView={setSlideView}
       />
     );
   }
@@ -135,6 +144,9 @@ export function Header({
         setTerminalOpen={setTerminalOpen}
         editorOpen={editorOpen}
         setEditorOpen={setEditorOpen}
+        slideModeEnabled={slideModeEnabled}
+        slideView={slideView}
+        setSlideView={setSlideView}
         getConversationText={getConversationText}
       />
     </div>

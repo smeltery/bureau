@@ -56,6 +56,7 @@ export interface LogEntry {
   kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "diff" | "edit-request" | "terminal-command" | "file-view";
   content: string;
   metadata?: Record<string, unknown>;
+  ephemeral?: boolean;
   attachments?: Attachment[]; // file attachments, served via /api/files/<agentId>/<filename>
   diff?: DiffPayload; // present only when kind === "diff"
   file?: FilePayload; // present only when kind === "edit-request"

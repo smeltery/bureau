@@ -13,6 +13,9 @@ export function HeaderActions({
   setTerminalOpen,
   editorOpen,
   setEditorOpen,
+  slideModeEnabled,
+  slideView,
+  setSlideView,
   getConversationText,
 }: {
   logs: unknown[];
@@ -23,6 +26,9 @@ export function HeaderActions({
   setTerminalOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
   editorOpen: boolean;
   setEditorOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
+  slideModeEnabled?: boolean;
+  slideView?: boolean;
+  setSlideView?: (active: boolean) => void;
   getConversationText: () => string;
 }) {
   const { mode } = useTheme();
@@ -48,6 +54,26 @@ export function HeaderActions({
         </button>
       )}
       {logs.length > 0 && <CopyButton getText={getConversationText} />}
+      {slideModeEnabled && setSlideView && (
+        <button
+          onClick={() => setSlideView(!slideView)}
+          title={slideView ? "Show chat" : "Show slides"}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "4px 10px",
+            borderRadius: 6,
+            border: `1px solid ${slideView ? "var(--green-border)" : "var(--border-medium)"}`,
+            background: slideView ? "var(--green-bg)" : "var(--btn-surface)",
+            color: slideView ? "var(--green)" : "var(--text-dim)",
+            fontSize: 12,
+            cursor: "pointer",
+          }}
+        >
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>Sl</span>
+        </button>
+      )}
       <button
         onClick={toggleAvatar}
         title={showAvatar ? "Hide agent avatar" : "Show agent avatar"}

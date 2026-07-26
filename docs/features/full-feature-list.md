@@ -64,6 +64,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Voice input and speech synthesis where supported by the browser.
 - Per-agent drafts and queued message chips, including restart-surviving queued
   messages and Ctrl/Cmd+Enter send-now delivery.
+- Device-gated Slide Mode presents each agent conversation as a per-turn deck
+  with saved per-agent position.
 - Conversation branching by editing a past user message.
 - Session resume, new conversation, model/effort changes, and usage views.
 

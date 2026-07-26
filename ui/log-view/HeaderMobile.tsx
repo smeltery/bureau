@@ -15,6 +15,9 @@ export function HeaderMobile({
   toggleAvatar,
   stateChangedAt,
   getConversationText,
+  slideModeEnabled,
+  slideView,
+  setSlideView,
 }: {
   agent: AgentInfo;
   logs: unknown[];
@@ -25,6 +28,9 @@ export function HeaderMobile({
   toggleAvatar: () => void;
   stateChangedAt?: number;
   getConversationText: () => string;
+  slideModeEnabled?: boolean;
+  slideView?: boolean;
+  setSlideView?: (active: boolean) => void;
 }) {
   return (
     <div
@@ -103,6 +109,25 @@ export function HeaderMobile({
             </button>
           )}
           {logs.length > 0 && <CopyButton getText={getConversationText} />}
+          {slideModeEnabled && setSlideView && (
+            <button
+              onClick={() => setSlideView(!slideView)}
+              title={slideView ? "Show chat" : "Show slides"}
+              style={{
+                padding: "2px 7px",
+                borderRadius: 6,
+                border: `1px solid ${slideView ? "var(--green-border)" : "var(--border-medium)"}`,
+                background: slideView ? "var(--green-bg)" : "var(--btn-surface)",
+                color: slideView ? "var(--green)" : "var(--text-dim)",
+                fontSize: 11,
+                cursor: "pointer",
+                flexShrink: 0,
+                fontFamily: "'JetBrains Mono',monospace",
+              }}
+            >
+              Sl
+            </button>
+          )}
           <button
             onClick={toggleAvatar}
             title={showAvatar ? "Hide agent avatar" : "Show agent avatar"}
