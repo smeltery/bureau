@@ -28,7 +28,7 @@ export function buildPlainText(notice: CommitNotice, busyAgents = 0): string {
     "",
     "1. Pull the latest changes",
     "2. Run `bun install`",
-    `3. Restart the server: run \`bun run dev\`, or something like \`systemctl --user restart bureau\` if using a persistent systemd service.`,
+    "3. Restart the server: run `bun run dev`; for a user service run `systemctl --user restart bureau`; for a system service run `sudo systemctl restart bureau`.",
   );
 
   return lines.join("\n");
@@ -99,7 +99,8 @@ export function UpdateModal({ onClose }: { onClose: () => void }) {
           Run <code style={code}>bun install</code>
         </li>
         <li style={{ marginTop: 4 }}>
-          Restart the server: run <code style={code}>bun run dev</code>, or something like <code style={code}>systemctl --user restart bureau</code> if using a persistent systemd service.
+          Restart the server: run <code style={code}>bun run dev</code>; for a user service run <code style={code}>systemctl --user restart bureau</code>; for a system service run{" "}
+          <code style={code}>sudo systemctl restart bureau</code>.
         </li>
       </ol>
 

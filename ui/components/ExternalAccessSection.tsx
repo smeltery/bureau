@@ -221,6 +221,8 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
         <div style={restartBoxStyle}>
           <p style={{ ...hint, marginTop: 0 }}>Saved. Restart bureau so the new bind takes effect:</p>
           <code style={codeBlockStyle}>systemctl --user restart bureau</code>
+          <p style={{ ...hint, marginTop: 8 }}>For a system service, use:</p>
+          <code style={codeBlockStyle}>sudo systemctl restart bureau</code>
           {signInUrl && (
             <>
               <p style={{ ...hint, marginTop: 10 }}>After the restart, open this URL on whichever device you want to use from the public address. (It expires 1 hour after minting.)</p>

@@ -78,7 +78,7 @@ Trade-offs:
 - **Dependency on Tailscale's relay and control plane.** Your reachability is contingent on Tailscale's infrastructure being up and on Tailscale not changing the free tier in adverse ways.
 - **Public DNS visibility.** Your `*.ts.net` hostname (and therefore your tailnet name) becomes resolvable from the public internet and appears in Certificate Transparency logs once Tailscale provisions a Let's Encrypt cert.
 
-To set this up, claim ownership of your office first (open the form on the host or via `ssh -L`), then run `tailscale funnel --bg http://localhost:4000` from the box. Funnel reports a public `https://<host>.ts.net` URL. Open `User Settings → Access → External access`, toggle it on, paste the URL into the **Public URL** field, click Save, then restart bureau (`systemctl --user restart bureau`). Sign in on the public URL using the invite link the Access pane shows you after Save.
+To set this up, claim ownership of your office first (open the form on the host or via `ssh -L`), then run `tailscale funnel --bg http://localhost:4000` from the box. Funnel reports a public `https://<host>.ts.net` URL. Open `User Settings -> Access -> External access`, toggle it on, paste the URL into the **Public URL** field, click Save, then restart bureau so the new bind takes effect. For a user service, run `systemctl --user restart bureau`; for a system service, run `sudo systemctl restart bureau`. Sign in on the public URL using the invite link the Access pane shows you after Save.
 
 ### Alternative: Tailscale, tailnet-only (no public URL)
 
@@ -100,7 +100,7 @@ Post-claim, the **Access pane** in User Settings has an _External access_ sectio
 - **Enable external access** toggle. Off by default; the server keeps binding `127.0.0.1` only and the office is reachable from the host machine (or via an SSH tunnel) but not from your LAN/VPN.
 - **Public URL** text field. Where browsers on other machines will reach this office (e.g. `https://my-mac-mini.<your-tailnet>.ts.net`).
 
-Saving persists all three fields to `~/.bureau/office-config.json` and (when external access is on) mints an owner self-invite bound to the new URL so you can sign in on the new origin immediately. The toggle takes effect on the next bureau restart (the pane spells out the exact `systemctl --user restart bureau` command). Restart is intentional: changing the bind interface and cookie/origin policy mid-process is brittle, and the toggle is rare enough that "save then restart" is the right trade.
+Saving persists all three fields to `~/.bureau/office-config.json` and (when external access is on) mints an owner self-invite bound to the new URL so you can sign in on the new origin immediately. The toggle takes effect on the next bureau restart (the pane spells out `systemctl --user restart bureau` for a user service and `sudo systemctl restart bureau` for a system service). Restart is intentional: changing the bind interface and cookie/origin policy mid-process is brittle, and the toggle is rare enough that "save then restart" is the right trade.
 
 The resolved value drives:
 

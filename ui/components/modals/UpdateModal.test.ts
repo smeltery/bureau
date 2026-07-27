@@ -30,4 +30,11 @@ describe("UpdateModal helpers", () => {
 
     expect(text).not.toContain("Warning:");
   });
+
+  test("includes user and system service restart commands", () => {
+    const text = buildPlainText(notice, 0);
+
+    expect(text).toContain("systemctl --user restart bureau");
+    expect(text).toContain("sudo systemctl restart bureau");
+  });
 });
