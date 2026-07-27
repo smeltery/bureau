@@ -35,8 +35,22 @@ export function DeckView({ agent, logs, isMobile, input, inputBar }: { agent: Ag
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "ArrowLeft") jump(index - 1);
-      if (event.key === "ArrowRight") jump(index + 1);
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        jump(index - 1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        jump(index + 1);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        jump(0);
+      } else if (event.key === "End") {
+        event.preventDefault();
+        jump(turns.length - 1);
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

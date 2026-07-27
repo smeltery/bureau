@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefCallback } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefCallback } from "react";
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
 import { useAppState, useDispatch, useFeatures } from "../store.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
@@ -80,6 +80,20 @@ export function LogView({
   const vpHeight = useViewportHeight(isMobile, scrollRef);
   const { autoScroll, setAutoScroll, handleScroll: handleAutoScroll } = useAutoScroll(scrollRef, logs, agent.state);
   const { pinnedMessage, scrollToPinnedMessage, getUserMsgRefCb, recomputePinned } = usePinnedUserMessage(scrollRef, logs, agent.state);
+  const savedChatScrollRef = useRef<{ agentId: string; top: number } | null>(null);
+  const handleChatScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) savedChatScrollRef.current = { agentId: agent.id, top: el.scrollTop };
+    handleAutoScroll();
+  }, [agent.id, handleAutoScroll]);
+
+  useLayoutEffect(() => {
+    if (slideMode.active || autoScroll) return;
+    const el = scrollRef.current;
+    const saved = savedChatScrollRef.current;
+    if (!el || !saved || saved.agentId !== agent.id) return;
+    el.scrollTop = saved.top;
+  }, [agent.id, autoScroll, slideMode.active]);
 
   const { cite, handleCite, handleScroll } = useLogViewCite({
     inputRef,
@@ -88,7 +102,7 @@ export function LogView({
     autoResize,
     editingLogEntryId,
     scrollRef,
-    handleAutoScroll,
+    handleAutoScroll: handleChatScroll,
     recomputePinned,
   });
   const handleTerminalSendToChat = useCallback((text: string) => handleCite(text, "Terminal output"), [handleCite]);
