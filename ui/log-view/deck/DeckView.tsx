@@ -121,8 +121,30 @@ export function DeckView({ agent, logs, isMobile, input, inputBar }: { agent: Ag
           ) : (
             <div style={{ alignSelf: "center", color: "var(--text-muted)", fontSize: 14 }}>No conversation turns yet.</div>
           )}
-          <DeckButton label="Previous slide" side="left" disabled={atStart} onClick={() => jump(index - 1)} />
-          <DeckButton label="Next slide" side="right" disabled={atEnd} onClick={() => jump(index + 1)} />
+          <DeckButton label="Previous slide" side="left" disabled={atStart} isMobile={isMobile} onClick={() => jump(index - 1)} />
+          <DeckButton label="Next slide" side="right" disabled={atEnd} isMobile={isMobile} onClick={() => jump(index + 1)} />
+          {!atEnd && (
+            <button
+              onClick={() => jump(turns.length - 1)}
+              title="Jump to latest slide"
+              style={{
+                position: "absolute",
+                bottom: isMobile ? 4 : 10,
+                left: "50%",
+                transform: "translateX(-50%)",
+                fontFamily: "'JetBrains Mono',monospace",
+                fontSize: 12,
+                color: "var(--text-secondary)",
+                background: "var(--bg-overlay)",
+                border: "1px solid var(--border-medium)",
+                borderRadius: 12,
+                padding: "2px 10px",
+                cursor: "pointer",
+              }}
+            >
+              Latest
+            </button>
+          )}
         </section>
         {inputBar}
       </div>
@@ -130,7 +152,8 @@ export function DeckView({ agent, logs, isMobile, input, inputBar }: { agent: Ag
   );
 }
 
-function DeckButton({ label, side, disabled, onClick }: { label: string; side: "left" | "right"; disabled: boolean; onClick: () => void }) {
+function DeckButton({ label, side, disabled, isMobile, onClick }: { label: string; side: "left" | "right"; disabled: boolean; isMobile: boolean; onClick: () => void }) {
+  const size = isMobile ? 30 : 38;
   return (
     <button
       aria-label={label}
@@ -139,18 +162,18 @@ function DeckButton({ label, side, disabled, onClick }: { label: string; side: "
       style={{
         position: "absolute",
         top: "50%",
-        [side]: 12,
+        [side]: isMobile ? 4 : 12,
         transform: "translateY(-50%)",
-        width: 38,
-        height: 38,
+        width: size,
+        height: size,
         borderRadius: 8,
         border: "1px solid var(--border-medium)",
         background: "var(--bg-overlay)",
         color: disabled ? "var(--text-ghost)" : "var(--text-primary)",
-        opacity: disabled ? 0.35 : 0.9,
+        opacity: disabled ? 0.35 : isMobile ? 0.75 : 0.9,
         cursor: disabled ? "default" : "pointer",
-        fontSize: 22,
-        lineHeight: "34px",
+        fontSize: isMobile ? 16 : 22,
+        lineHeight: isMobile ? "26px" : "34px",
       }}
     >
       {side === "left" ? "<" : ">"}
