@@ -26,6 +26,19 @@ Restarting this service interrupts active agents because the server process owns
 their backend sessions. Wait for agents to become idle before planned restarts
 when you do not want to cut off in-progress turns.
 
+For this user-service setup, restart with:
+
+```sh
+systemctl --user restart bureau
+```
+
+If you adapt the unit into a root-managed system service instead, use the
+system service form:
+
+```sh
+sudo systemctl restart bureau
+```
+
 A typical agent prompt for doing that from inside Bureau:
 
 ```text
@@ -58,7 +71,18 @@ bun run doctor
 
 If your distribution's `nodejs` package is too old for `node-gyp` or
 `node-pty`, install a current Node.js release from NodeSource, your package
-manager of choice, or `nvm`, then rerun `bun install`.
+manager of choice, or `nvm`, then rerun `bun install`. On Debian/Ubuntu, one
+NodeSource path is:
+
+```sh
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key |
+  sudo gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
+echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" |
+  sudo tee /etc/apt/sources.list.d/nodesource.list >/dev/null
+sudo apt-get update
+sudo apt-get install -y nodejs
+bun install
+```
 
 Use Tailscale, a reverse proxy, or a firewall rule so only intended users can
 reach port `4000`. Claim the office locally before enabling external access.
@@ -108,7 +132,9 @@ The recommended paths are documented in
 - **Caddy + your own DNS** when you want a conventional public hostname.
 
 After the office is claimed, open `User Settings -> Access`, enable external
-access, set the public URL, save, and restart the Bureau service.
+access, set the public URL, save, and restart the Bureau service
+(`systemctl --user restart bureau` for the user-service setup above, or
+`sudo systemctl restart bureau` for a root-managed system service).
 
 ## Mobile And PWA
 

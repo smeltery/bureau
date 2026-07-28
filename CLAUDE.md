@@ -10,7 +10,7 @@ Read the [design and architecture article](articles/punching-in-building-an-offi
 - **Auto-reload dev mode:** `bun run dev`. This runs UI watch-build + server watch-restart together, and live-refreshes local browser tabs on UI rebuilds.
 - **Manual fallback:** `bun run dev:manual` (single build + server run).
 - **Rebuild UI only:** `bun run build:ui`. This bundles JS, copies `index.html`, and copies `xterm.css` into `ui/dist/`. The server reads from `ui/dist/` on each request — no restart needed. **Do NOT build to `ui/index.js`; that path is not served.**
-- **Restart server:** `systemctl --user restart bureau`. This kills the process all agents run on — every active agent session is interrupted. The user will need to proactively continue any in-progress conversations afterward.
+- **Restart server:** user service: `systemctl --user restart bureau`; system service: `sudo systemctl restart bureau`. This kills the process all agents run on — every active agent session is interrupted. The user will need to proactively continue any in-progress conversations afterward.
 - **URL:** http://localhost:4000 (server machine) or http://TAILSCALE_SERVER_ALIAS:4000 (laptop, phone, etc.)
 - **Debug agent issues** by reading logs at `~/.bureau/logs/<agentId>/<sessionId>.jsonl` — don't ask the user to copy-paste.
 - **Don't ask the user to run commands — just do it.**
