@@ -22,6 +22,7 @@ import { useAppNavigation } from "./useAppNavigation.ts";
 import { storageGetItem, storageSetItem } from "./browser-storage.ts";
 import { normalizeDraftUser, pruneDraftsForUser, readDraftsForUser, writeDraftForUser } from "./store-drafts.ts";
 import { readSavedView, writeSavedView } from "./store-view.ts";
+import { agentTabLabel } from "./agent-tab-label.ts";
 
 export function App() {
   const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext, hasReceivedInitialState } = useAppState();
@@ -99,13 +100,15 @@ export function App() {
   }, [agents, cronjobsOpen, currentRoom, draftUser, focusedAgentId, pluginsOpen, rooms, tasksOpen]);
 
   const focusedAgentName = focusedAgent?.name ?? null;
+  const focusedAgentState = focusedAgent?.state ?? null;
   const currentRoomName = rooms[currentRoom]?.name ?? null;
   useEffect(() => {
     if (!connected) return;
     const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Cron Jobs" : pluginsOpen ? "Plugins" : null;
-    const label = panelTitle ?? focusedAgentName ?? currentRoomName ?? null;
+    const focusedAgentTitle = focusedAgentName && focusedAgentState ? agentTabLabel(focusedAgentName, focusedAgentState) : null;
+    const label = panelTitle ?? focusedAgentTitle ?? currentRoomName ?? null;
     document.title = label ? `${label} | Bureau` : "Bureau";
-  }, [connected, cronjobsOpen, currentRoomName, focusedAgentName, pluginsOpen, tasksOpen]);
+  }, [connected, cronjobsOpen, currentRoomName, focusedAgentName, focusedAgentState, pluginsOpen, tasksOpen]);
 
   const { goHome, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
     agents,
