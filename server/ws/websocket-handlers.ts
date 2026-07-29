@@ -37,7 +37,18 @@ export function openBrowserWebSocket(ws: ServerWebSocket<WsData>): void {
   sendInitialPayload(ws);
 }
 
-export function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>, data: string | Buffer): void {
+type CommandDispatch = (cmd: ClientCommand, ws: ServerWebSocket<WsData>) => Promise<void> | void;
+
+export async function dispatchBrowserCommand(ws: ServerWebSocket<WsData>, data: string | Buffer, dispatch: CommandDispatch = handleCommand): Promise<void> {
+  try {
+    const cmd = JSON.parse(data as string) as ClientCommand;
+    await dispatch(cmd, ws);
+  } catch (e) {
+    console.error("Invalid command:", e);
+  }
+}
+
+export async function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>, data: string | Buffer): Promise<void> {
   // Per-message session recheck so a revoke from the Access pane disconnects
   // an active connection within ~1s. Loopback connections skip the check.
   const session = ws.data?.session ?? null;
@@ -53,12 +64,7 @@ export function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>, data:
       return;
     }
   }
-  try {
-    const cmd = JSON.parse(data as string) as ClientCommand;
-    handleCommand(cmd, ws);
-  } catch (e) {
-    console.error("Invalid command:", e);
-  }
+  await dispatchBrowserCommand(ws, data);
 }
 
 export function closeBrowserWebSocket(ws: ServerWebSocket<WsData>): void {
