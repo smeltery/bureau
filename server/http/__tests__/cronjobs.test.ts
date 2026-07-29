@@ -96,6 +96,52 @@ describe("handleCronjobsRequest", () => {
     expect(deletedRes?.status).toBe(204);
   });
 
+  test("rejects malformed cronjob schedules before persistence", async () => {
+    const createReq = new Request("http://local.test/api/cronjobs", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Bad schedule",
+        schedule: { type: "daily", hour: "9", minute: 0 },
+        prompt: "Check the queue",
+        cwd: process.cwd(),
+        modelFamily: "opus",
+        effort: "high",
+        permissionMode: "bypassPermissions",
+      }),
+    });
+
+    const res = await handleCronjobsRequest(createReq, new URL(createReq.url), ownerAuth);
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "schedule must be daily, weekly, or interval with finite numeric fields" });
+  });
+
+  test("rejects malformed cronjob update schedules", async () => {
+    const cronjob = CronjobManager.addCronjob({
+      name: "Update schedule",
+      schedule: { type: "daily", hour: 9, minute: 0 },
+      prompt: "Check",
+      cwd: process.cwd(),
+      agentType: "claude",
+      modelFamily: "opus",
+      effort: "high",
+      permissionMode: "bypassPermissions",
+      username: "Owner",
+      userId: "owner-1",
+    });
+    const req = new Request(`http://local.test/api/cronjobs/${cronjob.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ schedule: { type: "interval", minutes: null } }),
+    });
+
+    const res = await handleCronjobsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "schedule must be daily, weekly, or interval with finite numeric fields" });
+
+    CronjobManager.deleteCronjob(cronjob.id);
+  });
+
   test("requires owner or creator access for cronjob mutations", async () => {
     const cronjob = CronjobManager.addCronjob({
       name: "Member owned",

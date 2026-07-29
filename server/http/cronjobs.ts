@@ -1,7 +1,6 @@
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import { saveRecentCwd } from "../persistence.ts";
-import type { Cronjob } from "../../shared/types.ts";
 import { handleCronjobRunAffordanceRequest } from "./cronjob-run-affordances.ts";
 import {
   browserSessionOrError,
@@ -9,9 +8,9 @@ import {
   cronjobOwnerOrError,
   cronjobRouteParts,
   jsonError,
-  pickCronjobChanges,
+  parseCronjobChanges,
+  parseCronjobCreate,
   readJson,
-  validateCronjobCreate,
   validateCwdForRequest,
 } from "./cronjob-route-helpers.ts";
 
@@ -71,21 +70,13 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
     if (caller instanceof Response) return caller;
     const body = await readJson(req);
     if (body instanceof Response) return body;
-    const malformed = validateCronjobCreate(body);
-    if (malformed) return jsonError(400, malformed);
-    const cwdError = validateCwdForRequest(String(body.cwd));
+    const parsed = parseCronjobCreate(body);
+    if (!parsed.ok) return jsonError(400, parsed.error);
+    const cwdError = validateCwdForRequest(parsed.draft.cwd);
     if (cwdError) return jsonError(400, cwdError);
-    saveRecentCwd(String(body.cwd));
+    saveRecentCwd(parsed.draft.cwd);
     const cronjob = CronjobManager.addCronjob({
-      name: String(body.name),
-      schedule: body.schedule as Cronjob["schedule"],
-      prompt: String(body.prompt),
-      cwd: String(body.cwd),
-      agentType: typeof body.agentType === "string" ? (body.agentType as Cronjob["agentType"]) : undefined,
-      modelFamily: String(body.modelFamily),
-      effort: typeof body.effort === "string" ? (body.effort as Cronjob["effort"]) : undefined,
-      permissionMode: body.permissionMode as Cronjob["permissionMode"],
-      codexSandbox: typeof body.codexSandbox === "string" ? (body.codexSandbox as Cronjob["codexSandbox"]) : undefined,
+      ...parsed.draft,
       username: caller.session.username,
       userId: caller.session.userId,
     });
@@ -111,7 +102,9 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
       if (cwdError) return jsonError(400, cwdError);
       saveRecentCwd(body.cwd);
     }
-    const updated = CronjobManager.updateCronjob(jobId, pickCronjobChanges(body));
+    const parsed = parseCronjobChanges(body);
+    if (!parsed.ok) return jsonError(400, parsed.error);
+    const updated = CronjobManager.updateCronjob(jobId, parsed.changes);
     return updated ? new Response(JSON.stringify(updated), { headers: cronjobCorsHeaders }) : jsonError(404, "not found");
   }
   // DELETE /cronjobs/:id

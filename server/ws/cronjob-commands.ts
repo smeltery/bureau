@@ -2,31 +2,31 @@ import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
+import { parseCronjobChanges, parseCronjobCreate } from "../http/cronjob-route-helpers.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import { getWsUser } from "../users.ts";
 
 export function handleCronjobCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>): boolean {
   switch (cmd.type) {
     case "add_cronjob": {
+      const parsed = parseCronjobCreate({ ...cmd });
+      if (!parsed.ok) {
+        if (cmd.requestId) {
+          ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: parsed.error } as ServerMessage));
+        }
+        return true;
+      }
       try {
-        AgentManager.validateCwd(cmd.cwd);
+        AgentManager.validateCwd(parsed.draft.cwd);
       } catch (err: any) {
         if (cmd.requestId) {
           ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: err.message || "Invalid directory" } as ServerMessage));
         }
         return true;
       }
-      saveRecentCwd(cmd.cwd);
+      saveRecentCwd(parsed.draft.cwd);
       CronjobManager.addCronjob({
-        name: cmd.name,
-        schedule: cmd.schedule,
-        prompt: cmd.prompt,
-        cwd: cmd.cwd,
-        agentType: cmd.agentType,
-        modelFamily: cmd.modelFamily,
-        effort: cmd.effort,
-        permissionMode: cmd.permissionMode,
-        codexSandbox: cmd.codexSandbox,
+        ...parsed.draft,
         username: cmd.username,
         userId: getWsUser(ws)?.id ?? null,
         device: cmd.device,
@@ -48,7 +48,14 @@ export function handleCronjobCommand(cmd: ClientCommand, ws: ServerWebSocket<unk
         }
         saveRecentCwd(cmd.changes.cwd);
       }
-      CronjobManager.updateCronjob(cmd.id, cmd.changes);
+      const parsed = parseCronjobChanges(cmd.changes);
+      if (!parsed.ok) {
+        if (cmd.requestId) {
+          ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: parsed.error } as ServerMessage));
+        }
+        return true;
+      }
+      CronjobManager.updateCronjob(cmd.id, parsed.changes);
       if (cmd.requestId) {
         ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
       }

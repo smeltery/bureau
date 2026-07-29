@@ -1,7 +1,7 @@
 import type { AuthOk, AuthResult } from "../auth/auth-middleware.ts";
 import * as AgentManager from "../agent-manager.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
-import type { Cronjob } from "../../shared/types.ts";
+import type { AgentBackendType, CodexSandboxMode, Cronjob, CronjobPermissionMode, EffortLevel, Schedule } from "../../shared/types.ts";
 
 export const cronjobCorsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -18,7 +18,8 @@ export function cronjobOwnerOrError(auth: AuthResult | undefined, cronjob: Cronj
 
 export async function readJson(req: Request): Promise<Record<string, unknown> | Response> {
   try {
-    return (await req.json()) as Record<string, unknown>;
+    const body = await req.json();
+    return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : jsonError(400, "invalid JSON");
   } catch {
     return jsonError(400, "invalid JSON");
   }
@@ -37,27 +38,104 @@ export function validateCwdForRequest(cwd: string): string | null {
   }
 }
 
-export function validateCronjobCreate(body: Record<string, unknown>): string | null {
-  if (typeof body.name !== "string" || !body.name.trim()) return "name is required";
-  if (typeof body.prompt !== "string") return "prompt is required";
-  if (typeof body.cwd !== "string" || !body.cwd.trim()) return "cwd is required";
-  if (body.schedule === undefined || body.modelFamily === undefined) return "schedule and modelFamily are required";
-  if (body.effort === undefined || body.permissionMode === undefined) return "effort and permissionMode are required";
-  return null;
+export type CronjobCreateDraft = Omit<Parameters<typeof CronjobManager.addCronjob>[0], "username" | "userId">;
+type Weekday = Extract<Schedule, { type: "weekly" }>["weekday"];
+
+export function parseCronjobCreate(body: Record<string, unknown>): { ok: true; draft: CronjobCreateDraft } | { ok: false; error: string } {
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  if (!name) return { ok: false, error: "name is required" };
+  if (typeof body.prompt !== "string") return { ok: false, error: "prompt is required" };
+  const cwd = typeof body.cwd === "string" ? body.cwd.trim() : "";
+  if (!cwd) return { ok: false, error: "cwd is required" };
+  if (body.schedule === undefined || body.modelFamily === undefined) return { ok: false, error: "schedule and modelFamily are required" };
+  if (body.effort === undefined || body.permissionMode === undefined) return { ok: false, error: "effort and permissionMode are required" };
+  const schedule = parseSchedule(body.schedule);
+  if (!schedule) return { ok: false, error: "schedule must be daily, weekly, or interval with finite numeric fields" };
+  const agentType = parseAgentType(body.agentType);
+  if (body.agentType !== undefined && !agentType) return { ok: false, error: "agentType must be claude or codex" };
+  if (typeof body.modelFamily !== "string" || !body.modelFamily.trim()) return { ok: false, error: "modelFamily must be a string" };
+  const effort = parseEffort(body.effort);
+  if (!effort) return { ok: false, error: "effort must be a string" };
+  const permissionMode = parsePermissionMode(body.permissionMode);
+  if (!permissionMode) return { ok: false, error: "permissionMode must be never or bypassPermissions" };
+  const codexSandbox = parseCodexSandbox(body.codexSandbox);
+  if (body.codexSandbox !== undefined && !codexSandbox) return { ok: false, error: "codexSandbox must be read-only, workspace-write, or danger-full-access" };
+  return {
+    ok: true,
+    draft: {
+      name,
+      schedule,
+      prompt: body.prompt,
+      cwd,
+      agentType,
+      modelFamily: body.modelFamily,
+      effort,
+      permissionMode,
+      ...(codexSandbox ? { codexSandbox } : {}),
+    },
+  };
 }
 
-export function pickCronjobChanges(body: Record<string, unknown>): Parameters<typeof CronjobManager.updateCronjob>[1] {
+export function parseCronjobChanges(body: Record<string, unknown>): { ok: true; changes: Parameters<typeof CronjobManager.updateCronjob>[1] } | { ok: false; error: string } {
   const changes: Parameters<typeof CronjobManager.updateCronjob>[1] = {};
   if (typeof body.name === "string") changes.name = body.name;
-  if (body.schedule !== undefined) changes.schedule = body.schedule as Cronjob["schedule"];
+  if (body.schedule !== undefined) {
+    const schedule = parseSchedule(body.schedule);
+    if (!schedule) return { ok: false, error: "schedule must be daily, weekly, or interval with finite numeric fields" };
+    changes.schedule = schedule;
+  }
   if (typeof body.prompt === "string") changes.prompt = body.prompt;
   if (typeof body.cwd === "string") changes.cwd = body.cwd;
   if (typeof body.modelFamily === "string") changes.modelFamily = body.modelFamily;
-  if (typeof body.effort === "string") changes.effort = body.effort as Cronjob["effort"];
-  if (typeof body.permissionMode === "string") changes.permissionMode = body.permissionMode as Cronjob["permissionMode"];
-  if (typeof body.codexSandbox === "string") changes.codexSandbox = body.codexSandbox as Cronjob["codexSandbox"];
+  if (body.effort !== undefined) {
+    const effort = parseEffort(body.effort);
+    if (!effort) return { ok: false, error: "effort must be a string" };
+    changes.effort = effort;
+  }
+  if (body.permissionMode !== undefined) {
+    const permissionMode = parsePermissionMode(body.permissionMode);
+    if (!permissionMode) return { ok: false, error: "permissionMode must be never or bypassPermissions" };
+    changes.permissionMode = permissionMode;
+  }
+  if (body.codexSandbox !== undefined) {
+    const codexSandbox = parseCodexSandbox(body.codexSandbox);
+    if (!codexSandbox) return { ok: false, error: "codexSandbox must be read-only, workspace-write, or danger-full-access" };
+    changes.codexSandbox = codexSandbox;
+  }
   if (typeof body.enabled === "boolean") changes.enabled = body.enabled;
-  return changes;
+  return { ok: true, changes };
+}
+
+function parseSchedule(value: unknown): Schedule | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const schedule = value as Record<string, unknown>;
+  if (schedule.type === "interval" && isFiniteNumber(schedule.minutes)) return { type: "interval", minutes: schedule.minutes };
+  if (schedule.type === "daily" && isFiniteNumber(schedule.hour) && isFiniteNumber(schedule.minute)) return { type: "daily", hour: schedule.hour, minute: schedule.minute };
+  if (schedule.type === "weekly" && isFiniteNumber(schedule.weekday) && isFiniteNumber(schedule.hour) && isFiniteNumber(schedule.minute))
+    return { type: "weekly", weekday: schedule.weekday as Weekday, hour: schedule.hour, minute: schedule.minute };
+  return null;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function parseAgentType(value: unknown): AgentBackendType | undefined {
+  if (value === undefined) return undefined;
+  return value === "claude" || value === "codex" ? value : undefined;
+}
+
+function parseEffort(value: unknown): EffortLevel | undefined {
+  return typeof value === "string" && value.trim() ? (value as EffortLevel) : undefined;
+}
+
+function parsePermissionMode(value: unknown): CronjobPermissionMode | undefined {
+  return value === "never" || value === "bypassPermissions" ? value : undefined;
+}
+
+function parseCodexSandbox(value: unknown): CodexSandboxMode | undefined {
+  if (value === undefined) return undefined;
+  return value === "read-only" || value === "workspace-write" || value === "danger-full-access" ? value : undefined;
 }
 
 export function cronjobRouteParts(pathname: string): string[] | null {
