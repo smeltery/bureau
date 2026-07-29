@@ -1,6 +1,6 @@
 import type { RoomWire } from "../../shared/types.ts";
 import { generateRoomId } from "../../shared/types.ts";
-import { DESK_COUNT } from "../../shared/desks.ts";
+import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { readEnvFile, saveOfficeConfig } from "../persistence.ts";
 import { agents, emit, findRoomIndex, officeConfig, persistAll, roomsWire, rooms, setOfficeConfig, type InternalRoom } from "./state.ts";
 
@@ -46,7 +46,7 @@ export function validateEnvPath(path: string): number {
 }
 
 export function swapDesks(deskA: number, deskB: number, roomId: string) {
-  if (deskA === deskB || deskA < 0 || deskA > 7 || deskB < 0 || deskB > 7) return;
+  if (deskA === deskB || !isValidDesk(deskA) || !isValidDesk(deskB)) return;
   const roomIdx = findRoomIndex(roomId);
   if (roomIdx < 0) return;
   const allManaged = [...agents.values()];
