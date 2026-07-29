@@ -1,5 +1,5 @@
 import type { ServerWebSocket } from "bun";
-import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
+import type { ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { closeEditorWatchesFor } from "../editor-watchers.ts";
 import { removePresence } from "../presence.ts";
@@ -7,6 +7,7 @@ import { clearWsUser, claimUser, getSessionContext, setWsSessionPrefix } from ".
 import { revalidateByHash, registerSocket, unregisterSocket, type SessionLookup } from "../auth/auth.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
 import { browsers } from "./broadcast.ts";
+import { dispatchBrowserCommand } from "./command-dispatch.ts";
 import { handleCommand } from "./commands.ts";
 
 // Per-WS auth context. Set at upgrade; cleared at close. WsData carries the
@@ -37,17 +38,6 @@ export function openBrowserWebSocket(ws: ServerWebSocket<WsData>): void {
   sendInitialPayload(ws);
 }
 
-type CommandDispatch = (cmd: ClientCommand, ws: ServerWebSocket<WsData>) => Promise<void> | void;
-
-export async function dispatchBrowserCommand(ws: ServerWebSocket<WsData>, data: string | Buffer, dispatch: CommandDispatch = handleCommand): Promise<void> {
-  try {
-    const cmd = JSON.parse(data as string) as ClientCommand;
-    await dispatch(cmd, ws);
-  } catch (e) {
-    console.error("Invalid command:", e);
-  }
-}
-
 export async function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>, data: string | Buffer): Promise<void> {
   // Per-message session recheck so a revoke from the Access pane disconnects
   // an active connection within ~1s. Loopback connections skip the check.
@@ -64,7 +54,7 @@ export async function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>,
       return;
     }
   }
-  await dispatchBrowserCommand(ws, data);
+  await dispatchBrowserCommand(ws, data, handleCommand);
 }
 
 export function closeBrowserWebSocket(ws: ServerWebSocket<WsData>): void {

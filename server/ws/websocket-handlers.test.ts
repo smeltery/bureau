@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand } from "../../shared/types.ts";
-import { dispatchBrowserCommand } from "./websocket-handlers.ts";
+import { dispatchBrowserCommand } from "./command-dispatch.ts";
 
 const consoleError = spyOn(console, "error").mockImplementation(() => {});
 
