@@ -145,7 +145,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         // Clear and replay resumed session's logs (walks fork ancestry)
         const history = loadLogWithAncestors(agentId, picked.sessionId);
         logCache.set(agentId, []);
-        emit({ type: "clear_logs", agentId } as any);
+        emit({ type: "clear_logs", agentId });
         if (history.length > 0) {
           logCache.set(agentId, [...history]);
           for (const entry of history) {

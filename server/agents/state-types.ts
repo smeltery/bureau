@@ -93,7 +93,11 @@ export type AgentEvent =
   | { type: "room_renamed"; roomId: string; name: string }
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
-  | { type: "rooms_reordered"; order: string[] };
+  | { type: "rooms_reordered"; order: string[] }
+  | { type: "clear_logs"; agentId: string }
+  | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }
+  | { type: "terminal_output"; agentId: string; data: string }
+  | { type: "terminal_exit"; agentId: string; exitCode: number };
 
 export type EventHandler = (event: AgentEvent) => void;
 

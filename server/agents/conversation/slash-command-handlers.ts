@@ -45,7 +45,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.info.topicStale = false;
     managed.info.contextUsage = null;
     logCache.set(agentId, []);
-    emit({ type: "clear_logs", agentId } as any);
+    emit({ type: "clear_logs", agentId });
     emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false, contextUsage: null } });
     emitEphemeralLog(agentId, "system", "Conversation cleared.");
     updateState(agentId, "idle");
@@ -134,7 +134,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.info.topicStale = false;
     managed.info.contextUsage = null;
     logCache.set(agentId, []);
-    emit({ type: "clear_logs", agentId } as any);
+    emit({ type: "clear_logs", agentId });
     emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false, contextUsage: null } });
     addLogEntry(agentId, "system", "Handoff approved. Starting fresh from the handoff prompt.");
     addLogEntry(agentId, "user_message", handoffPrompt, username ? { username } : undefined);

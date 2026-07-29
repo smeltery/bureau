@@ -120,7 +120,7 @@ export async function spawn(
     agentId: info.id,
     commands: managed.slashCommands,
     skills: managed.skills,
-  } as any);
+  });
   persistAll();
 
   // Create V2 session

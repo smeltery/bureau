@@ -69,7 +69,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
           for (const entry of history) emit({ type: "log_entry", entry });
         }
         if (hadPreviousSession && ev.sessionId !== managed.sessionId) {
-          emit({ type: "clear_logs", agentId } as any);
+          emit({ type: "clear_logs", agentId });
           addLogEntry(agentId, "system", "Conversation cleared.");
         }
         managed.sessionId = ev.sessionId;
@@ -88,7 +88,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         managed.sdkReportedCommands = filteredSdkCommands;
         managed.slashCommands = autocompleteCommands();
         managed.skills = deduplicateSkills([...discoverUserSkills(), ...discoverProjectSkills(managed.info.cwd), ...discoverPluginSkills(), ...discoverBundledSkills()]);
-        emit({ type: "slash_commands", agentId, commands: managed.slashCommands, skills: managed.skills } as any);
+        emit({ type: "slash_commands", agentId, commands: managed.slashCommands, skills: managed.skills });
       }
       break;
     }

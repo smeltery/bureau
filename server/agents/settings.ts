@@ -127,7 +127,7 @@ export async function editAgent(
     if (codexCwdChange) {
       managed.sessionId = null;
       logCache.set(agentId, []);
-      emit({ type: "clear_logs", agentId } as any);
+      emit({ type: "clear_logs", agentId });
       managed.topicMessageCount = 0;
       managed.info.topic = null;
       managed.info.topicStale = false;

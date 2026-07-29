@@ -211,7 +211,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
   // stops surfacing as a chip (updateAgentHistory in persistAll re-stamps the
   // live snapshot with killedAt: null).
   emit({ type: "agent_added", agent: info });
-  emit({ type: "slash_commands", agentId, commands: managed.slashCommands, skills: managed.skills } as any);
+  emit({ type: "slash_commands", agentId, commands: managed.slashCommands, skills: managed.skills });
   addLogEntry(agentId, "system", `Revived ${agentType === "codex" ? "Codex" : "Claude"} agent "${info.name}" at ${resolvedCwd}.`);
   persistAll();
   emit({ type: "killed_agent_removed", agentId, lastRoomId: entry.lastRoomId });

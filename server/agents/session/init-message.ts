@@ -18,7 +18,7 @@ export function handleInitMessage(agentId: string, managed: ManagedAgent | undef
     // If we already had a session and got a new init, this is a /clear
     if (hadPreviousSession && sessionId !== managed.sessionId) {
       logCache.set(agentId, []);
-      emit({ type: "clear_logs", agentId } as any);
+      emit({ type: "clear_logs", agentId });
       addLogEntry(agentId, "system", "Conversation cleared.");
     }
     managed.sessionId = sessionId;
@@ -54,5 +54,5 @@ export function handleInitMessage(agentId: string, managed: ManagedAgent | undef
     agentId,
     commands: configCommands,
     skills: uniqueSkills,
-  } as any);
+  });
 }

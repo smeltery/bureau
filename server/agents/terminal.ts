@@ -65,11 +65,11 @@ export function openTerminal(agentId: string): boolean {
             if (managed.ptyBuffer.length > MAX_PTY_BUFFER) {
               managed.ptyBuffer = managed.ptyBuffer.slice(-MAX_PTY_BUFFER);
             }
-            emit({ type: "terminal_output", agentId, data: msg.data } as any);
+            emit({ type: "terminal_output", agentId, data: msg.data });
           } else if (msg.type === "exit") {
             console.log(`[terminal] PTY exited for ${agentId}: code=${msg.exitCode}, signal=${msg.signal}`);
             managed.ptySidecar = null;
-            emit({ type: "terminal_exit", agentId, exitCode: msg.exitCode } as any);
+            emit({ type: "terminal_exit", agentId, exitCode: msg.exitCode });
           }
         }
       }

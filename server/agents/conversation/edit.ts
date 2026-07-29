@@ -116,7 +116,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // 7. Clear UI and replay parent entries (not persisted — ancestors are loaded
     //    via loadLogWithAncestors on resume, avoiding log duplication on disk)
     logCache.set(agentId, []);
-    emit({ type: "clear_logs", agentId } as any);
+    emit({ type: "clear_logs", agentId });
     if (parentEntries.length > 0) {
       logCache.set(agentId, [...parentEntries]);
       for (const entry of parentEntries) {
@@ -174,7 +174,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
 
       // Restore the old log cache and UI
       logCache.set(agentId, oldLogCache);
-      emit({ type: "clear_logs", agentId } as any);
+      emit({ type: "clear_logs", agentId });
       for (const entry of oldLogCache) {
         emit({ type: "log_entry", entry });
       }

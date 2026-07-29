@@ -135,7 +135,7 @@ export async function newConversation(agentId: string) {
     // continues across session boundaries and editing an old entry hits
     // the cross-session dead-end.
     logCache.set(agentId, []);
-    emit({ type: "clear_logs", agentId } as any);
+    emit({ type: "clear_logs", agentId });
     updateState(agentId, "idle");
     addLogEntry(agentId, "system", "New conversation started.");
     persistAll();
@@ -178,7 +178,7 @@ export async function resume(agentId: string, sessionId: string) {
     // Clear and replay resumed session's logs (walks fork ancestry for branched sessions)
     const history = loadLogWithAncestors(agentId, sessionId);
     logCache.set(agentId, []);
-    emit({ type: "clear_logs", agentId } as any);
+    emit({ type: "clear_logs", agentId });
     if (history.length > 0) {
       logCache.set(agentId, [...history]);
       for (const entry of history) {
