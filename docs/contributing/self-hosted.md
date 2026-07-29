@@ -113,6 +113,17 @@ Bureau can let agents capture screenshots of local or private development URLs
 and attach them to chat as preview cards. Install a Chrome-family browser on the
 host if you want agents to use `POST /api/agents/:id/preview-url`.
 
+On Debian/Ubuntu VPS hosts, prefer Google's `.deb` package over snap Chromium.
+Snap Chromium can install successfully but fail later in headless screenshot
+captures.
+
+```sh
+curl -fsSLo /tmp/google-chrome-stable_current_amd64.deb \
+  https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo apt-get install -y /tmp/google-chrome-stable_current_amd64.deb
+google-chrome --version
+```
+
 Preview capture preflights the target URL, rejects public internet hosts, and
 is intended for services reachable from the Bureau host, such as
 `http://127.0.0.1:3000`.

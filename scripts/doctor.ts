@@ -15,6 +15,9 @@ export interface DoctorCheck {
   detail?: string;
 }
 
+export const PREVIEW_BROWSER_INSTALL_DETAIL =
+  "On Debian/Ubuntu VPS hosts, install Google Chrome's .deb package from https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb; avoid snap chromium on headless servers.";
+
 export function exitCodeFor(checks: DoctorCheck[]): number {
   return checks.some((check) => check.status === "fail") ? 1 : 0;
 }
@@ -74,7 +77,7 @@ function checkPreviewBrowser(): DoctorCheck {
     name: "Browser preview",
     status: "warn",
     message: "no Chrome-family browser found",
-    detail: `Install one of: ${BROWSER_CANDIDATES.join(", ")}. Browser preview cards are optional; Bureau still runs without them.`,
+    detail: `Install one of: ${BROWSER_CANDIDATES.join(", ")}. ${PREVIEW_BROWSER_INSTALL_DETAIL} Browser preview cards are optional; Bureau still runs without them.`,
   };
 }
 

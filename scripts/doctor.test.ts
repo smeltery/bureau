@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { exitCodeFor, formatCheck, type DoctorCheck } from "./doctor.ts";
+import { PREVIEW_BROWSER_INSTALL_DETAIL, exitCodeFor, formatCheck, type DoctorCheck } from "./doctor.ts";
 
 describe("doctor formatting", () => {
   test("formats pass, warn, and fail statuses", () => {
@@ -14,5 +14,10 @@ describe("doctor formatting", () => {
     const failed: DoctorCheck[] = [...warnOnly, { name: "State directory", status: "fail", message: "not writable" }];
     expect(exitCodeFor(warnOnly)).toBe(0);
     expect(exitCodeFor(failed)).toBe(1);
+  });
+
+  test("gives VPS-safe browser install guidance", () => {
+    expect(PREVIEW_BROWSER_INSTALL_DETAIL).toContain("google-chrome-stable_current_amd64.deb");
+    expect(PREVIEW_BROWSER_INSTALL_DETAIL).toContain("avoid snap chromium");
   });
 });
