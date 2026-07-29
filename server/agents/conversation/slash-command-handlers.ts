@@ -5,6 +5,8 @@ import { createSession, emitLoginInstructions, replaceSession, SessionSwappedErr
 import { tildifyCwd } from "../session/paths.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { renderUsageReport } from "../usage.ts";
+import { usageAudienceForUser } from "../usage/report.ts";
+import { getUserById } from "../../users.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { handleHelpCommand } from "./slash-help.ts";
 import { handleBureauDiffCommand, handleBureauEditCommand, handleBureauMessageCommand } from "./slash-bureau-tools.ts";
@@ -272,10 +274,10 @@ export const commandHandlers: Record<string, HandlerFn> = {
     return true;
   },
 
-  async bureauUsage(agentId, _managed, _args, rawText, username) {
+  async bureauUsage(agentId, managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
     addLogEntry(agentId, "user_message", rawText, userMeta);
-    addLogEntry(agentId, "system", renderUsageReport());
+    addLogEntry(agentId, "system", renderUsageReport(usageAudienceForUser(managed.info.userId ? getUserById(managed.info.userId) : null)));
     updateState(agentId, "waiting_for_response");
     return true;
   },

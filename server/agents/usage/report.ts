@@ -3,13 +3,27 @@ import { listCronjobs, readCronjobLifetimeUsage } from "../../cronjobs/index.ts"
 import { agents, rooms } from "../state.ts";
 import { addBucket, emptyBucket, formatInCell, formatTokenCount, formatUsd, type UsageBucket } from "../usage-format.ts";
 import { readAgentUsage } from "./data.ts";
+import type { UserRecord } from "../../../shared/types.ts";
+
+export type UsageAudience = { kind: "owner" } | { kind: "member"; roomIds: Set<string> };
+
+export function usageAudienceForUser(user: UserRecord | null | undefined): UsageAudience {
+  if (user?.role === "owner") return { kind: "owner" };
+  return { kind: "member", roomIds: new Set(user?.allowedRooms ?? []) };
+}
+
+function audienceCanSeeRoom(audience: UsageAudience, roomId: string | null | undefined): boolean {
+  if (audience.kind === "owner") return true;
+  return !!roomId && audience.roomIds.has(roomId);
+}
 
 // ---------------------------------------------------------------------------
 // /usage renderer — assembles the markdown report
 // ---------------------------------------------------------------------------
 
-export function renderUsageReport(): string {
+export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): string {
   const lines: string[] = [];
+  const visibleRooms = audience.kind === "owner" ? rooms : rooms.filter((room) => audience.roomIds.has(room.id));
 
   // Office-wide table: per-agent session and lifetime usage. "In" is all
   // input tiers summed (raw + cache read + cache creation); the inline "%
@@ -20,11 +34,13 @@ export function renderUsageReport(): string {
   lines.push("");
   lines.push(`| Agent | Room | In (sess) | Out (sess) | $ (sess) | In (life) | Out (life) | $ (life) |`);
   lines.push(`| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |`);
-  const rows = [...agents.values()].map((a) => {
-    const usage = readAgentUsage(a.info.id, a.sessionId);
-    const roomName = rooms[a.info.room]?.name ?? "?";
-    return { id: a.info.id, name: a.info.name, room: roomName, sess: usage.session, life: usage.lifetime };
-  });
+  const rows = [...agents.values()]
+    .filter((a) => audienceCanSeeRoom(audience, rooms[a.info.room]?.id))
+    .map((a) => {
+      const usage = readAgentUsage(a.info.id, a.sessionId);
+      const roomName = rooms[a.info.room]?.name ?? "?";
+      return { id: a.info.id, name: a.info.name, room: roomName, sess: usage.session, life: usage.lifetime };
+    });
   rows.sort((a, b) => b.life.costUSD - a.life.costUSD);
   for (const r of rows) {
     lines.push(
@@ -51,11 +67,11 @@ export function renderUsageReport(): string {
     return b;
   };
   // Seed with all current rooms so they show even when empty.
-  for (const r of rooms) getBucket(r.id, r.name, false);
+  for (const r of visibleRooms) getBucket(r.id, r.name, false);
 
   for (const a of agents.values()) {
     const room = rooms[a.info.room];
-    if (!room) continue;
+    if (!room || !audienceCanSeeRoom(audience, room.id)) continue;
     const usage = readAgentUsage(a.info.id, a.sessionId);
     const b = getBucket(room.id, room.name, false);
     addBucket(b.sess, usage.session);
@@ -67,6 +83,7 @@ export function renderUsageReport(): string {
     // Killed agents without a history entry predate this feature; drop into a
     // synthetic bucket so their spend is still counted toward the grand total.
     const roomId = h?.lastRoomId ?? "__unknown__";
+    if (!audienceCanSeeRoom(audience, h?.lastRoomId)) continue;
     const currentRoom = rooms.find((r) => r.id === roomId);
     const name = currentRoom?.name ?? h?.lastRoomName ?? "(unknown room)";
     const deleted = !currentRoom;
@@ -121,7 +138,7 @@ export function renderUsageReport(): string {
   for (const c of cronjobRows) addBucket(cronjobTotal, c.life);
   cronjobRows.sort((a, b) => b.life.costUSD - a.life.costUSD);
 
-  if (cronjobRows.length > 0) {
+  if (audience.kind === "owner" && cronjobRows.length > 0) {
     lines.push("");
     lines.push(`## Per-cron job usage`);
     lines.push("");
@@ -139,10 +156,11 @@ export function renderUsageReport(): string {
   // reflects every dollar the office spent.
   const officeTotalLife = emptyBucket();
   addBucket(officeTotalLife, total.life);
-  addBucket(officeTotalLife, cronjobTotal);
+  if (audience.kind === "owner") addBucket(officeTotalLife, cronjobTotal);
 
+  const totalLabel = audience.kind === "owner" ? "Office total" : "Total";
   lines.push(
-    `| **Office total** | ${formatInCell(total.sess)} | ${formatTokenCount(total.sess.totalOut)} | ${formatUsd(total.sess.costUSD)} | ${formatInCell(officeTotalLife)} | ${formatTokenCount(officeTotalLife.totalOut)} | ${formatUsd(officeTotalLife.costUSD)} |`,
+    `| **${totalLabel}** | ${formatInCell(total.sess)} | ${formatTokenCount(total.sess.totalOut)} | ${formatUsd(total.sess.costUSD)} | ${formatInCell(officeTotalLife)} | ${formatTokenCount(officeTotalLife.totalOut)} | ${formatUsd(officeTotalLife.costUSD)} |`,
   );
 
   return lines.join("\n");
