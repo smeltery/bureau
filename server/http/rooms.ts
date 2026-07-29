@@ -2,6 +2,7 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
+import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { createHash } from "crypto";
 
 const jsonHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
@@ -90,8 +91,8 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
     if (body instanceof Response) return body;
     const deskA = Number(body.deskA);
     const deskB = Number(body.deskB);
-    if (!Number.isInteger(deskA) || !Number.isInteger(deskB) || deskA < 0 || deskA > 7 || deskB < 0 || deskB > 7) {
-      return error(422, "deskA and deskB must be integers from 0 to 7");
+    if (!isValidDesk(deskA) || !isValidDesk(deskB)) {
+      return error(422, `deskA and deskB must be integers from 0 to ${DESK_COUNT - 1}`);
     }
     AgentManager.swapDesks(deskA, deskB, roomId);
     return new Response(null, { status: 204, headers: noContentHeaders });

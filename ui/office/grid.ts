@@ -1,16 +1,7 @@
 // Isometric grid layout for 8 desks (2 columns x 4 rows)
 // All coordinates are in SVG space (viewBox: -450 -100 1100 700)
 
-export const DESK_SLOTS = [
-  { row: 0, col: 0 },
-  { row: 0, col: 1 },
-  { row: 1, col: 0 },
-  { row: 1, col: 1 },
-  { row: 2, col: 0 },
-  { row: 2, col: 1 },
-  { row: 3, col: 0 },
-  { row: 3, col: 1 },
-];
+export { DESK_SLOTS } from "../../shared/desks.ts";
 
 // Scene container dimensions and viewBox — sized wall-to-wall (left wall -355 to right wall 595)
 export const SCENE_W = 950,

@@ -1,5 +1,6 @@
 import type { AgentInfo } from "./types.ts";
 import { DEFAULT_AGENT_CAPABILITIES } from "./types.ts";
+import { DESK_COUNT, isValidDesk } from "./desks.ts";
 import { generateOutfit } from "./office-outfit.ts";
 
 export function hasDuplicateAgentName(agents: Iterable<AgentInfo>, name: string, exceptAgentId?: string): boolean {
@@ -17,7 +18,7 @@ export function roomIndexById(rooms: { id: string }[], roomId?: string): number 
 }
 
 export function firstOpenDesk(agents: Iterable<AgentInfo>, room: number, preferredDesk?: number): number {
-  if (preferredDesk !== undefined && (!Number.isInteger(preferredDesk) || preferredDesk < 0 || preferredDesk > 7)) return -1;
+  if (preferredDesk !== undefined && !isValidDesk(preferredDesk)) return -1;
   const taken = new Set<number>();
   let count = 0;
   for (const agent of agents) {
@@ -27,8 +28,8 @@ export function firstOpenDesk(agents: Iterable<AgentInfo>, room: number, preferr
   }
 
   if (preferredDesk !== undefined && !taken.has(preferredDesk)) return preferredDesk;
-  if (count >= 8) return -1;
-  for (let desk = 0; desk < 8; desk++) {
+  if (count >= DESK_COUNT) return -1;
+  for (let desk = 0; desk < DESK_COUNT; desk++) {
     if (!taken.has(desk)) return desk;
   }
   return -1;

@@ -2,6 +2,7 @@ import * as AgentManager from "../agent-manager.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import type { AgentBackendType, AgentInfo } from "../../shared/types.ts";
+import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { JSON_HEADERS, jsonError, readJsonBody, requireUserRoomAccess, requireUserSession } from "./agent-route-helpers.ts";
 
 export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): Promise<Response> {
@@ -17,7 +18,7 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
   if (!cwd) return jsonError(422, "cwd is required");
   if (!roomId) return jsonError(422, "roomId is required");
   if (desk === undefined) return jsonError(422, "desk is required");
-  if (!Number.isInteger(desk) || desk < 0 || desk > 7) return jsonError(422, "desk must be an integer from 0 to 7");
+  if (!isValidDesk(desk)) return jsonError(422, `desk must be an integer from 0 to ${DESK_COUNT - 1}`);
   const roomDenied = requireUserRoomAccess(auth, roomId);
   if (roomDenied) return roomDenied;
   try {

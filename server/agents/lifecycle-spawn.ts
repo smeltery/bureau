@@ -1,5 +1,6 @@
 import type { AgentBackendType, AgentInfo, AgentOutfit } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES } from "../../shared/types.ts";
+import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { getBackend } from "../backends/index.ts";
 import { generateOutfit } from "./outfit.ts";
 import { resolveCwd } from "./session/paths.ts";
@@ -87,13 +88,13 @@ function resolveSpawnRoom(rooms: InternalRoom[], roomId?: string): number {
 function resolveSpawnDesk(agents: ManagedAgent[], targetRoom: number, requestedDesk?: number): number | null {
   const roomAgents = agents.filter((a) => a.info.room === targetRoom);
   const taken = new Set(roomAgents.map((a) => a.info.desk));
-  if (requestedDesk !== undefined && (!Number.isInteger(requestedDesk) || requestedDesk < 0 || requestedDesk > 7)) {
+  if (requestedDesk !== undefined && !isValidDesk(requestedDesk)) {
     return null;
   }
   if (requestedDesk !== undefined && !taken.has(requestedDesk)) {
     return requestedDesk;
   }
-  for (let desk = 0; desk < 8; desk++) {
+  for (let desk = 0; desk < DESK_COUNT; desk++) {
     if (!taken.has(desk)) return desk;
   }
   return null;

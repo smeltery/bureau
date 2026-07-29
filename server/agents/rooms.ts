@@ -1,5 +1,6 @@
 import type { RoomWire } from "../../shared/types.ts";
 import { generateRoomId } from "../../shared/types.ts";
+import { DESK_COUNT } from "../../shared/desks.ts";
 import { readEnvFile, saveOfficeConfig } from "../persistence.ts";
 import { agents, emit, findRoomIndex, officeConfig, persistAll, roomsWire, rooms, setOfficeConfig, type InternalRoom } from "./state.ts";
 
@@ -152,10 +153,10 @@ export function moveAgent(agentId: string, targetRoomId: string): boolean {
 
   // Find first available desk in target room
   const targetAgents = [...agents.values()].filter((a) => a.info.room === targetIdx);
-  if (targetAgents.length >= 8) return false;
+  if (targetAgents.length >= DESK_COUNT) return false;
   const taken = new Set(targetAgents.map((a) => a.info.desk));
   let newDesk = -1;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < DESK_COUNT; i++) {
     if (!taken.has(i)) {
       newDesk = i;
       break;

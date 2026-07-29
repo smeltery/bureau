@@ -3,6 +3,7 @@ import { join } from "path";
 import { statSync } from "fs";
 import type { AgentBackendType, AgentInfo, KilledAgentSummary } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES } from "../../shared/types.ts";
+import { isValidDesk } from "../../shared/desks.ts";
 import { getSessionCwd, listAgentSessions, loadAgentHistory, loadLogWithAncestors, type AgentHistoryEntry } from "../persistence.ts";
 import { LOGS_DIR } from "../persistence/paths.ts";
 import { getBackend } from "../backends/index.ts";
@@ -104,7 +105,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
 
   // 4. Desk free at command time (the chip list may be stale across tabs).
   const taken = new Set([...agents.values()].filter((a) => a.info.room === roomIdx).map((a) => a.info.desk));
-  if (desk < 0 || desk >= 8 || taken.has(desk)) {
+  if (!isValidDesk(desk) || taken.has(desk)) {
     return { ok: false, error: "That desk is no longer free.", field: "desk" };
   }
 

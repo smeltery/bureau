@@ -3,6 +3,7 @@ import { StatusLight } from "../../office/scene/StatusLight.tsx";
 import { RoomTabBar } from "../../office/RoomTabBar.tsx";
 import { MobileHeader, getRoomCounts } from "./MobileHeader.tsx";
 import { useSwipeLeftRight } from "../../hooks/useSwipeLeftRight.ts";
+import { DESK_COUNT } from "../../../shared/desks.ts";
 import type { AgentInfo } from "../../../shared/types.ts";
 
 export function AgentListView({
@@ -170,7 +171,7 @@ export function AgentListView({
       {/* Floating spawn button */}
       <button
         onClick={onSpawn}
-        disabled={roomAgents.length >= 8}
+        disabled={roomAgents.length >= DESK_COUNT}
         style={{
           position: "fixed",
           bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
@@ -178,19 +179,19 @@ export function AgentListView({
           width: 56,
           height: 56,
           borderRadius: "50%",
-          background: roomAgents.length >= 8 ? "var(--text-muted)" : "var(--accent)",
+          background: roomAgents.length >= DESK_COUNT ? "var(--text-muted)" : "var(--accent)",
           color: "var(--bg-base)",
           border: "none",
           fontSize: 28,
           fontWeight: 300,
-          cursor: roomAgents.length >= 8 ? "default" : "pointer",
+          cursor: roomAgents.length >= DESK_COUNT ? "default" : "pointer",
           boxShadow: "0 4px 20px var(--shadow-heavy)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           lineHeight: "56px",
           zIndex: 100,
-          opacity: roomAgents.length >= 8 ? 0.5 : 1,
+          opacity: roomAgents.length >= DESK_COUNT ? 0.5 : 1,
           paddingBottom: 2,
         }}
       >

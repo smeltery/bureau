@@ -1,4 +1,5 @@
 import type { AgentInfo, RoomWire } from "../../shared/types.ts";
+import { DESK_COUNT } from "../../shared/desks.ts";
 import { send } from "../ws.ts";
 import { DeskUnit } from "./scene/DeskUnit.tsx";
 import { EmptySlot } from "./scene/EmptySlot.tsx";
@@ -37,7 +38,7 @@ export function OfficePeopleLayer({
 
   return (
     <>
-      {Array.from({ length: 8 }, (_, i) => {
+      {Array.from({ length: DESK_COUNT }, (_, i) => {
         const agent = roomAgents.find((candidate) => candidate.desk === i);
         if (agent) {
           return (

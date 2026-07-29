@@ -4,6 +4,7 @@ import { generateRoomId } from "./types.ts";
 import { createAgentInfo, firstOpenDesk, hasDuplicateAgentName, roomIndexById } from "./office-agents.ts";
 import { closeRoomInList, createRoomInList, moveAgentToRoom, renameRoomInList } from "./office-rooms.ts";
 import { addTaskToList, deleteTaskFromList, updateTaskInList } from "./office-tasks.ts";
+import { isValidDesk } from "./desks.ts";
 export type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 
 export class OfficeState {
@@ -150,7 +151,7 @@ export class OfficeState {
   }
 
   swapDesks(deskA: number, deskB: number, roomId: string): OfficeEvent[] {
-    if (deskA === deskB || deskA < 0 || deskA > 7 || deskB < 0 || deskB > 7) return [];
+    if (deskA === deskB || !isValidDesk(deskA) || !isValidDesk(deskB)) return [];
     const room = this._rooms.findIndex((r) => r.id === roomId);
     if (room < 0) return [];
 

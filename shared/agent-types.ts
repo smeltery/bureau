@@ -42,7 +42,7 @@ export interface AgentInfo {
   id: string;
   name: string;
   userId?: string | null;
-  desk: number; // 0-7
+  desk: number; // zero-based desk index
   room: number; // 0-based room index
   roomId?: string; // stable room id for clients that should not rely on projected room indexes
   cwd: string;

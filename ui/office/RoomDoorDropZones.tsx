@@ -1,4 +1,5 @@
 import type { AgentInfo, RoomWire } from "../../shared/types.ts";
+import { DESK_COUNT } from "../../shared/desks.ts";
 import { send } from "../ws.ts";
 import { DoorDropZone } from "./DoorDropZone.tsx";
 
@@ -71,7 +72,7 @@ function moveAgentThroughDoor({
   }
   const targetRoom = currentRoom + direction;
   const targetRoomId = rooms[targetRoom]?.id;
-  if (!targetRoomId || agents.filter((x) => x.room === targetRoom).length >= 8) {
+  if (!targetRoomId || agents.filter((x) => x.room === targetRoom).length >= DESK_COUNT) {
     onReject();
     return false;
   }
