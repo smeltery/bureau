@@ -42,7 +42,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
         return true;
       }
       saveRecentCwd(cmd.cwd);
-      await AgentManager.spawn(
+      const agent = await AgentManager.spawn(
         cmd.name,
         cmd.cwd,
         cmd.permissionMode,
@@ -57,7 +57,14 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
         getWsUser(ws)?.id ?? null,
       );
       if (cmd.requestId) {
-        ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
+        ws.send(
+          JSON.stringify({
+            type: "agent_save_response",
+            requestId: cmd.requestId,
+            ok: !!agent,
+            error: agent ? undefined : "agent name is taken or desk is unavailable",
+          } as ServerMessage),
+        );
       }
       return true;
     }
