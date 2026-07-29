@@ -21,6 +21,7 @@ describe("buildAgentsManifest", () => {
         capabilities: { ...DEFAULT_AGENT_CAPABILITIES, hooks: false, fork: false },
         modelFamily: "gpt-5.3-codex",
         model: "gpt-5.3-codex",
+        effort: "high",
         lastSessionId: "session-123",
       },
     ]);
@@ -42,6 +43,7 @@ describe("buildAgentsManifest", () => {
         capabilities: { ...DEFAULT_AGENT_CAPABILITIES, hooks: false, fork: false },
         modelFamily: "gpt-5.3-codex",
         model: "gpt-5.3-codex",
+        effort: "high",
         lastSessionId: "session-123",
         logDir: expect.stringContaining("/logs/agent-1"),
       },

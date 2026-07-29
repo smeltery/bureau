@@ -73,7 +73,7 @@ export type ClientCommand =
   | { type: "request_settings_validation"; requestId: string; scope: "office" | "room" | "user"; roomId?: string; userId?: string; envFile?: string | null }
   | { type: "request_cwd_validation"; requestId: string; cwd: string }
   | { type: "add_task"; title: string; description?: string; priority?: TaskPriority; assignee?: string; roomId?: string; username: string }
-  | { type: "update_task"; id: string; changes: Partial<Pick<TaskItem, "title" | "description" | "priority" | "status" | "assignee" | "roomId">> }
+  | { type: "update_task"; id: string; changes: Partial<Omit<Pick<TaskItem, "title" | "description" | "priority" | "status" | "assignee" | "roomId">, "priority"> & { priority: TaskPriority | null }> }
   | { type: "delete_task"; id: string }
   | { type: "create_room"; name?: string }
   | { type: "close_room"; roomId: string }

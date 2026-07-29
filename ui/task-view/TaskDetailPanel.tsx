@@ -107,7 +107,7 @@ export function TaskDetailPanel({
         changes: {
           title: title.trim(),
           description: description.trim() || undefined,
-          priority: priority || undefined,
+          priority: priority === "" ? null : priority,
           status,
           assignee: assignee.trim() || undefined,
           roomId: roomId || undefined,

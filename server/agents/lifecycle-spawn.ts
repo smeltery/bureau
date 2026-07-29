@@ -87,6 +87,9 @@ function resolveSpawnRoom(rooms: InternalRoom[], roomId?: string): number {
 function resolveSpawnDesk(agents: ManagedAgent[], targetRoom: number, requestedDesk?: number): number | null {
   const roomAgents = agents.filter((a) => a.info.room === targetRoom);
   const taken = new Set(roomAgents.map((a) => a.info.desk));
+  if (requestedDesk !== undefined && (!Number.isInteger(requestedDesk) || requestedDesk < 0 || requestedDesk > 7)) {
+    return null;
+  }
   if (requestedDesk !== undefined && !taken.has(requestedDesk)) {
     return requestedDesk;
   }

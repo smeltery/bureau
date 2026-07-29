@@ -110,6 +110,7 @@ export function writeManifest(
     capabilities: AgentCapabilities;
     modelFamily: string;
     model: ClaudeModel;
+    effort?: AgentInfo["effort"];
     lastSessionId: string | null;
   }[],
 ) {
@@ -137,6 +138,7 @@ export function buildAgentsManifest(
     capabilities: AgentCapabilities;
     modelFamily: string;
     model: ClaudeModel;
+    effort?: AgentInfo["effort"];
     lastSessionId: string | null;
   }[],
 ) {
@@ -156,6 +158,7 @@ export function buildAgentsManifest(
     capabilities: a.capabilities,
     modelFamily: a.modelFamily,
     model: a.model,
+    effort: a.effort,
     lastSessionId: a.lastSessionId,
     logDir: join(LOGS_DIR, a.id),
   }));

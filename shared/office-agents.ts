@@ -17,6 +17,7 @@ export function roomIndexById(rooms: { id: string }[], roomId?: string): number 
 }
 
 export function firstOpenDesk(agents: Iterable<AgentInfo>, room: number, preferredDesk?: number): number {
+  if (preferredDesk !== undefined && (!Number.isInteger(preferredDesk) || preferredDesk < 0 || preferredDesk > 7)) return -1;
   const taken = new Set<number>();
   let count = 0;
   for (const agent of agents) {

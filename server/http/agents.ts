@@ -187,11 +187,31 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
 
 function malformedMessageFields(body: Record<string, unknown> | null): Response | null {
   if (!body) return null;
-  if (body.attachments !== undefined && !Array.isArray(body.attachments)) return jsonError(422, "attachments must be an array");
+  if (body.attachments !== undefined) {
+    if (!Array.isArray(body.attachments)) return jsonError(422, "attachments must be an array");
+    if (body.attachments.some(isMalformedAttachment)) return jsonError(422, "attachments must contain filename, originalName, mediaType strings and nonnegative integer size");
+  }
   if (body.clientMessageId !== undefined && typeof body.clientMessageId !== "string") return jsonError(422, "clientMessageId must be a string");
   if (body.deliverAt !== undefined && typeof body.deliverAt !== "string") return jsonError(422, "deliverAt must be a string");
   if (body.sendNow !== undefined && typeof body.sendNow !== "boolean") return jsonError(422, "sendNow must be a boolean");
   return null;
+}
+
+function isMalformedAttachment(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return true;
+  const attachment = value as Partial<Attachment>;
+  const size = attachment.size;
+  return (
+    typeof attachment.filename !== "string" ||
+    attachment.filename.trim() === "" ||
+    typeof attachment.originalName !== "string" ||
+    attachment.originalName.trim() === "" ||
+    typeof attachment.mediaType !== "string" ||
+    attachment.mediaType.trim() === "" ||
+    typeof size !== "number" ||
+    !Number.isSafeInteger(size) ||
+    size < 0
+  );
 }
 
 function isRetiredLegacyAgentAffordance(pathname: string, parts: string[], method: string): boolean {

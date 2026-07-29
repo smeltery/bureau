@@ -3,6 +3,7 @@ const LOCAL_BUREAU_URL_RE = /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1)(?::\d+)?
 const BODY_FLAG_RE = /(?:^|\s)(?:--data(?:-raw|-binary)?|-d)\s+(["'])([\s\S]*?)\1/;
 const STDIN_BODY_FLAG_RE = /(?:^|\s)(?:--data(?:-raw|-binary)?|-d)\s+@-/;
 const DIRECT_HEREDOC_RE = /<<-?\s*(["']?)([A-Za-z_][A-Za-z0-9_]*)\1\s*\n([\s\S]*?)\n\2\s*$/;
+const PIPE_TAIL_DISPLAY_LIMIT = 64;
 
 type JsonObject = Record<string, unknown>;
 
@@ -30,6 +31,7 @@ const routeLabels: Array<[RegExp, string]> = [
 ];
 
 const fieldOrder = ["path", "url", "command", "text", "title", "status", "assignee", "room"];
+const displayFilterCommands = new Set(["jq", "grep", "rg", "sed", "sort", "uniq", "head", "tail", "cut", "tr", "wc", "column"]);
 
 export function summarizeBureauCurl(command: string): string | null {
   if (!/\bcurl\b/.test(command)) return null;
@@ -40,11 +42,14 @@ export function summarizeBureauCurl(command: string): string | null {
   if (!label) return null;
 
   const fields = extractBodyFields(command);
-  const summary = fields.length > 0 ? `${label} - ${fields.join(", ")}` : label;
+  const pipeTail = extractPipeTail(command, url.rawEnd);
+  if (pipeTail !== null && !isSafeDisplayPipeTail(pipeTail)) return null;
+  const details = [...fields, ...(pipeTail ? [pipeTailForDisplay(pipeTail)] : [])];
+  const summary = details.length > 0 ? `${label} - ${details.join(", ")}` : label;
   return truncate(summary, 80);
 }
 
-function extractLocalBureauUrl(command: string): URL | null {
+function extractLocalBureauUrl(command: string): (URL & { rawEnd: number }) | null {
   const matches = command.matchAll(LOCAL_BUREAU_URL_RE);
   for (const match of matches) {
     const raw = match[0];
@@ -52,7 +57,7 @@ function extractLocalBureauUrl(command: string): URL | null {
     try {
       const url = new URL(normalized);
       if ((url.hostname === "localhost" || url.hostname === "127.0.0.1") && url.pathname.startsWith("/api/")) {
-        return url;
+        return Object.assign(url, { rawEnd: match.index + raw.length });
       }
     } catch {
       // Keep scanning; a later token may still be a parseable local URL.
@@ -84,6 +89,103 @@ function extractDirectHeredocBody(command: string): string | null {
   if (!STDIN_BODY_FLAG_RE.test(command)) return null;
   const match = DIRECT_HEREDOC_RE.exec(command);
   return match ? match[3] : null;
+}
+
+function extractPipeTail(command: string, start: number): string | null {
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+  for (let index = start; index < command.length; index++) {
+    const ch = command[index]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quote === '"' && ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if ((ch === "'" || ch === '"') && quote === null) {
+      quote = ch;
+      continue;
+    }
+    if (ch === quote) {
+      quote = null;
+      continue;
+    }
+    if (ch === "|" && quote === null) return command.slice(index).trim();
+  }
+  return null;
+}
+
+function isSafeDisplayPipeTail(tail: string): boolean {
+  if (!tail.startsWith("|")) return false;
+  if (hasUnquotedShellControl(tail)) return false;
+  const stages = splitUnquotedPipes(tail.slice(1))
+    .map((stage) => stage.trim())
+    .filter(Boolean);
+  if (stages.length === 0) return false;
+  return stages.every((stage) => displayFilterCommands.has(stage.split(/\s+/, 1)[0] ?? ""));
+}
+
+function pipeTailForDisplay(tail: string): string {
+  return tail.length > PIPE_TAIL_DISPLAY_LIMIT ? `${tail.slice(0, PIPE_TAIL_DISPLAY_LIMIT)}...` : tail;
+}
+
+function splitUnquotedPipes(value: string): string[] {
+  const stages: string[] = [];
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+  let start = 0;
+  for (let index = 0; index < value.length; index++) {
+    const ch = value[index]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quote === '"' && ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if ((ch === "'" || ch === '"') && quote === null) {
+      quote = ch;
+      continue;
+    }
+    if (ch === quote) {
+      quote = null;
+      continue;
+    }
+    if (ch === "|" && quote === null) {
+      stages.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+  stages.push(value.slice(start));
+  return stages;
+}
+
+function hasUnquotedShellControl(value: string): boolean {
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+  for (const ch of value) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quote === '"' && ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if ((ch === "'" || ch === '"') && quote === null) {
+      quote = ch;
+      continue;
+    }
+    if (ch === quote) {
+      quote = null;
+      continue;
+    }
+    if (quote === null && /[;&`$()<>]/.test(ch)) return true;
+  }
+  return quote !== null;
 }
 
 function formatField(key: string, value: unknown): string | null {

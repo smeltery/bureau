@@ -63,6 +63,7 @@ function installAgentWithContext(id: string) {
     topic: null,
     topicStale: false,
     customInstructions: null,
+    effort: "high",
   };
   const managed = createManagedAgent({ info, skillCwd: process.cwd(), slashCommands: [], skills: [] });
   managed.session = {

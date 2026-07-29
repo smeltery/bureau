@@ -129,13 +129,19 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (body.status !== undefined && !isValidStatus(body.status)) {
       return new Response(JSON.stringify({ error: "invalid status, must be open|in_progress|backlog|done" }), { status: 400, headers: corsHeaders });
     }
-    if (body.priority !== undefined && !isValidPriority(body.priority)) {
-      return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3" }), { status: 400, headers: corsHeaders });
+    if (body.priority !== undefined && body.priority !== null && !isValidPriority(body.priority)) {
+      return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3 or null to clear" }), { status: 400, headers: corsHeaders });
     }
     if (body.title !== undefined) task.title = String(body.title);
     if (body.description !== undefined) task.description = body.description ? String(body.description) : undefined;
     if (body.status !== undefined) task.status = body.status as TaskItem["status"];
-    if (body.priority !== undefined) task.priority = body.priority ? (body.priority as TaskItem["priority"]) : undefined;
+    if (body.priority !== undefined) {
+      if (body.priority === null) {
+        delete task.priority;
+      } else {
+        task.priority = body.priority as TaskItem["priority"];
+      }
+    }
     if (body.assignee !== undefined) task.assignee = body.assignee ? String(body.assignee) : undefined;
     if (body.roomId !== undefined) {
       const requestedRoomId = readTaskRoomId(body.roomId);
