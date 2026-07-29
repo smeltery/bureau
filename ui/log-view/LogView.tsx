@@ -15,6 +15,7 @@ import { useAttachmentUpload } from "./hooks/useAttachmentUpload.ts";
 import { useLogViewPanels } from "./hooks/useLogViewPanels.ts";
 import { useLogViewInput } from "./hooks/useLogViewInput.ts";
 import { useLogViewCite } from "./hooks/useLogViewCite.ts";
+import { storageGetItem, storageSetItem } from "../browser-storage.ts";
 import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 import { LogMessagesPane } from "./LogMessagesPane.tsx";
 import { LogViewPanelHost } from "./side-panels/LogViewPanelHost.tsx";
@@ -64,12 +65,12 @@ export function LogView({
   );
 
   // Chrome + UI state
-  const [showAvatar, setShowAvatar] = useState(() => localStorage.getItem("bureau-show-avatar") !== "false");
+  const [showAvatar, setShowAvatar] = useState(() => storageGetItem("bureau-show-avatar") !== "false");
   const toggleAvatar = useCallback(
     () =>
       setShowAvatar((prev) => {
         const next = !prev;
-        localStorage.setItem("bureau-show-avatar", String(next));
+        storageSetItem("bureau-show-avatar", String(next));
         return next;
       }),
     [],

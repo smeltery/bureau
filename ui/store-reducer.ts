@@ -1,5 +1,6 @@
 import { KILLED_AGENT_CHIP_CAP } from "../shared/types.ts";
 import { applyRoomClose, resolveSelectedRoomId, roomIndexById } from "./roomSelection.ts";
+import { storageSetItem } from "./browser-storage.ts";
 import { applyAgentUpdated, applyRoomsReordered } from "./store-reducer-helpers.ts";
 import { writeDraftForUser, normalizeDraftUser } from "./store-drafts.ts";
 import { writeSidePanels } from "./store-side-panels.ts";
@@ -137,7 +138,7 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, isMobile: action.isMobile };
     case "toggle_mobile_view": {
       const next = state.mobileViewMode === "list" ? "office" : "list";
-      if (typeof localStorage !== "undefined") localStorage.setItem("bureau-mobile-view", next);
+      storageSetItem("bureau-mobile-view", next);
       return { ...state, mobileViewMode: next };
     }
     case "office_settings_updated":

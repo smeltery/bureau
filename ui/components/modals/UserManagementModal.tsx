@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { storageSetItem } from "../../browser-storage.ts";
 import { useAppState } from "../../store.tsx";
 import { send } from "../../ws.ts";
 import type { UserRecord, UserRole } from "../../../shared/types.ts";
@@ -42,7 +43,7 @@ export function UserManagementModal({
   }, [initialUserId]);
 
   function switchUser(name: string) {
-    localStorage.setItem("bureau-username", name);
+    storageSetItem("bureau-username", name);
     onSwitchUser(name);
     send({ type: "claim_user", username: name });
     if (dismissable) onClose?.();

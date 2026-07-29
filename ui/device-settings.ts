@@ -1,3 +1,5 @@
+import { storageGetItem, storageReadObject, storageRemoveItem, storageSetItem } from "./browser-storage.ts";
+
 const KEY_DEVICE = "bureau-device";
 const KEY_SLIDE_MODE = "bureau-slide-mode";
 const KEY_SLIDE_VIEW = "bureau-slide-view";
@@ -8,28 +10,24 @@ const slideModeListeners = new Set<() => void>();
 export type SlidePos = { index: number; atEnd: boolean };
 
 export function getDevice(): string | null {
-  if (typeof localStorage === "undefined") return null;
-  const value = localStorage.getItem(KEY_DEVICE);
+  const value = storageGetItem(KEY_DEVICE);
   return value && value.trim() ? value : null;
 }
 
 export function setDevice(label: string | null): void {
-  if (typeof localStorage === "undefined") return;
   const trimmed = label?.trim();
-  if (trimmed) localStorage.setItem(KEY_DEVICE, trimmed);
-  else localStorage.removeItem(KEY_DEVICE);
+  if (trimmed) storageSetItem(KEY_DEVICE, trimmed);
+  else storageRemoveItem(KEY_DEVICE);
 }
 
 export function getSlideModeEnabled(): boolean {
-  if (typeof localStorage === "undefined") return false;
-  return localStorage.getItem(KEY_SLIDE_MODE) === "1";
+  return storageGetItem(KEY_SLIDE_MODE) === "1";
 }
 
 export function setSlideModeEnabled(on: boolean): void {
-  if (typeof localStorage === "undefined") return;
   const changed = getSlideModeEnabled() !== on;
-  if (on) localStorage.setItem(KEY_SLIDE_MODE, "1");
-  else localStorage.removeItem(KEY_SLIDE_MODE);
+  if (on) storageSetItem(KEY_SLIDE_MODE, "1");
+  else storageRemoveItem(KEY_SLIDE_MODE);
   if (!changed) return;
   for (const cb of slideModeListeners) cb();
 }
@@ -51,14 +49,7 @@ export function subscribeSlideModeEnabled(cb: () => void): () => void {
 }
 
 function readBoolMap(key: string): Record<string, boolean> {
-  if (typeof localStorage === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(key);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
+  return storageReadObject<Record<string, boolean>>(key) ?? {};
 }
 
 export function getSlideView(agentId: string): boolean {
@@ -66,22 +57,14 @@ export function getSlideView(agentId: string): boolean {
 }
 
 export function setSlideView(agentId: string, on: boolean): void {
-  if (typeof localStorage === "undefined") return;
   const map = readBoolMap(KEY_SLIDE_VIEW);
   if (on) map[agentId] = true;
   else delete map[agentId];
-  localStorage.setItem(KEY_SLIDE_VIEW, JSON.stringify(map));
+  storageSetItem(KEY_SLIDE_VIEW, JSON.stringify(map));
 }
 
 function readSlidePosMap(): Record<string, SlidePos> {
-  if (typeof localStorage === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(KEY_SLIDE_POS);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
+  return storageReadObject<Record<string, SlidePos>>(KEY_SLIDE_POS) ?? {};
 }
 
 export function getSlidePos(agentId: string): SlidePos | null {
@@ -91,8 +74,7 @@ export function getSlidePos(agentId: string): SlidePos | null {
 }
 
 export function setSlidePos(agentId: string, pos: SlidePos): void {
-  if (typeof localStorage === "undefined") return;
   const map = readSlidePosMap();
   map[agentId] = { index: pos.index, atEnd: pos.atEnd };
-  localStorage.setItem(KEY_SLIDE_POS, JSON.stringify(map));
+  storageSetItem(KEY_SLIDE_POS, JSON.stringify(map));
 }

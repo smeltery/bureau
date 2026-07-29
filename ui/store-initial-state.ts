@@ -1,4 +1,5 @@
 import type { AppState } from "./store.tsx";
+import { storageGetItem } from "./browser-storage.ts";
 import { readSidePanels } from "./store-side-panels.ts";
 
 export const initialState: AppState = {
@@ -8,7 +9,7 @@ export const initialState: AppState = {
   connected: false,
   hasReceivedInitialState: false,
   isMobile: typeof window !== "undefined" ? window.innerWidth < 768 : false,
-  mobileViewMode: typeof localStorage !== "undefined" && localStorage.getItem("bureau-mobile-view") === "list" ? "list" : "office",
+  mobileViewMode: storageGetItem("bureau-mobile-view") === "list" ? "list" : "office",
   needsAttention: new Set(),
   sessionsList: new Map(),
   soundTrigger: { seq: 0, roomId: null, agentId: null, agentName: null },

@@ -1,3 +1,5 @@
+import { getBrowserStorage } from "./browser-storage.ts";
+
 export interface FocusDebugEntry {
   t: number;
   type: string;
@@ -11,7 +13,7 @@ export interface FocusDebugEntry {
 const ENABLE_KEY = "bureau-debug-focus";
 const MAX_ENTRIES = 300;
 
-export function focusDebugEnabled(storage: Pick<Storage, "getItem"> | undefined): boolean {
+export function focusDebugEnabled(storage: Pick<Storage, "getItem"> | null | undefined): boolean {
   try {
     return storage?.getItem(ENABLE_KEY) === "1";
   } catch {
@@ -33,7 +35,7 @@ export function describeFocusTarget(target: unknown): string {
 }
 
 export function initFocusDebug(): void {
-  if (typeof window === "undefined" || typeof document === "undefined" || !focusDebugEnabled(window.localStorage)) return;
+  if (typeof window === "undefined" || typeof document === "undefined" || !focusDebugEnabled(getBrowserStorage())) return;
 
   const entries: FocusDebugEntry[] = [];
   const record = (type: string, event?: Event) => {

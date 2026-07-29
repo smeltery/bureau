@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { storageGetItem, storageSetItem } from "../../browser-storage.ts";
 
 export const PANEL_MIN = { terminal: 300, editor: 380 } as const;
 
@@ -10,23 +11,15 @@ const PANEL_MAX = { terminal: 1000, editor: 1200 } as const;
 const CHAT_COLUMN_FLOOR = 300;
 
 function readPanelWidth(kind: "terminal" | "editor", fallback: number): number {
-  if (typeof localStorage === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(`bureau:panel-width:${kind}`);
-    if (raw === null) return fallback;
-    const n = parseInt(raw, 10);
-    if (!Number.isFinite(n) || n <= 0) return fallback;
-    return Math.max(PANEL_MIN[kind], Math.min(PANEL_MAX[kind], n));
-  } catch {
-    return fallback;
-  }
+  const raw = storageGetItem(`bureau:panel-width:${kind}`);
+  if (raw === null) return fallback;
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.max(PANEL_MIN[kind], Math.min(PANEL_MAX[kind], n));
 }
 
 function writePanelWidth(kind: "terminal" | "editor", width: number): void {
-  if (typeof localStorage === "undefined") return;
-  try {
-    localStorage.setItem(`bureau:panel-width:${kind}`, String(Math.round(width)));
-  } catch {}
+  storageSetItem(`bureau:panel-width:${kind}`, String(Math.round(width)));
 }
 
 export function useSidePanelLayout() {

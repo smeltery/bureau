@@ -19,6 +19,7 @@ import { ConnectionBanner } from "./components/ConnectionBanner.tsx";
 import { CSS } from "./styles.ts";
 import type { AgentBackendType, AgentInfo } from "../shared/types.ts";
 import { useAppNavigation } from "./useAppNavigation.ts";
+import { storageGetItem, storageSetItem } from "./browser-storage.ts";
 import { normalizeDraftUser, pruneDraftsForUser, readDraftsForUser, writeDraftForUser } from "./store-drafts.ts";
 import { readSavedView, writeSavedView } from "./store-view.ts";
 
@@ -33,12 +34,7 @@ export function App() {
   const [spawnAgentType, setSpawnAgentType] = useState<AgentBackendType | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; agent: AgentInfo } | null>(null);
   const [editAgent, setEditAgent] = useState<AgentInfo | null>(null);
-  const [username, setUsername] = useState<string | null>(() => {
-    if (typeof localStorage !== "undefined") {
-      return localStorage.getItem("bureau-username");
-    }
-    return null;
-  });
+  const [username, setUsername] = useState<string | null>(() => storageGetItem("bureau-username"));
   const [editingUsername, setEditingUsername] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingDeviceSettings, setEditingDeviceSettings] = useState(false);
@@ -252,7 +248,7 @@ export function App() {
           onClose={() => setEditingOfficePrompt(false)}
           username={username ?? ""}
           onSaveUsername={(name) => {
-            localStorage.setItem("bureau-username", name);
+            storageSetItem("bureau-username", name);
             setUsername(name);
           }}
         />

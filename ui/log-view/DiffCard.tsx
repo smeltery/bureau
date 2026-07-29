@@ -4,22 +4,18 @@ import type { DiffOutputFormat } from "./DiffRenderer.tsx";
 import { DiffFileRow } from "./DiffFileRow.tsx";
 import { DiffOverlay } from "./DiffOverlay.tsx";
 import { splitPatchByFile } from "./diff-patch.ts";
+import { storageGetItem, storageSetItem } from "../browser-storage.ts";
 
 const PREF_KEY = "bureau:diff:outputFormat";
 const INLINE_LINES_THRESHOLD = 200;
 
 function readPref(): DiffOutputFormat {
-  if (typeof localStorage === "undefined") return "line-by-line";
-  const v = localStorage.getItem(PREF_KEY);
+  const v = storageGetItem(PREF_KEY);
   return v === "side-by-side" ? "side-by-side" : "line-by-line";
 }
 
 function writePref(v: DiffOutputFormat) {
-  try {
-    localStorage.setItem(PREF_KEY, v);
-  } catch {
-    /* quota / private mode */
-  }
+  storageSetItem(PREF_KEY, v);
 }
 
 export function DiffCard({ payload }: { payload: DiffPayload }) {

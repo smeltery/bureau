@@ -1,3 +1,5 @@
+import { getBrowserStorage, storageGetItem, storageSetItem, type BrowserStorage } from "./browser-storage.ts";
+
 const VIEW_KEY = "bureau:view";
 
 export type SavedPanel = "tasks" | "cronjobs" | "plugins";
@@ -9,14 +11,10 @@ export interface SavedView {
   panel: SavedPanel | null;
 }
 
-export interface ViewStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-}
+export type ViewStorage = Pick<BrowserStorage, "getItem" | "setItem">;
 
 function storage(): ViewStorage | null {
-  if (typeof localStorage === "undefined") return null;
-  return localStorage;
+  return getBrowserStorage();
 }
 
 function normalizeUser(user: string): string {
@@ -52,20 +50,12 @@ export function parseSavedView(raw: string | null): SavedView | null {
 
 export function readSavedView(user: string, store: ViewStorage | null = storage()): SavedView | null {
   if (!store) return null;
-  try {
-    const view = parseSavedView(store.getItem(VIEW_KEY));
-    if (!view || normalizeUser(view.user) !== normalizeUser(user)) return null;
-    return view;
-  } catch {
-    return null;
-  }
+  const view = parseSavedView(storageGetItem(VIEW_KEY, store as BrowserStorage));
+  if (!view || normalizeUser(view.user) !== normalizeUser(user)) return null;
+  return view;
 }
 
 export function writeSavedView(user: string, view: Omit<SavedView, "user">, store: ViewStorage | null = storage()): void {
   if (!store) return;
-  try {
-    store.setItem(VIEW_KEY, JSON.stringify({ user: normalizeUser(user), ...view }));
-  } catch {
-    // View persistence is best-effort.
-  }
+  storageSetItem(VIEW_KEY, JSON.stringify({ user: normalizeUser(user), ...view }), store as BrowserStorage);
 }

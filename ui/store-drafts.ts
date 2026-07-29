@@ -1,17 +1,12 @@
+import { getBrowserStorage, type BrowserStorage } from "./browser-storage.ts";
+
 const DRAFT_KEY_PREFIX = "bureau:draft:";
 const FIELD_SEPARATOR = ":";
 
-export interface DraftStorage {
-  readonly length: number;
-  getItem(key: string): string | null;
-  key(index: number): string | null;
-  removeItem(key: string): void;
-  setItem(key: string, value: string): void;
-}
+export type DraftStorage = BrowserStorage;
 
 function browserStorage(): DraftStorage | null {
-  if (typeof localStorage === "undefined") return null;
-  return localStorage;
+  return getBrowserStorage();
 }
 
 export function normalizeDraftUser(username: string | null | undefined): string | null {

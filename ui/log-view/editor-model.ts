@@ -6,6 +6,7 @@ import { html } from "@codemirror/lang-html";
 import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
 import { go } from "@codemirror/lang-go";
+import { storageGetItem, storageSetItem } from "../browser-storage.ts";
 
 export interface Tab {
   path: string;
@@ -23,9 +24,8 @@ const RECENT_KEY = (agentId: string) => `bureau:editor:recent:${agentId}`;
 const MAX_RECENT_FILES = 12;
 
 export function readTabs(agentId: string): string[] {
-  if (typeof localStorage === "undefined") return [];
   try {
-    const raw = localStorage.getItem(TABS_KEY(agentId));
+    const raw = storageGetItem(TABS_KEY(agentId));
     if (!raw) return [];
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return [];
@@ -36,16 +36,12 @@ export function readTabs(agentId: string): string[] {
 }
 
 export function writeTabs(agentId: string, paths: string[]) {
-  if (typeof localStorage === "undefined") return;
-  try {
-    localStorage.setItem(TABS_KEY(agentId), JSON.stringify(paths.slice(0, 20)));
-  } catch {}
+  storageSetItem(TABS_KEY(agentId), JSON.stringify(paths.slice(0, 20)));
 }
 
 export function readRecentFiles(agentId: string): string[] {
-  if (typeof localStorage === "undefined") return [];
   try {
-    const raw = localStorage.getItem(RECENT_KEY(agentId));
+    const raw = storageGetItem(RECENT_KEY(agentId));
     if (!raw) return [];
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return [];
@@ -56,10 +52,7 @@ export function readRecentFiles(agentId: string): string[] {
 }
 
 export function writeRecentFiles(agentId: string, paths: string[]) {
-  if (typeof localStorage === "undefined") return;
-  try {
-    localStorage.setItem(RECENT_KEY(agentId), JSON.stringify(paths.slice(0, MAX_RECENT_FILES)));
-  } catch {}
+  storageSetItem(RECENT_KEY(agentId), JSON.stringify(paths.slice(0, MAX_RECENT_FILES)));
 }
 
 export function rememberRecentFile(agentId: string, path: string): string[] {

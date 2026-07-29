@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { type Features, PRODUCTION_FEATURES } from "../shared/features.ts";
+import { storageGetItem, storageSetItem } from "./browser-storage.ts";
 import { DEFAULT_THEME_ID, getThemeById, THEMES, type Theme, type ThemeMode } from "./themes.ts";
 
 // Theme management — persisted to localStorage, applied via data-theme +
@@ -33,19 +34,16 @@ function getSystemThemeId(): string {
 const USER_PICK_KEY = "bureau-theme";
 
 function hasUserPickedTheme(): boolean {
-  if (typeof localStorage === "undefined") return false;
-  return localStorage.getItem(USER_PICK_KEY) != null;
+  return storageGetItem(USER_PICK_KEY) != null;
 }
 
 function getInitialThemeId(): string {
-  if (typeof localStorage !== "undefined") {
-    const saved = localStorage.getItem(USER_PICK_KEY);
-    if (saved) {
-      // If the stored id isn't a known theme, getThemeById falls back to
-      // the default — return the canonical id so we don't keep round-
-      // tripping the stale value.
-      return getThemeById(saved).id;
-    }
+  const saved = storageGetItem(USER_PICK_KEY);
+  if (saved) {
+    // If the stored id isn't a known theme, getThemeById falls back to
+    // the default — return the canonical id so we don't keep round-
+    // tripping the stale value.
+    return getThemeById(saved).id;
   }
   // No explicit user choice: follow the OS preference.
   return getSystemThemeId();
@@ -60,12 +58,10 @@ const LAST_THEME_KEY = {
 // toggle can return the user to their preferred Nord (dark) or Solarized
 // Light (light) instead of always reverting to the canonical pair.
 function getLastModeTheme(mode: ThemeMode): string {
-  if (typeof localStorage !== "undefined") {
-    const saved = localStorage.getItem(LAST_THEME_KEY[mode]);
-    if (saved) {
-      const resolved = getThemeById(saved);
-      if (resolved.mode === mode) return resolved.id;
-    }
+  const saved = storageGetItem(LAST_THEME_KEY[mode]);
+  if (saved) {
+    const resolved = getThemeById(saved);
+    if (resolved.mode === mode) return resolved.id;
   }
   return THEMES.find((t) => t.mode === mode)?.id ?? DEFAULT_THEME_ID;
 }
@@ -83,8 +79,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute("data-theme", resolved.id);
     document.documentElement.setAttribute("data-theme-mode", resolved.mode);
     if (userPicked) {
-      localStorage.setItem(USER_PICK_KEY, resolved.id);
-      localStorage.setItem(LAST_THEME_KEY[resolved.mode], resolved.id);
+      storageSetItem(USER_PICK_KEY, resolved.id);
+      storageSetItem(LAST_THEME_KEY[resolved.mode], resolved.id);
     }
     const color = resolved.vars["--bg-base"];
     let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
