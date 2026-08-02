@@ -1,5 +1,6 @@
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import type { UserRecord } from "../../shared/types.ts";
+import { isSupportedLanguage } from "../../shared/languages.ts";
 
 const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 const NO_CONTENT_HEADERS = { "Access-Control-Allow-Origin": "*" };
@@ -13,7 +14,7 @@ export interface UsersHttpDeps {
   delete(actorUserId: string, role: "owner" | "member", username: string): Promise<UserDeleteResult>;
 }
 
-export type UserRecordChanges = Partial<Pick<UserRecord, "name" | "envFile" | "memberPrompt" | "avatarColor" | "avatarVariant">>;
+export type UserRecordChanges = Partial<Pick<UserRecord, "name" | "envFile" | "memberPrompt" | "language" | "avatarColor" | "avatarVariant">>;
 
 export async function handleUsersRequest(req: Request, url: URL, auth: AuthResult | undefined, deps: UsersHttpDeps): Promise<Response | null> {
   const parts = usersRouteParts(url.pathname);
@@ -57,6 +58,8 @@ function malformedUserUpdate(body: Record<string, unknown>): string | null {
   if (typeof body.name === "string" && body.name.trim().length === 0) return "name cannot be empty";
   if (body.envFile !== undefined && body.envFile !== null && typeof body.envFile !== "string") return "envFile must be a string or null";
   if (body.memberPrompt !== undefined && body.memberPrompt !== null && typeof body.memberPrompt !== "string") return "memberPrompt must be a string or null";
+  if (body.language !== undefined && body.language !== null && typeof body.language !== "string") return "language must be a string or null";
+  if (typeof body.language === "string" && !isSupportedLanguage(body.language)) return "language must be supported or null";
   if (body.avatarColor !== undefined && typeof body.avatarColor !== "string") return "avatarColor must be a string";
   if (body.avatarVariant !== undefined && typeof body.avatarVariant !== "string") return "avatarVariant must be a string";
   return null;
@@ -67,6 +70,7 @@ function pickUserChanges(body: Record<string, unknown>): UserRecordChanges {
   if (body.name !== undefined) changes.name = body.name as string;
   if (body.envFile !== undefined) changes.envFile = body.envFile as string | null;
   if (body.memberPrompt !== undefined) changes.memberPrompt = body.memberPrompt as string | null;
+  if (body.language !== undefined) changes.language = body.language as UserRecord["language"];
   if (body.avatarColor !== undefined) changes.avatarColor = body.avatarColor as string;
   if (body.avatarVariant !== undefined) changes.avatarVariant = body.avatarVariant as UserRecord["avatarVariant"];
   return changes;

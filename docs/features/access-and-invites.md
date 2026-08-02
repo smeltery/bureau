@@ -61,7 +61,14 @@ Self-device links are tighter than owner-issued invites by design: **1h TTL** an
 
 The `My devices` pane also lists the member's outstanding invites and active sessions, scoped to themselves — same tables as the owner's `Access` pane, filtered to one identity.
 
-### 5. Sign out
+### 5. User preferences
+
+Each signed-in user can edit their own profile in `User Settings`, including
+ghost appearance, notification rooms, personal agent context, env file path, and
+language preference. The saved language follows the user across devices and is
+used for agents they spawn plus browser speech input/output where supported.
+
+### 6. Sign out
 
 `User Settings` → `Sign out` revokes the current device's session and reloads. Other devices for the same user stay signed in. If you're the office's last active owner session, sign-out is refused with a lockout-prevention message — mint another owner invite first, accept it on a second device, then retry.
 

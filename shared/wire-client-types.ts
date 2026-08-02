@@ -116,7 +116,9 @@ export type ClientCommand =
   | {
       type: "update_user";
       userId: string;
-      changes: Partial<Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">>;
+      changes: Partial<
+        Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "language" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">
+      >;
     }
   | { type: "delete_user"; userId: string }
   | { type: "list_active_sessions" }

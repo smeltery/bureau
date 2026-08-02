@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from "react";
  * the mic button should still appear disabled so the user can be told why
  * (via `showMicHint`).
  */
-export function useVoiceInput({ inputRef, onTranscript, onGrow }: { inputRef: React.MutableRefObject<string>; onTranscript: (text: string) => void; onGrow: () => void }) {
+export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inputRef: React.MutableRefObject<string>; locale: string; onTranscript: (text: string) => void; onGrow: () => void }) {
   const SpeechRecognition = (typeof window !== "undefined" && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) || null;
   const isSecureContext = typeof window !== "undefined" && window.isSecureContext;
   const speechApiPresent = !!SpeechRecognition;
@@ -36,7 +36,7 @@ export function useVoiceInput({ inputRef, onTranscript, onGrow }: { inputRef: Re
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
+    recognition.lang = locale;
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interimText = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -104,7 +104,7 @@ export function useVoiceInput({ inputRef, onTranscript, onGrow }: { inputRef: Re
       window.removeEventListener("keyup", onKeyUp);
       recognitionRef.current?.stop();
     };
-  }, [speechAvailable]);
+  }, [speechAvailable, locale]);
 
   return {
     isListening,

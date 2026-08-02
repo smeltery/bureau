@@ -109,7 +109,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Self-hosted with invite-link auth** — the first visitor on the host machine claims ownership at a localhost-only form; owners then mint one-time invite URLs from the full-page User Settings view, while every signed-in user can mint self-service links for their own devices. Sessions are cookie-gated end-to-end (HTTP + WebSocket), with per-message revocation, role-scoped per-user views, and a `bun run server/index.ts owner-login --name <you>` recovery CLI over a Unix-domain admin socket. See [Access & invites](docs/features/access-and-invites.md)
 - **Mobile & PWA** — touch-optimized UI, installable on any device
 - **Room-scoped notifications** — opt into sound and desktop alerts for the rooms you care about when agents finish in the background
-- **Voice I/O** — speech-to-text prompts, text-to-speech responses
+- **Voice I/O** — speech-to-text prompts and text-to-speech responses use each user's saved language preference when set
 - **6 color themes** — Dark, Light, Nord, Dracula, Solarized Dark, Solarized Light; pick from the theme picker in the header. First load follows your OS `prefers-color-scheme` (and live-updates if you flip it system-wide) until you make an explicit choice. Per-mode last-pick is remembered, so a quick moon/sun toggle swaps between your two favorites instead of resetting to canonical Dark/Light
 
 For the full feature list, see the [design & architecture article](articles/punching-in-building-an-office-for-ai-agents.md).

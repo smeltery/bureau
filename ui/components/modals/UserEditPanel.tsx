@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { UserRecord, UserRole } from "../../../shared/types.ts";
 import type { GhostVariant } from "../../../shared/avatar.ts";
+import { SUPPORTED_LANGUAGES, type SupportedLanguageCode } from "../../../shared/languages.ts";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 import { UserAvatarPicker } from "./UserAvatarPicker.tsx";
@@ -29,6 +30,7 @@ export function UserEditPanel({
   const [notifRooms, setNotifRooms] = useState(() => new Set(user.notifRooms ?? []));
   const [envFile, setEnvFile] = useState(user.envFile ?? "");
   const [memberPrompt, setMemberPrompt] = useState(user.memberPrompt ?? "");
+  const [language, setLanguage] = useState<SupportedLanguageCode | "">(user.language ?? "");
   const [avatarColor, setAvatarColor] = useState(user.avatarColor);
   const [avatarVariant, setAvatarVariant] = useState<GhostVariant>(user.avatarVariant);
   const [envStatus, setEnvStatus] = useState<ValidationStatus>({ kind: "idle" });
@@ -40,6 +42,7 @@ export function UserEditPanel({
     role !== user.role ||
     envFile !== (user.envFile ?? "") ||
     memberPrompt !== (user.memberPrompt ?? "") ||
+    language !== (user.language ?? "") ||
     avatarColor !== user.avatarColor ||
     avatarVariant !== user.avatarVariant ||
     (defaultRoomId ?? null) !== (user.defaultRoomId ?? null) ||
@@ -71,6 +74,7 @@ export function UserEditPanel({
         notifRooms: notif,
         envFile: envFile.trim() || null,
         memberPrompt: memberPrompt.trim() || null,
+        language: language || null,
         avatarColor,
         avatarVariant,
       },
@@ -141,6 +145,16 @@ export function UserEditPanel({
         </button>
       </div>
       <ValidationLine status={envStatus} />
+      <label style={{ ...dialogLabel, marginTop: 12 }}>Language</label>
+      <select value={language} onChange={(e) => setLanguage(e.target.value as SupportedLanguageCode | "")} style={dialogInput}>
+        <option value="">Default</option>
+        {SUPPORTED_LANGUAGES.map((option) => (
+          <option key={option.code} value={option.code}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "4px 0 0" }}>Agents you spawn use this as your default reply and speech language.</p>
       <label style={{ ...dialogLabel, marginTop: 12 }}>Personal context</label>
       <textarea
         value={memberPrompt}

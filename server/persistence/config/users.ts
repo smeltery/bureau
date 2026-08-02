@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "fs";
 import type { UserRecord } from "../../../shared/types.ts";
 import { generateRoomId } from "../../../shared/types.ts";
 import { defaultGhostColorForUserId, isGhostVariant, isHexColor, normalizeHexColor } from "../../../shared/avatar.ts";
+import { isSupportedLanguage } from "../../../shared/languages.ts";
 import { atomicWriteFileSync, USERS_FILE } from "../paths.ts";
 
 export function normalizeUserKey(name: string): string {
@@ -33,6 +34,7 @@ export function loadUsers(): UserRecord[] {
           role: u.role === "owner" ? "owner" : "member",
           envFile: typeof u.envFile === "string" && u.envFile ? u.envFile : null,
           memberPrompt: typeof u.memberPrompt === "string" && u.memberPrompt.trim() ? u.memberPrompt.trim() : null,
+          language: isSupportedLanguage(u.language) ? u.language : null,
           allowedRooms,
           hidden,
           order,

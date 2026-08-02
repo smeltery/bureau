@@ -21,6 +21,7 @@ function user(role: UserRecord["role"], allowedRooms: string[]): UserRecord {
     allowedRooms,
     notifRooms: [],
     envFile: null,
+    language: null,
     createdAt: 0,
     avatarColor: "#000000",
     avatarVariant: "classic",

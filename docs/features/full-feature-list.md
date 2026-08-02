@@ -42,7 +42,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Active session revocation and one-time invite management.
 - Live user/device presence in the office.
 - Full-page user settings for profiles, access, self-service device links,
-  ghost appearance, and roster online/session summaries.
+  ghost appearance, saved language preference, and roster online/session
+  summaries.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers.
 
@@ -61,7 +62,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Markdown, syntax highlighting, Mermaid diagrams, citations, and rich cards.
 - Collapsible thinking/tool-call cards with timing.
 - File attachments via path notices, inline image display, and PDF handling.
-- Voice input and speech synthesis where supported by the browser.
+- Voice input and speech synthesis where supported by the browser, using the
+  signed-in user's saved language preference when set.
 - Per-agent drafts and queued message chips, including restart-surviving queued
   messages and Ctrl/Cmd+Enter send-now delivery.
 - Device-gated Slide Mode presents each agent conversation as a per-turn deck

@@ -23,6 +23,7 @@ import { PinnedUserMessageBanner } from "./PinnedUserMessageBanner.tsx";
 import { ScrollToBottomButton } from "./ScrollToBottomButton.tsx";
 import { DeckView } from "./deck/DeckView.tsx";
 import { useSlideMode } from "../hooks/useSlideMode.ts";
+import { useSpeechLocale } from "../hooks/useSpeechLocale.ts";
 
 export function LogView({
   agent,
@@ -48,6 +49,7 @@ export function LogView({
   const features = useFeatures();
   const panels = useLogViewPanels(agent.id);
   const slideMode = useSlideMode(agent.id);
+  const speechLocale = useSpeechLocale();
 
   // Input draft + textarea ref
   const input = drafts.get(agent.id) ?? "";
@@ -110,6 +112,7 @@ export function LogView({
   const autocomplete = useSlashAutocomplete(input, slashCommands.get(agent.id));
   const voice = useVoiceInput({
     inputRef,
+    locale: speechLocale,
     onTranscript: (text) => dispatch({ type: "set_draft", agentId: agent.id, text }),
     onGrow: () => {
       if (textareaRef.current) autoResize(textareaRef.current);

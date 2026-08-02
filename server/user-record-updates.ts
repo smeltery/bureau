@@ -1,9 +1,10 @@
 import type { UserRecord } from "../shared/types.ts";
 import { defaultGhostColorForUserId, isGhostVariant, isHexColor, normalizeHexColor } from "../shared/avatar.ts";
+import { isSupportedLanguage } from "../shared/languages.ts";
 import { normalizeAllowedRooms } from "./user-room-projection.ts";
 
 export type UserRecordChanges = Partial<
-  Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">
+  Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "language" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">
 >;
 
 export function createUserRecord({ id, name, role, allowedRooms }: Pick<UserRecord, "id" | "name" | "role" | "allowedRooms">): UserRecord {
@@ -13,6 +14,7 @@ export function createUserRecord({ id, name, role, allowedRooms }: Pick<UserReco
     role,
     envFile: null,
     memberPrompt: null,
+    language: null,
     allowedRooms,
     hidden: [],
     order: [],
@@ -37,6 +39,7 @@ function applyProfileFields(next: UserRecord, changes: UserRecordChanges): void 
     const memberPrompt = typeof changes.memberPrompt === "string" ? changes.memberPrompt.trim() : "";
     next.memberPrompt = memberPrompt || null;
   }
+  if (changes.language !== undefined) next.language = isSupportedLanguage(changes.language) ? changes.language : null;
   if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
   if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;
 }

@@ -15,6 +15,7 @@ function user(overrides: Partial<UserRecord> = {}): UserRecord {
     role: "member",
     envFile: null,
     memberPrompt: null,
+    language: null,
     allowedRooms: ["r1", "r2", "r3"],
     hidden: [],
     order: [],

@@ -1,4 +1,5 @@
 import type { GhostVariant } from "./avatar.ts";
+import type { SupportedLanguageCode } from "./languages.ts";
 
 // Office-level settings (prompt + optional env file path)
 export interface OfficeSettings {
@@ -17,6 +18,8 @@ export interface UserRecord {
   envFile: string | null;
   // User-authored context injected into agents owned by this user.
   memberPrompt: string | null;
+  // Preferred language for agents spawned by this user. null keeps default behavior.
+  language: SupportedLanguageCode | null;
   // Strict list of room IDs this user can see and act in. Owners can edit it.
   allowedRooms: string[];
   // Per-user view preferences layered on top of access. Hidden rooms remain

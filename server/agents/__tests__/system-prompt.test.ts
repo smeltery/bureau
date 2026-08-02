@@ -118,6 +118,20 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt.indexOf("OFFICE-MARK")).toBeLessThan(prompt.indexOf("PREFERS-TEST-FIRST"));
     expect(prompt.indexOf("PREFERS-TEST-FIRST")).toBeLessThan(prompt.indexOf("ROOM-MARK"));
   });
+
+  test("adds a manager language preference before room instructions", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room", "OFFICE-MARK", "ROOM-MARK", null, null, "Boss One", null, false, "es");
+
+    expect(prompt).toContain("Boss One has indicated Spanish as their default language");
+    expect(prompt.indexOf("OFFICE-MARK")).toBeLessThan(prompt.indexOf("Spanish as their default language"));
+    expect(prompt.indexOf("Spanish as their default language")).toBeLessThan(prompt.indexOf("ROOM-MARK"));
+  });
+
+  test("does not add a language clause for the default language", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room", null, null, null, null, "Boss One", null, false, "en");
+
+    expect(prompt).not.toContain("default language");
+  });
 });
 
 describe("memorySection", () => {

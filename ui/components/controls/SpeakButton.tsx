@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useSpeechLocale } from "../../hooks/useSpeechLocale.ts";
 
 const SPEAK_ICON = (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -32,14 +33,21 @@ function stripMarkdown(md: string): string {
     .trim();
 }
 
-function pickVoice(): SpeechSynthesisVoice | undefined {
+function baseLanguage(locale: string): string {
+  return locale.split("-")[0]?.toLowerCase() ?? locale.toLowerCase();
+}
+
+function pickVoice(locale: string): SpeechSynthesisVoice | undefined {
   const voices = speechSynthesis.getVoices();
-  const en = voices.filter((v) => v.lang.startsWith("en"));
-  return en.find((v) => v.name === "Google US English") ?? en.find((v) => /google/i.test(v.name)) ?? en.find((v) => v.default) ?? en[0];
+  const exact = voices.filter((v) => v.lang.replace("_", "-").toLowerCase() === locale.toLowerCase());
+  const sameLanguage = voices.filter((v) => baseLanguage(v.lang.replace("_", "-")) === baseLanguage(locale));
+  const candidates = exact.length ? exact : sameLanguage;
+  return candidates.find((v) => /google/i.test(v.name)) ?? candidates.find((v) => v.default) ?? candidates[0] ?? voices.find((v) => v.default) ?? voices[0];
 }
 
 export function SpeakButton({ getText, size = 24 }: { getText: () => string; size?: number }) {
   const [speaking, setSpeaking] = useState(false);
+  const locale = useSpeechLocale();
 
   const handleClick = useCallback(() => {
     if (speaking) {
@@ -52,14 +60,15 @@ export function SpeakButton({ getText, size = 24 }: { getText: () => string; siz
     if (!text) return;
 
     const utterance = new SpeechSynthesisUtterance(text);
-    const voice = pickVoice();
+    const voice = pickVoice(locale);
     if (voice) utterance.voice = voice;
+    utterance.lang = locale;
     utterance.onend = () => setSpeaking(false);
     utterance.onerror = () => setSpeaking(false);
 
     setSpeaking(true);
     speechSynthesis.speak(utterance);
-  }, [getText, speaking]);
+  }, [getText, locale, speaking]);
 
   if (typeof speechSynthesis === "undefined") return null;
 
