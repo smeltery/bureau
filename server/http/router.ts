@@ -27,6 +27,7 @@ import { handleRoomsRequest } from "./rooms.ts";
 import { handleSessionsRequest } from "./sessions.ts";
 import { handleSkillUsageRequest } from "./skill-usage.ts";
 import { handleStaticRequest } from "./static.ts";
+import { handleStorageRequest } from "./storage.ts";
 import { handleSystemRequest } from "./system.ts";
 import { handleTasksRequest } from "./tasks.ts";
 import { handleUsersRequest } from "./users.ts";
@@ -118,6 +119,9 @@ export function createFetchHandler() {
 
     const systemResp = handleSystemRequest(req, url, httpAuth, { getBackupStatus, getVersion: getVersionInfo });
     if (systemResp) return systemResp;
+
+    const storageResp = handleStorageRequest(req, url, httpAuth);
+    if (storageResp) return storageResp;
 
     const skillUsageResp = handleSkillUsageRequest(req, url, httpAuth);
     if (skillUsageResp) return skillUsageResp;
