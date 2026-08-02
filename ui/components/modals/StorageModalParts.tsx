@@ -10,6 +10,14 @@ export type StoragePhase =
   | { kind: "applying"; plan: PrunePlanWire }
   | { kind: "done"; result: PruneApplyWire };
 
+export interface BackupStatusWire {
+  lastRunAt: number | null;
+  ok: boolean;
+  error: string | null;
+  retention: number;
+  destDir: string;
+}
+
 const TARGET_LABELS: Record<PruneTarget, string> = {
   transcripts: "Conversations",
   attachments: "Orphaned attachments",
@@ -55,6 +63,36 @@ function CategoryRow({ category, id }: { category: StorageCategoryWire | undefin
       <td style={cellRight}>{category.available ? formatSize(category.bytes) : "none"}</td>
       <td style={{ ...cellRight, color: "var(--text-ghost)" }}>{category.available ? category.files.toLocaleString() : "-"}</td>
     </tr>
+  );
+}
+
+export function BackupBlock({ backup }: { backup: BackupStatusWire | "unavailable" | null }) {
+  if (backup === null) return null;
+  if (backup === "unavailable") {
+    return (
+      <>
+        <SectionLabel>Backups</SectionLabel>
+        <p style={{ fontSize: 11, color: "var(--text-ghost)", margin: 0 }}>Backup status unavailable.</p>
+      </>
+    );
+  }
+
+  const failed = backup.lastRunAt !== null && !backup.ok;
+  const status =
+    backup.lastRunAt === null
+      ? "No backup has run yet."
+      : backup.ok
+        ? `Last backup ${formatAge(backup.lastRunAt)}, successful.`
+        : `Last backup ${formatAge(backup.lastRunAt)} failed${backup.error ? `: ${backup.error}` : "."}`;
+  return (
+    <>
+      <SectionLabel>Backups</SectionLabel>
+      <p style={{ fontSize: 11, color: failed ? "#ff6b6b" : "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
+        {status} <span style={{ color: "var(--text-ghost)" }}>Keeping {backup.retention} in </span>
+        <code style={{ fontFamily: "'JetBrains Mono',monospace", color: "var(--text-ghost)" }}>{backup.destDir}</code>
+        <span style={{ color: "var(--text-ghost)" }}>.</span>
+      </p>
+    </>
   );
 }
 
@@ -163,6 +201,17 @@ function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatAge(timestamp: number): string {
+  const ageMs = Math.max(0, Date.now() - timestamp);
+  const minutes = Math.floor(ageMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 const planBox: React.CSSProperties = { marginTop: 14, border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", background: "var(--bg-input)" };

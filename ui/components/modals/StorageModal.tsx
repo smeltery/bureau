@@ -3,7 +3,7 @@ import type { PrunePlanWire, PruneTarget, StoragePruneWire, StorageUsageWire } f
 import { applyRequest, planMatchesForm, previewRequest, type PolicyForm } from "../../storage-prune-form.ts";
 import { dialogCancelBtn, dialogInput } from "./dialog-styles.ts";
 import { Modal } from "./Modal.tsx";
-import { ErrorLine, FieldLabel, PlanBlock, ResultBlock, SectionLabel, UsageBlock, type StoragePhase } from "./StorageModalParts.tsx";
+import { BackupBlock, ErrorLine, FieldLabel, PlanBlock, ResultBlock, SectionLabel, UsageBlock, type BackupStatusWire, type StoragePhase } from "./StorageModalParts.tsx";
 
 const TARGET_LABELS: Record<PruneTarget, string> = {
   transcripts: "Conversations",
@@ -32,6 +32,7 @@ async function apiFetch<T>(method: "GET" | "POST", path: string, body?: unknown)
 
 export function StorageModal({ onBack }: { onBack: () => void }) {
   const [usage, setUsage] = useState<StorageUsageWire | null>(null);
+  const [backup, setBackup] = useState<BackupStatusWire | "unavailable" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [target, setTarget] = useState<PruneTarget>("transcripts");
   const [olderThanDays, setOlderThanDays] = useState("90");
@@ -50,6 +51,9 @@ export function StorageModal({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     loadUsage();
+    apiFetch<BackupStatusWire>("GET", "/api/backup/status")
+      .then(setBackup)
+      .catch(() => setBackup("unavailable"));
   }, [loadUsage]);
 
   function editForm(apply: () => void) {
@@ -109,6 +113,7 @@ export function StorageModal({ onBack }: { onBack: () => void }) {
     <Modal onClose={() => !deleting && onBack()} width={560} allowBackdropClose={!deleting}>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Storage</h3>
       <UsageBlock usage={usage} error={loadError} />
+      <BackupBlock backup={backup} />
 
       <SectionLabel>Delete old files</SectionLabel>
       <div style={warningBox}>
