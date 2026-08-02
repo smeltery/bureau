@@ -120,7 +120,7 @@ export function createFetchHandler() {
     const systemResp = handleSystemRequest(req, url, httpAuth, { getBackupStatus, getVersion: getVersionInfo });
     if (systemResp) return systemResp;
 
-    const storageResp = handleStorageRequest(req, url, httpAuth);
+    const storageResp = await handleStorageRequest(req, url, httpAuth);
     if (storageResp) return storageResp;
 
     const skillUsageResp = handleSkillUsageRequest(req, url, httpAuth);

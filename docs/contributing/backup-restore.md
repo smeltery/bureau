@@ -3,8 +3,20 @@
 Owners can inspect Bureau's persisted footprint with `/bureau-storage` in any
 agent chat, or with `GET /api/storage/usage`. The report breaks down office
 state into transcripts, attachments, metadata, Codex home, memory, cronjob runs,
-other state files, backups, and per-agent stored data. It is read-only; Bureau
-does not automatically delete transcripts or attachments.
+other state files, backups, and per-agent stored data.
+
+Owners can also plan storage cleanup with `POST /api/storage/prune`. The
+endpoint is a dry run unless the body includes `apply: true`; transcript applies
+must also include `keepPerAgent` so the retention floor is explicit. Bureau does
+not automatically delete transcripts or attachments.
+
+Example dry run:
+
+```sh
+curl -X POST http://localhost:4000/api/storage/prune \
+  -H 'Content-Type: application/json' \
+  -d '{"target":"transcripts","olderThanDays":90,"keepPerAgent":3}'
+```
 
 Bureau snapshots its state directory once per day into local tarballs.
 

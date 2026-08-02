@@ -23,3 +23,52 @@ export interface StorageUsageWire {
   categories: StorageCategoryWire[];
   agents: AgentStorageWire[];
 }
+
+export type PruneTarget = "transcripts" | "attachments";
+
+export type PruneSkipReason = "active-session" | "keep-newest" | "fork-ancestor" | "referenced" | "too-recent";
+
+export interface PrunePolicy {
+  target: PruneTarget;
+  olderThanDays: number;
+  keepPerAgent?: number;
+  apply?: boolean;
+}
+
+export interface PruneCandidateWire {
+  path: string;
+  bytes: number;
+  agentId: string;
+  sessionId?: string;
+  ageDays: number;
+  mtimeMs: number;
+}
+
+export interface PruneSkipWire {
+  reason: PruneSkipReason;
+  count: number;
+  bytes: number;
+}
+
+export interface PrunePlanWire {
+  target: PruneTarget;
+  policy: {
+    olderThanDays: number;
+    keepPerAgent: number;
+  };
+  candidates: PruneCandidateWire[];
+  bytes: number;
+  skipped: PruneSkipWire[];
+}
+
+export interface PruneApplyWire {
+  deleted: number;
+  bytes: number;
+  refused: { path: string; reason: string }[];
+  aborted?: string;
+}
+
+export interface StoragePruneWire {
+  plan: PrunePlanWire;
+  applied: PruneApplyWire | null;
+}

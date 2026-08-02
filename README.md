@@ -102,7 +102,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Plugin manager** — browse, install, enable/disable, update, and remove Claude Code plugins (and their marketplaces) from the Plugins panel in the office toolbar, instead of dropping to the CLI. Agents inherit installed plugins on their next session. See [Plugin management](docs/features/plugin-management-design.md)
 - **Safety hooks** — blocks `rm -rf`, `git reset --hard`, and other footguns
 - **Daily backups** — automatic tarball of Bureau state to `~/bureau-backups/` (last 7 retained)
-- **Storage usage reports** — owners can inspect persisted office footprint with `/bureau-storage` or `GET /api/storage/usage`, including transcripts, attachments, Codex home, memory, cronjobs, backups, and per-agent stored data
+- **Storage usage reports** — owners can inspect persisted office footprint with `/bureau-storage` or `GET /api/storage/usage`, including transcripts, attachments, Codex home, memory, cronjobs, backups, and per-agent stored data; `POST /api/storage/prune` plans transcript or orphaned-attachment cleanup and only deletes when called with `apply: true`
 
 ### 🔐 Access & platform
 
