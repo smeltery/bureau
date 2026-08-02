@@ -14,6 +14,7 @@ Commands with Bureau-side handlers. Defined in the `commands` registry with `typ
 | `/context`                       | `context`                     | Visualize context window usage                         |
 | `/help`                          | `help`                        | List all available commands                            |
 | `/bureau-usage`                  | `bureauUsage`                 | Per-agent / per-room / per-cron-job token spend        |
+| `/bureau-storage`                | `bureauStorage`               | Persisted office state, backups, and per-agent storage |
 | `/resume`                        | `resume`                      | Pick up a previous session                             |
 | `/usage`                         | `usage`                       | Where to check subscription and office usage           |
 | `/model`                         | `model`                       | Switch model                                           |
@@ -125,7 +126,7 @@ On `system:init`, the SDK reports available slash commands via `msg.slash_comman
 
 Only commands with `autocomplete: true` appear in the slash command autocomplete UI. This includes:
 
-- Supported hardcoded commands
+- Supported hardcoded commands, including `/bureau-usage` and `/bureau-storage`
 - Discovered skills (user, project, plugin, bureau)
 
 SDK-reported commands are excluded from autocomplete to avoid noise from MCP internals.

@@ -90,6 +90,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Per-run transcripts, manual run-now, resume, and fork from prior runs.
 - File-system persistence under `~/.bureau/` or `BUREAU_HOME`.
 - Daily backup tarballs with retention.
+- Owner storage reports via `/bureau-storage` and `GET /api/storage/usage`,
+  covering transcripts, attachments, Codex home, memory, cron jobs, backups,
+  and per-agent stored data.
 
 ## Safety And Extensibility
 
