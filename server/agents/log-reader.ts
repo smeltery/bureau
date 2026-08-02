@@ -4,6 +4,8 @@ import type { LogEntry } from "../../shared/types.ts";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
+const MAX_QUERY_LENGTH = 500;
+const MAX_PATTERN_LENGTH = 200;
 const DEFAULT_WINDOW = 5;
 const MAX_WINDOW = 50;
 const SNIPPET_RADIUS = 80;
@@ -57,6 +59,12 @@ interface TimestampBounds {
   after: number | null;
 }
 
+interface SearchMatcher {
+  regex: boolean;
+  query: string;
+  pattern: RegExp | null;
+}
+
 export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadResult {
   const limit = parseLimit(query.get("limit"));
   if (typeof limit === "string") return { ok: false, status: 422, error: limit };
@@ -68,6 +76,7 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
   const kinds = parseKindSelection(query);
   const before = parseTimestampBound(query.get("before"), "before");
   const after = parseTimestampBound(query.get("after"), "after");
+  const matcher = parseSearchMatcher(q, query.get("regex"));
   if (q !== null && q.trim() === "") return { ok: false, status: 422, error: "q must not be empty" };
   if (sessionId !== null && !isSafeId(sessionId)) return { ok: false, status: 404, error: "session not found" };
   if (around !== null && (q !== null || sessionId === null)) return { ok: false, status: 422, error: "around requires session and cannot be combined with q" };
@@ -76,10 +85,11 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
   if (typeof kinds === "string") return { ok: false, status: 422, error: kinds };
   if (typeof before === "string") return { ok: false, status: 422, error: before };
   if (typeof after === "string") return { ok: false, status: 422, error: after };
+  if (typeof matcher === "string") return { ok: false, status: 422, error: matcher };
   const bounds = { before, after };
 
   const sessions = listAgentSessions(agentId);
-  if (q !== null) return searchAgentLogs(agentId, sessions, q, sessionId, limit, kinds, bounds);
+  if (matcher !== null) return searchAgentLogs(agentId, sessions, matcher, sessionId, limit, kinds, bounds);
   if (sessionId !== null) return retrieveAgentLog(agentId, sessions, sessionId, limit, around, window, kinds, bounds);
 
   return {
@@ -101,7 +111,7 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
 function searchAgentLogs(
   agentId: string,
   sessions: ReturnType<typeof listAgentSessions>,
-  query: string,
+  matcher: SearchMatcher,
   sessionId: string | null,
   limit: number,
   kinds: Set<LogEntry["kind"]> | null,
@@ -110,7 +120,6 @@ function searchAgentLogs(
   const searchable = sessionId === null ? sessions : sessions.filter((session) => session.sessionId === sessionId);
   if (sessionId !== null && searchable.length === 0) return { ok: false, status: 404, error: "session not found" };
 
-  const needle = query.toLocaleLowerCase();
   const results: LogSearchHit[] = [];
   let totalMatches = 0;
   for (const session of searchable) {
@@ -118,8 +127,8 @@ function searchAgentLogs(
       if (!kindAllowed(entry.kind, kinds)) continue;
       if (!withinTimestampBounds(entry, bounds)) continue;
       const content = entry.content ?? "";
-      const index = content.toLocaleLowerCase().indexOf(needle);
-      if (index === -1) continue;
+      const match = findMatch(content, matcher);
+      if (!match) continue;
       totalMatches += 1;
       if (results.length < limit) {
         results.push({
@@ -128,13 +137,13 @@ function searchAgentLogs(
           entryId: entry.id,
           kind: entry.kind,
           timestamp: entry.timestamp,
-          snippet: snippet(content, index, query.length),
+          snippet: snippet(content, match.index, match.length),
         });
       }
     }
   }
   results.sort((a, b) => b.timestamp - a.timestamp);
-  return { ok: true, body: { mode: "search", query, totalMatches, results } };
+  return { ok: true, body: { mode: "search", query: matcher.query, totalMatches, results } };
 }
 
 function retrieveAgentLog(
@@ -173,6 +182,23 @@ function parseTimestampBound(raw: string | null, name: "before" | "after"): numb
   return n;
 }
 
+function parseSearchMatcher(q: string | null, regexRaw: string | null): SearchMatcher | string | null {
+  if (q === null) return null;
+  const regex = isTruthyFlag(regexRaw);
+  const max = regex ? MAX_PATTERN_LENGTH : MAX_QUERY_LENGTH;
+  if (q.length > max) return `q must be at most ${max} characters${regex ? " when regex=1" : ""}`;
+  if (!regex) return { regex: false, query: q, pattern: null };
+  try {
+    return { regex: true, query: q, pattern: new RegExp(q, "i") };
+  } catch {
+    return "q is not a valid regular expression";
+  }
+}
+
+function isTruthyFlag(raw: string | null): boolean {
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
 function parseWindow(raw: string | null): number | string {
   if (raw === null) return DEFAULT_WINDOW;
   const n = Number(raw);
@@ -209,6 +235,16 @@ function withinTimestampBounds(entry: LogEntry, bounds: TimestampBounds): boolea
   if (bounds.after !== null && entry.timestamp < bounds.after) return false;
   if (bounds.before !== null && entry.timestamp > bounds.before) return false;
   return true;
+}
+
+function findMatch(content: string, matcher: SearchMatcher): { index: number; length: number } | null {
+  if (matcher.pattern) {
+    matcher.pattern.lastIndex = 0;
+    const match = matcher.pattern.exec(content);
+    return match ? { index: match.index, length: match[0].length } : null;
+  }
+  const index = content.toLocaleLowerCase().indexOf(matcher.query.toLocaleLowerCase());
+  return index === -1 ? null : { index, length: matcher.query.length };
 }
 
 function isSafeId(value: string): boolean {

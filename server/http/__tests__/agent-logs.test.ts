@@ -9,7 +9,7 @@ import { LOGS_DIR } from "../../persistence/paths.ts";
 import { appendLog } from "../../persistence/logs/logs.ts";
 import { persistSessionFork, persistSessionTopic } from "../../persistence/logs/sessions.ts";
 import { handleAgentsRequest } from "../agents.ts";
-import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
+import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo, type LogEntry } from "../../../shared/types.ts";
 
 beforeEach(() => {
   _testResetAgentTokens();
@@ -64,16 +64,14 @@ function bearerRequest(path: string, token: string): Request {
   });
 }
 
+function appendEntry(sessionId: string, id: string, kind: LogEntry["kind"], content: string, timestamp = 1000) {
+  appendLog("agent-log-http", sessionId, { id, agentId: "agent-log-http", timestamp, kind, content });
+}
+
 describe("GET /api/agents/:id/logs", () => {
   test("lists persisted log sessions for an agent", async () => {
     installAgent("agent-log-http");
-    appendLog("agent-log-http", "session-one", {
-      id: "entry-one",
-      agentId: "agent-log-http",
-      timestamp: 1000,
-      kind: "user_message",
-      content: "first request",
-    });
+    appendEntry("session-one", "entry-one", "user_message", "first request");
     persistSessionTopic("agent-log-http", "session-one", "Launch plan", 1);
     const token = mintAgentToken("agent-log-http", null);
     const req = bearerRequest("/api/agents/agent-log-http/logs", token);
@@ -90,13 +88,7 @@ describe("GET /api/agents/:id/logs", () => {
 
   test("searches decoded conversation log text", async () => {
     installAgent("agent-log-http");
-    appendLog("agent-log-http", "session-one", {
-      id: "entry-one",
-      agentId: "agent-log-http",
-      timestamp: 1000,
-      kind: "text",
-      content: 'The boss said "ship it" today',
-    });
+    appendEntry("session-one", "entry-one", "text", 'The boss said "ship it" today');
     persistSessionTopic("agent-log-http", "session-one", "Release", 1);
     const token = mintAgentToken("agent-log-http", null);
     const req = bearerRequest(`/api/agents/agent-log-http/logs?q=${encodeURIComponent('said "ship it')}`, token);
@@ -115,27 +107,9 @@ describe("GET /api/agents/:id/logs", () => {
 
   test("retrieves a session with ancestor entries", async () => {
     installAgent("agent-log-http");
-    appendLog("agent-log-http", "root-session", {
-      id: "root-one",
-      agentId: "agent-log-http",
-      timestamp: 1000,
-      kind: "user_message",
-      content: "original prompt",
-    });
-    appendLog("agent-log-http", "root-session", {
-      id: "fork-point",
-      agentId: "agent-log-http",
-      timestamp: 2000,
-      kind: "user_message",
-      content: "edited later",
-    });
-    appendLog("agent-log-http", "child-session", {
-      id: "child-one",
-      agentId: "agent-log-http",
-      timestamp: 3000,
-      kind: "text",
-      content: "branched answer",
-    });
+    appendEntry("root-session", "root-one", "user_message", "original prompt");
+    appendEntry("root-session", "fork-point", "user_message", "edited later", 2000);
+    appendEntry("child-session", "child-one", "text", "branched answer", 3000);
     persistSessionTopic("agent-log-http", "root-session", "Root", 2);
     persistSessionFork("agent-log-http", "child-session", "root-session", "fork-point", "Branch", 1, process.cwd());
     const token = mintAgentToken("agent-log-http", null);
@@ -152,13 +126,7 @@ describe("GET /api/agents/:id/logs", () => {
   test("retrieves a window around a log entry", async () => {
     installAgent("agent-log-http");
     for (let index = 1; index <= 5; index++) {
-      appendLog("agent-log-http", "session-one", {
-        id: `entry-${index}`,
-        agentId: "agent-log-http",
-        timestamp: index,
-        kind: index % 2 === 0 ? "text" : "user_message",
-        content: `message ${index}`,
-      });
+      appendEntry("session-one", `entry-${index}`, index % 2 === 0 ? "text" : "user_message", `message ${index}`, index);
     }
     persistSessionTopic("agent-log-http", "session-one", "Window", 5);
     const token = mintAgentToken("agent-log-http", null);
@@ -173,20 +141,8 @@ describe("GET /api/agents/:id/logs", () => {
 
   test("filters retrieved logs by tier", async () => {
     installAgent("agent-log-http");
-    appendLog("agent-log-http", "session-one", {
-      id: "prompt-one",
-      agentId: "agent-log-http",
-      timestamp: 1,
-      kind: "user_message",
-      content: "boss request",
-    });
-    appendLog("agent-log-http", "session-one", {
-      id: "reply-one",
-      agentId: "agent-log-http",
-      timestamp: 2,
-      kind: "text",
-      content: "agent reply",
-    });
+    appendEntry("session-one", "prompt-one", "user_message", "boss request", 1);
+    appendEntry("session-one", "reply-one", "text", "agent reply", 2);
     persistSessionTopic("agent-log-http", "session-one", "Tier", 2);
     const token = mintAgentToken("agent-log-http", null);
     const req = bearerRequest("/api/agents/agent-log-http/logs?session=session-one&tier=prompts", token);
@@ -200,20 +156,8 @@ describe("GET /api/agents/:id/logs", () => {
 
   test("searches full-tier and explicit log kinds", async () => {
     installAgent("agent-log-http");
-    appendLog("agent-log-http", "session-one", {
-      id: "tool-one",
-      agentId: "agent-log-http",
-      timestamp: 1,
-      kind: "tool_result",
-      content: "rare-build-token",
-    });
-    appendLog("agent-log-http", "session-one", {
-      id: "text-one",
-      agentId: "agent-log-http",
-      timestamp: 2,
-      kind: "text",
-      content: "rare-build-token",
-    });
+    appendEntry("session-one", "tool-one", "tool_result", "rare-build-token", 1);
+    appendEntry("session-one", "text-one", "text", "rare-build-token", 2);
     persistSessionTopic("agent-log-http", "session-one", "Kinds", 2);
     const token = mintAgentToken("agent-log-http", null);
     const fullReq = bearerRequest("/api/agents/agent-log-http/logs?q=rare-build-token&tier=full", token);
@@ -230,6 +174,26 @@ describe("GET /api/agents/:id/logs", () => {
     expect(toolBody.results.map((hit: { entryId: string }) => hit.entryId)).toEqual(["tool-one"]);
   });
 
+  test("searches logs with a case-insensitive regular expression", async () => {
+    installAgent("agent-log-http");
+    appendEntry("session-one", "regex-one", "text", "Slide   mode shipped");
+    persistSessionTopic("agent-log-http", "session-one", "Regex", 1);
+    const token = mintAgentToken("agent-log-http", null);
+    const req = bearerRequest(`/api/agents/agent-log-http/logs?q=${encodeURIComponent("sl.de\\s+MODE")}&regex=1`, token);
+
+    const res = await handleAgentsRequest(req, new URL(req.url));
+    const body = await res?.json();
+
+    expect(res?.status).toBe(200);
+    expect(body).toMatchObject({
+      mode: "search",
+      query: "sl.de\\s+MODE",
+      totalMatches: 1,
+      results: [{ entryId: "regex-one" }],
+    });
+    expect(body.results[0].snippet).toContain("Slide mode");
+  });
+
   test("filters search and retrieval by timestamp bounds", async () => {
     installAgent("agent-log-http");
     for (const [id, timestamp] of [
@@ -237,13 +201,7 @@ describe("GET /api/agents/:id/logs", () => {
       ["middle", 2000],
       ["new", 3000],
     ] as const) {
-      appendLog("agent-log-http", "session-one", {
-        id,
-        agentId: "agent-log-http",
-        timestamp,
-        kind: "text",
-        content: "bounded-token",
-      });
+      appendEntry("session-one", id, "text", "bounded-token", timestamp);
     }
     persistSessionTopic("agent-log-http", "session-one", "Bounds", 3);
     const token = mintAgentToken("agent-log-http", null);
@@ -270,6 +228,21 @@ describe("GET /api/agents/:id/logs", () => {
 
     expect(res?.status).toBe(422);
     expect(await res?.json()).toEqual({ error: "limit must be an integer between 1 and 200" });
+  });
+
+  test("validates regex searches", async () => {
+    installAgent("agent-log-http");
+    const token = mintAgentToken("agent-log-http", null);
+    const invalidReq = bearerRequest("/api/agents/agent-log-http/logs?q=%5B&regex=1", token);
+    const tooLongReq = bearerRequest(`/api/agents/agent-log-http/logs?q=${"a".repeat(201)}&regex=1`, token);
+
+    const invalid = await handleAgentsRequest(invalidReq, new URL(invalidReq.url));
+    const tooLong = await handleAgentsRequest(tooLongReq, new URL(tooLongReq.url));
+
+    expect(invalid?.status).toBe(422);
+    expect(await invalid?.json()).toEqual({ error: "q is not a valid regular expression" });
+    expect(tooLong?.status).toBe(422);
+    expect(await tooLong?.json()).toEqual({ error: "q must be at most 200 characters when regex=1" });
   });
 
   test("validates timestamp bounds", async () => {
