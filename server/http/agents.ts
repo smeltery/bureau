@@ -201,16 +201,34 @@ function requireAgentLogAccess(req: Request, auth: AuthResult | undefined, agent
   const rawBearer = readBearerToken(req);
   const bearer = resolveAgentToken(rawBearer);
   if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
-  if (!bearer) return requireUserAgentAccess(auth, agentId);
 
   const agent = AgentManager.getAgent(agentId);
-  if (!agent) return jsonError(404, "agent not found");
+  if (!agent) return requireKilledAgentLogAccess(auth, bearer, agentId);
+  if (!bearer) return requireUserAgentAccess(auth, agentId);
   if (bearer.agentId === agentId) return null;
   if (!bearer.userId) return jsonError(403, "forbidden");
   const user = getUserById(bearer.userId);
   const roomId = AgentManager.getRooms()[agent.room]?.id;
   if (!user || !roomId || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
   return null;
+}
+
+function requireKilledAgentLogAccess(auth: AuthResult | undefined, bearer: ReturnType<typeof resolveAgentToken>, agentId: string): Response | null {
+  const managerUserId = AgentManager.killedAgentManagerUserId(agentId);
+  if (managerUserId === null) return jsonError(404, "agent not found");
+
+  if (bearer) {
+    if (!bearer.userId) return jsonError(403, "forbidden");
+    const user = getUserById(bearer.userId);
+    if (user?.role === "owner" || bearer.userId === managerUserId) return null;
+    return jsonError(403, "forbidden");
+  }
+
+  if (auth?.kind === "loopback") return null;
+  const user = sessionUser(auth);
+  if (!user) return jsonError(401, "unauthenticated");
+  if (user.role === "owner" || user.id === managerUserId) return null;
+  return jsonError(403, "forbidden");
 }
 
 function malformedMessageFields(body: Record<string, unknown> | null): Response | null {

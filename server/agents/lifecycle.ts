@@ -15,7 +15,7 @@ import { getAgentContextUsage as getAgentContextUsageForManaged, type AgentConte
 
 export { emitAgentDiff, emitAgentEditFile, emitAgentPreviewUrl, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
 export { kill } from "./lifecycle-kill.ts";
-export { getKilledAgentSummaries, revive } from "./revive.ts";
+export { getKilledAgentSummaries, killedAgentManagerUserId, revive } from "./revive.ts";
 
 // ---------------------------------------------------------------------------
 // Public read-only getters used by server/index.ts

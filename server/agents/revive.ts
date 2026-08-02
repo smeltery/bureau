@@ -75,6 +75,11 @@ export function getKilledAgentSummaries(): KilledAgentSummary[] {
   return summaries;
 }
 
+export function killedAgentManagerUserId(agentId: string): string | null {
+  if (agents.has(agentId)) return null;
+  return loadAgentHistory()[agentId]?.userId ?? null;
+}
+
 // Revive a previously-killed agent. Same id / outfit / config, rehydrated from
 // agent-history. The caller picks placement (target room + desk); the original
 // lastRoomId is used only as an ACL provenance check. On session-startup
