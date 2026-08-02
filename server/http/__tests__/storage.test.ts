@@ -60,6 +60,6 @@ describe("handleStorageRequest", () => {
     expect(res?.status).toBe(200);
     expect(body.stateRoot).toBeString();
     expect(body.stateRootBytes).toBeNumber();
-    expect(body.categories.map((category: { id: string }) => category.id)).toEqual(["transcripts", "attachments", "metadata", "cronjobs", "other-state", "backups"]);
+    expect(body.categories.map((category: { id: string }) => category.id)).toEqual(["transcripts", "attachments", "metadata", "codex-home", "cronjobs", "other-state", "backups"]);
   });
 });

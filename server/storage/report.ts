@@ -4,6 +4,7 @@ const CATEGORY_LABELS: Record<StorageCategoryId, string> = {
   transcripts: "Transcripts",
   attachments: "Attachments",
   metadata: "Log metadata",
+  "codex-home": "Codex home",
   cronjobs: "Cron jobs",
   "other-state": "Other office state",
   backups: "Backups",

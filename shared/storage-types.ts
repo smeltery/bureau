@@ -1,4 +1,4 @@
-export type StorageCategoryId = "transcripts" | "attachments" | "metadata" | "cronjobs" | "other-state" | "backups";
+export type StorageCategoryId = "transcripts" | "attachments" | "metadata" | "codex-home" | "cronjobs" | "other-state" | "backups";
 
 export interface StorageCategoryWire {
   id: StorageCategoryId;
