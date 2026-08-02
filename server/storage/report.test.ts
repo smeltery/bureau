@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { STORAGE_CATEGORY_ORDER } from "../../shared/storage-labels.ts";
 import type { StorageUsageWire } from "../../shared/storage-types.ts";
 import { renderStorageReport } from "./report.ts";
 
@@ -34,6 +35,39 @@ describe("storage report rendering", () => {
     expect(report).toContain("| Backups | 4 KB | 1 |");
     expect(report).toContain("| `agent\\|1` | 1.3 KB | 2 |");
     expect(report).toContain("_Read-only report. Nothing is deleted automatically._");
+  });
+
+  test("renders categories in the shared storage order", () => {
+    const report = renderStorageReport({
+      measuredAt: 0,
+      stateRoot: "/tmp/bureau",
+      stateRootBytes: 0,
+      categories: STORAGE_CATEGORY_ORDER.map((id) => ({
+        id,
+        path: "/tmp/bureau",
+        available: true,
+        bytes: 0,
+        files: 0,
+      })),
+      agents: [],
+    });
+
+    const renderedIds = report
+      .split("\n")
+      .filter((line) => line.endsWith("| 0 B | 0 |"))
+      .map((line) => {
+        if (line.includes("Transcripts")) return "transcripts";
+        if (line.includes("Attachments")) return "attachments";
+        if (line.includes("Log metadata")) return "metadata";
+        if (line.includes("Codex home")) return "codex-home";
+        if (line.includes("Cron jobs")) return "cronjobs";
+        if (line.includes("Memory")) return "memory";
+        if (line.includes("Other office state")) return "other-state";
+        if (line.includes("Backups")) return "backups";
+        return "unknown";
+      });
+
+    expect(renderedIds).toEqual([...STORAGE_CATEGORY_ORDER]);
   });
 
   test("marks unavailable categories", () => {

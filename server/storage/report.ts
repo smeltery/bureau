@@ -1,15 +1,5 @@
 import type { StorageCategoryId, StorageCategoryWire, StorageUsageWire } from "../../shared/storage-types.ts";
-
-const CATEGORY_LABELS: Record<StorageCategoryId, string> = {
-  transcripts: "Transcripts",
-  attachments: "Attachments",
-  metadata: "Log metadata",
-  "codex-home": "Codex home",
-  cronjobs: "Cron jobs",
-  memory: "Memory",
-  "other-state": "Other office state",
-  backups: "Backups",
-};
+import { STORAGE_CATEGORY_LABELS, STORAGE_CATEGORY_ORDER } from "../../shared/storage-labels.ts";
 
 function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
@@ -56,11 +46,11 @@ export function renderStorageReport(usage: StorageUsageWire): string {
     "| --- | ---: | ---: |",
   ];
 
-  for (const id of Object.keys(CATEGORY_LABELS) as StorageCategoryId[]) {
+  for (const id of STORAGE_CATEGORY_ORDER) {
     const category = categories.get(id);
     const size = category?.available === false ? "unavailable" : formatBytes(category?.bytes ?? 0);
     const files = category?.available === false ? "-" : formatCount(category?.files ?? 0);
-    lines.push(`| ${CATEGORY_LABELS[id]} | ${size} | ${files} |`);
+    lines.push(`| ${STORAGE_CATEGORY_LABELS[id]} | ${size} | ${files} |`);
   }
   lines.push(`| **Total** | **${formatBytes(totalBytes)}** | |`);
 
