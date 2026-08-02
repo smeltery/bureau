@@ -4,6 +4,8 @@ import type { LogEntry } from "../../shared/types.ts";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
+const DEFAULT_WINDOW = 5;
+const MAX_WINDOW = 50;
 const SNIPPET_RADIUS = 80;
 const MAX_SNIPPET = 220;
 const CONVERSATION_KINDS = new Set<LogEntry["kind"]>(["user_message", "text"]);
@@ -38,12 +40,17 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
 
   const q = query.get("q");
   const sessionId = query.get("session");
+  const around = query.get("around");
+  const window = parseWindow(query.get("window"));
   if (q !== null && q.trim() === "") return { ok: false, status: 422, error: "q must not be empty" };
   if (sessionId !== null && !isSafeId(sessionId)) return { ok: false, status: 404, error: "session not found" };
+  if (around !== null && (q !== null || sessionId === null)) return { ok: false, status: 422, error: "around requires session and cannot be combined with q" };
+  if (around !== null && !isSafeId(around)) return { ok: false, status: 404, error: "entry not found" };
+  if (typeof window === "string") return { ok: false, status: 422, error: window };
 
   const sessions = listAgentSessions(agentId);
   if (q !== null) return searchAgentLogs(agentId, sessions, q, sessionId, limit);
-  if (sessionId !== null) return retrieveAgentLog(agentId, sessions, sessionId, limit);
+  if (sessionId !== null) return retrieveAgentLog(agentId, sessions, sessionId, limit, around, window);
 
   return {
     ok: true,
@@ -91,15 +98,28 @@ function searchAgentLogs(agentId: string, sessions: ReturnType<typeof listAgentS
   return { ok: true, body: { mode: "search", query, totalMatches, results } };
 }
 
-function retrieveAgentLog(agentId: string, sessions: ReturnType<typeof listAgentSessions>, sessionId: string, limit: number): LogReadResult {
+function retrieveAgentLog(agentId: string, sessions: ReturnType<typeof listAgentSessions>, sessionId: string, limit: number, around: string | null, window: number): LogReadResult {
   if (!sessions.some((session) => session.sessionId === sessionId)) return { ok: false, status: 404, error: "session not found" };
-  return { ok: true, body: { mode: "retrieve", sessionId, entries: loadLogWithAncestors(agentId, sessionId).slice(-limit) } };
+  const entries = loadLogWithAncestors(agentId, sessionId);
+  if (around !== null) {
+    const index = entries.findIndex((entry) => entry.id === around);
+    if (index === -1) return { ok: false, status: 404, error: "entry not found" };
+    return { ok: true, body: { mode: "retrieve", sessionId, entries: entries.slice(Math.max(0, index - window), index + window + 1) } };
+  }
+  return { ok: true, body: { mode: "retrieve", sessionId, entries: entries.slice(-limit) } };
 }
 
 function parseLimit(raw: string | null): number | string {
   if (raw === null) return DEFAULT_LIMIT;
   const n = Number(raw);
   if (!Number.isSafeInteger(n) || n < 1 || n > MAX_LIMIT) return `limit must be an integer between 1 and ${MAX_LIMIT}`;
+  return n;
+}
+
+function parseWindow(raw: string | null): number | string {
+  if (raw === null) return DEFAULT_WINDOW;
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n) || n < 1 || n > MAX_WINDOW) return `window must be an integer between 1 and ${MAX_WINDOW}`;
   return n;
 }
 

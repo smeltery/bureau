@@ -149,6 +149,28 @@ describe("GET /api/agents/:id/logs", () => {
     expect(body.entries.map((entry: { id: string }) => entry.id)).toEqual(["root-one", "child-one"]);
   });
 
+  test("retrieves a window around a log entry", async () => {
+    installAgent("agent-log-http");
+    for (let index = 1; index <= 5; index++) {
+      appendLog("agent-log-http", "session-one", {
+        id: `entry-${index}`,
+        agentId: "agent-log-http",
+        timestamp: index,
+        kind: index % 2 === 0 ? "text" : "user_message",
+        content: `message ${index}`,
+      });
+    }
+    persistSessionTopic("agent-log-http", "session-one", "Window", 5);
+    const token = mintAgentToken("agent-log-http", null);
+    const req = bearerRequest("/api/agents/agent-log-http/logs?session=session-one&around=entry-3&window=1", token);
+
+    const res = await handleAgentsRequest(req, new URL(req.url));
+    const body = await res?.json();
+
+    expect(res?.status).toBe(200);
+    expect(body.entries.map((entry: { id: string }) => entry.id)).toEqual(["entry-2", "entry-3", "entry-4"]);
+  });
+
   test("validates log query parameters", async () => {
     installAgent("agent-log-http");
     const token = mintAgentToken("agent-log-http", null);
