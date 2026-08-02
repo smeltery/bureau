@@ -139,14 +139,16 @@ export function measureStorage(roots: StorageRoots, now: () => number = Date.now
   const logsDir = join(stateRoot, "logs");
   const codexHomeDir = join(stateRoot, "codex-home");
   const cronjobsDir = join(stateRoot, "cronjobs");
+  const memoryDir = join(stateRoot, "memory");
   const total = measureTree(stateRoot);
   const logs = measureLogs(logsDir);
   const codexHome = measureTree(codexHomeDir);
   const cronjobs = measureTree(cronjobsDir);
+  const memory = measureTree(memoryDir);
   const backups = roots.backupDir ? measureTree(roots.backupDir) : ZERO;
 
-  const claimedBytes = logs.transcripts.bytes + logs.attachments.bytes + logs.metadata.bytes + codexHome.bytes + cronjobs.bytes;
-  const claimedFiles = logs.transcripts.files + logs.attachments.files + logs.metadata.files + codexHome.files + cronjobs.files;
+  const claimedBytes = logs.transcripts.bytes + logs.attachments.bytes + logs.metadata.bytes + codexHome.bytes + cronjobs.bytes + memory.bytes;
+  const claimedFiles = logs.transcripts.files + logs.attachments.files + logs.metadata.files + codexHome.files + cronjobs.files + memory.files;
   const other: DirUsage = {
     bytes: Math.max(0, total.bytes - claimedBytes),
     files: Math.max(0, total.files - claimedFiles),
@@ -162,6 +164,7 @@ export function measureStorage(roots: StorageRoots, now: () => number = Date.now
       category("metadata", logsDir, logs.metadata),
       category("codex-home", codexHomeDir, codexHome),
       category("cronjobs", cronjobsDir, cronjobs),
+      category("memory", memoryDir, memory),
       category("other-state", stateRoot, other),
       category("backups", roots.backupDir, backups),
     ],

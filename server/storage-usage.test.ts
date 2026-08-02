@@ -11,12 +11,14 @@ describe("storage usage measurement", () => {
     mkdirSync(join(root, "logs", "agent-1", "files"), { recursive: true });
     mkdirSync(join(root, "codex-home"), { recursive: true });
     mkdirSync(join(root, "cronjobs", "job-1", "run-1"), { recursive: true });
+    mkdirSync(join(root, "memory"), { recursive: true });
 
     writeFileSync(join(root, "logs", "agent-1", "session-1.jsonl"), "hello");
     writeFileSync(join(root, "logs", "agent-1", "sessions.json"), "{}");
     writeFileSync(join(root, "logs", "agent-1", "files", "image.png"), "1234567");
     writeFileSync(join(root, "codex-home", "auth.json"), "codex");
     writeFileSync(join(root, "cronjobs", "job-1", "run-1", "run.jsonl"), "cron");
+    writeFileSync(join(root, "memory", "office.md"), "memory");
     writeFileSync(join(root, "agents.json"), "[]");
     writeFileSync(join(backup, "bureau-2026-08-01.tar.gz"), "backup");
 
@@ -30,6 +32,7 @@ describe("storage usage measurement", () => {
     expect(byId.get("metadata")?.bytes).toBe(2);
     expect(byId.get("codex-home")?.bytes).toBe(5);
     expect(byId.get("cronjobs")?.bytes).toBe(4);
+    expect(byId.get("memory")?.bytes).toBe(6);
     expect(byId.get("backups")?.bytes).toBe(6);
     expect(byId.get("other-state")?.bytes).toBe(2);
     expect(usage.agents).toEqual([

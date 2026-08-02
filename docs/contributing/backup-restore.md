@@ -2,9 +2,9 @@
 
 Owners can inspect Bureau's persisted footprint with `/bureau-storage` in any
 agent chat, or with `GET /api/storage/usage`. The report breaks down office
-state into transcripts, attachments, metadata, Codex home, cronjob runs, other
-state files, backups, and per-agent stored data. It is read-only; Bureau does not
-automatically delete transcripts or attachments.
+state into transcripts, attachments, metadata, Codex home, memory, cronjob runs,
+other state files, backups, and per-agent stored data. It is read-only; Bureau
+does not automatically delete transcripts or attachments.
 
 Bureau snapshots its state directory once per day into local tarballs.
 
