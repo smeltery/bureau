@@ -52,6 +52,11 @@ export type LogReadResult =
   | { ok: true; body: { mode: "retrieve"; sessionId: string; entries: LogEntry[] } }
   | { ok: false; status: number; error: string };
 
+interface TimestampBounds {
+  before: number | null;
+  after: number | null;
+}
+
 export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadResult {
   const limit = parseLimit(query.get("limit"));
   if (typeof limit === "string") return { ok: false, status: 422, error: limit };
@@ -61,16 +66,21 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
   const around = query.get("around");
   const window = parseWindow(query.get("window"));
   const kinds = parseKindSelection(query);
+  const before = parseTimestampBound(query.get("before"), "before");
+  const after = parseTimestampBound(query.get("after"), "after");
   if (q !== null && q.trim() === "") return { ok: false, status: 422, error: "q must not be empty" };
   if (sessionId !== null && !isSafeId(sessionId)) return { ok: false, status: 404, error: "session not found" };
   if (around !== null && (q !== null || sessionId === null)) return { ok: false, status: 422, error: "around requires session and cannot be combined with q" };
   if (around !== null && !isSafeId(around)) return { ok: false, status: 404, error: "entry not found" };
   if (typeof window === "string") return { ok: false, status: 422, error: window };
   if (typeof kinds === "string") return { ok: false, status: 422, error: kinds };
+  if (typeof before === "string") return { ok: false, status: 422, error: before };
+  if (typeof after === "string") return { ok: false, status: 422, error: after };
+  const bounds = { before, after };
 
   const sessions = listAgentSessions(agentId);
-  if (q !== null) return searchAgentLogs(agentId, sessions, q, sessionId, limit, kinds);
-  if (sessionId !== null) return retrieveAgentLog(agentId, sessions, sessionId, limit, around, window, kinds);
+  if (q !== null) return searchAgentLogs(agentId, sessions, q, sessionId, limit, kinds, bounds);
+  if (sessionId !== null) return retrieveAgentLog(agentId, sessions, sessionId, limit, around, window, kinds, bounds);
 
   return {
     ok: true,
@@ -88,7 +98,15 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
   };
 }
 
-function searchAgentLogs(agentId: string, sessions: ReturnType<typeof listAgentSessions>, query: string, sessionId: string | null, limit: number, kinds: Set<LogEntry["kind"]> | null): LogReadResult {
+function searchAgentLogs(
+  agentId: string,
+  sessions: ReturnType<typeof listAgentSessions>,
+  query: string,
+  sessionId: string | null,
+  limit: number,
+  kinds: Set<LogEntry["kind"]> | null,
+  bounds: TimestampBounds,
+): LogReadResult {
   const searchable = sessionId === null ? sessions : sessions.filter((session) => session.sessionId === sessionId);
   if (sessionId !== null && searchable.length === 0) return { ok: false, status: 404, error: "session not found" };
 
@@ -98,6 +116,7 @@ function searchAgentLogs(agentId: string, sessions: ReturnType<typeof listAgentS
   for (const session of searchable) {
     for (const entry of loadLog(agentId, session.sessionId)) {
       if (!kindAllowed(entry.kind, kinds)) continue;
+      if (!withinTimestampBounds(entry, bounds)) continue;
       const content = entry.content ?? "";
       const index = content.toLocaleLowerCase().indexOf(needle);
       if (index === -1) continue;
@@ -126,9 +145,10 @@ function retrieveAgentLog(
   around: string | null,
   window: number,
   kinds: Set<LogEntry["kind"]> | null,
+  bounds: TimestampBounds,
 ): LogReadResult {
   if (!sessions.some((session) => session.sessionId === sessionId)) return { ok: false, status: 404, error: "session not found" };
-  const entries = loadLogWithAncestors(agentId, sessionId);
+  const entries = loadLogWithAncestors(agentId, sessionId).filter((entry) => withinTimestampBounds(entry, bounds));
   if (around !== null) {
     const filtered = entries.filter((entry) => kindAllowed(entry.kind, kinds) || entry.id === around);
     const index = filtered.findIndex((entry) => entry.id === around);
@@ -143,6 +163,13 @@ function parseLimit(raw: string | null): number | string {
   if (raw === null) return DEFAULT_LIMIT;
   const n = Number(raw);
   if (!Number.isSafeInteger(n) || n < 1 || n > MAX_LIMIT) return `limit must be an integer between 1 and ${MAX_LIMIT}`;
+  return n;
+}
+
+function parseTimestampBound(raw: string | null, name: "before" | "after"): number | string | null {
+  if (raw === null) return null;
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n) || n < 0) return `${name} must be a nonnegative integer timestamp`;
   return n;
 }
 
@@ -176,6 +203,12 @@ function parseKindSelection(query: URLSearchParams): Set<LogEntry["kind"]> | nul
 
 function kindAllowed(kind: LogEntry["kind"], kinds: Set<LogEntry["kind"]> | null): boolean {
   return kinds === null || kinds.has(kind);
+}
+
+function withinTimestampBounds(entry: LogEntry, bounds: TimestampBounds): boolean {
+  if (bounds.after !== null && entry.timestamp < bounds.after) return false;
+  if (bounds.before !== null && entry.timestamp > bounds.before) return false;
+  return true;
 }
 
 function isSafeId(value: string): boolean {
