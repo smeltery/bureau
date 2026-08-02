@@ -1,0 +1,116 @@
+import { loadLog, loadLogWithAncestors } from "../persistence/logs/logs.ts";
+import { listAgentSessions } from "../persistence/logs/sessions.ts";
+import type { LogEntry } from "../../shared/types.ts";
+
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 200;
+const SNIPPET_RADIUS = 80;
+const MAX_SNIPPET = 220;
+const CONVERSATION_KINDS = new Set<LogEntry["kind"]>(["user_message", "text"]);
+
+export interface LogSessionSummary {
+  sessionId: string;
+  topic: string | null;
+  lastModified: number;
+  cwd: string | null;
+  forked: boolean;
+  branched: boolean;
+}
+
+export interface LogSearchHit {
+  sessionId: string;
+  sessionTopic: string | null;
+  entryId: string;
+  kind: LogEntry["kind"];
+  timestamp: number;
+  snippet: string;
+}
+
+export type LogReadResult =
+  | { ok: true; body: { mode: "index"; sessions: LogSessionSummary[] } }
+  | { ok: true; body: { mode: "search"; query: string; totalMatches: number; results: LogSearchHit[] } }
+  | { ok: true; body: { mode: "retrieve"; sessionId: string; entries: LogEntry[] } }
+  | { ok: false; status: number; error: string };
+
+export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadResult {
+  const limit = parseLimit(query.get("limit"));
+  if (typeof limit === "string") return { ok: false, status: 422, error: limit };
+
+  const q = query.get("q");
+  const sessionId = query.get("session");
+  if (q !== null && q.trim() === "") return { ok: false, status: 422, error: "q must not be empty" };
+  if (sessionId !== null && !isSafeId(sessionId)) return { ok: false, status: 404, error: "session not found" };
+
+  const sessions = listAgentSessions(agentId);
+  if (q !== null) return searchAgentLogs(agentId, sessions, q, sessionId, limit);
+  if (sessionId !== null) return retrieveAgentLog(agentId, sessions, sessionId, limit);
+
+  return {
+    ok: true,
+    body: {
+      mode: "index",
+      sessions: sessions.slice(0, limit).map((session) => ({
+        sessionId: session.sessionId,
+        topic: session.topic,
+        lastModified: session.lastModified,
+        cwd: session.cwd,
+        forked: session.forked === true,
+        branched: session.branched === true,
+      })),
+    },
+  };
+}
+
+function searchAgentLogs(agentId: string, sessions: ReturnType<typeof listAgentSessions>, query: string, sessionId: string | null, limit: number): LogReadResult {
+  const searchable = sessionId === null ? sessions : sessions.filter((session) => session.sessionId === sessionId);
+  if (sessionId !== null && searchable.length === 0) return { ok: false, status: 404, error: "session not found" };
+
+  const needle = query.toLocaleLowerCase();
+  const results: LogSearchHit[] = [];
+  let totalMatches = 0;
+  for (const session of searchable) {
+    for (const entry of loadLog(agentId, session.sessionId)) {
+      if (!CONVERSATION_KINDS.has(entry.kind)) continue;
+      const content = entry.content ?? "";
+      const index = content.toLocaleLowerCase().indexOf(needle);
+      if (index === -1) continue;
+      totalMatches += 1;
+      if (results.length < limit) {
+        results.push({
+          sessionId: session.sessionId,
+          sessionTopic: session.topic,
+          entryId: entry.id,
+          kind: entry.kind,
+          timestamp: entry.timestamp,
+          snippet: snippet(content, index, query.length),
+        });
+      }
+    }
+  }
+  results.sort((a, b) => b.timestamp - a.timestamp);
+  return { ok: true, body: { mode: "search", query, totalMatches, results } };
+}
+
+function retrieveAgentLog(agentId: string, sessions: ReturnType<typeof listAgentSessions>, sessionId: string, limit: number): LogReadResult {
+  if (!sessions.some((session) => session.sessionId === sessionId)) return { ok: false, status: 404, error: "session not found" };
+  return { ok: true, body: { mode: "retrieve", sessionId, entries: loadLogWithAncestors(agentId, sessionId).slice(-limit) } };
+}
+
+function parseLimit(raw: string | null): number | string {
+  if (raw === null) return DEFAULT_LIMIT;
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n) || n < 1 || n > MAX_LIMIT) return `limit must be an integer between 1 and ${MAX_LIMIT}`;
+  return n;
+}
+
+function isSafeId(value: string): boolean {
+  return /^[A-Za-z0-9._-]+$/.test(value);
+}
+
+function snippet(content: string, matchIndex: number, matchLength: number): string {
+  const start = Math.max(0, matchIndex - SNIPPET_RADIUS);
+  const end = Math.min(content.length, matchIndex + matchLength + SNIPPET_RADIUS);
+  const text = content.slice(start, end).replace(/\s+/g, " ").trim();
+  const clipped = text.length > MAX_SNIPPET ? text.slice(0, MAX_SNIPPET).trimEnd() : text;
+  return `${start > 0 ? "..." : ""}${clipped}${end < content.length ? "..." : ""}`;
+}

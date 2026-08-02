@@ -29,6 +29,10 @@ Messages are prefixed with the boss's name in brackets.
 How to discover other office agents and their conversation logs: call GET localhost:${PORT}/api/agents with your bearer token.
   curl -s localhost:${PORT}/api/agents -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 
+How to search and re-read conversation history: call GET localhost:${PORT}/api/agents/<id>/logs with your bearer token. With no query it lists sessions. With "?q=..." it searches user messages and assistant replies, returning snippets and {sessionId, entryId} handles. With "?session=<id>" it returns that conversation, including ancestor entries for forked sessions. You can read agents visible to your manager's room access.
+  curl -s "localhost:${PORT}/api/agents/${agentId}/logs?q=previous+decision" -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
+  curl -s "localhost:${PORT}/api/agents/${agentId}/logs?session=<id>" -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
+
 How to read this room's current settings before proposing changes: call GET localhost:${PORT}/api/rooms/<roomId>/settings with your bearer token. Find your room id in the agent manifest. If the boss asks you to update room settings, include the returned version in the PUT body so you do not overwrite a newer change.
   curl -s localhost:${PORT}/api/rooms/<roomId>/settings -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 

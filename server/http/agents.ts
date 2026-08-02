@@ -2,11 +2,13 @@ import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import type { Attachment } from "../../shared/types.ts";
+import { canSeeRoom, getUserById } from "../users.ts";
 import { cancelScheduledMessage, listScheduledMessages, parseDeliverAt, scheduleAgentMessage } from "../scheduled-messages.ts";
 import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
 import { agentRouteParts, JSON_HEADERS, jsonError, projectedAgentsManifest, readJsonBody, requireUserAgentAccess, sessionUser } from "./agent-route-helpers.ts";
+import { readAgentLogs } from "../agents/log-reader.ts";
 
 /**
  * Handle agent-scoped HTTP routes:
@@ -31,6 +33,7 @@ import { agentRouteParts, JSON_HEADERS, jsonError, projectedAgentsManifest, read
  *   GET  /api/agents/:id/scheduled-messages — list pending messages scheduled by an agent.
  *   DELETE /api/agents/:id/scheduled-messages/:msg — cancel a pending scheduled message.
  *   PATCH /api/agents/:id/messages/:entry — edit a prior user message.
+ *   GET  /api/agents/:id/logs             — index, search, or retrieve persisted logs.
  *   GET  /api/agents/:id/sessions         — list resumable sessions.
  *   POST /api/agents/:id/resume           — resume a session.
  *   POST /api/agents/:id/new-conversation — start a fresh session.
@@ -58,6 +61,14 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
     const agentId = parts[1]!;
     const managementResponse = await handleAgentManagementRequest(req, parts, agentId, auth);
     if (managementResponse) return managementResponse;
+
+    if (req.method === "GET" && parts.length === 3 && parts[2] === "logs") {
+      const denied = requireAgentLogAccess(req, auth, agentId);
+      if (denied) return denied;
+      const result = readAgentLogs(agentId, url.searchParams);
+      if (!result.ok) return jsonError(result.status, result.error);
+      return new Response(JSON.stringify(result.body), { headers: JSON_HEADERS });
+    }
 
     if (req.method === "PATCH" && parts.length === 4 && parts[2] === "messages") {
       const denied = requireUserAgentAccess(auth, agentId);
@@ -182,6 +193,22 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
   const bearerResponse = await handleAgentBearerPost(req, parts);
   if (bearerResponse) return bearerResponse;
 
+  return null;
+}
+
+function requireAgentLogAccess(req: Request, auth: AuthResult | undefined, agentId: string): Response | null {
+  const rawBearer = readBearerToken(req);
+  const bearer = resolveAgentToken(rawBearer);
+  if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
+  if (!bearer) return requireUserAgentAccess(auth, agentId);
+
+  const agent = AgentManager.getAgent(agentId);
+  if (!agent) return jsonError(404, "agent not found");
+  if (bearer.agentId === agentId) return null;
+  if (!bearer.userId) return jsonError(403, "forbidden");
+  const user = getUserById(bearer.userId);
+  const roomId = AgentManager.getRooms()[agent.room]?.id;
+  if (!user || !roomId || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
   return null;
 }
 

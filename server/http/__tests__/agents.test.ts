@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import { agents } from "../../agents/state.ts";
@@ -6,11 +6,13 @@ import { createManagedAgent } from "../../agents/managed-factory.ts";
 import { handleAgentsRequest } from "../agents.ts";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
 import type { BackendSession } from "../../backends/types.ts";
+beforeEach(resetTestState);
+afterEach(resetTestState);
 
-afterEach(() => {
+function resetTestState() {
   _testResetAgentTokens();
   agents.clear();
-});
+}
 
 function request(path: string, init: RequestInit = {}): Request {
   return new Request(`http://local.test${path}`, {

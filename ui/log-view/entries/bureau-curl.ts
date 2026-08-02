@@ -14,6 +14,7 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/agents\/[^/]+\/diff$/, "Bureau API: diff card"],
   [/^\/api\/agents\/[^/]+\/edit-file$/, "Bureau API: open file in editor"],
   [/^\/api\/agents\/[^/]+\/messages?$/, "Bureau API: message agent"],
+  [/^\/api\/agents\/[^/]+\/logs$/, "Bureau API: conversation logs"],
   [/^\/api\/agents\/[^/]+\/context$/, "Bureau API: check context"],
   [/^\/api\/agents\/[^/]+\/instructions$/, "Bureau API: read agent instructions"],
   [/^\/api\/agents\/[^/]+\/scheduled-messages$/, "Bureau API: scheduled messages"],
