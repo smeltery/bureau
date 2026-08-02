@@ -194,6 +194,18 @@ describe("GET /api/agents/:id/logs", () => {
     expect(body.results[0].snippet).toContain("Slide mode");
   });
 
+  test("times out pathological regex searches outside the server process", async () => {
+    installAgent("agent-log-http");
+    appendEntry("session-one", "regex-one", "text", `${"a".repeat(5000)}!`);
+    const token = mintAgentToken("agent-log-http", null);
+    const req = bearerRequest(`/api/agents/agent-log-http/logs?q=${encodeURIComponent("(a+)+$")}&regex=1&tier=full`, token);
+
+    const res = await handleAgentsRequest(req, new URL(req.url));
+
+    expect(res?.status).toBe(504);
+    expect(await res?.json()).toEqual({ error: "log search timed out" });
+  });
+
   test("filters search and retrieval by timestamp bounds", async () => {
     installAgent("agent-log-http");
     for (const [id, timestamp] of [

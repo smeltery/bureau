@@ -8,7 +8,8 @@ import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
 import { agentRouteParts, JSON_HEADERS, jsonError, projectedAgentsManifest, readJsonBody, requireUserAgentAccess, sessionUser } from "./agent-route-helpers.ts";
-import { readAgentLogs } from "../agents/log-reader.ts";
+import { readAgentLogs, requiresIsolatedLogSearch } from "../agents/log-reader.ts";
+import { readAgentLogsIsolated } from "../agents/log-search-runner.ts";
 
 /**
  * Handle agent-scoped HTTP routes:
@@ -65,7 +66,7 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
     if (req.method === "GET" && parts.length === 3 && parts[2] === "logs") {
       const denied = requireAgentLogAccess(req, auth, agentId);
       if (denied) return denied;
-      const result = readAgentLogs(agentId, url.searchParams);
+      const result = requiresIsolatedLogSearch(url.searchParams) ? await readAgentLogsIsolated(agentId, url.searchParams) : readAgentLogs(agentId, url.searchParams);
       if (!result.ok) return jsonError(result.status, result.error);
       return new Response(JSON.stringify(result.body), { headers: JSON_HEADERS });
     }

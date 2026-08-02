@@ -108,6 +108,10 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
   };
 }
 
+export function requiresIsolatedLogSearch(query: URLSearchParams): boolean {
+  return query.has("q") && isTruthyFlag(query.get("regex"));
+}
+
 function searchAgentLogs(
   agentId: string,
   sessions: ReturnType<typeof listAgentSessions>,
