@@ -117,7 +117,10 @@ export type ClientCommand =
       type: "update_user";
       userId: string;
       changes: Partial<
-        Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "language" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">
+        Pick<
+          UserRecord,
+          "name" | "role" | "envFile" | "memberPrompt" | "language" | "slideMode" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant"
+        >
       >;
     }
   | { type: "delete_user"; userId: string }

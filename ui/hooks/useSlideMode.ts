@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { getSlideModeEnabled, getSlideView, setSlideView, subscribeSlideModeEnabled } from "../device-settings.ts";
+import { getSlideView, setSlideView } from "../device-settings.ts";
+import { useAppState } from "../store.tsx";
 
 export function useSlideMode(agentId: string): { enabled: boolean; active: boolean; setActive: (active: boolean) => void } {
-  const [enabled, setEnabled] = useState(getSlideModeEnabled);
+  const { sessionContext, users } = useAppState();
+  const self = sessionContext ? users.get(sessionContext.username.trim().toLocaleLowerCase()) : undefined;
+  const enabled = self?.slideMode === true;
   const [active, setActiveState] = useState(() => getSlideView(agentId));
-
-  useEffect(() => subscribeSlideModeEnabled(() => setEnabled(getSlideModeEnabled())), []);
 
   useEffect(() => {
     setActiveState(getSlideView(agentId));

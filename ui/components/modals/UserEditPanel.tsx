@@ -31,6 +31,7 @@ export function UserEditPanel({
   const [envFile, setEnvFile] = useState(user.envFile ?? "");
   const [memberPrompt, setMemberPrompt] = useState(user.memberPrompt ?? "");
   const [language, setLanguage] = useState<SupportedLanguageCode | "">(user.language ?? "");
+  const [slideMode, setSlideMode] = useState(user.slideMode === true);
   const [avatarColor, setAvatarColor] = useState(user.avatarColor);
   const [avatarVariant, setAvatarVariant] = useState<GhostVariant>(user.avatarVariant);
   const [envStatus, setEnvStatus] = useState<ValidationStatus>({ kind: "idle" });
@@ -43,6 +44,7 @@ export function UserEditPanel({
     envFile !== (user.envFile ?? "") ||
     memberPrompt !== (user.memberPrompt ?? "") ||
     language !== (user.language ?? "") ||
+    slideMode !== (user.slideMode === true) ||
     avatarColor !== user.avatarColor ||
     avatarVariant !== user.avatarVariant ||
     (defaultRoomId ?? null) !== (user.defaultRoomId ?? null) ||
@@ -75,6 +77,7 @@ export function UserEditPanel({
         envFile: envFile.trim() || null,
         memberPrompt: memberPrompt.trim() || null,
         language: language || null,
+        slideMode,
         avatarColor,
         avatarVariant,
       },
@@ -155,6 +158,11 @@ export function UserEditPanel({
         ))}
       </select>
       <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "4px 0 0" }}>Agents you spawn use this as your default reply and speech language.</p>
+      <label style={{ ...dialogLabel, display: "flex", gap: 8, marginTop: 12 }}>
+        <input type="checkbox" checked={slideMode} onChange={(e) => setSlideMode(e.target.checked)} style={{ accentColor: "var(--accent)", cursor: "pointer" }} />
+        <span>Slide Mode</span>
+      </label>
+      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "2px 0 0 24px", lineHeight: 1.4 }}>Shows the slide view toggle on agent logs.</p>
       <label style={{ ...dialogLabel, marginTop: 12 }}>Personal context</label>
       <textarea
         value={memberPrompt}

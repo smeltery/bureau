@@ -14,7 +14,7 @@ export interface UsersHttpDeps {
   delete(actorUserId: string, role: "owner" | "member", username: string): Promise<UserDeleteResult>;
 }
 
-export type UserRecordChanges = Partial<Pick<UserRecord, "name" | "envFile" | "memberPrompt" | "language" | "avatarColor" | "avatarVariant">>;
+export type UserRecordChanges = Partial<Pick<UserRecord, "name" | "envFile" | "memberPrompt" | "language" | "slideMode" | "avatarColor" | "avatarVariant">>;
 
 export async function handleUsersRequest(req: Request, url: URL, auth: AuthResult | undefined, deps: UsersHttpDeps): Promise<Response | null> {
   const parts = usersRouteParts(url.pathname);
@@ -60,6 +60,7 @@ function malformedUserUpdate(body: Record<string, unknown>): string | null {
   if (body.memberPrompt !== undefined && body.memberPrompt !== null && typeof body.memberPrompt !== "string") return "memberPrompt must be a string or null";
   if (body.language !== undefined && body.language !== null && typeof body.language !== "string") return "language must be a string or null";
   if (typeof body.language === "string" && !isSupportedLanguage(body.language)) return "language must be supported or null";
+  if (body.slideMode !== undefined && typeof body.slideMode !== "boolean") return "slideMode must be a boolean";
   if (body.avatarColor !== undefined && typeof body.avatarColor !== "string") return "avatarColor must be a string";
   if (body.avatarVariant !== undefined && typeof body.avatarVariant !== "string") return "avatarVariant must be a string";
   return null;
@@ -71,6 +72,7 @@ function pickUserChanges(body: Record<string, unknown>): UserRecordChanges {
   if (body.envFile !== undefined) changes.envFile = body.envFile as string | null;
   if (body.memberPrompt !== undefined) changes.memberPrompt = body.memberPrompt as string | null;
   if (body.language !== undefined) changes.language = body.language as UserRecord["language"];
+  if (body.slideMode !== undefined) changes.slideMode = body.slideMode as boolean;
   if (body.avatarColor !== undefined) changes.avatarColor = body.avatarColor as string;
   if (body.avatarVariant !== undefined) changes.avatarVariant = body.avatarVariant as UserRecord["avatarVariant"];
   return changes;

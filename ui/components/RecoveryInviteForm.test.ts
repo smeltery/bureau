@@ -10,6 +10,7 @@ function user(overrides: Partial<UserRecord> = {}): UserRecord {
     envFile: null,
     memberPrompt: null,
     language: null,
+    slideMode: false,
     allowedRooms: [],
     hidden: [],
     order: [],

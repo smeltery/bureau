@@ -35,6 +35,7 @@ export function loadUsers(): UserRecord[] {
           envFile: typeof u.envFile === "string" && u.envFile ? u.envFile : null,
           memberPrompt: typeof u.memberPrompt === "string" && u.memberPrompt.trim() ? u.memberPrompt.trim() : null,
           language: isSupportedLanguage(u.language) ? u.language : null,
+          slideMode: u.slideMode === true,
           allowedRooms,
           hidden,
           order,

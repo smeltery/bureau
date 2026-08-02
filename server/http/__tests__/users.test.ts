@@ -34,6 +34,7 @@ const user: UserRecord = {
   envFile: null,
   memberPrompt: null,
   language: null,
+  slideMode: false,
   allowedRooms: ["room-1"],
   hidden: [],
   order: [],
@@ -88,7 +89,7 @@ describe("handleUsersRequest", () => {
   test("updates user record fields", async () => {
     const req = request("/api/users/Member", {
       method: "PATCH",
-      body: JSON.stringify({ name: "Member Two", role: "owner", allowedRooms: ["room-2"], envFile: null, language: "es" }),
+      body: JSON.stringify({ name: "Member Two", role: "owner", allowedRooms: ["room-2"], envFile: null, language: "es", slideMode: true }),
     });
     let updated: Parameters<UsersHttpDeps["update"]> | null = null;
 
@@ -102,7 +103,7 @@ describe("handleUsersRequest", () => {
 
     expect(res?.status).toBe(200);
     expect(await res?.json()).toEqual({ user });
-    expect(JSON.stringify(updated)).toBe(JSON.stringify(["owner-1", "owner", "Member", { name: "Member Two", envFile: null, language: "es" }]));
+    expect(JSON.stringify(updated)).toBe(JSON.stringify(["owner-1", "owner", "Member", { name: "Member Two", envFile: null, language: "es", slideMode: true }]));
   });
 
   test("rejects unsupported language updates", async () => {
@@ -112,6 +113,15 @@ describe("handleUsersRequest", () => {
 
     expect(res?.status).toBe(422);
     expect(await res?.json()).toEqual({ error: "language must be supported or null" });
+  });
+
+  test("rejects non-boolean slide mode updates", async () => {
+    const req = request("/api/users/Member", { method: "PATCH", body: JSON.stringify({ slideMode: "yes" }) });
+
+    const res = await handleUsersRequest(req, new URL(req.url), memberAuth, deps);
+
+    expect(res?.status).toBe(422);
+    expect(await res?.json()).toEqual({ error: "slideMode must be a boolean" });
   });
 
   test("requires owner access to update room grants", async () => {

@@ -20,6 +20,8 @@ export interface UserRecord {
   memberPrompt: string | null;
   // Preferred language for agents spawned by this user. null keeps default behavior.
   language: SupportedLanguageCode | null;
+  // Enables the per-agent slide view toggle for this user across devices.
+  slideMode: boolean;
   // Strict list of room IDs this user can see and act in. Owners can edit it.
   allowedRooms: string[];
   // Per-user view preferences layered on top of access. Hidden rooms remain

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getDevice, getSlideModeEnabled, getSlidePos, getSlideView, setDevice, setSlideModeEnabled, setSlidePos, setSlideView } from "./device-settings.ts";
+import { getDevice, getSlidePos, getSlideView, setDevice, setSlidePos, setSlideView } from "./device-settings.ts";
 
 describe("device settings storage", () => {
   test("falls back when browser storage throws", () => {
@@ -13,11 +13,9 @@ describe("device settings storage", () => {
 
     try {
       expect(getDevice()).toBeNull();
-      expect(getSlideModeEnabled()).toBe(false);
       expect(getSlideView("agent-1")).toBe(false);
       expect(getSlidePos("agent-1")).toBeNull();
       expect(() => setDevice("Laptop")).not.toThrow();
-      expect(() => setSlideModeEnabled(true)).not.toThrow();
       expect(() => setSlideView("agent-1", true)).not.toThrow();
       expect(() => setSlidePos("agent-1", { index: 1, atEnd: false })).not.toThrow();
     } finally {
