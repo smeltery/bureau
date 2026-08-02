@@ -1,5 +1,9 @@
 import { familyDisplayLabel } from "../../../shared/types.ts";
+import { getBackupStatus } from "../../backup.ts";
 import { listAgentSessions } from "../../persistence.ts";
+import { BUREAU_DIR } from "../../persistence/paths.ts";
+import { renderStorageReport } from "../../storage/report.ts";
+import { measureStorage } from "../../storage-usage.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { createSession, emitLoginInstructions, replaceSession, SessionSwappedError } from "../session/runtime.ts";
 import { tildifyCwd } from "../session/paths.ts";
@@ -278,6 +282,23 @@ export const commandHandlers: Record<string, HandlerFn> = {
     const userMeta = username ? { username } : undefined;
     addLogEntry(agentId, "user_message", rawText, userMeta);
     addLogEntry(agentId, "system", renderUsageReport(usageAudienceForUser(managed.info.userId ? getUserById(managed.info.userId) : null)));
+    updateState(agentId, "waiting_for_response");
+    return true;
+  },
+
+  async bureauStorage(agentId, managed, _args, rawText, username) {
+    const userMeta = username ? { username } : undefined;
+    addLogEntry(agentId, "user_message", rawText, userMeta);
+
+    const user = managed.info.userId ? getUserById(managed.info.userId) : null;
+    if (user?.role !== "owner") {
+      addLogEntry(agentId, "system", "Storage usage is only available to office owners.");
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
+
+    const backup = getBackupStatus();
+    addLogEntry(agentId, "system", renderStorageReport(measureStorage({ stateRoot: BUREAU_DIR, backupDir: backup.backupDir })));
     updateState(agentId, "waiting_for_response");
     return true;
   },

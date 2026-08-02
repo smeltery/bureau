@@ -72,7 +72,7 @@ export async function handleHelpCommand(agentId: string, managed: ManagedAgent, 
     "  • Agents can offer `[Open in editor]` and `[Copy to terminal]` cards in chat. Agents can also surface a file inline with POST /api/agents/:id/read-file — images render in-chat, others as a clickable chip.",
   );
   lines.push(
-    "  • Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Use `/bureau-edit <path>` to open a file in the editor side panel. Use `/bureau-usage` to see per-agent + per-room + per-cron-job lifetime cost.",
+    "  • Use `/bureau-diff` to render uncommitted changes as a styled per-file card. Use `/bureau-edit <path>` to open a file in the editor side panel. Use `/bureau-usage` to see per-agent + per-room + per-cron-job lifetime cost. Owners can use `/bureau-storage` to inspect persisted office and backup size.",
   );
   lines.push("  • The office view zooms and pans (pinch/scroll, drag, or `0`/`+`/`-` keys). Drag the splitter between chat and the side panel to resize it.");
   lines.push(

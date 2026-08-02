@@ -167,6 +167,7 @@ describe("command auto-run metadata", () => {
       "handoff",
       "help",
       "bureau-usage",
+      "bureau-storage",
       "resume",
       "login",
       "bureau-all-hands",

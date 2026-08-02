@@ -95,6 +95,15 @@ export const commands: Record<string, CommandConfig> = {
     description: "Per-agent / per-room / per-cron-job token spend",
     autoRun: true,
   },
+  "bureau-storage": {
+    type: "hardcoded",
+    supported: true,
+    autocomplete: true,
+    overridable: false,
+    handler: "bureauStorage",
+    description: "Persisted office state, backups, and per-agent storage",
+    autoRun: true,
+  },
   resume: {
     type: "hardcoded",
     supported: true,
