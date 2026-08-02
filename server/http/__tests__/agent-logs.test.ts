@@ -171,6 +171,65 @@ describe("GET /api/agents/:id/logs", () => {
     expect(body.entries.map((entry: { id: string }) => entry.id)).toEqual(["entry-2", "entry-3", "entry-4"]);
   });
 
+  test("filters retrieved logs by tier", async () => {
+    installAgent("agent-log-http");
+    appendLog("agent-log-http", "session-one", {
+      id: "prompt-one",
+      agentId: "agent-log-http",
+      timestamp: 1,
+      kind: "user_message",
+      content: "boss request",
+    });
+    appendLog("agent-log-http", "session-one", {
+      id: "reply-one",
+      agentId: "agent-log-http",
+      timestamp: 2,
+      kind: "text",
+      content: "agent reply",
+    });
+    persistSessionTopic("agent-log-http", "session-one", "Tier", 2);
+    const token = mintAgentToken("agent-log-http", null);
+    const req = bearerRequest("/api/agents/agent-log-http/logs?session=session-one&tier=prompts", token);
+
+    const res = await handleAgentsRequest(req, new URL(req.url));
+    const body = await res?.json();
+
+    expect(res?.status).toBe(200);
+    expect(body.entries.map((entry: { id: string }) => entry.id)).toEqual(["prompt-one"]);
+  });
+
+  test("searches full-tier and explicit log kinds", async () => {
+    installAgent("agent-log-http");
+    appendLog("agent-log-http", "session-one", {
+      id: "tool-one",
+      agentId: "agent-log-http",
+      timestamp: 1,
+      kind: "tool_result",
+      content: "rare-build-token",
+    });
+    appendLog("agent-log-http", "session-one", {
+      id: "text-one",
+      agentId: "agent-log-http",
+      timestamp: 2,
+      kind: "text",
+      content: "rare-build-token",
+    });
+    persistSessionTopic("agent-log-http", "session-one", "Kinds", 2);
+    const token = mintAgentToken("agent-log-http", null);
+    const fullReq = bearerRequest("/api/agents/agent-log-http/logs?q=rare-build-token&tier=full", token);
+    const toolReq = bearerRequest("/api/agents/agent-log-http/logs?q=rare-build-token&kind=tool_result", token);
+
+    const full = await handleAgentsRequest(fullReq, new URL(fullReq.url));
+    const tool = await handleAgentsRequest(toolReq, new URL(toolReq.url));
+    const fullBody = await full?.json();
+    const toolBody = await tool?.json();
+
+    expect(full?.status).toBe(200);
+    expect(tool?.status).toBe(200);
+    expect(fullBody.results.map((hit: { entryId: string }) => hit.entryId)).toEqual(["text-one", "tool-one"]);
+    expect(toolBody.results.map((hit: { entryId: string }) => hit.entryId)).toEqual(["tool-one"]);
+  });
+
   test("validates log query parameters", async () => {
     installAgent("agent-log-http");
     const token = mintAgentToken("agent-log-http", null);
@@ -180,6 +239,23 @@ describe("GET /api/agents/:id/logs", () => {
 
     expect(res?.status).toBe(422);
     expect(await res?.json()).toEqual({ error: "limit must be an integer between 1 and 200" });
+  });
+
+  test("validates log kind filters", async () => {
+    installAgent("agent-log-http");
+    const token = mintAgentToken("agent-log-http", null);
+    const tierReq = bearerRequest("/api/agents/agent-log-http/logs?tier=nope", token);
+    const kindReq = bearerRequest("/api/agents/agent-log-http/logs?kind=nope", token);
+
+    const tier = await handleAgentsRequest(tierReq, new URL(tierReq.url));
+    const kind = await handleAgentsRequest(kindReq, new URL(kindReq.url));
+
+    expect(tier?.status).toBe(422);
+    expect(await tier?.json()).toEqual({ error: "tier must be one of: prompts, conversation, full" });
+    expect(kind?.status).toBe(422);
+    expect(await kind?.json()).toEqual({
+      error: "kind must be a comma-separated subset of: text, thinking, tool_call, tool_result, error, system, user_message, diff, edit-request, terminal-command, file-view",
+    });
   });
 
   test("requires log access for bearer tokens", async () => {

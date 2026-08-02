@@ -8,7 +8,25 @@ const DEFAULT_WINDOW = 5;
 const MAX_WINDOW = 50;
 const SNIPPET_RADIUS = 80;
 const MAX_SNIPPET = 220;
-const CONVERSATION_KINDS = new Set<LogEntry["kind"]>(["user_message", "text"]);
+const ALL_KINDS = [
+  "text",
+  "thinking",
+  "tool_call",
+  "tool_result",
+  "error",
+  "system",
+  "user_message",
+  "diff",
+  "edit-request",
+  "terminal-command",
+  "file-view",
+] as const satisfies readonly LogEntry["kind"][];
+const KIND_SET = new Set<LogEntry["kind"]>(ALL_KINDS);
+const TIER_KINDS = {
+  prompts: new Set<LogEntry["kind"]>(["user_message"]),
+  conversation: new Set<LogEntry["kind"]>(["user_message", "text"]),
+  full: null,
+} as const;
 
 export interface LogSessionSummary {
   sessionId: string;
@@ -42,15 +60,17 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
   const sessionId = query.get("session");
   const around = query.get("around");
   const window = parseWindow(query.get("window"));
+  const kinds = parseKindSelection(query);
   if (q !== null && q.trim() === "") return { ok: false, status: 422, error: "q must not be empty" };
   if (sessionId !== null && !isSafeId(sessionId)) return { ok: false, status: 404, error: "session not found" };
   if (around !== null && (q !== null || sessionId === null)) return { ok: false, status: 422, error: "around requires session and cannot be combined with q" };
   if (around !== null && !isSafeId(around)) return { ok: false, status: 404, error: "entry not found" };
   if (typeof window === "string") return { ok: false, status: 422, error: window };
+  if (typeof kinds === "string") return { ok: false, status: 422, error: kinds };
 
   const sessions = listAgentSessions(agentId);
-  if (q !== null) return searchAgentLogs(agentId, sessions, q, sessionId, limit);
-  if (sessionId !== null) return retrieveAgentLog(agentId, sessions, sessionId, limit, around, window);
+  if (q !== null) return searchAgentLogs(agentId, sessions, q, sessionId, limit, kinds);
+  if (sessionId !== null) return retrieveAgentLog(agentId, sessions, sessionId, limit, around, window, kinds);
 
   return {
     ok: true,
@@ -68,7 +88,7 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
   };
 }
 
-function searchAgentLogs(agentId: string, sessions: ReturnType<typeof listAgentSessions>, query: string, sessionId: string | null, limit: number): LogReadResult {
+function searchAgentLogs(agentId: string, sessions: ReturnType<typeof listAgentSessions>, query: string, sessionId: string | null, limit: number, kinds: Set<LogEntry["kind"]> | null): LogReadResult {
   const searchable = sessionId === null ? sessions : sessions.filter((session) => session.sessionId === sessionId);
   if (sessionId !== null && searchable.length === 0) return { ok: false, status: 404, error: "session not found" };
 
@@ -77,7 +97,7 @@ function searchAgentLogs(agentId: string, sessions: ReturnType<typeof listAgentS
   let totalMatches = 0;
   for (const session of searchable) {
     for (const entry of loadLog(agentId, session.sessionId)) {
-      if (!CONVERSATION_KINDS.has(entry.kind)) continue;
+      if (!kindAllowed(entry.kind, kinds)) continue;
       const content = entry.content ?? "";
       const index = content.toLocaleLowerCase().indexOf(needle);
       if (index === -1) continue;
@@ -98,15 +118,25 @@ function searchAgentLogs(agentId: string, sessions: ReturnType<typeof listAgentS
   return { ok: true, body: { mode: "search", query, totalMatches, results } };
 }
 
-function retrieveAgentLog(agentId: string, sessions: ReturnType<typeof listAgentSessions>, sessionId: string, limit: number, around: string | null, window: number): LogReadResult {
+function retrieveAgentLog(
+  agentId: string,
+  sessions: ReturnType<typeof listAgentSessions>,
+  sessionId: string,
+  limit: number,
+  around: string | null,
+  window: number,
+  kinds: Set<LogEntry["kind"]> | null,
+): LogReadResult {
   if (!sessions.some((session) => session.sessionId === sessionId)) return { ok: false, status: 404, error: "session not found" };
   const entries = loadLogWithAncestors(agentId, sessionId);
   if (around !== null) {
-    const index = entries.findIndex((entry) => entry.id === around);
+    const filtered = entries.filter((entry) => kindAllowed(entry.kind, kinds) || entry.id === around);
+    const index = filtered.findIndex((entry) => entry.id === around);
     if (index === -1) return { ok: false, status: 404, error: "entry not found" };
-    return { ok: true, body: { mode: "retrieve", sessionId, entries: entries.slice(Math.max(0, index - window), index + window + 1) } };
+    return { ok: true, body: { mode: "retrieve", sessionId, entries: filtered.slice(Math.max(0, index - window), index + window + 1) } };
   }
-  return { ok: true, body: { mode: "retrieve", sessionId, entries: entries.slice(-limit) } };
+  const filtered = entries.filter((entry) => kindAllowed(entry.kind, kinds));
+  return { ok: true, body: { mode: "retrieve", sessionId, entries: filtered.slice(-limit) } };
 }
 
 function parseLimit(raw: string | null): number | string {
@@ -121,6 +151,31 @@ function parseWindow(raw: string | null): number | string {
   const n = Number(raw);
   if (!Number.isSafeInteger(n) || n < 1 || n > MAX_WINDOW) return `window must be an integer between 1 and ${MAX_WINDOW}`;
   return n;
+}
+
+function parseKindSelection(query: URLSearchParams): Set<LogEntry["kind"]> | null | string {
+  const tierRaw = query.get("tier");
+  if (tierRaw !== null && !(tierRaw in TIER_KINDS)) return `tier must be one of: ${Object.keys(TIER_KINDS).join(", ")}`;
+
+  const kindRaw = query.get("kind");
+  if (kindRaw === null) return TIER_KINDS[(tierRaw as keyof typeof TIER_KINDS | null) ?? "conversation"];
+
+  const parts = kindRaw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return "kind must not be empty";
+
+  const selected = new Set<LogEntry["kind"]>();
+  for (const part of parts) {
+    if (!KIND_SET.has(part as LogEntry["kind"])) return `kind must be a comma-separated subset of: ${ALL_KINDS.join(", ")}`;
+    selected.add(part as LogEntry["kind"]);
+  }
+  return selected;
+}
+
+function kindAllowed(kind: LogEntry["kind"], kinds: Set<LogEntry["kind"]> | null): boolean {
+  return kinds === null || kinds.has(kind);
 }
 
 function isSafeId(value: string): boolean {
