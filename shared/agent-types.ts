@@ -127,7 +127,7 @@ export type MemoryScope = "office" | "room" | "agent" | "boss";
 export interface MemoryItem {
   scope: MemoryScope;
   scopeId: string | null;
-  author: string;
+  author: string | null;
   date: string;
   text: string;
   raw: string;

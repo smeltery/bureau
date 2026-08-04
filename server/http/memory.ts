@@ -114,7 +114,10 @@ export async function handleMemoryRequest(req: Request, url: URL, auth?: AuthRes
     if (target instanceof Response) return target;
     const duplicate = memoryStore.findDuplicate(target.scope, target.scopeId, text);
     if (duplicate) return error(409, "duplicate_memory", "a matching memory already exists in this scope", { matched: { text: duplicate.text } });
-    return json(memoryStore.append({ scope: target.scope, scopeId: target.scopeId, author: authorFromCaller(bearer, auth, authorFromRequest(req)), text }), 201);
+    return json(
+      memoryStore.append({ scope: target.scope, scopeId: target.scopeId, author: authorFromCaller(bearer, auth, authorFromRequest(req)), authorAgentId: bearer?.agentId ?? null, text }),
+      201,
+    );
   }
 
   if (req.method === "PUT") {

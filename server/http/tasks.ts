@@ -47,7 +47,17 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     const status = url.searchParams.get("status");
     const assignee = url.searchParams.get("assignee");
     const titleFilter = url.searchParams.get("title");
+    const roomFilter = url.searchParams.get("roomId");
     let filtered = tasksForCaller(tasks, bearer, auth, api);
+    if (roomFilter !== null) {
+      if (roomFilter.length === 0) {
+        filtered = filtered.filter((t) => !t.roomId);
+      } else if (canAccessRoom(roomFilter, bearer, auth)) {
+        filtered = filtered.filter((t) => t.roomId === roomFilter);
+      } else {
+        return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+      }
+    }
     if (!status) {
       filtered = filtered.filter((t) => t.status !== "done" && t.status !== "backlog");
     } else if (status !== "all") {

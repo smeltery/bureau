@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
+import { parseMemoryLine } from "../../memory-store.ts";
 import { handleMemoryRequest } from "../memory.ts";
 
 const auth: AuthResult = {
@@ -60,5 +61,16 @@ describe("handleMemoryRequest", () => {
     expect(res?.status).toBe(200);
     expect(typeof body.text).toBe("string");
     expect(typeof body.version).toBe("string");
+  });
+
+  test("parses authorless self-authored agent memory lines", () => {
+    expect(parseMemoryLine("- 2026-08-03: remember this", "agent", "agent-1")).toEqual({
+      scope: "agent",
+      scopeId: "agent-1",
+      author: null,
+      date: "2026-08-03",
+      text: "remember this",
+      raw: "- 2026-08-03: remember this",
+    });
   });
 });

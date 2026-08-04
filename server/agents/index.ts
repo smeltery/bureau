@@ -27,6 +27,7 @@ export {
   kill,
   revive,
   getKilledAgentSummaries,
+  getKilledAgentSummariesForManager,
   killedAgentManagerUserId,
   restoreAgents,
 } from "./lifecycle.ts";

@@ -1,7 +1,7 @@
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
-import { buildAgentsManifest } from "../persistence.ts";
+import { buildAgentsManifest, buildKilledManifest } from "../persistence.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { FAMILY_TO_MODEL, type AgentInfo, type UserRecord } from "../../shared/types.ts";
 
@@ -71,6 +71,19 @@ export function projectedAgentsManifest(req: Request, auth: AuthResult | undefin
   const rawBearer = readBearerToken(req);
   const bearer = resolveAgentToken(rawBearer);
   if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
+
+  if (new URL(req.url).searchParams.get("killed") === "1") {
+    if (bearer) {
+      if (!bearer.userId) return jsonError(403, "forbidden");
+      return buildKilledManifest(AgentManager.getKilledAgentSummariesForManager(bearer.userId));
+    }
+    if (auth?.kind === "loopback" || (auth?.kind === "ok" && auth.session.role === "owner")) {
+      return buildKilledManifest(AgentManager.getKilledAgentSummaries());
+    }
+    const user = sessionUser(auth);
+    if (!user) return jsonError(401, "unauthenticated");
+    return buildKilledManifest(AgentManager.getKilledAgentSummariesForManager(user.id));
+  }
 
   const rooms = AgentManager.getRooms();
   let agents: AgentInfo[];

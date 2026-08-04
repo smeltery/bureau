@@ -58,21 +58,29 @@ function legacyKilledAtFromDisk(agentId: string): number {
   }
 }
 
-// All currently-killed agents, sorted newest-first. The caller layers ACL
-// filtering and the cap. Revived agents have a history entry but are alive, so
-// they're skipped. Legacy entries with no killedAt AND no on-disk log dir are
-// dropped — there's nothing to revive and no ordering signal.
-export function getKilledAgentSummaries(): KilledAgentSummary[] {
-  const history = loadAgentHistory();
+function killedSummariesFrom(history: ReturnType<typeof loadAgentHistory>, include?: (id: string, entry: AgentHistoryEntry) => boolean): KilledAgentSummary[] {
   const summaries: KilledAgentSummary[] = [];
   for (const [id, entry] of Object.entries(history)) {
     if (agents.has(id)) continue;
+    if (include && !include(id, entry)) continue;
     const fallback = entry.killedAt ? 0 : legacyKilledAtFromDisk(id);
     if (!entry.killedAt && !fallback) continue;
     summaries.push(killedAgentSummaryFromHistory(id, entry, fallback));
   }
   summaries.sort((a, b) => b.killedAt - a.killedAt);
   return summaries;
+}
+
+// All currently-killed agents, sorted newest-first. The caller layers ACL
+// filtering and the cap. Revived agents have a history entry but are alive, so
+// they're skipped. Legacy entries with no killedAt AND no on-disk log dir are
+// dropped — there's nothing to revive and no ordering signal.
+export function getKilledAgentSummaries(): KilledAgentSummary[] {
+  return killedSummariesFrom(loadAgentHistory());
+}
+
+export function getKilledAgentSummariesForManager(userId: string): KilledAgentSummary[] {
+  return killedSummariesFrom(loadAgentHistory(), (_id, entry) => entry.userId === userId);
 }
 
 export function killedAgentManagerUserId(agentId: string): string | null {

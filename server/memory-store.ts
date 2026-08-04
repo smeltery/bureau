@@ -10,21 +10,23 @@ export function isSafeScopeId(id: string): boolean {
   return SAFE_ID.test(id);
 }
 
-export function formatMemoryLine(input: { author: string; date: string; text: string }): string {
-  return `- ${input.author}, ${input.date}: ${input.text}`;
+export function formatMemoryLine(input: { author: string | null; date: string; text: string }): string {
+  return input.author === null ? `- ${input.date}: ${input.text}` : `- ${input.author}, ${input.date}: ${input.text}`;
 }
 
-const LINE_RE = /^- (.+?), (\d{4}-\d{2}-\d{2}): (.*\S)\s*$/;
+const AUTHORLESS_LINE_RE = /^- (\d{4}-\d{2}-\d{2}): (.*\S)\s*$/;
+const AUTHORED_LINE_RE = /^- (.+?), (\d{4}-\d{2}-\d{2}): (.*\S)\s*$/;
 
 export function parseMemoryLine(raw: string, scope: MemoryScope, scopeId: string | null): MemoryItem | null {
-  const match = LINE_RE.exec(raw);
+  const bare = AUTHORLESS_LINE_RE.exec(raw);
+  const match = bare ?? AUTHORED_LINE_RE.exec(raw);
   if (!match) return null;
   return {
     scope,
     scopeId,
-    author: match[1],
-    date: match[2],
-    text: match[3],
+    author: bare ? null : match[1],
+    date: bare ? match[1] : match[2],
+    text: bare ? match[2] : match[3],
     raw: raw.replace(/\s+$/, ""),
   };
 }
@@ -92,7 +94,7 @@ export type MemoryReplaceResult = { ok: true; version: string } | { ok: false; c
 export interface MemoryStore {
   read(scope: MemoryScope, scopeId: string | null): MemoryReadResult;
   readText(scope: MemoryScope, scopeId: string | null): string;
-  append(input: { scope: MemoryScope; scopeId: string | null; author: string; text: string }): MemoryAppendResult;
+  append(input: { scope: MemoryScope; scopeId: string | null; author: string; authorAgentId?: string | null; text: string }): MemoryAppendResult;
   replace(input: { scope: MemoryScope; scopeId: string | null; text: string; author: string; expectedVersion?: string | null }): MemoryReplaceResult;
   findDuplicate(scope: MemoryScope, scopeId: string | null, text: string): MemoryItem | null;
   renderForPrompt(scope: MemoryScope, scopeId: string | null): string | null;
@@ -145,16 +147,17 @@ export function createMemoryStore(deps: MemoryStoreDeps = {}): MemoryStore {
     appendFileSync(path, JSON.stringify(entry) + "\n");
   }
 
-  function append(input: { scope: MemoryScope; scopeId: string | null; author: string; text: string }): MemoryAppendResult {
+  function append(input: { scope: MemoryScope; scopeId: string | null; author: string; authorAgentId?: string | null; text: string }): MemoryAppendResult {
     const date = today();
-    const line = formatMemoryLine({ author: input.author, date, text: input.text });
+    const selfAuthored = input.scope === "agent" && !!input.authorAgentId && input.authorAgentId === input.scopeId;
+    const line = formatMemoryLine({ author: selfAuthored ? null : input.author, date, text: input.text });
     const path = filePath(input.scope, input.scopeId);
     mkdirSync(dirname(path), { recursive: true });
     appendFileSync(path, line + "\n");
     const content = readText(input.scope, input.scopeId);
     const version = versionOf(content);
     logOp({ ts: now(), actor: input.author, scope: input.scope, scopeId: input.scopeId, op: "append", text: input.text, content, version });
-    return { item: { scope: input.scope, scopeId: input.scopeId, author: input.author, date, text: input.text, raw: line }, version };
+    return { item: { scope: input.scope, scopeId: input.scopeId, author: selfAuthored ? null : input.author, date, text: input.text, raw: line }, version };
   }
 
   function replace(input: { scope: MemoryScope; scopeId: string | null; text: string; author: string; expectedVersion?: string | null }): MemoryReplaceResult {
