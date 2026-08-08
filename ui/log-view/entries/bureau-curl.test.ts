@@ -40,6 +40,12 @@ describe("summarizeBureauCurl", () => {
     expect(summarizeBureauCurl("curl -s localhost:4000/api/tasks | awk '{print $1}'")).toBeNull();
   });
 
+  test("shows the steer flag on agent message sends", () => {
+    expect(summarizeBureauCurl(`curl -s -X POST localhost:4000/api/agents/desk-1/messages -d '{"text":"drop everything","steer":true}'`)).toBe(
+      "Bureau API: message agent - text=drop everything, steer=true",
+    );
+  });
+
   test("summarizes JSON bodies fed directly to curl through heredoc stdin", () => {
     expect(
       summarizeBureauCurl(`curl -s -X POST localhost:4000/api/agents/desk-1/messages -d @- <<'JSON'

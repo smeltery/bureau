@@ -3,12 +3,16 @@ import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/type
 import type { BackendSession } from "../../backends/types.ts";
 import { createManagedAgent } from "../../agents/managed-factory.ts";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
-import { agents } from "../../agents/state.ts";
+import { agents, persistAll } from "../../agents/state.ts";
 import { handleAgentsRequest } from "../agents.ts";
 
 afterEach(() => {
   _testResetAgentTokens();
   agents.clear();
+  // enqueueMessage persistAll()s test agents into the real BUREAU_DIR.
+  // Re-persist the cleared map so a later test file whose import graph boots
+  // the server doesn't restore this file's agents into the shared map.
+  persistAll();
 });
 
 function request(path: string, body: unknown, headers: HeadersInit = {}): Request {
@@ -153,6 +157,70 @@ describe("agent message validation", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]).toContain("urgent");
     expect(sent[0]).toContain("queued while you were processing");
+  });
+
+  test("rejects malformed steer flags", async () => {
+    const req = request("/api/agents/agent-1/messages", { text: "hello", steer: "yes" });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(422);
+    expect(await res?.json()).toEqual({ error: "steer must be a boolean" });
+  });
+
+  test("rejects steer flags from user senders", async () => {
+    installBusyAgent("agent-1", []);
+    const req = request("/api/agents/agent-1/messages", { text: "hello", steer: true });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "steer is only supported for agent senders; user senders pass sendNow" });
+  });
+
+  test("rejects steer combined with deliverAt", async () => {
+    installIdleAgent("sender-1");
+    const token = mintAgentToken("sender-1", "user-1");
+    const req = request("/api/agents/receiver-1/messages", { text: "later, loudly", steer: true, deliverAt: "2099-01-01T00:00:00Z" }, { Authorization: `Bearer ${token}` });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "steer cannot be combined with deliverAt; a scheduled message is always delivered as a plain queue" });
+  });
+
+  test("acks report queued for plain bearer sends into a busy receiver", async () => {
+    installBusyAgent("receiver-1", []);
+    installIdleAgent("sender-1");
+    const token = mintAgentToken("sender-1", "user-1");
+    const req = request("/api/agents/receiver-1/messages", { text: "no rush" }, { Authorization: `Bearer ${token}` });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+    const body = await res?.json();
+
+    expect(res?.status).toBe(200);
+    expect(body.queued).toBe(true);
+    expect(body.steered).toBeUndefined();
+    expect(body.steerDeclined).toBeUndefined();
+  });
+
+  test("steered bearer sends interrupt the busy receiver and say so", async () => {
+    const sent: string[] = [];
+    const receiver = installBusyAgent("receiver-1", sent);
+    installIdleAgent("sender-1");
+    const token = mintAgentToken("sender-1", "user-1");
+    const req = request("/api/agents/receiver-1/messages", { text: "drop everything", steer: true }, { Authorization: `Bearer ${token}` });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+    const body = await res?.json();
+    await settleAsyncWork();
+
+    expect(res?.status).toBe(200);
+    expect(body.queued).toBe(false);
+    expect(body.steered).toBe(true);
+    expect(receiver.messageQueue).toEqual([]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toContain("drop everything");
   });
 
   test("dedupes repeated bearer messages with the same client message id", async () => {

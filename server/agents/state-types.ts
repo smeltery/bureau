@@ -65,6 +65,14 @@ export interface ManagedAgent {
   // as the agent transitions to an idle state. In-memory only.
   messageQueue: import("../../shared/types.ts").QueuedMessage[];
   flushInProgress: boolean;
+  // Date.now() of each agent-initiated steer that actually interrupted a turn
+  // of THIS receiver, newest last, pruned to the rate-limit window on each
+  // check. Per receiver across all senders: what the limit protects is this
+  // agent's ability to finish a turn, not any one sender's manners. Only real
+  // interruptions are recorded — a steer at an idle receiver costs it nothing.
+  // In-memory only; a restart starting a fresh window is correct (no turn
+  // survives it to be interrupted). Human "Send now" is not counted or limited.
+  recentSteers: number[];
   // /usage tracking. The SDK's `result` reports session-cumulative totals,
   // which are written to sessions.json on every turn (`usage` field) along
   // with a per-turn snapshot (`usageSnapshots`). /usage reads those entries

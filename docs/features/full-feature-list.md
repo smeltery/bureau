@@ -15,7 +15,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Persistent agent desks with names, rooms, working directories, models,
   topics, and status.
 - Bearer-authenticated agent discovery manifest for inter-agent awareness.
-- Agents can read other agents' logs and send messages to one another.
+- Agents can read other agents' logs and send messages to one another, choosing
+  between queueing behind the receiver's turn and steering (interrupting it,
+  rate-limited, with honest acks).
 - Agents can schedule one-off future messages, including self-reminders.
 - Durable shared memory with office, room, person, and agent scopes. Agents can
   append attributed facts through the local API, users can curate raw memory in

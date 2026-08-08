@@ -40,6 +40,7 @@ export function createManagedAgent(input: {
     ptyBuffer: "",
     messageQueue: [],
     flushInProgress: false,
+    recentSteers: [],
     lastWrittenEntryId: null,
     contextNudgesSent: new Set(),
     pendingContextNotices: [],

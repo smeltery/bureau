@@ -84,14 +84,21 @@ export async function handleAgentBearerPost(req: Request, parts: string[]): Prom
     const text = typeof body.text === "string" ? body.text : null;
     const senderAgentId = typeof body.senderAgentId === "string" ? body.senderAgentId : null;
     if (!text || !senderAgentId) return jsonError(400, "required: text, senderAgentId");
+    if (body.steer !== undefined && typeof body.steer !== "boolean") return jsonError(422, "steer must be a boolean");
     if (identity.agentId !== senderAgentId) return jsonError(403, "token does not match senderAgentId");
     if (senderAgentId === receiverId) return jsonError(400, "cannot send to self");
     const senderInfo = AgentManager.getAgentDisplay(senderAgentId);
     if (!senderInfo) return jsonError(400, "senderAgentId is not a known agent");
-    const result = AgentManager.enqueueMessage(receiverId, {
-      sender: { kind: "agent", agentId: senderAgentId, agentName: senderInfo.name, roomName: senderInfo.roomName },
-      text,
-    });
+    const result = AgentManager.enqueueMessage(
+      receiverId,
+      {
+        sender: { kind: "agent", agentId: senderAgentId, agentName: senderInfo.name, roomName: senderInfo.roomName },
+        text,
+      },
+      // Enqueue and interrupt decided in one manager call — see
+      // enqueueMessage's opts for why this can't be a second request.
+      { steer: body.steer === true },
+    );
     if (!result.ok) return jsonError(result.status, result.error);
     return new Response(JSON.stringify(result), { headers: JSON_HEADERS });
   }

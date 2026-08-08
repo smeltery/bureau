@@ -3,8 +3,31 @@ import { formatAgentSenderPrefix, formatUserPrefix } from "../../../shared/ident
 import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { SessionSwappedError, createSession, installSession } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
+// Circular with control.ts (which imports flushQueue from here); safe because
+// both modules only call across the cycle at request time, never at load time.
+import { sendNow } from "./control.ts";
 
 export const QUEUE_MAX = 50;
+
+// Agent-initiated steering: how many times other agents may interrupt one
+// receiver's turns within a rolling window before further steers degrade to a
+// plain queue. Three per minute leaves room for a correction and a follow-up
+// while stopping a pair of agents from steering each other in a loop, where
+// every abort throws away in-flight work. The message is still accepted either
+// way, so the limit only ever delays it to the receiver's next turn boundary.
+const STEER_RATE_LIMIT = 3;
+const STEER_RATE_WINDOW_MS = 60_000;
+
+// Why a requested steer did not interrupt the receiver. Both reasons degrade
+// to a plain queue rather than failing the send: the message is always
+// accepted, only the interruption is refused.
+//   multi_step_flow — the receiver is part-way through a permission / resume /
+//     model / effort pick, where the next message is read as the pick.
+//     Aborting there would kill a turn and still not deliver (flushQueue
+//     declines to run in a multi-step flow).
+//   rate_limited — too many interruptions of this receiver in the recent
+//     window; letting them through would keep it from ever finishing a turn.
+export type SteerDeclineReason = "multi_step_flow" | "rate_limited";
 
 function generateQueuedId(existing: QueuedMessage[]): string {
   // 6-char hex; retry on collision (extremely unlikely with a Map<= QUEUE_MAX)
@@ -21,11 +44,29 @@ function generateQueuedId(existing: QueuedMessage[]): string {
 // `stopped` agents with 409. The textarea path (sendMessage) is more
 // permissive; it has its own session-recovery branch, but agents benefit from
 // an explicit failure so they can retry or fall back.
-export type EnqueueResult = { ok: true; queued: boolean; messageId: string } | { ok: false; error: string; status: number };
+// `steered` / `steerDeclined` are present only when the caller asked to steer
+// (and never on a deduped retry, which interrupted nobody).
+export type EnqueueResult = { ok: true; queued: boolean; messageId: string; steered?: boolean; steerDeclined?: SteerDeclineReason } | { ok: false; error: string; status: number };
+
+// Steer rate limit. Prunes the receiver's window in place and reports whether
+// another interruption fits. Called only on the path that is about to
+// interrupt, so the pruning cost is bounded by the limit itself.
+function steerRateLimited(managed: ManagedAgent): boolean {
+  const cutoff = Date.now() - STEER_RATE_WINDOW_MS;
+  managed.recentSteers = managed.recentSteers.filter((t) => t > cutoff);
+  return managed.recentSteers.length >= STEER_RATE_LIMIT;
+}
 
 export function enqueueMessage(
   receiverId: string,
   msg: { sender: QueuedSender; text: string; clientMessageId?: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean },
+  // Agent-initiated steering. Set by the inter-agent send routes when the
+  // sender passed "steer":true. Deliberately an option on THIS call rather
+  // than a second request: the decision uses the same state read that picks
+  // flush-vs-queue below, in the same synchronous block as the queue push, so
+  // the receiver cannot go idle (and swallow the message into an ordinary
+  // flush) between the enqueue and the interrupt.
+  opts?: { steer?: boolean },
 ): EnqueueResult {
   const managed = agents.get(receiverId);
   if (!managed) return { ok: false, error: "agent not found", status: 404 };
@@ -35,6 +76,8 @@ export function enqueueMessage(
   }
   if (msg.clientMessageId) {
     const duplicate = managed.messageQueue.find((item) => item.clientMessageId === msg.clientMessageId && sameSender(item.sender, msg.sender));
+    // The duplicate is still sitting in the queue, so queued:true stays
+    // truthful. No steer fields: this retry interrupted nobody.
     if (duplicate) return { ok: true, queued: true, messageId: duplicate.id };
   }
   if (managed.messageQueue.length >= QUEUE_MAX) {
@@ -56,11 +99,38 @@ export function enqueueMessage(
   });
   emitQueueUpdate(receiverId, managed);
   persistAll();
+  const steerRequested = opts?.steer === true;
   if (canFlushNow) {
     flushQueue(receiverId).catch((err: any) => {
       console.error(`flushQueue (post-enqueue) failed for ${receiverId}:`, err.message);
     });
-    return { ok: true, queued: false, messageId: id };
+    // A steer at a receiver that wasn't running a turn interrupts nothing —
+    // reported as steered:false rather than declined, since no guard rail
+    // refused it and the message is being delivered now either way.
+    return { ok: true, queued: false, messageId: id, ...(steerRequested ? { steered: false } : {}) };
+  }
+  if (steerRequested) {
+    // Guard rails, in refusal order. Both leave the message queued (the sender
+    // is told which one fired) rather than failing the send. Multi-step first:
+    // aborting an agent that is answering a pick would end its turn and still
+    // not deliver, since flushQueue declines to run there.
+    if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick) {
+      return { ok: true, queued: true, messageId: id, steered: false, steerDeclined: "multi_step_flow" };
+    }
+    if (steerRateLimited(managed)) {
+      return { ok: true, queued: true, messageId: id, steered: false, steerDeclined: "rate_limited" };
+    }
+    managed.recentSteers.push(Date.now());
+    // Same call the boss's "Send now" makes: abort the in-flight turn, then
+    // flush. Fire-and-forget — sendNow owns its own state handling, and the
+    // ack must not wait on a session replacement. The queue is non-empty (we
+    // just pushed), so sendNow's empty-queue no-op cannot fire.
+    sendNow(receiverId).catch((err: any) => {
+      console.error(`sendNow (steer) failed for ${receiverId}:`, err.message);
+    });
+    // queued:false: the receiver's current turn is being cut short precisely
+    // so this message does NOT wait for it, which is what queued reports.
+    return { ok: true, queued: false, messageId: id, steered: true };
   }
   return { ok: true, queued: true, messageId: id };
 }

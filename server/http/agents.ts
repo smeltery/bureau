@@ -131,6 +131,10 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
         if (!text) return jsonError(400, "text is required");
         const deliverAt = typeof deliverAtRaw === "string" ? parseDeliverAt(deliverAtRaw) : null;
         if (deliverAtRaw !== undefined) {
+          // A scheduled steer would have to decide, minutes or days later,
+          // whether interrupting is still what the sender wanted. Refused
+          // rather than silently dropping one of the two flags.
+          if (body?.steer !== undefined) return jsonError(400, "steer cannot be combined with deliverAt; a scheduled message is always delivered as a plain queue");
           if (typeof deliverAtRaw !== "string" || deliverAt === null) return jsonError(400, "deliverAt must be RFC3339 with a timezone");
           const result = scheduleAgentMessage({
             senderAgentId: bearer.agentId,
@@ -145,15 +149,40 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
         if (bearer.agentId === agentId) return jsonError(400, "cannot send to self");
         const senderInfo = AgentManager.getAgentDisplay(bearer.agentId);
         if (!senderInfo) return jsonError(400, "sender agent is not known");
-        const result = AgentManager.enqueueMessage(agentId, {
-          sender: { kind: "agent", agentId: bearer.agentId, agentName: senderInfo.name, roomName: senderInfo.roomName },
-          text,
-          clientMessageId: typeof body?.clientMessageId === "string" ? body.clientMessageId : undefined,
-        });
+        const result = AgentManager.enqueueMessage(
+          agentId,
+          {
+            sender: { kind: "agent", agentId: bearer.agentId, agentName: senderInfo.name, roomName: senderInfo.roomName },
+            text,
+            clientMessageId: typeof body?.clientMessageId === "string" ? body.clientMessageId : undefined,
+          },
+          // Enqueue and interrupt decided in one manager call — see
+          // enqueueMessage's opts for why this can't be a second request.
+          { steer: body?.steer === true },
+        );
         if (!result.ok) return jsonError(result.status, result.error);
-        return new Response(JSON.stringify({ messageId: result.messageId }), { headers: JSON_HEADERS });
+        // `queued` tells the sender whether the receiver reads this now or
+        // after their current turn: true = parked behind the in-flight turn.
+        // `steered` / `steerDeclined` appear only when the send asked to
+        // steer: steered:true = a turn was interrupted for this message;
+        // steered:false with no reason = there was no turn to interrupt;
+        // steerDeclined = a guard rail refused, and the message is queued.
+        return new Response(
+          JSON.stringify({
+            messageId: result.messageId,
+            queued: result.queued,
+            ...(result.steered === undefined ? {} : { steered: result.steered }),
+            ...(result.steerDeclined === undefined ? {} : { steerDeclined: result.steerDeclined }),
+          }),
+          { headers: JSON_HEADERS },
+        );
       }
       if (deliverAtRaw !== undefined) return jsonError(400, "deliverAt is only supported for agent bearer messages");
+      // steer is the mirror image of sendNow: agent-branch only. A user with
+      // the same intent has sendNow, which is not rate-limited and not refused
+      // mid multi-step flow — a person deciding to interrupt their own agent
+      // is not what the steer guard rails protect against.
+      if (body?.steer !== undefined) return jsonError(400, "steer is only supported for agent senders; user senders pass sendNow");
       const denied = requireUserAgentAccess(auth, agentId);
       if (denied) return denied;
       const username = sessionUser(auth)?.name;
@@ -240,6 +269,7 @@ function malformedMessageFields(body: Record<string, unknown> | null): Response 
   if (body.clientMessageId !== undefined && typeof body.clientMessageId !== "string") return jsonError(422, "clientMessageId must be a string");
   if (body.deliverAt !== undefined && typeof body.deliverAt !== "string") return jsonError(422, "deliverAt must be a string");
   if (body.sendNow !== undefined && typeof body.sendNow !== "boolean") return jsonError(422, "sendNow must be a boolean");
+  if (body.steer !== undefined && typeof body.steer !== "boolean") return jsonError(422, "steer must be a boolean");
   return null;
 }
 

@@ -136,6 +136,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 ### Inter-agent Communication
 - Agents discover each other via a shared manifest (agents-summary.json)
 - Each agent can read every other agent's current conversation logs
+- Agents can message each other directly, choosing between queueing behind the receiver's current turn and steering (interrupting it — rate-limited, with the ack reporting honestly whether the message was delivered, queued, or steered)
 - You can ask one agent "What do you think of Agent X's approach?" and it just works — it reads the other agent's conversation and gives feedback
 - Shared task board: humans and agents can create, assign, claim, and close tasks — full interop via UI and HTTP API
 - Owners can mark selected agents with a privileged operator token from the agent settings dialog. Privileged agents receive explicit system-prompt context and server-side authorization for operator-directed office-management actions; normal agents do not get that authority.
