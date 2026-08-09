@@ -1,18 +1,6 @@
 import type { StorageCategoryId, StorageCategoryWire, StorageUsageWire } from "../../shared/storage-types.ts";
 import { STORAGE_CATEGORY_LABELS, STORAGE_CATEGORY_ORDER } from "../../shared/storage-labels.ts";
-
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  const precision = unit === 0 || value >= 10 || Number.isInteger(value) ? 0 : 1;
-  return `${value.toFixed(precision)} ${units[unit]}`;
-}
+import { formatSize } from "../../shared/format/human.ts";
 
 function formatCount(n: number): string {
   return n.toLocaleString("en-US");
@@ -39,7 +27,7 @@ export function renderStorageReport(usage: StorageUsageWire): string {
   const lines: string[] = [
     "## Bureau storage",
     "",
-    `**${formatBytes(totalBytes)} total:** ${formatBytes(usage.stateRootBytes)} office state + ${formatBytes(backupBytes)} backups.`,
+    `**${formatSize(totalBytes)} total:** ${formatSize(usage.stateRootBytes)} office state + ${formatSize(backupBytes)} backups.`,
     `_Measured ${measuredAt}._`,
     "",
     "| Category | Size | Files |",
@@ -48,11 +36,11 @@ export function renderStorageReport(usage: StorageUsageWire): string {
 
   for (const id of STORAGE_CATEGORY_ORDER) {
     const category = categories.get(id);
-    const size = category?.available === false ? "unavailable" : formatBytes(category?.bytes ?? 0);
+    const size = category?.available === false ? "unavailable" : formatSize(category?.bytes ?? 0);
     const files = category?.available === false ? "-" : formatCount(category?.files ?? 0);
     lines.push(`| ${STORAGE_CATEGORY_LABELS[id]} | ${size} | ${files} |`);
   }
-  lines.push(`| **Total** | **${formatBytes(totalBytes)}** | |`);
+  lines.push(`| **Total** | **${formatSize(totalBytes)}** | |`);
 
   const largestAgents = [...usage.agents].sort((a, b) => b.transcriptBytes + b.attachmentBytes - (a.transcriptBytes + a.attachmentBytes)).slice(0, 10);
   if (largestAgents.length > 0) {
@@ -64,7 +52,7 @@ export function renderStorageReport(usage: StorageUsageWire): string {
     for (const agent of largestAgents) {
       const stored = agent.transcriptBytes + agent.attachmentBytes;
       const lastActivity = agent.lastActivityAt === null ? "-" : new Date(agent.lastActivityAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
-      lines.push(`| \`${escapeCell(agent.agentId)}\` | ${formatBytes(stored)} | ${formatCount(agent.sessions)} | ${escapeCell(lastActivity)} |`);
+      lines.push(`| \`${escapeCell(agent.agentId)}\` | ${formatSize(stored)} | ${formatCount(agent.sessions)} | ${escapeCell(lastActivity)} |`);
     }
   }
 

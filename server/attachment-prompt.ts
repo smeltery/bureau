@@ -1,4 +1,5 @@
 import { getFilePath } from "./persistence.ts";
+import { formatSize } from "../shared/format/human.ts";
 import type { AttachmentSpec } from "./backends/types.ts";
 
 export interface AttachmentNotice {
@@ -37,12 +38,4 @@ export function quoteOneLine(value: string): string {
 function oneLine(value: string): string {
   // eslint-disable-next-line no-control-regex
   return value.replace(/[\u0000-\u001f\u007f\u2028\u2029()"\\]/g, "_");
-}
-
-export function formatSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return "unknown size";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }

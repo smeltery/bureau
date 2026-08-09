@@ -1,6 +1,7 @@
 import { STORAGE_CATEGORY_LABELS, STORAGE_CATEGORY_ORDER } from "../../../shared/storage-labels.ts";
 import type { PruneApplyWire, PrunePlanWire, PruneSkipReason, PruneTarget, StorageCategoryId, StorageCategoryWire, StorageUsageWire } from "../../../shared/storage-types.ts";
 import { dialogCancelBtn, dialogInput } from "./dialog-styles.ts";
+import { formatSize } from "../../../shared/format/human.ts";
 
 export type StoragePhase =
   | { kind: "idle" }
@@ -194,13 +195,6 @@ export function FieldLabel({ children }: { children: React.ReactNode }) {
 
 export function ErrorLine({ children }: { children: React.ReactNode }) {
   return <p style={{ fontSize: 11, color: "#ff6b6b", margin: "8px 0 0", lineHeight: 1.5 }}>{children}</p>;
-}
-
-function formatSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function formatAge(timestamp: number): string {

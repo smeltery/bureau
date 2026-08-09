@@ -2,13 +2,17 @@ import { useCallback } from "react";
 import type { Attachment, LogEntry } from "../../../shared/types.ts";
 import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { formatDuration } from "../../utils/time.ts";
-import { formatFileSize } from "../../utils/format.ts";
+import { formatSize } from "../../../shared/format/human.ts";
 import { serializeEntries } from "./serialize.ts";
 
 export function FileChip({ att, agentId, isMobile }: { att: Attachment; agentId: string; isMobile?: boolean }) {
   const isPdf = att.mediaType === "application/pdf";
   const icon = isPdf ? "📄" : "📎";
-  const sizeStr = formatFileSize(att.size);
+  // A zero-byte attachment shows no size at all (the span below is gated on
+  // this being non-empty). Decided here rather than inside the formatter: the
+  // formatter's job is to render a number, and "0 B" is the honest rendering —
+  // whether a chip bothers mentioning it is this chip's business.
+  const sizeStr = att.size > 0 ? formatSize(att.size) : "";
   const href = `/api/files/${agentId}/${att.filename}`;
   return (
     <a

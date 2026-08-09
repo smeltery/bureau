@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 
 import { BUREAU_DIR } from "./persistence.ts";
-import { formatAttachmentLines, formatSize, quoteOneLine, resolveAttachmentNotices } from "./attachment-prompt.ts";
+import { formatAttachmentLines, quoteOneLine, resolveAttachmentNotices } from "./attachment-prompt.ts";
 
 const TEST_AGENT_ID = `test-attachment-prompt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const FILES_DIR = join(BUREAU_DIR, "logs", TEST_AGENT_ID, "files");
@@ -61,7 +61,7 @@ describe("formatAttachmentLines", () => {
         path: "/state/logs/agent/files/photo.png",
       },
     ]);
-    expect(lines).toEqual(['[Attachment: "photo.png" (image/png, 2.0 KB) saved at "/state/logs/agent/files/photo.png". If your reply depends on it, open it before answering about its contents.]']);
+    expect(lines).toEqual(['[Attachment: "photo.png" (image/png, 2 KB) saved at "/state/logs/agent/files/photo.png". If your reply depends on it, open it before answering about its contents.]']);
   });
 
   test("escapes hostile names and malformed media types", () => {
@@ -79,16 +79,6 @@ describe("formatAttachmentLines", () => {
     expect(line).toContain('\\"name');
     expect(line).toContain("\\n");
     expect(line).toContain("image/png__fake_ _quote_");
-  });
-});
-
-describe("formatSize", () => {
-  test("formats deterministic binary sizes", () => {
-    expect(formatSize(0)).toBe("0 B");
-    expect(formatSize(1023)).toBe("1023 B");
-    expect(formatSize(1024)).toBe("1.0 KB");
-    expect(formatSize(1024 * 1024)).toBe("1.0 MB");
-    expect(formatSize(Number.NaN)).toBe("unknown size");
   });
 });
 
