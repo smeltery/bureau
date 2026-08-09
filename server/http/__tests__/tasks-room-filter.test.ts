@@ -12,6 +12,7 @@ const auth: AuthResult = {
     username: "Boss",
     role: "owner",
     needsRolling: false,
+    absoluteExpiresAt: Date.now() + 86_400_000,
   },
 };
 

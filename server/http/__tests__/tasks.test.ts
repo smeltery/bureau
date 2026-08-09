@@ -14,6 +14,7 @@ const auth: AuthResult = {
     username: "Boss",
     role: "owner",
     needsRolling: false,
+    absoluteExpiresAt: Date.now() + 86_400_000,
   },
 };
 
@@ -315,6 +316,7 @@ function authFor(userId: string, username: string, role: "owner" | "member"): Au
       username,
       role,
       needsRolling: false,
+      absoluteExpiresAt: Date.now() + 86_400_000,
     },
   };
 }

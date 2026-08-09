@@ -11,6 +11,7 @@ const ownerAuth: AuthResult = {
     username: "Owner",
     role: "owner",
     needsRolling: false,
+    absoluteExpiresAt: Date.now() + 86_400_000,
   },
 };
 

@@ -38,13 +38,16 @@ export {
 setHasOwnerProvider(hasOwner);
 export {
   COOKIE_NAME,
+  HOST_COOKIE_NAME,
   buildPublicOrigin,
-  clearCookieHeader,
+  clearCookieHeaders,
   freezeBootState,
   getOfficeName,
   isProcessBoundLoopback,
   isProcessPreClaim,
   readSessionCookie,
+  readSessionCookies,
+  sessionCookieMigrationHeaders,
   setCookieHeader,
   setOfficeName,
   setPublicOriginFallback,

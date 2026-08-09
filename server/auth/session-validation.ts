@@ -12,6 +12,11 @@ export interface SessionLookup {
   username: string;
   role: UserRole;
   needsRolling: boolean;
+  // The session's ABSOLUTE cap (not the rolling expiresAt), so a caller
+  // re-issuing the cookie under a different name anchors Max-Age to the same
+  // moment the original cookie was anchored to — a migration must never
+  // extend a session's life.
+  absoluteExpiresAt: number;
 }
 
 let lastPersist = 0;
@@ -80,5 +85,6 @@ function validateByHash(hash: string): SessionLookup | null {
     username: user.name,
     role: user.role,
     needsRolling,
+    absoluteExpiresAt: session.absoluteExpiresAt,
   };
 }

@@ -9,6 +9,7 @@ const sessionLookup = {
   username: "Boss",
   role: "owner" as const,
   needsRolling: false,
+  absoluteExpiresAt: Date.now() + 86_400_000,
 };
 
 function requestWithCookie(cookie = "session-raw"): Request {

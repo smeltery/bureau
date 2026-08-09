@@ -134,7 +134,7 @@ All three JSON files are written atomically (temp + rename) and serialized under
 
 ## Cookie semantics
 
-- Name: `bureau_session`
+- Name: `__Host-bureau_session`, or `bureau_session` on `http://localhost*`, which cannot carry the `Secure` the prefix requires. The prefix is browser-enforced to be host-only, so a page on a subdomain of the office host cannot write the cookie the office reads. Both names are accepted (the prefixed one wins by presence); an existing session moves onto the prefixed name on its next page load or WebSocket connection, and the legacy cookie is cleared only after the new one is seen coming back — no deployment shape logs anyone out. Sign-out clears both names.
 - Attributes: `HttpOnly; Path=/; SameSite=Lax`
 - `Secure` set when the configured Public URL is `https://`, omitted when the server is on `http://localhost*` (pre-claim, or post-claim with external access off).
 - Rolling expiry: 30 days, refreshed on activity.

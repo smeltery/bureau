@@ -40,6 +40,7 @@ function memberAuth(label: string): BrowserAuth {
       username: user.name,
       role: "member",
       needsRolling: false,
+      absoluteExpiresAt: Date.now() + 86_400_000,
     },
   };
 }

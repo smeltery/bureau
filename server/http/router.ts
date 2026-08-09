@@ -2,7 +2,7 @@ import type { Server } from "bun";
 import { getBackupStatus } from "../backup.ts";
 import { closeEditorWatch, findBrowserConnection, watchEditorFile } from "../editor-watchers.ts";
 import { getVersionInfo } from "../version.ts";
-import { getOfficeName, listActiveSessions, listActiveSessionsForUserId, listInvites, listInvitesForUsername } from "../auth/auth.ts";
+import { getOfficeName, listActiveSessions, listActiveSessionsForUserId, listInvites, listInvitesForUsername, readSessionCookies, sessionCookieMigrationHeaders } from "../auth/auth.ts";
 import { authenticate } from "../auth/auth-middleware.ts";
 import { tryHandleAuthRoute } from "../auth/auth-routes.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "../public-origin.ts";
@@ -56,7 +56,16 @@ export function createFetchHandler() {
       const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
       if (auth.kind === "rejected") return auth.response;
       const session = auth.kind === "ok" ? auth.session : null;
-      if (server.upgrade(req, { data: { session } satisfies WsData })) return;
+      // The __Host- cookie migration rides the 101. This is the seam that
+      // reaches an already-open tab: a running SPA can reconnect its socket
+      // for days without ever loading a page again, so a page-load-only
+      // migration would leave exactly the population the hardening is for.
+      // Multi-value MUST go through Headers.append — an array passed in a
+      // plain object is dropped.
+      const wsMigration = session ? sessionCookieMigrationHeaders(readSessionCookies(req), session) : [];
+      const wsHeaders = new Headers();
+      for (const line of wsMigration) wsHeaders.append("Set-Cookie", line);
+      if (server.upgrade(req, { data: { session } satisfies WsData, ...(wsMigration.length > 0 ? { headers: wsHeaders } : {}) })) return;
       return new Response("WebSocket upgrade failed", { status: 400 });
     }
 
@@ -165,11 +174,18 @@ export function createFetchHandler() {
     if (memoryResp) return memoryResp;
 
     // SPA shell — auth-gated; an unauthenticated visitor lands on the
-    // login page (or the claim form pre-claim).
-    {
-      const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
-      if (auth.kind === "rejected") return auth.response;
+    // login page (or the claim form pre-claim). The shell also carries the
+    // __Host- cookie migration (the seam for a plain page load or reload);
+    // only a cookie-authenticated session migrates — a loopback caller's
+    // incidental cookie is not what authenticated the request.
+    const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
+    if (auth.kind === "rejected") return auth.response;
+    const staticResp = await handleStaticRequest(req, url);
+    if (auth.kind === "ok") {
+      for (const line of sessionCookieMigrationHeaders(readSessionCookies(req), auth.session)) {
+        staticResp.headers.append("Set-Cookie", line);
+      }
     }
-    return handleStaticRequest(req, url);
+    return staticResp;
   };
 }

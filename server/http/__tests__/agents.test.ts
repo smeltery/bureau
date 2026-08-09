@@ -27,26 +27,12 @@ function request(path: string, init: RequestInit = {}): Request {
 
 const ownerAuth: AuthResult = {
   kind: "ok",
-  session: {
-    sessionIdHash: "hash",
-    sessionPrefix: "sess",
-    userId: "owner-1",
-    username: "Owner",
-    role: "owner",
-    needsRolling: false,
-  },
+  session: { sessionIdHash: "hash", sessionPrefix: "sess", userId: "owner-1", username: "Owner", role: "owner", needsRolling: false, absoluteExpiresAt: Date.now() + 86_400_000 },
 };
 
 const memberAuth: AuthResult = {
   kind: "ok",
-  session: {
-    sessionIdHash: "hash",
-    sessionPrefix: "sess",
-    userId: "member-1",
-    username: "Member",
-    role: "member",
-    needsRolling: false,
-  },
+  session: { sessionIdHash: "hash", sessionPrefix: "sess", userId: "member-1", username: "Member", role: "member", needsRolling: false, absoluteExpiresAt: Date.now() + 86_400_000 },
 };
 
 function installAgentWithContext(id: string) {

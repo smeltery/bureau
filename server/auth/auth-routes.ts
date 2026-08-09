@@ -1,5 +1,5 @@
 import type { Server } from "bun";
-import { acceptInvite, clearCookieHeader, logoutBySessionHash, peekInvite, readSessionCookie, setCookieHeader, validateSession, wouldRevokeLeaveOfficeUnreachable } from "./auth.ts";
+import { acceptInvite, clearCookieHeaders, logoutBySessionHash, peekInvite, readSessionCookie, setCookieHeader, validateSession, wouldRevokeLeaveOfficeUnreachable } from "./auth.ts";
 import { renderAcceptPage, renderInviteError, renderLockoutBlocked, securityHeaders } from "./auth-pages.ts";
 import { handleClaim, handleClaimForm, shouldShowClaimForm } from "./auth-claim-routes.ts";
 import { checkAuthRateLimit } from "./auth-rate-limit.ts";
@@ -123,14 +123,13 @@ export async function handleLogout(req: Request, officeName: string | null): Pro
   if (lookup) {
     await logoutBySessionHash(lookup.sessionIdHash);
   }
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: "/",
-      "Set-Cookie": clearCookieHeader(),
-      ...securityHeaders(),
-    },
-  });
+  // Both names, as independent Set-Cookie lines (an object literal can only
+  // carry one). Clearing the name that did NOT authenticate this request is
+  // client-side cleanup only — the session revoked above is the one the
+  // request actually selected.
+  const headers = new Headers({ Location: "/", ...securityHeaders() });
+  for (const line of clearCookieHeaders()) headers.append("Set-Cookie", line);
+  return new Response(null, { status: 302, headers });
 }
 
 // Top-level router used by index.ts: returns null when the path isn't an

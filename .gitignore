@@ -5,3 +5,9 @@ website/.next/
 *.log
 .vercel
 .claude/
+
+# Bun transpiler cache
+.cache/
+
+# Project-local MCP config can carry live credentials
+.mcp.json
