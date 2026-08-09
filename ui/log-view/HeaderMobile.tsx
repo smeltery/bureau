@@ -4,6 +4,7 @@ import { PersonIcon } from "../components/controls/Icons.tsx";
 import { StatusLight } from "../office/scene/StatusLight.tsx";
 import { HeaderTimer, STATE_LABELS } from "./StateIndicators.tsx";
 import { ContextMeter } from "./components/ContextMeter.tsx";
+import { SubscriptionPill } from "./components/SubscriptionPill.tsx";
 import { shortenCwd } from "../cwd-display.ts";
 
 export function HeaderMobile({
@@ -91,6 +92,7 @@ export function HeaderMobile({
             )}
           </span>
           {STATE_LABELS[agent.state] && <HeaderTimer state={agent.state} stateChangedAt={stateChangedAt} />}
+          <SubscriptionPill key={`${agent.id}:${agent.agentType}`} agentId={agent.id} provider={agent.agentType} state={agent.state} isMobile />
           <ContextMeter usage={agent.contextUsage} />
           {onOpenTasks && (
             <button

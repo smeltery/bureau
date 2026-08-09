@@ -86,6 +86,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Browser preview cards** — agents can screenshot local or private development URLs via `POST /api/agents/:id/preview-url` and show the result inline
 - **Readable Bureau API calls** — local `curl` calls to Bureau affordance endpoints show plain-language tool-call summaries instead of raw shell noise
 - **Mermaid diagrams in chat** — agent messages with ` ```mermaid ` fenced blocks render as inline SVG (lazy-loaded, theme-aware). Parse failures show the offending source in-place instead of a silent blank.
+- **Subscription-usage pill** — beside the context battery, a ring showing how much of your Claude or Codex plan allowance the signed-in account has burned (`GET /api/agents/:id/subscription-usage`). The number tracks the most-constrained window by default; the popover lists every window with reset times and a countdown, and lets you pin the limit it follows. Account-wide, not per agent — and it shows `?` rather than disappearing when there is no plan allowance to report (API key, Bedrock, Vertex)
 
 ### 🤝 Collaboration & tasks
 

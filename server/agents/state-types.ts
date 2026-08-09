@@ -1,4 +1,4 @@
-import type { AgentInfo, KilledAgentSummary, LogEntry, RoomWire, SkillInfo } from "../../shared/types.ts";
+import type { AgentInfo, AgentSubscriptionUsage, KilledAgentSummary, LogEntry, RoomWire, SkillInfo } from "../../shared/types.ts";
 import type { BackendSession } from "../backends/types.ts";
 
 // Internal agent state
@@ -81,6 +81,22 @@ export interface ManagedAgent {
   lastWrittenEntryId: string | null;
   contextNudgesSent: Set<50 | 75>;
   pendingContextNotices: string[];
+  // --- Subscription-allowance usage (the pill next to the context battery).
+  // Latest committed reading for the ACCOUNT this agent's backend is signed in
+  // to, or null/absent when there is none (Claude API-key/Bedrock/Vertex
+  // sessions, Codex before any rate-limit payload, backend call failed).
+  // Deliberately NOT tied to the conversation: quota is account-scoped, so
+  // /clear, fork and same-engine resume leave it alone. In-memory only; lost on
+  // server restart and repopulated on the next read. `...Account` is the engine
+  // the reading was taken under, so an engine switch (a different provider
+  // account) invalidates it; the two seqs keep a slow older sample from
+  // overwriting a newer reading, in either direction. Optional so every
+  // ManagedAgent construction site stays untouched — the commit protocol in
+  // server/backends/subscription-usage.ts treats absent as "nothing yet".
+  subscriptionUsage?: AgentSubscriptionUsage | null;
+  subscriptionUsageAccount?: string | null;
+  subscriptionSampleSeq?: number;
+  subscriptionCommittedSeq?: number;
   // --- Truthful wake-up notice.
   // The wake-up line waiting to ride out on the next message, or null when the
   // wake had nothing to warn about (idle eviction, fresh session). Armed by the

@@ -35,6 +35,7 @@ import { readAgentLogsIsolated } from "../agents/log-search-runner.ts";
  *   DELETE /api/agents/:id/scheduled-messages/:msg — cancel a pending scheduled message.
  *   PATCH /api/agents/:id/messages/:entry — edit a prior user message.
  *   GET  /api/agents/:id/logs             — index, search, or retrieve persisted logs.
+ *   GET  /api/agents/:id/subscription-usage — read the account's plan-allowance usage.
  *   GET  /api/agents/:id/sessions         — list resumable sessions.
  *   POST /api/agents/:id/resume           — resume a session.
  *   POST /api/agents/:id/new-conversation — start a fresh session.

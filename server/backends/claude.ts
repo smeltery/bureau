@@ -11,6 +11,7 @@ import { FAMILY_TO_MODEL, MODEL_FAMILIES, type ModelFamily } from "../../shared/
 import { CLAUDE_NATIVE_BIN } from "../agents/session/claude-native.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
 import { isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
+import { createClaudeSubscriptionUsageReader, type ClaudeUsageCapableQuery } from "./claude-subscription-usage.ts";
 import { buildUserMessage, extractMessageText, normalizeClaudeMessage, TaskBreadcrumbTracker } from "./claude-messages.ts";
 import { RawClaudeSession, runClaudeOneShot } from "./claude-raw-session.ts";
 import type {
@@ -29,6 +30,7 @@ import type {
   NormalizedMessage,
   OneShotOptions,
   PermissionModeOption,
+  SubscriptionUsageResult,
 } from "./types.ts";
 
 export { runClaudeOneShot } from "./claude-raw-session.ts";
@@ -77,6 +79,10 @@ class ClaudeBackendSession implements BackendSession {
   private pendingApprovals = new Map<string, { input: Record<string, unknown>; suggestions?: PermissionUpdate[]; resolve: (r: PermissionResult) => void }>();
   private readonly raw: RawClaudeSession;
   private readonly taskBreadcrumbs = new TaskBreadcrumbTracker();
+  // Plan-allowance reader (throttled + single-flight; see the module for why
+  // the SDK method is looked up by typeof on every call). The thunk defers the
+  // query lookup so field initialization order doesn't matter.
+  private readonly subscriptionUsage = createClaudeSubscriptionUsageReader(() => this.raw.query as ClaudeUsageCapableQuery);
 
   constructor(
     private readonly opts: CreateSessionOptions,
@@ -116,6 +122,12 @@ class ClaudeBackendSession implements BackendSession {
       isAutoCompactEnabled: ctx.isAutoCompactEnabled,
       autoCompactThreshold: ctx.autoCompactThreshold,
     };
+  }
+
+  // Plan-allowance usage of the signed-in claude.ai account (tri-state; see
+  // SubscriptionUsageResult).
+  async getSubscriptionUsage(): Promise<SubscriptionUsageResult> {
+    return this.subscriptionUsage();
   }
 
   async send(text: string, attachments?: AttachmentSpec[]): Promise<void> {

@@ -1,4 +1,6 @@
 import * as AgentManager from "../agent-manager.ts";
+import { agents } from "../agents/state.ts";
+import { refreshSubscriptionUsage } from "../backends/subscription-usage.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import type { AgentInfo } from "../../shared/types.ts";
@@ -105,6 +107,20 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
     if (denied) return denied;
     AgentManager.resetTopic(agentId);
     return new Response(null, { status: 204, headers: JSON_HEADERS });
+  }
+
+  // The account-scoped plan allowance behind the header's usage pill. PULLED
+  // rather than pushed: the value describes the provider account rather than
+  // this conversation, the backends police their own cost (Claude throttles its
+  // control RPC, Codex reads rate limits its app-server already pushed), and the
+  // committed reading lives on the ManagedAgent so it survives /clear, fork and
+  // same-engine resume. `usage: null` is the honest "nothing to show" answer —
+  // the pill renders its unknown state rather than disappearing.
+  if (req.method === "GET" && parts.length === 3 && parts[2] === "subscription-usage") {
+    const denied = requireUserAgentAccess(auth, agentId);
+    if (denied) return denied;
+    const usage = await refreshSubscriptionUsage(agents.get(agentId));
+    return new Response(JSON.stringify({ usage }), { headers: JSON_HEADERS });
   }
 
   if (req.method === "GET" && parts.length === 3 && parts[2] === "sessions") {

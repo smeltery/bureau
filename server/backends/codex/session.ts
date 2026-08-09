@@ -25,11 +25,13 @@
 import { errMessage } from "../../../shared/errors.ts";
 import { BackendNotConfiguredError } from "../../internal-types.ts";
 
-import type { ApprovalDecision, AttachmentSpec, BackendSession, NormalizedEvent } from "../types.ts";
+import type { ApprovalDecision, AttachmentSpec, BackendSession, NormalizedEvent, SubscriptionUsageResult } from "../types.ts";
+import type { GetAccountRateLimitsResponse } from "./_generated/v2/GetAccountRateLimitsResponse.ts";
 
 import { JsonRpcLiteClient, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
 import { mapApprovalDecision } from "./approvals.ts";
 import { buildCodexUserInput } from "./user-input.ts";
+import { CodexRateLimitTracker } from "./session-rate-limits.ts";
 import { CodexUsageTracker } from "./session-usage.ts";
 import { CodexAuthSignalGate } from "./session-auth-gate.ts";
 import { rejectPendingApprovalsOnClose, resolvePendingApprovalsOnAbort } from "./session-approval-cleanup.ts";
@@ -76,6 +78,7 @@ export class CodexSession implements BackendSession {
   // orchestrator references these by approvalId == jsonRpcId.
   private pendingApprovals = new Map<string, PendingApproval>();
   private usage = new CodexUsageTracker();
+  private rateLimits = new CodexRateLimitTracker();
   // Resolves when bootstrap (initialize + thread/start) completes — success
   // or failure. send() / approve() / abort() await this so they don't race
   // the async setup. On failure threadId stays null; callers see a clear
@@ -234,6 +237,16 @@ export class CodexSession implements BackendSession {
     return this.usage.getContextUsage(this.opts.modelFamily);
   }
 
+  // Plan allowance for the signed-in ChatGPT account. Served from the pushed
+  // rate-limit cache; the read below only covers the pre-push gap.
+  async getSubscriptionUsage(): Promise<SubscriptionUsageResult> {
+    return this.rateLimits.read(async () => {
+      await this.bootstrapPromise;
+      if (this.closed || this.bootstrapError) return null;
+      return this.client.request<GetAccountRateLimitsResponse>("account/rateLimits/read");
+    });
+  }
+
   // -------------------------------------------------------------------------
   // Buffer / wake helpers
   // -------------------------------------------------------------------------
@@ -265,6 +278,7 @@ export class CodexSession implements BackendSession {
       selfInterruptedForAuth: this.authGate.selfInterruptedForAuth,
       authSignalEmittedThisTurn: this.authGate.authSignalEmittedThisTurn,
       usage: this.usage,
+      rateLimits: this.rateLimits,
       setActiveTurnId: (turnId) => {
         this.activeTurnId = turnId;
       },

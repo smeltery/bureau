@@ -7,6 +7,7 @@ import { HeaderTopic } from "./HeaderTopic.tsx";
 import { HeaderMobile } from "./HeaderMobile.tsx";
 import { HeaderActions } from "./header/HeaderActions.tsx";
 import { ContextMeter } from "./components/ContextMeter.tsx";
+import { SubscriptionPill } from "./components/SubscriptionPill.tsx";
 import { shortenCwd } from "../cwd-display.ts";
 
 export function Header({
@@ -134,6 +135,14 @@ export function Header({
         >
           {familyDisplayLabel(agent.modelFamily)}
         </span>
+        <SubscriptionPill
+          // Remount on agent/engine change so the pinned-limit state is
+          // re-read for the new identity instead of being synced.
+          key={`${agent.id}:${agent.agentType}`}
+          agentId={agent.id}
+          provider={agent.agentType}
+          state={agent.state}
+        />
         <ContextMeter usage={agent.contextUsage} />
       </div>
       <HeaderActions

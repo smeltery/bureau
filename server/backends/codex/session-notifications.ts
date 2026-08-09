@@ -3,7 +3,9 @@ import type { JsonRpcNotification } from "./client-types.ts";
 import { translateCompletedItem } from "./completed-items.ts";
 import { AUTH_ERROR_PATTERNS } from "./config.ts";
 import { mapTurnStatus } from "./protocol-format.ts";
+import type { CodexRateLimitTracker } from "./session-rate-limits.ts";
 import type { CodexUsageTracker } from "./session-usage.ts";
+import type { AccountRateLimitsUpdatedNotification } from "./_generated/v2/AccountRateLimitsUpdatedNotification.ts";
 import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/ThreadTokenUsageUpdatedNotification.ts";
 
 export interface CodexNotificationDeps {
@@ -11,6 +13,7 @@ export interface CodexNotificationDeps {
   selfInterruptedForAuth: boolean;
   authSignalEmittedThisTurn: boolean;
   usage: CodexUsageTracker;
+  rateLimits: CodexRateLimitTracker;
   setActiveTurnId(turnId: string | null): void;
   clearTurnInFlight(): void;
   resetAuthTurnState(): void;
@@ -143,6 +146,17 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
     case "item/reasoning/textDelta":
     case "item/reasoning/summaryTextDelta":
       break;
+
+    // ---- Subscription rate limits ----
+    // Account-scoped, so it carries no threadId and the per-thread filter
+    // above lets it through. Codex pushes these as SPARSE rolling updates:
+    // a field that arrives null means "unknown right now", not "cleared",
+    // hence applyUpdate's field-by-field merge rather than an assignment.
+    case "account/rateLimits/updated": {
+      const notif = params as AccountRateLimitsUpdatedNotification | null | undefined;
+      if (notif?.rateLimits) deps.rateLimits.applyUpdate(notif.rateLimits);
+      break;
+    }
 
     // ---- Mid-conversation compaction ----
     case "thread/compacted": {
