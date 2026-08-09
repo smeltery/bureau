@@ -21,7 +21,21 @@
 
 import type { AgentCapabilities } from "../../shared/types.ts";
 import type { BackendSession, NormalizedMessage } from "./session-types.ts";
-export type { ApprovalDecision, AttachmentSpec, BackendSession, ContextUsage, NormalizedEvent, NormalizedMessage, TokenUsage } from "./session-types.ts";
+export type {
+  ApprovalDecision,
+  AttachmentSpec,
+  BackendSession,
+  ContextUsage,
+  NormalizedEvent,
+  NormalizedMessage,
+  // Re-exported so backend code can name it without reaching into shared/. The
+  // wire/disk shape lives there because it travels as LogEntry.metadata.subagent.
+  SubagentOrigin,
+  SubscriptionUsage,
+  SubscriptionUsageResult,
+  SubscriptionUsageWindow,
+  TokenUsage,
+} from "./session-types.ts";
 export type BackendCapabilities = AgentCapabilities;
 
 // ---------------------------------------------------------------------------

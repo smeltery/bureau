@@ -2,6 +2,7 @@ import type { LogEntry } from "../../../shared/types.ts";
 import { UserMessage, EditableUserMessage } from "./UserMessage.tsx";
 import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage, TaskBreadcrumb, PermissionDeniedCard } from "./AssistantEntries.tsx";
 import { findMatchingToolResult, isFoldedToolResult, ToolCall, ToolResult } from "./ToolEntries.tsx";
+import { subagentOf } from "./subagentOrigin.ts";
 import { DiffCard } from "../DiffCard.tsx";
 import { EditRequestCard } from "../EditRequestCard.tsx";
 import { FileViewCard } from "../FileViewCard.tsx";
@@ -84,6 +85,7 @@ export function LogEntryCard({
           resultContent={matchingResult?.content}
           resultIsError={resultIsError}
           durationMs={durationMs}
+          subagent={subagentOf(entry)}
           isLastInTurn={isLastInTurn}
           turnEntries={turnEntries}
           isMobile={isMobile}

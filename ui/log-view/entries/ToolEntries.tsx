@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { LogEntry } from "../../../shared/types.ts";
+import type { LogEntry, SubagentOrigin } from "../../../shared/types.ts";
 import { summarizeBureauCurl } from "./bureau-curl.ts";
 import { AttachmentDisplay, DurationLabel, TurnCopyButton } from "./shared.tsx";
+import { subagentOf, subagentPillLabel, subagentPillTitle } from "./subagentOrigin.ts";
 
 function extractToolSummary(toolName: string, input: unknown): string {
   if (!input || typeof input !== "object") return "";
@@ -53,6 +54,35 @@ export function findMatchingToolResult(toolCallEntry: LogEntry, turnEntries: Log
   return turnEntries.find((e) => e.kind === "tool_result" && e.metadata?.toolUseId === toolId);
 }
 
+/**
+ * Marks a card as a subagent's work. Claude's Agent tool runs its own tool
+ * calls and the SDK forwards them on the parent's stream, so without this the
+ * subagent's Bash/Read run reads as the agent's own.
+ */
+function SubagentPill({ origin, isMobile }: { origin: SubagentOrigin; isMobile?: boolean }) {
+  return (
+    <span
+      title={subagentPillTitle(origin)}
+      style={{
+        flexShrink: 0,
+        maxWidth: isMobile ? 120 : 160,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        padding: "0 5px",
+        borderRadius: 4,
+        border: "1px solid var(--border-light)",
+        background: "var(--bg-subtle)",
+        color: "var(--text-dim)",
+        fontSize: isMobile ? 11 : 10,
+        fontWeight: 500,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {subagentPillLabel(origin)}
+    </span>
+  );
+}
+
 export function ToolCall({
   name,
   input,
@@ -60,6 +90,7 @@ export function ToolCall({
   resultContent,
   resultIsError,
   durationMs,
+  subagent,
   isLastInTurn,
   turnEntries,
   isMobile,
@@ -70,6 +101,7 @@ export function ToolCall({
   resultContent?: string;
   resultIsError?: boolean;
   durationMs?: number;
+  subagent?: SubagentOrigin;
   isLastInTurn?: boolean;
   turnEntries?: LogEntry[];
   isMobile?: boolean;
@@ -82,7 +114,15 @@ export function ToolCall({
   const textColor = resultIsError ? "var(--red)" : "var(--green)";
 
   return (
-    <div style={{ margin: "2px 0", position: "relative" }}>
+    <div
+      style={{
+        margin: "2px 0",
+        position: "relative",
+        // Subagent calls step in behind a rule, so a run of them reads as one
+        // block instead of as the agent's own work interleaved at top level.
+        ...(subagent && { marginLeft: 12, paddingLeft: 8, borderLeft: "2px solid var(--border-light)" }),
+      }}
+    >
       <button
         onClick={() => setOpen(!open)}
         style={{
@@ -103,6 +143,7 @@ export function ToolCall({
         }}
       >
         <span style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", display: "inline-block", fontSize: 8 }}>&#9654;</span>
+        {subagent && <SubagentPill origin={subagent} isMobile={isMobile} />}
         <span style={{ fontWeight: 600 }}>{name}</span>
         {summary && (
           <span style={{ color: "var(--text-faint)", marginLeft: 4, fontSize: isMobile ? 13 : 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{summary}</span>
@@ -176,6 +217,9 @@ export function ToolResult({ entry, isLastInTurn, turnEntries, isMobile }: { ent
   const showText = !hasMatchingToolCall || isError;
   const borderColor = isError ? "var(--red)" : "var(--green-border)";
   const textColor = isError ? "var(--red)" : "var(--text-dim)";
+  // Only unpaired or errored results reach this branch; the rest fold into
+  // their tool_call card, which carries the pill itself.
+  const subagent = subagentOf(entry);
   const calledPath = (matchingToolCall?.metadata?.input as { file_path?: unknown } | undefined)?.file_path;
   const calledFilename = typeof calledPath === "string" ? calledPath.split(/[\\/]/).pop() : null;
   const isAttachmentEcho =
@@ -198,8 +242,15 @@ export function ToolResult({ entry, isLastInTurn, turnEntries, isMobile }: { ent
         color: textColor,
         lineHeight: 1.5,
         position: "relative",
+        // Line up under the indented subagent tool_call card above it.
+        ...(subagent && { marginLeft: 32 }),
       }}
     >
+      {subagent && (
+        <div style={{ marginBottom: 4 }}>
+          <SubagentPill origin={subagent} isMobile={isMobile} />
+        </div>
+      )}
       {showText && content && <div style={{ whiteSpace: "pre-wrap", overflowX: "auto", maxWidth: "100%" }}>{open ? content : preview}</div>}
       {showText && isLong && (
         <button

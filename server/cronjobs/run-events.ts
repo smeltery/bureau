@@ -56,7 +56,10 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
       writeLog(active, "thinking", ev.text, emitEvent, ev.durationMs != null ? { duration_ms: ev.durationMs } : undefined);
       break;
     case "tool_call":
-      writeLog(active, "tool_call", ev.name, emitEvent, { toolId: ev.toolUseId, input: ev.input });
+      // metadata.subagent marks a call the run's SUBAGENT made rather than the
+      // run itself. Absent for its own calls, for Codex, and for every entry
+      // written before this field existed.
+      writeLog(active, "tool_call", ev.name, emitEvent, { toolId: ev.toolUseId, input: ev.input, ...(ev.subagent ? { subagent: ev.subagent } : {}) });
       break;
     case "tool_result":
       writeLog(
@@ -64,7 +67,12 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
         "tool_result",
         ev.content.slice(0, 10000),
         emitEvent,
-        { toolUseId: ev.toolUseId, ...(ev.durationMs != null ? { duration_ms: ev.durationMs } : {}), ...(ev.isError != null ? { isError: ev.isError } : {}) },
+        {
+          toolUseId: ev.toolUseId,
+          ...(ev.durationMs != null ? { duration_ms: ev.durationMs } : {}),
+          ...(ev.isError != null ? { isError: ev.isError } : {}),
+          ...(ev.subagent ? { subagent: ev.subagent } : {}),
+        },
         ev.attachments,
       );
       break;

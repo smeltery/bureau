@@ -3,7 +3,26 @@ import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages/mes
 
 import { formatAttachmentLines, resolveAttachmentNotices } from "../attachment-prompt.ts";
 import { saveFile } from "../persistence.ts";
-import type { AttachmentSpec, NormalizedEvent } from "./types.ts";
+import type { AttachmentSpec, NormalizedEvent, SubagentOrigin } from "./types.ts";
+
+// Which loop produced an assistant/user message. The SDK sets
+// `parent_tool_use_id` to the Agent/Task tool_use id when the message comes
+// from a subagent, and null when it comes from the agent's own loop. Subagent
+// tool calls ride the SAME message stream as the parent's (the SDK forwards
+// tool_use/tool_result blocks from subagents unconditionally; only their text
+// is gated behind `forwardSubagentText`), so without this the transcript reads
+// as one flat run of tool calls with no way to tell who made them.
+//
+// `subagent_type` and `task_description` are model-authored free text, so they
+// go through the same one-line cap as the task breadcrumbs. Older SDKs omit
+// both; the parent id alone is still enough to mark the call.
+function subagentOriginOf(msg: { parent_tool_use_id?: string | null; subagent_type?: string; task_description?: string }): SubagentOrigin | undefined {
+  const parentToolUseId = msg.parent_tool_use_id;
+  if (!parentToolUseId) return undefined;
+  const type = msg.subagent_type ? sanitizeTaskLabel(msg.subagent_type) : "";
+  const description = msg.task_description ? sanitizeTaskLabel(msg.task_description) : "";
+  return { parentToolUseId, ...(type ? { type } : {}), ...(description ? { description } : {}) };
+}
 
 export function normalizeClaudeMessage(msg: SDKMessage, agentId: string): NormalizedEvent[] {
   switch (msg.type) {
@@ -32,9 +51,10 @@ export function normalizeClaudeMessage(msg: SDKMessage, agentId: string): Normal
       const content = message?.content;
       if (!Array.isArray(content)) return [];
       const isSynthetic = message?.model === "<synthetic>";
+      const subagent = subagentOriginOf(msg as any);
       return content.flatMap((block: any): NormalizedEvent[] => {
         if (block.type === "text" && block.text) return [{ kind: isSynthetic ? "system_text" : "assistant_text", text: block.text }];
-        if (block.type === "tool_use") return [{ kind: "tool_call", toolUseId: block.id, name: block.name, input: block.input ?? {} }];
+        if (block.type === "tool_use") return [{ kind: "tool_call", toolUseId: block.id, name: block.name, input: block.input ?? {}, ...(subagent ? { subagent } : {}) }];
         if (block.type === "thinking" && block.thinking) return [{ kind: "thinking", text: block.thinking }];
         return [];
       });
@@ -42,6 +62,7 @@ export function normalizeClaudeMessage(msg: SDKMessage, agentId: string): Normal
     case "user": {
       const content = (msg as any).message?.content;
       if (!Array.isArray(content)) return [];
+      const subagent = subagentOriginOf(msg as any);
       return content
         .filter((block: any) => block.type === "tool_result")
         .map((block: any) => {
@@ -60,6 +81,7 @@ export function normalizeClaudeMessage(msg: SDKMessage, agentId: string): Normal
             content: text,
             attachments: attachmentsFromClaudeToolResult(agentId, block.content),
             isError: block.is_error,
+            ...(subagent ? { subagent } : {}),
           };
         });
     }

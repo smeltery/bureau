@@ -83,6 +83,40 @@ export interface AgentContextUsageSnapshot {
   sampledAtMs: number;
 }
 
+// One plan-allowance window (Claude's five_hour / seven_day / per-model
+// windows, Codex's primary / secondary rate-limit windows). `usedPercent` is
+// the backend's raw float (0..100) — round only for display, same rule as
+// AgentContextUsageSnapshot.percentage.
+export interface AgentSubscriptionWindow {
+  // Display label already resolved server-side ("Weekly", "5-hour",
+  // "Weekly (Opus)"), so the UI never has to know per-backend window names.
+  label: string;
+  usedPercent: number;
+  resetsAtMs: number | null; // epoch ms, or null when the backend omits it
+}
+
+// How much of the BACKEND ACCOUNT's subscription allowance has been burned.
+// Account-scoped, NOT conversation-scoped: every agent signed in to the same
+// claude.ai account / CODEX_HOME reports the same figure, and it deliberately
+// survives /clear, fork and resume (the quota doesn't reset when a
+// conversation does). Null means there is nothing to show — an API key /
+// Bedrock / Vertex Claude session, Codex before any rate-limit data has
+// arrived, or a fresh server restart — and the pill renders its unknown state
+// rather than disappearing.
+export interface AgentSubscriptionUsage {
+  // Backend-reported plan name ("max", "pro", "plus", ...), or null.
+  plan: string | null;
+  // At least one entry whenever this object exists, in a stable display order
+  // (the plan-shaped window first). Every entry is a popover row.
+  windows: AgentSubscriptionWindow[];
+  // Index into `windows` of the one the PILL shows: whichever is closest to
+  // its limit, picked server-side. Named explicitly rather than relying on
+  // windows[0], because display order and "the binding window" are different
+  // questions and the UI must not have to guess which it's being handed.
+  primaryIndex: number;
+  sampledAtMs: number;
+}
+
 // A pending message waiting for the agent to finish its current turn.
 // Senders can be human bosses (typed at the textarea) or other agents
 // (POST /api/agents/:id/messages); both go through the same queue and flush

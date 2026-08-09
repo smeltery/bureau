@@ -21,6 +21,8 @@ export type {
   AgentInfo,
   AgentOutfit,
   AgentState,
+  AgentSubscriptionUsage,
+  AgentSubscriptionWindow,
   KilledAgentSummary,
   MemoryItem,
   MemoryScope,
@@ -36,7 +38,7 @@ export type { AgentCapabilities, AgentPermissionMode, ClaudeModel, ClaudePermiss
 export { cronjobRunStreamId, humanizeSchedule, parseStreamId } from "./cronjobs.ts";
 export type { Cronjob, CronjobPermissionMode, CronjobRun, CronjobRunStatus, CronjobRunTrigger, Schedule } from "./cronjobs.ts";
 export type { CCAvailablePlugin, CCInstalledPlugin, CCMarketplace, CCPluginScope, CCPluginsState } from "./cc-plugin-types.ts";
-export type { Attachment, DiffFileSummary, DiffPayload, FilePayload, LogEntry, TerminalCommandPayload } from "./log-types.ts";
+export type { Attachment, DiffFileSummary, DiffPayload, FilePayload, LogEntry, SubagentOrigin, TerminalCommandPayload } from "./log-types.ts";
 export { generateHexId, generateTaskId, isValidPriority, isValidStatus } from "./tasks.ts";
 export type { TaskItem, TaskPriority, TaskStatus } from "./tasks.ts";
 export type { InviteWire, OfficeSettings, PresenceInfo, RoomWire, SessionContext, SessionWire, UserRecord, UserRole } from "./user-types.ts";

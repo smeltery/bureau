@@ -124,7 +124,10 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
     case "tool_call": {
       const managed = agents.get(agentId);
       if (managed) managed.toolCallTimestamps.set(ev.toolUseId, Date.now());
-      addLogEntry(agentId, "tool_call", ev.name, { toolId: ev.toolUseId, input: ev.input });
+      // metadata.subagent marks a call the agent's SUBAGENT made rather than
+      // the agent itself. Absent for the agent's own calls, for Codex, and
+      // for every entry written before this field existed.
+      addLogEntry(agentId, "tool_call", ev.name, { toolId: ev.toolUseId, input: ev.input, ...(ev.subagent ? { subagent: ev.subagent } : {}) });
       break;
     }
     case "tool_result": {
@@ -136,7 +139,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         agentId,
         "tool_result",
         ev.content.slice(0, 10000),
-        { toolUseId: ev.toolUseId, ...(duration_ms != null ? { duration_ms } : {}), ...(ev.isError != null ? { isError: ev.isError } : {}) },
+        { toolUseId: ev.toolUseId, ...(duration_ms != null ? { duration_ms } : {}), ...(ev.isError != null ? { isError: ev.isError } : {}), ...(ev.subagent ? { subagent: ev.subagent } : {}) },
         ev.attachments,
       );
       break;
