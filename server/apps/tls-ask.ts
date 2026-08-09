@@ -35,8 +35,8 @@
 // through Tailscale has no app-host domain at all, so the gate refuses
 // everything and nothing ever asks.
 
-import { matchAppHost, normalizeRequestHost } from "./host-match.ts";
-import { APP_RESERVED_PATH } from "./host-auth-cookie.ts";
+import { matchAppHost, normalizeRequestHost } from "./host/match.ts";
+import { APP_RESERVED_PATH } from "./host/auth-cookie.ts";
 import type { CertAdmission } from "./registry.ts";
 
 // Where the office answers. Under the same prefix the app-host arm reserves, so
