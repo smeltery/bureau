@@ -9,6 +9,7 @@ import { join as joinPath } from "path";
 import { onUpdateChange, startUpdateChecker } from "./update-checker.ts";
 import { startBackupScheduler } from "./backup.ts";
 import { reconcileAppsAtBoot } from "./apps/boot.ts";
+import { freezeAppHostDomain } from "./apps/domain.ts";
 import { broadcast } from "./ws/broadcast.ts";
 export { editorWatchers } from "./editor-watchers.ts";
 export { pushPresenceListToEachWs, sendInitialPayload } from "./ws-initial-payload.ts";
@@ -38,6 +39,13 @@ if (Bun.argv[2] === "owner-login") {
 }
 
 initializeAccessConfig();
+
+// Resolve the domain an office's apps hang off, ONCE, and only now: the
+// derivation reads buildPublicOrigin, which does not answer for this boot until
+// the line above has frozen the access config. Everything that writes an app's
+// address into its unit — registration, reinstall, the boot pass below — reads
+// this frozen value. See server/apps/domain.ts.
+freezeAppHostDomain();
 
 installAuthCallbacks(() => AgentManager.getRooms());
 

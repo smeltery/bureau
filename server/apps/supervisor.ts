@@ -57,15 +57,11 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, wri
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { BUREAU_DIR, DEFAULT_BUREAU_DIR, atomicWriteFileSync } from "../persistence/paths.ts";
+import { appHostDomain, appPublicUrl } from "./domain.ts";
 import type { AppRecord, AppErrorCode, AppState } from "../../shared/apps.ts";
 
 // Whether this office runs on the default state root (no BUREAU_HOME override).
 const IS_DEFAULT_STATE_ROOT = BUREAU_DIR === DEFAULT_BUREAU_DIR;
-
-// App-host arm lands later: no app hostnames yet, so no BUREAU_APP_URL is
-// ever injected and every app's public URL is null. The seam stays so the
-// unit renderer doesn't change shape when the arm lands.
-const appPublicUrl = (_app: AppRecord): string | null => null;
 
 // --- constants --------------------------------------------------------------
 
@@ -621,7 +617,7 @@ export interface AppSupervisor {
   // token forever.
   unitInjectsToken(appName: string): boolean;
   // The app's INSTALLED unit file, verbatim, or null when there is none. Boot
-  // URL reconciliation (arrives with the app-host arm) is the only caller: it
+  // URL reconciliation (server/apps/url-reconcile.ts) is the only caller: it
   // reads the bytes to decide whether the unit still declares the right
   // address, and keeps them so a restart it could not complete can be undone.
   readUnitFile(appName: string): string | null;
@@ -667,6 +663,13 @@ export interface AppSupervisorOptions {
   runtimeBinDir?: string;
   now?: () => number;
   cacheMs?: number;
+  // The office's app-host domain, read whenever a unit is written. A function
+  // rather than a value because the production supervisor is built at import
+  // time and the domain is frozen later, at boot - and it defaults to the real
+  // one, which THROWS before that freeze, rather than to null: a default that
+  // answered "no domain" would turn app URLs off silently on a deployment that
+  // has them.
+  appHostDomain?: () => string | null;
 }
 
 export function createAppSupervisor(options: AppSupervisorOptions = {}): AppSupervisor {
@@ -675,6 +678,7 @@ export function createAppSupervisor(options: AppSupervisorOptions = {}): AppSupe
   const runtimeBinDir = options.runtimeBinDir ?? dirname(process.execPath);
   const now = options.now ?? (() => Date.now());
   const cacheMs = options.cacheMs ?? APP_STATE_CACHE_MS;
+  const hostDomain = options.appHostDomain ?? appHostDomain;
 
   const unitName = (appName: string) => unitNameFor(prefix, appName);
   const unitPath = (appName: string) => join(host.unitDir, unitName(appName));
@@ -806,9 +810,8 @@ export function createAppSupervisor(options: AppSupervisorOptions = {}): AppSupe
           tokenEnvPath: tokenEnvPath(app.name),
           // Read here, at every write, rather than captured once: install,
           // reinstall and regenerate then cannot produce units that disagree
-          // about the app's address. (Null until the app-host arm lands - see
-          // appPublicUrl at the top.)
-          appUrl: appPublicUrl(app),
+          // about the app's address.
+          appUrl: appPublicUrl(app.hostLabel, hostDomain()),
         }),
       ),
     );

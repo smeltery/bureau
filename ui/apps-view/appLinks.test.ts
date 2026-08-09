@@ -1,6 +1,6 @@
-// Where the Apps tab's name link points. Bureau has no app hostnames yet, so
-// this is the port link and only the port link — the interesting case is a
-// tailnet office, where the obvious href is unreachable.
+// Where the Apps tab's name link points: the office's own answer when it has
+// one, and otherwise the port link — whose interesting case is a tailnet
+// office, where the obvious href is unreachable.
 //
 // Pure: no DOM, no server.
 
@@ -8,6 +8,25 @@ import { describe, expect, test } from "bun:test";
 import { appHref } from "./appLinks.ts";
 
 describe("appHref", () => {
+  test("uses the app's own URL verbatim when it has one", () => {
+    // The office computes the URL from its public origin and the app's issued
+    // label; the UI must not rebuild any part of it. The hostname passed in is
+    // deliberately unrelated, so a href that borrows from it fails here.
+    expect(appHref({ url: "https://standup-board.office.example", port: 21000 }, "auntie")).toBe("https://standup-board.office.example");
+  });
+
+  test("keeps the port link for an empty URL rather than linking to nowhere", () => {
+    // The wire omits `url` instead of sending "", so this is the fail-safe: an
+    // empty href resolves to the office page the row is already on.
+    expect(appHref({ url: "", port: 21000 }, "auntie")).toBe("http://auntie:21000/");
+  });
+
+  test("leaves a tailnet office's own URL alone", () => {
+    // The office answers with the URL; the tailnet branch belongs to the port
+    // link only and must not touch a hostname the office issued.
+    expect(appHref({ url: "https://standup-board.office.example", port: 21001 }, "auntie.parrot-fish.ts.net")).toBe("https://standup-board.office.example");
+  });
+
   test("links the app's port on this office's host", () => {
     expect(appHref({ port: 21000 }, "auntie")).toBe("http://auntie:21000/");
   });

@@ -112,16 +112,15 @@ const directives = (unit: string): string[] =>
     .map((l) => l.trim())
     .filter((l) => l.length > 0 && !l.startsWith("#"));
 
-// No appHostDomain injection here: the app-host arm lands later, so the
-// supervisor's appPublicUrl placeholder answers null for every app and no
-// BUREAU_APP_URL is ever written on install. The renderer-level URL tests
-// below still run, because renderUnit takes the URL as an argument.
-const supervisor = (host: FakeHost, now: () => number = () => 0) =>
+// The domain is injected rather than read from the boot-frozen module: a pure
+// test has no boot, and the real reader throws before one on purpose.
+const supervisor = (host: FakeHost, now: () => number = () => 0, appHostDomain: () => string | null = () => null) =>
   createAppSupervisor({
     host,
     unitPrefix: "bureau-app-",
     runtimeBinDir: "/rt/bin",
     now,
+    appHostDomain,
   });
 
 // --- the unit namespace -----------------------------------------------------
@@ -327,11 +326,32 @@ describe("app-supervisor: BUREAU_APP_URL in the unit", () => {
     expect(unit).not.toContain("BUREAU_APP_URL=https://hello.office.example");
   });
 
-  // Two tests return here with the app-host arm: "writes it on install, from
-  // the domain the supervisor was given" and "writes the app's LABEL on
-  // install, not the name the unit is keyed by". Both configure an app-host
-  // domain, which does not exist yet - the supervisor's appPublicUrl
-  // placeholder answers null unconditionally until that arm lands.
+  it("writes it on install, from the domain the supervisor was given", () => {
+    // The wiring, not the renderer: install/reinstall/regenerate all read the
+    // domain at write time, so a unit can never be written without it.
+    const host = fakeHost();
+    supervisor(
+      host,
+      () => 0,
+      () => "office.example",
+    ).install(record());
+    expect(host.files.get("/units/bureau-app-hello.service")).toContain('Environment="BUREAU_APP_URL=https://hello.office.example"');
+  });
+
+  it("writes the app's LABEL on install, not the name the unit is keyed by", () => {
+    // A second-generation app: unit file still `bureau-app-hello.service`,
+    // address `hello-g2` - and handing it `hello.office.example` would give a
+    // new app the origin of the one whose name it reused.
+    const host = fakeHost();
+    supervisor(
+      host,
+      () => 0,
+      () => "office.example",
+    ).install(record({ hostLabel: "hello-g2", hostGen: 2 }));
+    const unit = host.files.get("/units/bureau-app-hello.service")!;
+    expect(unit).toContain('Environment="BUREAU_APP_URL=https://hello-g2.office.example"');
+    expect(unit).not.toContain("BUREAU_APP_URL=https://hello.office.example");
+  });
 
   it("writes no URL on an office that has no app hostnames", () => {
     const host = fakeHost();

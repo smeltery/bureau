@@ -8,6 +8,7 @@ import { appRegistry } from "../apps/registry.ts";
 import { appSupervisor } from "../apps/supervisor.ts";
 import { appTokens } from "../apps/tokens.ts";
 import { appMessageLimiter } from "../apps/message-limits.ts";
+import { appHostDomain, appPublicUrl } from "../apps/domain.ts";
 import type { AppsDeps } from "./apps-seam.ts";
 
 export const defaultAppsDeps: AppsDeps = {
@@ -28,8 +29,10 @@ export const defaultAppsDeps: AppsDeps = {
     return { ok: false, status: result.status, code: result.status === 404 ? "not_found" : "send_failed", message: result.error };
   },
   limiter: appMessageLimiter,
-  // App-host arm lands later: no app hostnames yet.
-  publicUrl: () => null,
+  // Derived on every read, never stored: a function of the office's frozen
+  // app-host domain and the app's issued LABEL (never its reusable name), so
+  // the wire cannot disagree with the address the app's own unit carries.
+  publicUrl: (record) => appPublicUrl(record.hostLabel, appHostDomain()),
 };
 
 // Mint + persist + write the plaintext, as one step whose halves cannot come

@@ -12,14 +12,27 @@
 // It is also the only thing that can fix an app registered before app tokens
 // existed, or one whose provisioning half-happened because bureau died between
 // the two writes.
+//
+// The same argument applies a second time, to an app's own ADDRESS: it is
+// derived from the office's public origin, so it changes without anything about
+// the app changing, and a process's environment is fixed at exec. The URL pass
+// below (url-reconcile.ts) is where the units catch up.
 
 import { appRegistry } from "./registry.ts";
 import { appSupervisor } from "./supervisor.ts";
 import { appTokens } from "./tokens.ts";
 import { reconcileAppTokens } from "./token-reconcile.ts";
+import { reconcileAppUrls } from "./url-reconcile.ts";
+import { appHostDomain, appPublicUrl } from "./domain.ts";
 import { errMessage } from "../../shared/errors.ts";
 
 export function reconcileAppsAtBoot(): void {
+  reconcileTokens();
+  // Then their addresses, on the units the pass above may just have written.
+  reconcileUrls();
+}
+
+function reconcileTokens(): void {
   try {
     const report = reconcileAppTokens({
       list: () => appRegistry.list(),
@@ -49,5 +62,32 @@ export function reconcileAppsAtBoot(): void {
     // keep whatever state they had. Failing the boot over app reconciliation
     // would take the whole office down for a subsystem it may not even use.
     console.error("[apps] boot reconciliation skipped:", errMessage(err));
+  }
+}
+
+// One-time-per-boot convergence of app URLs (url-reconcile.ts): every app's
+// unit declares the address the office would give it today, and apps that were
+// running are restarted once onto it. Runs AFTER the token pass, which may
+// write a unit for an app that had none - a unit that pass creates is already
+// current, so this one has nothing to do for it.
+//
+// ADVISORY, for the same reason as the token pass: a failure here must never
+// stop the office from booting.
+function reconcileUrls(): void {
+  try {
+    const report = reconcileAppUrls({
+      list: () => appRegistry.list(),
+      expectedUrl: (app) => appPublicUrl(app.hostLabel, appHostDomain()),
+      readUnitFile: (name) => appSupervisor.readUnitFile(name),
+      restoreUnitFile: (name, contents) => appSupervisor.restoreUnitFile(name, contents),
+      regenerate: (app) => appSupervisor.regenerate(app),
+      states: (names) => appSupervisor.states(names),
+      restart: (name) => appSupervisor.restart(name),
+    });
+    if (report.converged.length + report.failed.length > 0) {
+      console.log(`[app-urls] boot: ${report.converged.length} unit(s) updated, ${report.restarted.length} restarted, ${report.failed.length} failed`);
+    }
+  } catch (err) {
+    console.error("[app-urls] boot reconciliation failed:", errMessage(err));
   }
 }
