@@ -2,6 +2,7 @@ import type { AgentState, Attachment, QueuedMessage, QueuedSender } from "../../
 import { formatAgentSenderPrefix, formatAppSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
 import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { SessionSwappedError, createSession, installSession } from "../session/runtime.ts";
+import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 // Circular with control.ts (which imports flushQueue from here); safe because
 // both modules only call across the cycle at request time, never at load time.
@@ -231,8 +232,12 @@ export async function flushQueue(agentId: string): Promise<void> {
       }
       try {
         const sessionId = managed.sessionId;
+        // Snapshot the reason before installSession clears it; arming the wake
+        // note is a side effect of building the log line, and the flush below is
+        // the send that carries it to the agent.
+        const wakeReason = managed.dormantReason === "idle" ? "idle" : "session-ended";
         installSession(agentId, managed, sessionId ? createSession(managed, sessionId) : createSession(managed));
-        addLogEntry(agentId, "system", sessionId ? "Resumed prior session before flushing queued messages." : "Started a fresh session before flushing queued messages.");
+        addLogEntry(agentId, "system", sessionId ? armDormantWakeNotice(managed, wakeReason, sessionId) : "Started a fresh session before flushing queued messages.");
       } catch (err: any) {
         addLogEntry(agentId, "error", `Cannot start session to flush queue: ${err.message}`);
         updateState(agentId, "error");

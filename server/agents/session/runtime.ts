@@ -79,6 +79,10 @@ export { emitLoginInstructions } from "./diagnostics.ts";
 export function installSession(agentId: string, managed: ManagedAgent, session: BackendSession) {
   managed.session = session;
   managed.consumerPromise = runConsumer(agentId, managed, session);
+  // The agent has a session again, so whatever reason it was without one no
+  // longer describes the present. Callers that need the reason (the wake paths)
+  // snapshot it before installing.
+  managed.dormantReason = null;
 }
 
 export const SESSION_REPLACE_CONSUMER_DRAIN_TIMEOUT_MS = 5_000;

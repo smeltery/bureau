@@ -47,6 +47,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.topicMessageCount = 0;
     managed.contextNudgesSent.clear();
     managed.pendingContextNotices = [];
+    managed.wakeNotice = null;
     managed.info.topic = null;
     managed.info.topicStale = false;
     managed.info.contextUsage = null;
@@ -136,6 +137,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.topicMessageCount = 0;
     managed.contextNudgesSent.clear();
     managed.pendingContextNotices = [];
+    managed.wakeNotice = null;
     managed.info.topic = null;
     managed.info.topicStale = false;
     managed.info.contextUsage = null;

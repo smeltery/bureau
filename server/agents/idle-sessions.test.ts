@@ -79,6 +79,9 @@ describe("releaseIdleSessions", () => {
     expect(managed.consumerPromise).toBeNull();
     expect(managed.sessionId).toBe("session-1");
     expect(agents.has("agent-1")).toBe(true);
+    // The wake paths read this to keep an idle-eviction wake calm: nothing was
+    // interrupted, so no partial-effects / forged-rejection warning.
+    expect(managed.dormantReason).toBe("idle");
   });
 
   test("does not close sessions that still have queued work", async () => {

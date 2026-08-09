@@ -33,6 +33,10 @@ export async function releaseIdleSessions(now = Date.now(), idleMs = IDLE_SESSIO
     } catch {}
     managed.session = null;
     managed.consumerPromise = null;
+    // Record that WE released it. The wake paths use this to pick the calm
+    // "released while idle" wording instead of warning about partially-run
+    // commands and shutdown-forged rejections — nothing was interrupted here.
+    managed.dormantReason = "idle";
     released++;
 
     if (consumer) {

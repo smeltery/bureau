@@ -11,7 +11,9 @@
  *   2. Running every enabled plugin's `beforeTurn` in parallel against the
  *      same context. Per-plugin 5s race; on throw or timeout the plugin
  *      contributes no prefix and the failure goes to plugins.jsonl.
- *   3. Assembling per-plugin prefix blocks in alphabetical id order,
+ *   3. Assembling the outbound envelope: built-in blocks first (the wake
+ *      notice and the context-fullness notices — server coordination, NOT
+ *      plugins), then per-plugin prefix blocks in alphabetical id order,
  *      delimiter-wrapped, and prepending them to the outgoing text with
  *      a `User message:` separator.
  *   4. beginTurn + createTurnDeferred + session.send + await turn.
@@ -42,7 +44,7 @@ import { beginTurn, logCache, rooms } from "../agents/state.ts";
 import { SessionSwappedError, createTurnDeferred } from "../agents/session/runtime.ts";
 import { getEnabledPlugins } from "./registry.ts";
 import { assistantTextFromEntries, runAfterTurn, runBeforeTurnHooks } from "./turn-hooks.ts";
-import { applyPluginPrefixes } from "./plugin-prefix.ts";
+import { applyPluginPrefixes, formatWakeNoticeBlock } from "./plugin-prefix.ts";
 export { stripPluginPrefix } from "./plugin-prefix.ts";
 
 export type TurnOrigin = "user" | "queued" | "skill" | "edit-fork";
@@ -87,7 +89,16 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   const { managed, sdkText, originalText, visibleText, attachments, origin, humanInput, username, onSendAccepted } = opts;
   const agentId = managed.info.id;
   const contextNoticeText = managed.pendingContextNotices.length > 0 ? managed.pendingContextNotices.map((notice) => `[${notice}]`).join("\n") : "";
-  const sdkTextWithNotices = contextNoticeText ? `${contextNoticeText}\n\n${sdkText}` : sdkText;
+  // Built-in outbound block (server coordination, NOT a plugin — no
+  // enable/disable coupling, absent from plugin discovery + failure
+  // accounting). Armed by the wake paths when the previous session died to a
+  // restart or an unexpected backend death; this is the only way the warning
+  // reaches the agent, since Bureau log entries never re-enter a prompt.
+  // Placed FIRST: it describes the transcript the agent is about to read back,
+  // so it belongs ahead of the housekeeping context notices.
+  const wakeNotice = managed.wakeNotice;
+  const wakeNoticeBlock = wakeNotice ? formatWakeNoticeBlock(wakeNotice) : "";
+  const sdkTextWithNotices = [wakeNoticeBlock, contextNoticeText, sdkText].filter((part) => part !== "").join("\n\n");
 
   // 1. Claim the turn lifecycle immediately, BEFORE any await. The
   // afterTurnPromise gate (up to 10s) plus per-plugin beforeTurn (up to 5s
@@ -186,6 +197,12 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
     }
     await managed.session.send(finalText, attachments);
     if (contextNoticeText) managed.pendingContextNotices = [];
+    // One-shot, and never before send: a failed send keeps the note so the
+    // retry still tells the agent what happened to its interrupted command.
+    // The identity check is the conversation-boundary guard — if a /clear (or
+    // /resume, or a fresh wake) landed during the send, the slot now holds a
+    // different notice, or null, and is not ours to clear.
+    if (wakeNotice && managed.wakeNotice === wakeNotice) managed.wakeNotice = null;
     if (onSendAccepted) {
       try {
         onSendAccepted();

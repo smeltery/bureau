@@ -64,6 +64,21 @@ describe("stripPluginPrefix", () => {
     expect(stripPluginPrefix(malformed)).toBe(malformed);
   });
 
+  it("strips the built-in wake-notice block, with or without plugin blocks around it", () => {
+    // The wake notice is a built-in block with its own reserved `bureau:`
+    // delimiter, sitting first inside the payload. Round-tripping it keeps the
+    // one turn that carries a wake-up warning editable.
+    const sdkText = "[Nil] status?";
+    const wake = "--- begin bureau: wake-notice ---\nResumed your session after the server restarted.\n--- end bureau: wake-notice ---";
+    expect(stripPluginPrefix(`${wake}\n\n${sdkText}`)).toBe(sdkText);
+    expect(stripPluginPrefix("--- begin plugin: mem0 ---\nfact\n--- end plugin: mem0 ---\n\n" + "User message:\n" + `${wake}\n\n${sdkText}`)).toBe(sdkText);
+  });
+
+  it("leaves a truncated wake-notice block alone rather than silently truncating", () => {
+    const malformed = "--- begin bureau: wake-notice ---\nResumed your session";
+    expect(stripPluginPrefix(malformed)).toBe(malformed);
+  });
+
   it("does not strip when text doesn't start with a plugin marker, even if separator appears inside", () => {
     // A regular user message that happens to contain the separator pattern
     // is not a wrap. The startsWith guard prevents false-positive stripping.

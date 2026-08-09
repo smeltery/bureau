@@ -3,6 +3,7 @@ import type { ApprovalDecision } from "../../backends/types.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, isAgentBusy, logCache, persistAll, updateState } from "../state.ts";
 import { SessionSwappedError, createSession, installSession, replaceSession } from "../session/runtime.ts";
+import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { generateTopic, persistCurrentSessionTopic, shouldAutoRegenerateTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
 import { handleSlashCommand } from "./slash-commands.ts";
@@ -53,8 +54,14 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     // still intact and worth restoring.
     try {
       const sessionId = managed.sessionId;
+      // Snapshot the reason BEFORE installSession clears it: it decides whether
+      // this wake is the calm idle-eviction one or a warning about a session
+      // that died under the agent.
+      const wakeReason = managed.dormantReason === "idle" ? "idle" : "session-ended";
       installSession(agentId, managed, sessionId ? createSession(managed, sessionId) : createSession(managed));
-      addLogEntry(agentId, "system", sessionId ? "Resumed prior session after the previous one ended unexpectedly." : "Started a fresh session (previous one could not be restored).");
+      // armDormantWakeNotice also arms managed.wakeNotice as a side effect: the
+      // send below is the very one that carries it to the agent.
+      addLogEntry(agentId, "system", sessionId ? armDormantWakeNotice(managed, wakeReason, sessionId) : "Started a fresh session (previous one could not be restored).");
       updateState(agentId, "waiting_for_response");
       // Fall through so the message is actually sent on the new session.
     } catch (err: any) {
@@ -137,6 +144,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         managed.topicGenerating = false;
         managed.contextNudgesSent.clear();
         managed.pendingContextNotices = [];
+        managed.wakeNotice = null;
         managed.info.contextUsage = null;
         // Restore the textCount baseline from sessions.json so drift is
         // measured against the replayed history, not from zero (otherwise

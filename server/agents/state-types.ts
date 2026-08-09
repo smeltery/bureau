@@ -81,6 +81,33 @@ export interface ManagedAgent {
   lastWrittenEntryId: string | null;
   contextNudgesSent: Set<50 | 75>;
   pendingContextNotices: string[];
+  // --- Truthful wake-up notice.
+  // The wake-up line waiting to ride out on the next message, or null when the
+  // wake had nothing to warn about (idle eviction, fresh session). Armed by the
+  // two session-less wake paths (sendMessage's recovery branch, flushQueue's)
+  // and by the boot restore, for a server restart or an unexpected backend
+  // death; consumed by the pre-send step in runAgentTurn on a
+  // never-before-send rule. Without it the warning reaches only the Bureau
+  // log, and the agent — the one holding a tool result that falsely claims its
+  // boss rejected the running command — never sees it.
+  // No companion "fired" flag: every wake re-arms it, and there is nothing to
+  // suppress across a conversation.
+  //
+  // DROPPED, never carried, at every conversation boundary (/clear, /resume,
+  // handoff, new conversation). It describes a specific interrupted transcript,
+  // so once the boundary moves the warning is about a transcript the agent is no
+  // longer reading — and it says "just above". Clearing on send can't cover a
+  // slot that was armed and then never consumed (send failed, then /clear),
+  // which is exactly how a stale warning would ride into a fresh conversation.
+  // Unconditional: at worst an agent loses a warning, which beats being handed
+  // a false one.
+  wakeNotice: string | null;
+  // Why this agent's backend session is absent, when we know it. Only the
+  // idle-session evictor takes a live, healthy session down on purpose, so
+  // that's the one reason worth recording — a null here means "we did not do
+  // this deliberately" and the wake paths warn accordingly. Cleared by
+  // installSession, i.e. the moment the agent has a session again.
+  dormantReason: "idle" | null;
 }
 
 export type AgentEvent =

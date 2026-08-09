@@ -5,6 +5,7 @@ import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persiste
 import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { createSession, installSession } from "./session/runtime.ts";
+import { armDormantWakeNotice } from "./session/wake-notice.ts";
 import { updateState } from "./state.ts";
 import { BUREAU_DIR } from "../persistence/paths.ts";
 import { mintAgentToken } from "./tokens.ts";
@@ -205,6 +206,14 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         if (tail?.kind === "user_message") {
           addLogEntry(p.id, "system", "Previous response was interrupted.");
         }
+        // Bureau restores eagerly, so a restart never reaches the session-less
+        // wake paths — this is the restart-wake path, and the restart is the
+        // case the truthful wake-up exists for (a SIGTERMed Claude CLI hands
+        // the resumed model hardcoded text claiming the USER rejected the tool
+        // that was running). Armed here, delivered on whatever message the boss
+        // sends next. Read the transcript BEFORE createSession so the marker is
+        // still the last entry the CLI wrote.
+        addLogEntry(p.id, "system", armDormantWakeNotice(managed, "boot", p.lastSessionId));
       }
 
       // Auto-resume session

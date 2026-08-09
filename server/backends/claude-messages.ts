@@ -113,6 +113,38 @@ export function sanitizeTaskLabel(text: string): string {
   return oneLine.length > TASK_LABEL_MAX ? `${oneLine.slice(0, TASK_LABEL_MAX - 3)}...` : oneLine;
 }
 
+// ---------------------------------------------------------------------------
+// Background-task lifecycle breadcrumbs (TaskBreadcrumbTracker)
+// ---------------------------------------------------------------------------
+// The SDK emits system/task_started, task_updated, and task_notification for
+// EVERY task-shaped thing — including ordinary foreground Bash calls and
+// foreground subagents, which already render as their own tool calls.
+// Breadcrumbing all of them would double-render every shell command, so this
+// tracker only surfaces genuinely-background work:
+//
+//   any tool_use launched with input.run_in_background === true — the ONLY
+//                                 signal that a Bash call or an Agent-tool
+//                                 subagent was born background; their
+//                                 task_started is otherwise identical to a
+//                                 foreground one's
+//   task_type "local_workflow"  — Workflow tool runs (return immediately,
+//                                 settle via task_notification). No
+//                                 run_in_background input to correlate
+//                                 against, and there is no foreground
+//                                 counterpart, so the task_type alone is safe.
+//   task_updated is_backgrounded — a foreground task backgrounded mid-run
+//                                 (Ctrl+B / auto-background on timeout)
+//
+// task_type "local_bash" is NOT a background signal: the SDK stamps it on every
+// local shell task, foreground included. Trusting it made ordinary Bash calls
+// emit "Background task started" — measured at 217 of 227 breadcrumbs on one
+// agent and 78 of 78 on another, which in turn made earlyoom incidents look
+// like mid-run backgrounding.
+//
+// Settle breadcrumbs (task_notification) are emitted only for tasks tracked
+// at start, which both filters foreground-subagent noise and dedupes repeated
+// notifications for the same task. skip_transcript (ambient/housekeeping
+// tasks) mutes both ends.
 export class TaskBreadcrumbTracker {
   private tracked = new Map<string, { desc: string; silent: boolean }>();
   private backgroundToolUseIds = new Set<string>();
@@ -142,7 +174,7 @@ export class TaskBreadcrumbTracker {
     const taskId = typeof msg.task_id === "string" ? msg.task_id : "";
     if (!taskId || this.tracked.has(taskId)) return [];
     const toolUseId = typeof msg.tool_use_id === "string" ? msg.tool_use_id : undefined;
-    const isBackground = msg.task_type === "local_bash" || msg.task_type === "local_workflow" || (toolUseId != null && this.backgroundToolUseIds.has(toolUseId));
+    const isBackground = msg.task_type === "local_workflow" || (toolUseId != null && this.backgroundToolUseIds.has(toolUseId));
     if (!isBackground) return [];
     if (toolUseId) this.backgroundToolUseIds.delete(toolUseId);
     const desc = sanitizeTaskLabel(typeof msg.description === "string" && msg.description ? msg.description : taskId);
