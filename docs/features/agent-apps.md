@@ -18,7 +18,7 @@ and keep it". Bureau now owns the port, the process, and the address.
 
 ## The shape
 
-Four modules, with one job each:
+Five areas, with one job each:
 
 | Module                          | Owns                                               | Persists                                  |
 | ------------------------------- | -------------------------------------------------- | ----------------------------------------- |
@@ -26,6 +26,7 @@ Four modules, with one job each:
 | `server/apps/supervisor.ts`     | the systemd unit that runs the app                 | nothing                                   |
 | `server/apps/tokens.ts`         | the app's own credential                           | `~/.bureau/apps/app-tokens.json` (hashes) |
 | `server/apps/message-limits.ts` | what an app may spend on waking its agent          | nothing (in-memory)                       |
+| `server/apps/host/`             | serving apps at their own hostnames (below)        | nothing                                   |
 
 The registry runs nothing; the supervisor persists nothing. That split is what
 lets an app's state be _derived_ at read time rather than stored — a persisted
@@ -230,10 +231,43 @@ pointing names at the box cannot spend the budget or cause a write.
 Bureau ships no terminator of its own; this endpoint exists for a deployment
 that puts one in front of the office.
 
+**The relays** carry an authenticated request to the app's own loopback port and
+its bytes back, for HTTP (`host/proxy.ts`) and WebSocket (`host/ws-*.ts`). A
+relay is where two parties' assumptions meet, so most of that code is about not
+passing something along: the app never sees the cookie that admits to it nor
+either office session cookie, never a client's `X-Forwarded-*` (the relay owns
+those, and a header the relay owns is worthless if a client can pre-fill it),
+and the browser never sees the app's hop-by-hop headers or a `Content-Encoding`
+describing bytes Bun already decoded. **Nothing at all is sent to an app that is
+not running** — a stopped app's port is just a free port, and any local process
+could be sitting on it — checked before a permit and before a socket, through the
+injected supervisor rather than the production singleton.
+
+For WebSocket the relay decides what the app cannot: the Origin check happens
+before anything dials, and a subprotocol is matched exactly or the upgrade is
+refused, with the app's own pick riding the 101 rather than a guess at the first
+offer. Close codes are carried honestly both ways — a code a peer may not send
+is replaced, a dropped transport becomes 1006 rather than a clean close nobody
+performed.
+
+`host/dispatch.ts` is the only entrance, and it runs before the URL is parsed.
+The order of its checks is the argument: an unknown label, a retired one, and a
+name too deep to be an app are all the same neutral 404; the reserved namespace
+is checked ahead of the WebSocket branch, because an upgrade is a GET and the
+handshake path answers GETs, so the other order would let an upgrade at the auth
+path redeem a code and then be relayed; and an upgrade is answered here rather
+than falling through, since falling through would hand a diverted host to the
+office's own `/ws`.
+
 ## Not here yet
 
-The **relays** — carrying an authenticated request's bytes to the app's loopback
-port and back, for HTTP and for WebSocket. Until they land, an app hostname
-resolves, admits a signed-in owner, and then has nothing to hand them; an app is
-reached at `http://<box-hostname>:<port>`, or through an SSH tunnel when only
-the office port is exposed.
+Nothing in the arm itself. Two limits worth knowing: an app is reachable only by
+its owner and by office owners (see the divergence above), and pointing a second
+app at a different agent is not supported — an app messages the agent that
+registered it or nobody.
+
+On the deployment side, Bureau ships no TLS terminator and no installer, so
+putting one in front of the office — a wildcard record, a site block that
+terminates on demand, and the certificate gate wired to it — is an operator
+task. Everything below that line is inert until then, which is the intended
+resting state for a laptop office.
