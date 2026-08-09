@@ -158,14 +158,82 @@ the registering agent's _manager_. Office owners see every app; members see the
 apps their user owns; a loopback shell caller sees everything and owns nothing.
 
 Environment variables an app receives: `PORT`, `BUREAU_APP_NAME`,
-`BUREAU_APP_DATA_DIR`, and `BUREAU_APP_TOKEN`.
+`BUREAU_APP_DATA_DIR`, `BUREAU_APP_TOKEN`, and — only where the office has app
+hostnames — `BUREAU_APP_URL`.
+
+## The app-host arm
+
+Serving apps at their own hostnames, so an app called `hello` on an office at
+`office.example` answers at `hello.office.example`. **Inert unless the office
+has an HTTPS public origin at a real DNS name with a wildcard record pointed at
+it.** Every plain-HTTP office, every dev box, and every Tailscale-only office
+has no app-host domain at all and behaves byte-identically to an office without
+this code.
+
+`server/apps/domain.ts` derives the domain from the office's public origin and
+nothing else — no config key, no override. Three refusals, each for its own
+reason: loopback names, a `.localhost` suffix, and address literals cannot carry
+children; a single-label host has nothing to hang them off; and a Tailscale
+MagicDNS office deliberately keeps port links, because MagicDNS has no wildcard
+records and a Tailscale certificate covers the node's own name only, so deriving
+a domain there would hand every app an address that resolves nowhere and then
+write it into the app's environment. The domain is frozen once at boot, and
+reading it before the freeze throws rather than resolving to a different answer
+than the rest of the boot will see.
+
+An app's URL uses its issued **label**, never its reusable name, so a recycled
+name is never served where a retired app's origin was. Because the address
+derives from the office rather than the app, an office that gains or loses a
+domain leaves every unit stale — `server/apps/url-reconcile.ts` converges them
+at boot, restarting only what was actually running and rolling a unit back if it
+cannot finish.
+
+**Containment is the security property.** `server/apps/host-match.ts` decides,
+before any route runs, whether a request is for the office (fall through,
+unchanged) or a strict child (diverted, and no office handler ever sees it). App
+hostnames sit under a wildcard, so anyone can point any name under it at this
+server, and none of those names may reach the office's own surface. The office's
+own host can never match a child test, so there is no exemption for it — worth
+knowing before anyone adds one back assuming it is load-bearing.
+
+**The handshake** (`server/apps/host-auth*.ts`) is how a browser holding an
+office session comes to hold one for an app. An app origin must never be handed
+the credential that opens the office, so the two are separate cookies: the app
+host bounces a navigation to the office, the office mints a single-use code
+against the caller's revalidated session, and the app host redeems it for a
+`__Host-bureau_app` cookie bound to that app's label _and generation_ — so a
+cookie for a retired app cannot open its successor at the same name. Only a
+request that could actually finish the flow is sent into it, and every refusal
+is the same neutral 404 an unknown label gets, so no surface here is an oracle
+for whether an app exists or who owns it.
+
+Who may reach an app is the rule the `/api/apps` routes already apply to which
+apps a caller may _see_: office owners reach every app, everyone else reaches
+the apps their user owns. **This is a deliberate divergence from the upstream
+design, which lets any signed-in office user reach any app.** An app a member
+cannot see in the Apps tab should not be one they can open by typing its
+hostname, and a hostname is guessable in a way an API listing is not. The permit
+is re-asked on every request, so an owner demoted to member loses every app that
+was not theirs at once rather than when a cookie expires.
+
+**Certificates** (`server/apps/tls-ask.ts`) are gated for a terminator that
+terminates TLS on demand under the wildcard. The endpoint is a live _access_
+gate, not an issuance hook: upstream measurement shows a terminator asks it
+before loading a certificate it already holds, so every live name is re-asked in
+a burst after a terminator restart, and a refusal then would refuse a handshake
+for which a valid certificate exists. So an admitted label is free forever, and
+that fact lives in the registry's ledger to survive a restart of the office too.
+New admissions are capped (ten an hour, the registry's accounting), and every
+refusal reached before the admission attempt touches no state — a stranger
+pointing names at the box cannot spend the budget or cause a write.
+
+Bureau ships no terminator of its own; this endpoint exists for a deployment
+that puts one in front of the office.
 
 ## Not here yet
 
-The **app-host arm**: serving apps at their own hostnames (`hello.example.com`)
-through Bureau, with an HTTP and WebSocket relay, an auth handshake, and
-on-demand TLS. The data model it needs is already in place — the hostname-label
-ledger, the generation labels, and the certificate-admission gate all ship with
-the registry — but nothing consumes them yet, and `AppWire.url` is always
-absent. Until then an app is reached at `http://<box-hostname>:<port>`, or
-through an SSH tunnel when only the office port is exposed.
+The **relays** — carrying an authenticated request's bytes to the app's loopback
+port and back, for HTTP and for WebSocket. Until they land, an app hostname
+resolves, admits a signed-in owner, and then has nothing to hand them; an app is
+reached at `http://<box-hostname>:<port>`, or through an SSH tunnel when only
+the office port is exposed.
