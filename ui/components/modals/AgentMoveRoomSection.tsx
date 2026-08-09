@@ -4,12 +4,16 @@ import { send } from "../../ws.ts";
 export function AgentMoveRoomSection({
   agent,
   agents,
+  confirmDiscard,
   labelStyle,
   onClose,
   rooms,
 }: {
   agent: AgentInfo;
   agents: AgentInfo[];
+  // Moving closes the dialog, so unsaved edits need the same discard confirm
+  // as any other dismissal — checked BEFORE the move is sent, not after.
+  confirmDiscard: () => boolean;
   labelStyle: React.CSSProperties;
   onClose: () => void;
   rooms: RoomWire[];
@@ -29,6 +33,7 @@ export function AgentMoveRoomSection({
               key={room.id}
               disabled={isFull}
               onClick={() => {
+                if (!confirmDiscard()) return;
                 send({ type: "move_agent", agentId: agent.id, targetRoomId: room.id });
                 onClose();
               }}

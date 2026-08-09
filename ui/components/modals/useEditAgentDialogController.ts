@@ -11,6 +11,32 @@ export function canToggleAgentPrivilege(isSpawn: boolean, sessionContext: { role
   return !isSpawn && (sessionContext?.role === "owner" || (sessionContext?.userId != null && agent?.userId === sessionContext.userId));
 }
 
+// Everything the form can edit, flattened to comparable primitives (outfit as
+// JSON). Dirtiness is measured against the RENDERED opening state — the random
+// spawn outfit and the auto-corrected permission mode count as the baseline,
+// not the persisted agent — so only the user's own edits make the form dirty.
+export type EditAgentFormSnapshot = {
+  name: string;
+  cwd: string;
+  outfit: string;
+  customInstructions: string;
+  modelFamily: string;
+  permissionMode: string;
+  privileged: boolean;
+};
+
+export function isFormDirty(baseline: EditAgentFormSnapshot, current: EditAgentFormSnapshot): boolean {
+  return (
+    baseline.name !== current.name ||
+    baseline.cwd !== current.cwd ||
+    baseline.outfit !== current.outfit ||
+    baseline.customInstructions !== current.customInstructions ||
+    baseline.modelFamily !== current.modelFamily ||
+    baseline.permissionMode !== current.permissionMode ||
+    baseline.privileged !== current.privileged
+  );
+}
+
 export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const { onClose } = props;
   const isSpawn = !props.agent;
@@ -36,6 +62,41 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const savePhase = useRef<"edit" | "privileged" | null>(null);
   const recentCwds = allRecentCwds.filter((c) => c !== cwd);
   const agentMemory = useMemoryEditor("agent", agent?.id ?? null, !isSpawn && !!agent);
+
+  // Discard guard: dismissal (backdrop, Escape, Cancel, Move to Room) gates on
+  // a confirm whenever any form field or memory is dirty; untouched forms
+  // close as before. The memory editor stamps its own baseline when its async
+  // load lands, so a programmatic re-seed never reads as a user edit.
+  const currentSnapshot: EditAgentFormSnapshot = {
+    name,
+    cwd,
+    outfit: JSON.stringify(outfit),
+    customInstructions,
+    modelFamily,
+    permissionMode,
+    privileged,
+  };
+  const baselineRef = useRef(currentSnapshot);
+  const isDirty = isFormDirty(baselineRef.current, currentSnapshot) || agentMemory.dirty;
+
+  function confirmDiscard(): boolean {
+    if (saving) return false;
+    return !isDirty || window.confirm("Discard unsaved changes?");
+  }
+
+  function requestClose() {
+    if (confirmDiscard()) onClose();
+  }
+
+  // Tab close / reload with unsaved edits gets the browser's native prompt.
+  useEffect(() => {
+    if (!isDirty) return;
+    const guard = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [isDirty]);
 
   useEffect(() => {
     return () => {
@@ -167,10 +228,12 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     agentType,
     agents,
     canTogglePrivileged,
+    confirmDiscard,
     customInstructions,
     cwd,
     cwdError,
     handleSave,
+    requestClose,
     isMobile,
     isSpawn,
     modelFamily,

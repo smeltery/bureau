@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { dialogCancelBtn, dialogSaveBtn } from "./dialog-styles.ts";
 
 type AgentDialogFrameProps = {
@@ -13,6 +13,19 @@ type AgentDialogFrameProps = {
 };
 
 export function AgentDialogFrame({ children, isMobile, isSpawn, onClose, onSave, saving, subtitle, title }: AgentDialogFrameProps) {
+  // Own Escape while the dialog is open (capture + stopPropagation), so it
+  // routes through onClose's discard guard instead of App's global keydown
+  // handler — which would drop the whole form, even mid-typing in a field.
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      onClose();
+    }
+    window.addEventListener("keydown", handleKey, true);
+    return () => window.removeEventListener("keydown", handleKey, true);
+  }, [onClose]);
+
   return (
     <div
       onMouseDown={(e) => {

@@ -15,17 +15,18 @@ export type EditAgentDialogProps = {
 );
 
 export function EditAgentDialog(props: EditAgentDialogProps) {
-  const { onClose } = props;
   const {
     agent,
     agentMemory,
     agentType,
     agents,
     canTogglePrivileged,
+    confirmDiscard,
     customInstructions,
     cwd,
     cwdError,
     handleSave,
+    requestClose,
     isMobile,
     isSpawn,
     modelFamily,
@@ -50,7 +51,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
   } = useEditAgentDialogController(props);
 
   return (
-    <AgentDialogFrame isMobile={isMobile} isSpawn={isSpawn} onClose={onClose} onSave={handleSave} saving={saving} subtitle={subtitle} title={title}>
+    <AgentDialogFrame isMobile={isMobile} isSpawn={isSpawn} onClose={requestClose} onSave={handleSave} saving={saving} subtitle={subtitle} title={title}>
       <label style={labelStyle}>Name</label>
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isSpawn ? `Agent ${props.deskIndex! + 1}` : undefined} autoFocus={isSpawn} style={inputStyle} />
 
@@ -106,7 +107,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
         </>
       )}
 
-      {!isSpawn && <AgentMoveRoomSection agent={agent!} agents={agents} rooms={rooms} labelStyle={labelStyle} onClose={onClose} />}
+      {!isSpawn && <AgentMoveRoomSection agent={agent!} agents={agents} rooms={rooms} labelStyle={labelStyle} confirmDiscard={confirmDiscard} onClose={props.onClose} />}
     </AgentDialogFrame>
   );
 }
