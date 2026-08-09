@@ -5,6 +5,7 @@ import { Character } from "../office/scene/Character.tsx";
 import { ActivityIndicator, SessionSwapIndicator } from "./StateIndicators.tsx";
 import { isFoldedToolResult, LogEntryCard } from "./entries/index.tsx";
 import { styleForModel } from "../model-styles.ts";
+import { canEditMessage } from "./hooks/canEditMessage.ts";
 
 export function LogMessagesPane({
   agent,
@@ -85,7 +86,7 @@ export function LogMessagesPane({
       {logs.length === 0 && <div style={{ color: "var(--text-ghost)", textAlign: "center", marginTop: 40 }}>{connected ? "Send a message to start a conversation." : "Loading..."}</div>}
       {logs.map((entry) => {
         const td = turnData.get(entry.id);
-        const canEditMsg = entry.kind === "user_message" && agent.state === "waiting_for_response" && !editingLogEntryId;
+        const canEditMsg = canEditMessage(agent, { isUserMessage: entry.kind === "user_message", alreadyEditing: !!editingLogEntryId });
         const isUserMsg = entry.kind === "user_message";
         const card = (
           <LogEntryCard

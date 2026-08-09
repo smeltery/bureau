@@ -18,6 +18,17 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     addLogEntry(agentId, "error", "Cannot edit while agent is busy.");
     return;
   }
+  // Editing is a session FORK, and every fork below goes through the Claude
+  // SDK's forkSession — so a backend that cannot fork cannot honour this at all.
+  // Each backend declares that itself (the Codex backend sets `fork: false`);
+  // refused here rather than left to fail inside the SDK, where the error would
+  // arrive as an opaque transport complaint about a session id the SDK never
+  // issued. The UI hides the affordance for the same reason, but a WS command or
+  // an HTTP PATCH can arrive without it, so this is the boundary that decides.
+  if (managed.info.capabilities?.fork === false) {
+    addLogEntry(agentId, "error", "Cannot edit: this agent's backend does not support forking a conversation. Send a new message instead.");
+    return;
+  }
 
   const oldSessionId = managed.sessionId;
   persistCurrentSessionTopic(agentId, managed);

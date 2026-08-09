@@ -85,7 +85,10 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   conversation), cached per conversation, and rendered inside a sandboxed
   iframe under a deny-everything CSP. Per-slide regenerate accepts a one-shot
   instruction.
-- Conversation branching by editing a past user message.
+- Conversation branching by editing a past user message. Offered only where the
+  agent's backend can fork a session — each backend declares that for itself,
+  and the Codex backend cannot, so Codex agents show no edit affordance and the
+  server refuses the request independently.
 - Session resume, new conversation, model/effort changes, and usage views.
 
 ## Developer Tools
