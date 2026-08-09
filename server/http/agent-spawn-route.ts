@@ -3,11 +3,18 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import type { AgentBackendType, AgentInfo } from "../../shared/types.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
-import { JSON_HEADERS, jsonError, readJsonBody, requireUserRoomAccess, requireUserSession } from "./agent-route-helpers.ts";
+import { JSON_HEADERS, jsonError, privilegedAgentIdentity, readJsonBody, requireRoomAccessAllowingPrivileged, requireUserSession } from "./agent-route-helpers.ts";
 
 export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): Promise<Response> {
-  const denied = requireUserSession(auth);
-  if (denied) return denied;
+  // A privileged agent may hire a coworker on its boss's behalf: the new agent
+  // is attributed to the SAME manager, and the target room still has to be one
+  // that manager can see (checked below), so the agent cannot seed a room it is
+  // not allowed into. Every other caller needs a browser session as before.
+  const operator = privilegedAgentIdentity(req);
+  if (!operator) {
+    const denied = requireUserSession(auth);
+    if (denied) return denied;
+  }
   const body = await readJsonBody(req);
   if (!body) return jsonError(400, "invalid JSON body");
   const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -19,7 +26,7 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
   if (!roomId) return jsonError(422, "roomId is required");
   if (desk === undefined) return jsonError(422, "desk is required");
   if (!isValidDesk(desk)) return jsonError(422, `desk must be an integer from 0 to ${DESK_COUNT - 1}`);
-  const roomDenied = requireUserRoomAccess(auth, roomId);
+  const roomDenied = requireRoomAccessAllowingPrivileged(req, auth, roomId);
   if (roomDenied) return roomDenied;
   try {
     AgentManager.validateCwd(cwd);
@@ -40,7 +47,7 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
     agentType,
     typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
     typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
-    auth?.kind === "ok" ? auth.session.userId : null,
+    operator ? operator.manager.id : auth?.kind === "ok" ? auth.session.userId : null,
   );
   if (!agent) return jsonError(409, "agent name is taken or desk is unavailable");
   return new Response(JSON.stringify({ agent }), { status: 201, headers: JSON_HEADERS });

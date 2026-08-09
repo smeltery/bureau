@@ -16,6 +16,12 @@ export async function handleOfficeSettingsRequest(req: Request, url: URL, auth: 
   }
 
   if (url.pathname !== "/api/office/settings") return null;
+  // DELIBERATELY owner-session-only: no `privilegedAgentIdentity` path here. The
+  // office prompt is the top of the prompt chain injected into every agent in
+  // the office, including the privileged one asking — letting an agent rewrite
+  // it would let it rewrite its own standing instructions and every peer's.
+  // Upstream excludes `office:admin` from the privileged set for the same
+  // reason. Rooms are the boundary a privileged agent manages; the office is not.
   if (auth.kind !== "ok") return error(401, "authenticated browser session required");
   if (auth.session.role !== "owner") return error(403, "owner access required");
 

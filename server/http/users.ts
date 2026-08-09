@@ -19,6 +19,13 @@ export type UserRecordChanges = Partial<Pick<UserRecord, "name" | "envFile" | "m
 export async function handleUsersRequest(req: Request, url: URL, auth: AuthResult | undefined, deps: UsersHttpDeps): Promise<Response | null> {
   const parts = usersRouteParts(url.pathname);
   if (!parts) return null;
+  // DELIBERATELY session-only: no `privilegedAgentIdentity` path here. User
+  // records ARE the authorization data a privileged agent is scoped by —
+  // `PUT /:username/access` writes `allowedRooms`, the very set
+  // `privilegedAgentIdentity` measures the agent against. A bearer path here
+  // would let an agent widen its own manager's room access and thereby its own,
+  // and `DELETE` would let it remove a boss. Upstream excludes all `user:*`
+  // capabilities from the privileged set.
   if (auth?.kind !== "ok") return jsonError(401, "authenticated browser session required");
 
   const username = parts[1];

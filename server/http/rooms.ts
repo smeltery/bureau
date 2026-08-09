@@ -1,6 +1,7 @@
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
+import { privilegedAgentIdentity, type PrivilegedAgentIdentity } from "./agent-route-helpers.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { createHash } from "crypto";
@@ -21,13 +22,18 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
 
   const parts = url.pathname.split("/").filter(Boolean);
   if (parts[0] !== "api" || parts[1] !== "rooms") return null;
-  if (auth.kind !== "ok") return error(401, "authenticated browser session required");
+  // A privileged agent is the one non-browser caller allowed past this gate: it
+  // manages rooms with its MANAGER's authority (see privilegedAgentIdentity).
+  // Every room decision below therefore asks about `operator.manager` when an
+  // operator is present, and about the browser session otherwise.
+  const operator = privilegedAgentIdentity(req);
+  if (!operator && auth.kind !== "ok") return error(401, "authenticated browser session required");
 
   const roomId = parts[2];
   const action = parts[3];
 
   if (req.method === "POST" && !roomId) {
-    if (auth.session.role !== "owner") return error(403, "owner access required");
+    if (!canCreateRoom(auth, operator)) return error(403, "owner access required");
     const body = await readJson(req);
     if (body instanceof Response) return body;
     const name = typeof body.name === "string" ? body.name : undefined;
@@ -40,13 +46,16 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
   if (!roomId) return error(404, "not found");
 
   if (req.method === "GET" && action === "settings") {
-    if (!canReadRoomSettings(req, auth, roomId)) return error(403, "room access required");
+    if (!canReadRoomSettings(req, auth, roomId, operator)) return error(403, "room access required");
     const settings = AgentManager.getRoomSettings(roomId);
     if (!settings) return error(404, "room not found");
     return new Response(JSON.stringify({ ...settings, version: roomSettingsVersion(settings) }), { headers: jsonHeaders });
   }
 
-  if (!sessionCanSeeRoom(auth, roomId)) return error(403, "room access required");
+  // Single room-visibility gate covering close, rename, settings write, and
+  // desk swaps. Room-SCOPED operations are limited to rooms the actor can see;
+  // a privileged agent gets exactly its manager's `canSeeRoom` set, never more.
+  if (!canManageRoom(auth, roomId, operator)) return error(403, "room access required");
 
   if (req.method === "DELETE" && !action) {
     const ok = AgentManager.closeRoom(roomId);
@@ -126,8 +135,26 @@ function sessionCanSeeRoom(auth: AuthResult, roomId: string): boolean {
   return canSeeRoom(getUserById(auth.session.userId), roomId);
 }
 
-function canReadRoomSettings(req: Request, auth: AuthResult, roomId: string): boolean {
-  if (sessionCanSeeRoom(auth, roomId)) return true;
+function canManageRoom(auth: AuthResult, roomId: string, operator: PrivilegedAgentIdentity | null): boolean {
+  if (operator) return canSeeRoom(operator.manager, roomId);
+  return sessionCanSeeRoom(auth, roomId);
+}
+
+// Room CREATE has no room to scope to, so it scopes to the actor's own standing
+// instead. Bureau gates create on `role === "owner"` for humans, and a
+// privileged agent must never hold more authority than the boss it acts for —
+// so an owner's privileged agent may create rooms and a member's may not. This
+// is deliberately stricter than upstream, which grants create office-wide to any
+// room:manage holder; upstream has no owner-only create gate to stay behind.
+function canCreateRoom(auth: AuthResult, operator: PrivilegedAgentIdentity | null): boolean {
+  if (operator) return operator.manager.role === "owner";
+  return auth.kind === "ok" && auth.session.role === "owner";
+}
+
+function canReadRoomSettings(req: Request, auth: AuthResult, roomId: string, operator: PrivilegedAgentIdentity | null): boolean {
+  if (canManageRoom(auth, roomId, operator)) return true;
+  // Unchanged baseline: ANY agent (privileged or not) may read the settings of
+  // the room it actually sits in, so it can see the prompt it runs under.
   const identity = resolveAgentToken(readBearerToken(req));
   if (!identity) return false;
   const agent = AgentManager.getAgent(identity.agentId);

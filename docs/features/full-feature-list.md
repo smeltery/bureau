@@ -33,8 +33,14 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   Bureau restart.
 - Shared task board with create, room assignment, claim, backlog, and done
   states.
-- Owner-controlled privileged operator tokens for selected agents, giving those
-  agents server-side authorization for explicit office-management requests.
+- Owner-controlled privileged operator tokens for selected agents. A privileged
+  token is accepted on the office-management routes — room create (owner
+  managers only), rename, close, settings and desk swaps; agent spawn, kill,
+  edit, move and topic; and conversation steering (resume, new conversation,
+  send-now, dequeue) — always scoped to the rooms and agents the agent's manager
+  can see. It is refused on office settings and external access, invites,
+  browser sessions, user records, view preferences, the terminal, and the
+  privilege toggle itself, so no agent can widen its own authority.
 - Office-wide, room-level, and per-agent prompt composition.
 - Bundled collaboration skills and Bureau slash commands, including peer
   review, pair programming, soft handoff, subagent review, and guided Bureau bug

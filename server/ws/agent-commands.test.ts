@@ -66,4 +66,18 @@ describe("handleAgentCommand", () => {
       error: "agent name is taken or desk is unavailable",
     });
   });
+
+  // The WS twin of PUT /api/agents/:id/privileged. A socket with no bound
+  // browser-session user — which is all an agent could ever present, since agent
+  // bearer tokens never establish a WS identity — must not flip the flag.
+  test("refuses set_agent_privileged from a socket with no signed-in user", async () => {
+    installAgent("agent-1", "Operator");
+    const sent: string[] = [];
+
+    const handled = await handleAgentCommand({ type: "set_agent_privileged", requestId: "req-1", agentId: "agent-1", privileged: true } as never, wsSink(sent));
+
+    expect(handled).toBe(true);
+    expect(agents.get("agent-1")?.info.privileged ?? false).toBe(false);
+    expect(sent).toEqual([]);
+  });
 });

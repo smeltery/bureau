@@ -4,18 +4,32 @@ import { refreshSubscriptionUsage } from "../backends/subscription-usage.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import type { AgentInfo } from "../../shared/types.ts";
-import { JSON_HEADERS, jsonError, readJsonBody, requireAgentManagerAccess, requireUserAgentAccess, requireUserRoomAccess } from "./agent-route-helpers.ts";
+import {
+  JSON_HEADERS,
+  jsonError,
+  readJsonBody,
+  requireAgentAccessAllowingPrivileged,
+  requireAgentManagerAccess,
+  requireRoomAccessAllowingPrivileged,
+  requireUserAgentAccess,
+  requireUserRoomAccess,
+} from "./agent-route-helpers.ts";
 
 export async function handleAgentManagementRequest(req: Request, parts: string[], agentId: string, auth?: AuthResult): Promise<Response | null> {
+  // Agent lifecycle — kill / edit / move / topic — is what a privileged agent's
+  // "manage the office" authority means, so these four accept a privileged
+  // agent token scoped to the agents its manager can see. Everything else in
+  // this file (revive, abort, subscription usage, session listing) stays
+  // browser-session-only until there's a reason to widen it.
   if (req.method === "DELETE" && parts.length === 2) {
-    const denied = requireUserAgentAccess(auth, agentId);
+    const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
     if (denied) return denied;
     await AgentManager.kill(agentId);
     return new Response(null, { status: 204, headers: JSON_HEADERS });
   }
 
   if (req.method === "PATCH" && parts.length === 2) {
-    const denied = requireUserAgentAccess(auth, agentId);
+    const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
     if (denied) return denied;
     const body = await readJsonBody(req);
     if (!body) return jsonError(400, "invalid JSON body");
@@ -68,6 +82,14 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
     return new Response(null, { status: 204, headers: JSON_HEADERS });
   }
 
+  // OUT OF SCOPE for privileged agents, deliberately and permanently: the
+  // privilege toggle itself. `requireAgentManagerAccess` demands a browser
+  // session whose user owns the agent (or an owner), and it is never given a
+  // `privilegedAgentIdentity` path — so no agent, privileged or not, can flip
+  // the flag on itself or on any other agent. Nothing else in bureau writes
+  // `privileged` from a request: `editAgent` (PATCH above) has no such field,
+  // and the WS twin `set_agent_privileged` is browser-session-only. If you add
+  // another writer, gate it exactly like this one.
   if (req.method === "PUT" && parts.length === 3 && parts[2] === "privileged") {
     const denied = requireAgentManagerAccess(auth, agentId);
     if (denied) return denied;
@@ -79,12 +101,15 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
   }
 
   if (req.method === "POST" && parts.length === 3 && parts[2] === "move") {
-    const denied = requireUserAgentAccess(auth, agentId);
+    const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
     if (denied) return denied;
     const body = await readJsonBody(req);
     const targetRoomId = typeof body?.targetRoomId === "string" ? body.targetRoomId : "";
     if (!targetRoomId) return jsonError(422, "targetRoomId is required");
-    const roomDenied = requireUserRoomAccess(auth, targetRoomId);
+    // Both ends are checked: the agent's current room AND the destination must
+    // be visible to the actor, so a move can never smuggle an agent into a room
+    // the caller cannot see.
+    const roomDenied = requireRoomAccessAllowingPrivileged(req, auth, targetRoomId);
     if (roomDenied) return roomDenied;
     if (!AgentManager.moveAgent(agentId, targetRoomId)) return jsonError(409, "agent could not be moved");
     const agent = AgentManager.getAgent(agentId);
@@ -93,7 +118,7 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
   }
 
   if (req.method === "PUT" && parts.length === 3 && parts[2] === "topic") {
-    const denied = requireUserAgentAccess(auth, agentId);
+    const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
     if (denied) return denied;
     const body = await readJsonBody(req);
     const topic = typeof body?.topic === "string" ? body.topic : null;
@@ -103,7 +128,7 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
   }
 
   if (req.method === "DELETE" && parts.length === 3 && parts[2] === "topic") {
-    const denied = requireUserAgentAccess(auth, agentId);
+    const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
     if (denied) return denied;
     AgentManager.resetTopic(agentId);
     return new Response(null, { status: 204, headers: JSON_HEADERS });

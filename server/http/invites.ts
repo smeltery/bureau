@@ -18,6 +18,12 @@ export interface InvitesHttpDeps {
 export async function handleInvitesRequest(req: Request, url: URL, auth: AuthResult | undefined, deps: InvitesHttpDeps): Promise<Response | null> {
   const parts = invitesRouteParts(url.pathname);
   if (!parts) return null;
+  // DELIBERATELY session-only: no `privilegedAgentIdentity` path here, and none
+  // should be added. An invite mints a durable HUMAN LOGIN — `mintSelf` mints an
+  // owner login outright — so an agent that could reach this route could grant a
+  // person (or itself, via a browser) permanent access to the office, outliving
+  // the agent and any privilege toggle. Upstream's audit excludes
+  // `invite:manage` from the privileged set for exactly this.
   if (auth?.kind !== "ok") return jsonError(401, "unauthenticated");
 
   if (req.method === "GET" && parts.length === 1) {

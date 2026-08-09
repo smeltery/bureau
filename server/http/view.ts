@@ -24,6 +24,11 @@ export async function handleViewRequest(req: Request, url: URL, auth: AuthResult
   const route = viewRoute(url.pathname);
   if (!route) return null;
   if (req.method !== "PUT") return null;
+  // DELIBERATELY session-only: no `privilegedAgentIdentity` path here. These are
+  // a specific HUMAN's per-user UI preferences, keyed off `auth.session.userId`
+  // with no target parameter — an agent writing them would be rearranging its
+  // boss's screen, not managing the office. Upstream excludes `view:manage` from
+  // the privileged set on the same "not the agent's to touch" grounds.
   if (auth?.kind !== "ok") return jsonError(401, "unauthenticated");
   const body = await readJsonBody(req);
   if (!body) return jsonError(400, "invalid JSON body");

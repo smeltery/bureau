@@ -22,6 +22,13 @@ export interface SessionsHttpDeps {
 export async function handleSessionsRequest(req: Request, url: URL, auth: AuthResult | undefined, deps: SessionsHttpDeps): Promise<Response | null> {
   const parts = sessionsRouteParts(url.pathname);
   if (!parts) return null;
+  // DELIBERATELY session-only: no `privilegedAgentIdentity` path here. Revoking
+  // a session kills a HUMAN's live browser session — an agent able to do that
+  // could lock its own boss out of the office mid-conversation, including out of
+  // the privilege toggle that would stop it. Upstream excludes `session:manage`
+  // from the privileged set for the same reason. These routes are also
+  // self-scoped by design (the caller's own userId), which a bearer token has no
+  // meaningful analogue for.
   if (auth?.kind !== "ok") return jsonError(401, "unauthenticated");
 
   if (req.method === "GET" && parts.length === 1) {

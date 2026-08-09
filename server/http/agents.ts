@@ -7,7 +7,7 @@ import { cancelScheduledMessage, listScheduledMessages, parseDeliverAt, schedule
 import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
-import { agentRouteParts, JSON_HEADERS, jsonError, projectedAgentsManifest, readJsonBody, requireUserAgentAccess, sessionUser } from "./agent-route-helpers.ts";
+import { agentRouteParts, JSON_HEADERS, jsonError, projectedAgentsManifest, readJsonBody, requireAgentAccessAllowingPrivileged, requireUserAgentAccess, sessionUser } from "./agent-route-helpers.ts";
 import { readAgentLogs, requiresIsolatedLogSearch } from "../agents/log-reader.ts";
 import { readAgentLogsIsolated } from "../agents/log-search-runner.ts";
 
@@ -83,8 +83,13 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       return new Response(JSON.stringify({ messageId: "" }), { headers: JSON_HEADERS });
     }
 
+    // Steering another agent's conversation — dequeue / resume /
+    // new-conversation / send-now — is the second half of a privileged agent's
+    // office authority, scoped to the agents its manager can see. Note this is
+    // NOT the same as sending as another agent: the message routes below keep
+    // their own sender rules, so a privileged agent still speaks only as itself.
     if (req.method === "DELETE" && parts.length === 4 && parts[2] === "queue") {
-      const denied = requireUserAgentAccess(auth, agentId);
+      const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
       if (denied) return denied;
       AgentManager.dequeueMessage(agentId, parts[3]!);
       return new Response(null, { status: 204, headers: JSON_HEADERS });
@@ -197,7 +202,7 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
     }
 
     if (req.method === "POST" && parts.length === 3 && parts[2] === "resume") {
-      const denied = requireUserAgentAccess(auth, agentId);
+      const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
       if (denied) return denied;
       const body = await readJsonBody(req);
       const sessionId = typeof body?.sessionId === "string" ? body.sessionId : "";
@@ -207,14 +212,14 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
     }
 
     if (req.method === "POST" && parts.length === 3 && parts[2] === "new-conversation") {
-      const denied = requireUserAgentAccess(auth, agentId);
+      const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
       if (denied) return denied;
       void AgentManager.newConversation(agentId);
       return new Response(null, { status: 204, headers: JSON_HEADERS });
     }
 
     if (req.method === "POST" && parts.length === 3 && parts[2] === "send-now") {
-      const denied = requireUserAgentAccess(auth, agentId);
+      const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
       if (denied) return denied;
       void AgentManager.sendNow(agentId);
       return new Response(null, { status: 204, headers: JSON_HEADERS });

@@ -150,7 +150,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Agents can message each other directly, choosing between queueing behind the receiver's current turn and steering (interrupting it — rate-limited, with the ack reporting honestly whether the message was delivered, queued, or steered)
 - You can ask one agent "What do you think of Agent X's approach?" and it just works — it reads the other agent's conversation and gives feedback
 - Shared task board: humans and agents can create, assign, claim, and close tasks — full interop via UI and HTTP API
-- Owners can mark selected agents with a privileged operator token from the agent settings dialog. Privileged agents receive explicit system-prompt context and server-side authorization for operator-directed office-management actions; normal agents do not get that authority.
+- Owners can mark selected agents with a privileged operator token from the agent settings dialog. A privileged token is accepted on the office-management routes — rooms (create, rename, close, settings, desk swaps), agent lifecycle (spawn, kill, edit, move, topic), and conversation steering (resume, new conversation, send-now, dequeue) — always scoped to the rooms and agents that agent's manager can see. It is deliberately refused on office settings and external access, invites, browser sessions, user records, view preferences, the terminal, and the privilege toggle itself, so no agent can ever make itself or another agent privileged. Normal agents get none of this authority.
 
 ### Persistence & Lifecycle
 - Agents persist across server restarts — sessions are recreated from disk

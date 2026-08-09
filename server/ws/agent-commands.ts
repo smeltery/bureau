@@ -128,6 +128,11 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
       }
       return true;
     }
+    // WS twin of `PUT /api/agents/:id/privileged`, and equally unreachable by an
+    // agent: `canManageAgent` resolves a browser session user via `getWsUser`,
+    // and an agent bearer token never establishes a WS identity. So no agent —
+    // privileged or not — can flip the flag on itself or on a peer through this
+    // surface either. Never widen this to accept a bearer token.
     case "set_agent_privileged": {
       if (!canUseAgent(ws, cmd.agentId) || !canManageAgent(ws, cmd.agentId)) return true;
       try {

@@ -31,6 +31,12 @@ export async function handleAccessRequest(req: Request, url: URL, auth: AuthResu
   }
 
   if (url.pathname !== "/api/office/access") return null;
+  // DELIBERATELY owner-session-only: no `privilegedAgentIdentity` path here.
+  // This route decides whether the office is reachable from outside the machine
+  // and which preview hosts are allowed — the single most consequential switch
+  // in bureau. An agent that could flip it could publish the whole office to the
+  // internet. Upstream folds this into `office:admin`, which the privileged
+  // capability set excludes after audit. Do not add a bearer path.
   if (auth?.kind !== "ok") return jsonError(401, "authenticated browser session required");
   if (auth.session.role !== "owner") return jsonError(403, "owner access required");
 

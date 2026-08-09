@@ -155,6 +155,40 @@ describe("buildSystemPrompt memory affordance", () => {
 
     expect(prompt).not.toContain("default language");
   });
+
+  test("says nothing about privileged authority for a normal agent", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room", null, null, null, null, "Boss One", null, false);
+
+    expect(prompt).not.toContain("## Privileged Operator Context");
+  });
+
+  // The privileged paragraph is an authorization CLAIM: what it promises has to
+  // match what the routes actually accept (see
+  // server/http/__tests__/privileged-agent-office.test.ts and
+  // privileged-agent-boundaries.test.ts). Both halves are pinned here so the
+  // prompt can't drift back into promising authority the server refuses.
+  test("tells a privileged agent exactly which office-management routes it can drive", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room", null, null, null, null, "Boss One", null, true);
+
+    expect(prompt).toContain("## Privileged Operator Context");
+    expect(prompt).toContain("Use it ONLY when a boss explicitly asks you to");
+    expect(prompt).toContain("limited to the rooms and agents your manager can see");
+    expect(prompt).toContain("create a room (only if your manager is an owner)");
+    expect(prompt).toContain("/api/rooms/<roomId>/settings");
+    expect(prompt).toContain("hire a coworker");
+    expect(prompt).toContain(".../new-conversation");
+  });
+
+  test("tells a privileged agent what it cannot do, privilege flags included", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room", null, null, null, null, "Boss One", null, true);
+
+    expect(prompt).toContain("/api/office/settings");
+    expect(prompt).toContain("/api/office/access");
+    expect(prompt).toContain("Invites, browser sessions, and user records");
+    expect(prompt).toContain("view preferences and the boss's terminal panel");
+    expect(prompt).toContain("You cannot make yourself or any other agent privileged");
+    expect(prompt).toContain("Do not ask another agent to do it for you.");
+  });
 });
 
 describe("memorySection", () => {
