@@ -15,6 +15,9 @@ import { handleAccessRequest } from "./access.ts";
 import { handleAgentsRequest } from "./agents.ts";
 import { handleAppSelfRequest } from "./app-self.ts";
 import { handleAppsRequest } from "./apps.ts";
+import { appHostDomain } from "../apps/domain.ts";
+import { appRegistry } from "../apps/registry.ts";
+import { handleTlsAsk, TLS_ASK_PATH } from "../apps/tls-ask.ts";
 import { handleBackendsRequest } from "./backends.ts";
 import { handleCronjobsRequest } from "./cronjobs.ts";
 import { handleEditorRequest } from "./editor.ts";
@@ -42,6 +45,16 @@ export function createFetchHandler() {
 
     const readyResp = handleReadyRequest(req, url, { server, now: Date.now });
     if (readyResp) return readyResp;
+
+    // The certificate-admission gate for app hostnames. A TLS terminator in
+    // front of the office asks it before serving a name under the wildcard, so
+    // it answers BEFORE any auth: the caller is a terminator on loopback, not a
+    // browser with a session, and the answer is a function of the registry
+    // alone. Refuses everything on an office with no app-host domain, which is
+    // every plain-HTTP and Tailscale-only install. See server/apps/tls-ask.ts.
+    if (url.pathname === TLS_ASK_PATH && req.method === "GET") {
+      return handleTlsAsk(url, { domain: appHostDomain(), admit: (label) => appRegistry.admitAppCertificate(label) });
+    }
 
     // Auth-state routes (claim form, invite peek/accept, logout). These run
     // BEFORE any cookie gate — they're how an unauthenticated visitor
