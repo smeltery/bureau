@@ -49,6 +49,24 @@ export type NormalizedEvent =
       isError?: boolean;
       subagent?: SubagentOrigin;
     }
+  // Backend-specific permission rules (Claude's suggestion updates, Codex's
+  // prefix rules) are intentionally NOT exposed here — backends keep them
+  // internally and apply them automatically on `allow_persistent`. Keeps the
+  // orchestrator free of backend-specific permission rule shapes.
+  //
+  // `allowPrefixLabel` is the one crack in that wall, and it stays display-only:
+  // when a backend can offer a BROADER session-scoped allow than "this exact
+  // call" (Codex: the prefix rule it suggests alongside an exec approval), it
+  // puts the human-readable form of that rule here and the orchestrator offers
+  // it as an extra choice. The rule itself never crosses the boundary — the
+  // orchestrator answers with `allow_prefix` and the backend applies whatever
+  // it was holding for that approvalId.
+  //
+  // `allowPrefixExample` is a second ready-made label: a shorter prefix worth
+  // suggesting as an alternative. Both arrive display-ready and the
+  // orchestrator must not take them apart — what counts as a token is the
+  // backend's business, and a label it re-split could disagree with the rule
+  // the backend would actually store.
   | {
       kind: "approval_request";
       approvalId: string;
@@ -56,6 +74,8 @@ export type NormalizedEvent =
       input: Record<string, unknown>;
       title?: string;
       description?: string;
+      allowPrefixLabel?: string;
+      allowPrefixExample?: string;
     }
   | {
       kind: "turn_completed";
@@ -68,7 +88,15 @@ export type NormalizedEvent =
   | { kind: "usage_update"; tokenUsage: TokenUsage }
   | { kind: "compacted"; summary?: string }
   | { kind: "error"; message: string; code?: string }
-  | { kind: "system_text"; text: string }
+  // Free-text system breadcrumb (e.g. Codex's auto-decline notices).
+  //
+  // The orchestrator sniffs every system_text for auth trouble, because most
+  // of them are relayed provider output (Codex's stderr is the reason that
+  // exists). `bureauAuthored` marks the ones Bureau wrote itself: they can
+  // quote a command or a rule the user typed, and a quoted `401` is not a
+  // sign-in problem. Set it ONLY for text Bureau composed — never for
+  // anything relayed from a backend.
+  | { kind: "system_text"; text: string; bureauAuthored?: true }
   | {
       kind: "task_lifecycle";
       phase: "started" | "completed" | "failed" | "stopped";
@@ -84,7 +112,23 @@ export type NormalizedEvent =
       agentId?: string;
     };
 
-export type ApprovalDecision = { kind: "allow_persistent" } | { kind: "allow_once" } | { kind: "deny"; reason?: string };
+// Four explicit variants matching the /resolve UX. The Claude backend
+// translates `allow_persistent` into session-scoped suggestion updates; the
+// Codex backend maps it to codex's own `acceptForSession` (that session
+// remembers the exact canonicalized command).
+//
+// `allow_prefix` is only ever offered when the preceding approval_request
+// carried an `allowPrefixLabel`: it means "allow this call, and stop asking
+// about commands that start the same way". `prefixText` is the user's own
+// choice of how much to cover, passed through as the RAW TEXT they typed;
+// omitted means "whatever the backend proposed". Deliberately unparsed: what
+// counts as a command token is backend-shaped knowledge, so the backend does
+// the splitting AND the validating — a prefix that isn't the start of the
+// command being approved is refused there. Answering an approval can
+// therefore never widen anything beyond that approval.
+// Today only Codex offers this. Like every variant here it is session-scoped
+// and in-memory: nothing is written to disk or shared with another agent.
+export type ApprovalDecision = { kind: "allow_persistent" } | { kind: "allow_prefix"; prefixText?: string } | { kind: "allow_once" } | { kind: "deny"; reason?: string };
 
 export interface NormalizedMessage {
   uuid: string;

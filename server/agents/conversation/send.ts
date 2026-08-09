@@ -1,5 +1,4 @@
-import type { AgentState, Attachment } from "../../../shared/types.ts";
-import type { ApprovalDecision } from "../../backends/types.ts";
+import type { Attachment } from "../../../shared/types.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, isAgentBusy, logCache, persistAll, updateState } from "../state.ts";
 import { SessionSwappedError, createSession, installSession, replaceSession } from "../session/runtime.ts";
@@ -9,6 +8,7 @@ import { generateTopic, persistCurrentSessionTopic, shouldAutoRegenerateTopic, T
 import { handleSlashCommand } from "./slash-commands.ts";
 import { enqueueUserMessage, QUEUE_MAX } from "./message-queue.ts";
 import { handlePendingEffortPick, handlePendingModelPick } from "./pending-picks.ts";
+import { resolvePermissionReply } from "./permission-reply.ts";
 
 export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[], userId?: string | null) {
   const managed = agents.get(agentId);
@@ -81,26 +81,10 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     managed.pendingPermission = null;
     const userMeta = username ? { username } : undefined;
     emitEphemeralLog(agentId, "user_message", text, userMeta);
-    const trimmed = text.trim();
-    let decision: ApprovalDecision;
-    let resumeState: AgentState;
-    if (trimmed === "1") {
-      emitEphemeralLog(agentId, "system", "Permission granted (rule added for this session).");
-      decision = { kind: "allow_persistent" };
-      resumeState = "tool_executing";
-    } else if (trimmed === "2") {
-      emitEphemeralLog(agentId, "system", "Permission granted (once).");
-      decision = { kind: "allow_once" };
-      resumeState = "tool_executing";
-    } else if (trimmed === "3") {
-      emitEphemeralLog(agentId, "system", "Permission denied.");
-      decision = { kind: "deny", reason: "User denied." };
-      resumeState = "thinking";
-    } else {
-      emitEphemeralLog(agentId, "system", "Permission denied with reason forwarded to agent.");
-      decision = { kind: "deny", reason: text };
-      resumeState = "thinking";
-    }
+    // Option 4 ("allow, and stop asking about this prefix") is only recognized
+    // when the backend advertised it on this approval — see resolvePermissionReply.
+    const { decision, resumeState, note } = resolvePermissionReply(text, pending.allowPrefixLabel);
+    if (note) emitEphemeralLog(agentId, "system", note);
     // The reply hands the turn back to the agent, so flip out of the
     // `waiting_for_response` state the prompt parked us in and back to a busy
     // state. Without this the activity indicator stays blank — `waiting_for_response`

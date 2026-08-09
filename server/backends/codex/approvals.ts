@@ -12,11 +12,23 @@ function compactRecord(record: Record<string, unknown>): Record<string, unknown>
   );
 }
 
+// We map our /resolve UX to: allow_persistent -> acceptForSession (codex's own
+// session scope), allow_once -> accept, deny -> decline. "cancel" is
+// intentionally not used: it interrupts the whole turn, which is harsher than
+// the user typically means by a single-tool deny.
+//
+// allow_prefix maps to the same one-shot allow as allow_once. The rule half of
+// that decision is applied inside CodexSession.approve(), in Bureau's own
+// memory — codex's "acceptWithExecpolicyAmendment" is NEVER sent, because
+// codex persists the amendment to $CODEX_HOME/rules/default.rules where it
+// would outlive the session and leak to every other codex agent sharing that
+// home.
 export function mapApprovalDecision(method: string, decision: ApprovalDecision): string {
   if (method === "applyPatchApproval" || method === "execCommandApproval") {
     switch (decision.kind) {
       case "allow_persistent":
         return "approved_for_session";
+      case "allow_prefix":
       case "allow_once":
         return "approved";
       case "deny":
@@ -26,6 +38,7 @@ export function mapApprovalDecision(method: string, decision: ApprovalDecision):
   switch (decision.kind) {
     case "allow_persistent":
       return "acceptForSession";
+    case "allow_prefix":
     case "allow_once":
       return "accept";
     case "deny":

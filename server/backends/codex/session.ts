@@ -29,7 +29,6 @@ import type { ApprovalDecision, AttachmentSpec, BackendSession, NormalizedEvent,
 import type { GetAccountRateLimitsResponse } from "./_generated/v2/GetAccountRateLimitsResponse.ts";
 
 import { JsonRpcLiteClient, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
-import { mapApprovalDecision } from "./approvals.ts";
 import { buildCodexUserInput } from "./user-input.ts";
 import { CodexRateLimitTracker } from "./session-rate-limits.ts";
 import { CodexUsageTracker } from "./session-usage.ts";
@@ -41,6 +40,8 @@ import { CodexSessionEventBuffer } from "./session-event-buffer.ts";
 import { handleCodexNotification } from "./session-notifications.ts";
 import { codexSubprocessExitEvent, handleCodexSessionStderr } from "./session-process-events.ts";
 import { handleCodexServerRequest, type PendingApproval } from "./session-requests.ts";
+import { SessionPrefixRules } from "./prefix-rules.ts";
+import { answerPendingApproval } from "./session-answer-approval.ts";
 import { startCodexTurn } from "./session-turn-start.ts";
 
 // ---------------------------------------------------------------------------
@@ -77,6 +78,12 @@ export class CodexSession implements BackendSession {
   // jsonRpcId-keyed map of in-flight server-initiated approval requests. The
   // orchestrator references these by approvalId == jsonRpcId.
   private pendingApprovals = new Map<string, PendingApproval>();
+  // Command prefixes the user chose to stop being asked about this session.
+  // A plain field: the store is in-memory and per-session by design, so it
+  // dies with this object (/clear, resume, restart, session swap) and no other
+  // agent can see it. See prefix-rules.ts for why codex's own
+  // acceptWithExecpolicyAmendment is never sent instead.
+  private prefixRules = new SessionPrefixRules();
   private usage = new CodexUsageTracker();
   private rateLimits = new CodexRateLimitTracker();
   // Resolves when bootstrap (initialize + thread/start) completes — success
@@ -186,16 +193,13 @@ export class CodexSession implements BackendSession {
 
   async approve(approvalId: string, decision: ApprovalDecision): Promise<void> {
     await this.bootstrapPromise;
-    const pending = this.pendingApprovals.get(approvalId);
-    if (!pending) return;
-    this.pendingApprovals.delete(approvalId);
-    const decisionWire = mapApprovalDecision(pending.method, decision);
-    // Resolving the deferred releases the JsonRpcLiteClient's handler-chain
-    // await; the client auto-responds with this payload. (Previously we
-    // called client.respond() directly while leaving the promise pending,
-    // which leaked one parked handler frame per approval.) The enum variant
-    // set differs per method — see mapApprovalDecision for the routing.
-    pending.resolve({ decision: decisionWire });
+    answerPendingApproval({
+      pendingApprovals: this.pendingApprovals,
+      prefixRules: this.prefixRules,
+      approvalId,
+      decision,
+      enqueue: (event) => this.enqueue(event),
+    });
   }
 
   async abort(): Promise<void> {
@@ -302,6 +306,7 @@ export class CodexSession implements BackendSession {
     return handleCodexServerRequest(req, {
       threadId: this.threadId,
       pendingApprovals: this.pendingApprovals,
+      prefixRules: this.prefixRules,
       enqueue: (event) => this.enqueue(event),
     });
   }

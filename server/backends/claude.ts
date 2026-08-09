@@ -142,6 +142,10 @@ class ClaudeBackendSession implements BackendSession {
       pending.resolve({ behavior: "deny", message: decision.reason ?? "User denied." });
       return;
     }
+    // The Claude backend never sets allowPrefixLabel, so the /resolve UX never
+    // offers option 4 here. An "allow_prefix" arriving anyway therefore lands
+    // in the same branch as allow_once: a one-shot allow is the safe reading of
+    // "allow, and take this rule too" from a backend that has no rule to take.
     const updatedPermissions = decision.kind === "allow_persistent" ? pending.suggestions?.map((s) => ({ ...s, destination: "session" as const })) : undefined;
     pending.resolve({ behavior: "allow", updatedInput: pending.input, updatedPermissions });
   }

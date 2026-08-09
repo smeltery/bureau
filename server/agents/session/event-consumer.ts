@@ -98,7 +98,10 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
     case "system_text": {
       addLogEntry(agentId, "system", ev.text);
       const managed = agents.get(agentId);
-      emitLoginInstructionsIfAuth(agentId, managed, ev.text);
+      // Bureau-authored breadcrumbs skip the auth sniff: they quote commands
+      // and rules (a command containing `401` is not a sign-in problem), and
+      // being ours they can never BE a provider auth notice.
+      if (!ev.bureauAuthored) emitLoginInstructionsIfAuth(agentId, managed, ev.text);
       break;
     }
     case "task_lifecycle":
@@ -203,17 +206,31 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       if (!managed) break;
       const lines = [`**${ev.title ?? `Wants to use ${ev.toolName}`}**`];
       if (ev.description) lines.push(ev.description);
-      lines.push(
-        "",
-        "Reply:",
-        "  1. Allow \u2014 and don't ask again for similar calls this session",
-        "  2. Allow \u2014 just this time",
-        "  3. Deny",
-        "",
-        "Or type any other message to deny with that as the reason.",
-      );
+      lines.push("", "Reply:", "  1. Allow \u2014 and don't ask again for similar calls this session", "  2. Allow \u2014 just this time", "  3. Deny");
+      // Offered only when the backend proposed a broader rule than "this exact
+      // call" (Codex attaches one to most command approvals). Last in the list
+      // on purpose: 1/2/3 have meant the same three things since the prompt
+      // shipped, and a habitual "3" must never turn into an allow.
+      //
+      // The follow-up line matters more than it looks: codex proposes the WHOLE
+      // command as its rule, so plain "4" mostly covers re-runs with extra
+      // arguments. Typing a shorter prefix is what actually ends the "approve
+      // `rg --files <dir>` again and again" loop.
+      if (ev.allowPrefixLabel) {
+        // "any command starting with", not "this command again": the rule
+        // really does cover every later command whose first tokens match, and a
+        // suggestion can be broad on its own (`sudo`, `env`, `sh -c`). The
+        // wording has to let the user see that before they accept it.
+        lines.push(`  4. Allow \u2014 and don't ask again this session for any command starting with \`${ev.allowPrefixLabel}\``);
+        // The example comes ready-made from the backend; re-splitting the label
+        // here would be this layer guessing at command tokens.
+        if (ev.allowPrefixExample) {
+          lines.push(`     Reply \`4 <prefix>\` to choose how much to allow, e.g. \`4 ${ev.allowPrefixExample}\`.`);
+        }
+      }
+      lines.push("", "Or type any other message to deny with that as the reason.");
       emitEphemeralLog(agentId, "system", lines.join("\n"));
-      managed.pendingPermission = { approvalId: ev.approvalId, toolName: ev.toolName };
+      managed.pendingPermission = { approvalId: ev.approvalId, toolName: ev.toolName, ...(ev.allowPrefixLabel ? { allowPrefixLabel: ev.allowPrefixLabel } : {}) };
       updateState(agentId, "waiting_for_response");
       break;
     }
