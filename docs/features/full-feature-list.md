@@ -113,6 +113,13 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 ## Safety And Extensibility
 
+- Codex escalation prompts offer allow-once, allow-for-this-session, deny, and
+  allow-every-command-starting-with-a-prefix for the rest of the session. Prefix
+  rules are held in the session's memory and die with it — Bureau never writes a
+  durable Codex policy amendment, which would turn one person's "stop asking"
+  into a permanent office-wide allow. A typed prefix must be a whole-token prefix
+  of the command actually being approved, and only plain argv commands (no
+  quoting, chaining, redirection, globbing or expansion) can match or be stored.
 - Claude safety hooks for destructive shell commands, Bureau state protection,
   and secret-file reads.
 - Plugin hooks around agent turns with deterministic prefix ordering and
