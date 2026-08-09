@@ -64,12 +64,24 @@ That script chains `typecheck → lint → format:check → test`.
   is deterministic and battle-tested.
 - **Tests:** `bun test`. Test files live next to their subject in a
   `__tests__/` folder.
+- **Tests never touch your real office.** `bunfig.toml` preloads
+  `scripts/test-preload.ts`, which points `BUREAU_HOME` at a throwaway temp
+  directory before the first test module loads — necessary because
+  `server/persistence/paths.ts` resolves `BUREAU_DIR` once at module load, so a
+  test body cannot redirect it afterwards. Set `BUREAU_HOME` yourself to
+  override. It is ONE directory for the whole run, though: files that write
+  persisted state still clear and re-persist in `afterEach`, because a later
+  file whose imports boot the server would otherwise restore another file's
+  fixtures into the shared agents map.
 
 ## Fixing common failures
 
 - **Format check fails.** Run `bun run format` to fix in place, then commit.
 - **Lint fails.** Run `bun run lint --fix` to auto-fix what's safe.
-- **Tests fail.** Run `bun test path/to/test.ts` to focus on a single file.
+- **Tests fail.** Run `bun test path/to/test.ts` to focus on a single file. A
+  test that passes alone but fails in the suite is usually shared persisted
+  state: check whether the file leaves an agents map behind for a later file to
+  restore.
 - **Typecheck fails.** Run `bun run typecheck` and follow the diagnostics.
 
 ## Adding tests

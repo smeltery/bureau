@@ -12,6 +12,14 @@ export async function readAgentLogsIsolated(agentId: string, query: URLSearchPar
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
+      // The child is meant to be an out-of-process twin of the in-process
+      // search, so it has to resolve the SAME state directory. Passed
+      // explicitly rather than relying on the default: Bun.spawn's implicit
+      // environment is the one this process started with, so a BUREAU_HOME set
+      // programmatically after startup (an isolated instance, a test harness)
+      // would leave the child searching a different office's logs and answering
+      // confidently about the wrong transcripts.
+      env: { ...process.env },
     });
   } catch {
     return { ok: false, status: 500, error: "log search failed" };

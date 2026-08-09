@@ -1,0 +1,9 @@
+# Bun configuration.
+#
+# The test preload points BUREAU_HOME at a throwaway directory before the first
+# test module is imported. That has to happen here rather than in any test file:
+# server/persistence/paths.ts computes BUREAU_DIR at module load, so by the time
+# a test body runs it is already too late. See scripts/test-preload.ts for what
+# goes wrong without it.
+[test]
+preload = ["./scripts/test-preload.ts"]
