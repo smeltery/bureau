@@ -22,3 +22,11 @@ export function lowercaseKey(name: string): string {
 export function formatAgentSenderPrefix(agentId: string, agentName: string, roomName: string): string {
   return `"${agentName}" (agent id: ${agentId}) from Room "${roomName}"`;
 }
+
+// Prefix for a message from an app the receiving agent built. Distinct from
+// both other senders because an app carries no authority at all: it is a
+// program the agent wrote, reporting to it. The name is the app's registered
+// one, resolved server-side from its token.
+export function formatAppSenderPrefix(appName: string): string {
+  return `[app "${appName}"]`;
+}

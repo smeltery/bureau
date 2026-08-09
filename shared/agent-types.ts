@@ -88,7 +88,11 @@ export interface AgentContextUsageSnapshot {
 // (POST /api/agents/:id/messages); both go through the same queue and flush
 // together. The receiver sees one chat bubble per item with the right
 // kind of prefix so it can tell them apart.
-export type QueuedSender = { kind: "user"; username?: string } | { kind: "agent"; agentId: string; agentName: string; roomName: string };
+// An app sender carries only the app's registered NAME: which app is speaking
+// comes from the token it authenticated with, so there is no field a caller
+// could lie in. Apps have no room and no id of their own — the receiving agent
+// is the one that built the app.
+export type QueuedSender = { kind: "user"; username?: string } | { kind: "agent"; agentId: string; agentName: string; roomName: string } | { kind: "app"; appName: string };
 
 export interface QueuedMessage {
   id: string; // short hex; UI uses this to cancel

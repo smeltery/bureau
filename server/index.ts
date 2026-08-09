@@ -8,6 +8,7 @@ import { loadPlugins } from "./plugins/registry.ts";
 import { join as joinPath } from "path";
 import { onUpdateChange, startUpdateChecker } from "./update-checker.ts";
 import { startBackupScheduler } from "./backup.ts";
+import { reconcileAppsAtBoot } from "./apps/boot.ts";
 import { broadcast } from "./ws/broadcast.ts";
 export { editorWatchers } from "./editor-watchers.ts";
 export { pushPresenceListToEachWs, sendInitialPayload } from "./ws-initial-payload.ts";
@@ -114,6 +115,10 @@ void (async () => {
 
 // Boot cronjob scheduler (loads configs, reconciles stale "running" rows, starts tick).
 CronjobManager.startCronjobScheduler();
+
+// Bring registered apps' tokens and units in line with their records. Never
+// activates anything, and never fails the boot. See server/apps/boot.ts.
+reconcileAppsAtBoot();
 
 // Release quiet backend sessions; the next user message resumes from disk.
 startIdleSessionEvictor();

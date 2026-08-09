@@ -13,6 +13,7 @@ import { mintInviteForApi, mintRecoveryInviteForApi, mintSelfInviteForApi, revok
 import { logoutSessionForApi, revokeSessionForApi } from "./access-session-adapters.ts";
 import { handleAccessRequest } from "./access.ts";
 import { handleAgentsRequest } from "./agents.ts";
+import { handleAppSelfRequest } from "./app-self.ts";
 import { handleAppsRequest } from "./apps.ts";
 import { handleBackendsRequest } from "./backends.ts";
 import { handleCronjobsRequest } from "./cronjobs.ts";
@@ -110,6 +111,10 @@ export function createFetchHandler() {
 
     const appsResp = await handleAppsRequest(req, url, httpAuth);
     if (appsResp) return appsResp;
+
+    // The app-SELF surface: authenticated by an app token, never by a session.
+    const appSelfResp = await handleAppSelfRequest(req, url);
+    if (appSelfResp) return appSelfResp;
 
     const editorResp = await handleEditorRequest(req, url, httpAuth, {
       verifyConnection: (connectionId, sessionIdHash) => findBrowserConnection(connectionId, sessionIdHash) !== null,

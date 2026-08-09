@@ -48,7 +48,10 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
       {queue.map((msg) => {
         const attachmentCount = msg.attachments?.length ?? 0;
         const isAgent = msg.sender.kind === "agent";
-        const senderLabel = msg.sender.kind === "agent" ? `${msg.sender.agentName} · agent · Room "${msg.sender.roomName}"` : msg.sender.username || "you";
+        // An app chip reads as the app, not as a person: it is a program the
+        // agent built, reporting back.
+        const senderLabel =
+          msg.sender.kind === "agent" ? `${msg.sender.agentName} · agent · Room "${msg.sender.roomName}"` : msg.sender.kind === "app" ? `${msg.sender.appName} · app` : msg.sender.username || "you";
         return (
           <div
             key={msg.id}

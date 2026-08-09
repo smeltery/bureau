@@ -42,53 +42,25 @@
 import { validateCwd } from "../agents/session/paths.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { broadcast } from "../ws/broadcast.ts";
-import { appRegistry, type AppRegistry } from "../apps/registry.ts";
-import { appSupervisor, APP_LOG_LINES_DEFAULT, UNKNOWN_RUNTIME, type AppRuntime } from "../apps/supervisor.ts";
-import { announced, appAttributionFor, json, jsonError, JSON_HEADERS, readAppJson, renderAppError, resolveAppsIdentity, visibleApp, visibleApps, type AppsIdentity } from "./app-route-helpers.ts";
+import { APP_LOG_LINES_DEFAULT, type AppRuntime } from "../apps/supervisor.ts";
+import { defaultAppsDeps } from "./apps-deps.ts";
+import type { AppsDeps } from "./apps-seam.ts";
+import {
+  announced,
+  appAttributionFor,
+  appToWire,
+  json,
+  jsonError,
+  JSON_HEADERS,
+  readAppJson,
+  renderAppError,
+  resolveAppsIdentity,
+  visibleApp,
+  visibleApps,
+  type AppsIdentity,
+} from "./app-route-helpers.ts";
 import { errMessage } from "../../shared/errors.ts";
 import type { AppLogsRes, AppRecord, AppWire } from "../../shared/apps.ts";
-
-export interface AppsDeps {
-  registry: AppRegistry;
-  // Runtime state for a SET of apps: one lookup for a whole list, never one
-  // per app. A name the supervisor cannot speak for is simply absent.
-  states(names: readonly string[]): Map<string, AppRuntime>;
-  // Write the unit and start the app. Throws only when the unit could not be
-  // INSTALLED; an app that installs and then fails to run is a state, not an
-  // error (see the register handler).
-  install(record: AppRecord): void;
-  // Regenerate the app's unit from a changed record, preserving whether it was
-  // running. Throws when the machine could not be brought in line.
-  reinstall(record: AppRecord): void;
-  // Stop the app and remove everything bureau generated for it. Throws if the
-  // app survived, which is what keeps a failed teardown from freeing the name.
-  teardown(name: string): void;
-  // The recovery verbs. Without them the only cure for an app that has come to
-  // rest in `failed` is DELETE, which costs it its port and its data directory
-  // — a steep price for a crash loop or a source file that has since been
-  // fixed. (A mistyped start COMMAND is cured by PATCH instead, which rewrites
-  // the unit and restarts what was running.)
-  start(name: string): void;
-  stop(name: string): void;
-  restart(name: string): void;
-  logs(name: string, lines: number): string[];
-  // The app's public address, or null when this office has no app hostnames.
-  publicUrl(record: AppRecord): string | null;
-}
-
-export const defaultAppsDeps: AppsDeps = {
-  registry: appRegistry,
-  states: (names) => appSupervisor.states(names),
-  install: (record) => appSupervisor.install(record),
-  reinstall: (record) => appSupervisor.reinstall(record),
-  teardown: (name) => appSupervisor.teardown(name),
-  start: (name) => appSupervisor.start(name),
-  stop: (name) => appSupervisor.stop(name),
-  restart: (name) => appSupervisor.restart(name),
-  logs: (name, lines) => appSupervisor.logs(name, lines),
-  // App-host arm lands later: no app hostnames yet.
-  publicUrl: () => null,
-};
 
 export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResult, deps: AppsDeps = defaultAppsDeps): Promise<Response | null> {
   const parts = url.pathname.split("/").filter(Boolean);
@@ -100,22 +72,9 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
   const identity = resolveAppsIdentity(req, auth);
   if (identity instanceof Response) return identity;
 
-  // The ONE place a record becomes wire. `state` and `restartCount` are
-  // derived from the supervisor at read time and never stored — a persisted
-  // "running" would be a lie the moment the box reboots.
-  const wireOf = (record: AppRecord, runtime: AppRuntime | undefined): AppWire => {
-    const { state, restartCount, startError } = runtime ?? UNKNOWN_RUNTIME;
-    const publicUrl = deps.publicUrl(record);
-    return {
-      ...record,
-      state,
-      restartCount,
-      ...(startError ? { startError } : {}),
-      // `!== null`, not truthiness: the rule is present-iff-there-is-a-URL,
-      // and an empty string would be a URL-shaped answer meaning "none".
-      ...(publicUrl !== null ? { url: publicUrl } : {}),
-    };
-  };
+  // Bound to this office's address rule, so no call site can build a wire
+  // object for one app carrying another's URL — or forget the field.
+  const wireOf = (record: AppRecord, runtime: AppRuntime | undefined): AppWire => appToWire(record, runtime, deps.publicUrl(record));
 
   try {
     if (parts.length === 2 && req.method === "GET") {
@@ -186,7 +145,20 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
       // then never removed — its name and port stay spoken for, and a retried
       // DELETE can finish the job.
       deps.teardown(record.name);
+      // Between the teardown and the removal: the app is provably not running,
+      // so its token has nothing left to authenticate, and the registry still
+      // holds the record that would let a retry finish the job if this throws.
+      // Revoking after the record was gone would be a credential whose owner
+      // nothing can look up.
+      deps.revokeToken(record.name);
       if (!deps.registry.remove(record.name)) return jsonError(404, "not_found", "no app has that name");
+      // The name is free from this line on, so the message budget attached to
+      // it has to go with the old app — otherwise the next app to take the name
+      // (which can belong to a different user) inherits whatever the previous
+      // one had already spent. AFTER the removal committed and non-throwing,
+      // because forgetting a rate limit is not worth failing a delete that
+      // already happened.
+      deps.limiter.forget(record.name);
       // AFTER the removal committed, from the record read before teardown.
       announced(record.name, () => broadcast({ type: "app_removed", name: record.name }));
       return new Response(null, { status: 204, headers: JSON_HEADERS });
@@ -226,6 +198,12 @@ async function registerApp(req: Request, identity: AppsIdentity, deps: AppsDeps,
       createdBy: attribution.createdBy,
       ...(identity.scope === "agent" ? { createdByAgentId: identity.agentId } : {}),
     });
+    // The token BEFORE the install, so the unit's first start already has it: a
+    // process's environment is fixed at exec, so an app started before its
+    // token file exists would run tokenless until something restarted it. Never
+    // throws — an app without a token is a working app with one capability
+    // missing, and failing the registration over it would be the wrong trade.
+    deps.provisionToken(record);
     // THE RECORD IS COMMITTED, SO THE ANSWER IS 201 — whatever the supervisor
     // then does. A 500 here would describe a resource that really was created,
     // and the natural response to a 500 is a retry, which can only ever be

@@ -8,8 +8,8 @@ import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { getUserById } from "../users.ts";
 import { AppRegistryError } from "../apps/registry.ts";
-import { AppSupervisorError } from "../apps/supervisor.ts";
-import type { AppErrorCode, AppRecord } from "../../shared/apps.ts";
+import { AppSupervisorError, UNKNOWN_RUNTIME, type AppRuntime } from "../apps/supervisor.ts";
+import type { AppErrorCode, AppRecord, AppWire } from "../../shared/apps.ts";
 
 export const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -36,6 +36,23 @@ const STATUS_BY_CODE: Record<AppErrorCode, number> = {
   persist_failed: 500,
   supervisor_failed: 500,
 };
+
+// The ONE place a record becomes wire. `state` and `restartCount` are derived
+// from the supervisor at read time and never stored — a persisted "running"
+// would be a lie the moment the box reboots. `url` is derived too, from the
+// office's origin and the app's label.
+export function appToWire(record: AppRecord, runtime: AppRuntime | undefined, publicUrl: string | null): AppWire {
+  const { state, restartCount, startError } = runtime ?? UNKNOWN_RUNTIME;
+  return {
+    ...record,
+    state,
+    restartCount,
+    ...(startError ? { startError } : {}),
+    // `!== null`, not truthiness: the rule is present-iff-there-is-a-URL, and
+    // an empty string would be a URL-shaped answer meaning "none".
+    ...(publicUrl !== null ? { url: publicUrl } : {}),
+  };
+}
 
 export function resolveAppsIdentity(req: Request, auth?: AuthResult): AppsIdentity | Response {
   const rawBearer = readBearerToken(req);

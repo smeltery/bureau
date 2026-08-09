@@ -5,7 +5,8 @@ import { join } from "path";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { createAppRegistry } from "../../apps/registry.ts";
 import { UNKNOWN_RUNTIME, type AppRuntime } from "../../apps/supervisor.ts";
-import { handleAppsRequest, type AppsDeps } from "../apps.ts";
+import { handleAppsRequest } from "../apps.ts";
+import type { AppsDeps } from "../apps-seam.ts";
 import type { AppRecord } from "../../../shared/apps.ts";
 
 // The route layer only: the registry is real (pointed at a temp dir) so the
@@ -18,6 +19,7 @@ let deps: AppsDeps;
 let calls: string[];
 let installThrows: Error | null;
 let teardownThrows: Error | null;
+let revokeThrows: Error | null;
 let runtimes: Map<string, AppRuntime>;
 
 const ownerAuth: AuthResult = {
@@ -30,6 +32,7 @@ beforeEach(() => {
   calls = [];
   installThrows = null;
   teardownThrows = null;
+  revokeThrows = null;
   runtimes = new Map();
   deps = {
     registry: createAppRegistry({ dir: stateDir, probePort: () => true }),
@@ -57,6 +60,23 @@ beforeEach(() => {
     logs: (name, lines) => {
       calls.push(`logs:${name}:${lines}`);
       return [`line for ${name}`];
+    },
+    provisionToken: (record) => {
+      calls.push(`provisionToken:${record.name}`);
+      return true;
+    },
+    revokeToken: (name) => {
+      calls.push(`revokeToken:${name}`);
+      if (revokeThrows) throw revokeThrows;
+    },
+    // The app-self surface has its own test file; these routes never send.
+    sendAsApp: () => ({ ok: true, messageId: "unused" }),
+    limiter: {
+      takeBurst: () => ({ ok: true }),
+      commitDaily: () => {},
+      forget: (name) => {
+        calls.push(`forget:${name}`);
+      },
     },
     publicUrl: () => null,
   };
@@ -98,7 +118,9 @@ describe("apps routes: registration", () => {
     expect(body.username).toBe("Ada");
     // Derived, never stored: no supervisor has spoken for it yet.
     expect(body.state).toBe("unknown");
-    expect(calls).toEqual(["install:hello"]);
+    // The token BEFORE the install, so the unit's first start already has it:
+    // a process's environment is fixed at exec.
+    expect(calls).toEqual(["provisionToken:hello", "install:hello"]);
   });
 
   test("a body-supplied owner cannot register an app onto someone else", async () => {
@@ -324,7 +346,7 @@ describe("apps routes: delete", () => {
     const { status } = await call("DELETE", "/api/apps/hello");
 
     expect(status).toBe(204);
-    expect(calls).toEqual(["teardown:hello"]);
+    expect(calls[0]).toBe("teardown:hello");
     expect(deps.registry.get("hello")).toBeNull();
     // The name is reusable; the LABEL is not — the successor gets a fresh one.
     const { body: second } = await register("hello");
@@ -336,6 +358,25 @@ describe("apps routes: delete", () => {
     teardownThrows = new Error("unit still running");
 
     await expect(call("DELETE", "/api/apps/hello")).rejects.toThrow("unit still running");
+    expect(deps.registry.get("hello")).not.toBeNull();
+  });
+
+  test("the token is revoked between teardown and removal, and the budget after", async () => {
+    await register("hello");
+    calls.length = 0;
+
+    await call("DELETE", "/api/apps/hello");
+
+    // Revoke while the record still exists (so a retry can finish the job),
+    // forget the rate limit only once the removal committed.
+    expect(calls).toEqual(["teardown:hello", "revokeToken:hello", "forget:hello"]);
+  });
+
+  test("a failed revoke keeps the record: a credential outliving its app is worth a retry", async () => {
+    await register("hello");
+    revokeThrows = new Error("token store unwritable");
+
+    await expect(call("DELETE", "/api/apps/hello")).rejects.toThrow("token store unwritable");
     expect(deps.registry.get("hello")).not.toBeNull();
   });
 

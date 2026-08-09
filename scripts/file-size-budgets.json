@@ -8,6 +8,6 @@
     "server/apps/supervisor.test.ts": 1225,
     "server/apps/supervisor.ts": 1172,
     "server/apps/tokens.test.ts": 547,
-    "server/http/__tests__/apps.test.ts": 413
+    "server/http/__tests__/apps.test.ts": 454
   }
 }

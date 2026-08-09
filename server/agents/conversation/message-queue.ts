@@ -1,5 +1,5 @@
 import type { AgentState, Attachment, QueuedMessage, QueuedSender } from "../../../shared/types.ts";
-import { formatAgentSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
+import { formatAgentSenderPrefix, formatAppSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
 import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { SessionSwappedError, createSession, installSession } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
@@ -148,6 +148,8 @@ function senderPrefixText(sender: QueuedSender): string {
       return formatUserPrefix(sender.username);
     case "agent":
       return `${formatAgentSenderPrefix(sender.agentId, sender.agentName, sender.roomName)} `;
+    case "app":
+      return `${formatAppSenderPrefix(sender.appName)} `;
   }
 }
 
@@ -161,6 +163,8 @@ function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
         sender_agent_name: sender.agentName,
         sender_agent_room: sender.roomName,
       };
+    case "app":
+      return { sender_app_name: sender.appName };
   }
 }
 
