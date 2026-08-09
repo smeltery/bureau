@@ -8,7 +8,7 @@ export const SYSTEM_PROMPT = `You are an assistant on the Bureau website (bureau
 - When explaining setup steps, give enough context that each step is actionable — don't compress to the point of being cryptic.
 
 ## What is Bureau?
-Bureau (Isometric Multiplexer) is a free, open-source agent office for running multiple Claude Code agents simultaneously. It gives you a browser-based UI with an isometric office where each agent sits at a desk — you see who's working, who's idle, and who needs your attention at a glance.
+Bureau (Isometric Multiplexer) is a free, open-source agent office for running multiple coding agents simultaneously — Claude Code agents, and Codex agents on the same desks if you prefer a ChatGPT subscription. It gives you a browser-based UI with an isometric office where each agent sits at a desk — you see who's working, who's idle, and who needs your attention at a glance.
 
 Free · open source · no cloud · no account.
 
@@ -72,6 +72,9 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - The entire SVG scene (~1,600 lines of raw coordinates and bezier curves) was drawn by Claude Opus — no libraries, assets, or tools
 
 ### Agent Creation & Editing
+- Two engines, chosen per agent when you click an empty desk: **Claude** (uses your Claude Code login) or **Codex** (uses your ChatGPT subscription or \`OPENAI_API_KEY\`). Both kinds of agent sit in the same office and are driven the same way
+- Claude agents pick a model family — Opus, Sonnet, Haiku, or Fable — and families resolve to exact versions centrally, so an agent follows the current model without being re-created. Codex agents pick a GPT-5.x model
+- Per-agent effort level (minimal → max, default xhigh) controls how much thinking an agent spends per turn
 - Click empty desk to spawn — name, working directory, model, permission mode, custom instructions
 - Working directory input with recent CWD suggestions
 - Outfit customization: color swatches, hat, accessory, randomize with live preview
@@ -119,7 +122,8 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - A name and port are fixed for an app's whole life so bookmarks keep working — a bad start command is fixed with PATCH rather than deleting and re-registering
 - Apps tab shows every app with its live state, restart count, and journal tail; start/stop/restart from the UI or the API
 - Each app gets a token scoped to exactly one route, so it can message the agent that built it (rate-limited, and it can never interrupt a turn in progress)
-- Not yet: serving apps at their own hostnames through Bureau. Today an app is reached at the box's host and port, or through an SSH tunnel
+- Apps can answer at their own hostnames: an app called \`hello\` on an office at \`office.example\` is reachable at \`hello.office.example\`, with Bureau relaying both HTTP and WebSocket traffic. This needs the office to have an HTTPS public origin at a real DNS name with a wildcard record pointed at it — every plain-HTTP office, dev box, and Tailscale-only office has no app domain at all and keeps using host-and-port links (Tailscale deliberately stays on port links: MagicDNS has no wildcard records and its certificates cover only the node's own name)
+- Reaching an app hostname requires an office sign-in: the office session cookie is host-only and never reaches an app host, so Bureau bounces the visitor through a one-time code to mint a separate app-scoped cookie. An app can therefore never act as the signed-in user, and a hostname nobody registered cannot tell you whether it was ever real
 
 ### Diff Viewer
 - /bureau-diff renders uncommitted changes in your cwd as a styled per-file card: status badges, +/- counts, click-to-collapse, unified/split toggle, lightbox overlay for large files, 2 MB safety rail
@@ -139,7 +143,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 
 ### Slash Commands & Autocomplete
 - Built-in commands: /clear, /help, /cost, /context, /resume, /model, /effort (switch thinking effort level)
-- Bureau-specific: /bureau-diff (rich diff card), /bureau-edit (open a file in the editor side panel), /bureau-system-prompt (inspect your effective system prompt), /bureau-cronjob-system-prompt (inspect a cron job's system prompt by name or id), /bureau-usage (per-agent + per-room + per-cron-job cost report)
+- Bureau-specific: /bureau-diff (rich diff card), /bureau-edit (open a file in the editor side panel), /bureau-system-prompt (inspect your effective system prompt), /bureau-cronjob-system-prompt (inspect a cron job's system prompt by name or id), /bureau-usage (per-agent + per-room + per-cron-job cost report), /bureau-storage (persisted office footprint — transcripts, attachments, Codex home, memory, cronjobs, backups, per-agent data — with an opt-in prune that only deletes when explicitly applied), /bureau-message (send a message to another agent)
 - User skills from ~/.claude/skills/ and project commands
 - Bureau-bundled skills like /bureau-peer-review (tells an agent to review another agent's work), /bureau-pair-programming (walks an agent through scoping, design review with a peer, and implementation review — escalates to the boss after 5 rounds or on architectural tradeoffs), /bureau-second-opinion (ping a peer for a one-shot take on a question and keep driving), /bureau-soft-handoff (brief a peer when your context is filling up, then stay around as a reference), /bureau-subagent-review (spawn a subagent to review uncommitted changes for bugs and principled-vs-hacky before committing), and /bureau-all-hands (shows what everyone is up to)
 - Autocomplete dropdown with keyboard navigation, plus an Sk composer button that opens a filterable skills/commands browser with the user's per-user most-used picks and counts at the top
