@@ -3,10 +3,11 @@
   "files": {
     "articles/punching-in-building-an-office-for-ai-agents.md": 600,
     "docs/features/multi-office-design.md": 360,
-    "server/apps/registry.ts": 985,
     "server/apps/registry.test.ts": 1236,
-    "server/apps/supervisor.ts": 1172,
+    "server/apps/registry.ts": 985,
     "server/apps/supervisor.test.ts": 1225,
-    "server/http/apps.ts": 420
+    "server/apps/supervisor.ts": 1172,
+    "server/apps/tokens.test.ts": 547,
+    "server/http/__tests__/apps.test.ts": 413
   }
 }

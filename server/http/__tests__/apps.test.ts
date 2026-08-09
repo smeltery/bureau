@@ -4,7 +4,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { createAppRegistry } from "../../apps/registry.ts";
-import { handleAppsRequest, UNKNOWN_RUNTIME, type AppsDeps, type AppRuntime } from "../apps.ts";
+import { UNKNOWN_RUNTIME, type AppRuntime } from "../../apps/supervisor.ts";
+import { handleAppsRequest, type AppsDeps } from "../apps.ts";
 import type { AppRecord } from "../../../shared/apps.ts";
 
 // The route layer only: the registry is real (pointed at a temp dir) so the
@@ -43,6 +44,19 @@ beforeEach(() => {
     teardown: (name) => {
       calls.push(`teardown:${name}`);
       if (teardownThrows) throw teardownThrows;
+    },
+    start: (name) => {
+      calls.push(`start:${name}`);
+    },
+    stop: (name) => {
+      calls.push(`stop:${name}`);
+    },
+    restart: (name) => {
+      calls.push(`restart:${name}`);
+    },
+    logs: (name, lines) => {
+      calls.push(`logs:${name}:${lines}`);
+      return [`line for ${name}`];
     },
     publicUrl: () => null,
   };
@@ -164,9 +178,77 @@ describe("apps routes: reads", () => {
     expect((await call("GET", "/api/apps/nope")).status).toBe(404);
   });
 
-  test("a path below the app resource falls through rather than 404ing", async () => {
-    const request = req("GET", "/api/apps/one/logs/extra");
-    expect(await handleAppsRequest(request, new URL(request.url), ownerAuth, deps)).toBeNull();
+  test("an unknown sub-resource falls through rather than 404ing", async () => {
+    for (const path of ["/api/apps/one/logs/extra", "/api/apps/one/nonsense"]) {
+      const request = req("GET", path);
+      expect(await handleAppsRequest(request, new URL(request.url), ownerAuth, deps)).toBeNull();
+    }
+  });
+});
+
+describe("apps routes: control verbs and logs", () => {
+  test("each verb runs and answers with the app's fresh state", async () => {
+    await register("hello");
+    runtimes.set("hello", { state: "running", restartCount: 0 });
+    calls.length = 0;
+
+    for (const verb of ["start", "stop", "restart"] as const) {
+      const { status, body } = await call("POST", `/api/apps/hello/${verb}`);
+      expect(status).toBe(200);
+      expect(body.state).toBe("running");
+    }
+    expect(calls).toEqual(["start:hello", "stop:hello", "restart:hello"]);
+  });
+
+  test("a verb that throws announces nothing and carries the supervisor's code", async () => {
+    await register("hello");
+    const { AppSupervisorError } = await import("../../apps/supervisor.ts");
+    deps.start = () => {
+      throw new AppSupervisorError("supervisor_failed", "systemd refused");
+    };
+
+    const { status, body } = await call("POST", "/api/apps/hello/start");
+
+    expect(status).toBe(500);
+    expect(body.error.code).toBe("supervisor_failed");
+  });
+
+  test("a control verb on an unknown app is 404 and runs nothing", async () => {
+    expect((await call("POST", "/api/apps/nope/start")).status).toBe(404);
+    expect(calls).toEqual([]);
+  });
+
+  test("logs default to the supervisor's default line count", async () => {
+    await register("hello");
+    calls.length = 0;
+
+    const { status, body } = await call("GET", "/api/apps/hello/logs");
+
+    expect(status).toBe(200);
+    expect(body).toEqual({ name: "hello", lines: ["line for hello"] });
+    expect(calls).toEqual(["logs:hello:100"]);
+  });
+
+  test("an explicit line count is passed through; nonsense is refused", async () => {
+    await register("hello");
+
+    expect((await call("GET", "/api/apps/hello/logs?lines=25")).status).toBe(200);
+    expect(calls).toContain("logs:hello:25");
+    for (const bad of ["banana", "-5", "0", "1.5"]) {
+      const { status, body } = await call("GET", `/api/apps/hello/logs?lines=${bad}`);
+      expect(status).toBe(400);
+      expect(body.error.code).toBe("invalid_request");
+    }
+  });
+
+  test("a member cannot read another user's logs", async () => {
+    await register("owned-by-ada");
+    const memberAuth: AuthResult = {
+      kind: "ok",
+      session: { sessionIdHash: "h2", sessionPrefix: "s2", userId: "user-2", username: "Bo", role: "member", needsRolling: false, absoluteExpiresAt: Date.now() + 86_400_000 },
+    };
+
+    expect((await call("GET", "/api/apps/owned-by-ada/logs", undefined, memberAuth)).status).toBe(404);
   });
 });
 

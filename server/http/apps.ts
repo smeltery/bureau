@@ -39,31 +39,14 @@
  * matches nothing and 404s like any other unknown name.
  */
 
-import * as AgentManager from "../agent-manager.ts";
-import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { validateCwd } from "../agents/session/paths.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
-import { getUserById } from "../users.ts";
 import { broadcast } from "../ws/broadcast.ts";
-import { appRegistry, AppRegistryError, type AppRegistry } from "../apps/registry.ts";
+import { appRegistry, type AppRegistry } from "../apps/registry.ts";
+import { appSupervisor, APP_LOG_LINES_DEFAULT, UNKNOWN_RUNTIME, type AppRuntime } from "../apps/supervisor.ts";
+import { announced, appAttributionFor, json, jsonError, JSON_HEADERS, readAppJson, renderAppError, resolveAppsIdentity, visibleApp, visibleApps, type AppsIdentity } from "./app-route-helpers.ts";
 import { errMessage } from "../../shared/errors.ts";
-import type { AppErrorCode, AppRecord, AppState, AppWire } from "../../shared/apps.ts";
-
-const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
-
-// Runtime the supervisor reports for a set of apps. Until the supervisor seam
-// is wired, every app is honestly `unknown` — there is no unit to ask about.
-export interface AppRuntime {
-  state: AppState;
-  restartCount: number;
-  startError?: string;
-}
-export const UNKNOWN_RUNTIME: AppRuntime = { state: "unknown", restartCount: 0 };
-
-// Who is calling, reduced to what the app routes need. Loopback is the box
-// owner at a shell — full visibility, like an office owner, but with no user
-// to own new registrations.
-type AppsIdentity = { scope: "agent"; agentId: string; userId: string | null } | { scope: "user"; userId: string; username: string; role: "owner" | "member" } | { scope: "loopback" };
+import type { AppLogsRes, AppRecord, AppWire } from "../../shared/apps.ts";
 
 export interface AppsDeps {
   registry: AppRegistry;
@@ -80,48 +63,41 @@ export interface AppsDeps {
   // Stop the app and remove everything bureau generated for it. Throws if the
   // app survived, which is what keeps a failed teardown from freeing the name.
   teardown(name: string): void;
+  // The recovery verbs. Without them the only cure for an app that has come to
+  // rest in `failed` is DELETE, which costs it its port and its data directory
+  // — a steep price for a crash loop or a source file that has since been
+  // fixed. (A mistyped start COMMAND is cured by PATCH instead, which rewrites
+  // the unit and restarts what was running.)
+  start(name: string): void;
+  stop(name: string): void;
+  restart(name: string): void;
+  logs(name: string, lines: number): string[];
   // The app's public address, or null when this office has no app hostnames.
   publicUrl(record: AppRecord): string | null;
 }
 
-// The supervisor seam. This slice registers and persists; the systemd
-// supervisor lands next and replaces these no-ops, at which point registered
-// apps actually run.
 export const defaultAppsDeps: AppsDeps = {
   registry: appRegistry,
-  states: (names) => new Map(names.map((n) => [n, UNKNOWN_RUNTIME])),
-  install: () => {},
-  reinstall: () => {},
-  teardown: () => {},
+  states: (names) => appSupervisor.states(names),
+  install: (record) => appSupervisor.install(record),
+  reinstall: (record) => appSupervisor.reinstall(record),
+  teardown: (name) => appSupervisor.teardown(name),
+  start: (name) => appSupervisor.start(name),
+  stop: (name) => appSupervisor.stop(name),
+  restart: (name) => appSupervisor.restart(name),
+  logs: (name, lines) => appSupervisor.logs(name, lines),
   // App-host arm lands later: no app hostnames yet.
   publicUrl: () => null,
-};
-
-// Registry refusals -> HTTP. A 400 is "your request is wrong", a 409 is "the
-// world says no", a 500 is "we failed". Kept as one exhaustive table so a new
-// code cannot quietly default to 500.
-const STATUS_BY_CODE: Record<AppErrorCode, number> = {
-  invalid_name: 400,
-  reserved_name: 400,
-  invalid_command: 400,
-  invalid_cwd: 400,
-  invalid_description: 400,
-  name_taken: 409,
-  origin_retired: 409,
-  no_label_available: 409,
-  app_limit_reached: 409,
-  no_port_available: 409,
-  registry_corrupt: 500,
-  persist_failed: 500,
-  supervisor_failed: 500,
 };
 
 export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResult, deps: AppsDeps = defaultAppsDeps): Promise<Response | null> {
   const parts = url.pathname.split("/").filter(Boolean);
   if (parts[0] !== "api" || parts[1] !== "apps") return null;
-  if (parts.length > 3) return null;
+  if (parts.length > 4) return null;
+  // The only sub-resources: the control verbs and the log tail.
+  if (parts.length === 4 && !APP_SUBROUTES.has(parts[3]!)) return null;
 
-  const identity = resolveIdentity(req, auth);
+  const identity = resolveAppsIdentity(req, auth);
   if (identity instanceof Response) return identity;
 
   // The ONE place a record becomes wire. `state` and `restartCount` are
@@ -164,6 +140,45 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
       return updateApp(req, parts[2]!, identity, deps, wireOf);
     }
 
+    // start / stop / restart differ only in the verb. Each answers with the
+    // app's FRESH state rather than 204, so the caller learns whether the thing
+    // it asked for actually happened without a second round trip. A throw
+    // escapes to renderAppError, so nothing is announced — a verb that failed
+    // changed nothing to tell anyone about.
+    if (parts.length === 4 && req.method === "POST" && parts[3] !== "logs") {
+      const record = visibleApp(deps.registry.get(parts[2]!), identity);
+      if (!record) return jsonError(404, "not_found", "no app has that name");
+      const verb = parts[3] as "start" | "stop" | "restart";
+      if (verb === "start") deps.start(record.name);
+      else if (verb === "stop") deps.stop(record.name);
+      else deps.restart(record.name);
+      const wire = wireOf(record, deps.states([record.name]).get(record.name));
+      announced(record.name, () => broadcast({ type: "app_updated", app: wire }));
+      return json(200, wire);
+    }
+
+    if (parts.length === 4 && parts[3] === "logs" && req.method === "GET") {
+      const record = visibleApp(deps.registry.get(parts[2]!), identity);
+      if (!record) return jsonError(404, "not_found", "no app has that name");
+      // Validated rather than clamped silently: `lines=banana` and `lines=-5`
+      // are caller mistakes, and quietly answering with the default hides the
+      // bug in whatever built the URL. A number that is merely too big IS
+      // clamped (inside the supervisor, where the ceiling is defined) — asking
+      // for more than we cap at is a reasonable thing to want, unlike asking
+      // for nonsense. isSafeInteger as well as the digit grammar: a long enough
+      // digit string passes the regex and converts to something unusable.
+      const raw = url.searchParams.get("lines");
+      let lines = APP_LOG_LINES_DEFAULT;
+      if (raw !== null) {
+        if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)) || Number(raw) < 1) {
+          return jsonError(400, "invalid_request", "lines must be a positive whole number");
+        }
+        lines = Number(raw);
+      }
+      const body: AppLogsRes = { name: record.name, lines: deps.logs(record.name, lines) };
+      return json(200, body);
+    }
+
     if (parts.length === 3 && req.method === "DELETE") {
       const record = visibleApp(deps.registry.get(parts[2]!), identity);
       if (!record) return jsonError(404, "not_found", "no app has that name");
@@ -184,7 +199,7 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
 }
 
 async function registerApp(req: Request, identity: AppsIdentity, deps: AppsDeps, wireOf: (r: AppRecord, rt: AppRuntime | undefined) => AppWire): Promise<Response> {
-  const body = await readJson(req);
+  const body = await readAppJson(req);
   if (typeof body?.name !== "string") return jsonError(400, "invalid_name", "name is required");
   if (typeof body.command !== "string") return jsonError(400, "invalid_command", "command is required");
   if (typeof body.cwd !== "string" || body.cwd.trim() === "") return jsonError(400, "invalid_cwd", "cwd is required");
@@ -199,7 +214,7 @@ async function registerApp(req: Request, identity: AppsIdentity, deps: AppsDeps,
     return jsonError(400, "invalid_cwd", errMessage(err));
   }
 
-  const attribution = attributionFor(identity);
+  const attribution = appAttributionFor(identity);
   try {
     const record = deps.registry.register({
       name: body.name,
@@ -235,7 +250,7 @@ async function registerApp(req: Request, identity: AppsIdentity, deps: AppsDeps,
 }
 
 async function updateApp(req: Request, name: string, identity: AppsIdentity, deps: AppsDeps, wireOf: (r: AppRecord, rt: AppRuntime | undefined) => AppWire): Promise<Response> {
-  const body = await readJson(req);
+  const body = await readAppJson(req);
   if (!body) return jsonError(400, "invalid_request", "invalid JSON body");
   const before = visibleApp(deps.registry.get(name), identity);
   if (!before) return jsonError(404, "not_found", "no app has that name");
@@ -300,101 +315,4 @@ async function updateApp(req: Request, name: string, identity: AppsIdentity, dep
   return json(200, wire);
 }
 
-// --- identity ----------------------------------------------------------------
-
-function resolveIdentity(req: Request, auth?: AuthResult): AppsIdentity | Response {
-  const rawBearer = readBearerToken(req);
-  const bearer = resolveAgentToken(rawBearer);
-  if (rawBearer && !bearer) return jsonError(401, "unauthenticated", "missing or invalid bearer token");
-  if (bearer) return { scope: "agent", agentId: bearer.agentId, userId: bearer.userId };
-  if (auth?.kind === "ok") return { scope: "user", userId: auth.session.userId, username: auth.session.username, role: auth.session.role };
-  if (auth?.kind === "loopback") return { scope: "loopback" };
-  return jsonError(401, "unauthenticated", "authentication required");
-}
-
-// Token-derived attribution, shared with the task board's convention:
-// createdBy is the caller's display identity (agent name, or the human's
-// name), the owner is the token's user — for an agent, its manager.
-function attributionFor(identity: AppsIdentity): { userId: string | null; username: string | null; createdBy: string } {
-  switch (identity.scope) {
-    case "agent": {
-      const display = AgentManager.getAgentDisplay(identity.agentId);
-      const owner = identity.userId ? getUserById(identity.userId) : null;
-      return { userId: identity.userId, username: owner?.name ?? null, createdBy: display?.name ?? identity.agentId };
-    }
-    case "user":
-      return { userId: identity.userId, username: identity.username, createdBy: identity.username };
-    case "loopback":
-      return { userId: null, username: null, createdBy: "local" };
-  }
-}
-
-// Office owners (and the box owner at a loopback shell) see every app;
-// everyone else sees the apps their user owns. Mirrors the cronjob rule.
-//
-// A browser session carries its own role, so it is read from the session
-// rather than looked up again. An agent's role is its MANAGER's, which only
-// the users store knows — an agent with no manager is nobody's owner.
-function seesAll(identity: AppsIdentity): boolean {
-  switch (identity.scope) {
-    case "loopback":
-      return true;
-    case "user":
-      return identity.role === "owner";
-    case "agent":
-      return identity.userId !== null && getUserById(identity.userId)?.role === "owner";
-  }
-}
-
-function visibleApps(all: AppRecord[], identity: AppsIdentity): AppRecord[] {
-  if (seesAll(identity)) return all;
-  const userId = identity.scope === "loopback" ? null : identity.userId;
-  return all.filter((a) => a.userId !== null && a.userId === userId);
-}
-
-function visibleApp(record: AppRecord | null, identity: AppsIdentity): AppRecord | null {
-  if (!record) return null;
-  return visibleApps([record], identity).length > 0 ? record : null;
-}
-
-// --- plumbing ----------------------------------------------------------------
-
-// Announce, and never let the telling of it change what was told. Every
-// announce call site sits AFTER its commit point; a throw from the broadcast
-// would answer 500 for a register that really did register. The announcement
-// is the LAST thing that happens and the least important: a socket that missed
-// a frame re-converges on the Apps tab's next fetch, while a lie about whether
-// the mutation happened does not heal.
-function announced(what: string, send: () => void): void {
-  try {
-    send();
-  } catch (err) {
-    console.error(`[apps] "${what}" changed but was not announced:`, err);
-  }
-}
-
-// A registry error carries the wire code; anything else is a genuine surprise
-// and is re-thrown for the router to log and answer 500.
-function renderAppError(err: unknown): Response {
-  if (err instanceof AppRegistryError) {
-    return jsonError(STATUS_BY_CODE[err.code], err.code, err.message);
-  }
-  throw err;
-}
-
-async function readJson(req: Request): Promise<Record<string, unknown> | null> {
-  try {
-    const body = await req.json();
-    return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
-}
-
-function jsonError(status: number, code: string, message: string): Response {
-  return new Response(JSON.stringify({ error: { code, message } }), { status, headers: JSON_HEADERS });
-}
+const APP_SUBROUTES: ReadonlySet<string> = new Set(["start", "stop", "restart", "logs"]);
