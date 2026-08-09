@@ -20,6 +20,7 @@ export function createManagedAgent(input: {
     lastActivityAt: Date.now(),
     consumerPromise: null,
     pendingTurn: null,
+    nextTurnAnchorEntryId: null,
     afterTurnPromise: null,
     turnCancelToken: 0,
     aborting: false,

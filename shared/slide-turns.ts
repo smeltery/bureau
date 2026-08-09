@@ -1,10 +1,11 @@
-// Slide Mode turn splitting (design: internal-docs/slide-mode-design.md).
+// Slide Mode turn splitting.
 //
 // A deck has one position per assistant turn, 1:1 with the conversation. A turn
 // is anchored by the `user_message` LogEntry that started it and runs until the
 // next `user_message`. This is the SINGLE source of that mapping, shared by:
-//   - the server (server/slide-mode.ts) to build the content it formats, and
-//   - the client (ui/log-view/DeckView.tsx) to lay out the deck positions.
+//   - the server (server/slides/* — the generator and the job resolver in
+//     server/agents/slides.ts) to build the content it formats, and
+//   - the client (ui/log-view/deck/*) to lay out the deck positions.
 // Sharing it keeps the two exactly in step — the anchor entry id the client
 // requests is the same one the server keys the stored slide on.
 
@@ -174,7 +175,7 @@ export function turnIsTerminal(runningAnchorId: string | null | undefined, entry
 // The ONE exception to "verified means skip": a stored PLACEHOLDER whose digest
 // disagrees with the live turn's. That record says "this turn produced no
 // answer" about a turn that now has one, so it is provably stale and the client
-// must re-ask — nothing else brings the deck back from it (task e9429ef3). It
+// must re-ask — nothing else brings the deck back from it. It
 // stays narrow — placeholder only, not any digest mismatch — so it cannot loop:
 // the regenerated record is no longer a placeholder, so even if a client's log
 // disagreed with the server's for that turn, the re-ask happens once rather than

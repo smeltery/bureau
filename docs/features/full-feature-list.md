@@ -73,7 +73,12 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Per-agent drafts and queued message chips, including restart-surviving queued
   messages and Ctrl/Cmd+Enter send-now delivery.
 - Device-gated Slide Mode presents each agent conversation as a per-turn deck
-  with saved per-agent position.
+  with saved per-agent position. Each settled turn is formatted into one
+  self-contained HTML slide by a second, cheap-tier model pass, generated on
+  demand for the slide you are looking at (never eagerly for the whole
+  conversation), cached per conversation, and rendered inside a sandboxed
+  iframe under a deny-everything CSP. Per-slide regenerate accepts a one-shot
+  instruction.
 - Conversation branching by editing a past user message.
 - Session resume, new conversation, model/effort changes, and usage views.
 

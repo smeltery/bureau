@@ -12,6 +12,8 @@ import { applyViewPreference, deleteUserForApi, readAccessSettingsForApi, saveAc
 import { mintInviteForApi, mintRecoveryInviteForApi, mintSelfInviteForApi, revokeInviteForApi } from "./access-invite-adapters.ts";
 import { logoutSessionForApi, revokeSessionForApi } from "./access-session-adapters.ts";
 import { handleAccessRequest } from "./access.ts";
+import { handleAgentSlidesRequest } from "./agent-slides.ts";
+import { defaultSlideRoutesDeps } from "./agent-slides-deps.ts";
 import { handleAgentsRequest } from "./agents.ts";
 import { handleAppSelfRequest } from "./app-self.ts";
 import { handleAppsRequest } from "./apps.ts";
@@ -134,6 +136,12 @@ export function createFetchHandler() {
 
     const filesResp = await handleFilesRequest(req, url, httpAuth);
     if (filesResp) return filesResp;
+
+    // Ahead of the general agent routes: those answer null for /slides paths, so
+    // the order is documentation rather than dispatch, but it keeps the Slide
+    // Mode surface findable next to the routes it belongs beside.
+    const slidesResp = await handleAgentSlidesRequest(req, url, httpAuth, defaultSlideRoutesDeps);
+    if (slidesResp) return slidesResp;
 
     const agentsResp = await handleAgentsRequest(req, url, httpAuth);
     if (agentsResp) return agentsResp;

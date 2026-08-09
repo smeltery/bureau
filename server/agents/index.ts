@@ -37,4 +37,5 @@ export { dequeueMessage, enqueueMessage, flushQueue } from "./conversation/messa
 export { abort, sendNow, newConversation, resume } from "./conversation/control.ts";
 export { editMessage } from "./conversation/edit.ts";
 export { setTopic, resetTopic } from "./topic.ts";
+export { ensureSlide, getSlideDeck } from "./slides.ts";
 export { openTerminal, closeTerminal, getTerminalBuffer, terminalInput, terminalResize } from "./terminal.ts";

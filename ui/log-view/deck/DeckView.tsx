@@ -2,11 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import type { AgentInfo, LogEntry } from "../../../shared/types.ts";
 import { buildDeckTurns, restoredDeckPos, settledDeckPos } from "../../../shared/slide-turns.ts";
 import { getSlidePos, setSlidePos } from "../../device-settings.ts";
-import { Markdown } from "../Markdown.tsx";
+import { useAppState } from "../../store.tsx";
+import { SlideStage } from "./SlideStage.tsx";
+import { useDeckSlides } from "./useDeckSlides.ts";
 
-export function DeckView({ agent, logs, isMobile, input, inputBar }: { agent: AgentInfo; logs: LogEntry[]; isMobile: boolean; input: string; inputBar: React.ReactNode }) {
-  const turns = useMemo(() => buildDeckTurns(logs), [logs]);
+// Slide Mode deck view.
+//
+// Renders the conversation as a deck - one position per assistant turn, 1:1 with
+// the chat (placeholders included) - instead of the message list. Slides are
+// model-generated, self-contained inline-styled HTML fragments rendered ONLY
+// inside a sandboxed iframe with a restrictive CSP (shared/slide-frame.ts); the
+// fragment never touches the app DOM. Nav with arrows (buttons + arrow keys), a
+// counter, the turn's frozen prompt beneath each slide, and the chat view's own
+// composer below that.
+export function DeckView({ agent, logs, isMobile, inputBar }: { agent: AgentInfo; logs: LogEntry[]; isMobile: boolean; inputBar: React.ReactNode }) {
+  const { hydrationEpoch } = useAppState();
+  // Deck positions, in display order (timestamp; a stable sort keeps arrival order
+  // on ties) - the same 1:1 mapping the server keys slides on.
+  const turns = useMemo(() => buildDeckTurns([...logs].sort((a, b) => a.timestamp - b.timestamp)), [logs]);
   const [index, setIndex] = useState(() => restoredDeckPos(getSlidePos(agent.id), turns.length).index);
+  const slides = useDeckSlides(agent.id, turns, index, hydrationEpoch);
 
   useEffect(() => {
     const pos = restoredDeckPos(getSlidePos(agent.id), turns.length);
@@ -24,6 +39,8 @@ export function DeckView({ agent, logs, isMobile, input, inputBar }: { agent: Ag
   }, [agent.id, turns.length]);
 
   const turn = turns[index] ?? null;
+  const slide = turn ? slides.state.slides.get(turn.entryId) : undefined;
+  const failed = !!turn && slides.state.failed.has(turn.entryId);
   const atStart = index <= 0;
   const atEnd = index >= turns.length - 1;
 
@@ -58,96 +75,77 @@ export function DeckView({ agent, logs, isMobile, input, inputBar }: { agent: Ag
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          display: "grid",
-          gridTemplateRows: "1fr auto",
-          padding: isMobile ? 0 : 20,
-          gap: isMobile ? 0 : 14,
-        }}
-      >
-        <section
-          style={{
-            minHeight: 0,
-            display: "flex",
-            alignItems: "stretch",
-            justifyContent: "center",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          {turn ? (
-            <article
-              style={{
-                width: "min(100%, 1280px)",
-                aspectRatio: "16 / 9",
-                maxHeight: "100%",
-                alignSelf: "center",
-                display: "grid",
-                gridTemplateRows: "auto 1fr auto",
-                padding: isMobile ? 18 : 42,
-                boxSizing: "border-box",
-                background: "linear-gradient(135deg, #171923, #20242f 48%, #13251f)",
-                border: isMobile ? "none" : "1px solid var(--border-light)",
-                borderRadius: isMobile ? 0 : 8,
-                boxShadow: isMobile ? "none" : "0 18px 70px rgba(0,0,0,0.35)",
-                color: "var(--text-primary)",
-                overflow: "hidden",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>
-                  {agent.name} / {index + 1} of {turns.length}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--text-ghost)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{turn.promptText}</div>
-              </div>
-              <div style={{ minHeight: 0, overflow: "hidden", display: "flex", alignItems: "center" }}>
-                {turn.placeholder ? (
-                  <div style={{ color: "var(--text-muted)", fontSize: isMobile ? 24 : 36, fontWeight: 650, lineHeight: 1.15 }}>
-                    {turn.errorText ? "This turn ended with an error." : "No assistant answer in this turn yet."}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: isMobile ? 19 : 30, lineHeight: 1.22, width: "100%", maxHeight: "100%", overflow: "hidden" }}>
-                    <Markdown content={turn.assistantText} />
-                  </div>
-                )}
-              </div>
-              <div style={{ fontSize: isMobile ? 11 : 13, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {input.trim() ? input.trim() : (turn.errorText ?? " ")}
-              </div>
-            </article>
-          ) : (
-            <div style={{ alignSelf: "center", color: "var(--text-muted)", fontSize: 14 }}>No conversation turns yet.</div>
-          )}
-          <DeckButton label="Previous slide" side="left" disabled={atStart} isMobile={isMobile} onClick={() => jump(index - 1)} />
-          <DeckButton label="Next slide" side="right" disabled={atEnd} isMobile={isMobile} onClick={() => jump(index + 1)} />
-          {!atEnd && (
-            <button
-              onClick={() => jump(turns.length - 1)}
-              title="Jump to latest slide"
-              style={{
-                position: "absolute",
-                bottom: isMobile ? 4 : 10,
-                left: "50%",
-                transform: "translateX(-50%)",
-                fontFamily: "'JetBrains Mono',monospace",
-                fontSize: 12,
-                color: "var(--text-secondary)",
-                background: "var(--bg-overlay)",
-                border: "1px solid var(--border-medium)",
-                borderRadius: 12,
-                padding: "2px 10px",
-                cursor: "pointer",
-              }}
-            >
-              Latest
-            </button>
-          )}
-        </section>
-        {inputBar}
-      </div>
+      <section style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "stretch", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+        {turns.length === 0 ? (
+          <div style={{ alignSelf: "center", color: "var(--text-muted)", fontSize: 14 }}>No conversation turns yet.</div>
+        ) : (
+          <SlideStage
+            // Keyed by turn: the offscreen measurement and the fitted scale belong
+            // to one slide's HTML, so navigating must start them over rather than
+            // carry the previous slide's height into the next one.
+            key={turn?.entryId}
+            slide={slide}
+            failed={failed}
+            isNewest={atEnd}
+            isMobile={isMobile}
+            turn={turn ?? undefined}
+            onRegen={(feedback) => turn && slides.regenerate(turn.entryId, feedback)}
+          />
+        )}
+        <DeckButton label="Previous slide" side="left" disabled={atStart} isMobile={isMobile} onClick={() => jump(index - 1)} />
+        <DeckButton label="Next slide" side="right" disabled={atEnd} isMobile={isMobile} onClick={() => jump(index + 1)} />
+        {turns.length > 0 && (
+          <div style={{ position: "absolute", bottom: isMobile ? 4 : 10, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ ...PILL_STYLE, color: "var(--text-muted)" }}>
+              {index + 1} / {turns.length}
+            </span>
+            {!atEnd && (
+              <button onClick={() => jump(turns.length - 1)} title="Jump to the latest slide (End)" style={{ ...PILL_STYLE, color: "var(--text-secondary)", cursor: "pointer" }}>
+                Latest
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+      <PromptBar promptText={turn?.promptText ?? ""} isMobile={isMobile} />
+      {inputBar}
+    </div>
+  );
+}
+
+const PILL_STYLE: React.CSSProperties = {
+  fontFamily: "'JetBrains Mono',monospace",
+  fontSize: 12,
+  background: "var(--bg-overlay)",
+  border: "1px solid var(--border-light)",
+  borderRadius: 12,
+  padding: "2px 10px",
+};
+
+// The turn's frozen prompt, beneath the slide. Rendered for EVERY position,
+// including the newest: the stage above is flex:1, so a bar that appeared and
+// disappeared as you navigated would resize the stage, rescale the slide and move
+// the vertically-centred nav arrows. A FIXED height for the same reason - a longer
+// prompt scrolls within the bar rather than growing it.
+function PromptBar({ promptText, isMobile }: { promptText: string; isMobile: boolean }) {
+  return (
+    <div
+      title="The prompt that produced this slide"
+      style={{
+        flexShrink: 0,
+        borderTop: "1px solid var(--border-light)",
+        padding: isMobile ? "8px 12px" : "12px 24px",
+        background: "var(--bg-surface)",
+        color: "var(--text-secondary)",
+        fontSize: isMobile ? 12 : 14,
+        lineHeight: 1.4,
+        height: isMobile ? 44 : 68,
+        boxSizing: "border-box",
+        overflowY: "auto",
+      }}
+    >
+      <span style={{ color: "var(--text-dim)", marginRight: 8 }}>Prompt:</span>
+      {promptText}
     </div>
   );
 }

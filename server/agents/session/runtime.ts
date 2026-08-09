@@ -8,6 +8,8 @@ import type { BackendSession } from "../../backends/types.ts";
 import { getUserById } from "../../users.ts";
 import { buildSessionEnv } from "./session-env.ts";
 import { runConsumer } from "./event-consumer.ts";
+import { drainOnSettle } from "../../slides/generate.ts";
+import { slideMode } from "../slides.ts";
 export { CLAUDE_NATIVE_BIN } from "./claude-native.ts";
 export { buildSessionEnv } from "./session-env.ts";
 
@@ -64,7 +66,29 @@ export function createTurnDeferred(managed: ManagedAgent): Promise<void> {
     reject = rej;
   });
   promise.catch(() => {});
-  managed.pendingTurn = { promise, resolve, reject };
+  // Claim the anchor the caller already logged for this turn, if any (see
+  // nextTurnAnchorEntryId). Claimed ONCE: clearing it here means a later turn
+  // whose own anchor is logged after the send (the queued flush) starts
+  // anchorless rather than inheriting someone else's message, and gets stamped by
+  // addLogEntry when its own lands.
+  const record = { promise, resolve, reject, anchorEntryId: managed.nextTurnAnchorEntryId };
+  managed.pendingTurn = record;
+  managed.nextTurnAnchorEntryId = null;
+  // Slide Mode: whatever SETTLES this turn — turn_completed, error, clean stream
+  // end, stream catch, session swap, kill, or the supersession reject above —
+  // settles this promise exactly once. Draining the parked slide request from the
+  // settle (not one specific site) guarantees a client that requested the turn
+  // while it was in flight always gets a terminal slide/placeholder, never an
+  // orphaned pending. `record` stays readable after pendingTurn is nulled, and its
+  // anchor is read at settle time — so it sees an anchor the claim above missed
+  // and addLogEntry stamped later (a turn with no user_message anchor at all —
+  // never viewable in the deck — is a no-op).
+  const settleAgentId = managed.info.id;
+  drainOnSettle(
+    promise,
+    () => record.anchorEntryId,
+    (entryId) => slideMode.onTurnSettled(settleAgentId, entryId),
+  );
   return promise;
 }
 

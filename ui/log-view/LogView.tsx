@@ -237,7 +237,7 @@ export function LogView({
         {pinnedMessage && <PinnedUserMessageBanner pinnedMessage={pinnedMessage} isMobile={isMobile} onClick={scrollToPinnedMessage} />}
 
         {slideMode.active ? (
-          <DeckView agent={agent} logs={logs} isMobile={isMobile} input={input} inputBar={inputBar} />
+          <DeckView agent={agent} logs={logs} isMobile={isMobile} inputBar={inputBar} />
         ) : (
           <>
             <LogMessagesPane

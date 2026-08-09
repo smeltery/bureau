@@ -227,7 +227,11 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
   return null;
 }
 
-function requireAgentLogAccess(req: Request, auth: AuthResult | undefined, agentId: string): Response | null {
+// The read rule for an agent's conversation: a session that can see the agent's
+// room, or a bearer token belonging either to the agent itself or to a user who
+// can. Exported because Slide Mode reads the SAME conversation through a
+// different surface (server/http/agent-slides.ts) and the two must not drift.
+export function requireAgentLogAccess(req: Request, auth: AuthResult | undefined, agentId: string): Response | null {
   const rawBearer = readBearerToken(req);
   const bearer = resolveAgentToken(rawBearer);
   if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");

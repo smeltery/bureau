@@ -42,3 +42,24 @@ export interface SlideRecord {
 // The wire shape of a deck as well as the stored one - the initial deck render
 // and the sidecar file agree by construction.
 export type SlideDeck = Record<string, SlideRecord>;
+
+// GET /api/agents/:id/slides - the current conversation's slide map for the
+// initial deck render. `sessionId` is the conversation's root session id (null
+// when the agent has no live session); `slides` is keyed by turn entry id.
+export interface SlideDeckRes {
+  sessionId: string | null;
+  slides: SlideDeck;
+}
+
+// POST /api/agents/:id/slides/:entryId - "ensure slide". Returns a cached slide
+// immediately, else starts generation and returns pending. `force` regenerates
+// even when cached; `feedback` is a one-shot instruction for that regeneration.
+export interface EnsureSlideReq {
+  force?: boolean;
+  feedback?: string;
+}
+
+// Deliberately a 200 payload with three branches rather than a status code:
+// "there is no live turn to render" is a state the deck shows (the raw-answer
+// fallback), not a request that failed. Same precedent as contextUsage.
+export type EnsureSlideRes = { status: "ready"; slide: SlideRecord } | { status: "pending" } | { status: "unavailable" };

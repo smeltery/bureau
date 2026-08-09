@@ -46,6 +46,13 @@ export function wireAgentAndCronjobEvents() {
       sendToVisibleAgent(event.agentId, event as ServerMessage);
       return;
     }
+    // Slide Mode outcomes are scoped exactly like the chat they describe:
+    // anyone who can see the room can read its slides and drive generation, so
+    // the push follows the same room ACL as log_entry.
+    if (event.type === "slide_ready" || event.type === "slide_failed") {
+      sendToVisibleAgent(event.agentId, event as ServerMessage);
+      return;
+    }
     if (event.type === "killed_agent_added") {
       const lastRoomId = event.agent.lastRoomId;
       for (const ws of browsers) {

@@ -109,9 +109,9 @@ describe("shouldRequestSlide (client request gating)", () => {
     expect(shouldRequestSlide(digested, false)).toBe(false);
   });
 
-  // A REPORTED failure is terminal — the one outcome that stops the watchdog
-  // (task 01a7327a). Without this, the 120s orphan retry would spend a model
-  // call every two minutes on a turn the formatter just choked on.
+  // A REPORTED failure is terminal — the one outcome that stops the watchdog.
+  // Without this, the 120s orphan retry would spend a model call every two
+  // minutes on a turn the formatter just choked on.
   it("never re-requests a turn whose generation was reported failed", () => {
     expect(shouldRequestSlide(undefined, false, true)).toBe(false);
     expect(shouldRequestSlide(digestless, false, true)).toBe(false);

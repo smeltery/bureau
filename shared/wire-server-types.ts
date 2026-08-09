@@ -3,6 +3,7 @@ import type { AppWire } from "./apps.ts";
 import type { CCPluginsState } from "./cc-plugin-types.ts";
 import type { Cronjob, CronjobRun } from "./cronjobs.ts";
 import type { LogEntry } from "./log-types.ts";
+import type { SlideFailureReason, SlideRecord } from "./slides.ts";
 import type { TaskItem } from "./tasks.ts";
 import type { InviteWire, OfficeSettings, PresenceInfo, RoomWire, SessionContext, SessionWire, UserRecord } from "./user-types.ts";
 import type { AgentSaveResponse, CwdValidationResponse, SettingsSaveResponse, SettingsValidationResponse } from "./wire-response-types.ts";
@@ -75,6 +76,21 @@ export type ServerMessage =
   // client that never receives it (old server, dropped frame) must still
   // converge on its own.
   | { type: "log_replay_complete" }
+  // Slide Mode. `slide_ready` carries the same SlideRecord the ensure-slide
+  // route answers a cache hit with, so the deck and the sidecar file cannot
+  // drift. Generation is fire-and-forget in the manager — the route never
+  // blocks on the model — so this push is how a slide that had to be generated
+  // reaches the deck. Room-ACL scoped like log_entry: anyone who can see the
+  // chat gets it. The client matches it into the open deck by agentId +
+  // entryId; sessionId is the conversation the slide belongs to (informational
+  // for a future multi-conversation browser).
+  | { type: "slide_ready"; agentId: string; sessionId: string; entryId: string; slide: SlideRecord }
+  // Slide Mode: a slide generation FAILED terminally for one turn. The client's
+  // only authoritative "stop waiting" signal: without it a failure is
+  // indistinguishable from a slow generation, and the deck can only guess with
+  // a timeout. Same room-ACL scope and matching (agentId + entryId) as
+  // slide_ready.
+  | { type: "slide_failed"; agentId: string; sessionId: string; entryId: string; reason: SlideFailureReason }
   | { type: "sessions_list"; agentId: string; sessions: SessionInfo[]; currentSessionId: string | null }
   | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }
   | { type: "clear_logs"; agentId: string }

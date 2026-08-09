@@ -1,4 +1,4 @@
-import type { AgentInfo, AgentSubscriptionUsage, KilledAgentSummary, LogEntry, RoomWire, SkillInfo } from "../../shared/types.ts";
+import type { AgentInfo, AgentSubscriptionUsage, KilledAgentSummary, LogEntry, RoomWire, SkillInfo, SlideFailureReason, SlideRecord } from "../../shared/types.ts";
 import type { BackendSession } from "../backends/types.ts";
 
 // Internal agent state
@@ -13,7 +13,26 @@ export interface ManagedAgent {
   consumerPromise: Promise<void> | null;
   // Per-turn deferred. sendMessage/executeSkill await this; the consumer
   // resolves it when the turn's `stream()` iterator ends at `result`.
-  pendingTurn: { promise: Promise<void>; resolve: () => void; reject: (err: unknown) => void } | null;
+  //
+  // `anchorEntryId` is the `user_message` entry id anchoring this in-flight turn
+  // (the newest deck turn), or null when the turn has no anchor at all. Slide
+  // Mode reads it to gate slide generation: a turn is "terminal" once it is no
+  // longer this anchor (pendingTurn cleared, or superseded by a newer turn).
+  // Filled from two directions, because the anchor is logged on either side of
+  // the deferred depending on the path: createTurnDeferred CLAIMS
+  // nextTurnAnchorEntryId (every path that logs the user_message before the
+  // send), and addLogEntry stamps it directly when the message is logged while
+  // the turn already runs (the queued flush, which logs from onSendAccepted).
+  // Goes away when pendingTurn is nulled at turn_completed.
+  pendingTurn: { promise: Promise<void>; resolve: () => void; reject: (err: unknown) => void; anchorEntryId: string | null } | null;
+  // The `user_message` entry id logged for a turn whose deferred is not
+  // installed yet — sendMessage / executeSkill / editMessage all log the anchor
+  // and only then reach runAgentTurn. createTurnDeferred claims it (and clears
+  // it, so it is claimed at most once) as the turn's anchorEntryId. Without this
+  // the direct-send paths would run with a null anchor, every turn would read
+  // TERMINAL while it was still streaming, and Slide Mode would write an
+  // empty-turn placeholder over the live turn.
+  nextTurnAnchorEntryId: string | null;
   // The aggregate `afterTurn` promise for the most recent turn — all plugins'
   // afterTurn hooks raced against their per-plugin timeout, joined here.
   // runAgentTurn awaits this before starting the next turn so memory writes
@@ -147,6 +166,11 @@ export type AgentEvent =
   | { type: "rooms_reordered"; order: string[] }
   | { type: "clear_logs"; agentId: string }
   | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }
+  // Slide Mode outcomes for one turn. Routed like log_entry (per-session room
+  // ACL) in server/ws/agent-events.ts — anyone who can see the chat can see its
+  // slides. `slide_failed` is the client's only "stop waiting" signal.
+  | { type: "slide_ready"; agentId: string; sessionId: string; entryId: string; slide: SlideRecord }
+  | { type: "slide_failed"; agentId: string; sessionId: string; entryId: string; reason: SlideFailureReason }
   | { type: "terminal_output"; agentId: string; data: string }
   | { type: "terminal_exit"; agentId: string; exitCode: number };
 

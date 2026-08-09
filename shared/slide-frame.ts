@@ -1,4 +1,4 @@
-// Slide iframe framing (design: internal-docs/slide-mode-design.md).
+// Slide iframe framing.
 //
 // Slides are model-generated HTML rendered ONLY inside a sandboxed iframe. The
 // SECURITY BOUNDARY is a Content-Security-Policy, NOT sandbox="": sandbox=""

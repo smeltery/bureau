@@ -153,6 +153,19 @@ export function addLogEntry(
     managed.lastWrittenEntryId = entry.id;
   }
 
+  // Slide Mode: a user_message anchors the turn it starts (the newest deck
+  // position). Stamping it lets ensureSlide gate generation until that turn is
+  // terminal. The message lands on either side of createTurnDeferred depending on
+  // the path, so both are covered: a turn already in flight is stamped here (the
+  // queued flush logs its messages from onSendAccepted — the last of a coalesced
+  // flush wins, since the agent's response attaches to it), and a message logged
+  // BEFORE the deferred exists (sendMessage / executeSkill / editMessage all log,
+  // then send) is parked for createTurnDeferred to claim.
+  if (kind === "user_message" && managed) {
+    if (managed.pendingTurn) managed.pendingTurn.anchorEntryId = entry.id;
+    else managed.nextTurnAnchorEntryId = entry.id;
+  }
+
   // Track topicStale: new text entries after topic was generated
   if ((kind === "text" || kind === "user_message") && managed && managed.info.topic !== null && managed.info.topic !== "...") {
     const textCount = (logCache.get(agentId) ?? []).filter((e) => e.kind === "user_message" || e.kind === "text").length;
