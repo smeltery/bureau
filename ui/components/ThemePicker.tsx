@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTheme } from "../store.tsx";
-import { THEMES, type Theme } from "../themes.ts";
+import { THEMES, type Theme } from "../themes/index.ts";
 
 interface Props {
   open: boolean;

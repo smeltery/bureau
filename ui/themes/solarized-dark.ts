@@ -1,4 +1,4 @@
-import type { ThemeVars } from "../theme-base-vars.ts";
+import type { ThemeVars } from "./theme-base-vars.ts";
 
 // Solarized Dark - Ethan Schoonover's palette.
 // Palette ref: https://ethanschoonover.com/solarized/

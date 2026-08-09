@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { type Features, PRODUCTION_FEATURES } from "../shared/features.ts";
-import { storageGetItem, storageSetItem } from "./browser-storage.ts";
-import { DEFAULT_THEME_ID, getThemeById, THEMES, type Theme, type ThemeMode } from "./themes.ts";
+import { type Features, PRODUCTION_FEATURES } from "../../shared/features.ts";
+import { storageGetItem, storageSetItem } from "../browser-storage.ts";
+import { DEFAULT_THEME_ID, getThemeById, THEMES, type Theme, type ThemeMode } from "./index.ts";
 
 // Theme management — persisted to localStorage, applied via data-theme +
 // data-theme-mode attributes on <html>. `theme` is the registered id;

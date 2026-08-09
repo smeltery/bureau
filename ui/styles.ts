@@ -1,4 +1,4 @@
-import { emitThemesCss } from "./themes.ts";
+import { emitThemesCss } from "./themes/index.ts";
 
 export const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&display=swap');

@@ -1,5 +1,5 @@
 // Solarized Light — same accent palette as Solarized Dark, light base.
-import type { ThemeVars } from "../theme-base-vars.ts";
+import type { ThemeVars } from "./theme-base-vars.ts";
 
 // Solarized Light - same accent palette as Solarized Dark, light base.
 export const SOLARIZED_LIGHT_VARS: ThemeVars = {

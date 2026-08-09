@@ -1,4 +1,4 @@
-import type { ThemeVars } from "../theme-base-vars.ts";
+import type { ThemeVars } from "./theme-base-vars.ts";
 
 // Dracula - purple/pink accents on a near-black background.
 // Palette ref: https://draculatheme.com/contribute

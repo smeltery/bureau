@@ -24,7 +24,7 @@ import { type SidePanel } from "./store-side-panels.ts";
 import { useStoreEffects } from "./store-effects.ts";
 import { initialState } from "./store-initial-state.ts";
 import { reducer } from "./store-reducer.ts";
-export { FeaturesProvider, ThemeProvider, useFeatures, useTheme } from "./theme-context.tsx";
+export { FeaturesProvider, ThemeProvider, useFeatures, useTheme } from "./themes/theme-context.tsx";
 
 export interface AppState {
   agents: AgentInfo[];

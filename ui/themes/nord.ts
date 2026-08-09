@@ -1,4 +1,4 @@
-import type { ThemeVars } from "../theme-base-vars.ts";
+import type { ThemeVars } from "./theme-base-vars.ts";
 
 // Nord - Polar Night background, Frost accents.
 // Palette ref: https://www.nordtheme.com/
