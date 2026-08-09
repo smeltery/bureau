@@ -37,6 +37,7 @@ Detailed subsystem documentation.
 | [Plugin Management](features/plugin-management-design.md)           | Plugin UI and lifecycle                                                      |
 | [Plugin System](features/plugin-system.md)                          | First-party `beforeTurn` / `afterTurn` hooks around the agent turn loop      |
 | [Room Environment & Prompts](features/room-env-prompt-design.md)    | Per-room env vars and prompt hierarchy                                       |
+| [Slide Mode](features/slide-mode.md)                                | Conversations as a per-turn deck of model-designed slides                    |
 | [Task System](features/task-system-design.md)                       | Shared task board for humans and agents                                      |
 | [Named Rooms](features/prompt-named-rooms.md)                       | Custom room names                                                            |
 
