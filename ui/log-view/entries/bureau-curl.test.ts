@@ -40,6 +40,14 @@ describe("summarizeBureauCurl", () => {
     expect(summarizeBureauCurl("curl -s localhost:4000/api/tasks | awk '{print $1}'")).toBeNull();
   });
 
+  test("labels the app registry routes, name first", () => {
+    expect(summarizeBureauCurl(`curl -s -X POST localhost:4000/api/apps -d '{"name":"habits","command":"bun run start"}'`)).toBe("Bureau API: apps - name=habits, command=bun run start");
+    expect(summarizeBureauCurl("curl -s localhost:4000/api/apps")).toBe("Bureau API: apps");
+    expect(summarizeBureauCurl("curl -s -X POST localhost:4000/api/apps/habits/restart")).toBe("Bureau API: restart app");
+    expect(summarizeBureauCurl("curl -s 'localhost:4000/api/apps/habits/logs?lines=50'")).toBe("Bureau API: app logs");
+    expect(summarizeBureauCurl(`curl -s -X POST localhost:4000/api/app/message -d '{"text":"the nightly job failed"}'`)).toBe("Bureau API: app message - text=the nightly job failed");
+  });
+
   test("shows the steer flag on agent message sends", () => {
     expect(summarizeBureauCurl(`curl -s -X POST localhost:4000/api/agents/desk-1/messages -d '{"text":"drop everything","steer":true}'`)).toBe(
       "Bureau API: message agent - text=drop everything, steer=true",

@@ -110,6 +110,14 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Cost attribution per cron job in /bureau-usage, including jobs whose configs were later deleted
 - 30-minute hard timeout per run; 5-minute scheduler tick; "skipped" rows when a scheduled run is still in flight
 
+### Agent-Built Apps
+- An agent can hand Bureau a web app it built; Bureau allocates the port, runs it as a systemd service that survives sessions and reboots, and gives it a data directory inside the backup set
+- Apps belong to the user, not the agent, so they outlive the session that created them
+- A name and port are fixed for an app's whole life so bookmarks keep working — a bad start command is fixed with PATCH rather than deleting and re-registering
+- Apps tab shows every app with its live state, restart count, and journal tail; start/stop/restart from the UI or the API
+- Each app gets a token scoped to exactly one route, so it can message the agent that built it (rate-limited, and it can never interrupt a turn in progress)
+- Not yet: serving apps at their own hostnames through Bureau. Today an app is reached at the box's host and port, or through an SSH tunnel
+
 ### Diff Viewer
 - /bureau-diff renders uncommitted changes in your cwd as a styled per-file card: status badges, +/- counts, click-to-collapse, unified/split toggle, lightbox overlay for large files, 2 MB safety rail
 - Optional directory argument (\`/bureau-diff ~/some/worktree\`) to peek at a worktree without spawning a fresh agent there

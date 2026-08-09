@@ -84,7 +84,30 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("For waits that may outlast an idle session");
     expect(prompt).toContain("scheduled messages live on the server and still fire");
     expect(prompt).toContain("For long-lived local processes such as dev servers");
-    expect(prompt).toContain("use the terminal panel or the host service manager");
+    // A process that must outlive the session is an APP now, not a hand-rolled
+    // background job or a service the agent installs itself.
+    expect(prompt).toContain("register it as a Bureau app");
+  });
+
+  test("tells agents to hand long-running web apps to Bureau rather than picking a port", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("How to run a web app for the boss");
+    expect(prompt).toContain("Bureau allocates the port");
+    // The address is permanent: a bad command is a PATCH, not a re-register.
+    expect(prompt).toContain("fix a bad command with PATCH");
+    expect(prompt).toContain("$BUREAU_APP_DATA_DIR");
+    // Never a localhost link — in the boss's browser that is their own device.
+    expect(prompt).toContain("never a localhost URL");
+  });
+
+  test("documents the app's own message route and its limits", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("$BUREAU_APP_TOKEN");
+    expect(prompt).toContain("/api/app/message");
+    expect(prompt).toContain("cannot interrupt a turn in progress");
+    expect(prompt).toContain("10 messages a minute and 500 a day");
   });
 
   test("documents the agent context usage self-check", () => {

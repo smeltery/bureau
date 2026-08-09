@@ -25,19 +25,20 @@ Detailed subsystem documentation.
 
 ## Feature Design Docs
 
-| Document                                                            | Description                                                             |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| [Access & Invites](features/access-and-invites.md)                  | Invite-link auth, sessions, external access toggle, owner-login CLI     |
-| [Conversation Branching](features/conversation-branching-design.md) | Edit past messages to fork conversations                                |
-| [Cronjob System](features/cronjob-system-design.md)                 | Scheduled SDK sessions; per-run transcripts; Cronjobs page              |
-| [Full Feature List](features/full-feature-list.md)                  | Consolidated operator-facing feature inventory                          |
-| [Multi-Office Isolation](features/multi-office-design.md)           | Multiple isolated workspaces                                            |
-| [Per-Agent MCP Access](features/per-agent-mcp-access.md)            | Controlling MCP integration access per agent                            |
-| [Plugin Management](features/plugin-management-design.md)           | Plugin UI and lifecycle                                                 |
-| [Plugin System](features/plugin-system.md)                          | First-party `beforeTurn` / `afterTurn` hooks around the agent turn loop |
-| [Room Environment & Prompts](features/room-env-prompt-design.md)    | Per-room env vars and prompt hierarchy                                  |
-| [Task System](features/task-system-design.md)                       | Shared task board for humans and agents                                 |
-| [Named Rooms](features/prompt-named-rooms.md)                       | Custom room names                                                       |
+| Document                                                            | Description                                                                  |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [Access & Invites](features/access-and-invites.md)                  | Invite-link auth, sessions, external access toggle, owner-login CLI          |
+| [Agent-Built Apps](features/agent-apps.md)                          | Apps agents build and Bureau runs: registry, systemd supervision, app tokens |
+| [Conversation Branching](features/conversation-branching-design.md) | Edit past messages to fork conversations                                     |
+| [Cronjob System](features/cronjob-system-design.md)                 | Scheduled SDK sessions; per-run transcripts; Cronjobs page                   |
+| [Full Feature List](features/full-feature-list.md)                  | Consolidated operator-facing feature inventory                               |
+| [Multi-Office Isolation](features/multi-office-design.md)           | Multiple isolated workspaces                                                 |
+| [Per-Agent MCP Access](features/per-agent-mcp-access.md)            | Controlling MCP integration access per agent                                 |
+| [Plugin Management](features/plugin-management-design.md)           | Plugin UI and lifecycle                                                      |
+| [Plugin System](features/plugin-system.md)                          | First-party `beforeTurn` / `afterTurn` hooks around the agent turn loop      |
+| [Room Environment & Prompts](features/room-env-prompt-design.md)    | Per-room env vars and prompt hierarchy                                       |
+| [Task System](features/task-system-design.md)                       | Shared task board for humans and agents                                      |
+| [Named Rooms](features/prompt-named-rooms.md)                       | Custom room names                                                            |
 
 ## Investigations & Research
 

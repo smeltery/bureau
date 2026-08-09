@@ -79,6 +79,9 @@ export async function handleHelpCommand(agentId: string, managed: ManagedAgent, 
     "  • Pick a color theme from the header palette button — Dark, Light, Nord, Dracula, Solarized Dark, or Solarized Light. The moon/sun toggle bounces between your last-picked dark and light themes.",
   );
   lines.push("  • Schedule recurring work in the Cron Jobs page — daily, weekly, or by interval. Tasks have a Backlog status for deferred work.");
+  lines.push(
+    "  • Ask an agent to build you a web app and it can hand it to Bureau to run: Bureau picks the port, keeps the app running past sessions and reboots, and lists it in the Apps page with its state and logs. The app can message the agent that built it when something needs attention.",
+  );
   lines.push("  • Bureau ships safety pre-tool-call hooks to prevent destructive commands like `rm -rf /`. `~/.bureau/` is auto-tarballed daily to `~/bureau-backups/` (last 7 kept).");
 
   // Commands — collapse aliased entries (e.g. `/diff` aliasFor `/bureau-diff`)

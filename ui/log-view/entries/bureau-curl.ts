@@ -22,6 +22,13 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/agents\/[^/]+\/queue\/[^/]+$/, "Bureau API: cancel queued message"],
   [/^\/api\/agents\/[^/]+\/abort$/, "Bureau API: interrupt agent"],
   [/^\/api\/agents\/[^/]+\/send-now$/, "Bureau API: send queued messages now"],
+  [/^\/api\/apps$/, "Bureau API: apps"],
+  [/^\/api\/apps\/[^/]+$/, "Bureau API: app"],
+  [/^\/api\/apps\/[^/]+\/start$/, "Bureau API: start app"],
+  [/^\/api\/apps\/[^/]+\/stop$/, "Bureau API: stop app"],
+  [/^\/api\/apps\/[^/]+\/restart$/, "Bureau API: restart app"],
+  [/^\/api\/apps\/[^/]+\/logs$/, "Bureau API: app logs"],
+  [/^\/api\/app\/message$/, "Bureau API: app message"],
   [/^\/api\/tasks(?:\/.*)?$/, "Bureau API: tasks"],
   [/^\/api\/version$/, "Bureau API: version"],
   [/^\/api\/memory(?:\/.*)?$/, "Bureau API: memory"],
@@ -33,7 +40,7 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/rooms\/[^/]+\/settings$/, "Bureau API: room settings"],
 ];
 
-const fieldOrder = ["path", "url", "command", "text", "steer", "title", "status", "assignee", "room"];
+const fieldOrder = ["path", "url", "name", "command", "text", "steer", "title", "status", "assignee", "room"];
 const displayFilterCommands = new Set(["jq", "grep", "rg", "sed", "sort", "uniq", "head", "tail", "cut", "tr", "wc", "column"]);
 
 export function summarizeBureauCurl(command: string): string | null {

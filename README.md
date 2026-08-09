@@ -2,7 +2,7 @@
 
 # Bureau 🏢
 
-**Your agent office.** *Cute in a useful way.*
+**Your agent office.** _Cute in a useful way._
 
 ![demo](demo/demo-office.gif)
 
@@ -48,22 +48,22 @@ Then open **http://localhost:4000** and click an empty desk.
 
 ## At a Glance
 
-| | |
-|---|---|
-| **Runtime** | Single Bun process — no bundler, no database |
-| **Auth** | Your Claude subscription (CLI login) — no API key |
-| **Frontend** | React + SVG, served from the same process |
-| **Sync** | WebSocket — every device stays in lockstep |
+|                 |                                                                |
+| --------------- | -------------------------------------------------------------- |
+| **Runtime**     | Single Bun process — no bundler, no database                   |
+| **Auth**        | Your Claude subscription (CLI login) — no API key              |
+| **Frontend**    | React + SVG, served from the same process                      |
+| **Sync**        | WebSocket — every device stays in lockstep                     |
 | **Persistence** | File system (`~/.bureau/` or `BUREAU_HOME`) — survives crashes |
-| **Deploy** | Local or headless server + Tailscale |
+| **Deploy**      | Local or headless server + Tailscale                           |
 
 ## Documentation
 
-| | |
-|---|---|
-| [**Design & Architecture**](articles/punching-in-building-an-office-for-ai-agents.md) | Deep dive: how Bureau works under the hood |
-| [**Documentation**](docs/README.md) | Navigate all design docs, investigations, and plans |
-| [**CLAUDE.md**](CLAUDE.md) | Developer & agent guide to the codebase |
+|                                                                                       |                                                     |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| [**Design & Architecture**](articles/punching-in-building-an-office-for-ai-agents.md) | Deep dive: how Bureau works under the hood          |
+| [**Documentation**](docs/README.md)                                                   | Navigate all design docs, investigations, and plans |
+| [**CLAUDE.md**](CLAUDE.md)                                                            | Developer & agent guide to the codebase             |
 
 ## Features
 
@@ -85,7 +85,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **File attachments** — images, PDFs, arbitrary files; uploads reach agents as path notices so they can open only what they need. Agents can surface their own files via `POST /api/agents/:id/read-file` (images render inline, others as clickable chips)
 - **Browser preview cards** — agents can screenshot local or private development URLs via `POST /api/agents/:id/preview-url` and show the result inline
 - **Readable Bureau API calls** — local `curl` calls to Bureau affordance endpoints show plain-language tool-call summaries instead of raw shell noise
-- **Mermaid diagrams in chat** — agent messages with ```` ```mermaid ```` fenced blocks render as inline SVG (lazy-loaded, theme-aware). Parse failures show the offending source in-place instead of a silent blank.
+- **Mermaid diagrams in chat** — agent messages with ` ```mermaid ` fenced blocks render as inline SVG (lazy-loaded, theme-aware). Parse failures show the offending source in-place instead of a silent blank.
 
 ### 🤝 Collaboration & tasks
 
@@ -98,6 +98,7 @@ Then open **http://localhost:4000** and click an empty desk.
 ### ⚙️ Automation & extensibility
 
 - **Cron jobs** — scheduled SDK sessions (daily/weekly/interval) with browsable per-run transcripts; resume or edit-to-fork any past run
+- **Agent-built apps** — an agent hands Bureau a web app it built and Bureau owns the address: it allocates the port, runs the app as a systemd service that survives sessions and reboots, gives it a data directory inside the backup set, and shows its state and logs in the Apps tab. Names and ports are fixed for an app's whole life so bookmarks keep working; a bad command is fixed with `PATCH` rather than a re-register. Each app also gets a token scoped to exactly one route, so it can message the agent that built it when something needs attention. See [Agent-built apps](docs/features/agent-apps.md)
 - **Plugin system** — extend bureau without forking. TypeScript modules register `beforeTurn` / `afterTurn` hooks that run around every agent turn (e.g. inject memory context before, write extracted facts after). Enable via `enabledPlugins` in `~/.bureau/office-config.json`; see [Plugin system](docs/features/plugin-system.md). Reference plugin: [bureau-dossier](https://github.com/dotbrains/bureau-dossier) gives agents long-term memory across sessions.
 - **Plugin manager** — browse, install, enable/disable, update, and remove Claude Code plugins (and their marketplaces) from the Plugins panel in the office toolbar, instead of dropping to the CLI. Agents inherit installed plugins on their next session. See [Plugin management](docs/features/plugin-management-design.md)
 - **Safety hooks** — blocks `rm -rf`, `git reset --hard`, and other footguns
