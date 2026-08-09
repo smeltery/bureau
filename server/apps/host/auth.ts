@@ -1,6 +1,6 @@
 // The sign-in handshake for registered-app hostnames.
 //
-// Consumed by server/apps/host-dispatch.ts (landing next) for the app-host side
+// Consumed by server/apps/host/dispatch.ts for the app-host side
 // — the redeem route and the two gates — and by the office's router for the mint
 // route (APP_MINT_PATH), which must sit BEHIND the office's ordinary auth wall.
 // Nothing here relays app bytes.

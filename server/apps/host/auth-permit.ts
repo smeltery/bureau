@@ -4,8 +4,8 @@
 // function of its arguments, which is why this is the file the tests pin
 // case-by-case.
 //
-// Consumed by server/apps/host-auth.ts and, through it, by
-// server/apps/host-dispatch.ts (landing next).
+// Consumed by server/apps/host/auth.ts and, through it, by
+// server/apps/host/dispatch.ts.
 
 import type { AppRecord } from "../../../shared/apps.ts";
 import type { UserRole } from "../../../shared/types.ts";

@@ -15,7 +15,8 @@ for (const [name, cfg] of Object.entries(commands)) {
 }
 
 // ---------------------------------------------------------------------------
-// Slash command resolution — 5-step priority order (see docs/slash-command-design.md)
+// Slash command resolution — 5-step priority order
+// (see docs/architecture/command-skill-system.md)
 // ---------------------------------------------------------------------------
 
 export async function handleSlashCommand(agentId: string, managed: ManagedAgent, cmd: string, args: string[], rawText: string, username?: string, userId?: string | null): Promise<boolean> {

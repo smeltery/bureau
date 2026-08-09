@@ -1,4 +1,4 @@
-// The header rules the HTTP relay (server/apps/host-proxy.ts) applies in each
+// The header rules the HTTP relay (server/apps/host/proxy.ts) applies in each
 // direction, and nothing else: every function here is pure, so what an app is
 // and is not handed can be pinned without a socket.
 //

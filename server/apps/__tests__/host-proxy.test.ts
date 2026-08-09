@@ -2,7 +2,7 @@
 // it carries, and what it refuses to carry.
 //
 // Everything here drives `relayToApp` directly, with a scratch server standing
-// in for the app (server/apps/host-proxy-test-kit.ts). The strongest assertions
+// in for the app (server/apps/__tests__/host-proxy-test-kit.ts). The strongest assertions
 // in the file are the negative ones: what the app is NOT handed — the office's
 // cookies, a client's X-Forwarded-*, the hop-by-hop headers that stop at a
 // proxy.

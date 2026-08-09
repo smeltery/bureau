@@ -1,7 +1,7 @@
 // Every byte an app hostname can send back before a real app answers.
 //
-// Consumed by server/apps/host-dispatch.ts (landing next), which owns the
-// app-host arm and the relay, and by the handshake in server/apps/host-auth.ts.
+// Consumed by server/apps/host/dispatch.ts, which owns the
+// app-host arm and the relay, and by the handshake in server/apps/host/auth.ts.
 //
 // One module for two reasons. The first is a security property: several
 // different situations have to be EXTERNALLY INDISTINGUISHABLE — an unknown

@@ -8,7 +8,7 @@ export interface ManagedAgent {
   sessionId: string | null;
   lastActivityAt: number;
   // Persistent consumer loop iterating `session.stream()` for the session's
-  // lifetime. See docs/held-back-messages-investigation.md — without this,
+  // lifetime. See docs/investigations/held-back-messages-investigation.md — without this,
   // task_notifications buffered between turns get flushed one turn late.
   consumerPromise: Promise<void> | null;
   // Per-turn deferred. sendMessage/executeSkill await this; the consumer

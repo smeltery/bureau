@@ -5,6 +5,13 @@
 **Latest version:** 0.2.92
 **Decision:** Hold. No bump until we have a concrete reason.
 
+> **Superseded — kept as the record of why we held at 0.2.x.** The decision below
+> was later reversed: bureau moved to the stable `query()` streaming-input API
+> when the SDK reached 0.3.x, wrapped by `RawClaudeSession` in
+> `server/backends/claude.ts`. Read the "Our SDK usage" section as a snapshot of
+> April 2026, not as current architecture — the PreToolUse hooks it places in
+> `server/safety-hooks.ts` now live in `server/agents/session/safety/`.
+
 ## Our SDK usage
 
 We use the **unstable V2 API** (`unstable_v2_createSession`, `unstable_v2_resumeSession`, `unstable_v2_prompt`), not `query()`. Key integration points:

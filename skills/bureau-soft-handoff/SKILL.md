@@ -26,7 +26,7 @@ Write a brief detailed enough that the boss doesn't have to re-explain anything.
 - **Working state** — dirty files, active worktrees, anything not in git yet.
 - **Decisions made along the way** that aren't obvious from the diff.
 - **Open questions / unconfirmed assumptions** so they know what to revisit with the boss.
-- **Pointers to context** — relevant files, internal-docs pages, related skills. As a backstop, mention that the peer can read your session log via the path in `agents-summary.json` if they need deeper context.
+- **Pointers to context** — relevant files, docs/ pages, related skills. As a backstop, mention that the peer can read your session log via the path in `agents-summary.json` if they need deeper context.
 
 ### 3. Send the brief
 

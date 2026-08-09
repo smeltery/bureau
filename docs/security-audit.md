@@ -257,7 +257,7 @@ Primary auth modules:
 - `server/auth/auth-pages.ts`
 - `server/users.ts`
 - `server/index.ts` (auth-relevant slices: WS upgrade, command dispatch, `/auth` routes, `/tasks`, `/cronjobs`, `/agents/:id/*`, `/api/upload`, `/api/files`)
-- `server/cronjob-manager.ts` (auth-relevant slices)
+- `server/cronjobs/` (auth-relevant slices)
 - `server/mime-types.ts`
 - `shared/identity.ts`, `shared/public-origin.ts`, `shared/types.ts`
 

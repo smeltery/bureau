@@ -102,7 +102,7 @@ export class CodexSession implements BackendSession {
     // JsonRpcLiteClient.start() applies the bureau CODEX_HOME default so
     // every codex subprocess (session bootstrap + listModels + oneShot +
     // fork + read) spawns under the same effective env. Per-user envFile
-    // CODEX_HOME (see internal-docs/isolation-design.md) is honored
+    // CODEX_HOME (see docs/features/room-env-prompt-design.md) is honored
     // verbatim by withBureauCodexHome.
     const clientOpts: JsonRpcLiteClientOptions = {
       cwd: opts.cwd,

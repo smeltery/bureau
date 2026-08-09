@@ -1,7 +1,7 @@
 // The app-scoped cookie, and the constants the whole handshake is measured in.
 //
-// Consumed by server/apps/host-auth.ts (the handshake itself), its store
-// (host-auth-store.ts), and server/apps/host-dispatch.ts (landing next), which
+// Consumed by server/apps/host/auth.ts (the handshake itself), its store
+// (auth-store.ts), and server/apps/host/dispatch.ts, which
 // needs APP_RESERVED_PATH and APP_AUTH_PATH to keep the reserved namespace out
 // of an app's reach.
 //

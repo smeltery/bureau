@@ -1,7 +1,7 @@
 // Declarative registry of every known Claude Code command and bundled skill.
 // Pure data — no handler logic lives here.
 //
-// See docs/slash-command-design.md for the full design.
+// See docs/architecture/command-skill-system.md for the full design.
 // Last updated: 2026-03-31 (Claude Code ~1.0.x)
 
 import { bundledSkillCommands } from "./commands-bundled-skills.ts";

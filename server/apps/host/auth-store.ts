@@ -1,8 +1,8 @@
 // The two in-memory tables the handshake runs on — minted sign-in codes and
 // live app sessions — plus the fixed-window limiters that bound both.
 //
-// Consumed by server/apps/host-auth.ts, which owns the request-shaped half of
-// the handshake, and through it by server/apps/host-dispatch.ts (landing next).
+// Consumed by server/apps/host/auth.ts, which owns the request-shaped half of
+// the handshake, and through it by server/apps/host/dispatch.ts.
 //
 // Nothing here is persisted, deliberately: a code lives 45 seconds and an app
 // session is re-established by one invisible redirect, so surviving a restart

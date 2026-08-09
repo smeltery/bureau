@@ -1,6 +1,7 @@
 // Unix-domain admin socket. Bound at ~/.bureau/admin.sock mode 0600. The
-// only client is scripts/bureau-admin-login.ts, which the operator invokes
-// from a shell on the same host. Filesystem permissions on the socket are
+// only client is server/auth/admin-cli.ts, which the operator invokes from a
+// shell on the same host as `bun run server/index.ts owner-login --name X`.
+// Filesystem permissions on the socket are
 // the auth boundary — any UID that can connect to the socket can already
 // read the auth files in ~/.bureau/, so giving it a clean RPC interface to
 // mint an owner-login URL adds no new authority. On a multi-user box where

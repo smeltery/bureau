@@ -1,6 +1,6 @@
 // The app-host sign-in handshake at the handler seam: the office's mint route,
 // the app host's redeem route, and the two gates. The dispatcher that mounts
-// them lands separately (server/apps/host-dispatch.ts), so everything here calls
+// them lands separately (server/apps/host/dispatch.ts), so everything here calls
 // the handlers directly with an injected registry and an injected office-session
 // store — no server, no systemd, no LLM.
 //

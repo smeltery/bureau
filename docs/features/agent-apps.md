@@ -189,7 +189,7 @@ domain leaves every unit stale — `server/apps/url-reconcile.ts` converges them
 at boot, restarting only what was actually running and rolling a unit back if it
 cannot finish.
 
-**Containment is the security property.** `server/apps/host-match.ts` decides,
+**Containment is the security property.** `server/apps/host/match.ts` decides,
 before any route runs, whether a request is for the office (fall through,
 unchanged) or a strict child (diverted, and no office handler ever sees it). App
 hostnames sit under a wildcard, so anyone can point any name under it at this
@@ -197,7 +197,7 @@ server, and none of those names may reach the office's own surface. The office's
 own host can never match a child test, so there is no exemption for it — worth
 knowing before anyone adds one back assuming it is load-bearing.
 
-**The handshake** (`server/apps/host-auth*.ts`) is how a browser holding an
+**The handshake** (`server/apps/host/auth*.ts`) is how a browser holding an
 office session comes to hold one for an app. An app origin must never be handed
 the credential that opens the office, so the two are separate cookies: the app
 host bounces a navigation to the office, the office mints a single-use code

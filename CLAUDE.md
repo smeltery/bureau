@@ -45,7 +45,7 @@ Read the [design and architecture article](articles/punching-in-building-an-offi
 
 - `~/.bureau/agents.json` — persisted agent configs
 - `~/.bureau/logs/` — agent conversation logs
-- `~/.bureau/launchers/` — launcher scripts (cwd workaround for SDK - details in docs/sdk-investigation.md)
+- `~/.bureau/launchers/` — launcher scripts (cwd workaround for SDK - details in docs/investigations/sdk-investigation.md)
 - `ui/dist/` — UI build output (gitignored)
 
 ## Shipping a user-visible feature

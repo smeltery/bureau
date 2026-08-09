@@ -29,7 +29,7 @@ export const ADMIN_SOCKET_FILE = join(BUREAU_DIR, "admin.sock");
 
 // Plugin failure stream — hook failures (throws, timeouts) and load errors
 // land here as JSONL records so they don't pollute the per-agent chat log.
-// See server/plugins/plugins.ts and docs/features/plugin-system.md.
+// See server/plugins/failure-log.ts and docs/features/plugin-system.md.
 export const PLUGINS_LOG_FILE = join(LOGS_DIR, "plugins.jsonl");
 
 // Cronjobs live under their own subtree mirroring agent logs (one extra level
