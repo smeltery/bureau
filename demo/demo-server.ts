@@ -207,4 +207,7 @@ export function sendInitialState() {
   emitDemoPresence(state, 0, null, "office");
   startDemoPresenceCycle(state);
   seedLogs();
+  // The same fence the real server sends after its replay burst, so the demo
+  // exercises the transcript swap instead of leaning on the client's fallback.
+  shimEmit({ type: "log_replay_complete" });
 }

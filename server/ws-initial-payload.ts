@@ -99,5 +99,10 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
       ws.send(JSON.stringify({ type: "slash_commands", agentId: agent.id, commands: cmds.commands, skills: cmds.skills } as ServerMessage));
     }
   }
+  // Fence the burst: everything cached has now been replayed, so the client can
+  // swap the whole transcript in at once instead of guessing when the frames
+  // stopped. Sent even when nothing was replayed — "the replay is empty" is
+  // exactly the case a client cannot infer.
+  ws.send(JSON.stringify({ type: "log_replay_complete" } as ServerMessage));
   ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws), totalOnlineUsers: countTotalOnlineUsers() } as ServerMessage));
 }

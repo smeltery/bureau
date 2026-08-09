@@ -4,6 +4,7 @@ import { shouldNotifyRoom } from "../shared/notifications.ts";
 import { playNotificationSound } from "./notification-sound.ts";
 import { showDesktopNotification, markAttention } from "./notifications.ts";
 import { connect } from "./ws.ts";
+import { LOG_REPLAY_FALLBACK_MS } from "./store-replay.ts";
 import type { Action, AppState } from "./store.tsx";
 
 export function useStoreEffects(state: AppState, dispatch: Dispatch<Action>) {
@@ -25,6 +26,19 @@ export function useStoreEffects(state: AppState, dispatch: Dispatch<Action>) {
       },
     );
   }, [dispatch]);
+
+  // Nothing normally closes a replay window here — the server's
+  // `log_replay_complete` does, straight through the reducer. This is only the
+  // fallback for a server too old to send it (see LOG_REPLAY_FALLBACK_MS).
+  // Deps are the boolean and the window id, not `state.logsReplay` itself: the
+  // object is replaced on every buffered entry, which would restart the clock.
+  const replaying = state.logsReplay !== null;
+  const replaySeq = state.logsReplay?.seq ?? 0;
+  useEffect(() => {
+    if (!replaying) return;
+    const id = setTimeout(() => dispatch({ type: "log_replay_complete" }), LOG_REPLAY_FALLBACK_MS);
+    return () => clearTimeout(id);
+  }, [replaying, replaySeq, dispatch]);
 
   // Track mobile viewport
   useEffect(() => {

@@ -4,6 +4,7 @@ import { storageSetItem } from "./browser-storage.ts";
 import { applyAgentUpdated, applyRoomsReordered } from "./store-reducer-helpers.ts";
 import { writeDraftForUser, normalizeDraftUser } from "./store-drafts.ts";
 import { writeSidePanels } from "./store-side-panels.ts";
+import { appendEntryToStream, clearStreamInReplay, commitLogsReplay, openLogsReplay } from "./store-replay.ts";
 import type { Action, AppState } from "./store.tsx";
 
 export function reducer(state: AppState, action: Action): AppState {
@@ -11,6 +12,10 @@ export function reducer(state: AppState, action: Action): AppState {
     case "full_state": {
       const currentRoomId = state.rooms[state.currentRoom]?.id ?? null;
       const nextRoomId = resolveSelectedRoomId(action.rooms, currentRoomId);
+      // Keep the focused agent's transcript rendering and buffer the replay
+      // that follows this frame off-render instead of wiping and rebuilding it
+      // frame by frame — see openLogsReplay for the whole argument.
+      const { logs, logsReplay } = openLogsReplay(state);
       return {
         ...state,
         agents: action.agents,
@@ -19,7 +24,8 @@ export function reducer(state: AppState, action: Action): AppState {
         rooms: action.rooms,
         allRooms: action.allRooms ?? action.rooms,
         currentRoom: roomIndexById(action.rooms, nextRoomId),
-        logs: new Map(),
+        logs,
+        logsReplay,
         needsAttention: new Set(),
         slashCommands: new Map(),
         stateChangedAt: new Map(action.agents.filter((a) => a.state !== "idle" && a.state !== "stopped").map((a) => [a.id, Date.now()])),
@@ -68,6 +74,9 @@ export function reducer(state: AppState, action: Action): AppState {
     case "agent_removed": {
       const logs = new Map(state.logs);
       logs.delete(action.agentId);
+      // Same reason as clear_logs: a buffered replay must not resurrect the
+      // transcript of an agent that is gone.
+      const logsReplay = clearStreamInReplay(state.logsReplay, action.agentId, "delete");
       const needsAttention = new Set(state.needsAttention);
       needsAttention.delete(action.agentId);
       const sidePanels = new Map(state.sidePanels);
@@ -81,6 +90,7 @@ export function reducer(state: AppState, action: Action): AppState {
         ...state,
         agents: state.agents.filter((a) => a.id !== action.agentId),
         logs,
+        logsReplay,
         needsAttention,
         drafts,
         sidePanels,
@@ -90,16 +100,16 @@ export function reducer(state: AppState, action: Action): AppState {
     case "agent_updated":
       return applyAgentUpdated(state, action);
     case "log_entry": {
-      const logs = new Map(state.logs);
-      const entries = logs.get(action.entry.agentId) ?? [];
-      // Dedupe by entry id: backfill of a cronjob run can replay entries that
-      // already arrived live, and the same id should never appear twice.
-      // Use a Set for O(1) membership rather than entries.some(...).
-      const seen = new Set(entries.map((e) => e.id));
-      if (seen.has(action.entry.id)) return state;
-      logs.set(action.entry.agentId, [...entries, action.entry]);
-      return { ...state, logs };
+      // Inside a reconnect replay window the entry goes to the buffer instead
+      // of the rendered logs, and stays invisible until the fence commits it.
+      const replay = state.logsReplay;
+      const next = appendEntryToStream(replay ? replay.logs : state.logs, action.entry);
+      if (next === null) return state;
+      if (replay) return { ...state, logsReplay: { ...replay, logs: next } };
+      return { ...state, logs: next };
     }
+    case "log_replay_complete":
+      return commitLogsReplay(state);
     case "focus": {
       const needsAttention = new Set(state.needsAttention);
       if (action.agentId) {
@@ -133,7 +143,10 @@ export function reducer(state: AppState, action: Action): AppState {
     case "clear_logs": {
       const logs = new Map(state.logs);
       logs.set(action.agentId, []);
-      return { ...state, logs };
+      // Mirror into a replay buffer in flight, or the commit would put the
+      // just-cleared conversation back a moment later.
+      const logsReplay = clearStreamInReplay(state.logsReplay, action.agentId);
+      return { ...state, logs, logsReplay };
     }
     case "set_mobile":
       return { ...state, isMobile: action.isMobile };

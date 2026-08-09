@@ -65,6 +65,16 @@ export type ServerMessage =
   | { type: "killed_agent_added"; agent: KilledAgentSummary }
   | { type: "killed_agent_removed"; agentId: string; lastRoomId: string }
   | { type: "log_entry"; entry: LogEntry }
+  // End of the transcript replay that follows full_state on every (re)connect.
+  // Without it the replay is an unterminated burst of log_entry frames, and a
+  // client that wants to swap the whole transcript in at once has to guess when
+  // the burst ended — a guess that shows either a blank conversation or a stale
+  // one. Sent per socket, right after the last replayed frame, by
+  // sendInitialPayload (the only place that replays). Carries no payload: the
+  // frames themselves are the content, this is only the fence at the end. A
+  // client that never receives it (old server, dropped frame) must still
+  // converge on its own.
+  | { type: "log_replay_complete" }
   | { type: "sessions_list"; agentId: string; sessions: SessionInfo[]; currentSessionId: string | null }
   | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }
   | { type: "clear_logs"; agentId: string }

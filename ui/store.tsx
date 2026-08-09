@@ -22,6 +22,7 @@ import type {
 import type { AppWire } from "../shared/apps.ts";
 import type { UpdateStatusWire } from "../shared/update-types.ts";
 import { type SidePanel } from "./store-side-panels.ts";
+import type { LogsReplay } from "./store-replay.ts";
 import { useStoreEffects } from "./store-effects.ts";
 import { initialState } from "./store-initial-state.ts";
 import { reducer } from "./store-reducer.ts";
@@ -30,15 +31,21 @@ export { FeaturesProvider, ThemeProvider, useFeatures, useTheme } from "./themes
 export interface AppState {
   agents: AgentInfo[];
   logs: Map<string, LogEntry[]>; // agentId → entries
+  // Reconnect replay window, or null outside one. While this is set, incoming
+  // log_entry frames land in the buffer instead of in `logs` so the focused
+  // agent's transcript keeps rendering across the reconnect; the server's
+  // `log_replay_complete` fence swaps it in atomically. See ui/store-replay.ts.
+  logsReplay: LogsReplay | null;
   focusedAgentId: string | null;
   connected: boolean;
   // True once the first `full_state` message has been received. Distinct from
   // `connected`, which is deliberately tied to full_state arrival.
   hasReceivedInitialState: boolean;
-  // Bumped on every `full_state`. full_state wipes the logs map, and ws.ts can
-  // reconnect without ever flipping `connected` (onVisible's pong timeout), so
-  // views that backfill a log stream once must key their fetch on this epoch
-  // — a `connected` edge is not something every reconnect produces.
+  // Bumped on every `full_state`. full_state drops every log stream except the
+  // focused agent's held transcript, and ws.ts can reconnect without ever
+  // flipping `connected` (onVisible's pong timeout), so views that backfill a
+  // log stream once must key their fetch on this epoch — a `connected` edge is
+  // not something every reconnect produces.
   hydrationEpoch: number;
   isMobile: boolean;
   mobileViewMode: "list" | "office"; // which view to show on mobile
@@ -123,6 +130,12 @@ export type Action =
   | { type: "set_draft"; agentId: string; text: string }
   | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }
   | { type: "clear_logs"; agentId: string }
+  // Ends a reconnect replay window and swaps the buffered transcripts in. Sent
+  // by the server after the last replayed frame; useStoreEffects also
+  // synthesizes one on a timeout, for the window where a fresh UI build is
+  // talking to a server old enough not to send it (UI builds go live before a
+  // restart).
+  | { type: "log_replay_complete" }
   | { type: "set_mobile"; isMobile: boolean }
   | { type: "toggle_mobile_view" }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }

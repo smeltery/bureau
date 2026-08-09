@@ -5,6 +5,7 @@ import { readSidePanels } from "./store-side-panels.ts";
 export const initialState: AppState = {
   agents: [],
   logs: new Map(),
+  logsReplay: null,
   focusedAgentId: null,
   connected: false,
   hasReceivedInitialState: false,
