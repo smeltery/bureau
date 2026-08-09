@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
+import { addFinalized, dictationText, startDictation, type Dictation } from "./spoken-punctuation.ts";
 
 /**
  * Speech-recognition input.
  *
  * Dictation appends to whatever's already in the draft. Ctrl+Space is the
  * global hold-to-talk shortcut; the mic button toggles dictation.
+ *
+ * Spoken punctuation ("question mark" → "?") is applied by
+ * spoken-punctuation.ts, which needs the recognizer's FRAGMENTS rather than one
+ * accumulated string: whether "period" is a full stop or the word depends on it
+ * ending the fragment it arrived in. So the session keeps the finalized
+ * transcripts separately and recomputes the composer text, which also means a
+ * revised interim guess re-decides instead of leaving a stale substitution
+ * behind.
  *
  * `onTranscript` receives every result update (interim or final) and the
  * caller should reflect it in its draft state. `onGrow` fires after the
@@ -25,29 +34,33 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
   const isListeningRef = useRef(false);
   const [showMicHint, setShowMicHint] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  // Tracks the draft text before voice started + all finalized speech segments
-  const committedTextRef = useRef("");
+  // The draft text as it stood when the mic opened, plus every finalized
+  // fragment since — kept unjoined so punctuation can be decided per fragment.
+  const dictationRef = useRef<Dictation>(startDictation("", "en"));
 
   function startListening() {
     if (isListeningRef.current || !SpeechRecognition) return;
     isListeningRef.current = true;
     setIsListening(true);
-    committedTextRef.current = inputRef.current;
+    dictationRef.current = startDictation(inputRef.current, locale);
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = locale;
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      // The interim guess is NOT folded into the session: it is still being
+      // revised, and a terminal command can stop being fragment-final as the
+      // guess grows.
       let interimText = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          committedTextRef.current = joinSpoken(committedTextRef.current, t);
+          dictationRef.current = addFinalized(dictationRef.current, t);
         } else {
-          interimText = joinSpoken(interimText, t);
+          interimText += t;
         }
       }
-      onTranscript(joinSpoken(committedTextRef.current, interimText));
+      onTranscript(dictationText(dictationRef.current, interimText));
       requestAnimationFrame(() => {
         onGrow();
       });
@@ -116,11 +129,4 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
     speechApiPresent,
     isSecureContext,
   };
-}
-
-export function joinSpoken(base: string, addition: string): string {
-  if (!base) return addition;
-  if (!addition) return base;
-  if (/\s$/.test(base) || /^\s/.test(addition)) return base + addition;
-  return `${base} ${addition}`;
 }
