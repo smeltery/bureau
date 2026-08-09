@@ -21,7 +21,6 @@ const SOURCE_EXTENSIONS = new Set([".css", ".cjs", ".js", ".jsx", ".json", ".md"
 const EXCLUDED_PATH_SEGMENTS = new Set(["node_modules", "target", "dist", "build", "deps", "_build", "site", "fixtures", "vendor", ".git", "_generated"]);
 const EXCLUDED_FILENAMES = new Set(["bun.lock", "package-lock.json", "manifest.lock"]);
 const EXCLUDED_ASSET_EXTENSIONS = new Set([".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
-const EXCLUDED_PATHS = new Set(["ui/index.js"]);
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, "utf8")) as T;
@@ -36,7 +35,6 @@ function trackedFiles(): string[] {
 }
 
 function isBudgetedPath(path: string): boolean {
-  if (EXCLUDED_PATHS.has(path)) return false;
   const parts = path.split("/");
   if (parts.some((part) => EXCLUDED_PATH_SEGMENTS.has(part))) return false;
   const filename = parts.at(-1);

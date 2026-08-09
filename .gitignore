@@ -1,5 +1,9 @@
 node_modules
 ui/dist/
+# Not a build target — the server only serves ui/dist/. A bundle written here
+# is invisible to the running office but shows up in every grep, so keep it
+# from being committed again.
+ui/index.js
 demo/dist/
 website/.next/
 *.log
