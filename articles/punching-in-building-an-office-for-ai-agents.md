@@ -386,7 +386,7 @@ In addition to dynamically fetching all these skills (except Enterprise), Bureau
 - `/bureau-subagent-review`: spawns a subagent to review uncommitted changes for bugs and principled-vs-hacky before committing.
 - `/bureau-all-hands`: shows what everyone is working on.
 - `/bureau-system-prompt` and `/bureau-cronjob-system-prompt`: dump the full assembled system prompt for the agent (or a named cron job) so the user understands what behavior the office has actually been wired up to produce.
-- `/bureau-edit <path>`: pops a file open in the editor side panel — relative to the agent's cwd, absolute, or `~/...`. Agents can offer the same card via `POST /agents/:id/edit-file`.
+- `/bureau-edit <path>`: pops a file open in the editor side panel — relative to the agent's cwd, absolute, or `~/...`. Agents can offer the same card via `POST /api/agents/:id/edit-file`.
 
 ### Plugin hooks
 

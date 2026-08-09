@@ -62,7 +62,7 @@ export function FeaturesSection() {
       icon: <FileCode className="h-6 w-6" />,
       title: 'File Editor Side Panel',
       description:
-        'A built-in CodeMirror editor sits next to chat — tabs, syntax highlighting, dirty-buffer tracking, external-change detection. Agents can offer [Open in editor] cards via POST /agents/:id/edit-file.',
+        'A built-in CodeMirror editor sits next to chat — tabs, syntax highlighting, dirty-buffer tracking, external-change detection. Agents can offer [Open in editor] cards via POST /api/agents/:id/edit-file.',
     },
     {
       icon: <Inbox className="h-6 w-6" />,
@@ -98,7 +98,7 @@ export function FeaturesSection() {
       icon: <FileDiff className="h-6 w-6" />,
       title: 'Rich Diff Viewer',
       description:
-        'Run /bureau-diff to render uncommitted changes as a per-file card with status badges, +/- counts, and a unified/split toggle. Agents can also surface diffs via POST /agents/:id/diff.',
+        'Run /bureau-diff to render uncommitted changes as a per-file card with status badges, +/- counts, and a unified/split toggle. Agents can also surface diffs via POST /api/agents/:id/diff.',
     },
     {
       icon: <Archive className="h-6 w-6" />,
@@ -110,13 +110,13 @@ export function FeaturesSection() {
       icon: <Eye className="h-6 w-6" />,
       title: 'Inter-Agent Discovery & Messaging',
       description:
-        "Agents can inspect each other's progress and send messages directly via POST /agents/:id/message — receivers see them in the same queue as human input, prefixed so they can tell agents apart.",
+        "Agents can inspect each other's progress and send messages directly via POST /api/agents/:id/message — receivers see them in the same queue as human input, prefixed so they can tell agents apart.",
     },
     {
       icon: <Paperclip className="h-6 w-6" />,
       title: 'Rich Attachments',
       description:
-        "Attach images, PDFs, and files directly to conversations. Agents can also surface their own files via POST /agents/:id/read-file — images render inline, others as clickable chips.",
+        "Attach images, PDFs, and files directly to conversations. Agents can also surface their own files via POST /api/agents/:id/read-file — images render inline, others as clickable chips.",
     },
     {
       icon: <Palette className="h-6 w-6" />,

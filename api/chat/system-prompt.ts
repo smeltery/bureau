@@ -23,9 +23,10 @@ Bureau has been built by Claude Code agents running inside Bureau since 3 hours 
 - Blog post with architecture deep dive: articles/punching-in-building-an-office-for-ai-agents.md
 
 ## Getting Started
-1. Install Bun (v1.2+) and the Claude Code CLI, authenticated with a Claude Pro or Max subscription
-2. \`git clone https://github.com/dotbrains/bureau.git && cd bureau && bun install && bun run dev\`
-3. Open http://localhost:4000, click an empty desk to spawn your first agent
+1. Install the Claude Code CLI, authenticated with a Claude Pro or Max subscription (or the Codex CLI with a ChatGPT subscription, if you'd rather run Codex agents)
+2. \`git clone https://github.com/dotbrains/bureau.git && cd bureau\`, then either \`flox activate\` (recommended — the repo ships a Flox environment pinning Bun and the native-build toolchain, so local matches CI) or bring your own Bun and run \`bun install\`
+3. \`bun run dev\`
+4. Open http://localhost:4000, click an empty desk to spawn your first agent
 
 ## Self-hosted Persistent Server (Mac Mini style)
 Bureau shines when you run it on your own always-on machine (like a Mac Mini), and then access it from all your devices.
@@ -96,7 +97,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - File editor side panel — built-in CodeMirror editor with tabs, syntax highlighting, dirty-buffer tracking, and external-change detection; toggleable from the chat header
 - Resizable side panels — drag the splitter to size the terminal or editor; widths persist
 - Per-agent message queue — typing while the agent is busy queues messages as chips above the input; they flush together when the agent next idles, and you can cancel any of them before they send
-- Agent-driven cards in chat — agents can offer [Open in editor] and [Copy to terminal] cards via POST /agents/:id/edit-file and /agents/:id/terminal-command; clicking opens the file or prefills the command at the prompt without executing. Agents can also surface a file inline (images render in-chat, others as a clickable chip) via POST /agents/:id/read-file
+- Agent-driven cards in chat — agents can offer [Open in editor] and [Copy to terminal] cards via POST /api/agents/:id/edit-file and /api/agents/:id/terminal-command; clicking opens the file or prefills the command at the prompt without executing. Agents can also surface a file inline (images render in-chat, others as a clickable chip) via POST /api/agents/:id/read-file
 - Session-swap indicator — chat shows a brief "Restarting session..." hint during /resume, /model, or fork-from-edit so the drain → install gap isn't silent
 - Conversation branching — edit a past message to fork the conversation from that point, preserving the original
 - Right-click context menu — resume past sessions, edit agent, kill
@@ -114,7 +115,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Resume any past run by sending a follow-up message; or edit-to-fork a prior user message to branch from that point
 - Per-cron-job system prompt for shared rules across all of your scheduled jobs
 - Cost attribution per cron job in /bureau-usage, including jobs whose configs were later deleted
-- 30-minute hard timeout per run; 5-minute scheduler tick; "skipped" rows when a scheduled run is still in flight
+- 30-minute hard timeout per run; the scheduler ticks every 60 seconds and fires any job whose next-fire time has passed; "skipped" rows when a scheduled run is still in flight
 
 ### Agent-Built Apps
 - An agent can hand Bureau a web app it built; Bureau allocates the port, runs it as a systemd service that survives sessions and reboots, and gives it a data directory inside the backup set
@@ -128,7 +129,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 ### Diff Viewer
 - /bureau-diff renders uncommitted changes in your cwd as a styled per-file card: status badges, +/- counts, click-to-collapse, unified/split toggle, lightbox overlay for large files, 2 MB safety rail
 - Optional directory argument (\`/bureau-diff ~/some/worktree\`) to peek at a worktree without spawning a fresh agent there
-- Agents can surface the same card themselves via POST localhost:4000/agents/:id/diff — they learn the curl recipe from their system prompt, so "show me what you've changed" just works in plain English
+- Agents can surface the same card themselves via POST localhost:4000/api/agents/:id/diff — they learn the curl recipe from their system prompt, so "show me what you've changed" just works in plain English
 
 ### Daily Backups
 - Server-managed scheduler tarballs ~/.bureau/ to ~/bureau-backups/bureau-YYYY-MM-DD.tar.gz once a day
