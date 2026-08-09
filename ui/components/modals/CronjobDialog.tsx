@@ -3,6 +3,7 @@ import { modelVersionLabel, type AgentBackendType, type CodexSandboxMode, type C
 import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 import { CronjobScheduleFields } from "./CronjobScheduleFields.tsx";
 import { useCronjobDialogState } from "./useCronjobDialogState.ts";
+import { shortenCwd } from "../../cwd-display.ts";
 
 export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjob; username: string; onClose: () => void }) {
   const { recentCwds, isMobile } = useAppState();
@@ -116,7 +117,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
               {recentCwdsFiltered.map((c) => (
                 <button key={c} onClick={() => setCwd(c)} style={chipStyle}>
-                  {c.replace(/^\/home\/[^/]+/, "~")}
+                  {shortenCwd(c)}
                 </button>
               ))}
             </div>

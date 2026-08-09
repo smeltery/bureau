@@ -25,6 +25,7 @@ export function reducer(state: AppState, action: Action): AppState {
         stateChangedAt: new Map(action.agents.filter((a) => a.state !== "idle" && a.state !== "stopped").map((a) => [a.id, Date.now()])),
         killedAgents: action.killedAgents,
         hasReceivedInitialState: true,
+        hydrationEpoch: state.hydrationEpoch + 1,
       };
     }
     case "session_context": {

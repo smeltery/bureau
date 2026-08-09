@@ -7,6 +7,7 @@ import { HeaderTopic } from "./HeaderTopic.tsx";
 import { HeaderMobile } from "./HeaderMobile.tsx";
 import { HeaderActions } from "./header/HeaderActions.tsx";
 import { ContextMeter } from "./components/ContextMeter.tsx";
+import { shortenCwd } from "../cwd-display.ts";
 
 export function Header({
   agent,
@@ -119,7 +120,7 @@ export function Header({
             flexShrink: 1,
           }}
         >
-          {agent.cwd.replace(/^\/home\/[^/]+/, "~")}
+          {shortenCwd(agent.cwd)}
         </span>
         <span style={{ color: "var(--text-ghost)", flexShrink: 0 }}>&middot;</span>
         <span

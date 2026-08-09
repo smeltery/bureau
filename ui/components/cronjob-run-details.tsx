@@ -1,4 +1,5 @@
 import type { CronjobRun } from "../../shared/types.ts";
+import { shortenCwd } from "../cwd-display.ts";
 
 const STATUS_LABEL: Record<CronjobRun["status"], string> = {
   running: "Running",
@@ -93,7 +94,7 @@ export function CronjobRunSummary({ run }: { run: CronjobRun }) {
       <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>PROMPT</div>
       <div style={{ whiteSpace: "pre-wrap" }}>{run.promptSnapshot}</div>
       <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-ghost)" }}>
-        cwd: {run.cwdSnapshot} {"\u00b7"} backend: {run.agentTypeSnapshot} {"\u00b7"} model: {run.modelFamilySnapshot} {"\u00b7"} effort: {run.effortSnapshot} {"\u00b7"} permission:{" "}
+        cwd: {shortenCwd(run.cwdSnapshot)} {"\u00b7"} backend: {run.agentTypeSnapshot} {"\u00b7"} model: {run.modelFamilySnapshot} {"\u00b7"} effort: {run.effortSnapshot} {"\u00b7"} permission:{" "}
         {run.permissionModeSnapshot}
         {run.codexSandboxSnapshot ? ` \u00b7 sandbox: ${run.codexSandboxSnapshot}` : ""}
       </div>

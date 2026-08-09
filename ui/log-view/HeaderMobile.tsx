@@ -4,6 +4,7 @@ import { PersonIcon } from "../components/controls/Icons.tsx";
 import { StatusLight } from "../office/scene/StatusLight.tsx";
 import { HeaderTimer, STATE_LABELS } from "./StateIndicators.tsx";
 import { ContextMeter } from "./components/ContextMeter.tsx";
+import { shortenCwd } from "../cwd-display.ts";
 
 export function HeaderMobile({
   agent,
@@ -161,7 +162,7 @@ export function HeaderMobile({
               flex: 1,
             }}
           >
-            {agent.cwd}
+            {shortenCwd(agent.cwd)}
           </span>
         </div>
       </div>

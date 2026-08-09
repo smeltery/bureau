@@ -63,10 +63,6 @@ export const DESKS_WITHOUT_MUG = new Set([2, 5, 7]);
 
 const CWD_CHARS_PER_LINE = 12;
 
-export function shortenCwd(cwd: string): string {
-  return cwd.replace(/^\/home\/[^/]+/, "~");
-}
-
 export function wrapCwd(text: string): string[] {
   if (text.length <= CWD_CHARS_PER_LINE) return [text];
   const lines: string[] = [];

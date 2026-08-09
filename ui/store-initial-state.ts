@@ -8,6 +8,7 @@ export const initialState: AppState = {
   focusedAgentId: null,
   connected: false,
   hasReceivedInitialState: false,
+  hydrationEpoch: 0,
   isMobile: typeof window !== "undefined" ? window.innerWidth < 768 : false,
   mobileViewMode: storageGetItem("bureau-mobile-view") === "list" ? "list" : "office",
   needsAttention: new Set(),

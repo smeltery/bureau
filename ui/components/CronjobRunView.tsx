@@ -11,7 +11,7 @@ import { CronjobRunComposer } from "./CronjobRunComposer.tsx";
 // server-side handlers live in cronjobs/index.ts (sendRunMessage,
 // editRunMessage); see send_cronjob_run_message / edit_cronjob_run_message.
 export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: string; runId: string; username: string; onClose: () => void }) {
-  const { cronjobRunsByJob, isMobile, logs } = useAppState();
+  const { cronjobRunsByJob, isMobile, logs, hydrationEpoch } = useAppState();
   const streamId = cronjobRunStreamId(runId);
   const runs = cronjobRunsByJob.get(jobId) ?? [];
   const run = runs.find((r) => r.id === runId);
@@ -22,15 +22,14 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
 
-  // Always backfill on open: live entries may have arrived before the user
-  // opened the view, but the reducer dedupes by id (defence in depth) so
-  // re-requesting on every open is safe.
-  const [loaded, setLoaded] = useState(false);
+  // Always backfill on open, and again after every hydration: full_state wipes
+  // the logs map (store-reducer), and ws.ts can reconnect without ever
+  // flipping `connected` (onVisible's pong timeout) — so a run view left open
+  // across a silent reconnect would otherwise go permanently blank. The
+  // reducer dedupes by id, so re-requesting is safe.
   useEffect(() => {
-    if (loaded) return;
     send({ type: "load_cronjob_run", cronjobId: jobId, runId });
-    setLoaded(true);
-  }, [jobId, runId, loaded]);
+  }, [jobId, runId, hydrationEpoch]);
 
   // ESC closes the view, unless the user is editing a message — then ESC
   // cancels the edit (handled inside EditableUserMessage).

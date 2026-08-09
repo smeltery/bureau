@@ -34,6 +34,11 @@ export interface AppState {
   // True once the first `full_state` message has been received. Distinct from
   // `connected`, which is deliberately tied to full_state arrival.
   hasReceivedInitialState: boolean;
+  // Bumped on every `full_state`. full_state wipes the logs map, and ws.ts can
+  // reconnect without ever flipping `connected` (onVisible's pong timeout), so
+  // views that backfill a log stream once must key their fetch on this epoch
+  // — a `connected` edge is not something every reconnect produces.
+  hydrationEpoch: number;
   isMobile: boolean;
   mobileViewMode: "list" | "office"; // which view to show on mobile
   needsAttention: Set<string>; // agentIds with unread state changes

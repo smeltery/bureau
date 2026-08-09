@@ -1,5 +1,6 @@
 import type { AgentState } from "../../../shared/types.ts";
-import { DESKS_WITHOUT_MUG, DESKS_WITHOUT_PLANT, MUG_VARIANTS, PLANT_VARIANTS, shortenCwd, visualDeskState, wrapCwd } from "./deskSpriteData.ts";
+import { DESKS_WITHOUT_MUG, DESKS_WITHOUT_PLANT, MUG_VARIANTS, PLANT_VARIANTS, visualDeskState, wrapCwd } from "./deskSpriteData.ts";
+import { shortenCwd } from "../../cwd-display.ts";
 import { DeskModelItem } from "./DeskModelItem.tsx";
 
 export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily }: { state: AgentState; deskIndex?: number; cwd?: string; modelFamily?: string }) {

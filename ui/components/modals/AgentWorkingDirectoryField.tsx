@@ -1,3 +1,5 @@
+import { shortenCwd } from "../../cwd-display.ts";
+
 export function AgentWorkingDirectoryField({
   cwd,
   cwdError,
@@ -40,7 +42,7 @@ export function AgentWorkingDirectoryField({
               }}
               style={chipStyle}
             >
-              {c.replace(/^\/home\/[^/]+/, "~")}
+              {shortenCwd(c)}
             </button>
           ))}
         </div>
