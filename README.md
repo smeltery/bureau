@@ -85,6 +85,8 @@ Then open **http://localhost:4000** and click an empty desk.
 - **File attachments** — images, PDFs, arbitrary files; uploads reach agents as path notices so they can open only what they need. Agents can surface their own files via `POST /api/agents/:id/read-file` (images render inline, others as clickable chips)
 - **Browser preview cards** — agents can screenshot local or private development URLs via `POST /api/agents/:id/preview-url` and show the result inline
 - **Readable Bureau API calls** — local `curl` calls to Bureau affordance endpoints show plain-language tool-call summaries instead of raw shell noise
+- **Subagent call marking** — tool calls a subagent made carry a dim `subagent · type` pill and indent behind a left rule, so a Task tool's inner work is distinguishable from the agent's own
+- **Flicker-free reconnect** — a dropped or frozen socket (mobile app-switch, sleep/wake) no longer blanks the conversation: the transcript keeps rendering while the server's replay buffers off-render, then swaps in atomically
 - **Mermaid diagrams in chat** — agent messages with ` ```mermaid ` fenced blocks render as inline SVG (lazy-loaded, theme-aware). Parse failures show the offending source in-place instead of a silent blank.
 - **Subscription-usage pill** — beside the context battery, a ring showing how much of your Claude or Codex plan allowance the signed-in account has burned (`GET /api/agents/:id/subscription-usage`). The number tracks the most-constrained window by default; the popover lists every window with reset times and a countdown, and lets you pin the limit it follows. Account-wide, not per agent — and it shows `?` rather than disappearing when there is no plan allowance to report (API key, Bedrock, Vertex)
 
