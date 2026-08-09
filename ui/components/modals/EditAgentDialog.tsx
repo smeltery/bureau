@@ -5,6 +5,7 @@ import { AgentModelPermissionFields } from "./AgentModelPermissionFields.tsx";
 import { AgentMoveRoomSection } from "./AgentMoveRoomSection.tsx";
 import { AgentWorkingDirectoryField } from "./AgentWorkingDirectoryField.tsx";
 import { dialogInput, dialogLabel } from "./dialog-styles.ts";
+import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 import { useEditAgentDialogController } from "./useEditAgentDialogController.ts";
 
 export type EditAgentDialogProps = {
@@ -86,9 +87,11 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
       <label style={{ ...labelStyle, marginTop: 14 }}>
         Custom Instructions <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
       </label>
-      <textarea
+      <ExpandableTextarea
+        title="Custom Instructions"
+        hint="Personal system prompt for this agent. Run /bureau-system-prompt in a chat to see the agent's full system prompt."
         value={customInstructions}
-        onChange={(e) => setCustomInstructions(e.target.value)}
+        onChange={setCustomInstructions}
         placeholder='e.g. "You are a backend specialist. Always write tests."'
         rows={3}
         style={{ ...inputStyle, resize: "vertical" }}
@@ -103,7 +106,15 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
           <label style={{ ...labelStyle, marginTop: 14 }}>
             Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for this agent)</span>
           </label>
-          <textarea value={agentMemory.memory} onChange={(e) => agentMemory.setMemory(e.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} disabled={!agentMemory.loaded} />
+          <ExpandableTextarea
+            title="Agent Memory"
+            hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
+            value={agentMemory.memory}
+            onChange={agentMemory.setMemory}
+            rows={4}
+            style={{ ...inputStyle, resize: "vertical" }}
+            disabled={!agentMemory.loaded}
+          />
         </>
       )}
 

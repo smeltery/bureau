@@ -5,6 +5,7 @@ import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { StorageModal } from "./StorageModal.tsx";
+import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
@@ -119,10 +120,12 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         Rules <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(system prompt for all agents)</span>
       </label>
-      <textarea
-        ref={textareaRef}
+      <ExpandableTextarea
+        textareaRef={textareaRef}
+        title="Office Rules"
+        hint="System prompt for all agents. Changes take effect on next conversation."
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={setText}
         placeholder="e.g. Always write tests. Use TypeScript. Be concise."
         rows={8}
         style={{ ...inputStyle, resize: "vertical" }}
@@ -141,12 +144,28 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for all agents)</span>
       </label>
-      <textarea value={officeMemory.memory} onChange={(e) => officeMemory.setMemory(e.target.value)} rows={5} style={{ ...inputStyle, resize: "vertical" }} disabled={!officeMemory.loaded} />
+      <ExpandableTextarea
+        title="Office Memory"
+        hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
+        value={officeMemory.memory}
+        onChange={officeMemory.setMemory}
+        rows={5}
+        style={{ ...inputStyle, resize: "vertical" }}
+        disabled={!officeMemory.loaded}
+      />
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         My Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for agents you spawn)</span>
       </label>
-      <textarea value={bossMemory.memory} onChange={(e) => bossMemory.setMemory(e.target.value)} rows={5} style={{ ...inputStyle, resize: "vertical" }} disabled={!bossMemory.loaded} />
+      <ExpandableTextarea
+        title="My Memory"
+        hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
+        value={bossMemory.memory}
+        onChange={bossMemory.setMemory}
+        rows={5}
+        style={{ ...inputStyle, resize: "vertical" }}
+        disabled={!bossMemory.loaded}
+      />
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
         <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>

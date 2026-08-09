@@ -4,6 +4,7 @@ import { send, addRawListener, removeRawListener } from "../../ws.ts";
 import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
+import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
@@ -104,10 +105,12 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         Room Prompt <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional, appended after office prompt)</span>
       </label>
-      <textarea
-        ref={textareaRef}
+      <ExpandableTextarea
+        textareaRef={textareaRef}
+        title={`${room.name} · Room Prompt`}
+        hint="Changes take effect on next conversation."
         value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
+        onChange={setPrompt}
         placeholder="e.g. You're in the Marketing room. Match our brand voice."
         rows={8}
         style={{ ...inputStyle, resize: "vertical" }}
@@ -117,7 +120,15 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for this room)</span>
       </label>
-      <textarea value={roomMemory.memory} onChange={(e) => roomMemory.setMemory(e.target.value)} rows={5} style={{ ...inputStyle, resize: "vertical" }} disabled={!roomMemory.loaded} />
+      <ExpandableTextarea
+        title={`${room.name} · Memory`}
+        hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
+        value={roomMemory.memory}
+        onChange={roomMemory.setMemory}
+        rows={5}
+        style={{ ...inputStyle, resize: "vertical" }}
+        disabled={!roomMemory.loaded}
+      />
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
         <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>

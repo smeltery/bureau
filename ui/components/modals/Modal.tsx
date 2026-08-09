@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useAppState } from "../../store.tsx";
+import { shouldHostCloseOnEscape } from "./expandedEditorState.ts";
 
 /**
  * Shared modal shell used by OfficePromptModal, RoomSettingsModal,
@@ -33,10 +34,13 @@ export function Modal({
   const { isMobile } = useAppState();
 
   // Capture-phase so this fires before any page-level Esc handler, matching
-  // the original per-modal behaviour.
+  // the original per-modal behaviour. An expanded editor (ExpandableTextarea)
+  // owns Escape while it is open, collapsing itself instead of closing this
+  // dialog; our capture listener runs first, so the stand-down has to happen
+  // here.
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (shouldHostCloseOnEscape(e)) {
         e.stopPropagation();
         onClose();
       }

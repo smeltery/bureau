@@ -2,6 +2,7 @@ import { useAppState } from "../../store.tsx";
 import { modelVersionLabel, type AgentBackendType, type CodexSandboxMode, type Cronjob, type CronjobPermissionMode, type EffortLevel, type ModelFamily } from "../../../shared/types.ts";
 import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 import { CronjobScheduleFields } from "./CronjobScheduleFields.tsx";
+import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 import { useCronjobDialogState } from "./useCronjobDialogState.ts";
 import { shortenCwd } from "../../cwd-display.ts";
 
@@ -103,9 +104,11 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           />
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Prompt</label>
-          <textarea
+          <ExpandableTextarea
+            title={isEdit ? `${name || "Cron Job"} · Prompt` : "Cron Job Prompt"}
+            hint="Sent to the agent at every scheduled run."
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={setPrompt}
             placeholder='e.g. "Summarize what every agent accomplished yesterday."'
             rows={4}
             style={{ ...inputStyle, resize: "vertical" }}

@@ -12,6 +12,7 @@ import {
   type EffortLevel,
 } from "../../../shared/types.ts";
 import { buildCronjobSchedule, type ScheduleType } from "./CronjobScheduleFields.tsx";
+import { shouldHostCloseOnEscape } from "./expandedEditorState.ts";
 
 export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?: Cronjob; username: string; onClose: () => void }) {
   const isEdit = !!cronjob;
@@ -45,9 +46,11 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
     };
   }, []);
 
+  // An expanded editor (ExpandableTextarea) owns Escape while it is open, so
+  // this capture listener — registered first — stands down for it.
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (shouldHostCloseOnEscape(e)) {
         e.stopPropagation();
         onClose();
       }

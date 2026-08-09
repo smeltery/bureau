@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { dialogCancelBtn, dialogSaveBtn } from "./dialog-styles.ts";
+import { shouldHostCloseOnEscape } from "./expandedEditorState.ts";
 
 type AgentDialogFrameProps = {
   children: ReactNode;
@@ -16,9 +17,15 @@ export function AgentDialogFrame({ children, isMobile, isSpawn, onClose, onSave,
   // Own Escape while the dialog is open (capture + stopPropagation), so it
   // routes through onClose's discard guard instead of App's global keydown
   // handler — which would drop the whole form, even mid-typing in a field.
+  //
+  // Unless an expanded editor (ExpandableTextarea) is open: it collapses on
+  // Escape and this handler must stand down, or one Escape meant to collapse a
+  // fullscreen memory/instructions editor would instead pop the discard confirm
+  // for the entire form. Our capture listener was registered before the
+  // overlay's, so it runs first and has to make that call itself.
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
+      if (!shouldHostCloseOnEscape(e)) return;
       e.stopPropagation();
       onClose();
     }

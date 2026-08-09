@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../../store.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
+import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
+import { shouldHostCloseOnEscape } from "./expandedEditorState.ts";
 
 export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
   const { cronjobsPrompt, isMobile } = useAppState();
@@ -17,9 +19,11 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
     }
   }, []);
 
+  // An expanded editor (ExpandableTextarea) owns Escape while it is open, so
+  // this capture listener — registered first — stands down for it.
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (shouldHostCloseOnEscape(e)) {
         e.stopPropagation();
         onClose();
       }
@@ -88,10 +92,12 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>
           Rules <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(system prompt for all cron jobs)</span>
         </label>
-        <textarea
-          ref={textareaRef}
+        <ExpandableTextarea
+          textareaRef={textareaRef}
+          title="Cron Job Rules"
+          hint="System prompt for all cron jobs. Applied to the next run; in-flight runs use their captured snapshot."
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={setText}
           placeholder="e.g. Always write findings to a markdown file. Be terse."
           rows={8}
           style={{

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Cronjob, CronjobRun } from "../../shared/types.ts";
 import { useAppState } from "../store.tsx";
 import { send } from "../ws.ts";
+import { shouldHostCloseOnEscape } from "./modals/expandedEditorState.ts";
 
 export type CronjobsViewTab = "runs" | "cronjobs";
 
@@ -41,9 +42,15 @@ export function useCronjobsViewController() {
   }, [allRuns, runFilter]);
 
   // ESC closes (handled at App level by goHome → popstate; local Escape just dismisses our overlays)
+  //
+  // This listener is registered before the cron dialogs it renders, so it also
+  // runs before an expanded editor (ExpandableTextarea) inside one of them.
+  // Standing down matters here: dismissing `editing`/`creating` unmounts the
+  // whole cron job form and drops every unsaved field with it, when all the
+  // user asked for was to collapse the fullscreen prompt editor.
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (shouldHostCloseOnEscape(e)) {
         if (openRun) {
           e.stopPropagation();
           setOpenRun(null);

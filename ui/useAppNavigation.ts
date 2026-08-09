@@ -3,6 +3,7 @@ import type { AgentInfo, RoomWire, SessionContext } from "../shared/types.ts";
 import type { Action } from "./store.tsx";
 import { send } from "./ws.ts";
 import { getDevice } from "./device-settings.ts";
+import { shouldHostCloseOnEscape } from "./components/modals/expandedEditorState.ts";
 import type { ViewportControls } from "./office/OfficeView.tsx";
 
 type ViewMode = "office" | "log" | "away";
@@ -124,7 +125,12 @@ export function useAppNavigation({
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       const isInput = tag === "INPUT" || tag === "TEXTAREA" || !!target?.isContentEditable;
-      if (e.key === "Escape") {
+      // This is the global fallback: it closes views and clears the spawn /
+      // context-menu / edit-agent slots. An expanded editor (ExpandableTextarea)
+      // stops Escape from reaching us at all, but check anyway — this handler
+      // discards a whole dialog's worth of unsaved form state, so it must never
+      // be the thing that fires when the user only meant to collapse an editor.
+      if (shouldHostCloseOnEscape(e)) {
         goHome();
         setSpawnDesk(null);
         setCtxMenu(null);
