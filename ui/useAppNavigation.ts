@@ -37,10 +37,12 @@ export function useAppNavigation({
   username,
   tasksOpen,
   cronjobsOpen,
+  appsOpen,
   pluginsOpen,
   anyModalOpen,
   setTasksOpen,
   setCronjobsOpen,
+  setAppsOpen,
   setPluginsOpen,
   setSpawnDesk,
   setCtxMenu,
@@ -58,10 +60,12 @@ export function useAppNavigation({
   username: string | null;
   tasksOpen: boolean;
   cronjobsOpen: boolean;
+  appsOpen: boolean;
   pluginsOpen: boolean;
   anyModalOpen: boolean;
   setTasksOpen: Dispatch<SetStateAction<boolean>>;
   setCronjobsOpen: Dispatch<SetStateAction<boolean>>;
+  setAppsOpen: Dispatch<SetStateAction<boolean>>;
   setPluginsOpen: Dispatch<SetStateAction<boolean>>;
   setSpawnDesk: Dispatch<SetStateAction<number | null>>;
   setCtxMenu: Dispatch<SetStateAction<{ x: number; y: number; agent: AgentInfo } | null>>;
@@ -74,7 +78,7 @@ export function useAppNavigation({
     if (username && connected) sendClaim(username);
   }, [username, connected]);
 
-  const viewMode: ViewMode = tasksOpen || cronjobsOpen || pluginsOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
+  const viewMode: ViewMode = tasksOpen || cronjobsOpen || appsOpen || pluginsOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
   const presenceRoom = focusedAgent?.room ?? currentRoom;
   const presenceRoomId = focusedAgent?.roomId ?? rooms[presenceRoom]?.id ?? null;
   useEffect(() => {
@@ -109,10 +113,11 @@ export function useAppNavigation({
     } else {
       setTasksOpen(false);
       setCronjobsOpen(false);
+      setAppsOpen(false);
       setPluginsOpen(false);
       dispatch({ type: "focus", agentId: null });
     }
-  }, [dispatch, setCronjobsOpen, setPluginsOpen, setTasksOpen]);
+  }, [dispatch, setAppsOpen, setCronjobsOpen, setPluginsOpen, setTasksOpen]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -166,7 +171,7 @@ export function useAppNavigation({
     return () => window.removeEventListener("keydown", handleKey);
   }, [dispatch, goHome, focusedAgentId, agents, drafts, currentRoom, roomCount, setCtxMenu, setEditAgent, setSpawnDesk]);
 
-  const isDeep = tasksOpen || cronjobsOpen || pluginsOpen || focusedAgentId !== null;
+  const isDeep = tasksOpen || cronjobsOpen || appsOpen || pluginsOpen || focusedAgentId !== null;
   useEffect(() => {
     if (isDeep && !deepRef.current) {
       window.history.pushState({ bureau: true }, "");
@@ -183,13 +188,14 @@ export function useAppNavigation({
       deepRef.current = false;
       setTasksOpen(false);
       setCronjobsOpen(false);
+      setAppsOpen(false);
       setPluginsOpen(false);
       dispatch({ type: "focus", agentId: null });
     }
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [dispatch, setCronjobsOpen, setPluginsOpen, setTasksOpen]);
+  }, [dispatch, setAppsOpen, setCronjobsOpen, setPluginsOpen, setTasksOpen]);
 
   return {
     goHome,

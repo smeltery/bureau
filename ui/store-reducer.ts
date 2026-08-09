@@ -146,6 +146,34 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, office: { ...state.office, prompt: action.prompt, envFile: action.envFile } };
     case "tasks":
       return { ...state, tasks: action.tasks, tasksLoaded: true };
+    // The Apps tab's list GET landing. It REPLACES the slice — a merge would
+    // keep showing an app somebody deleted from another tab if its delta was
+    // missed.
+    //
+    // Unless a delta landed while it was in flight, in which case the snapshot
+    // is older than what we already hold and replacing would undo it. Refused,
+    // not merged — the deltas are authoritative and the next poll converges the
+    // rest. appsLoaded still flips: the fetch DID succeed, and leaving the tab
+    // on its loading state over a won race would be its own bug.
+    case "apps_loaded":
+      if (action.revision !== state.appsRevision) return { ...state, appsLoaded: true };
+      return { ...state, apps: action.apps, appsLoaded: true };
+    // Keyed by NAME — an app has no separate id, and a name is bound to one app
+    // forever. Same upsert reasoning as tasks: for a recipient this can be the
+    // first time they see the app, so replace-or-append rather than two events.
+    case "app_updated": {
+      const known = state.apps.some((a) => a.name === action.app.name);
+      const apps = known ? state.apps.map((a) => (a.name === action.app.name ? action.app : a)) : [...state.apps, action.app];
+      return { ...state, apps, appsRevision: state.appsRevision + 1 };
+    }
+    // Unknown names are a no-op on the rows: the server only tells recipients
+    // who could see the app, but a delta racing the tab's first fetch shouldn't
+    // break the list. The revision moves even then — an in-flight list GET may
+    // well carry that app, and letting it land would resurrect it.
+    case "app_removed": {
+      if (!state.apps.some((a) => a.name === action.name)) return { ...state, appsRevision: state.appsRevision + 1 };
+      return { ...state, apps: state.apps.filter((a) => a.name !== action.name), appsRevision: state.appsRevision + 1 };
+    }
     case "set_current_room":
       return { ...state, currentRoom: action.room };
     case "room_created":

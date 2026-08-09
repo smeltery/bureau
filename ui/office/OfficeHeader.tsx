@@ -15,6 +15,7 @@ export function DesktopOfficeHeader({
   updateAvailable,
   onOpenTasks,
   onOpenCronjobs,
+  onOpenApps,
   onOpenPlugins,
   onEditUsername,
   onOpenDeviceSettings,
@@ -29,6 +30,7 @@ export function DesktopOfficeHeader({
   updateAvailable: boolean;
   onOpenTasks: () => void;
   onOpenCronjobs?: () => void;
+  onOpenApps?: () => void;
   onOpenPlugins?: () => void;
   onEditUsername: () => void;
   onOpenDeviceSettings: () => void;
@@ -114,6 +116,7 @@ export function DesktopOfficeHeader({
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifySelf: "end" }}>
         <HeaderButton icon={<TasksIcon />} label="Tasks" onClick={onOpenTasks} />
         {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label="Cron jobs" title="Cron jobs" onClick={onOpenCronjobs} />}
+        {onOpenApps && <HeaderButton icon={<AppsIcon />} label="Apps" title="Apps agents built and bureau keeps running" onClick={onOpenApps} />}
         {onOpenPlugins && <HeaderButton icon={<PlugIcon />} label="Plugins" title="Manage Claude Code plugins" onClick={onOpenPlugins} />}
         <HeaderButton icon={<UserIcon />} label="User" title={username || "User settings"} onClick={onEditUsername} />
         <HeaderButton icon={<DeviceIcon />} label="Device" title="Device settings" onClick={onOpenDeviceSettings} />
@@ -162,6 +165,17 @@ function ClockIcon() {
     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="8" cy="8" r="6" />
       <path d="M8 4.5V8l2.5 1.5" />
+    </svg>
+  );
+}
+
+// A browser window with a running dot: an app is a web app bureau serves.
+function AppsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="12" height="10" rx="1.5" />
+      <path d="M2 6h12" />
+      <circle cx="4.2" cy="4.5" r="0.55" fill="currentColor" stroke="none" />
     </svg>
   );
 }

@@ -13,6 +13,7 @@ import { OfficePromptModal } from "./components/modals/OfficePromptModal.tsx";
 import { RoomSettingsModal } from "./components/modals/RoomSettingsModal.tsx";
 import { TaskView } from "./task-view/TaskView.tsx";
 import { CronjobsView } from "./components/CronjobsView.tsx";
+import { AppsView } from "./apps-view/AppsView.tsx";
 import { PluginsView } from "./components/PluginsView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
 import { ConnectionBanner } from "./components/ConnectionBanner.tsx";
@@ -43,6 +44,7 @@ export function App() {
   const [editingRoomSettings, setEditingRoomSettings] = useState<string | null>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [cronjobsOpen, setCronjobsOpen] = useState(false);
+  const [appsOpen, setAppsOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
 
@@ -88,6 +90,7 @@ export function App() {
     if (agent) dispatch({ type: "focus", agentId: agent.id });
     if (saved.panel === "tasks") setTasksOpen(true);
     else if (saved.panel === "cronjobs") setCronjobsOpen(true);
+    else if (saved.panel === "apps") setAppsOpen(true);
     else if (saved.panel === "plugins") setPluginsOpen(true);
   }, [agents, dispatch, draftUser, hasReceivedInitialState, rooms]);
 
@@ -95,20 +98,20 @@ export function App() {
     if (!draftUser || !hasRestoredViewRef.current) return;
     const focused = focusedAgentId ? (agents.find((agent) => agent.id === focusedAgentId) ?? null) : null;
     const roomId = focused?.roomId ?? rooms[currentRoom]?.id ?? null;
-    const panel = tasksOpen ? "tasks" : cronjobsOpen ? "cronjobs" : pluginsOpen ? "plugins" : null;
+    const panel = tasksOpen ? "tasks" : cronjobsOpen ? "cronjobs" : appsOpen ? "apps" : pluginsOpen ? "plugins" : null;
     writeSavedView(draftUser, { roomId, agentId: focusedAgentId, panel });
-  }, [agents, cronjobsOpen, currentRoom, draftUser, focusedAgentId, pluginsOpen, rooms, tasksOpen]);
+  }, [agents, appsOpen, cronjobsOpen, currentRoom, draftUser, focusedAgentId, pluginsOpen, rooms, tasksOpen]);
 
   const focusedAgentName = focusedAgent?.name ?? null;
   const focusedAgentState = focusedAgent?.state ?? null;
   const currentRoomName = rooms[currentRoom]?.name ?? null;
   useEffect(() => {
     if (!connected) return;
-    const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Cron Jobs" : pluginsOpen ? "Plugins" : null;
+    const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Cron Jobs" : appsOpen ? "Apps" : pluginsOpen ? "Plugins" : null;
     const focusedAgentTitle = focusedAgentName && focusedAgentState ? agentTabLabel(focusedAgentName, focusedAgentState) : null;
     const label = panelTitle ?? focusedAgentTitle ?? currentRoomName ?? null;
     document.title = label ? `${label} | Bureau` : "Bureau";
-  }, [connected, cronjobsOpen, currentRoomName, focusedAgentName, focusedAgentState, pluginsOpen, tasksOpen]);
+  }, [appsOpen, connected, cronjobsOpen, currentRoomName, focusedAgentName, focusedAgentState, pluginsOpen, tasksOpen]);
 
   const { goHome, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
     agents,
@@ -123,10 +126,12 @@ export function App() {
     username,
     tasksOpen,
     cronjobsOpen,
+    appsOpen,
     pluginsOpen,
     anyModalOpen,
     setTasksOpen,
     setCronjobsOpen,
+    setAppsOpen,
     setPluginsOpen,
     setSpawnDesk,
     setCtxMenu,
@@ -152,6 +157,8 @@ export function App() {
         <PluginsView onClose={goHome} />
       ) : cronjobsOpen ? (
         <CronjobsView username={username ?? ""} onClose={goHome} />
+      ) : appsOpen ? (
+        <AppsView onClose={goHome} />
       ) : tasksOpen ? (
         <TaskView
           username={username ?? ""}
@@ -211,6 +218,7 @@ export function App() {
           }}
           onOpenTasks={() => setTasksOpen(true)}
           onOpenCronjobs={() => setCronjobsOpen(true)}
+          onOpenApps={() => setAppsOpen(true)}
           onOpenPlugins={() => setPluginsOpen(true)}
           onOpenUpdate={() => setUpdateOpen(true)}
           onSwipeLeft={swipeRoomNext}

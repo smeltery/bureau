@@ -41,6 +41,7 @@ export function OfficeView({
   onEditRoomSettings,
   onOpenTasks,
   onOpenCronjobs,
+  onOpenApps,
   onOpenPlugins,
   onOpenUpdate,
   onSwipeLeft,
@@ -57,6 +58,7 @@ export function OfficeView({
   onEditRoomSettings?: () => void;
   onOpenTasks: () => void;
   onOpenCronjobs?: () => void;
+  onOpenApps?: () => void;
   onOpenPlugins?: () => void;
   onOpenUpdate: () => void;
   onSwipeLeft?: () => void;
@@ -145,6 +147,7 @@ export function OfficeView({
         onEditRoomSettings={onEditRoomSettings}
         onOpenTasks={onOpenTasks}
         onOpenCronjobs={onOpenCronjobs}
+        onOpenApps={onOpenApps}
         onOpenPlugins={onOpenPlugins}
         onOpenUpdate={onOpenUpdate}
       />

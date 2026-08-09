@@ -19,6 +19,7 @@ import type {
   PresenceInfo,
   UserRecord,
 } from "../shared/types.ts";
+import type { AppWire } from "../shared/apps.ts";
 import type { UpdateStatusWire } from "../shared/update-types.ts";
 import { type SidePanel } from "./store-side-panels.ts";
 import { useStoreEffects } from "./store-effects.ts";
@@ -63,6 +64,20 @@ export interface AppState {
   totalOnlineUsers: number;
   tasks: TaskItem[];
   tasksLoaded: boolean;
+  // Agent-built apps. Fetched by AppsView when the tab opens (an app list costs
+  // a systemd read on the server, so no session pays for a tab it never opens)
+  // and kept fresh by the app_updated / app_removed deltas. full_state does
+  // NOT carry apps and must never clear this slice — AppsView re-fetches on
+  // hydrationEpoch instead.
+  apps: AppWire[];
+  appsLoaded: boolean;
+  // Bumped by every app delta. A list GET is a snapshot of the moment it was
+  // ISSUED, so a slow one can land after a delta that supersedes it and
+  // resurrect an app somebody just deleted. AppsView captures this when it
+  // starts a fetch and hands it back on apps_loaded; a replacement whose
+  // revision has moved is refused. Ordering GETs against each other is not
+  // enough — the race is a GET against a DELTA.
+  appsRevision: number;
   currentRoom: number; // 0-based room index (view selection only)
   cronjobs: Cronjob[];
   cronjobsLoaded: boolean;
@@ -112,6 +127,11 @@ export type Action =
   | { type: "toggle_mobile_view" }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
   | { type: "tasks"; tasks: TaskItem[] }
+  // The Apps tab's list GET result (apps_loaded, local) and the server's app
+  // deltas (app_updated / app_removed, straight off the wire).
+  | { type: "apps_loaded"; apps: AppWire[]; revision: number }
+  | { type: "app_updated"; app: AppWire }
+  | { type: "app_removed"; name: string }
   | { type: "set_current_room"; room: number }
   | { type: "room_created"; room: RoomWire }
   | { type: "room_closed"; roomId: string }

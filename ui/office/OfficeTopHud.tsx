@@ -17,6 +17,7 @@ export function OfficeTopHud({
   onEditRoomSettings,
   onOpenTasks,
   onOpenCronjobs,
+  onOpenApps,
   onOpenPlugins,
   onOpenUpdate,
 }: {
@@ -31,6 +32,7 @@ export function OfficeTopHud({
   onEditRoomSettings?: () => void;
   onOpenTasks: () => void;
   onOpenCronjobs?: () => void;
+  onOpenApps?: () => void;
   onOpenPlugins?: () => void;
   onOpenUpdate: () => void;
 }) {
@@ -63,6 +65,7 @@ export function OfficeTopHud({
           updateAvailable={updateAvailable}
           onOpenTasks={onOpenTasks}
           onOpenCronjobs={onOpenCronjobs}
+          onOpenApps={onOpenApps}
           onOpenPlugins={onOpenPlugins}
           onEditUsername={onEditUsername}
           onOpenDeviceSettings={onOpenDeviceSettings}
