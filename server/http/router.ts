@@ -18,6 +18,8 @@ import { handleAppsRequest } from "./apps.ts";
 import { appHostDomain } from "../apps/domain.ts";
 import { appRegistry } from "../apps/registry.ts";
 import { handleTlsAsk, TLS_ASK_PATH } from "../apps/tls-ask.ts";
+import { handleAppHostRequest } from "../apps/host/dispatch.ts";
+import { APP_MINT_PATH, handleAppMintRequest } from "../apps/host/auth.ts";
 import { handleBackendsRequest } from "./backends.ts";
 import { handleCronjobsRequest } from "./cronjobs.ts";
 import { handleEditorRequest } from "./editor.ts";
@@ -41,6 +43,20 @@ import { handleViewRequest } from "./view.ts";
 
 export function createFetchHandler() {
   return async function fetch(req: Request, server: Server<WsData>) {
+    // FIRST, before the URL is parsed and before any office route runs: is this
+    // request for one of the office's apps rather than the office itself? A
+    // strict child of the office host is diverted and NO handler below ever sees
+    // it — app hostnames sit under a wildcard record, so anyone can point any
+    // name under it at this server, and none of those names may reach the
+    // office's own surface. Returns null on every office request, and on every
+    // install that has no app-host domain at all. See server/apps/host/
+    // dispatch.ts.
+    const diverted = handleAppHostRequest(req, {
+      peer: () => server.requestIP(req)?.address,
+      upgrade: (request, data, headers) => server.upgrade(request, { data, ...(headers ? { headers } : {}) }),
+    });
+    if (diverted !== null) return diverted;
+
     const url = new URL(req.url);
 
     const readyResp = handleReadyRequest(req, url, { server, now: Date.now });
@@ -194,6 +210,18 @@ export function createFetchHandler() {
 
     const memoryResp = await handleMemoryRequest(req, url, httpAuth);
     if (memoryResp) return memoryResp;
+
+    // The office half of the app sign-in handshake: mint a single-use code for
+    // an app the caller may reach. On the OFFICE host (this is not an app host —
+    // dispatch above already diverted those), so it is the one place in the flow
+    // that can see an office session cookie. Auth-gated like any office page:
+    // an anonymous caller is bounced to the login page and arrives back here.
+    if (url.pathname === APP_MINT_PATH) {
+      const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
+      if (auth.kind === "rejected") return auth.response;
+      if (auth.kind !== "ok") return new Response("unauthenticated", { status: 401 });
+      return handleAppMintRequest(req, url, auth.session, { appHostDomain: appHostDomain() });
+    }
 
     // SPA shell — auth-gated; an unauthenticated visitor lands on the
     // login page (or the claim form pre-claim). The shell also carries the

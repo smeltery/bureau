@@ -9,16 +9,51 @@ import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payl
 import { browsers } from "./broadcast.ts";
 import { dispatchBrowserCommand } from "./command-dispatch.ts";
 import { handleCommand } from "./commands.ts";
+import { appRelaySocketMessage, closeAppRelaySocket, isAppRelaySocket, openAppRelaySocket, type AppRelayWsData } from "../apps/host/ws-relay.ts";
 
-// Per-WS auth context. Set at upgrade; cleared at close. WsData carries the
-// session lookup so per-message rechecks can revoke active connections
+// Per-WS auth context. Set at upgrade; cleared at close. OfficeWsData carries
+// the session lookup so per-message rechecks can revoke active connections
 // within ~1s of an Access-pane revoke. Loopback connections (agents on the
 // same host) skip auth and run with `session === null`.
-export interface WsData {
+//
+// The office's own socket. One `Bun.serve` serves the office AND every app
+// hostname, and a Bun server has exactly one set of websocket callbacks — so
+// `WsData` is a union and each callback below tells the two apart before
+// anything else runs. NOTHING of the office's machinery may run for an
+// app-relay socket: no roster, no presence, no command parsing.
+export interface OfficeWsData {
   session: SessionLookup | null;
 }
 
+export type WsData = OfficeWsData | AppRelayWsData;
+
 export function openBrowserWebSocket(ws: ServerWebSocket<WsData>): void {
+  if (isAppRelaySocket(ws.data)) {
+    openAppRelaySocket(ws as ServerWebSocket<AppRelayWsData>);
+    return;
+  }
+  openOfficeWebSocket(ws as ServerWebSocket<OfficeWsData>);
+}
+
+export function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>, message: string | Buffer): void | Promise<void> {
+  if (isAppRelaySocket(ws.data)) {
+    // Synchronous on purpose: a relayed frame must not wait behind the office's
+    // per-message session recheck, and there is nothing to recheck for it.
+    appRelaySocketMessage(ws as ServerWebSocket<AppRelayWsData>, message);
+    return;
+  }
+  return handleOfficeWebSocketMessage(ws as ServerWebSocket<OfficeWsData>, message);
+}
+
+export function closeBrowserWebSocket(ws: ServerWebSocket<WsData>, code?: number, reason?: string): void {
+  if (isAppRelaySocket(ws.data)) {
+    closeAppRelaySocket(ws as ServerWebSocket<AppRelayWsData>, code ?? 1006, reason ?? "");
+    return;
+  }
+  closeOfficeWebSocket(ws as ServerWebSocket<OfficeWsData>);
+}
+
+function openOfficeWebSocket(ws: ServerWebSocket<OfficeWsData>): void {
   browsers.add(ws);
   const session = ws.data?.session ?? null;
   if (session) {
@@ -38,7 +73,7 @@ export function openBrowserWebSocket(ws: ServerWebSocket<WsData>): void {
   sendInitialPayload(ws);
 }
 
-export async function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>, data: string | Buffer): Promise<void> {
+async function handleOfficeWebSocketMessage(ws: ServerWebSocket<OfficeWsData>, data: string | Buffer): Promise<void> {
   // Per-message session recheck so a revoke from the Access pane disconnects
   // an active connection within ~1s. Loopback connections skip the check.
   const session = ws.data?.session ?? null;
@@ -57,7 +92,7 @@ export async function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>,
   await dispatchBrowserCommand(ws, data, handleCommand);
 }
 
-export function closeBrowserWebSocket(ws: ServerWebSocket<WsData>): void {
+function closeOfficeWebSocket(ws: ServerWebSocket<OfficeWsData>): void {
   browsers.delete(ws);
   const session = ws.data?.session ?? null;
   if (session) unregisterSocket(session.sessionIdHash, ws);
