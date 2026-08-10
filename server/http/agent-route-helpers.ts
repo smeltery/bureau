@@ -57,10 +57,15 @@ export interface PrivilegedAgentIdentity {
  *  3. the token names a manager user that STILL EXISTS. A privileged agent acts
  *     with its manager's room visibility, so an agent with no manager
  *     (`userId: null` — pre-multi-user records, or an agent whose boss was
- *     deleted) is refused outright. This is load-bearing rather than defensive:
- *     `canSeeRoom(null, roomId)` returns `true` for the no-user case, so
- *     letting a missing manager through would silently grant office-wide
- *     access.
+ *     deleted) is refused outright. The `!manager` line is the load-bearing one
+ *     and must not be relaxed into a fallback: `canSeeRoom(null, roomId)`
+ *     returns `true` for the no-user case, so letting a missing manager through
+ *     would hand a stale token office-wide access while the room check that
+ *     looks like the boundary approved it. (The `!identity.userId` clause is a
+ *     fast path rather than a second boundary — `getUserById(null)` matches no
+ *     record — but it states the intent where a reader meets it.) Both are
+ *     pinned by tests that fail on removal, in
+ *     server/http/__tests__/agent-route-helpers.test.ts.
  *
  * Callers pair it with `canSeeRoom(identity.manager, roomId)` — see
  * `requireAgentAccessAllowingPrivileged` and
