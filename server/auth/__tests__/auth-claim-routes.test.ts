@@ -24,8 +24,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { Server } from "bun";
 import { claimUserByName, deleteUserById, hasOwner } from "../../users.ts";
+import { securityHeaders } from "../auth-pages.ts";
 import { isLoopbackOrigin, requestIsLoopback } from "../auth-request-guards.ts";
-import { handleClaim, shouldShowClaimForm } from "../auth-claim-routes.ts";
+import { handleClaim, handleClaimForm, shouldShowClaimForm } from "../auth-claim-routes.ts";
 
 const createdUserIds: string[] = [];
 
@@ -173,5 +174,41 @@ describe("handleClaim", () => {
     // No cookie, so a refused claim cannot leave the caller holding a session.
     expect(res.headers.get("Set-Cookie")).toBeNull();
     expect(onOwnerCreatedCalls).toBe(0);
+  });
+});
+
+// The Referrer-Policy coupling, which lives here because the claim form is why
+// it exists. `securityHeaders` sends `no-referrer` by default — right for pages
+// reached by an invite URL, where the token is IN the URL and must not leak
+// through the Referer header. The claim form is the one auth page with no token
+// in its URL, and it must NOT send the header: Chrome couples `no-referrer` with
+// `Origin: null` on top-level form POSTs, so the real browser submit would then
+// fail handleClaim's strict same-origin check with 403 — the form would look
+// broken to the person claiming a brand-new office.
+describe("securityHeaders", () => {
+  test("defaults to no-referrer, for the pages that do carry a token", () => {
+    expect(securityHeaders()["Referrer-Policy"]).toBe("no-referrer");
+    expect(securityHeaders({ tokenInUrl: true })["Referrer-Policy"]).toBe("no-referrer");
+  });
+
+  test("omits it when there is no token to leak", () => {
+    expect(securityHeaders({ tokenInUrl: false })["Referrer-Policy"]).toBeUndefined();
+  });
+
+  test("the claim form really ships without it, which is the regression that bit", () => {
+    const res = handleClaimForm(null);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Referrer-Policy")).toBeNull();
+    expect(res.headers.get("Content-Type")).toContain("text/html");
+  });
+
+  test("no HSTS is asserted on a plain-HTTP origin", () => {
+    // buildPublicOrigin() reports http://localhost in-process (the office is
+    // loopback-bound until an owner exists AND external access is on), so only
+    // this direction is reachable here. It is the direction worth pinning
+    // anyway: sending HSTS from a plain-HTTP office would pin the browser to
+    // https for that host and lock the operator out of their own office.
+    expect(securityHeaders()["Strict-Transport-Security"]).toBeUndefined();
   });
 });
