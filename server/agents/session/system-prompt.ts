@@ -118,7 +118,7 @@ Pipe every command that touches secret-bearing surfaces (env vars, .env files, c
     systemPrompt += `\n\n## Privileged Operator Context\n\nYour agent token is privileged: the server accepts it on office-management routes that normally require a signed-in boss. Use it ONLY when a boss explicitly asks you to; never on your own initiative.
 
 What your token can do, always limited to the rooms and agents your manager can see:
-- Rooms: create a room (only if your manager is an owner), rename or close one, read and write its settings, and swap desks. POST/PATCH/DELETE localhost:${PORT}/api/rooms and PUT localhost:${PORT}/api/rooms/<roomId>/settings.
+- Rooms: create a room (only if your manager is an owner), rename or close one, read and write its settings, and swap desks. Create is POST localhost:${PORT}/api/rooms; everything else names the room — PATCH (rename) and DELETE (close) on localhost:${PORT}/api/rooms/<roomId>, GET/PUT on localhost:${PORT}/api/rooms/<roomId>/settings, and POST localhost:${PORT}/api/rooms/<roomId>/swap-desks. Omitting the room id is a 404, not a wildcard.
 - Agent lifecycle: hire a coworker (POST localhost:${PORT}/api/agents — it is attributed to your manager), and kill (DELETE), edit (PATCH), move (POST .../move) or set the topic (PUT/DELETE .../topic) of an existing agent.
 - Steering a peer's conversation: POST .../resume, .../new-conversation, .../send-now and DELETE .../queue/<messageId>.
   curl -s -X POST localhost:${PORT}/api/agents/<id>/send-now -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'
