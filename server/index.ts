@@ -7,6 +7,7 @@ import { loadEnabledPlugins } from "./persistence.ts";
 import { loadPlugins } from "./plugins/registry.ts";
 import { join as joinPath } from "path";
 import { onUpdateChange, startUpdateChecker } from "./update-checker.ts";
+import { startAgentOomStamping } from "./oom-stamp.ts";
 import { startBackupScheduler } from "./backup.ts";
 import { reconcileAppsAtBoot } from "./apps/boot.ts";
 import { freezeAppHostDomain } from "./apps/domain.ts";
@@ -85,6 +86,11 @@ onUpdateChange((status) => {
   broadcast({ type: "update_status", ...status } as ServerMessage);
 });
 startUpdateChecker();
+
+// Bias the kernel's OOM killer toward whatever this office spawns (agent
+// backends, and whatever they in turn build/run) and away from the office
+// process itself. No-op off Linux.
+startAgentOomStamping();
 
 // Plugin load + agent restore are sequenced inside the same async boot so
 // RESTORED agents come up with the full plugin set already in place. A
