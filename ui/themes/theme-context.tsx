@@ -12,6 +12,7 @@ interface ThemeContextValue {
   mode: ThemeMode;
   setTheme: (id: string) => void;
   toggleTheme: () => void;
+  cycleTheme: () => void;
 }
 
 const ThemeCtx = createContext<ThemeContextValue>({
@@ -19,6 +20,7 @@ const ThemeCtx = createContext<ThemeContextValue>({
   mode: "dark",
   setTheme: () => {},
   toggleTheme: () => {},
+  cycleTheme: () => {},
 });
 
 // Resolve the OS / browser color-scheme preference. Used as the default when
@@ -64,6 +66,11 @@ function getLastModeTheme(mode: ThemeMode): string {
     if (resolved.mode === mode) return resolved.id;
   }
   return THEMES.find((t) => t.mode === mode)?.id ?? DEFAULT_THEME_ID;
+}
+
+export function nextThemeId(currentId: string): string {
+  const currentIndex = THEMES.findIndex((theme) => theme.id === currentId);
+  return THEMES[(currentIndex + 1) % THEMES.length]?.id ?? DEFAULT_THEME_ID;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -144,7 +151,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const value = useMemo(() => ({ theme: resolved.id, mode: resolved.mode, setTheme, toggleTheme }), [resolved.id, resolved.mode, setTheme, toggleTheme]);
+  const cycleTheme = useCallback(() => {
+    setUserPicked(true);
+    setThemeId((current) => nextThemeId(current));
+  }, []);
+
+  const value = useMemo(() => ({ theme: resolved.id, mode: resolved.mode, setTheme, toggleTheme, cycleTheme }), [resolved.id, resolved.mode, setTheme, toggleTheme, cycleTheme]);
 
   return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
 }

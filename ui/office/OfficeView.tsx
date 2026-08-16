@@ -70,7 +70,7 @@ export function OfficeView({
   const roomNames = rooms.map((r) => r.name);
   const officePrompt = office.prompt;
   const dispatch = useDispatch();
-  const { toggleTheme } = useTheme();
+  const { cycleTheme } = useTheme();
   const { embed } = useFeatures();
   const mobileScale = isMobile ? screen.width / (SCENE_W - 200) : 1;
   // layoutKey changes whenever the centered-scene static transform changes,
@@ -184,7 +184,7 @@ export function OfficeView({
             }}
           >
             <Walls
-              onToggleTheme={toggleTheme}
+              onToggleTheme={cycleTheme}
               onWallPanelClick={(x, y) => setWallMenu({ x, y })}
               hasOfficePrompt={!!officePrompt}
               onOpenTasks={onOpenTasks}
