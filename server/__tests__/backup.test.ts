@@ -87,7 +87,6 @@ describe("verified backup publication", () => {
     const f = fixture();
     await runBackupOnceForTest(config(f), deps([{ exitCode: 0, writeArchive: true }, { exitCode: 0 }]).impl);
     const writtenAt = fs.statSync(path.join(f.backupDir, "bureau-2026-08-13.tar.gz")).mtimeMs;
-
     const fresh = backupStatusForTest(config(f), writtenAt + 1);
     expect(fresh.lastBackupOk).toBe(true);
     expect(fresh.lastBackupFile).toBe("bureau-2026-08-13.tar.gz");
@@ -132,7 +131,6 @@ describe("verified backup publication", () => {
       { exitCode: 0, writeArchive: true },
       { exitCode: 2, stderr: "unexpected end of file" },
     ]);
-
     expect(runBackupOnceForTest(config(f), d.impl)).rejects.toThrow(/archive verification exit 2.*unexpected end of file/);
     expect(finals(f.backupDir)).toEqual([]);
     expect(fs.readdirSync(f.backupDir).some(isBackupPartialForTest)).toBe(false);
@@ -141,17 +139,22 @@ describe("verified backup publication", () => {
   test("low space refuses before tar and deletes no verified backup", async () => {
     const f = fixture();
     const d = deps([], 99);
-
     expect(runBackupOnceForTest(config(f), d.impl)).rejects.toThrow(/99 bytes available, 100 required/);
     expect(d.calls).toEqual([]);
     expect(finals(f.backupDir)).toEqual([]);
+  });
+
+  test("first run has a minimum floor instead of refusing forever", async () => {
+    const f = fixture();
+    const d = deps([], 499);
+    expect(runBackupOnceForTest({ ...config(f), firstBackupMinFreeBytes: 500 }, d.impl)).rejects.toThrow(/500 required/);
+    expect(d.calls).toEqual([]);
   });
 
   test("same-day rerun uses a disambiguated final and keeps both", async () => {
     const f = fixture();
     await runBackupOnceForTest(config(f), deps([{ exitCode: 0, writeArchive: true }, { exitCode: 0 }]).impl);
     await runBackupOnceForTest(config(f), deps([{ exitCode: 0, writeArchive: true }, { exitCode: 0 }]).impl);
-
     expect(finals(f.backupDir)).toEqual(["bureau-2026-08-13-2.tar.gz", "bureau-2026-08-13.tar.gz"]);
   });
 
@@ -161,7 +164,6 @@ describe("verified backup publication", () => {
     await runBackupOnceForTest(cfg, deps([{ exitCode: 0, writeArchive: true }, { exitCode: 0 }]).impl);
     await new Promise((resolve) => setTimeout(resolve, 5));
     await runBackupOnceForTest(cfg, deps([{ exitCode: 0, writeArchive: true }, { exitCode: 0 }]).impl);
-
     expect(finals(f.backupDir)).toEqual(["bureau-2026-08-13-2.tar.gz"]);
   });
 
@@ -170,15 +172,15 @@ describe("verified backup publication", () => {
     fs.mkdirSync(f.backupDir);
     fs.writeFileSync(path.join(f.backupDir, "bureau-2026-08-12.tar.gz"), "truncated");
     const d = deps([{ exitCode: 2, stderr: "invalid legacy archive" }, { exitCode: 0, writeArchive: true }, { exitCode: 0 }]);
-
     await runBackupOnceForTest({ ...config(f), retention: 1 }, d.impl);
-
     expect(finals(f.backupDir)).toEqual(["bureau-2026-08-12.tar.gz", "bureau-2026-08-13.tar.gz"]);
     expect(fs.existsSync(path.join(f.backupDir, "bureau-2026-08-12.tar.gz.verified.json"))).toBe(false);
     expect(fs.existsSync(path.join(f.backupDir, "bureau-2026-08-12.tar.gz.invalid.json"))).toBe(true);
 
     const retry = deps([{ exitCode: 0, writeArchive: true }, { exitCode: 0 }]);
     await runBackupOnceForTest({ ...config(f), retention: 1 }, retry.impl);
+    // The known-bad unchanged legacy archive is not walked again. The two calls
+    // are only create + verify for the new archive.
     expect(retry.calls).toHaveLength(2);
   });
 });

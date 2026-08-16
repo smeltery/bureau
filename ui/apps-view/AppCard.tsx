@@ -2,7 +2,7 @@
 // the facts a human wants at a glance, the verbs, and the log pane when open.
 
 import type { AppState as AppRunState, AppWire } from "../../shared/apps.ts";
-import { appHref } from "./appLinks.ts";
+import { appHref, appLinkLabel } from "./appLinks.ts";
 import { APP_VERBS, STATE_COLOR, VERB_TITLES, stateIsHollow, verbInert, type AppVerb } from "./appVerbs.ts";
 import { appBtnStyle, appMonoPane } from "./styles.ts";
 
@@ -61,11 +61,17 @@ export function AppCard({
     <div style={{ border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-subtle)", padding: isMobile ? 12 : 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <StateDot state={app.state} />
-        {/* The name opens the app; see appHref. */}
-        <a href={appHref(app, window.location.hostname)} target="_blank" rel="noreferrer" title="Open the app" style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-          {app.name}
-        </a>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{app.name}</span>
         <span style={{ fontSize: 11, color: STATE_COLOR[app.state], textTransform: "lowercase" }}>{app.state}</span>
+        <a
+          href={appHref(app, window.location.hostname)}
+          target="_blank"
+          rel="noreferrer"
+          title={appLinkLabel(app)}
+          style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: "var(--accent)" }}
+        >
+          {appLinkLabel(app)} ↗
+        </a>
       </div>
 
       {app.description && <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)" }}>{app.description}</div>}

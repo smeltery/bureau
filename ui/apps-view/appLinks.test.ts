@@ -5,7 +5,7 @@
 // Pure: no DOM, no server.
 
 import { describe, expect, test } from "bun:test";
-import { appHref } from "./appLinks.ts";
+import { appHref, appLinkLabel } from "./appLinks.ts";
 
 describe("appHref", () => {
   test("uses the app's own URL verbatim when it has one", () => {
@@ -66,5 +66,16 @@ describe("appHref", () => {
     // Guards the empty-first-label fallback: without it the href would be
     // `http://:21000/`.
     expect(appHref({ port: 21000 }, ".ts.net")).toBe("http://.ts.net:21000/");
+  });
+});
+
+describe("appLinkLabel", () => {
+  test("uses a plain action for apps with issued URLs", () => {
+    expect(appLinkLabel({ url: "https://standup-board.office.example" })).toBe("Open app");
+  });
+
+  test("makes port fallback scope explicit", () => {
+    expect(appLinkLabel({})).toBe("Open on this network");
+    expect(appLinkLabel({ url: "" })).toBe("Open on this network");
   });
 });

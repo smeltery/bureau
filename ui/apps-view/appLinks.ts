@@ -46,3 +46,7 @@ export function appHref(app: Pick<AppWire, "url" | "port">, officeHostname: stri
   if (typeof app.url === "string" && app.url !== "") return app.url;
   return `http://${portLinkHost(officeHostname)}:${app.port}/`;
 }
+
+export function appLinkLabel(app: Pick<AppWire, "url">): string {
+  return typeof app.url === "string" && app.url !== "" ? "Open app" : "Open on this network";
+}
