@@ -87,7 +87,7 @@ export function createFetchHandler() {
       if (!originAllowed(req, url)) {
         return new Response("Forbidden", { status: 403 });
       }
-      const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
+      const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName(), gate: "ws" });
       if (auth.kind === "rejected") return auth.response;
       const session = auth.kind === "ok" ? auth.session : null;
       // The __Host- cookie migration rides the 101. This is the seam that

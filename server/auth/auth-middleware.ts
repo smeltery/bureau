@@ -1,7 +1,7 @@
 // HTTP middleware + WS upgrade auth.
 
 import type { Server } from "bun";
-import { readSessionCookie, validateSession, type SessionLookup } from "./auth.ts";
+import { browserSessionDiagnostic, emitBrowserSessionDiagnostic, readSessionCookies, validateSession, type SessionLookup } from "./auth.ts";
 import { renderLoginPage, securityHeaders } from "./auth-pages.ts";
 import { checkOrigin, requestIsLoopback } from "./auth-request-guards.ts";
 
@@ -51,7 +51,7 @@ function unauthorized(req: Request, officeName: string | null): Response {
 // ---------------------------------------------------------------------------
 // Gating function. Called at the top of every fetch handler.
 
-export function authenticate<T>(req: Request, server: Server<T>, opts?: { allowLoopback?: boolean; officeName?: string | null }): AuthResult {
+export function authenticate<T>(req: Request, server: Server<T>, opts?: { allowLoopback?: boolean; officeName?: string | null; gate?: "http" | "ws" }): AuthResult {
   const looped = !!opts?.allowLoopback && requestIsLoopback(req, server);
   // Origin check runs regardless of the cookie path. A user's browser
   // running on the same machine as the server can otherwise be tricked by
@@ -73,8 +73,9 @@ export function authenticate<T>(req: Request, server: Server<T>, opts?: { allowL
   if (looped) {
     return { kind: "loopback" };
   }
-  const cookie = readSessionCookie(req);
-  const session = validateSession(cookie);
+  const cookies = readSessionCookies(req);
+  const session = validateSession(cookies.selected || null);
+  emitBrowserSessionDiagnostic(browserSessionDiagnostic(cookies, session, opts?.gate ?? "http"), req);
   if (!session) {
     return { kind: "rejected", response: unauthorized(req, opts?.officeName ?? null) };
   }

@@ -19,6 +19,7 @@ import { ensureLoaded, inviteStore, mutate, persistInvites, type StoredInvite } 
 export { listActiveSessions, listActiveSessionsForUserId, listInvites, listInvitesForUsername } from "./lists.ts";
 export { revokeInviteByPrefix, revokeOutstandingInviteByPrefixForUsername, type RevokeResult } from "./invite-revocation.ts";
 export { acceptInvite, claimOwnership, peekInvite, setOnInviteConsumed, type AcceptErr, type AcceptOk, type ClaimErr, type ClaimOk, type InvitePeek } from "./invite-acceptance.ts";
+export { _testResetBrowserSessionDiagnostics, browserSessionDiagnostic, emitBrowserSessionDiagnostic, formatBrowserSessionDiagnostic, type BrowserSessionDiagnostic } from "./session-diagnostics.ts";
 export {
   countActiveOwnerSessions,
   evictSessionsForUserId,
