@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { addFinalized, dictationText, startDictation, type Dictation } from "./spoken-punctuation.ts";
+import { advanceDictationSession, reconcileDictationEdit, startDictationSession, type DictationSession } from "./spoken-punctuation.ts";
 
 /**
  * Speech-recognition input.
@@ -36,13 +36,16 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   // The draft text as it stood when the mic opened, plus every finalized
   // fragment since — kept unjoined so punctuation can be decided per fragment.
-  const dictationRef = useRef<Dictation>(startDictation("", "en"));
+  // `display` additionally tracks the last STT-produced draft so manual edits
+  // during dictation can rebase the finalized baseline instead of getting
+  // overwritten by the next recognizer update.
+  const dictationRef = useRef<DictationSession>(startDictationSession("", "en"));
 
   function startListening() {
     if (isListeningRef.current || !SpeechRecognition) return;
     isListeningRef.current = true;
     setIsListening(true);
-    dictationRef.current = startDictation(inputRef.current, locale);
+    dictationRef.current = startDictationSession(inputRef.current, locale);
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -51,16 +54,18 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
       // The interim guess is NOT folded into the session: it is still being
       // revised, and a terminal command can stop being fragment-final as the
       // guess grows.
+      const finalized: string[] = [];
       let interimText = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          dictationRef.current = addFinalized(dictationRef.current, t);
+          finalized.push(t);
         } else {
           interimText += t;
         }
       }
-      onTranscript(dictationText(dictationRef.current, interimText));
+      dictationRef.current = advanceDictationSession(dictationRef.current, finalized, interimText);
+      onTranscript(dictationRef.current.display);
       requestAnimationFrame(() => {
         onGrow();
       });
@@ -96,6 +101,11 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
     }
   }
 
+  function reconcileDraftEdit(text: string) {
+    if (!isListeningRef.current) return;
+    dictationRef.current = reconcileDictationEdit(dictationRef.current, text);
+  }
+
   // Ctrl+Space push-to-talk
   useEffect(() => {
     if (!speechAvailable) return;
@@ -128,5 +138,6 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
     setShowMicHint,
     speechApiPresent,
     isSecureContext,
+    reconcileDraftEdit,
   };
 }

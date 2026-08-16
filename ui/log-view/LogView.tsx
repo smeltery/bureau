@@ -118,6 +118,13 @@ export function LogView({
       if (textareaRef.current) autoResize(textareaRef.current);
     },
   });
+  const setInputFromUser = useCallback(
+    (text: string) => {
+      voice.reconcileDraftEdit(text);
+      setInput(text);
+    },
+    [setInput, voice],
+  );
   const attachments = useAttachmentUpload(agent.id);
 
   const isBusy = agent.state === "thinking" || agent.state === "tool_executing";
@@ -147,7 +154,7 @@ export function LogView({
     <InputBar
       agent={agent}
       input={input}
-      setInput={setInput}
+      setInput={setInputFromUser}
       inputRef={inputRef}
       textareaRef={textareaRef}
       autoResize={autoResize}

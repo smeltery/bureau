@@ -2,7 +2,18 @@
 // are tested together: the substitution inside a fragment, and the joining of
 // fragments into composer text.
 import { describe, expect, it } from "bun:test";
-import { addFinalized, applySpokenPunctuation, dictationText, joinSpoken, spokenPunctuationApplies, startDictation, type Dictation } from "./spoken-punctuation.ts";
+import {
+  addFinalized,
+  advanceDictationSession,
+  applySpokenPunctuation,
+  dictationText,
+  joinSpoken,
+  reconcileDictationEdit,
+  spokenPunctuationApplies,
+  startDictation,
+  startDictationSession,
+  type Dictation,
+} from "./spoken-punctuation.ts";
 
 describe("applySpokenPunctuation", () => {
   it("converts sentence punctuation and hugs the preceding word", () => {
@@ -96,6 +107,48 @@ describe("dictation sessions", () => {
   it("keeps each finalized fragment's own terminal decision", () => {
     const d = session("", "en-US", "first period", "a period of time");
     expect(dictationText(d, "")).toBe("first. a period of time");
+  });
+
+  it("rebases deletions made while dictation is still listening", () => {
+    let d = startDictationSession("todo", "en-US");
+    d = advanceDictationSession(d, ["add tests"], "period");
+    expect(d.display).toBe("todo add tests.");
+
+    d = reconcileDictationEdit(d, "todo");
+    d = advanceDictationSession(d, [], "then run them");
+
+    expect(d.display).toBe("todo then run them");
+  });
+
+  it("keeps edits inside finalized text instead of resurrecting old text", () => {
+    let d = startDictationSession("ship", "en-US");
+    d = advanceDictationSession(d, ["today"], "period");
+    expect(d.display).toBe("ship today.");
+
+    d = reconcileDictationEdit(d, "ship tomorrow.");
+    d = advanceDictationSession(d, [], "please");
+
+    expect(d.display).toBe("ship tomorrow please");
+  });
+
+  it("preserves pure appends beyond the stable prefix", () => {
+    let d = startDictationSession("", "en-US");
+    d = advanceDictationSession(d, ["hello"], "world");
+    expect(d.display).toBe("hello world");
+
+    d = reconcileDictationEdit(d, "hello world!");
+    d = advanceDictationSession(d, [], "again");
+
+    expect(d.display).toBe("hello! again");
+  });
+
+  it("preserves locale gating after a mid-dictation edit", () => {
+    let d = startDictationSession("", "es-ES");
+    d = advanceDictationSession(d, ["espera coma"], "");
+    d = reconcileDictationEdit(d, "espera coma ahora");
+    d = advanceDictationSession(d, ["period"], "");
+
+    expect(d.display).toBe("espera coma ahora period");
   });
 });
 
