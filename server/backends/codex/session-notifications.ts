@@ -1,4 +1,4 @@
-import type { AttachmentSpec, NormalizedEvent } from "../types.ts";
+import type { AttachmentSpec, NormalizedEvent, SubagentOrigin } from "../types.ts";
 import type { JsonRpcNotification } from "./client-types.ts";
 import { translateCompletedItem } from "./completed-items.ts";
 import { AUTH_ERROR_PATTERNS } from "./config.ts";
@@ -10,6 +10,7 @@ import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/Thread
 
 export interface CodexNotificationDeps {
   threadId: string | null;
+  childThreads: Map<string, SubagentOrigin>;
   selfInterruptedForAuth: boolean;
   authSignalEmittedThisTurn: boolean;
   usage: CodexUsageTracker;
@@ -22,12 +23,34 @@ export interface CodexNotificationDeps {
   attachmentFromPath(rawPath: unknown): AttachmentSpec | null;
 }
 
+function subagentLabel(text: string): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, 200);
+}
+
+function registerChildThread(deps: CodexNotificationDeps, threadId: string, origin: SubagentOrigin): void {
+  const prev = deps.childThreads.get(threadId);
+  deps.childThreads.set(threadId, {
+    parentToolUseId: origin.parentToolUseId,
+    type: prev?.type ?? origin.type,
+    description: origin.description ?? prev?.description,
+  });
+}
+
 export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotificationDeps): void {
   const params = n.params as Record<string, unknown> | null | undefined;
   // Per-thread filter: every notification carrying a threadId must match
   // ours. Sub-agent / review-mode child threads have their own ids.
   const eventThreadId = params?.threadId;
   if (eventThreadId !== undefined && deps.threadId && eventThreadId !== deps.threadId) {
+    if (n.method === "item/completed") {
+      const origin = deps.childThreads.get(eventThreadId as string);
+      const item = params?.item;
+      if (origin && item) {
+        for (const ev of translateCompletedItem(item, (rawPath) => deps.attachmentFromPath(rawPath), { subagent: origin })) {
+          deps.enqueue(ev);
+        }
+      }
+    }
     return;
   }
 
@@ -124,10 +147,34 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
     case "item/started":
       // Carries the full ThreadItem but we wait for completion.
       break;
+    case "thread/started": {
+      const thread = params?.thread as
+        | {
+            id?: string;
+            parentThreadId?: string | null;
+            agentNickname?: string | null;
+            agentRole?: string | null;
+            preview?: string;
+          }
+        | null
+        | undefined;
+      if (thread?.id && thread.parentThreadId && thread.parentThreadId === deps.threadId && !deps.childThreads.has(thread.id)) {
+        const type = thread.agentNickname ?? thread.agentRole ?? undefined;
+        const preview = typeof thread.preview === "string" && thread.preview.trim() ? subagentLabel(thread.preview) : undefined;
+        deps.childThreads.set(thread.id, {
+          parentToolUseId: thread.id,
+          ...(type ? { type } : {}),
+          ...(preview ? { description: preview } : {}),
+        });
+      }
+      break;
+    }
     case "item/completed": {
       const item = params?.item;
       if (item) {
-        for (const ev of translateCompletedItem(item, (rawPath) => deps.attachmentFromPath(rawPath))) {
+        for (const ev of translateCompletedItem(item, (rawPath) => deps.attachmentFromPath(rawPath), {
+          registerChildThread: (threadId, origin) => registerChildThread(deps, threadId, origin),
+        })) {
           deps.enqueue(ev);
         }
       }

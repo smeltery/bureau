@@ -52,6 +52,24 @@ export const CODEX_PREFERRED_LIMIT_ID = "codex";
 // separate from the keyed buckets so the two never merge into each other.
 export const CODEX_LEGACY_LIMIT_KEY = "";
 
+// OpenAI wire slugs are not always the ChatGPT plan names users recognize.
+// Unknown slugs pass through verbatim so a new plan does not disappear.
+const CODEX_PLAN_DISPLAY_NAMES: Record<string, string> = {
+  free: "Free",
+  go: "Go",
+  plus: "Plus",
+  prolite: "Pro Codex",
+  pro: "Pro Max",
+  team: "Team",
+  business: "Business",
+  enterprise: "Enterprise",
+  edu: "Edu",
+};
+
+export function codexPlanDisplayName(planType: string | null): string | null {
+  return planType ? (CODEX_PLAN_DISPLAY_NAMES[planType] ?? planType) : null;
+}
+
 export function codexLimitKey(snapshot: RateLimitSnapshot): string {
   return snapshot.limitId ?? CODEX_LEGACY_LIMIT_KEY;
 }
@@ -146,7 +164,7 @@ export function normalizeCodexSubscriptionUsage(snapshot: RateLimitSnapshot | nu
   scored.sort((a, b) => b.minutes - a.minutes);
   return {
     kind: "usage",
-    usage: { plan: snapshot.planType ?? null, windows: scored.map((s) => s.window) },
+    usage: { plan: codexPlanDisplayName(snapshot.planType), windows: scored.map((s) => s.window) },
   };
 }
 

@@ -25,7 +25,7 @@
 import { errMessage } from "../../../shared/errors.ts";
 import { BackendNotConfiguredError } from "../../internal-types.ts";
 
-import type { ApprovalDecision, AttachmentSpec, BackendSession, NormalizedEvent, SubscriptionUsageResult } from "../types.ts";
+import type { ApprovalDecision, AttachmentSpec, BackendSession, NormalizedEvent, SubagentOrigin, SubscriptionUsageResult } from "../types.ts";
 import type { GetAccountRateLimitsResponse } from "./_generated/v2/GetAccountRateLimitsResponse.ts";
 
 import { JsonRpcLiteClient, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
@@ -86,6 +86,10 @@ export class CodexSession implements BackendSession {
   private prefixRules = new SessionPrefixRules();
   private usage = new CodexUsageTracker();
   private rateLimits = new CodexRateLimitTracker();
+  // Child threads spawned by this Codex thread. Known child-thread tool items
+  // are surfaced as subagent tool activity; their turn lifecycle and prose are
+  // still filtered out so parent bookkeeping stays isolated.
+  private childThreads = new Map<string, SubagentOrigin>();
   // Resolves when bootstrap (initialize + thread/start) completes — success
   // or failure. send() / approve() / abort() await this so they don't race
   // the async setup. On failure threadId stays null; callers see a clear
@@ -279,6 +283,7 @@ export class CodexSession implements BackendSession {
   private handleNotification(n: JsonRpcNotification): void {
     handleCodexNotification(n, {
       threadId: this.threadId,
+      childThreads: this.childThreads,
       selfInterruptedForAuth: this.authGate.selfInterruptedForAuth,
       authSignalEmittedThisTurn: this.authGate.authSignalEmittedThisTurn,
       usage: this.usage,

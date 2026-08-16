@@ -1,8 +1,27 @@
-import type { AttachmentSpec, NormalizedEvent } from "../types.ts";
+import type { AttachmentSpec, NormalizedEvent, SubagentOrigin } from "../types.ts";
 import { formatPatchChangeKind, formatWebSearchAction } from "./protocol-format.ts";
 
-export function translateCompletedItem(rawItem: unknown, attachmentFromPath: (rawPath: unknown) => AttachmentSpec | null): NormalizedEvent[] {
+const SUBAGENT_VISIBLE_ITEMS = new Set(["commandExecution", "fileChange", "mcpToolCall", "webSearch"]);
+
+export interface CompletedItemOptions {
+  subagent?: SubagentOrigin;
+  registerChildThread?(threadId: string, origin: SubagentOrigin): void;
+}
+
+function withSubagent<T extends NormalizedEvent>(event: T, subagent?: SubagentOrigin): T {
+  if (!subagent) return event;
+  if (event.kind !== "tool_call" && event.kind !== "tool_result") return event;
+  return { ...event, subagent };
+}
+
+function subagentLabel(text: string): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, 200);
+}
+
+export function translateCompletedItem(rawItem: unknown, attachmentFromPath: (rawPath: unknown) => AttachmentSpec | null, options: CompletedItemOptions = {}): NormalizedEvent[] {
   const item = rawItem as Record<string, unknown>;
+  const subagent = options.subagent;
+  if (subagent && !SUBAGENT_VISIBLE_ITEMS.has(item?.type as string)) return [];
   switch (item?.type) {
     case "agentMessage": {
       const text = item.text as string | undefined;
@@ -23,19 +42,25 @@ export function translateCompletedItem(rawItem: unknown, attachmentFromPath: (ra
       const toolUseId = item.id as string;
       const content = (aggregatedOutput ?? "") + (exitCode != null ? `\n(exit code ${exitCode})` : "");
       return [
-        {
-          kind: "tool_call",
-          toolUseId,
-          name: "Bash",
-          input: cwd ? { command, cwd } : { command },
-        },
-        {
-          kind: "tool_result",
-          toolUseId,
-          content,
-          durationMs: durationMs ?? undefined,
-          isError: exitCode != null && exitCode !== 0,
-        },
+        withSubagent(
+          {
+            kind: "tool_call",
+            toolUseId,
+            name: "Bash",
+            input: cwd ? { command, cwd } : { command },
+          },
+          subagent,
+        ),
+        withSubagent(
+          {
+            kind: "tool_result",
+            toolUseId,
+            content,
+            durationMs: durationMs ?? undefined,
+            isError: exitCode != null && exitCode !== 0,
+          },
+          subagent,
+        ),
       ];
     }
     case "fileChange": {
@@ -44,18 +69,24 @@ export function translateCompletedItem(rawItem: unknown, attachmentFromPath: (ra
       const summary = (changes as { path?: string; kind?: unknown }[]).map((c) => `${c.path ?? "?"} (${formatPatchChangeKind(c.kind)})`).join("\n");
       const status = item.status as string | undefined;
       return [
-        {
-          kind: "tool_call",
-          toolUseId,
-          name: "Edit",
-          input: { changes },
-        },
-        {
-          kind: "tool_result",
-          toolUseId,
-          content: `${summary}\n\nstatus: ${status ?? "unknown"}`,
-          isError: status != null && status !== "completed" && status !== "applied",
-        },
+        withSubagent(
+          {
+            kind: "tool_call",
+            toolUseId,
+            name: "Edit",
+            input: { changes },
+          },
+          subagent,
+        ),
+        withSubagent(
+          {
+            kind: "tool_result",
+            toolUseId,
+            content: `${summary}\n\nstatus: ${status ?? "unknown"}`,
+            isError: status != null && status !== "completed" && status !== "applied",
+          },
+          subagent,
+        ),
       ];
     }
     case "mcpToolCall": {
@@ -67,19 +98,25 @@ export function translateCompletedItem(rawItem: unknown, attachmentFromPath: (ra
       const error = item.error;
       const content = error ? `Error: ${JSON.stringify(error)}` : JSON.stringify(result ?? {});
       return [
-        {
-          kind: "tool_call",
-          toolUseId,
-          name: `mcp__${server}__${tool}`,
-          input: (item.arguments ?? {}) as Record<string, unknown>,
-        },
-        {
-          kind: "tool_result",
-          toolUseId,
-          content,
-          durationMs: durationMs ?? undefined,
-          isError: !!error,
-        },
+        withSubagent(
+          {
+            kind: "tool_call",
+            toolUseId,
+            name: `mcp__${server}__${tool}`,
+            input: (item.arguments ?? {}) as Record<string, unknown>,
+          },
+          subagent,
+        ),
+        withSubagent(
+          {
+            kind: "tool_result",
+            toolUseId,
+            content,
+            durationMs: durationMs ?? undefined,
+            isError: !!error,
+          },
+          subagent,
+        ),
       ];
     }
     case "webSearch": {
@@ -87,18 +124,24 @@ export function translateCompletedItem(rawItem: unknown, attachmentFromPath: (ra
       const query = item.query as string | undefined;
       const actionSummary = formatWebSearchAction(item.action);
       return [
-        {
-          kind: "tool_call",
-          toolUseId,
-          name: "WebSearch",
-          input: query ? { query } : {},
-        },
-        {
-          kind: "tool_result",
-          toolUseId,
-          content: actionSummary,
-          isError: false,
-        },
+        withSubagent(
+          {
+            kind: "tool_call",
+            toolUseId,
+            name: "WebSearch",
+            input: query ? { query } : {},
+          },
+          subagent,
+        ),
+        withSubagent(
+          {
+            kind: "tool_result",
+            toolUseId,
+            content: actionSummary,
+            isError: false,
+          },
+          subagent,
+        ),
       ];
     }
     case "plan": {
@@ -123,6 +166,55 @@ export function translateCompletedItem(rawItem: unknown, attachmentFromPath: (ra
     }
     case "contextCompaction":
       return [{ kind: "compacted" }];
+    case "collabAgentToolCall": {
+      const toolUseId = item.id as string;
+      const tool = typeof item.tool === "string" ? item.tool : "collabAgent";
+      const status = item.status as string | undefined;
+      const prompt = typeof item.prompt === "string" ? item.prompt : null;
+      const model = typeof item.model === "string" ? item.model : null;
+      const receivers = Array.isArray(item.receiverThreadIds) ? item.receiverThreadIds.filter((receiver): receiver is string => typeof receiver === "string" && receiver.length > 0) : [];
+      if (tool === "spawnAgent") {
+        for (const childId of receivers) {
+          options.registerChildThread?.(childId, {
+            parentToolUseId: toolUseId,
+            ...(model ? { type: model } : {}),
+            ...(prompt ? { description: subagentLabel(prompt) } : {}),
+          });
+        }
+      }
+      const states = item.agentsStates as Record<string, { status?: string; message?: string | null } | undefined> | null | undefined;
+      const stateLines = states ? Object.entries(states).map(([threadId, state]) => `${threadId}: ${state?.status ?? "?"}${state?.message ? ` - ${state.message}` : ""}`) : [];
+      return [
+        {
+          kind: "tool_call",
+          toolUseId,
+          name: tool,
+          input: {
+            ...(prompt ? { prompt } : {}),
+            ...(model ? { model } : {}),
+            ...(receivers.length > 0 ? { threadIds: receivers } : {}),
+          },
+        },
+        {
+          kind: "tool_result",
+          toolUseId,
+          content: [`status: ${status ?? "unknown"}`, ...stateLines].join("\n"),
+          isError: status === "failed",
+        },
+      ];
+    }
+    case "subAgentActivity": {
+      const childId = typeof item.agentThreadId === "string" ? item.agentThreadId : null;
+      if (childId) {
+        const path = typeof item.agentPath === "string" ? item.agentPath : "";
+        const name = path ? (path.split(/[\\/]/).pop() ?? "").replace(/\.[^.]*$/, "") : "";
+        options.registerChildThread?.(childId, {
+          parentToolUseId: (item.id as string) || childId,
+          ...(name ? { type: name } : {}),
+        });
+      }
+      return [];
+    }
     default:
       return [];
   }

@@ -4,7 +4,7 @@
 // rule, and the read that only covers the pre-push gap).
 import { describe, expect, it } from "bun:test";
 
-import { CodexRateLimitTracker, codexResetsAtMs, codexWindowLabel, normalizeCodexSubscriptionUsage } from "./session-rate-limits.ts";
+import { CodexRateLimitTracker, codexPlanDisplayName, codexResetsAtMs, codexWindowLabel, normalizeCodexSubscriptionUsage } from "./session-rate-limits.ts";
 import type { GetAccountRateLimitsResponse } from "./_generated/v2/GetAccountRateLimitsResponse.ts";
 import type { RateLimitSnapshot } from "./_generated/v2/RateLimitSnapshot.ts";
 
@@ -69,6 +69,19 @@ describe("codex window labels and reset times", () => {
   });
 });
 
+describe("codex plan display names", () => {
+  it("maps OpenAI plan slugs to user-facing names", () => {
+    expect(codexPlanDisplayName("pro")).toBe("Pro Max");
+    expect(codexPlanDisplayName("prolite")).toBe("Pro Codex");
+    expect(codexPlanDisplayName("plus")).toBe("Plus");
+  });
+
+  it("passes unknown slugs through", () => {
+    expect(codexPlanDisplayName("new-plan")).toBe("new-plan");
+    expect(codexPlanDisplayName(null)).toBeNull();
+  });
+});
+
 describe("normalizeCodexSubscriptionUsage", () => {
   it("normalizes a snapshot into display order, longest window first", () => {
     // primary/secondary slot meaning has moved across codex versions, so the
@@ -76,7 +89,7 @@ describe("normalizeCodexSubscriptionUsage", () => {
     expect(normalizeCodexSubscriptionUsage(snapshot({ primary: fiveHour, secondary: week }))).toEqual({
       kind: "usage",
       usage: {
-        plan: "plus",
+        plan: "Plus",
         windows: [
           { label: "Weekly", usedPercent: 34.5, resetsAtMs: null },
           { label: "5-hour", usedPercent: 80, resetsAtMs: null },
@@ -89,7 +102,7 @@ describe("normalizeCodexSubscriptionUsage", () => {
     expect(normalizeCodexSubscriptionUsage(snapshot({ primary: { ...week, usedPercent: 130 }, secondary: { ...fiveHour, usedPercent: -4 } }))).toEqual({
       kind: "usage",
       usage: {
-        plan: "plus",
+        plan: "Plus",
         windows: [
           { label: "Weekly", usedPercent: 100, resetsAtMs: null },
           { label: "5-hour", usedPercent: 0, resetsAtMs: null },
@@ -111,7 +124,7 @@ describe("CodexRateLimitTracker", () => {
     const { tracker, fetchOnce, calls } = trackerWith(readResponse());
     tracker.applyUpdate(snapshot());
     const usage = await usageOf(tracker, fetchOnce);
-    expect(usage.plan).toBe("plus");
+    expect(usage.plan).toBe("Plus");
     expect(usage.windows[0]).toEqual({ label: "Weekly", usedPercent: 34.5, resetsAtMs: null });
     expect(calls.count).toBe(0);
   });
@@ -123,7 +136,7 @@ describe("CodexRateLimitTracker", () => {
     // 5-hour window are "not included", NOT "gone".
     tracker.applyUpdate(snapshot({ limitId: "codex", primary: { ...week, usedPercent: 41 }, secondary: null, planType: null }));
     const usage = await usageOf(tracker, fetchOnce);
-    expect(usage.plan).toBe("plus");
+    expect(usage.plan).toBe("Plus");
     expect(usage.windows.map((w) => w.usedPercent)).toEqual([41, 80]);
   });
 
@@ -149,7 +162,7 @@ describe("CodexRateLimitTracker", () => {
 
   it("falls back to one read before anything was pushed, then serves the cache", async () => {
     const { tracker, fetchOnce, calls } = trackerWith(readResponse({ rateLimits: snapshot({ limitId: null, planType: "pro" }) }));
-    expect((await usageOf(tracker, fetchOnce)).plan).toBe("pro");
+    expect((await usageOf(tracker, fetchOnce)).plan).toBe("Pro Max");
     await tracker.read(fetchOnce);
     expect(calls.count).toBe(1);
   });
@@ -205,7 +218,7 @@ describe("CodexRateLimitTracker", () => {
     // Fresher number from the push, metadata from the older read.
     expect(usage.windows[0]).toEqual({ label: "Weekly", usedPercent: 55, resetsAtMs: 1785000000000 });
     // Plan came from the baseline too — the push left it null.
-    expect(usage.plan).toBe("plus");
+    expect(usage.plan).toBe("Plus");
   });
 
   it("files a keyed read entry under its MAP key, not its nullable limitId", async () => {
@@ -230,7 +243,7 @@ describe("CodexRateLimitTracker", () => {
     tracker.applyUpdate(snapshot({ limitId: "codex", primary: { usedPercent: 20, windowDurationMins: 10080, resetsAt: 1785000000 } }));
     tracker.applyUpdate(snapshot({ limitId: null, planType: null, primary: { usedPercent: 47, windowDurationMins: null, resetsAt: null } }));
     const usage = await usageOf(tracker, fetchOnce);
-    expect(usage.plan).toBe("plus");
+    expect(usage.plan).toBe("Plus");
     expect(usage.windows[0]).toEqual({ label: "Weekly", usedPercent: 47, resetsAtMs: 1785000000000 });
   });
 
