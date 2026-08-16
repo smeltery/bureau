@@ -45,6 +45,49 @@ export type { TaskItem, TaskPriority, TaskStatus } from "./tasks.ts";
 export type { InviteWire, OfficeSettings, PresenceInfo, RoomWire, SessionContext, SessionWire, UserRecord, UserRole } from "./user-types.ts";
 export type { AgentSaveResponse, ClientCommand, CwdValidationResponse, ServerMessage, SettingsSaveResponse, SettingsValidationResponse } from "./wire-types.ts";
 
+export interface UsageBucketWire {
+  totalIn: number;
+  cacheRead: number;
+  cacheCreation: number;
+  totalOut: number;
+  costUSD: number;
+}
+
+export interface AgentUsageWire {
+  id: string;
+  name: string;
+  roomId: string;
+  roomName: string;
+  session: UsageBucketWire;
+  lifetime: UsageBucketWire;
+}
+
+export interface RoomUsageWire {
+  id: string;
+  name: string;
+  deleted: boolean;
+  session: UsageBucketWire;
+  lifetime: UsageBucketWire;
+}
+
+export interface CronjobUsageWire {
+  id: string;
+  name: string;
+  deleted: boolean;
+  lifetime: UsageBucketWire;
+}
+
+export interface UsageReportWire {
+  scoped: boolean;
+  agents: AgentUsageWire[];
+  rooms: RoomUsageWire[];
+  cronjobs?: CronjobUsageWire[];
+  total: {
+    session: UsageBucketWire;
+    lifetime: UsageBucketWire;
+  };
+}
+
 export function generateCronjobId(existing?: string[]): string {
   return generateHexId(existing);
 }

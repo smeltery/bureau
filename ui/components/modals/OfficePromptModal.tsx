@@ -5,6 +5,7 @@ import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { StorageModal } from "./StorageModal.tsx";
+import { UsageModal } from "./UsageModal.tsx";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
@@ -17,6 +18,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const requestIdRef = useRef<string>("");
   const officeMemory = useMemoryEditor("office", null);
@@ -95,6 +97,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   }, []);
 
   if (storageOpen) return <StorageModal onBack={() => setStorageOpen(false)} />;
+  if (usageOpen) return <UsageModal onBack={() => setUsageOpen(false)} />;
 
   return (
     <Modal onClose={onClose}>
@@ -137,6 +140,10 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
           <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Storage</label>
           <button type="button" onClick={() => setStorageOpen(true)} style={{ ...dialogCancelBtn, width: "100%" }}>
             Open storage...
+          </button>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Usage</label>
+          <button type="button" onClick={() => setUsageOpen(true)} style={{ ...dialogCancelBtn, width: "100%" }}>
+            Open usage...
           </button>
         </>
       )}

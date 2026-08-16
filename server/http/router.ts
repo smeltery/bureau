@@ -39,6 +39,7 @@ import { handleStaticRequest } from "./static.ts";
 import { handleStorageRequest } from "./storage.ts";
 import { handleSystemRequest } from "./system.ts";
 import { handleTasksRequest } from "./tasks.ts";
+import { handleUsageRequest } from "./usage.ts";
 import { handleUsersRequest } from "./users.ts";
 import { handleValidateRequest } from "./validate.ts";
 import { handleViewRequest } from "./view.ts";
@@ -177,6 +178,9 @@ export function createFetchHandler() {
 
     const storageResp = await handleStorageRequest(req, url, httpAuth);
     if (storageResp) return storageResp;
+
+    const usageResp = handleUsageRequest(req, url, httpAuth);
+    if (usageResp) return usageResp;
 
     const skillUsageResp = handleSkillUsageRequest(req, url, httpAuth);
     if (skillUsageResp) return skillUsageResp;

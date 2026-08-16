@@ -3,7 +3,7 @@ import { listCronjobs, readCronjobLifetimeUsage } from "../../cronjobs/index.ts"
 import { agents, rooms } from "../state.ts";
 import { addBucket, emptyBucket, formatInCell, formatTokenCount, formatUsd, type UsageBucket } from "../usage-format.ts";
 import { readAgentUsage } from "./data.ts";
-import type { UserRecord } from "../../../shared/types.ts";
+import type { CronjobUsageWire, RoomUsageWire, UsageReportWire, UserRecord } from "../../../shared/types.ts";
 
 export type UsageAudience = { kind: "owner" } | { kind: "member"; roomIds: Set<string> };
 
@@ -15,6 +15,94 @@ export function usageAudienceForUser(user: UserRecord | null | undefined): Usage
 function audienceCanSeeRoom(audience: UsageAudience, roomId: string | null | undefined): boolean {
   if (audience.kind === "owner") return true;
   return !!roomId && audience.roomIds.has(roomId);
+}
+
+function cloneBucket(bucket: UsageBucket): UsageBucket {
+  return { totalIn: bucket.totalIn, cacheRead: bucket.cacheRead, cacheCreation: bucket.cacheCreation, totalOut: bucket.totalOut, costUSD: bucket.costUSD };
+}
+
+export function buildUsageReportData(audience: UsageAudience = { kind: "owner" }): UsageReportWire {
+  const visibleRooms = audience.kind === "owner" ? rooms : rooms.filter((room) => audience.roomIds.has(room.id));
+  const roomBuckets = new Map<string, { id: string; name: string; deleted: boolean; session: UsageBucket; lifetime: UsageBucket }>();
+  const getRoomBucket = (id: string, name: string, deleted: boolean) => {
+    let bucket = roomBuckets.get(id);
+    if (!bucket) {
+      bucket = { id, name, deleted, session: emptyBucket(), lifetime: emptyBucket() };
+      roomBuckets.set(id, bucket);
+    }
+    return bucket;
+  };
+
+  for (const room of visibleRooms) getRoomBucket(room.id, room.name, false);
+
+  const agentRows = [...agents.values()]
+    .filter((agent) => audienceCanSeeRoom(audience, rooms[agent.info.room]?.id))
+    .map((agent) => {
+      const room = rooms[agent.info.room];
+      const usage = readAgentUsage(agent.info.id, agent.sessionId);
+      if (room) {
+        const roomBucket = getRoomBucket(room.id, room.name, false);
+        addBucket(roomBucket.session, usage.session);
+        addBucket(roomBucket.lifetime, usage.lifetime);
+      }
+      return {
+        id: agent.info.id,
+        name: agent.info.name,
+        roomId: room?.id ?? "",
+        roomName: room?.name ?? "?",
+        session: cloneBucket(usage.session),
+        lifetime: cloneBucket(usage.lifetime),
+      };
+    });
+  agentRows.sort((a, b) => b.lifetime.costUSD - a.lifetime.costUSD);
+
+  const liveAgentIds = new Set([...agents.values()].map((agent) => agent.info.id));
+  const history = loadAgentHistory();
+  for (const id of listAllAgentIdsOnDisk()) {
+    if (liveAgentIds.has(id)) continue;
+    const h = history[id];
+    const roomId = h?.lastRoomId ?? "__unknown__";
+    if (!audienceCanSeeRoom(audience, h?.lastRoomId)) continue;
+    const currentRoom = rooms.find((room) => room.id === roomId);
+    const name = currentRoom?.name ?? h?.lastRoomName ?? "(unknown room)";
+    const usage = readAgentUsage(id, null);
+    const roomBucket = getRoomBucket(roomId, name, !currentRoom);
+    addBucket(roomBucket.lifetime, usage.lifetime);
+  }
+
+  const totalSession = emptyBucket();
+  const totalLifetime = emptyBucket();
+  const roomRows: RoomUsageWire[] = [...roomBuckets.values()]
+    .map((room) => {
+      addBucket(totalSession, room.session);
+      addBucket(totalLifetime, room.lifetime);
+      return { id: room.id, name: room.name, deleted: room.deleted, session: cloneBucket(room.session), lifetime: cloneBucket(room.lifetime) };
+    })
+    .sort((a, b) => b.lifetime.costUSD - a.lifetime.costUSD);
+
+  let cronjobRows: CronjobUsageWire[] | undefined;
+  if (audience.kind === "owner") {
+    const liveCronjobs = listCronjobs();
+    const liveCronjobIds = new Set(liveCronjobs.map((cronjob) => cronjob.id));
+    const cronjobHistory = loadCronjobHistory();
+    cronjobRows = [];
+    for (const cronjob of liveCronjobs) {
+      const usage = readCronjobLifetimeUsage(cronjob.id);
+      const lifetime = { totalIn: usage.totalIn, cacheRead: usage.cacheRead, cacheCreation: usage.cacheCreation, totalOut: usage.totalOut, costUSD: usage.costUSD };
+      cronjobRows.push({ id: cronjob.id, name: cronjob.name, deleted: false, lifetime });
+      addBucket(totalLifetime, lifetime);
+    }
+    for (const id of listAllCronjobIdsOnDisk()) {
+      if (liveCronjobIds.has(id)) continue;
+      const usage = readCronjobLifetimeUsage(id);
+      const lifetime = { totalIn: usage.totalIn, cacheRead: usage.cacheRead, cacheCreation: usage.cacheCreation, totalOut: usage.totalOut, costUSD: usage.costUSD };
+      cronjobRows.push({ id, name: cronjobHistory[id]?.lastName ?? id, deleted: true, lifetime });
+      addBucket(totalLifetime, lifetime);
+    }
+    cronjobRows.sort((a, b) => b.lifetime.costUSD - a.lifetime.costUSD);
+  }
+
+  return { scoped: audience.kind !== "owner", agents: agentRows, rooms: roomRows, cronjobs: cronjobRows, total: { session: cloneBucket(totalSession), lifetime: cloneBucket(totalLifetime) } };
 }
 
 // ---------------------------------------------------------------------------
