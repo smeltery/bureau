@@ -1,4 +1,9 @@
 {
   "default_files": 40,
-  "directories": {}
+  "directories": {
+    "server": {
+      "limit": 42,
+      "reason": "oom-stamp.ts + its test add the office's OOM-bias sweep as a flat, single-purpose boot-time module, matching the existing backup.ts/update-checker.ts/scheduled-messages.ts pattern rather than a new subdirectory."
+    }
+  }
 }
