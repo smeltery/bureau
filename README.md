@@ -116,7 +116,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Mobile & PWA** — touch-optimized UI, installable on any device
 - **Room-scoped notifications** — opt into sound and desktop alerts for the rooms you care about when agents finish in the background
 - **Voice I/O** — speech-to-text prompts and text-to-speech responses use each user's saved language preference when set
-- **6 color themes** — Dark, Light, Nord, Dracula, Solarized Dark, Solarized Light; pick from the theme picker in the header. First load follows your OS `prefers-color-scheme` (and live-updates if you flip it system-wide) until you make an explicit choice. Per-mode last-pick is remembered, so a quick moon/sun toggle swaps between your two favorites instead of resetting to canonical Dark/Light
+- **6 color themes** — Dark, Light, Nord, Dracula, Solarized Dark, Solarized Light; pick from the theme picker in the header. First load follows your OS `prefers-color-scheme` (and live-updates if you flip it system-wide) until you make an explicit choice. The wall moon/sun cycles through every theme from lightest to darkest
 
 For the full feature list, see the [design & architecture article](articles/punching-in-building-an-office-for-ai-agents.md).
 

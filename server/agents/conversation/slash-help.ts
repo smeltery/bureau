@@ -76,7 +76,7 @@ export async function handleHelpCommand(agentId: string, managed: ManagedAgent, 
   );
   lines.push("  • The office view zooms and pans (pinch/scroll, drag, or `0`/`+`/`-` keys). Drag the splitter between chat and the side panel to resize it.");
   lines.push(
-    "  • Pick a color theme from the header palette button — Dark, Light, Nord, Dracula, Solarized Dark, or Solarized Light. The moon/sun toggle bounces between your last-picked dark and light themes.",
+    "  • Pick a color theme from the header palette button — Dark, Light, Nord, Dracula, Solarized Dark, or Solarized Light. The wall moon/sun cycles through every theme from lightest to darkest.",
   );
   lines.push("  • Schedule recurring work in the Cron Jobs page — daily, weekly, or by interval. Tasks have a Backlog status for deferred work.");
   lines.push(

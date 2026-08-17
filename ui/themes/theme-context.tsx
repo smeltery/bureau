@@ -69,8 +69,9 @@ function getLastModeTheme(mode: ThemeMode): string {
 }
 
 export function nextThemeId(currentId: string): string {
-  const cycleOrder = ["light", "solarized-light", "nord", "solarized-dark", "dracula", "dark"] as const;
-  const currentIndex = cycleOrder.findIndex((themeId) => themeId === currentId);
+  const cycleOrder = ["solarized-light", "light", "nord", "dracula", "solarized-dark", "dark"] as const;
+  const current = getThemeById(currentId).id;
+  const currentIndex = cycleOrder.findIndex((themeId) => themeId === current);
   return cycleOrder[(currentIndex + 1) % cycleOrder.length] ?? cycleOrder[0];
 }
 
@@ -139,10 +140,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeId(getThemeById(id).id);
   }, []);
 
-  // The moon/sun nav button (and the wall sun/moon Easter egg) flip between
-  // modes. We jump to the user's most recently picked theme in the opposite
-  // mode rather than the canonical Dark/Light pair, so someone using Nord +
-  // Solarized Light gets ferried between their two preferred themes.
+  // Kept for non-wall callers that want a simple dark/light handoff: jump to
+  // the user's most recently picked theme in the opposite mode.
   const toggleTheme = useCallback(() => {
     setUserPicked(true);
     setThemeId((current) => {
