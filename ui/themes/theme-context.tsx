@@ -69,7 +69,7 @@ function getLastModeTheme(mode: ThemeMode): string {
 }
 
 export function nextThemeId(currentId: string): string {
-  const cycleOrder = ["solarized-light", "light", "nord", "dracula", "solarized-dark", "dark"] as const;
+  const cycleOrder = ["light", "solarized-light", "nord", "solarized-dark", "dracula", "dark"] as const;
   const current = getThemeById(currentId).id;
   const currentIndex = cycleOrder.findIndex((themeId) => themeId === current);
   return cycleOrder[(currentIndex + 1) % cycleOrder.length] ?? cycleOrder[0];

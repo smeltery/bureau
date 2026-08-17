@@ -4,7 +4,7 @@ import { nextThemeId } from "./theme-context.tsx";
 describe("nextThemeId", () => {
   test("cycles through the wall theme order", () => {
     const seen: string[] = [];
-    const order = ["solarized-light", "light", "nord", "dracula", "solarized-dark", "dark"];
+    const order = ["light", "solarized-light", "nord", "solarized-dark", "dracula", "dark"];
     let current = order[0];
     for (let i = 0; i < order.length; i++) {
       seen.push(current);
@@ -15,6 +15,6 @@ describe("nextThemeId", () => {
   });
 
   test("falls back to the default cycle start for unknown stored ids", () => {
-    expect(nextThemeId("missing")).toBe("solarized-light");
+    expect(nextThemeId("missing")).toBe("light");
   });
 });
