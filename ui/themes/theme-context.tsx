@@ -69,8 +69,9 @@ function getLastModeTheme(mode: ThemeMode): string {
 }
 
 export function nextThemeId(currentId: string): string {
-  const currentIndex = THEMES.findIndex((theme) => theme.id === currentId);
-  return THEMES[(currentIndex + 1) % THEMES.length]?.id ?? DEFAULT_THEME_ID;
+  const cycleOrder = ["light", "solarized-light", "nord", "solarized-dark", "dracula", "dark"] as const;
+  const currentIndex = cycleOrder.findIndex((themeId) => themeId === currentId);
+  return cycleOrder[(currentIndex + 1) % cycleOrder.length] ?? cycleOrder[0];
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
