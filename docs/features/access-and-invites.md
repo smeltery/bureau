@@ -47,6 +47,8 @@ Once you're the owner, open `User Settings` → `Access` pane:
 
 Send each URL to the invitee through whatever channel you trust (Signal, text, email). The invitee opens it on their device → cookie set → they're in. No installs, no accounts, no passwords.
 
+An invite never changes a browser that is already signed in as a different user. The server refuses the acceptance without consuming the link or changing the cookie. Open the link in a private window or a different browser profile instead. A stale or revoked cookie does not block acceptance; it is replaced by the new session.
+
 Owner-issued invite links expire 24h after issuing if unused; self-device links (generated via `mint_self_invite`) expire after 1h. Neither TTL is configurable: invite URLs are bearer tokens, and the shorter their acceptance window, the smaller the exposure if the URL ends up in the recipient's browser history, sync, or messaging archive. If the first link expires before the recipient can act, mint a fresh one. The session that's created on acceptance is governed by a separate, much longer lifetime (see Cookie semantics below).
 
 ### 3. Multi-device users
@@ -61,6 +63,8 @@ Self-device links are tighter than owner-issued invites by design: **1h TTL** an
 
 The `My devices` pane also lists the member's outstanding invites and active sessions, scoped to themselves — same tables as the owner's `Access` pane, filtered to one identity.
 
+Opening your own device or recovery link in a browser where you are already signed in is safe: the new session cookie has the same stable identity. Existing tabs and WebSocket connections remain that user, and a reload or reconnect uses the new same-user session.
+
 ### 5. User preferences
 
 Each signed-in user can edit their own profile in `User Settings`, including
@@ -71,6 +75,8 @@ used for agents they spawn plus browser speech input/output where supported.
 ### 6. Sign out
 
 `User Settings` → `Sign out` revokes the current device's session and reloads. Other devices for the same user stay signed in. If you're the office's last active owner session, sign-out is refused with a lockout-prevention message — mint another owner invite first, accept it on a second device, then retry.
+
+Do not sign out to accept an invite for a different user. A sole owner's last active session cannot sign out, and replacing it would lose the browser's reachable owner credential. Use a private window or a different browser profile for the invite.
 
 ## Reachability
 
