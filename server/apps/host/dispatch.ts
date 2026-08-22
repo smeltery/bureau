@@ -29,6 +29,7 @@ import { appHostDomain } from "../domain.ts";
 import { matchAppHost, normalizeRequestHost } from "./match.ts";
 import { APP_AUTH_PATH, APP_RESERVED_PATH } from "./auth-cookie.ts";
 import { appHostAuthGate, appHostWsAuthGate, handleAppAuthRedeem } from "./auth.ts";
+import { APP_FAVICON_PATH, appFavicon } from "./favicon.ts";
 import { neutralNotFound } from "./responses.ts";
 import { relayToApp } from "./proxy.ts";
 import { relayWsToApp, type AppRelayWsData } from "./ws-relay.ts";
@@ -102,6 +103,14 @@ export function handleAppHostRequest(req: Request, deps: AppHostDeps = {}): Resp
 
   const { pathname } = new URL(req.url);
   const upgrade = isWebSocketUpgrade(req);
+
+  // Browsers ask for a favicon outside the page's own request flow. Give every
+  // registered app a recognizable Bureau icon before auth and proxying, with a
+  // stable per-app color so several app tabs remain easy to tell apart. Unknown
+  // and retired labels have already returned the same neutral 404 above.
+  if (!upgrade && pathname === APP_FAVICON_PATH && (req.method === "GET" || req.method === "HEAD")) {
+    return appFavicon(app);
+  }
 
   // The reserved namespace, checked AHEAD of the WebSocket branch: an upgrade is
   // a GET and the handshake's own path answers GETs, so with the order the other

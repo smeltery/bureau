@@ -1,6 +1,7 @@
 import type { Server } from "bun";
-import { acceptInvite, clearCookieHeaders, logoutBySessionHash, peekInvite, readSessionCookie, setCookieHeader, validateSession, wouldRevokeLeaveOfficeUnreachable } from "./auth.ts";
-import { renderAcceptPage, renderInviteError, renderLockoutBlocked, securityHeaders } from "./auth-pages.ts";
+import { getUserByName } from "../users.ts";
+import { acceptInvite, clearCookieHeaders, logoutBySessionHash, peekInvite, readSessionCookie, setCookieHeader, validateSession, wouldRevokeLeaveOfficeUnreachable, type InvitePeek } from "./auth.ts";
+import { renderAcceptPage, renderInviteError, renderInviteIdentityConflict, renderLockoutBlocked, securityHeaders } from "./auth-pages.ts";
 import { handleClaim, handleClaimForm, shouldShowClaimForm } from "./auth-claim-routes.ts";
 import { checkAuthRateLimit } from "./auth-rate-limit.ts";
 import { originValidForAuthPost } from "./auth-request-guards.ts";
@@ -8,6 +9,10 @@ import { originValidForAuthPost } from "./auth-request-guards.ts";
 type InviteErrorResponseDeps = {
   readSessionCookie: typeof readSessionCookie;
   validateSession: typeof validateSession;
+};
+
+type InviteIdentityConflictDeps = InviteErrorResponseDeps & {
+  getUserByName: typeof getUserByName;
 };
 
 // Fires after the office gets its first owner — either through the tokenless
@@ -27,6 +32,8 @@ export function handleInvitePeek(req: Request, token: string, officeName: string
   if (limited) return limited;
   const peek = peekInvite(token);
   if ("error" in peek) return inviteErrorResponse(req, peek.error, officeName);
+  const conflict = inviteIdentityConflict(req, peek, null);
+  if (conflict) return renderInviteIdentityConflict(conflict, officeName);
   return new Response(renderAcceptPage(token, peek.needsName, null, officeName), {
     status: 200,
     headers: {
@@ -48,6 +55,11 @@ export async function handleAccept(req: Request, officeName: string | null): Pro
   const token = typeof tokenField === "string" ? tokenField : "";
   const name = typeof nameField === "string" ? nameField : "";
   if (!token) return renderInviteError("not_found", officeName);
+  const peek = peekInvite(token);
+  if (!("error" in peek)) {
+    const conflict = inviteIdentityConflict(req, peek, name);
+    if (conflict) return renderInviteIdentityConflict(conflict, officeName);
+  }
   const ua = req.headers.get("user-agent");
   const result = await acceptInvite(token, { userAgent: ua, chosenName: name });
   if (!result.ok) {
@@ -97,6 +109,31 @@ export function inviteErrorResponse(req: Request, error: string, officeName: str
     if (redirect) return redirect;
   }
   return renderInviteError(error, officeName);
+}
+
+export function inviteIdentityConflict(
+  req: Request,
+  invite: InvitePeek,
+  chosenName: string | null,
+  deps: InviteIdentityConflictDeps = { readSessionCookie, validateSession, getUserByName },
+): { current: string; invitee: string } | null {
+  const session = deps.validateSession(deps.readSessionCookie(req));
+  if (!session) return null;
+
+  let invitee: string;
+  if (invite.username !== null) {
+    invitee = invite.username;
+  } else {
+    invitee = (chosenName ?? "").trim();
+    if (!invitee || invitee.length > 64 || !/^[\p{L}\p{N} ._'-]+$/u.test(invitee)) {
+      return null;
+    }
+  }
+
+  const invitedUser = deps.getUserByName(invitee);
+  if (invitedUser?.id === session.userId) return null;
+  console.log(`[auth] invite acceptance refused: live browser session ${session.sessionPrefix} differs from invite target`);
+  return { current: session.username, invitee };
 }
 
 export async function handleLogout(req: Request, officeName: string | null): Promise<Response> {

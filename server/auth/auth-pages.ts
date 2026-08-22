@@ -145,6 +145,24 @@ export function renderInviteError(kind: string, officeName: string | null): Resp
   });
 }
 
+export function renderInviteIdentityConflict(conflict: { current: string; invitee: string }, officeName: string | null): Response {
+  const body = baseHtml(
+    authPageTitle(officeName, "invite"),
+    `<h1>This invite is for a different user</h1>
+    <p>${escapeHtml(`You are signed in as ${conflict.current}. This invite is for ${conflict.invitee}: open it on their device or in a separate browser profile.`)}</p>
+    <p><a href="/">Return to office</a></p>`,
+    undefined,
+    PREAUTH_EXTRA_CSS,
+  );
+  return new Response(body, {
+    status: 409,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      ...securityHeaders(),
+    },
+  });
+}
+
 export function renderLockoutBlocked(message: string, officeName: string | null): string {
   return baseHtml(
     authPageTitle(officeName, "sign out blocked"),

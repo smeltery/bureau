@@ -86,6 +86,18 @@ describe("app-host dispatch: what falls through to the office", () => {
 });
 
 describe("app-host dispatch: what is diverted", () => {
+  test("serves a distinct app favicon without requiring a session", async () => {
+    const first = await handleAppHostRequest(req("hello.office.example", "/favicon.ico"), deps([record()]));
+    const second = await handleAppHostRequest(req("habits.office.example", "/favicon.ico"), deps([record(), record({ name: "habits", hostLabel: "habits", port: 21002 })]));
+
+    expect(first?.status).toBe(200);
+    expect(first?.headers.get("content-type")).toBe("image/svg+xml");
+    const firstBody = await first?.text();
+    const secondBody = await second?.text();
+    expect(firstBody).toContain("&gt;_");
+    expect(secondBody).not.toBe(firstBody);
+  });
+
   test("a deeper name is inside the wildcard but can never name an app", async () => {
     expect(await statusOf(handleAppHostRequest(req("a.b.office.example"), deps([record()])))).toBe(404);
   });
