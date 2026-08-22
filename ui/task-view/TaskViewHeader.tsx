@@ -1,10 +1,13 @@
-import type { TaskStatusFilter } from "./taskFilters.ts";
+import type { TaskRoomScope, TaskStatusFilter } from "./taskFilters.ts";
 
 type TaskViewHeaderProps = {
   isMobile: boolean;
   shownCount: number;
   filterStatus: TaskStatusFilter;
   setFilterStatus: (status: TaskStatusFilter) => void;
+  roomScope: TaskRoomScope;
+  setRoomScope: (scope: TaskRoomScope) => void;
+  rooms: { id: string; name: string }[];
   filterAssignee: string;
   setFilterAssignee: (assignee: string) => void;
   selectStyle: React.CSSProperties;
@@ -12,7 +15,20 @@ type TaskViewHeaderProps = {
   onCreate: () => void;
 };
 
-export function TaskViewHeader({ isMobile, shownCount, filterStatus, setFilterStatus, filterAssignee, setFilterAssignee, selectStyle, onClose, onCreate }: TaskViewHeaderProps) {
+export function TaskViewHeader({
+  isMobile,
+  shownCount,
+  filterStatus,
+  setFilterStatus,
+  roomScope,
+  setRoomScope,
+  rooms,
+  filterAssignee,
+  setFilterAssignee,
+  selectStyle,
+  onClose,
+  onCreate,
+}: TaskViewHeaderProps) {
   return (
     <div
       style={{
@@ -66,6 +82,20 @@ export function TaskViewHeader({ isMobile, shownCount, filterStatus, setFilterSt
         </button>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <select
+          value={roomScope}
+          onChange={(event) => setRoomScope(event.target.value)}
+          title="Filter tasks and set where new tasks are filed"
+          style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}
+        >
+          <option value="all">All rooms</option>
+          <option value="global">Office-wide</option>
+          {rooms.map((room) => (
+            <option key={room.id} value={room.id}>
+              {room.name}
+            </option>
+          ))}
+        </select>
         <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value as TaskStatusFilter)} style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}>
           <option value="active">Open + In Progress</option>
           <option value="open">Open</option>

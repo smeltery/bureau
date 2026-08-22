@@ -92,6 +92,10 @@ export interface ManagedAgent {
   // Pending messages queued while the agent was busy. Flushed together
   // as the agent transitions to an idle state. In-memory only.
   messageQueue: import("../../shared/types.ts").QueuedMessage[];
+  // Set synchronously when an inbound message claims recovery of an errored
+  // backend. Later messages join the same durable queue instead of starting a
+  // second resume against the same transcript.
+  autoResumeInProgress: boolean;
   flushInProgress: boolean;
   // Date.now() of each agent-initiated steer that actually interrupted a turn
   // of THIS receiver, newest last, pruned to the rate-limit window on each

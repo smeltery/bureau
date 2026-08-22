@@ -40,6 +40,7 @@ export function createManagedAgent(input: {
     ptySidecar: null,
     ptyBuffer: "",
     messageQueue: [],
+    autoResumeInProgress: false,
     flushInProgress: false,
     recentSteers: [],
     lastWrittenEntryId: null,

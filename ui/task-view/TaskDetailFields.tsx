@@ -15,6 +15,7 @@ export function TaskDetailFields({
   status,
   task,
   title,
+  createRoomLocked = false,
   onAssigneeChange,
   onDescriptionChange,
   onPriorityChange,
@@ -34,6 +35,7 @@ export function TaskDetailFields({
   status: TaskStatus;
   task?: TaskItem;
   title: string;
+  createRoomLocked?: boolean;
   onAssigneeChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onPriorityChange: (value: TaskPriority | "") => void;
@@ -134,15 +136,19 @@ export function TaskDetailFields({
       </div>
 
       <div>
-        <label style={labelStyle}>Room</label>
-        <select value={roomId} onChange={(e) => onRoomChange(e.target.value)} style={inputStyle}>
-          <option value="">Office-wide</option>
-          {rooms.map((room) => (
-            <option key={room.id} value={room.id}>
-              {room.name}
-            </option>
-          ))}
-        </select>
+        <label style={labelStyle}>{mode === "create" ? "Create in" : "Room"}</label>
+        {mode === "create" && createRoomLocked ? (
+          <div style={{ ...inputStyle, background: "var(--bg-subtle)" }}>{roomId ? (rooms.find((room) => room.id === roomId)?.name ?? "Unknown room") : "Office-wide"}</div>
+        ) : (
+          <select value={roomId} onChange={(e) => onRoomChange(e.target.value)} style={inputStyle}>
+            <option value="">Office-wide</option>
+            {rooms.map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {mode === "edit" && task && (

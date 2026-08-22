@@ -123,6 +123,38 @@ async function settleAsyncWork() {
 }
 
 describe("enqueueMessage steering", () => {
+  test("unresumable error-state sends keep the explicit 409 contract", () => {
+    const managed = makeAgent(
+      "agent-1",
+      fakeSession(() => {}),
+    );
+    managed.info.state = "error";
+    managed.sessionId = null;
+
+    const result = enqueueMessage("agent-1", { sender: peerSender, text: "retry?" });
+
+    expect(result).toEqual({ ok: false, error: "agent is not accepting messages", status: 409 });
+    expect(managed.messageQueue).toEqual([]);
+  });
+
+  test("resumable error-state sends join an in-flight auto-resume queue", () => {
+    const managed = makeAgent(
+      "agent-1",
+      fakeSession(() => {}),
+    );
+    managed.info.state = "error";
+    managed.sessionId = "session-1";
+    managed.autoResumeInProgress = true;
+
+    const first = enqueueMessage("agent-1", { sender: peerSender, text: "first after error" });
+    const second = enqueueMessage("agent-1", { sender: peerSender, text: "second after error" }, { steer: true });
+
+    expect(first).toEqual({ ok: true, queued: true, messageId: expect.any(String) });
+    expect(second).toEqual({ ok: true, queued: true, messageId: expect.any(String), steered: false });
+    expect(managed.autoResumeInProgress).toBe(true);
+    expect(managed.messageQueue.map((m) => m.text)).toEqual(["first after error", "second after error"]);
+  });
+
   test("plain sends never carry steer fields", () => {
     const managed = makeAgent(
       "agent-1",

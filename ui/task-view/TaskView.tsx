@@ -20,7 +20,11 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
     renderName,
     roomNameById,
     rooms,
-    currentRoomId,
+    roomScope,
+    setRoomScope,
+    createRoomId,
+    allRoomsCreateRoomId,
+    setAllRoomsCreateRoomId,
     search,
     selectStyle,
     selectedId,
@@ -52,6 +56,9 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
         shownCount={filtered.length}
         filterStatus={filterStatus}
         setFilterStatus={setFilterStatus}
+        roomScope={roomScope}
+        setRoomScope={setRoomScope}
+        rooms={rooms}
         filterAssignee={filterAssignee}
         setFilterAssignee={setFilterAssignee}
         selectStyle={selectStyle}
@@ -86,6 +93,21 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
                 outline: "none",
               }}
             />
+            {roomScope === "all" && (
+              <select
+                value={allRoomsCreateRoomId}
+                onChange={(event) => setAllRoomsCreateRoomId(event.target.value)}
+                title="New tasks are filed here while viewing all rooms"
+                style={{ ...selectStyle, flexShrink: 0, maxWidth: isMobile ? 130 : 170 }}
+              >
+                <option value="">Office-wide</option>
+                {rooms.map((room) => (
+                  <option key={room.id} value={room.id}>
+                    {room.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Table */}
@@ -116,7 +138,16 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
         {/* Detail panel */}
         {!isMobile &&
           (creating ? (
-            <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} rooms={rooms} defaultRoomId={currentRoomId} />
+            <TaskDetailPanel
+              closeRef={closeRef}
+              mode="create"
+              onClose={() => setCreating(false)}
+              username={username}
+              agents={agents}
+              rooms={rooms}
+              defaultRoomId={createRoomId}
+              createRoomLocked={roomScope !== "all"}
+            />
           ) : selectedTask ? (
             <TaskDetailPanel closeRef={closeRef} task={selectedTask} onClose={() => setSelectedId(null)} username={username} agents={agents} rooms={rooms} />
           ) : null)}
@@ -125,7 +156,17 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
       {/* Mobile detail panel as full-page */}
       {isMobile &&
         (creating ? (
-          <TaskDetailPanel closeRef={closeRef} mode="create" onClose={() => setCreating(false)} username={username} agents={agents} rooms={rooms} defaultRoomId={currentRoomId} fullScreen />
+          <TaskDetailPanel
+            closeRef={closeRef}
+            mode="create"
+            onClose={() => setCreating(false)}
+            username={username}
+            agents={agents}
+            rooms={rooms}
+            defaultRoomId={createRoomId}
+            createRoomLocked={roomScope !== "all"}
+            fullScreen
+          />
         ) : selectedTask ? (
           <TaskDetailPanel closeRef={closeRef} task={selectedTask} onClose={() => setSelectedId(null)} username={username} agents={agents} rooms={rooms} fullScreen />
         ) : null)}

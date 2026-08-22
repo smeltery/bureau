@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
 import { type SortDir, type SortField } from "./constants.ts";
-import { filterAndSortTasks, type TaskStatusFilter } from "./taskFilters.ts";
+import { filterAndSortTasks, type TaskRoomScope, type TaskStatusFilter } from "./taskFilters.ts";
 
 export function useTaskViewController({ onClose, onFocusAgent }: { onClose: () => void; onFocusAgent?: (agentId: string) => void }) {
   const { tasks, tasksLoaded, agents, isMobile, rooms, currentRoom } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<TaskStatusFilter>("active");
+  const [roomScope, setRoomScope] = useState<TaskRoomScope>(() => (rooms[currentRoom]?.id ? rooms[currentRoom]!.id : "all"));
+  const [allRoomsCreateRoomId, setAllRoomsCreateRoomId] = useState(() => (rooms[currentRoom]?.id ? rooms[currentRoom]!.id : ""));
   const [creating, setCreating] = useState(false);
   const [filterAssignee, setFilterAssignee] = useState("");
   const [sortField, setSortField] = useState<SortField>("createdAt");
@@ -59,8 +61,8 @@ export function useTaskViewController({ onClose, onFocusAgent }: { onClose: () =
   }, [agents]);
 
   const filtered = useMemo(() => {
-    return filterAndSortTasks(tasks, filterStatus, search, filterAssignee, sortField, sortDir);
-  }, [tasks, filterStatus, search, filterAssignee, sortField, sortDir]);
+    return filterAndSortTasks(tasks, roomScope, filterStatus, search, filterAssignee, sortField, sortDir);
+  }, [tasks, roomScope, filterStatus, search, filterAssignee, sortField, sortDir]);
 
   function renderName(name: string | undefined) {
     if (!name) return "";
@@ -138,6 +140,8 @@ export function useTaskViewController({ onClose, onFocusAgent }: { onClose: () =
     outline: "none",
   };
 
+  const createRoomId = roomScope === "all" ? allRoomsCreateRoomId : roomScope === "global" ? "" : roomScope;
+
   return {
     agents,
     cellPad,
@@ -154,7 +158,11 @@ export function useTaskViewController({ onClose, onFocusAgent }: { onClose: () =
     renderName,
     roomNameById,
     rooms,
-    currentRoomId: rooms[currentRoom]?.id ?? null,
+    roomScope,
+    setRoomScope,
+    createRoomId,
+    allRoomsCreateRoomId,
+    setAllRoomsCreateRoomId,
     search,
     selectStyle,
     selectedId,

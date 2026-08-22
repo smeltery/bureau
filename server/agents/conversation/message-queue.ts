@@ -6,7 +6,7 @@ import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 // Circular with control.ts (which imports flushQueue from here); safe because
 // both modules only call across the cycle at request time, never at load time.
-import { sendNow } from "./control.ts";
+import { resume, sendNow } from "./control.ts";
 
 export const QUEUE_MAX = 50;
 
@@ -39,14 +39,9 @@ function generateQueuedId(existing: QueuedMessage[]): string {
   return `${Date.now().toString(16).slice(-6)}`;
 }
 
-// Single entry point for both human (textarea via sendMessage) and agent
-// (HTTP POST /api/agents/:id/messages) senders. Decides whether to queue or
-// flush-immediately based on the receiver's state. Rejects `error` /
-// `stopped` agents with 409. The textarea path (sendMessage) is more
-// permissive; it has its own session-recovery branch, but agents benefit from
-// an explicit failure so they can retry or fall back.
-// `steered` / `steerDeclined` are present only when the caller asked to steer
-// (and never on a deduped retry, which interrupted nobody).
+// Single entry point for human and agent senders. Stopped agents fail;
+// resumable errored agents queue and auto-resume once. `steered` /
+// `steerDeclined` appear only when the caller asked to steer.
 export type EnqueueResult = { ok: true; queued: boolean; messageId: string; steered?: boolean; steerDeclined?: SteerDeclineReason } | { ok: false; error: string; status: number };
 
 // Steer rate limit. Prunes the receiver's window in place and reports whether
@@ -61,18 +56,18 @@ function steerRateLimited(managed: ManagedAgent): boolean {
 export function enqueueMessage(
   receiverId: string,
   msg: { sender: QueuedSender; text: string; clientMessageId?: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean },
-  // Agent-initiated steering. Set by the inter-agent send routes when the
-  // sender passed "steer":true. Deliberately an option on THIS call rather
-  // than a second request: the decision uses the same state read that picks
-  // flush-vs-queue below, in the same synchronous block as the queue push, so
-  // the receiver cannot go idle (and swallow the message into an ordinary
-  // flush) between the enqueue and the interrupt.
+  // Agent-initiated steering. Kept on this call so enqueue and interrupt use
+  // the same state read and synchronous queue push.
   opts?: { steer?: boolean },
 ): EnqueueResult {
   const managed = agents.get(receiverId);
   if (!managed) return { ok: false, error: "agent not found", status: 404 };
   const state = managed.info.state;
-  if (state === "error" || state === "stopped") {
+  if (state === "stopped") {
+    return { ok: false, error: "agent is not accepting messages", status: 409 };
+  }
+  const autoResumeSessionId = state === "error" ? managed.sessionId : null;
+  if (state === "error" && !autoResumeSessionId) {
     return { ok: false, error: "agent is not accepting messages", status: 409 };
   }
   if (msg.clientMessageId) {
@@ -85,7 +80,7 @@ export function enqueueMessage(
     return { ok: false, error: `queue full (limit ${QUEUE_MAX})`, status: 429 };
   }
   const id = generateQueuedId(managed.messageQueue);
-  const canFlushNow = !isAgentBusy(state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick && !managed.pendingEffortPick;
+  const canFlushNow = state !== "error" && !isAgentBusy(state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick && !managed.pendingEffortPick;
   managed.messageQueue.push({
     id,
     sender: msg.sender,
@@ -101,6 +96,17 @@ export function enqueueMessage(
   emitQueueUpdate(receiverId, managed);
   persistAll();
   const steerRequested = opts?.steer === true;
+  if (state === "error") {
+    if (!managed.autoResumeInProgress) {
+      managed.autoResumeInProgress = true;
+      void resume(receiverId, autoResumeSessionId!)
+        .then(() => flushQueue(receiverId))
+        .finally(() => {
+          managed.autoResumeInProgress = false;
+        });
+    }
+    return { ok: true, queued: true, messageId: id, ...(steerRequested ? { steered: false } : {}) };
+  }
   if (canFlushNow) {
     flushQueue(receiverId).catch((err: any) => {
       console.error(`flushQueue (post-enqueue) failed for ${receiverId}:`, err.message);

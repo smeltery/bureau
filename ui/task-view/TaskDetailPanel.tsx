@@ -13,6 +13,7 @@ export function TaskDetailPanel({
   agents = [],
   rooms = [],
   defaultRoomId,
+  createRoomLocked = false,
   closeRef,
   fullScreen = false,
 }: {
@@ -23,6 +24,7 @@ export function TaskDetailPanel({
   agents?: { name: string }[];
   rooms?: { id: string; name: string }[];
   defaultRoomId?: string | null;
+  createRoomLocked?: boolean;
   closeRef?: React.MutableRefObject<(() => void) | null>;
   fullScreen?: boolean;
 }) {
@@ -199,6 +201,7 @@ export function TaskDetailPanel({
         status={status}
         task={task}
         title={title}
+        createRoomLocked={createRoomLocked}
         onAssigneeChange={setAssignee}
         onDescriptionChange={setDescription}
         onPriorityChange={setPriority}

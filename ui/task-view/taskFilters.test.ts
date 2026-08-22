@@ -11,21 +11,21 @@ const tasks: TaskItem[] = [
 
 describe("filterAndSortTasks", () => {
   test("active status hides done and backlog tasks", () => {
-    expect(filterAndSortTasks(tasks, "active", "", "", "createdAt", "asc").map((task) => task.id)).toEqual(["task-3", "task-2"]);
+    expect(filterAndSortTasks(tasks, "all", "active", "", "", "createdAt", "asc").map((task) => task.id)).toEqual(["task-3", "task-2"]);
   });
 
   test("search matches id, title, and description", () => {
-    expect(filterAndSortTasks(tasks, "all", "settings", "", "createdAt", "asc").map((task) => task.id)).toEqual(["task-2"]);
-    expect(filterAndSortTasks(tasks, "all", "routes", "", "createdAt", "asc").map((task) => task.id)).toEqual(["task-3"]);
-    expect(filterAndSortTasks(tasks, "all", "task-1", "", "createdAt", "asc").map((task) => task.id)).toEqual(["task-1"]);
+    expect(filterAndSortTasks(tasks, "all", "all", "settings", "", "createdAt", "asc").map((task) => task.id)).toEqual(["task-2"]);
+    expect(filterAndSortTasks(tasks, "all", "all", "routes", "", "createdAt", "asc").map((task) => task.id)).toEqual(["task-3"]);
+    expect(filterAndSortTasks(tasks, "all", "all", "task-1", "", "createdAt", "asc").map((task) => task.id)).toEqual(["task-1"]);
   });
 
   test("assignee filter is case-insensitive", () => {
-    expect(filterAndSortTasks(tasks, "all", "", "code", "createdAt", "asc").map((task) => task.id)).toEqual(["task-2"]);
+    expect(filterAndSortTasks(tasks, "all", "all", "", "code", "createdAt", "asc").map((task) => task.id)).toEqual(["task-2"]);
   });
 
   test("sorts by priority order with unprioritized tasks last", () => {
-    expect(filterAndSortTasks(tasks, "all", "", "", "priority", "asc").map((task) => task.id)).toEqual(["task-3", "task-2", "task-1", "task-4"]);
+    expect(filterAndSortTasks(tasks, "all", "all", "", "", "priority", "asc").map((task) => task.id)).toEqual(["task-3", "task-2", "task-1", "task-4"]);
   });
 
   test("sorts office-wide tasks before room-scoped tasks", () => {
@@ -34,6 +34,16 @@ describe("filterAndSortTasks", () => {
       { ...tasks[1], id: "room-b", roomId: "room-b" },
       { ...tasks[2], id: "room-a", roomId: "room-a" },
     ];
-    expect(filterAndSortTasks(roomTasks, "all", "", "", "room", "asc").map((task) => task.id)).toEqual(["office", "room-a", "room-b"]);
+    expect(filterAndSortTasks(roomTasks, "all", "all", "", "", "room", "asc").map((task) => task.id)).toEqual(["office", "room-a", "room-b"]);
+  });
+
+  test("filters by room scope", () => {
+    const roomTasks: TaskItem[] = [
+      { ...tasks[0], id: "office", roomId: undefined },
+      { ...tasks[1], id: "room-a-task", roomId: "room-a" },
+      { ...tasks[2], id: "room-b-task", roomId: "room-b" },
+    ];
+    expect(filterAndSortTasks(roomTasks, "global", "all", "", "", "createdAt", "asc").map((task) => task.id)).toEqual(["office"]);
+    expect(filterAndSortTasks(roomTasks, "room-a", "all", "", "", "createdAt", "asc").map((task) => task.id)).toEqual(["room-a-task"]);
   });
 });

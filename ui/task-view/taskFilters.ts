@@ -2,9 +2,24 @@ import type { TaskItem, TaskStatus } from "../../shared/types.ts";
 import { PRIORITY_ORDER, STATUS_ORDER, type SortDir, type SortField } from "./constants.ts";
 
 export type TaskStatusFilter = TaskStatus | "all" | "active";
+export type TaskRoomScope = "all" | "global" | string;
 
-export function filterAndSortTasks(tasks: TaskItem[], filterStatus: TaskStatusFilter, search: string, filterAssignee: string, sortField: SortField, sortDir: SortDir): TaskItem[] {
+export function filterAndSortTasks(
+  tasks: TaskItem[],
+  roomScope: TaskRoomScope,
+  filterStatus: TaskStatusFilter,
+  search: string,
+  filterAssignee: string,
+  sortField: SortField,
+  sortDir: SortDir,
+): TaskItem[] {
   let list = tasks;
+  if (roomScope === "global") {
+    list = list.filter((task) => !task.roomId);
+  } else if (roomScope !== "all") {
+    list = list.filter((task) => task.roomId === roomScope);
+  }
+
   if (filterStatus === "active") {
     list = list.filter((task) => task.status !== "done" && task.status !== "backlog");
   } else if (filterStatus !== "all") {
