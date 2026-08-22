@@ -1,8 +1,12 @@
 import { storageGetItem, storageReadObject, storageRemoveItem, storageSetItem } from "./browser-storage.ts";
 
 const KEY_DEVICE = "bureau-device";
+const KEY_APP_PREVIEWS = "bureau-app-previews";
+const KEY_APP_PREVIEW_OPENS = "bureau-app-preview-opens";
 const KEY_SLIDE_VIEW = "bureau-slide-view";
 const KEY_SLIDE_POS = "bureau-slide-pos";
+// Keep aligned with APP_SESSION_TTL_MS in server/apps/host/auth-cookie.ts.
+export const APP_PREVIEW_OPEN_TTL_MS = 12 * 60 * 60 * 1000;
 
 // Which plan-allowance limit the usage pill's number tracks, per device per
 // agent. The pill defaults to the most constrained window; pinning overrides
@@ -35,6 +39,38 @@ export function setDevice(label: string | null): void {
   const trimmed = label?.trim();
   if (trimmed) storageSetItem(KEY_DEVICE, trimmed);
   else storageRemoveItem(KEY_DEVICE);
+}
+
+export function getAppPreviews(): boolean {
+  return storageGetItem(KEY_APP_PREVIEWS) !== "off";
+}
+
+export function setAppPreviews(enabled: boolean): void {
+  storageSetItem(KEY_APP_PREVIEWS, enabled ? "on" : "off");
+}
+
+function readAppPreviewOpens(): Record<string, number> {
+  const raw = storageReadObject<Record<string, unknown>>(KEY_APP_PREVIEW_OPENS) ?? {};
+  return Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1])));
+}
+
+export function getAppPreviewOpenedAt(url: string, now = Date.now()): number | null {
+  const openedAt = readAppPreviewOpens()[url];
+  if (openedAt === undefined || now - openedAt >= APP_PREVIEW_OPEN_TTL_MS) return null;
+  return openedAt;
+}
+
+export function markAppPreviewOpened(url: string, openedAt = Date.now()): void {
+  storageSetItem(KEY_APP_PREVIEW_OPENS, JSON.stringify({ ...readAppPreviewOpens(), [url]: openedAt }));
+}
+
+export function pruneAppPreviewOpens(urls: readonly string[]): void {
+  const keep = new Set(urls);
+  const opens = readAppPreviewOpens();
+  const entries = Object.entries(opens).filter(([url]) => keep.has(url));
+  if (entries.length === Object.keys(opens).length) return;
+  if (entries.length === 0) storageRemoveItem(KEY_APP_PREVIEW_OPENS);
+  else storageSetItem(KEY_APP_PREVIEW_OPENS, JSON.stringify(Object.fromEntries(entries)));
 }
 
 function readBoolMap(key: string): Record<string, boolean> {

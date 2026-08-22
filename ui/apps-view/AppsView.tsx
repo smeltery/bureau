@@ -11,7 +11,8 @@ import { AppDeleteDialog } from "./AppDeleteDialog.tsx";
 import { useAppsViewController } from "./useAppsViewController.ts";
 
 export function AppsView({ onClose }: { onClose: () => void }) {
-  const { act, appsLoaded, busy, confirmDelete, doDelete, error, isMobile, logError, logLines, openLogs, setConfirmDelete, sorted, toggleLogs } = useAppsViewController();
+  const { act, appsLoaded, busy, confirmDelete, doDelete, error, isMobile, logError, logLines, openLogs, previewsEnabled, setConfirmDelete, setPreviewsEnabled, sorted, toggleLogs } =
+    useAppsViewController();
 
   return (
     <div style={{ height: isMobile ? "100dvh" : "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)", color: "var(--text-primary)" }}>
@@ -36,7 +37,24 @@ export function AppsView({ onClose }: { onClose: () => void }) {
           ←
         </button>
         <div style={{ fontSize: 13, fontWeight: 600 }}>Apps</div>
-        <div style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-muted)" }}>{appsLoaded ? `${sorted.length}` : ""}</div>
+        <button
+          type="button"
+          onClick={() => setPreviewsEnabled(!previewsEnabled)}
+          title={previewsEnabled ? "Hide app previews" : "Show app previews"}
+          style={{
+            marginLeft: "auto",
+            padding: "3px 7px",
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+            background: previewsEnabled ? "var(--accent)" : "transparent",
+            color: previewsEnabled ? "var(--bg-base)" : "var(--text-muted)",
+            fontSize: 11,
+            cursor: "pointer",
+          }}
+        >
+          previews {previewsEnabled ? "on" : "off"}
+        </button>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{appsLoaded ? `${sorted.length}` : ""}</div>
       </div>
 
       {error && <div style={{ padding: "8px 16px", background: "var(--bg-subtle)", borderBottom: "1px solid var(--border-subtle)", color: "var(--red)", fontSize: 12, flexShrink: 0 }}>{error}</div>}
@@ -55,6 +73,7 @@ export function AppsView({ onClose }: { onClose: () => void }) {
                 logOpen={openLogs === app.name}
                 logLines={logLines}
                 logError={logError}
+                previewsEnabled={previewsEnabled}
                 onAct={(verb) => void act(app.name, verb)}
                 onToggleLogs={() => void toggleLogs(app.name)}
                 onDelete={() => setConfirmDelete(app)}

@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AppWire } from "../../shared/apps.ts";
 import { useAppState, useDispatch } from "../store.tsx";
+import { getAppPreviews, pruneAppPreviewOpens, setAppPreviews } from "../device-settings.ts";
 import { controlApp, deleteApp, listApps, readAppLog } from "./appsApi.ts";
 import { nextPollDelay, shouldCommit } from "./appsPolling.ts";
 import { sortApps, type AppVerb } from "./appVerbs.ts";
@@ -15,6 +16,7 @@ export function useAppsViewController() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AppWire | null>(null);
+  const [previewsEnabled, setPreviewsEnabled] = useState(getAppPreviews);
   const [openLogs, setOpenLogs] = useState<string | null>(null);
   // Moves when the USER changes what the log pane is showing — opening a row,
   // closing one, deleting the open one — so a request in flight can tell that it
@@ -50,6 +52,11 @@ export function useAppsViewController() {
   useEffect(() => {
     revisionRef.current = appsRevision;
   }, [appsRevision]);
+
+  useEffect(() => {
+    if (!appsLoaded) return;
+    pruneAppPreviewOpens(apps.flatMap((app) => (typeof app.url === "string" && app.url !== "" ? [app.url] : [])));
+  }, [apps, appsLoaded]);
 
   // Fetch on mount and on every rehydration, then poll while open.
   //
@@ -180,6 +187,11 @@ export function useAppsViewController() {
     logError,
     logLines,
     openLogs,
+    previewsEnabled,
+    setPreviewsEnabled: (enabled: boolean) => {
+      setPreviewsEnabled(enabled);
+      setAppPreviews(enabled);
+    },
     setConfirmDelete,
     sorted: sortApps(apps),
     toggleLogs,

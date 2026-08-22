@@ -1,5 +1,20 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { getDevice, getSlidePos, getSlideView, getUsagePin, setDevice, setSlidePos, setSlideView, setUsagePin } from "./device-settings.ts";
+import {
+  APP_PREVIEW_OPEN_TTL_MS,
+  getAppPreviewOpenedAt,
+  getAppPreviews,
+  getDevice,
+  getSlidePos,
+  getSlideView,
+  getUsagePin,
+  markAppPreviewOpened,
+  pruneAppPreviewOpens,
+  setAppPreviews,
+  setDevice,
+  setSlidePos,
+  setSlideView,
+  setUsagePin,
+} from "./device-settings.ts";
 
 describe("device settings storage", () => {
   test("falls back when browser storage throws", () => {
@@ -95,5 +110,62 @@ describe("usage pill pin", () => {
     expect(getUsagePin("agent-1", "claude")).toBeNull();
     expect(getUsagePin("agent-2", "claude")).toBeNull();
     expect(getUsagePin("agent-3", "claude")).toBeNull();
+  });
+});
+
+describe("app previews", () => {
+  const store = new Map<string, string>();
+  let originalDescriptor: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    store.clear();
+    originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        get length() {
+          return store.size;
+        },
+        getItem: (k: string) => store.get(k) ?? null,
+        key: (i: number) => [...store.keys()][i] ?? null,
+        removeItem: (k: string) => void store.delete(k),
+        setItem: (k: string, v: string) => void store.set(k, v),
+      },
+    });
+  });
+
+  afterEach(() => {
+    if (originalDescriptor) Object.defineProperty(globalThis, "localStorage", originalDescriptor);
+    else delete (globalThis as { localStorage?: unknown }).localStorage;
+  });
+
+  test("defaults on and round-trips this device's choice", () => {
+    expect(getAppPreviews()).toBe(true);
+    setAppPreviews(false);
+    expect(getAppPreviews()).toBe(false);
+    setAppPreviews(true);
+    expect(getAppPreviews()).toBe(true);
+  });
+
+  test("remembers an exact app URL only for the app-session lifetime", () => {
+    markAppPreviewOpened("https://habits.office.example", 1000);
+    expect(getAppPreviewOpenedAt("https://habits.office.example", 1001)).toBe(1000);
+    expect(getAppPreviewOpenedAt("https://other.office.example", 1001)).toBeNull();
+    expect(getAppPreviewOpenedAt("https://habits.office.example", 1000 + APP_PREVIEW_OPEN_TTL_MS)).toBeNull();
+  });
+
+  test("prunes open facts for apps that are no longer listed", () => {
+    markAppPreviewOpened("https://keep.office.example", 1000);
+    markAppPreviewOpened("https://gone.office.example", 1000);
+    pruneAppPreviewOpens(["https://keep.office.example"]);
+    expect(getAppPreviewOpenedAt("https://keep.office.example", 1001)).toBe(1000);
+    expect(getAppPreviewOpenedAt("https://gone.office.example", 1001)).toBeNull();
+  });
+
+  test("does not rewrite the open facts when every listed app remains", () => {
+    const raw = '{ "https://keep.office.example": 1000 }';
+    store.set("bureau-app-preview-opens", raw);
+    pruneAppPreviewOpens(["https://keep.office.example"]);
+    expect(store.get("bureau-app-preview-opens")).toBe(raw);
   });
 });
