@@ -296,14 +296,14 @@ describe("app-supervisor: BUREAU_APP_URL in the unit", () => {
       appUrl,
     });
 
-  it("injects the URL as an Environment directive when there is one", () => {
+  it("injects the URL and Vite host as Environment directives when there is one", () => {
     const unit = renderWith("https://hello.office.example");
-    expect(directives(unit)).toContain('Environment="BUREAU_APP_URL=https://hello.office.example"');
+    expect(directives(unit)).toEqual(
+      expect.arrayContaining(['Environment="BUREAU_APP_URL=https://hello.office.example"', 'Environment="__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=hello.office.example"']),
+    );
   });
 
   it("leaves the variable OUT entirely when there is none", () => {
-    // Not `Environment="BUREAU_APP_URL="`. The whole name must be absent from
-    // the file, so the app sees an undefined variable rather than an empty one.
     expect(renderWith(null)).not.toContain("BUREAU_APP_URL");
   });
 
@@ -312,7 +312,7 @@ describe("app-supervisor: BUREAU_APP_URL in the unit", () => {
     // is started, only what it knows about itself.
     const without = directives(renderWith(null));
     const with_ = directives(renderWith("https://hello.office.example"));
-    expect(with_.filter((d) => !d.includes("BUREAU_APP_URL"))).toEqual(without);
+    expect(with_.filter((d) => !d.includes("BUREAU_APP_URL") && !d.includes("__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"))).toEqual(without);
   });
 
   it("is the app's LABEL, so a re-registered name never inherits the old URL", () => {
