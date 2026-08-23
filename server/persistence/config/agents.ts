@@ -111,6 +111,7 @@ export function writeManifest(
     modelFamily: string;
     model: ClaudeModel;
     effort?: AgentInfo["effort"];
+    inFlightTurn?: AgentInfo["inFlightTurn"];
     lastSessionId: string | null;
   }[],
 ) {
@@ -139,6 +140,7 @@ export function buildAgentsManifest(
     modelFamily: string;
     model: ClaudeModel;
     effort?: AgentInfo["effort"];
+    inFlightTurn?: AgentInfo["inFlightTurn"];
     lastSessionId: string | null;
   }[],
 ) {
@@ -159,6 +161,7 @@ export function buildAgentsManifest(
     modelFamily: a.modelFamily,
     model: a.model,
     effort: a.effort,
+    inFlightTurn: a.inFlightTurn ?? null,
     lastSessionId: a.lastSessionId,
     logDir: join(LOGS_DIR, a.id),
   }));

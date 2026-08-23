@@ -32,6 +32,16 @@ export interface KilledAgentSummary {
   killedAt: number; // ms timestamp
 }
 
+export interface LogInFlightTurn {
+  startedAt: number;
+  activeTool: { name: string; startedAt: number } | null;
+}
+
+export interface ManifestInFlightTurn {
+  startedAt: number;
+  activeTool: { startedAt: number } | null;
+}
+
 // Max revive chips delivered to a session, applied AFTER ACL filtering so a
 // session with restricted room access still sees up to this many visible
 // chips. Imported by both server (cap) and UI (defensive re-slice).
@@ -69,6 +79,7 @@ export interface AgentInfo {
   // so an agent-only turn (one agent messages another, the receiver
   // answers and idles) stays silent. In-memory only — never persisted.
   turnHadHumanInput?: boolean;
+  inFlightTurn?: ManifestInFlightTurn | null;
   // Pending user messages that arrived while the agent was busy. Flushed
   // together as the agent transitions back to an idle state.
   queue?: QueuedMessage[];

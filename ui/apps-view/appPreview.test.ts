@@ -36,4 +36,8 @@ describe("appPreviewPhase", () => {
   test("prompts again when the app session lifetime has elapsed", () => {
     expect(appPreviewPhase(1000, 1000 + APP_PREVIEW_OPEN_TTL_MS, true, false)).toBe("open-prompt");
   });
+
+  test("prompts instead of framing when live previews are disabled", () => {
+    expect(appPreviewPhase(1000, 1001, true, false, false)).toBe("open-prompt");
+  });
 });

@@ -1,6 +1,6 @@
 import { join } from "path";
 import { rmSync } from "fs";
-import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, SkillInfo } from "../../shared/types.ts";
+import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, LogInFlightTurn, ManifestInFlightTurn, SkillInfo } from "../../shared/types.ts";
 import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
 import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
@@ -47,6 +47,29 @@ export function getAgentDisplay(agentId: string): { name: string; roomName: stri
 
 export function getAllAgents(): AgentInfo[] {
   return [...agents.values()].map((a) => a.info);
+}
+
+function oldestActiveTool(managed: ManagedAgent): { name: string; startedAt: number } | null {
+  let oldest: { name: string; startedAt: number } | null = null;
+  for (const tool of managed.toolCallTimestamps.values()) {
+    if (!oldest || tool.startedAt < oldest.startedAt) oldest = tool;
+  }
+  return oldest;
+}
+
+export function getAgentInFlightTurnForLogs(agentId: string): LogInFlightTurn | null {
+  const managed = agents.get(agentId);
+  if (!managed?.turnStartedAt) return null;
+  return { startedAt: managed.turnStartedAt, activeTool: oldestActiveTool(managed) };
+}
+
+export function getAgentInFlightTurnForManifest(agentId: string): ManifestInFlightTurn | null {
+  const live = getAgentInFlightTurnForLogs(agentId);
+  if (!live) return null;
+  return {
+    startedAt: live.startedAt,
+    activeTool: live.activeTool ? { startedAt: live.activeTool.startedAt } : null,
+  };
 }
 
 // Get cached logs for an agent (used when browser connects after restore)

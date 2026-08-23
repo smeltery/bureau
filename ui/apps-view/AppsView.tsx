@@ -9,10 +9,12 @@
 import { AppCard } from "./AppCard.tsx";
 import { AppDeleteDialog } from "./AppDeleteDialog.tsx";
 import { useAppsViewController } from "./useAppsViewController.ts";
+import { useFeatures } from "../store.tsx";
 
 export function AppsView({ onClose }: { onClose: () => void }) {
   const { act, appsLoaded, busy, confirmDelete, doDelete, error, isMobile, logError, logLines, openLogs, previewsEnabled, setConfirmDelete, setPreviewsEnabled, sorted, toggleLogs } =
     useAppsViewController();
+  const features = useFeatures();
 
   return (
     <div style={{ height: isMobile ? "100dvh" : "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)", color: "var(--text-primary)" }}>
@@ -74,6 +76,7 @@ export function AppsView({ onClose }: { onClose: () => void }) {
                 logLines={logLines}
                 logError={logError}
                 previewsEnabled={previewsEnabled}
+                livePreviewFramesAllowed={features.liveAppPreviews}
                 onAct={(verb) => void act(app.name, verb)}
                 onToggleLogs={() => void toggleLogs(app.name)}
                 onDelete={() => setConfirmDelete(app)}

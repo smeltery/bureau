@@ -83,6 +83,25 @@ describe("agent route gap regressions", () => {
     expect(body).toEqual([expect.objectContaining({ id: "agent-1", effort: "high" })]);
   });
 
+  test("includes live turn state in the agent discovery manifest", async () => {
+    installAgent("agent-1");
+    const managed = agents.get("agent-1")!;
+    managed.turnStartedAt = 2000;
+    managed.toolCallTimestamps.set("tool-1", { name: "Bash", startedAt: 2500 });
+    const req = request("/api/agents", { method: "GET" });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+    const body = (await res?.json()) as { id: string; inFlightTurn?: unknown }[];
+
+    expect(res?.status).toBe(200);
+    expect(body).toEqual([
+      expect.objectContaining({
+        id: "agent-1",
+        inFlightTurn: { startedAt: 2000, activeTool: { startedAt: 2500 } },
+      }),
+    ]);
+  });
+
   test("rejects malformed attachment entries on conversation message routes", async () => {
     installAgent("agent-1");
     const req = request("/api/agents/agent-1/messages", {

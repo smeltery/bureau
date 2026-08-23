@@ -39,13 +39,13 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AppPreview({ app, href, isMobile }: { app: Pick<AppWire, "name">; href: string; isMobile: boolean }) {
+function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppWire, "name">; href: string; isMobile: boolean; framesAllowed: boolean }) {
   const hostRef = useRef<HTMLAnchorElement>(null);
   const [visible, setVisible] = useState(() => !("IntersectionObserver" in window));
   const [openedAt, setOpenedAt] = useState(() => getAppPreviewOpenedAt(href));
   const [now, setNow] = useState(Date.now);
   const [waitingForReturn, setWaitingForReturn] = useState(false);
-  const phase = appPreviewPhase(openedAt, now, visible, waitingForReturn);
+  const phase = appPreviewPhase(openedAt, now, visible, waitingForReturn, framesAllowed);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -156,6 +156,7 @@ export function AppCard({
   logLines,
   logError,
   previewsEnabled,
+  livePreviewFramesAllowed,
   onAct,
   onToggleLogs,
   onDelete,
@@ -167,6 +168,7 @@ export function AppCard({
   logLines: string[] | null;
   logError: string | null;
   previewsEnabled: boolean;
+  livePreviewFramesAllowed: boolean;
   onAct: (verb: AppVerb) => void;
   onToggleLogs: () => void;
   onDelete: () => void;
@@ -202,7 +204,7 @@ export function AppCard({
           durable signal. */}
       {app.startError && <div style={{ ...appMonoPane, marginTop: 8, color: "var(--red)" }}>{app.startError}</div>}
 
-      {previewsEnabled && appCanPreview(app) && <AppPreview app={app} href={href} isMobile={isMobile} />}
+      {previewsEnabled && appCanPreview(app) && <AppPreview app={app} href={href} isMobile={isMobile} framesAllowed={livePreviewFramesAllowed} />}
 
       <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
         {APP_VERBS.map((verb) => {

@@ -83,6 +83,26 @@ describe("GET /api/agents/:id/logs", () => {
     expect(body).toMatchObject({
       mode: "index",
       sessions: [{ sessionId: "session-one", topic: "Launch plan" }],
+      inFlightTurn: null,
+    });
+  });
+
+  test("reports live in-flight turn state with log reads", async () => {
+    installAgent("agent-log-http");
+    appendEntry("session-one", "entry-one", "user_message", "first request");
+    const managed = agents.get("agent-log-http")!;
+    managed.turnStartedAt = 2000;
+    managed.toolCallTimestamps.set("tool-1", { name: "Bash", startedAt: 2500 });
+    const token = mintAgentToken("agent-log-http", null);
+    const req = bearerRequest("/api/agents/agent-log-http/logs", token);
+
+    const res = await handleAgentsRequest(req, new URL(req.url));
+    const body = await res?.json();
+
+    expect(res?.status).toBe(200);
+    expect(body.inFlightTurn).toEqual({
+      startedAt: 2000,
+      activeTool: { name: "Bash", startedAt: 2500 },
     });
   });
 

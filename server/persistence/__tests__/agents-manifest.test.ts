@@ -22,6 +22,7 @@ describe("buildAgentsManifest", () => {
         modelFamily: "gpt-5.3-codex",
         model: "gpt-5.3-codex",
         effort: "high",
+        inFlightTurn: { startedAt: 2000, activeTool: { startedAt: 2500 } },
         lastSessionId: "session-123",
       },
     ]);
@@ -44,6 +45,7 @@ describe("buildAgentsManifest", () => {
         modelFamily: "gpt-5.3-codex",
         model: "gpt-5.3-codex",
         effort: "high",
+        inFlightTurn: { startedAt: 2000, activeTool: { startedAt: 2500 } },
         lastSessionId: "session-123",
         logDir: expect.stringContaining("/logs/agent-1"),
       },

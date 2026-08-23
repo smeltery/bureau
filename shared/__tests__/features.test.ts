@@ -7,6 +7,7 @@ describe("PRODUCTION_FEATURES", () => {
     expect(PRODUCTION_FEATURES.terminal).toBe(true);
     expect(PRODUCTION_FEATURES.editor).toBe(true);
     expect(PRODUCTION_FEATURES.llmConnected).toBe(true);
+    expect(PRODUCTION_FEATURES.liveAppPreviews).toBe(true);
   });
 
   test("does not embed (no marketing-page chrome stripping)", () => {
@@ -29,6 +30,10 @@ describe("DEMO_FEATURES", () => {
 
   test("runs without an LLM (fake responses)", () => {
     expect(DEMO_FEATURES.llmConnected).toBe(false);
+  });
+
+  test("does not frame synthetic app hosts", () => {
+    expect(DEMO_FEATURES.liveAppPreviews).toBe(false);
   });
 
   test("does not embed by default (the embed page sets it explicitly)", () => {

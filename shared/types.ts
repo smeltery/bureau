@@ -24,6 +24,8 @@ export type {
   AgentSubscriptionUsage,
   AgentSubscriptionWindow,
   KilledAgentSummary,
+  LogInFlightTurn,
+  ManifestInFlightTurn,
   MemoryItem,
   MemoryScope,
   QueuedMessage,

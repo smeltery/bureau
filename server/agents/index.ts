@@ -13,6 +13,8 @@ export {
   getAgentLogs,
   getAgentCommands,
   getAgentContextUsage,
+  getAgentInFlightTurnForLogs,
+  getAgentInFlightTurnForManifest,
   listSessions,
   getCurrentSessionId,
   emitAgentDiff,

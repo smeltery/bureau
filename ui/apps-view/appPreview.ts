@@ -9,7 +9,8 @@ export function appCanPreview(app: Pick<AppWire, "url" | "state">): boolean {
 
 export type AppPreviewPhase = "open-prompt" | "loading" | "frame";
 
-export function appPreviewPhase(openedAt: number | null, now: number, visible: boolean, waitingForReturn: boolean): AppPreviewPhase {
+export function appPreviewPhase(openedAt: number | null, now: number, visible: boolean, waitingForReturn: boolean, framesAllowed = true): AppPreviewPhase {
+  if (!framesAllowed) return "open-prompt";
   if (openedAt === null || now - openedAt >= APP_PREVIEW_OPEN_TTL_MS) return "open-prompt";
   if (!visible || waitingForReturn) return "loading";
   return "frame";
