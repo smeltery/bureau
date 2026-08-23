@@ -1,5 +1,5 @@
 import type { AgentInfo, KilledAgentSummary, SessionInfo, SkillInfo } from "./agent-types.ts";
-import type { AppWire } from "./apps.ts";
+import type { AppListWire } from "./apps.ts";
 import type { CCPluginsState } from "./cc-plugin-types.ts";
 import type { Cronjob, CronjobRun } from "./cronjobs.ts";
 import type { LogEntry } from "./log-types.ts";
@@ -103,9 +103,8 @@ export type ServerMessage =
   | { type: "editor_open_error"; agentId: string; path: string; reason: "not_found" | "not_file" | "binary" | "too_large" | "io_error" | "bad_path"; message?: string; size?: number }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
   | { type: "tasks"; tasks: TaskItem[] }
-  // App registry changes. `app_updated` carries the same wire object the HTTP
-  // caller was answered with, so the office and the caller cannot drift.
-  | { type: "app_updated"; app: AppWire }
+  // App registry changes. `app_updated` carries the recipient's list projection.
+  | { type: "app_updated"; app: AppListWire }
   | { type: "app_removed"; name: string }
   | { type: "room_created"; room: RoomWire }
   | { type: "room_closed"; roomId: string }

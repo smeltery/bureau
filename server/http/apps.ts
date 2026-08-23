@@ -41,12 +41,13 @@
 
 import { validateCwd } from "../agents/session/paths.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
-import { broadcast } from "../ws/broadcast.ts";
+import { browsers } from "../ws/broadcast.ts";
 import { APP_LOG_LINES_DEFAULT, type AppRuntime } from "../apps/supervisor.ts";
 import { defaultAppsDeps } from "./apps-deps.ts";
 import type { AppsDeps } from "./apps-seam.ts";
 import {
   announced,
+  appToListWire,
   appAttributionFor,
   appToWire,
   json,
@@ -55,12 +56,15 @@ import {
   readAppJson,
   renderAppError,
   resolveAppsIdentity,
+  manageableApp,
   visibleApp,
   visibleApps,
   type AppsIdentity,
 } from "./app-route-helpers.ts";
 import { errMessage } from "../../shared/errors.ts";
-import type { AppLogsRes, AppRecord, AppWire } from "../../shared/apps.ts";
+import type { AppListWire, AppLogsRes, AppRecord, AppWire } from "../../shared/apps.ts";
+import { getWsUser } from "../users.ts";
+import type { ServerMessage } from "../../shared/types.ts";
 
 export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResult, deps: AppsDeps = defaultAppsDeps): Promise<Response | null> {
   const parts = url.pathname.split("/").filter(Boolean);
@@ -75,6 +79,7 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
   // Bound to this office's address rule, so no call site can build a wire
   // object for one app carrying another's URL — or forget the field.
   const wireOf = (record: AppRecord, runtime: AppRuntime | undefined): AppWire => appToWire(record, runtime, deps.publicUrl(record));
+  const listWireOf = (record: AppRecord, runtime: AppRuntime | undefined): AppListWire => appToListWire(record, runtime, deps.publicUrl(record), identity);
 
   try {
     if (parts.length === 2 && req.method === "GET") {
@@ -82,13 +87,13 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
       // ONE state lookup for the whole list. A per-app lookup would be a
       // subprocess per app per render, and the Apps tab polls.
       const runtimes = deps.states(visible.map((a) => a.name));
-      return json(200, { apps: visible.map((a) => wireOf(a, runtimes.get(a.name))) });
+      return json(200, { apps: visible.map((a) => listWireOf(a, runtimes.get(a.name))) });
     }
 
     if (parts.length === 3 && req.method === "GET") {
       const record = visibleApp(deps.registry.get(parts[2]!), identity);
       if (!record) return jsonError(404, "not_found", "no app has that name");
-      return json(200, wireOf(record, deps.states([record.name]).get(record.name)));
+      return json(200, listWireOf(record, deps.states([record.name]).get(record.name)));
     }
 
     if (parts.length === 2 && req.method === "POST") {
@@ -105,19 +110,19 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
     // escapes to renderAppError, so nothing is announced — a verb that failed
     // changed nothing to tell anyone about.
     if (parts.length === 4 && req.method === "POST" && parts[3] !== "logs") {
-      const record = visibleApp(deps.registry.get(parts[2]!), identity);
+      const record = manageableApp(deps.registry.get(parts[2]!), identity);
       if (!record) return jsonError(404, "not_found", "no app has that name");
       const verb = parts[3] as "start" | "stop" | "restart";
       if (verb === "start") deps.start(record.name);
       else if (verb === "stop") deps.stop(record.name);
       else deps.restart(record.name);
       const wire = wireOf(record, deps.states([record.name]).get(record.name));
-      announced(record.name, () => broadcast({ type: "app_updated", app: wire }));
+      announced(record.name, () => broadcastAppUpdated(record, deps.states([record.name]).get(record.name), deps));
       return json(200, wire);
     }
 
     if (parts.length === 4 && parts[3] === "logs" && req.method === "GET") {
-      const record = visibleApp(deps.registry.get(parts[2]!), identity);
+      const record = manageableApp(deps.registry.get(parts[2]!), identity);
       if (!record) return jsonError(404, "not_found", "no app has that name");
       // Validated rather than clamped silently: `lines=banana` and `lines=-5`
       // are caller mistakes, and quietly answering with the default hides the
@@ -139,7 +144,7 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
     }
 
     if (parts.length === 3 && req.method === "DELETE") {
-      const record = visibleApp(deps.registry.get(parts[2]!), identity);
+      const record = manageableApp(deps.registry.get(parts[2]!), identity);
       if (!record) return jsonError(404, "not_found", "no app has that name");
       // Teardown FIRST: throws if the app survived, and the record below is
       // then never removed — its name and port stay spoken for, and a retried
@@ -160,7 +165,7 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
       // already happened.
       deps.limiter.forget(record.name);
       // AFTER the removal committed, from the record read before teardown.
-      announced(record.name, () => broadcast({ type: "app_removed", name: record.name }));
+      announced(record.name, () => broadcastAppRemoved(record));
       return new Response(null, { status: 204, headers: JSON_HEADERS });
     }
   } catch (err) {
@@ -220,7 +225,7 @@ async function registerApp(req: Request, identity: AppsIdentity, deps: AppsDeps,
     // are told the same thing by construction. Built after install, so its
     // state reflects whether the app actually came up.
     const wire = wireOf(record, deps.states([record.name]).get(record.name));
-    announced(record.name, () => broadcast({ type: "app_updated", app: wire }));
+    announced(record.name, () => broadcastAppUpdated(record, deps.states([record.name]).get(record.name), deps));
     return json(201, wire);
   } catch (err) {
     return renderAppError(err);
@@ -289,8 +294,33 @@ async function updateApp(req: Request, name: string, identity: AppsIdentity, dep
     }
   }
   const wire = wireOf(after, deps.states([after.name]).get(after.name));
-  announced(after.name, () => broadcast({ type: "app_updated", app: wire }));
+  announced(after.name, () => broadcastAppUpdated(after, deps.states([after.name]).get(after.name), deps));
   return json(200, wire);
 }
 
 const APP_SUBROUTES: ReadonlySet<string> = new Set(["start", "stop", "restart", "logs"]);
+
+function browserIdentity(ws: typeof browsers extends Set<infer T> ? T : never): AppsIdentity {
+  const user = getWsUser(ws);
+  if (!user) return { scope: "loopback" };
+  return { scope: "user", userId: user.id, username: user.name, role: user.role };
+}
+
+function sendAppMessage(ws: typeof browsers extends Set<infer T> ? T : never, msg: ServerMessage): void {
+  ws.send(JSON.stringify(msg));
+}
+
+function broadcastAppUpdated(record: AppRecord, runtime: AppRuntime | undefined, deps: AppsDeps): void {
+  for (const ws of browsers) {
+    const identity = browserIdentity(ws);
+    if (!visibleApp(record, identity)) continue;
+    sendAppMessage(ws, { type: "app_updated", app: appToListWire(record, runtime, deps.publicUrl(record), identity) });
+  }
+}
+
+function broadcastAppRemoved(record: AppRecord): void {
+  for (const ws of browsers) {
+    if (!visibleApp(record, browserIdentity(ws))) continue;
+    sendAppMessage(ws, { type: "app_removed", name: record.name });
+  }
+}

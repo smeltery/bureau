@@ -2,7 +2,7 @@
 // the facts a human wants at a glance, the verbs, and the log pane when open.
 
 import { useEffect, useRef, useState } from "react";
-import type { AppState as AppRunState, AppWire } from "../../shared/apps.ts";
+import type { AppListWire, AppState as AppRunState } from "../../shared/apps.ts";
 import { APP_PREVIEW_OPEN_TTL_MS, getAppPreviewOpenedAt, markAppPreviewOpened } from "../device-settings.ts";
 import { appHref, appLinkLabel } from "./appLinks.ts";
 import { appCanPreview, appPreviewPhase, BACKGROUND_OPEN_FALLBACK_MS } from "./appPreview.ts";
@@ -39,7 +39,7 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppWire, "name">; href: string; isMobile: boolean; framesAllowed: boolean }) {
+function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppListWire, "name">; href: string; isMobile: boolean; framesAllowed: boolean }) {
   const hostRef = useRef<HTMLAnchorElement>(null);
   const [visible, setVisible] = useState(() => !("IntersectionObserver" in window));
   const [openedAt, setOpenedAt] = useState(() => getAppPreviewOpenedAt(href));
@@ -161,7 +161,7 @@ export function AppCard({
   onToggleLogs,
   onDelete,
 }: {
-  app: AppWire;
+  app: AppListWire;
   isBusy: boolean;
   isMobile: boolean;
   logOpen: boolean;
@@ -190,40 +190,44 @@ export function AppCard({
       <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11 }}>
         <Meta label="port" value={String(app.port)} />
         <Meta label="restarts" value={String(app.restartCount)} />
-        <Meta label="created by" value={app.createdBy} />
-        {app.username && <Meta label="owner" value={app.username} />}
+        {app.createdBy && <Meta label="created by" value={app.createdBy} />}
+        {app.canManage && app.username && <Meta label="owner" value={app.username} />}
       </div>
 
-      <div style={{ ...appMonoPane, marginTop: 6, padding: 0, background: "transparent", color: "var(--text-muted)" }}>
-        {app.command}
-        <span style={{ opacity: 0.7 }}> in {app.cwd}</span>
-      </div>
+      {app.canManage && (
+        <div style={{ ...appMonoPane, marginTop: 6, padding: 0, background: "transparent", color: "var(--text-muted)" }}>
+          {app.command}
+          <span style={{ opacity: 0.7 }}> in {app.cwd}</span>
+        </div>
+      )}
 
       {/* Presence only. startError is in-memory on the server, so its absence
           proves nothing and this never renders an all-clear — `state` is the
           durable signal. */}
-      {app.startError && <div style={{ ...appMonoPane, marginTop: 8, color: "var(--red)" }}>{app.startError}</div>}
+      {app.canManage && app.startError && <div style={{ ...appMonoPane, marginTop: 8, color: "var(--red)" }}>{app.startError}</div>}
 
       {previewsEnabled && appCanPreview(app) && <AppPreview app={app} href={href} isMobile={isMobile} framesAllowed={livePreviewFramesAllowed} />}
 
-      <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {APP_VERBS.map((verb) => {
-          const inert = isBusy || verbInert(verb, app.state);
-          return (
-            <button key={verb} title={VERB_TITLES[verb]} disabled={inert} onClick={() => onAct(verb)} style={appBtnStyle(false, inert)}>
-              {verb}
-            </button>
-          );
-        })}
-        <button title="Show the app's recent output" disabled={isBusy} onClick={onToggleLogs} style={appBtnStyle(false, isBusy)}>
-          {logOpen ? "hide log" : "log"}
-        </button>
-        <button title="Remove the app" disabled={isBusy} onClick={onDelete} style={appBtnStyle(true, isBusy)}>
-          delete
-        </button>
-      </div>
+      {app.canManage && (
+        <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {APP_VERBS.map((verb) => {
+            const inert = isBusy || verbInert(verb, app.state);
+            return (
+              <button key={verb} title={VERB_TITLES[verb]} disabled={inert} onClick={() => onAct(verb)} style={appBtnStyle(false, inert)}>
+                {verb}
+              </button>
+            );
+          })}
+          <button title="Show the app's recent output" disabled={isBusy} onClick={onToggleLogs} style={appBtnStyle(false, isBusy)}>
+            {logOpen ? "hide log" : "log"}
+          </button>
+          <button title="Remove the app" disabled={isBusy} onClick={onDelete} style={appBtnStyle(true, isBusy)}>
+            delete
+          </button>
+        </div>
+      )}
 
-      {logOpen && (
+      {app.canManage && logOpen && (
         <pre
           style={{
             ...appMonoPane,

@@ -3,7 +3,7 @@
 // in, and the order the rows come in. Pure, and extracted from the view so they
 // can be covered without a React render harness.
 
-import type { AppState as AppRunState, AppWire } from "../../shared/apps.ts";
+import type { AppListWire, AppState as AppRunState } from "../../shared/apps.ts";
 
 export const APP_VERBS = ["start", "stop", "restart"] as const;
 export type AppVerb = (typeof APP_VERBS)[number];
@@ -52,6 +52,6 @@ export function stateIsHollow(state: AppRunState): boolean {
 }
 
 /** By name, which is the app's identity and the only stable order a list has. */
-export function sortApps(apps: readonly AppWire[]): AppWire[] {
+export function sortApps(apps: readonly AppListWire[]): AppListWire[] {
   return [...apps].sort((a, b) => a.name.localeCompare(b.name));
 }

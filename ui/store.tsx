@@ -19,7 +19,7 @@ import type {
   PresenceInfo,
   UserRecord,
 } from "../shared/types.ts";
-import type { AppWire } from "../shared/apps.ts";
+import type { AppListWire } from "../shared/apps.ts";
 import type { UpdateStatusWire } from "../shared/update-types.ts";
 import { type SidePanel } from "./store-side-panels.ts";
 import type { LogsReplay } from "./store-replay.ts";
@@ -76,7 +76,7 @@ export interface AppState {
   // and kept fresh by the app_updated / app_removed deltas. full_state does
   // NOT carry apps and must never clear this slice — AppsView re-fetches on
   // hydrationEpoch instead.
-  apps: AppWire[];
+  apps: AppListWire[];
   appsLoaded: boolean;
   // Bumped by every app delta. A list GET is a snapshot of the moment it was
   // ISSUED, so a slow one can land after a delta that supersedes it and
@@ -142,8 +142,8 @@ export type Action =
   | { type: "tasks"; tasks: TaskItem[] }
   // The Apps tab's list GET result (apps_loaded, local) and the server's app
   // deltas (app_updated / app_removed, straight off the wire).
-  | { type: "apps_loaded"; apps: AppWire[]; revision: number }
-  | { type: "app_updated"; app: AppWire }
+  | { type: "apps_loaded"; apps: AppListWire[]; revision: number }
+  | { type: "app_updated"; app: AppListWire }
   | { type: "app_removed"; name: string }
   | { type: "set_current_room"; room: number }
   | { type: "room_created"; room: RoomWire }

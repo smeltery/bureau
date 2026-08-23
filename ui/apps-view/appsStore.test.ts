@@ -26,6 +26,7 @@ function appWire(name: string, over: Partial<AppWire> = {}): AppWire {
     createdAt: 1,
     state: "running",
     restartCount: 0,
+    canManage: true,
     ...over,
   };
 }

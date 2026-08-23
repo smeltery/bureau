@@ -34,6 +34,13 @@ type RoomTabItemProps = {
   startEditing: (index: number) => void;
 };
 
+export function roomActivityDotColor(agents: AgentInfo[], hasAttention: boolean, isActive: boolean): "var(--green)" | "var(--purple)" | null {
+  if (isActive) return null;
+  const hasWorkingAgent = agents.some((agent) => agent.state === "thinking" || agent.state === "tool_executing");
+  if (hasWorkingAgent) return "var(--green)";
+  return hasAttention ? "var(--purple)" : null;
+}
+
 export function RoomTabItem({
   agents,
   cancelEdit,
@@ -67,6 +74,7 @@ export function RoomTabItem({
   const isEmpty = agents.length === 0;
   const isDragging = dragFrom === index;
   const isDropTarget = dragOver === index;
+  const activityDotColor = roomActivityDotColor(agents, hasAttention, isActive);
 
   return (
     <div
@@ -154,7 +162,7 @@ export function RoomTabItem({
         >
           {displayName}
           <span style={{ color: "var(--text-hint)", fontSize: 9, marginLeft: 4 }}>{agents.length}/8</span>
-          {hasAttention && !isActive && (
+          {activityDotColor && (
             <span
               style={{
                 position: "absolute",
@@ -163,8 +171,8 @@ export function RoomTabItem({
                 width: 5,
                 height: 5,
                 borderRadius: "50%",
-                background: "var(--purple)",
-                boxShadow: "0 0 4px var(--purple)",
+                background: activityDotColor,
+                boxShadow: `0 0 4px ${activityDotColor}`,
               }}
             />
           )}

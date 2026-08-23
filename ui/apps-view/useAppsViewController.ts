@@ -2,7 +2,7 @@
 // delete confirmation. The view below it is markup only.
 
 import { useEffect, useRef, useState } from "react";
-import type { AppWire } from "../../shared/apps.ts";
+import type { AppListWire } from "../../shared/apps.ts";
 import { useAppState, useDispatch } from "../store.tsx";
 import { getAppPreviews, pruneAppPreviewOpens, setAppPreviews } from "../device-settings.ts";
 import { controlApp, deleteApp, listApps, readAppLog } from "./appsApi.ts";
@@ -15,7 +15,7 @@ export function useAppsViewController() {
   const dispatch = useDispatch();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<AppWire | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AppListWire | null>(null);
   const [previewsEnabled, setPreviewsEnabled] = useState(getAppPreviews);
   const [openLogs, setOpenLogs] = useState<string | null>(null);
   // Moves when the USER changes what the log pane is showing — opening a row,
@@ -121,7 +121,7 @@ export function useAppsViewController() {
     }
   }
 
-  async function doDelete(app: AppWire) {
+  async function doDelete(app: AppListWire) {
     setBusy(`${app.name}:delete`);
     setError(null);
     try {

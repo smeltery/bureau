@@ -3,7 +3,7 @@
 // through the websocket — the deltas the server broadcasts are what keep every
 // other open tab in step.
 
-import type { AppLogsRes, AppWire } from "../../shared/apps.ts";
+import type { AppListWire, AppLogsRes, AppWire } from "../../shared/apps.ts";
 import type { AppVerb } from "./appVerbs.ts";
 
 /**
@@ -41,8 +41,8 @@ async function appsFetch<T>(method: string, path: string): Promise<T> {
 }
 
 /** The visible apps. The route answers `{apps}`; callers want the list. */
-export async function listApps(): Promise<AppWire[]> {
-  const body = await appsFetch<{ apps?: AppWire[] }>("GET", "/api/apps");
+export async function listApps(): Promise<AppListWire[]> {
+  const body = await appsFetch<{ apps?: AppListWire[] }>("GET", "/api/apps");
   return body?.apps ?? [];
 }
 

@@ -97,7 +97,25 @@ export interface AppWire extends AppRecord {
   // present exactly when a URL exists, absent otherwise, the same rule the
   // app's own BUREAU_APP_URL follows.
   url?: string;
+  canManage: true;
 }
+
+export type AppListWire =
+  | AppWire
+  | {
+      name: string;
+      hostLabel: string;
+      hostGen: number;
+      port: number;
+      description?: string;
+      createdBy?: string;
+      createdByAgentId?: string;
+      createdAt: number;
+      state: AppState;
+      restartCount: number;
+      url?: string;
+      canManage: false;
+    };
 
 // --- wire shapes ------------------------------------------------------------
 // The wire contract for the app registry (docs/features/agent-apps.md).

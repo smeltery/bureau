@@ -9,7 +9,7 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import { getUserById } from "../users.ts";
 import { AppRegistryError } from "../apps/registry.ts";
 import { AppSupervisorError, UNKNOWN_RUNTIME, type AppRuntime } from "../apps/supervisor.ts";
-import type { AppErrorCode, AppRecord, AppWire } from "../../shared/apps.ts";
+import type { AppErrorCode, AppListWire, AppRecord, AppWire } from "../../shared/apps.ts";
 
 export const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -51,6 +51,27 @@ export function appToWire(record: AppRecord, runtime: AppRuntime | undefined, pu
     // `!== null`, not truthiness: the rule is present-iff-there-is-a-URL, and
     // an empty string would be a URL-shaped answer meaning "none".
     ...(publicUrl !== null ? { url: publicUrl } : {}),
+    canManage: true,
+  };
+}
+
+export function appToListWire(record: AppRecord, runtime: AppRuntime | undefined, publicUrl: string | null, identity: AppsIdentity): AppListWire {
+  const full = appToWire(record, runtime, publicUrl);
+  if (canManageApp(record, identity)) return full;
+  const { name, hostLabel, hostGen, port, description, createdBy, createdByAgentId, createdAt, state, restartCount, url } = full;
+  return {
+    name,
+    hostLabel,
+    hostGen,
+    port,
+    ...(description !== undefined ? { description } : {}),
+    createdBy,
+    ...(createdByAgentId !== undefined ? { createdByAgentId } : {}),
+    createdAt,
+    state,
+    restartCount,
+    ...(url !== undefined ? { url } : {}),
+    canManage: false,
   };
 }
 
@@ -104,7 +125,7 @@ function seesAll(identity: AppsIdentity): boolean {
 export function visibleApps(all: AppRecord[], identity: AppsIdentity): AppRecord[] {
   if (seesAll(identity)) return all;
   const userId = identity.scope === "loopback" ? null : identity.userId;
-  return all.filter((a) => a.userId !== null && a.userId === userId);
+  return all.filter((a) => canManageApp(a, identity) || canReadAppByCreatorRoom(a, identity));
 }
 
 // A record the caller may not see is reported as absent, not as forbidden: the
@@ -112,6 +133,29 @@ export function visibleApps(all: AppRecord[], identity: AppsIdentity): AppRecord
 export function visibleApp(record: AppRecord | null, identity: AppsIdentity): AppRecord | null {
   if (!record) return null;
   return visibleApps([record], identity).length > 0 ? record : null;
+}
+
+export function manageableApp(record: AppRecord | null, identity: AppsIdentity): AppRecord | null {
+  if (!record || !canManageApp(record, identity)) return null;
+  return record;
+}
+
+export function canManageApp(record: AppRecord, identity: AppsIdentity): boolean {
+  if (seesAll(identity)) return true;
+  if (identity.scope === "loopback") return true;
+  return record.userId !== null && record.userId === identity.userId;
+}
+
+function canReadAppByCreatorRoom(record: AppRecord, identity: AppsIdentity): boolean {
+  if (!record.createdByAgentId || identity.scope === "loopback") return false;
+  const userId = identity.userId;
+  if (!userId) return false;
+  const user = getUserById(userId);
+  if (!user) return false;
+  const creator = AgentManager.getAgent(record.createdByAgentId);
+  if (!creator) return false;
+  const roomId = AgentManager.getRooms()[creator.room]?.id ?? creator.roomId;
+  return !!roomId && (user.role === "owner" || user.allowedRooms.includes(roomId));
 }
 
 // Announce, and never let the telling of it change what was told. Every
