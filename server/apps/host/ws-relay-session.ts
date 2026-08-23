@@ -40,7 +40,7 @@ export interface RelaySession {
   // Held for the life of the socket. The browser holds this value too, and the
   // office already holds its hash; nothing new is exposed by keeping it.
   token: string | null;
-  app: Pick<AppRecord, "hostLabel" | "hostGen" | "userId">;
+  app: Pick<AppRecord, "hostLabel" | "hostGen" | "userId" | "createdByAgentId">;
   registry: AppRegistry;
 }
 

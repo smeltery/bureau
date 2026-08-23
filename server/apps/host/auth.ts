@@ -35,9 +35,11 @@
 
 import type { AppRecord } from "../../../shared/apps.ts";
 import { buildPublicOrigin, readSessionCookies, sessionCookieMigrationHeaders, type SessionLookup } from "../../auth/auth.ts";
+import * as AgentManager from "../../agent-manager.ts";
+import { canSeeRoom, getUserById } from "../../users.ts";
 import { appRegistry as productionRegistry, type AppRegistry } from "../registry.ts";
 import { APP_AUTH_PATH, APP_MINT_PATH, appCookieClearLine, appCookieLine, readAppCookie } from "./auth-cookie.ts";
-import { mayInitiateHandshake, mayReachApp, validateReturnPath } from "./auth-permit.ts";
+import { mayInitiateHandshake, mayReachApp, validateReturnPath, type AppViewer } from "./auth-permit.ts";
 import { mintAppCode, officeSessionByHash, redeemAppCode, startAppSession, validateAppSession } from "./auth-store.ts";
 import { AUTH_REQUIRED_BODY, BAD_REQUEST_BODY, MINT_LIMITED_BODY, SIGN_IN_FAILED_BODY, handshake, handshakeRedirect, neutralNotFound } from "./responses.ts";
 
@@ -47,6 +49,18 @@ import { AUTH_REQUIRED_BODY, BAD_REQUEST_BODY, MINT_LIMITED_BODY, SIGN_IN_FAILED
 export { APP_AUTH_PATH, APP_COOKIE_NAME, APP_MINT_PATH, APP_RESERVED_PATH, appCookieClearLine, readAppCookie } from "./auth-cookie.ts";
 export { mayInitiateHandshake, mayReachApp, validateReturnPath, type AppViewer } from "./auth-permit.ts";
 export { validateAppSession } from "./auth-store.ts";
+
+function viewerForApp(app: Pick<AppRecord, "userId" | "createdByAgentId">, session: Pick<SessionLookup, "userId" | "role">): AppViewer {
+  if (session.role === "owner") return { userId: session.userId, role: session.role };
+  const creator = app.createdByAgentId ? AgentManager.getAgent(app.createdByAgentId) : undefined;
+  const roomId = creator ? (AgentManager.getRooms()[creator.room]?.id ?? creator.roomId) : undefined;
+  const user = getUserById(session.userId);
+  return {
+    userId: session.userId,
+    role: session.role,
+    hasCreatorRoomAccess: !!roomId && !!user && canSeeRoom(user, roomId),
+  };
+}
 
 // --- office side: GET /auth/app?app=<label>&r=<path> -------------------------
 
@@ -101,11 +115,12 @@ export function handleAppMintRequest(req: Request, url: URL, session: SessionLoo
   const registry = opts.registry ?? productionRegistry;
   const app = liveAppByLabel(registry, labelParam);
   if (app === null) return neutralNotFound();
-  // Only the app's owner and office owners may open an app. A refusal is the
-  // SAME 404 an unknown label gets: that another user has an app called `hello`
-  // is not this caller's business, and a distinct 403 would turn the mint
-  // endpoint into a label oracle for every signed-in member.
-  if (!mayReachApp(app, { userId: session.userId, role: session.role })) return neutralNotFound();
+  // Use the same audience as /api/apps: owners, the app owner, and users sharing
+  // the live creator's room. A refusal is the SAME 404 an unknown label gets:
+  // that another user has an app called `hello` is not this caller's business,
+  // and a distinct 403 would turn the mint endpoint into a label oracle for
+  // every signed-in member.
+  if (!mayReachApp(app, viewerForApp(app, session))) return neutralNotFound();
 
   const returnPath = validateReturnPath(rParam);
   if (returnPath === null) return handshake(400, BAD_REQUEST_BODY);
@@ -162,7 +177,7 @@ export function handleAppAuthRedeem(req: Request, ctx: AppHostContext): Response
   // so a user demoted or an app re-owned in that window redeems nothing.
   const office = officeSessionByHash(record.officeSessionHash);
   if (office === null) return handshake(400, SIGN_IN_FAILED_BODY);
-  if (!mayReachApp(ctx.app, { userId: office.userId, role: office.role })) {
+  if (!mayReachApp(ctx.app, viewerForApp(ctx.app, office))) {
     return handshake(400, SIGN_IN_FAILED_BODY);
   }
 

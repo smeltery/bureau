@@ -9,10 +9,10 @@
 //   - Only a request that could FINISH the handshake is sent into it, and the
 //     one permissive arm (no Fetch Metadata at all) is deliberate rather than an
 //     oversight — so a partial signal must not accidentally fall into it.
-//   - The PERMIT TABLE: the app's owner and office owners, nobody else, and an
-//     unowned app is not a member's to open. Same rule the /api/apps routes use
-//     for visibility, which is the invariant that keeps a hostname from being a
-//     back door around it.
+//   - The PERMIT TABLE: the app's owner, office owners, and users sharing the
+//     live creator's room. Same rule the /api/apps routes use for visibility,
+//     which is the invariant that keeps a hostname from being a back door around
+//     it.
 //
 // No server, no clock, no I/O.
 
@@ -146,6 +146,11 @@ describe("mayReachApp: the permit table", () => {
 
   it("refuses another member, whose app it is not", () => {
     expect(mayReachApp(aliceApp, bob)).toBe(false);
+  });
+
+  it("permits another member when the live creator room is visible", () => {
+    expect(mayReachApp(aliceApp, { ...bob, hasCreatorRoomAccess: true })).toBe(true);
+    expect(mayReachApp(unowned, { ...bob, hasCreatorRoomAccess: true })).toBe(true);
   });
 
   it("permits an office owner, whoever's app it is", () => {

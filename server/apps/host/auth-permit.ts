@@ -19,20 +19,24 @@ import { MAX_RETURN_PATH_LENGTH } from "./auth-cookie.ts";
 export interface AppViewer {
   userId: string;
   role: UserRole;
+  hasCreatorRoomAccess?: boolean;
 }
 
-// An app hostname is reachable by the app's OWNER and by office owners, and by
-// nobody else. The decision table, in the order the code below asks it:
+// An app hostname is reachable by office owners, the app's owner, and members
+// who can see the live creator agent's room. The decision table, in the order
+// the code below asks it:
 //
 //   no live office session          -> NO   (there is no identity to permit)
 //   role === "owner"                -> YES  (office owners reach every app)
 //   app.userId === viewer.userId    -> YES  (the app's own owner)
-//   app.userId is some other user   -> NO
+//   creator room is visible         -> YES  (launch-only room share)
+//   otherwise                       -> NO
 //   app.userId === null             -> NO for a member; YES only via the owner
 //                                     arm above. An unowned app is one
 //                                     registered from a loopback shell, so it
-//                                     belongs to the box rather than to a
-//                                     member.
+//                                     belongs to the box rather than to a member
+//                                     unless it still has a live room-sharing
+//                                     creator.
 //
 // This is the same rule the /api/apps routes apply when deciding which apps a
 // caller may SEE (`visibleApps`: office owners and the box owner see all,
@@ -51,7 +55,8 @@ export interface AppViewer {
 export function mayReachApp(app: Pick<AppRecord, "userId">, viewer: AppViewer | null): boolean {
   if (viewer === null) return false;
   if (viewer.role === "owner") return true;
-  return app.userId !== null && app.userId === viewer.userId;
+  if (app.userId !== null && app.userId === viewer.userId) return true;
+  return viewer.hasCreatorRoomAccess === true;
 }
 
 // --- where a browser may be sent back to ------------------------------------

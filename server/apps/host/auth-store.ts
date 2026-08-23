@@ -19,6 +19,8 @@
 import type { AppRecord } from "../../../shared/apps.ts";
 import type { UserRole } from "../../../shared/types.ts";
 import { revalidateByHash } from "../../auth/auth.ts";
+import * as AgentManager from "../../agent-manager.ts";
+import { canSeeRoom, getUserById } from "../../users.ts";
 import {
   APP_CODE_TTL_MS,
   APP_MINT_MAX_PER_WINDOW,
@@ -237,7 +239,7 @@ export function startAppSession(
 // on EVERY request, and the permit decision is re-asked against the app that is
 // live NOW — so a sign-out, a revoke, an expiry, a deleted user or a demotion
 // closes the app immediately.
-export function validateAppSession(rawCookie: string | null, ctx: { app: Pick<AppRecord, "hostLabel" | "hostGen" | "userId">; now?: number }): boolean {
+export function validateAppSession(rawCookie: string | null, ctx: { app: Pick<AppRecord, "hostLabel" | "hostGen" | "userId" | "createdByAgentId">; now?: number }): boolean {
   // Present-but-empty lands here as `""` and is refused like any other value that
   // is not a live token.
   if (!isTokenShaped(rawCookie)) return false;
@@ -260,7 +262,14 @@ export function validateAppSession(rawCookie: string | null, ctx: { app: Pick<Ap
   }
   // A demotion is NOT orphaning: the office session is still live and may regain
   // access to other apps, so the row stays and the answer is simply no.
-  return mayReachApp(ctx.app, { userId: office.userId, role: office.role });
+  const creator = ctx.app.createdByAgentId ? AgentManager.getAgent(ctx.app.createdByAgentId) : undefined;
+  const roomId = creator ? (AgentManager.getRooms()[creator.room]?.id ?? creator.roomId) : undefined;
+  const user = getUserById(office.userId);
+  return mayReachApp(ctx.app, {
+    userId: office.userId,
+    role: office.role,
+    hasCreatorRoomAccess: !!roomId && !!user && canSeeRoom(user, roomId),
+  });
 }
 
 // --- test-only seams --------------------------------------------------------

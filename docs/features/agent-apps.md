@@ -156,7 +156,10 @@ subsystem it may not even use.
 
 Ownership comes from the caller's identity, never the body: an app belongs to
 the registering agent's _manager_. Office owners see every app; members see the
-apps their user owns; a loopback shell caller sees everything and owns nothing.
+apps their user owns, plus launch-only rows for apps whose live creator agent is
+in a room they can access; a loopback shell caller sees everything and owns
+nothing. Logs, command, working directory, and lifecycle controls stay limited
+to app owners and office owners.
 
 Environment variables an app receives: `PORT`, `BUREAU_APP_NAME`,
 `BUREAU_APP_DATA_DIR`, `BUREAU_APP_TOKEN`, and — only where the office has app
@@ -209,13 +212,13 @@ is the same neutral 404 an unknown label gets, so no surface here is an oracle
 for whether an app exists or who owns it.
 
 Who may reach an app is the rule the `/api/apps` routes already apply to which
-apps a caller may _see_: office owners reach every app, everyone else reaches
-the apps their user owns. **This is a deliberate divergence from the upstream
-design, which lets any signed-in office user reach any app.** An app a member
-cannot see in the Apps tab should not be one they can open by typing its
-hostname, and a hostname is guessable in a way an API listing is not. The permit
-is re-asked on every request, so an owner demoted to member loses every app that
-was not theirs at once rather than when a cookie expires.
+apps a caller may _see_: office owners reach every app, app owners reach their
+own apps, and members sharing the live creator agent's room can launch the app
+without gaining management access. An app a member cannot see in the Apps tab
+should not be one they can open by typing its hostname, and a hostname is
+guessable in a way an API listing is not. The permit is re-asked on every
+request, so a room grant, demotion, creator move, or creator kill changes app
+reachability without waiting for a cookie to expire.
 
 **Certificates** (`server/apps/tls-ask.ts`) are gated for a terminator that
 terminates TLS on demand under the wildcard. The endpoint is a live _access_
