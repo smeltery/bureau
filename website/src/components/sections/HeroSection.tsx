@@ -42,7 +42,7 @@ export function HeroSection({ onLearnMore }: HeroSectionProps) {
               Get Started
             </Link>
             <a
-              href="https://github.com/dotbrains/bureau"
+              href="https://github.com/smeltery/bureau"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-distill-purple bg-dark-gray px-6 py-3 text-base font-semibold text-cream transition-all hover:border-distill-lavender hover:bg-dark-slate sm:px-8 sm:py-4 sm:text-lg"

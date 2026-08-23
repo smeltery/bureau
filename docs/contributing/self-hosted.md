@@ -62,7 +62,7 @@ sudo apt-get update
 sudo apt-get install -y git curl ca-certificates build-essential python3 make g++ nodejs
 curl -fsSL https://bun.sh/install | bash
 exec "$SHELL" -l
-git clone https://github.com/dotbrains/bureau.git ~/bureau
+git clone https://github.com/smeltery/bureau.git ~/bureau
 cd ~/bureau
 bun install
 bun run build:ui

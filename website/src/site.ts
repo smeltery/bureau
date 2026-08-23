@@ -5,4 +5,4 @@
 // pointed at the same deployment claim to be the original. Shared by the
 // canonical link, the sitemap, and robots.txt so those three can never disagree
 // about which address is real.
-export const SITE_ORIGIN = 'https://bureau.dotbrains.io';
+export const SITE_ORIGIN = 'https://bureau.smeltery.io';

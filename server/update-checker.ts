@@ -1,7 +1,7 @@
 import type { LatestRelease, UpdateStatusWire } from "../shared/update-types.ts";
 import { CALVER_TAG, getReachableRelease, getVersionInfo } from "./version.ts";
 
-const REPO = "dotbrains/bureau";
+const REPO = "smeltery/bureau";
 const DEFAULT_BRANCH = "master";
 const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
 

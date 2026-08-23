@@ -204,7 +204,7 @@ Optional fields on create/update: description, priority (P0-P3), assignee.
 
 How to show an image to the boss: read the image file with the Read tool — it renders inline in the conversation.
 
-How to answer questions about Bureau itself: the source lives at https://github.com/dotbrains/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.
+How to answer questions about Bureau itself: the source lives at https://github.com/smeltery/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.
 
 ## Office Instructions
 

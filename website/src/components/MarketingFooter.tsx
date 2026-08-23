@@ -17,7 +17,7 @@ export function MarketingFooter() {
             </div>
             <p className="mb-4 text-sm leading-relaxed text-cream/60">Your local-first agent office for orchestrating multiple Claude Code sessions from one browser.</p>
             <div className="flex items-center gap-3">
-              <a href="https://github.com/dotbrains/bureau" className="text-cream/60 transition-colors hover:text-cream" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+              <a href="https://github.com/smeltery/bureau" className="text-cream/60 transition-colors hover:text-cream" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
                 <Github className="h-5 w-5" />
               </a>
             </div>
@@ -52,7 +52,7 @@ export function MarketingFooter() {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="https://github.com/dotbrains/bureau#readme"
+                  href="https://github.com/smeltery/bureau#readme"
                   className="inline-flex items-center gap-1.5 text-sm text-cream/70 transition-colors hover:text-cream"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -63,7 +63,7 @@ export function MarketingFooter() {
               </li>
               <li>
                 <a
-                  href="https://github.com/dotbrains/bureau/blob/master/articles/punching-in-building-an-office-for-ai-agents.md"
+                  href="https://github.com/smeltery/bureau/blob/master/articles/punching-in-building-an-office-for-ai-agents.md"
                   className="inline-flex items-center gap-1.5 text-sm text-cream/70 transition-colors hover:text-cream"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -74,7 +74,7 @@ export function MarketingFooter() {
               </li>
               <li>
                 <a
-                  href="https://github.com/dotbrains/bureau/blob/master/CLAUDE.md"
+                  href="https://github.com/smeltery/bureau/blob/master/CLAUDE.md"
                   className="inline-flex items-center gap-1.5 text-sm text-cream/70 transition-colors hover:text-cream"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -90,7 +90,7 @@ export function MarketingFooter() {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="https://github.com/dotbrains/bureau"
+                  href="https://github.com/smeltery/bureau"
                   className="inline-flex items-center gap-1.5 text-sm text-cream/70 transition-colors hover:text-cream"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -101,7 +101,7 @@ export function MarketingFooter() {
               </li>
               <li>
                 <a
-                  href="https://github.com/dotbrains/bureau/issues"
+                  href="https://github.com/smeltery/bureau/issues"
                   className="inline-flex items-center gap-1.5 text-sm text-cream/70 transition-colors hover:text-cream"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -112,7 +112,7 @@ export function MarketingFooter() {
               </li>
               <li>
                 <a
-                  href="https://github.com/dotbrains/bureau/discussions"
+                  href="https://github.com/smeltery/bureau/discussions"
                   className="inline-flex items-center gap-1.5 text-sm text-cream/70 transition-colors hover:text-cream"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -125,7 +125,7 @@ export function MarketingFooter() {
           </div>
         </div>
         <div className="flex flex-col items-center justify-between gap-4 border-t border-distill-purple/30 pt-8 md:flex-row">
-          <p className="text-sm text-cream/60">© {new Date().getFullYear()} dotbrains. All rights reserved.</p>
+          <p className="text-sm text-cream/60">© {new Date().getFullYear()} smeltery. All rights reserved.</p>
           <p className="text-xs text-cream/50">Licensed under PolyForm Shield 1.0.0</p>
         </div>
       </div>

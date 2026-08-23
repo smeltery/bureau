@@ -3,7 +3,7 @@ import { compareCalver, computeCommitStatus, latestCommitUrl, latestReleaseUrl, 
 
 describe("update checker", () => {
   test("checks Bureau's default branch for the latest commit", () => {
-    expect(latestCommitUrl()).toBe("https://api.github.com/repos/dotbrains/bureau/commits/master");
+    expect(latestCommitUrl()).toBe("https://api.github.com/repos/smeltery/bureau/commits/master");
   });
 
   test("builds commit URLs for explicit repositories and branches", () => {
@@ -11,7 +11,7 @@ describe("update checker", () => {
   });
 
   test("checks Bureau's latest release endpoint", () => {
-    expect(latestReleaseUrl()).toBe("https://api.github.com/repos/dotbrains/bureau/releases/latest");
+    expect(latestReleaseUrl()).toBe("https://api.github.com/repos/smeltery/bureau/releases/latest");
   });
 });
 
@@ -26,10 +26,10 @@ describe("release-aware update decisions", () => {
   });
 
   test("maps latest release responses and ignores non-CalVer channels", () => {
-    expect(pickRelease({ tag_name: "v2026.7.24", published_at: "2026-07-24T00:00:00Z", html_url: "https://github.com/dotbrains/bureau/releases/tag/v2026.7.24" })).toEqual({
+    expect(pickRelease({ tag_name: "v2026.7.24", published_at: "2026-07-24T00:00:00Z", html_url: "https://github.com/smeltery/bureau/releases/tag/v2026.7.24" })).toEqual({
       tag: "v2026.7.24",
       publishedAt: "2026-07-24T00:00:00Z",
-      url: "https://github.com/dotbrains/bureau/releases/tag/v2026.7.24",
+      url: "https://github.com/smeltery/bureau/releases/tag/v2026.7.24",
     });
     expect(pickRelease({ tag_name: "v1.0" })).toBe("none");
   });

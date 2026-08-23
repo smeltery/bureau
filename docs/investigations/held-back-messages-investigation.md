@@ -2,7 +2,7 @@
 
 **Date**: 2026-04-01 (fixed and verified 2026-04-20)
 **Status**: Fixed in Bureau via the persistent-consumer architecture described below. Repro verified end-to-end (backgrounded bash + Monitor tool both deliver notifications on their own, no user message needed).
-**Tracking issue**: `dotbrains/bureau#9`
+**Tracking issue**: `smeltery/bureau#9`
 **Upstream (closed, not a bug)**: `anthropics/claude-agent-sdk-typescript#295`
 **Related Bureau commits**: `4b7ba76` (abort-race fix), `9c7600e` (stuck-thinking fix) — these were unrelated abort-path fixes; they did not address this bug.
 

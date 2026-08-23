@@ -100,7 +100,7 @@ How to remember durable facts for future conversations: append one self-containe
   curl -s -X POST localhost:${PORT}/api/memory -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"scope":"agent","scopeId":"${agentId}","text":"..."}'
   For boss memory, use {"scope":"boss","scopeId":"<userId>","text":"..."} when you know the user id. Boss memory loads only into that boss's own agents; it is context scoping, not a confidentiality boundary.
 
-How to answer questions about Bureau itself: the source lives at https://github.com/dotbrains/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.
+How to answer questions about Bureau itself: the source lives at https://github.com/smeltery/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.
 
 Pipe every command that touches secret-bearing surfaces (env vars, .env files, credential configs) through a sed redaction so API keys, tokens, and other credentials never leak into chat output or transcripts.`;
   if (managerName) {

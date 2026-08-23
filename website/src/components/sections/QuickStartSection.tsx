@@ -14,7 +14,7 @@ npm install -g @anthropic-ai/claude-code
 
 # Authenticate once
 claude`,
-    clone: `git clone https://github.com/dotbrains/bureau.git
+    clone: `git clone https://github.com/smeltery/bureau.git
 cd bureau`,
   };
 

@@ -8,7 +8,7 @@
 
 **Free · no cloud · no account · works with your Claude subscription**
 
-[![CI](https://github.com/dotbrains/bureau/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dotbrains/bureau/actions/workflows/ci.yml)
+[![CI](https://github.com/smeltery/bureau/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/smeltery/bureau/actions/workflows/ci.yml)
 [![License: PolyForm Shield 1.0.0](https://img.shields.io/badge/License-PolyForm%20Shield%201.0.0-blue.svg)](https://polyformproject.org/licenses/shield/1.0.0/)
 
 ![Bun](https://img.shields.io/badge/-Bun-000000?style=flat-square&logo=bun&logoColor=white)
@@ -31,7 +31,7 @@ The project ships a [Flox](https://flox.dev) environment that pins Bun and the
 native-build toolchain, so local and CI run an identical setup:
 
 ```sh
-git clone https://github.com/dotbrains/bureau.git
+git clone https://github.com/smeltery/bureau.git
 cd bureau
 flox activate              # installs the pinned toolchain + deps on first run
 bun run dev                # or: flox activate --start-services
@@ -104,7 +104,7 @@ Then open **http://localhost:4000** and click an empty desk.
 
 - **Cron jobs** — scheduled SDK sessions (daily/weekly/interval) with browsable per-run transcripts; resume or edit-to-fork any past run
 - **Agent-built apps** — an agent hands Bureau a web app it built and Bureau owns the address: it allocates the port, runs the app as a systemd service that survives sessions and reboots, gives it a data directory inside the backup set, and shows its state and logs in the Apps tab. Names and ports are fixed for an app's whole life so bookmarks keep working; a bad command is fixed with `PATCH` rather than a re-register. Each app also gets a token scoped to exactly one route, so it can message the agent that built it when something needs attention. See [Agent-built apps](docs/features/agent-apps.md)
-- **Plugin system** — extend bureau without forking. TypeScript modules register `beforeTurn` / `afterTurn` hooks that run around every agent turn (e.g. inject memory context before, write extracted facts after). Enable via `enabledPlugins` in `~/.bureau/office-config.json`; see [Plugin system](docs/features/plugin-system.md). Reference plugin: [bureau-dossier](https://github.com/dotbrains/bureau-dossier) gives agents long-term memory across sessions.
+- **Plugin system** — extend bureau without forking. TypeScript modules register `beforeTurn` / `afterTurn` hooks that run around every agent turn (e.g. inject memory context before, write extracted facts after). Enable via `enabledPlugins` in `~/.bureau/office-config.json`; see [Plugin system](docs/features/plugin-system.md). Reference plugin: [bureau-dossier](https://github.com/smeltery/bureau-dossier) gives agents long-term memory across sessions.
 - **Plugin manager** — browse, install, enable/disable, update, and remove Claude Code plugins (and their marketplaces) from the Plugins panel in the office toolbar, instead of dropping to the CLI. Agents inherit installed plugins on their next session. See [Plugin management](docs/features/plugin-management-design.md)
 - **Safety hooks** — blocks `rm -rf`, `git reset --hard`, and other footguns
 - **Daily backups** — automatic tarball of Bureau state to `~/bureau-backups/` (last 7 retained)

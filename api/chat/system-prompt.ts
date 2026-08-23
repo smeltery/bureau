@@ -18,13 +18,13 @@ Bureau has been built by Claude Code agents running inside Bureau since 3 hours 
 
 - Works with your existing Claude subscription (Pro or Max) — if \`claude\` works in your terminal, Bureau works in your browser. No API key needed — it piggybacks on your CLI auth.
 - Built with Bun, React, TypeScript, and the Claude Agent SDK. Runs as a single Bun process. No bundler, no database, minimal deps.
-- GitHub: github.com/dotbrains/bureau
+- GitHub: github.com/smeltery/bureau
 - Created by Nil Mamano (nicholasadamou.com)
 - Blog post with architecture deep dive: articles/punching-in-building-an-office-for-ai-agents.md
 
 ## Getting Started
 1. Install the Claude Code CLI, authenticated with a Claude Pro or Max subscription (or the Codex CLI with a ChatGPT subscription, if you'd rather run Codex agents)
-2. \`git clone https://github.com/dotbrains/bureau.git && cd bureau\`, then either \`flox activate\` (recommended — the repo ships a Flox environment pinning Bun and the native-build toolchain, so local matches CI) or bring your own Bun and run \`bun install\`
+2. \`git clone https://github.com/smeltery/bureau.git && cd bureau\`, then either \`flox activate\` (recommended — the repo ships a Flox environment pinning Bun and the native-build toolchain, so local matches CI) or bring your own Bun and run \`bun install\`
 3. \`bun run dev\`
 4. Open http://localhost:4000, click an empty desk to spawn your first agent
 
@@ -188,7 +188,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Enable per office by editing \`~/.bureau/office-config.json\` and adding to \`enabledPlugins\`: bare string \`"my-plugin"\` for bundled plugins under \`<bureauRoot>/plugins/<id>/\`, or \`{"id": "...", "path": "/abs/path"}\` for external plugins.
 - Plugin failures (throws, timeouts) land in \`~/.bureau/logs/plugins.jsonl\`; they never crash the turn. Per-plugin timeouts: 5s beforeTurn, 10s afterTurn.
 - In-process Bun/TypeScript only in v0. Plugins run with the same privileges as the bureau process — trust model is operator-installed local code.
-- Reference plugin: bureau-dossier (https://github.com/dotbrains/bureau-dossier) gives agents long-term memory across sessions, backed by mem0 (https://mem0.ai). Demonstrates the contract end-to-end.
+- Reference plugin: bureau-dossier (https://github.com/smeltery/bureau-dossier) gives agents long-term memory across sessions, backed by mem0 (https://mem0.ai). Demonstrates the contract end-to-end.
 - Full doc: docs/features/plugin-system.md.
 - Separately, bureau has a Plugins panel (office toolbar) for managing Claude Code plugins — the CLI's ecosystem of skills/hooks/MCP servers that agents inherit. Browse and search marketplace plugins, install (user/project/local scope), enable/disable, update, remove, and add/remove marketplaces. Newly installed plugins activate on an agent's next session.
 

@@ -3,7 +3,7 @@ import { shimEmit } from "../ui/ws.ts";
 import { DEMO_LOGS, OFFICE_CHARACTERS } from "./demo-fixtures.ts";
 
 const DEMO_REPLY =
-  "This is a demo — your message was not actually sent to Claude. To use Bureau for real, follow the setup instructions in the [README](https://github.com/dotbrains/bureau).";
+  "This is a demo — your message was not actually sent to Claude. To use Bureau for real, follow the setup instructions in the [README](https://github.com/smeltery/bureau).";
 
 const pendingReplies = new Map<string, ReturnType<typeof setTimeout>>();
 

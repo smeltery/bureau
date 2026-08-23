@@ -39,7 +39,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
           </Link>
           <div className="ml-2 flex items-center gap-3">
             <a
-              href="https://github.com/dotbrains/bureau"
+              href="https://github.com/smeltery/bureau"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg border border-distill-purple bg-dark-gray px-4 py-2 text-sm font-medium text-cream transition-colors hover:bg-dark-slate"
@@ -79,7 +79,7 @@ export function MarketingNav({ transparent = false }: MarketingNavProps) {
             </Link>
             <div className="space-y-3 border-t border-distill-purple/20 pt-4">
               <a
-                href="https://github.com/dotbrains/bureau"
+                href="https://github.com/smeltery/bureau"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-distill-purple bg-dark-gray px-4 py-3 text-sm font-medium text-cream transition-colors hover:bg-dark-slate"

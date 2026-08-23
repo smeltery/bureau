@@ -5,7 +5,7 @@ import { buildCommitNotice, type CommitNotice } from "../../../shared/update-not
 import { CopyButton } from "../controls/CopyButton.tsx";
 import { Modal } from "./Modal.tsx";
 
-const REPO = "dotbrains/bureau";
+const REPO = "smeltery/bureau";
 
 export function countBusyAgents(agents: Pick<AgentInfo, "state">[]): number {
   return agents.filter((agent) => agent.state === "thinking" || agent.state === "tool_executing").length;

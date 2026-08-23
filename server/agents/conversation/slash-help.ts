@@ -43,7 +43,7 @@ export async function handleHelpCommand(agentId: string, managed: ManagedAgent, 
 
   const lines: string[] = [];
 
-  lines.push("**Docs:** https://github.com/dotbrains/bureau/tree/master/docs");
+  lines.push("**Docs:** https://github.com/smeltery/bureau/tree/master/docs");
 
   // Tips — surfaced first so a new user reading top-down hits the
   // actionable stuff before the command/skill inventory.
@@ -59,7 +59,7 @@ export async function handleHelpCommand(agentId: string, managed: ManagedAgent, 
       "  • Bureau works on your phone. The easiest way is to connect it to the same VPN (e.g., Tailscale - free) as the machine running it. On mobile the terminal opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.",
     );
     lines.push(
-      "  • Once the office is reachable from outside your VPN (e.g. via Tailscale Funnel — see https://github.com/dotbrains/bureau/blob/master/docs/features/access-and-invites.md), the owner can open `User Settings → Access` and mint one-time invite URLs. Recipients click and are signed in — no accounts, no passwords.",
+      "  • Once the office is reachable from outside your VPN (e.g. via Tailscale Funnel — see https://github.com/smeltery/bureau/blob/master/docs/features/access-and-invites.md), the owner can open `User Settings → Access` and mint one-time invite URLs. Recipients click and are signed in — no accounts, no passwords.",
     );
   } else {
     lines.push(`  • Bureau works on your phone: open ${publicOrigin.origin}. On mobile the terminal opens as a full-screen overlay with Tab / Esc / Ctrl+C / Paste soft-keys.`);

@@ -104,7 +104,7 @@ on `master`:
 
 ```sh
 # Replace OWNER/REPO and run from a checkout with `gh` authenticated.
-gh api -X PUT repos/dotbrains/bureau/branches/master/protection \
+gh api -X PUT repos/smeltery/bureau/branches/master/protection \
   -F required_status_checks.strict=true \
   -F 'required_status_checks.contexts[]=app-ci' \
   -F enforce_admins=false \

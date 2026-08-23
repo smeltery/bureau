@@ -10,7 +10,7 @@ export function CodeExamplesSection() {
 
   const examples = {
     local: `# Clone and run Bureau locally
-git clone https://github.com/dotbrains/bureau.git
+git clone https://github.com/smeltery/bureau.git
 cd bureau
 bun install
 bun run dev

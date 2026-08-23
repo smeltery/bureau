@@ -14,7 +14,7 @@ export function CTASection() {
         </p>
         <div className="grid gap-4 sm:grid-cols-3 sm:gap-6">
           <a
-            href="https://github.com/dotbrains/bureau"
+            href="https://github.com/smeltery/bureau"
             target="_blank"
             rel="noopener noreferrer"
             className="group rounded-xl border border-distill-purple/30 bg-dark-gray/50 p-6 transition-all hover:border-distill-purple hover:shadow-lg hover:shadow-distill-purple/20 sm:p-8"
@@ -26,7 +26,7 @@ export function CTASection() {
             <p className="text-xs text-cream/60 sm:text-sm">Star the repo and track releases</p>
           </a>
           <a
-            href="https://github.com/dotbrains/bureau#readme"
+            href="https://github.com/smeltery/bureau#readme"
             target="_blank"
             rel="noopener noreferrer"
             className="group rounded-xl border border-distill-violet/30 bg-dark-gray/50 p-6 transition-all hover:border-distill-violet hover:shadow-lg hover:shadow-distill-violet/20 sm:p-8"
@@ -38,7 +38,7 @@ export function CTASection() {
             <p className="text-xs text-cream/60 sm:text-sm">Quick start, architecture, and guides</p>
           </a>
           <a
-            href="https://github.com/dotbrains/bureau/discussions"
+            href="https://github.com/smeltery/bureau/discussions"
             target="_blank"
             rel="noopener noreferrer"
             className="group rounded-xl border border-distill-lavender/30 bg-dark-gray/50 p-6 transition-all hover:border-distill-lavender hover:shadow-lg hover:shadow-distill-lavender/20 sm:p-8"
