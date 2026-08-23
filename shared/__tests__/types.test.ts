@@ -8,6 +8,7 @@ import {
   generateRoomId,
   generateTaskId,
   humanizeSchedule,
+  injectedMemorySize,
   isValidPriority,
   isValidStatus,
   modelVersionLabel,
@@ -29,6 +30,12 @@ describe("hex ID generators", () => {
     const taken = new Set<string>();
     for (let i = 0; i < 50; i++) taken.add(generateCronjobId([...taken]));
     expect(taken.size).toBe(50);
+  });
+});
+
+describe("injectedMemorySize", () => {
+  test("counts the prompt contribution after blank lines are removed", () => {
+    expect(injectedMemorySize("\nfirst\n\n  \nsecond\n")).toBe("first\nsecond".length);
   });
 });
 

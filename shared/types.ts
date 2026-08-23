@@ -36,6 +36,7 @@ export type {
   SkillOrigin,
 } from "./agent-types.ts";
 export { KILLED_AGENT_CHIP_CAP } from "./agent-types.ts";
+export { injectedMemorySize } from "./agent-types.ts";
 export type { AgentCapabilities, AgentPermissionMode, ClaudeModel, ClaudePermissionMode, CodexApprovalPolicy, CodexSandboxMode, EffortLevel, ModelFamily } from "./agent-models.ts";
 export { cronjobRunStreamId, humanizeSchedule, parseStreamId } from "./cronjobs.ts";
 export type { Cronjob, CronjobPermissionMode, CronjobRun, CronjobRunStatus, CronjobRunTrigger, Schedule } from "./cronjobs.ts";

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { MemoryScope } from "../../shared/types.ts";
+import { injectedMemorySize, type MemoryScope } from "../../shared/types.ts";
 
 export type MemorySaveResult = { ok: true } | { ok: false; conflict?: boolean; message: string };
 
@@ -8,6 +8,8 @@ export interface MemoryEditor {
   setMemory: (value: string) => void;
   loaded: boolean;
   dirty: boolean;
+  size: number;
+  cap: number | null;
   save: () => Promise<MemorySaveResult>;
 }
 
@@ -30,6 +32,7 @@ export function useMemoryEditor(scope: MemoryScope, scopeId: string | null, enab
   const [baseline, setBaseline] = useState("");
   const [version, setVersion] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [cap, setCap] = useState<number | null>(null);
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ scope });
@@ -47,16 +50,18 @@ export function useMemoryEditor(scope: MemoryScope, scopeId: string | null, enab
     setMemory("");
     setBaseline("");
     setVersion(null);
+    setCap(null);
     fetch(`/api/memory?${query}`, { credentials: "same-origin" })
       .then(async (res) => {
         if (!res.ok) throw await parseError(res);
-        return (await res.json()) as { text: string; version: string };
+        return (await res.json()) as { text: string; version: string; cap: number };
       })
       .then((data) => {
         if (cancelled) return;
         setMemory(data.text);
         setBaseline(data.text);
         setVersion(data.version);
+        setCap(data.cap);
         setLoaded(true);
       })
       .catch(() => {});
@@ -89,5 +94,5 @@ export function useMemoryEditor(scope: MemoryScope, scopeId: string | null, enab
     return { ok: true };
   }
 
-  return { memory, setMemory, loaded, dirty, save };
+  return { memory, setMemory, loaded, dirty, size: injectedMemorySize(memory), cap, save };
 }

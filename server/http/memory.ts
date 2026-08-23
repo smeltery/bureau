@@ -1,7 +1,7 @@
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
-import { isSafeScopeId, memoryStore } from "../memory-store.ts";
+import { injectedSize, isSafeScopeId, MEMORY_CAPS, memoryStore } from "../memory-store.ts";
 import { getUserById, listUsers } from "../users.ts";
 import type { MemoryScope } from "../../shared/types.ts";
 
@@ -96,7 +96,12 @@ export async function handleMemoryRequest(req: Request, url: URL, auth?: AuthRes
   if (req.method === "GET") {
     const target = resolveTarget(parseScope(url.searchParams.get("scope") ?? "agent"), url.searchParams.get("scopeId") ?? undefined, bearer, auth);
     if (target instanceof Response) return target;
-    return json(memoryStore.read(target.scope, target.scopeId));
+    const memory = memoryStore.read(target.scope, target.scopeId);
+    return json({
+      ...memory,
+      size: injectedSize(memory.text),
+      cap: MEMORY_CAPS[target.scope],
+    });
   }
 
   if (req.method === "POST") {

@@ -149,7 +149,10 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
       )}
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-        Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for all agents)</span>
+        Memory{" "}
+        <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
+          (durable notes for all agents; {officeMemory.size} / {officeMemory.cap ?? "..."})
+        </span>
       </label>
       <ExpandableTextarea
         title="Office Memory"
@@ -162,7 +165,10 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
       />
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-        My Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for agents you spawn)</span>
+        My Memory{" "}
+        <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
+          (durable notes for agents you spawn; {bossMemory.size} / {bossMemory.cap ?? "..."})
+        </span>
       </label>
       <ExpandableTextarea
         title="My Memory"

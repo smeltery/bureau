@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
-import { parseMemoryLine } from "../../memory-store.ts";
+import { MEMORY_CAPS, parseMemoryLine } from "../../memory-store.ts";
 import { handleMemoryRequest } from "../memory.ts";
 
 const auth: AuthResult = {
@@ -48,6 +48,8 @@ describe("handleMemoryRequest", () => {
     expect(res?.status).toBe(200);
     expect(typeof body.text).toBe("string");
     expect(typeof body.version).toBe("string");
+    expect(body.size).toBe(0);
+    expect(body.cap).toBe(MEMORY_CAPS.office);
   });
 
   test("allows authenticated agent tokens to read office memory", async () => {

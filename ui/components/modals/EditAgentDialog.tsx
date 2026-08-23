@@ -104,7 +104,10 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
       {!isSpawn && (
         <>
           <label style={{ ...labelStyle, marginTop: 14 }}>
-            Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for this agent)</span>
+            Memory{" "}
+            <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
+              (durable notes for this agent; {agentMemory.size} / {agentMemory.cap ?? "..."})
+            </span>
           </label>
           <ExpandableTextarea
             title="Agent Memory"

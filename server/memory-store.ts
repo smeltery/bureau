@@ -2,7 +2,7 @@ import { appendFileSync, mkdirSync, readFileSync } from "fs";
 import { createHash } from "crypto";
 import { dirname, join } from "path";
 import { atomicWriteFileSync, BUREAU_DIR } from "./persistence.ts";
-import type { MemoryItem, MemoryScope } from "../shared/types.ts";
+import { injectedMemorySize, type MemoryItem, type MemoryScope } from "../shared/types.ts";
 
 const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 
@@ -52,6 +52,10 @@ export const MEMORY_CAPS: Record<MemoryScope, number> = {
 };
 
 export const OVER_CAP_NOTICE = "Not all memories fit. Ask the boss to trim them.";
+
+export function injectedSize(text: string): number {
+  return injectedMemorySize(text);
+}
 
 export function renderCapped(lines: readonly string[], cap: number): string {
   const full = lines.join("\n");

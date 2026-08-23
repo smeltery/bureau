@@ -118,7 +118,10 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-        Memory <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(durable notes for this room)</span>
+        Memory{" "}
+        <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
+          (durable notes for this room; {roomMemory.size} / {roomMemory.cap ?? "..."})
+        </span>
       </label>
       <ExpandableTextarea
         title={`${room.name} · Memory`}
