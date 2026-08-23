@@ -3,7 +3,7 @@ import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, ensureSe
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { autocompleteCommands } from "../commands.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
-import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
+import { addLogEntry, agents, clearLiveTurn, emit, emitEphemeralLog, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { diagnoseProcessExit, emitLoginInstructions as emitLoginInstructionsImpl, emitLoginInstructionsIfAuth, isAuthErrorForAgent } from "./diagnostics.ts";
 import { maybeNudgeForContextUsage, refreshContextUsage } from "../context-usage.ts";
 
@@ -26,6 +26,7 @@ export async function runConsumer(agentId: string, managed: ManagedAgent, boundS
     if (managed.aborting || managed.session !== boundSession) return;
     const turn = managed.pendingTurn;
     managed.pendingTurn = null;
+    clearLiveTurn(managed);
     if (turn) turn.reject(err);
     const errorText = `Stream error: ${err.message ?? String(err)}`;
     addLogEntry(agentId, "error", errorText);
@@ -53,6 +54,8 @@ function deriveStateFromEvent(ev: NormalizedEvent): AgentState | null {
 }
 
 function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
+  const eventManaged = agents.get(agentId);
+  if (eventManaged) eventManaged.lastNormalizedEventAt = Date.now();
   const newState = deriveStateFromEvent(ev);
   if (newState) {
     const currentState = agents.get(agentId)?.info.state;
@@ -126,7 +129,12 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
     }
     case "tool_call": {
       const managed = agents.get(agentId);
-      if (managed) managed.toolCallTimestamps.set(ev.toolUseId, Date.now());
+      if (managed) {
+        managed.toolCallTimestamps.set(ev.toolUseId, {
+          name: ev.name,
+          startedAt: Date.now(),
+        });
+      }
       // metadata.subagent marks a call the agent's SUBAGENT made rather than
       // the agent itself. Absent for the agent's own calls, for Codex, and
       // for every entry written before this field existed.
@@ -136,7 +144,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
     case "tool_result": {
       const managed = agents.get(agentId);
       const callStart = managed?.toolCallTimestamps.get(ev.toolUseId);
-      const duration_ms = ev.durationMs ?? (callStart ? Date.now() - callStart : undefined);
+      const duration_ms = ev.durationMs ?? (callStart ? Date.now() - callStart.startedAt : undefined);
       if (managed && callStart) managed.toolCallTimestamps.delete(ev.toolUseId);
       addLogEntry(
         agentId,
@@ -164,6 +172,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         }
       }
       const turn = managed?.pendingTurn;
+      if (managed) clearLiveTurn(managed);
       if (managed && turn) {
         managed.pendingTurn = null;
         turn.resolve();
@@ -194,6 +203,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       }
       emitLoginInstructionsIfAuth(agentId, managed, ev.message);
       const turn = managed?.pendingTurn;
+      if (managed) clearLiveTurn(managed);
       if (managed && turn) {
         managed.pendingTurn = null;
         turn.reject(new Error(ev.message));

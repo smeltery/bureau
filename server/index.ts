@@ -3,6 +3,7 @@ import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
 import { startScheduledMessageScheduler } from "./scheduled-messages.ts";
 import { startIdleSessionEvictor } from "./agents/idle-sessions.ts";
+import { startBusyTurnWatchdog } from "./agents/queue-watchdog.ts";
 import { loadEnabledPlugins } from "./persistence.ts";
 import { loadPlugins } from "./plugins/registry.ts";
 import { join as joinPath } from "path";
@@ -136,6 +137,7 @@ reconcileAppsAtBoot();
 
 // Release quiet backend sessions; the next user message resumes from disk.
 startIdleSessionEvictor();
+startBusyTurnWatchdog();
 
 // Daily ~/.bureau/ backup tarball with N=7 retention. See server/backup.ts.
 startBackupScheduler();

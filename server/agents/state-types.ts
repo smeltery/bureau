@@ -61,7 +61,10 @@ export interface ManagedAgent {
   sdkReportedCommands: string[]; // commands reported by SDK in system:init
   // Timing: track when phases start for duration_ms computation
   thinkingStartedAt: number;
-  toolCallTimestamps: Map<string, number>; // toolUseId → start timestamp
+  turnStartedAt: number;
+  lastNormalizedEventAt: number;
+  busyTurnWatchdogObserved: boolean;
+  toolCallTimestamps: Map<string, { name: string; startedAt: number }>; // toolUseId → start metadata
   // Topic generation
   topicGenerating: boolean;
   topicMessageCount: number; // text entry count when topic was last generated

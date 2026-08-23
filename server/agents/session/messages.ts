@@ -1,7 +1,7 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentState, Attachment } from "../../../shared/types.ts";
 import { accumulateSessionUsage, appendSessionUsageSnapshot, saveFile } from "../../persistence.ts";
-import { agents, addLogEntry, emitEphemeralLog, updateState } from "../state.ts";
+import { agents, addLogEntry, clearLiveTurn, emitEphemeralLog, updateState } from "../state.ts";
 import { handleInitMessage } from "./init-message.ts";
 export { buildUserMessage } from "./user-message-builder.ts";
 
@@ -84,7 +84,10 @@ export function processMessage(agentId: string, msg: SDKMessage) {
         } else if (block.type === "tool_use") {
           const managed = agents.get(agentId);
           if (managed) {
-            managed.toolCallTimestamps.set(block.id, Date.now());
+            managed.toolCallTimestamps.set(block.id, {
+              name: block.name,
+              startedAt: Date.now(),
+            });
           }
           addLogEntry(agentId, "tool_call", block.name, {
             toolId: block.id,
@@ -127,7 +130,7 @@ export function processMessage(agentId: string, msg: SDKMessage) {
           }
           const managed = agents.get(agentId);
           const callStart = managed?.toolCallTimestamps.get(block.tool_use_id);
-          const duration_ms = callStart ? Date.now() - callStart : undefined;
+          const duration_ms = callStart ? Date.now() - callStart.startedAt : undefined;
           if (managed && callStart) {
             managed.toolCallTimestamps.delete(block.tool_use_id);
           }
@@ -185,6 +188,7 @@ export function processMessage(agentId: string, msg: SDKMessage) {
         }
         updateState(agentId, "error");
       }
+      if (managed) clearLiveTurn(managed);
       break;
     }
   }

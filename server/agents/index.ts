@@ -39,3 +39,4 @@ export { editMessage } from "./conversation/edit.ts";
 export { setTopic, resetTopic } from "./topic.ts";
 export { ensureSlide, getSlideDeck } from "./slides.ts";
 export { openTerminal, closeTerminal, getTerminalBuffer, terminalInput, terminalResize } from "./terminal.ts";
+export { startBusyTurnWatchdog, sweepBusyTurnWatchdog, _testLastForcedRecoveryAt, _testSetBusyTurnWatchdogStuckMs } from "./queue-watchdog.ts";

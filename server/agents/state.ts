@@ -91,7 +91,18 @@ export function beginTurn(agentId: string, opts: { humanInput: boolean }) {
   // would re-emit an agent_updated event for an unchanged value; this
   // early-return keeps the second call free of side effects.
   if (managed.info.state === "thinking") return;
+  managed.turnStartedAt = Date.now();
+  managed.lastNormalizedEventAt = 0;
+  managed.busyTurnWatchdogObserved = false;
+  managed.toolCallTimestamps.clear();
   updateState(agentId, "thinking");
+}
+
+export function clearLiveTurn(managed: ManagedAgent) {
+  managed.turnStartedAt = 0;
+  managed.lastNormalizedEventAt = 0;
+  managed.busyTurnWatchdogObserved = false;
+  managed.toolCallTimestamps.clear();
 }
 
 export function updateState(agentId: string, state: AgentState) {

@@ -1,5 +1,5 @@
 import { rollSessionUsageOnResume } from "../../persistence.ts";
-import { emit, officeConfig, rooms, type ManagedAgent } from "../state.ts";
+import { clearLiveTurn, emit, officeConfig, rooms, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { memoryStore } from "../../memory-store.ts";
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
@@ -101,6 +101,9 @@ export { emitLoginInstructions } from "./diagnostics.ts";
 // Install a freshly-created session on managed and spawn its consumer. Caller
 // is responsible for having closed/awaited any previous session first.
 export function installSession(agentId: string, managed: ManagedAgent, session: BackendSession) {
+  if (managed.turnStartedAt === 0 || (managed.info.state !== "thinking" && managed.info.state !== "tool_executing")) {
+    clearLiveTurn(managed);
+  }
   managed.session = session;
   managed.consumerPromise = runConsumer(agentId, managed, session);
   // The agent has a session again, so whatever reason it was without one no
@@ -128,6 +131,7 @@ export async function waitForConsumerDrain(consumer: Promise<void>, timeoutMs = 
 // drain, install the new session + consumer. Rejects any in-flight turn so
 // callers awaiting sendMessage's deferred don't hang.
 export async function replaceSession(agentId: string, managed: ManagedAgent, newSession: BackendSession, consumerDrainTimeoutMs = SESSION_REPLACE_CONSUMER_DRAIN_TIMEOUT_MS) {
+  clearLiveTurn(managed);
   // Bump the cancel token first so any concurrent runAgentTurn in its
   // pre-send plugin-retrieval window bails on the next await checkpoint —
   // the in-flight `pendingTurn` rejection below only covers the post-send
