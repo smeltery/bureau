@@ -1,4 +1,5 @@
 import { hasOwner } from "../users.ts";
+import { deriveAppHostDomain } from "../apps/domain.ts";
 import { buildPublicOrigin } from "./auth.ts";
 import { PREAUTH_EXTRA_CSS, authPageTitle, baseHtml, escapeAttr, escapeHtml } from "./auth-html.ts";
 
@@ -15,21 +16,54 @@ import { PREAUTH_EXTRA_CSS, authPageTitle, baseHtml, escapeAttr, escapeHtml } fr
 //     page origin, which breaks strict same-origin checks on the form's
 //     POST handler.
 //
+//   Content-Security-Policy / X-Content-Type-Options / X-Frame-Options /
+//   Permissions-Policy
+//     Baseline browser hardening for the office shell, auth pages, public
+//     assets, and JSON error responses. The CSP permits the app-preview frame
+//     wildcard only when this boot has an app-host domain.
+//
 //   Strict-Transport-Security (HTTPS only)
 //     HSTS protects later requests that start over HTTP. `includeSubDomains`
 //     is NOT set to avoid pinning sibling subdomains on shared parent
 //     domains.
 export function securityHeaders(opts?: { tokenInUrl?: boolean }): Record<string, string> {
   const tokenInUrl = opts?.tokenInUrl ?? true;
-  const { isHttps } = buildPublicOrigin();
-  const h: Record<string, string> = {};
-  if (tokenInUrl) {
-    h["Referrer-Policy"] = "no-referrer";
-  }
+  const { origin, isHttps } = buildPublicOrigin();
+  const frameSources = ["'self'", "blob:", "data:"];
+  const appDomain = deriveAppHostDomain(origin, isHttps);
+  if (appDomain) frameSources.push(`https://*.${appDomain}`);
+  const h: Record<string, string> = {
+    "Content-Security-Policy": [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "connect-src 'self' ws: wss:",
+      "font-src 'self' data:",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      `frame-src ${frameSources.join(" ")}`,
+      "img-src 'self' data: blob:",
+      "object-src 'none'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      ...(isHttps ? ["upgrade-insecure-requests"] : []),
+    ].join("; "),
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
+    "Referrer-Policy": tokenInUrl ? "no-referrer" : "strict-origin-when-cross-origin",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+  };
   if (isHttps) {
     h["Strict-Transport-Security"] = "max-age=31536000";
   }
   return h;
+}
+
+export function withSecurityHeaders(response: Response): Response {
+  const headers = securityHeaders({ tokenInUrl: false });
+  for (const [name, value] of Object.entries(headers)) {
+    if (!response.headers.has(name)) response.headers.set(name, value);
+  }
+  return response;
 }
 
 export function renderLoginPage(officeName: string | null): string {

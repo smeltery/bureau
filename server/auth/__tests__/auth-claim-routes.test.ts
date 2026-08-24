@@ -180,27 +180,37 @@ describe("handleClaim", () => {
 // The Referrer-Policy coupling, which lives here because the claim form is why
 // it exists. `securityHeaders` sends `no-referrer` by default — right for pages
 // reached by an invite URL, where the token is IN the URL and must not leak
-// through the Referer header. The claim form is the one auth page with no token
-// in its URL, and it must NOT send the header: Chrome couples `no-referrer` with
-// `Origin: null` on top-level form POSTs, so the real browser submit would then
-// fail handleClaim's strict same-origin check with 403 — the form would look
-// broken to the person claiming a brand-new office.
+// through the Referer header. The claim form is the one auth page with no
+// token in its URL, and it must NOT send `no-referrer`: Chrome couples that
+// policy with `Origin: null` on top-level form POSTs, so the real browser submit
+// would then fail handleClaim's strict same-origin check with 403 — the form
+// would look broken to the person claiming a brand-new office.
 describe("securityHeaders", () => {
   test("defaults to no-referrer, for the pages that do carry a token", () => {
     expect(securityHeaders()["Referrer-Policy"]).toBe("no-referrer");
     expect(securityHeaders({ tokenInUrl: true })["Referrer-Policy"]).toBe("no-referrer");
   });
 
-  test("omits it when there is no token to leak", () => {
-    expect(securityHeaders({ tokenInUrl: false })["Referrer-Policy"]).toBeUndefined();
+  test("uses a tokenless policy that preserves concrete form origins", () => {
+    expect(securityHeaders({ tokenInUrl: false })["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
   });
 
-  test("the claim form really ships without it, which is the regression that bit", () => {
+  test("the claim form really ships without no-referrer, which is the regression that bit", () => {
     const res = handleClaimForm(null);
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Referrer-Policy")).toBeNull();
+    expect(res.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     expect(res.headers.get("Content-Type")).toContain("text/html");
+  });
+
+  test("adds baseline browser-hardening headers", () => {
+    const headers = securityHeaders();
+
+    expect(headers["Content-Security-Policy"]).toContain("base-uri 'self'");
+    expect(headers["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
+    expect(headers["Permissions-Policy"]).toContain("camera=()");
+    expect(headers["X-Content-Type-Options"]).toBe("nosniff");
+    expect(headers["X-Frame-Options"]).toBe("DENY");
   });
 
   test("no HSTS is asserted on a plain-HTTP origin", () => {
