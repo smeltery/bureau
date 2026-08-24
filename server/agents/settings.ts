@@ -1,4 +1,5 @@
-import type { AgentInfo } from "../../shared/types.ts";
+import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../shared/types.ts";
+import { getBackend } from "../backends/index.ts";
 import { persistSessionCwd } from "../persistence.ts";
 import { moveClaudeSessionFile, resolveCwd } from "./session/paths.ts";
 import { buildSessionEnv, createSession, replaceSession } from "./session/runtime.ts";
@@ -12,6 +13,7 @@ export async function editAgent(
     cwd?: string;
     outfit?: AgentInfo["outfit"];
     customInstructions?: string;
+    agentType?: AgentInfo["agentType"];
     modelFamily?: string;
     permissionMode?: AgentInfo["permissionMode"];
     codexSandbox?: AgentInfo["codexSandbox"];
@@ -65,6 +67,12 @@ export async function editAgent(
     managed.info.customInstructions = changes.customInstructions || null;
     updated.customInstructions = managed.info.customInstructions;
   }
+  if (changes.agentType && changes.agentType !== managed.info.agentType) {
+    managed.info.agentType = changes.agentType;
+    managed.info.capabilities = getBackend(changes.agentType).capabilities ?? DEFAULT_AGENT_CAPABILITIES;
+    updated.agentType = changes.agentType;
+    updated.capabilities = managed.info.capabilities;
+  }
   if (changes.modelFamily && changes.modelFamily !== managed.info.modelFamily) {
     managed.info.modelFamily = changes.modelFamily;
     updated.modelFamily = changes.modelFamily;
@@ -88,7 +96,7 @@ export async function editAgent(
   // changes automatically apply to the next conversation.
 
   const isClaude = managed.info.agentType === "claude";
-  const settingsReplace = !!(updated.modelFamily || updated.permissionMode || updated.codexSandbox || updated.effort);
+  const settingsReplace = !!(updated.agentType || updated.modelFamily || updated.permissionMode || updated.codexSandbox || updated.effort);
   // A cwd change retargets the active session — the live backend process's cwd
   // is fixed at spawn, so it must be replaced. Settings changes (model /
   // permission / sandbox / effort) replace regardless so they take effect now.

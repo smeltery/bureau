@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { AgentInfo, AgentOutfit, ClientCommand, CodexSandboxMode, EffortLevel } from "../../../shared/types.ts";
-import { CODEX_MODELS, DEFAULT_EFFORT, familyAllowsAutoPermission, MODEL_FAMILIES } from "../../../shared/types.ts";
+import type { AgentBackendType, AgentInfo, AgentOutfit, ClientCommand, CodexSandboxMode, EffortLevel } from "../../../shared/types.ts";
+import { CODEX_MODELS, DEFAULT_EFFORT, effortLevelsFor, familyAllowsAutoPermission, MODEL_FAMILIES } from "../../../shared/types.ts";
 import { templateFormValues, type AgentTemplate } from "../../agent-templates.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { useAppState } from "../../store.tsx";
@@ -22,6 +22,7 @@ export type EditAgentFormSnapshot = {
   outfit: string;
   customInstructions: string;
   modelFamily: string;
+  agentType: AgentBackendType;
   permissionMode: string;
   codexSandbox: CodexSandboxMode;
   effort: EffortLevel;
@@ -35,6 +36,7 @@ export function isFormDirty(baseline: EditAgentFormSnapshot, current: EditAgentF
     baseline.outfit !== current.outfit ||
     baseline.customInstructions !== current.customInstructions ||
     baseline.modelFamily !== current.modelFamily ||
+    baseline.agentType !== current.agentType ||
     baseline.permissionMode !== current.permissionMode ||
     baseline.codexSandbox !== current.codexSandbox ||
     baseline.effort !== current.effort ||
@@ -46,7 +48,8 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const { onClose } = props;
   const isSpawn = !props.agent;
   const agent = props.agent;
-  const agentType = agent?.agentType ?? props.agentType ?? "claude";
+  const initialAgentType = agent?.agentType ?? props.agentType ?? "claude";
+  const [agentType, setAgentType] = useState<AgentBackendType>(initialAgentType);
 
   const { recentCwds: allRecentCwds, isMobile, agents, rooms, sessionContext } = useAppState();
   const roomCount = rooms.length;
@@ -85,6 +88,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     outfit: JSON.stringify(outfit),
     customInstructions,
     modelFamily,
+    agentType,
     permissionMode,
     codexSandbox,
     effort,
@@ -137,6 +141,20 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     send({ type: "request_cwd_validation", requestId: reqId, cwd: initialCwd });
     return () => removeRawListener(listener);
   }, [isSpawn, agent?.id]);
+
+  useEffect(() => {
+    if (!isSpawn) return;
+    if (agentType === "codex") {
+      setModelFamily((current) => (CODEX_MODELS.some((m) => m.value === current) ? current : CODEX_MODELS[0].value));
+      setPermissionMode((current) => (current === "never" || current === "on-request" || current === "untrusted" ? current : "never"));
+      setCodexSandbox((current) => current ?? "danger-full-access");
+      setEffort((current) => (effortLevelsFor("codex", modelFamily).some((option) => option.level === current) ? current : DEFAULT_EFFORT));
+    } else {
+      setModelFamily((current) => (MODEL_FAMILIES.some((m) => m.family === current) ? current : MODEL_FAMILIES[0].family));
+      setPermissionMode((current) => (current === "auto" || current === "default" || current === "acceptEdits" || current === "bypassPermissions" ? current : "auto"));
+      setEffort((current) => (effortLevelsFor("claude", modelFamily).some((option) => option.level === current) ? current : DEFAULT_EFFORT));
+    }
+  }, [agentType, isSpawn, modelFamily]);
 
   async function handleSave() {
     if (!isSpawn) {
@@ -199,11 +217,12 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       const trimmedInstructions = customInstructions.trim();
       if (trimmedInstructions !== (agent!.customInstructions ?? "")) cmd.customInstructions = trimmedInstructions;
       if (modelFamily !== agent!.modelFamily) cmd.modelFamily = modelFamily;
+      if (agentType !== agent!.agentType) cmd.agentType = agentType;
       if (effort !== (agent!.effort ?? DEFAULT_EFFORT)) cmd.effort = effort;
       if (permissionMode !== agent!.permissionMode) cmd.permissionMode = permissionMode;
       if (agentType === "codex" && codexSandbox !== (agent!.codexSandbox ?? "workspace-write")) cmd.codexSandbox = codexSandbox;
       const privilegedChanged = canTogglePrivileged && privileged !== (agent!.privileged ?? false);
-      const hasAgentChanges = !!(cmd.name || cmd.cwd || cmd.outfit || cmd.customInstructions !== undefined || cmd.modelFamily || cmd.effort || cmd.permissionMode || cmd.codexSandbox);
+      const hasAgentChanges = !!(cmd.name || cmd.cwd || cmd.outfit || cmd.customInstructions !== undefined || cmd.modelFamily || cmd.agentType || cmd.effort || cmd.permissionMode || cmd.codexSandbox);
       if (!hasAgentChanges && !privilegedChanged) {
         onClose();
         return;
@@ -289,6 +308,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     setCwd,
     setCwdError,
     setCodexSandbox,
+    setAgentType,
     setModelFamily,
     setEffort,
     setName,

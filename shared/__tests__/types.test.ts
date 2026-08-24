@@ -95,7 +95,7 @@ describe("humanizeSchedule", () => {
 describe("model family helpers", () => {
   test("modelVersionLabel extracts X.Y or a single trailing number from the model slug", () => {
     expect(modelVersionLabel("opus")).toBe("5");
-    expect(modelVersionLabel("sonnet")).toMatch(/^\d+\.\d+$/);
+    expect(modelVersionLabel("sonnet")).toBe("5");
   });
 
   test("modelVersionLabel falls back to a single trailing number (e.g. Fable)", () => {
@@ -104,7 +104,7 @@ describe("model family helpers", () => {
 
   test("familyDisplayLabel formats as '<Family> <X.Y>'", () => {
     expect(familyDisplayLabel("opus")).toBe("Opus 5");
-    expect(familyDisplayLabel("sonnet")).toMatch(/^Sonnet \d+\.\d+$/);
+    expect(familyDisplayLabel("sonnet")).toBe("Sonnet 5");
     expect(familyDisplayLabel("fable")).toMatch(/^Fable \d+$/);
   });
 

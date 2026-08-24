@@ -1,4 +1,5 @@
-import type { AgentBackendType, AgentInfo } from "../../../shared/types.ts";
+import { useEffect, useRef, useState } from "react";
+import type { AgentBackendType, AgentInfo, KilledAgentSummary } from "../../../shared/types.ts";
 import { AgentDialogFrame } from "./AgentDialogFrame.tsx";
 import { AgentAppearanceEditor } from "./AgentAppearanceEditor.tsx";
 import { AgentModelPermissionFields } from "./AgentModelPermissionFields.tsx";
@@ -8,6 +9,9 @@ import { dialogInput, dialogLabel } from "./dialog-styles.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 import { useEditAgentDialogController } from "./useEditAgentDialogController.ts";
 import { AGENT_TEMPLATES, type AgentTemplate } from "../../agent-templates.ts";
+import { ENGINE_ACCENT, ENGINE_OPTIONS } from "./engine-options.ts";
+import { useAppState } from "../../store.tsx";
+import { addRawListener, removeRawListener, send } from "../../ws.ts";
 
 export type EditAgentDialogProps = {
   onClose: () => void;
@@ -43,6 +47,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     recentCwds,
     rooms,
     saving,
+    setAgentType,
     setCustomInstructions,
     setCwd,
     setCwdError,
@@ -57,10 +62,23 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     subtitle,
     title,
   } = useEditAgentDialogController(props);
+  const killedAgents = useAppState().killedAgents;
 
   return (
     <AgentDialogFrame isMobile={isMobile} isSpawn={isSpawn} onClose={requestClose} onSave={handleSave} saving={saving} subtitle={subtitle} title={title}>
       {isSpawn && <AgentTemplatePicker selectedKey={selectedTemplateKey} onPick={applyTemplate} />}
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelStyle}>Engine</label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {ENGINE_OPTIONS.map((option) => (
+            <button key={option.agentType} onClick={() => setAgentType(option.agentType)} style={engineButtonStyle(agentType === option.agentType, option.accent)} type="button">
+              <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{option.label}</span>
+              <span style={{ display: "block", marginTop: 2, fontSize: 11, lineHeight: 1.35, color: "var(--text-muted)" }}>{option.blurb}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <label style={labelStyle}>Name</label>
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isSpawn ? `Agent ${props.deskIndex! + 1}` : undefined} autoFocus={isSpawn} style={inputStyle} />
@@ -114,6 +132,10 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
         {!isSpawn && " Changes take effect on next conversation."}
       </p>
 
+      {isSpawn && props.room !== undefined && killedAgents.length > 0 && (
+        <ReviveAgentSection deskIndex={props.deskIndex} roomId={rooms[props.room]?.id} killedAgents={killedAgents} onRevived={props.onClose} />
+      )}
+
       {!isSpawn && (
         <>
           <label style={{ ...labelStyle, marginTop: 14 }}>
@@ -136,6 +158,59 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
 
       {!isSpawn && <AgentMoveRoomSection agent={agent!} agents={agents} rooms={rooms} labelStyle={labelStyle} confirmDiscard={confirmDiscard} onClose={props.onClose} />}
     </AgentDialogFrame>
+  );
+}
+
+function ReviveAgentSection({ deskIndex, roomId, killedAgents, onRevived }: { deskIndex: number; roomId: string | undefined; killedAgents: KilledAgentSummary[]; onRevived: () => void }) {
+  const [reviving, setReviving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pendingListener = useRef<((data: string) => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pendingListener.current) removeRawListener(pendingListener.current);
+    };
+  }, []);
+
+  function handleRevive(agent: KilledAgentSummary) {
+    if (reviving || !roomId) return;
+    setError(null);
+    setReviving(agent.id);
+    const requestId = `revive-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const listener = (data: string) => {
+      try {
+        const msg = JSON.parse(data);
+        if (msg.type !== "agent_save_response" || msg.requestId !== requestId) return;
+        removeRawListener(listener);
+        pendingListener.current = null;
+        setReviving(null);
+        if (msg.ok) onRevived();
+        else setError(msg.error || "Revive failed");
+      } catch {}
+    };
+    addRawListener(listener);
+    pendingListener.current = listener;
+    send({ type: "revive", requestId, agentId: agent.id, desk: deskIndex, roomId });
+  }
+
+  return (
+    <div style={{ marginTop: 16, paddingBottom: 8 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-dim)", marginBottom: 8 }}>Revive a killed agent</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {killedAgents.map((agent) => {
+          const accent = ENGINE_ACCENT[agent.agentType];
+          const isThisReviving = reviving === agent.id;
+          const disabled = reviving !== null && !isThisReviving;
+          const title = agent.topic ? `${agent.lastRoomName} - ${agent.topic}` : agent.lastRoomName;
+          return (
+            <button key={agent.id} onClick={() => handleRevive(agent)} disabled={disabled} title={title} style={reviveButtonStyle(accent, disabled)} type="button">
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isThisReviving ? "Reviving..." : agent.name}</span>
+            </button>
+          );
+        })}
+      </div>
+      {error && <div style={{ marginTop: 8, fontSize: 12, color: "var(--accent-error, #f88)" }}>{error}</div>}
+    </div>
   );
 }
 
@@ -179,5 +254,35 @@ function templateButtonStyle(selected: boolean): React.CSSProperties {
     fontWeight: selected ? 700 : 500,
     cursor: "pointer",
     textAlign: "left",
+  };
+}
+
+function engineButtonStyle(selected: boolean, accent: string): React.CSSProperties {
+  return {
+    minHeight: 58,
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: selected ? `2px solid ${accent}` : "1px solid var(--border)",
+    background: selected ? "color-mix(in srgb, var(--accent) 12%, var(--bg-input))" : "var(--bg-input)",
+    color: "var(--text-primary)",
+    cursor: "pointer",
+    textAlign: "left",
+  };
+}
+
+function reviveButtonStyle(accent: string, disabled: boolean): React.CSSProperties {
+  return {
+    background: "var(--bg-surface)",
+    border: `1.5px solid ${accent}`,
+    borderRadius: 999,
+    padding: "5px 10px",
+    fontSize: 12,
+    color: "var(--text-primary)",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.4 : 1,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    maxWidth: "100%",
   };
 }

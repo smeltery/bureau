@@ -47,6 +47,7 @@ export type ClientCommand =
       cwd?: string;
       outfit?: AgentOutfit;
       customInstructions?: string;
+      agentType?: AgentInfo["agentType"];
       modelFamily?: string;
       permissionMode?: AgentInfo["permissionMode"];
       codexSandbox?: CodexSandboxMode;

@@ -22,6 +22,10 @@ export function Floor() {
   const colDx = 47.5,
     colDy = 23.75;
   const N = 10;
+  const SLAB_H = 14;
+  const outerLeftX = -364;
+  const outerRightX = 604;
+  const outerY = 273;
 
   const tiles = [];
   for (let r = 0; r < N; r++) {
@@ -40,8 +44,33 @@ export function Floor() {
       );
     }
   }
+
+  const slabs = [];
+  for (let i = 0; i < N; i++) {
+    const tile = (N - 1 + i) % 2 === 0 ? "light" : "dark";
+    const lx = i === 0 ? outerLeftX : -355 + i * colDx;
+    const ly = i === 0 ? outerY : 277.5 + i * colDy;
+    const lex = -355 + (i + 1) * colDx;
+    const ley = 277.5 + (i + 1) * colDy;
+    const rx = i === 0 ? outerRightX : 595 - i * colDx;
+    const ry = i === 0 ? outerY : 277.5 + i * colDy;
+    const rex = 595 - (i + 1) * colDx;
+    const rey = 277.5 + (i + 1) * colDy;
+    slabs.push(
+      <path key={`sl-${i}`} d={`M${lx} ${ly} L${lex} ${ley} L${lex} ${ley + SLAB_H} L${lx} ${ly + SLAB_H} Z`} fill={`var(--floor-edge-${tile}-left)`} stroke="var(--floor-stroke)" strokeWidth="0.5" />,
+      <path
+        key={`sr-${i}`}
+        d={`M${rx} ${ry} L${rex} ${rey} L${rex} ${rey + SLAB_H} L${rx} ${ry + SLAB_H} Z`}
+        fill={`var(--floor-edge-${tile}-right)`}
+        stroke="var(--floor-stroke)"
+        strokeWidth="0.5"
+      />,
+    );
+  }
+
   return (
     <svg style={SVG_STYLE} width={SCENE_W} height={SCENE_H} viewBox={VB} overflow="visible">
+      {slabs}
       {tiles}
     </svg>
   );
@@ -87,6 +116,10 @@ export function Walls({
 
   return (
     <svg style={SVG_STYLE} width={SCENE_W} height={SCENE_H} viewBox={VB} overflow="visible">
+      <path d="M-355 37.5 L-355 277.5 L-364 273 L-364 33 Z" fill="var(--wall-end-left)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
+      <path d="M595 37.5 L595 277.5 L604 273 L604 33 Z" fill="var(--wall-end-right)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
+      <path d="M-355 37.5 L120 -200 L120 -209 L-364 33 Z" fill="var(--wall-top-left)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
+      <path d="M120 -200 L595 37.5 L604 33 L120 -209 Z" fill="var(--wall-top-right)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
       {/* Left wall (2:1 iso ratio) */}
       <path d="M-355 277.5 L-355 37.5 L120 -200 L120 40 Z" fill="var(--wall-left)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
       {/* Right wall (2:1 iso ratio) */}

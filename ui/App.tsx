@@ -5,7 +5,6 @@ import { LogView } from "./log-view/LogView.tsx";
 import { AgentListView } from "./components/overlays/AgentListView.tsx";
 import { ContextMenu } from "./components/overlays/ContextMenu.tsx";
 import { EditAgentDialog } from "./components/modals/EditAgentDialog.tsx";
-import { EngineChooserDialog } from "./components/modals/EngineChooserDialog.tsx";
 import { UserManagementModal } from "./components/modals/UserManagementModal.tsx";
 import { UserSettingsView } from "./components/UserSettingsView.tsx";
 import { DeviceSettingsModal } from "./components/modals/DeviceSettingsModal.tsx";
@@ -18,7 +17,7 @@ import { PluginsView } from "./components/PluginsView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
 import { ConnectionBanner } from "./components/ConnectionBanner.tsx";
 import { CSS } from "./styles.ts";
-import type { AgentBackendType, AgentInfo } from "../shared/types.ts";
+import type { AgentInfo } from "../shared/types.ts";
 import { useAppNavigation } from "./useAppNavigation.ts";
 import { storageGetItem, storageSetItem } from "./browser-storage.ts";
 import { normalizeDraftUser, pruneDraftsForUser, readDraftsForUser, writeDraftForUser } from "./store-drafts.ts";
@@ -33,7 +32,6 @@ export function App() {
   const hasRestoredViewRef = useRef(false);
   const persistedDraftsRef = useRef<Map<string, string>>(new Map());
   const [spawnDesk, setSpawnDesk] = useState<number | null>(null);
-  const [spawnAgentType, setSpawnAgentType] = useState<AgentBackendType | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; agent: AgentInfo } | null>(null);
   const [editAgent, setEditAgent] = useState<AgentInfo | null>(null);
   const [username, setUsername] = useState<string | null>(() => storageGetItem("bureau-username"));
@@ -226,17 +224,13 @@ export function App() {
           viewportControlsRef={viewportControlsRef}
         />
       )}
-      {spawnDesk !== null && spawnAgentType === null && rooms[currentRoom] && (
-        <EngineChooserDialog deskIndex={spawnDesk} roomId={rooms[currentRoom].id} onPick={(agentType) => setSpawnAgentType(agentType)} onCancel={() => setSpawnDesk(null)} />
-      )}
-      {spawnDesk !== null && spawnAgentType !== null && (
+      {spawnDesk !== null && (
         <EditAgentDialog
           deskIndex={spawnDesk}
           defaultCwd="~"
-          agentType={spawnAgentType}
+          agentType="claude"
           onClose={() => {
             setSpawnDesk(null);
-            setSpawnAgentType(null);
           }}
           room={currentRoom}
         />
