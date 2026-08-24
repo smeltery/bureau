@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { AgentInfo, AgentOutfit, ClientCommand } from "../../../shared/types.ts";
-import { CODEX_MODELS, familyAllowsAutoPermission, MODEL_FAMILIES } from "../../../shared/types.ts";
+import type { AgentInfo, AgentOutfit, ClientCommand, CodexSandboxMode, EffortLevel } from "../../../shared/types.ts";
+import { CODEX_MODELS, DEFAULT_EFFORT, familyAllowsAutoPermission, MODEL_FAMILIES } from "../../../shared/types.ts";
+import { templateFormValues, type AgentTemplate } from "../../agent-templates.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { useAppState } from "../../store.tsx";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
@@ -22,6 +23,8 @@ export type EditAgentFormSnapshot = {
   customInstructions: string;
   modelFamily: string;
   permissionMode: string;
+  codexSandbox: CodexSandboxMode;
+  effort: EffortLevel;
   privileged: boolean;
 };
 
@@ -33,6 +36,8 @@ export function isFormDirty(baseline: EditAgentFormSnapshot, current: EditAgentF
     baseline.customInstructions !== current.customInstructions ||
     baseline.modelFamily !== current.modelFamily ||
     baseline.permissionMode !== current.permissionMode ||
+    baseline.codexSandbox !== current.codexSandbox ||
+    baseline.effort !== current.effort ||
     baseline.privileged !== current.privileged
   );
 }
@@ -51,9 +56,16 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const [customInstructions, setCustomInstructions] = useState(agent?.customInstructions ?? "");
   const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
   const [modelFamily, setModelFamily] = useState<string>(agent?.modelFamily ?? modelOptions[0].family);
+  const [effort, setEffort] = useState<EffortLevel>(agent?.effort ?? DEFAULT_EFFORT);
   const initialPermissionMode: AgentInfo["permissionMode"] =
-    agent?.permissionMode === "auto" && !familyAllowsAutoPermission(agent?.modelFamily ?? MODEL_FAMILIES[0].family) ? "bypassPermissions" : (agent?.permissionMode ?? "auto");
+    agentType === "codex"
+      ? (agent?.permissionMode ?? (isSpawn ? "never" : "on-request"))
+      : agent?.permissionMode === "auto" && !familyAllowsAutoPermission(agent?.modelFamily ?? MODEL_FAMILIES[0].family)
+        ? "bypassPermissions"
+        : (agent?.permissionMode ?? "auto");
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
+  const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(agent?.codexSandbox ?? (isSpawn ? "danger-full-access" : "workspace-write"));
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string | null>(null);
   const [privileged, setPrivileged] = useState(agent?.privileged ?? false);
   const canTogglePrivileged = canToggleAgentPrivilege(isSpawn, sessionContext, agent);
   const [saving, setSaving] = useState(false);
@@ -74,6 +86,8 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     customInstructions,
     modelFamily,
     permissionMode,
+    codexSandbox,
+    effort,
     privileged,
   };
   const baselineRef = useRef(currentSnapshot);
@@ -173,7 +187,9 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
         outfit,
         customInstructions: customInstructions.trim() || undefined,
         modelFamily,
+        effort,
         agentType,
+        codexSandbox: agentType === "codex" ? codexSandbox : undefined,
       });
     } else {
       const cmd: Extract<ClientCommand, { type: "edit_agent" }> = { type: "edit_agent", agentId: agent!.id };
@@ -183,9 +199,11 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       const trimmedInstructions = customInstructions.trim();
       if (trimmedInstructions !== (agent!.customInstructions ?? "")) cmd.customInstructions = trimmedInstructions;
       if (modelFamily !== agent!.modelFamily) cmd.modelFamily = modelFamily;
+      if (effort !== (agent!.effort ?? DEFAULT_EFFORT)) cmd.effort = effort;
       if (permissionMode !== agent!.permissionMode) cmd.permissionMode = permissionMode;
+      if (agentType === "codex" && codexSandbox !== (agent!.codexSandbox ?? "workspace-write")) cmd.codexSandbox = codexSandbox;
       const privilegedChanged = canTogglePrivileged && privileged !== (agent!.privileged ?? false);
-      const hasAgentChanges = !!(cmd.name || cmd.cwd || cmd.outfit || cmd.customInstructions !== undefined || cmd.modelFamily || cmd.permissionMode);
+      const hasAgentChanges = !!(cmd.name || cmd.cwd || cmd.outfit || cmd.customInstructions !== undefined || cmd.modelFamily || cmd.effort || cmd.permissionMode || cmd.codexSandbox);
       if (!hasAgentChanges && !privilegedChanged) {
         onClose();
         return;
@@ -222,12 +240,33 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const title = isSpawn ? "Spawn New Agent" : "Edit Agent";
   const subtitle = isSpawn ? `Desk #${props.deskIndex! + 1}` : `${roomCount > 1 ? `${rooms[agent!.room]?.name ?? `Room ${agent!.room + 1}`}, ` : ""}Desk #${agent!.desk + 1}`;
 
+  function applyTemplate(template: AgentTemplate | null) {
+    if (!isSpawn) return;
+    if (template === null) {
+      setSelectedTemplateKey(null);
+      setName("");
+      setCustomInstructions("");
+      setOutfit(makeRandomOutfit());
+      return;
+    }
+    const values = templateFormValues(template, agentType, { modelFamily, effort, permissionMode });
+    setSelectedTemplateKey(template.key);
+    setName(values.name);
+    setCustomInstructions(values.customInstructions);
+    setOutfit(values.outfit);
+    setModelFamily(values.modelFamily);
+    setEffort(values.effort);
+    setPermissionMode(values.permissionMode);
+  }
+
   return {
     agent,
     agentMemory,
     agentType,
+    applyTemplate,
     agents,
     canTogglePrivileged,
+    codexSandbox,
     confirmDiscard,
     customInstructions,
     cwd,
@@ -236,6 +275,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     requestClose,
     isMobile,
     isSpawn,
+    effort,
     modelFamily,
     modelOptions,
     name,
@@ -248,11 +288,14 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     setCustomInstructions,
     setCwd,
     setCwdError,
+    setCodexSandbox,
     setModelFamily,
+    setEffort,
     setName,
     setOutfit,
     setPermissionMode,
     setPrivileged,
+    selectedTemplateKey,
     subtitle,
     title,
   };

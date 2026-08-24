@@ -9,6 +9,7 @@ export {
   FAMILY_TO_MODEL,
   MODEL_FAMILIES,
   effortDisplayLabel,
+  effortLevelsFor,
   familyAllowsAutoPermission,
   familyDisplayLabel,
   familyFromLegacyModel,

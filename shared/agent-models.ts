@@ -76,6 +76,11 @@ export function effortDisplayLabel(level: EffortLevel | undefined): string {
   return EFFORT_LEVELS.find((e) => e.level === resolved)?.label ?? resolved;
 }
 
+export function effortLevelsFor(agentType: "claude" | "codex", modelFamily: string): typeof EFFORT_LEVELS {
+  if (agentType === "codex") return EFFORT_LEVELS;
+  return EFFORT_LEVELS.filter((e) => e.level !== "minimal" && (e.level !== "max" || familyAllowsAutoPermission(modelFamily)));
+}
+
 export const CODEX_MODELS: { value: string; label: string }[] = [
   { value: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
   { value: "gpt-5.6-terra", label: "GPT-5.6 Terra" },

@@ -22,6 +22,8 @@ function snapshot(overrides: Partial<EditAgentFormSnapshot> = {}): EditAgentForm
     customInstructions: "",
     modelFamily: "opus",
     permissionMode: "auto",
+    codexSandbox: "workspace-write",
+    effort: "xhigh",
     privileged: false,
     ...overrides,
   };
@@ -40,6 +42,8 @@ describe("isFormDirty", () => {
       { customInstructions: "Always write tests." },
       { modelFamily: "sonnet" },
       { permissionMode: "default" },
+      { codexSandbox: "danger-full-access" },
+      { effort: "high" },
       { privileged: true },
     ];
     for (const change of fields) {

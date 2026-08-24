@@ -7,6 +7,7 @@ import { AgentWorkingDirectoryField } from "./AgentWorkingDirectoryField.tsx";
 import { dialogInput, dialogLabel } from "./dialog-styles.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 import { useEditAgentDialogController } from "./useEditAgentDialogController.ts";
+import { AGENT_TEMPLATES, type AgentTemplate } from "../../agent-templates.ts";
 
 export type EditAgentDialogProps = {
   onClose: () => void;
@@ -20,8 +21,10 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     agent,
     agentMemory,
     agentType,
+    applyTemplate,
     agents,
     canTogglePrivileged,
+    codexSandbox,
     confirmDiscard,
     customInstructions,
     cwd,
@@ -30,6 +33,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     requestClose,
     isMobile,
     isSpawn,
+    effort,
     modelFamily,
     modelOptions,
     name,
@@ -42,17 +46,22 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     setCustomInstructions,
     setCwd,
     setCwdError,
+    setCodexSandbox,
     setModelFamily,
+    setEffort,
     setName,
     setOutfit,
     setPermissionMode,
     setPrivileged,
+    selectedTemplateKey,
     subtitle,
     title,
   } = useEditAgentDialogController(props);
 
   return (
     <AgentDialogFrame isMobile={isMobile} isSpawn={isSpawn} onClose={requestClose} onSave={handleSave} saving={saving} subtitle={subtitle} title={title}>
+      {isSpawn && <AgentTemplatePicker selectedKey={selectedTemplateKey} onPick={applyTemplate} />}
+
       <label style={labelStyle}>Name</label>
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isSpawn ? `Agent ${props.deskIndex! + 1}` : undefined} autoFocus={isSpawn} style={inputStyle} />
 
@@ -74,10 +83,14 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
         labelStyle={labelStyle}
         modelFamily={modelFamily}
         modelOptions={modelOptions}
+        effort={effort}
         permissionMode={permissionMode}
+        codexSandbox={codexSandbox}
         privileged={privileged}
         setModelFamily={setModelFamily}
+        setEffort={setEffort}
         setPermissionMode={setPermissionMode}
+        setCodexSandbox={setCodexSandbox}
         setPrivileged={setPrivileged}
       />
 
@@ -126,6 +139,24 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
   );
 }
 
+function AgentTemplatePicker({ selectedKey, onPick }: { selectedKey: string | null; onPick: (template: AgentTemplate | null) => void }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={labelStyle}>Template</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        <button onClick={() => onPick(null)} style={templateButtonStyle(selectedKey === null)} type="button">
+          Blank
+        </button>
+        {AGENT_TEMPLATES.map((template) => (
+          <button key={template.key} onClick={() => onPick(template)} title={template.description} style={templateButtonStyle(selectedKey === template.key)} type="button">
+            {template.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const labelStyle: React.CSSProperties = dialogLabel;
 const inputStyle: React.CSSProperties = dialogInput;
 
@@ -135,3 +166,18 @@ const selectStyle: React.CSSProperties = {
   cursor: "pointer",
   width: "100%",
 };
+
+function templateButtonStyle(selected: boolean): React.CSSProperties {
+  return {
+    minHeight: 34,
+    padding: "7px 9px",
+    borderRadius: 8,
+    border: selected ? "1px solid var(--accent)" : "1px solid var(--border)",
+    background: selected ? "color-mix(in srgb, var(--accent) 16%, var(--bg-input))" : "var(--bg-input)",
+    color: "var(--text-primary)",
+    fontSize: 11,
+    fontWeight: selected ? 700 : 500,
+    cursor: "pointer",
+    textAlign: "left",
+  };
+}
