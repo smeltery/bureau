@@ -9,6 +9,7 @@
 
 import { COOKIE_NAME, HOST_COOKIE_NAME } from "../../auth/http-env.ts";
 import { APP_COOKIE_NAME } from "./auth-cookie.ts";
+import { brotliCompressSync, deflateSync, gzipSync, zstdCompressSync } from "zlib";
 
 // RFC 7230 section 6.1: connection-specific, never forwarded by a proxy in
 // either direction. `Connection` also NAMES further headers that are
@@ -20,21 +21,47 @@ const HOP_BY_HOP = new Set(["connection", "keep-alive", "proxy-authenticate", "p
 // bureau — and no further, which is the honest position.
 const RELAY_OWNED_REQUEST_HEADERS = new Set(["host", "forwarded", "x-forwarded-for", "x-forwarded-host", "x-forwarded-port", "x-forwarded-proto"]);
 
-// Content codings Bun's fetch decodes transparently.
-//
-// This set exists because of a measurement, and it has to keep matching a
-// measurement rather than the spec. A gzip response arrives here with its body
-// ALREADY DECOMPRESSED and its `Content-Encoding: gzip` plus the COMPRESSED
-// `Content-Length` still attached, so forwarding those verbatim hands the
-// browser a lie about the bytes and a wrong framing for them. Sending
-// `Accept-Encoding: identity` upstream does not prevent it (also measured).
-//
-// Matching is driven by what Bun 1.4's fetch decodes: single-token codings are
-// compared case-insensitively (`gzip`, `GZIP`, `x-gzip`), and comma-separated
-// lists are accepted when any listed token is decoded (`identity, gzip`). A
-// test pins the decoder's behavior directly: if a runtime upgrade widens it,
-// that test fails and points here rather than shipping broken bytes.
-const DECODED_CODINGS = new Set(["gzip", "x-gzip", "deflate", "br", "zstd"]);
+// Content codings Bun's fetch decodes transparently. Measured once at module
+// load so the relay mirrors this runtime's decoder rather than a fixed list.
+const PROBE_TEXT = "payload ".repeat(20);
+const PROBE_CASES: { header: string; body: Buffer }[] = [
+  { header: "gzip", body: gzipSync(Buffer.from(PROBE_TEXT)) },
+  { header: "deflate", body: deflateSync(Buffer.from(PROBE_TEXT)) },
+  { header: "br", body: brotliCompressSync(Buffer.from(PROBE_TEXT)) },
+  { header: "zstd", body: zstdCompressSync(Buffer.from(PROBE_TEXT)) },
+  { header: " gzip ", body: gzipSync(Buffer.from(PROBE_TEXT)) },
+  { header: "GZIP", body: gzipSync(Buffer.from(PROBE_TEXT)) },
+  { header: "Gzip", body: gzipSync(Buffer.from(PROBE_TEXT)) },
+  { header: "x-gzip", body: gzipSync(Buffer.from(PROBE_TEXT)) },
+  { header: "identity, gzip", body: gzipSync(Buffer.from(PROBE_TEXT)) },
+  { header: "foo", body: gzipSync(Buffer.from(PROBE_TEXT)) },
+];
+
+async function probeDecodedHeaders(): Promise<Set<string>> {
+  const server = Bun.serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    fetch(req) {
+      const i = Number(new URL(req.url).pathname.slice(1));
+      const probe = PROBE_CASES[i];
+      const body = new Uint8Array(probe.body);
+      return new Response(body, { headers: { "Content-Encoding": probe.header, "Content-Length": String(body.length) } });
+    },
+  });
+  try {
+    const decoded = new Set<string>();
+    for (let i = 0; i < PROBE_CASES.length; i++) {
+      const res = await fetch(`http://127.0.0.1:${server.port}/${i}`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.length === PROBE_TEXT.length) decoded.add(PROBE_CASES[i].header);
+    }
+    return decoded;
+  } finally {
+    await server.stop(true);
+  }
+}
+
+const DECODED_HEADERS = await probeDecodedHeaders();
 
 // Cookies that never leave the office, whoever sent them.
 //
@@ -68,11 +95,7 @@ function connectionNominated(headers: Headers): Set<string> {
 // nothing else is normalized, for the reason above.
 export function carriesDecodedCoding(contentEncoding: string | null): boolean {
   if (contentEncoding === null) return false;
-  for (const token of contentEncoding.split(",")) {
-    const coding = token.trim().toLowerCase();
-    if (coding.length > 0 && DECODED_CODINGS.has(coding)) return true;
-  }
-  return false;
+  return DECODED_HEADERS.has(contentEncoding);
 }
 
 // The Cookie header with every bureau credential removed, or null when nothing
