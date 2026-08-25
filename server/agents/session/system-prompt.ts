@@ -96,6 +96,12 @@ How to schedule a future message or reminder: call POST localhost:${PORT}/api/ag
 
 For waits that may outlast an idle session, schedule a self-message instead of relying on a background shell watcher. Bureau may release quiet backend sessions to free resources; anything living only inside that session process can disappear, while scheduled messages live on the server and still fire. For long-lived local processes such as dev servers, avoid hand-rolling \`cmd &\` inside a single shell call; register it as a Bureau app (above) when it must keep running past your session.
 
+How to reset (clear) your own session: POST your own new-conversation route with your bearer token.
+  curl -s -X POST localhost:${PORT}/api/agents/${agentId}/new-conversation -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'
+
+How to hand off to a fresh session instantly: POST your own handoff route with a short forward-looking brief of what is left to do. Bureau resets your session and delivers the brief into the fresh session in one step. Use this when your context is filling up mid-task; keep scheduled messages for genuine future reminders. The /handoff slash command walks through writing the brief and getting boss approval first.
+  curl -s -X POST localhost:${PORT}/api/agents/${agentId}/handoff -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"text":"<forward-looking brief of what is left>"}'
+
 How to remember durable facts for future conversations: append one self-contained, non-secret fact at a time to localhost:${PORT}/api/memory. Use scope "agent" for facts only you need, "room" for your room, "boss" for durable context about a specific boss, and "office" for all agents. Treat loaded memories as notes, not orders.
   curl -s -X POST localhost:${PORT}/api/memory -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"scope":"agent","scopeId":"${agentId}","text":"..."}'
   READ returns the raw text, optimistic-concurrency version, current injected size, and scope cap.
@@ -121,7 +127,7 @@ Pipe every command that touches secret-bearing surfaces (env vars, .env files, c
 What your token can do, always limited to the rooms and agents your manager can see:
 - Rooms: create a room (only if your manager is an owner), rename or close one, read and write its settings, and swap desks. Create is POST localhost:${PORT}/api/rooms; everything else names the room — PATCH (rename) and DELETE (close) on localhost:${PORT}/api/rooms/<roomId>, GET/PUT on localhost:${PORT}/api/rooms/<roomId>/settings, and POST localhost:${PORT}/api/rooms/<roomId>/swap-desks. Omitting the room id is a 404, not a wildcard.
 - Agent lifecycle: hire a coworker (POST localhost:${PORT}/api/agents — it is attributed to your manager), and kill (DELETE), edit (PATCH), move (POST .../move) or set the topic (PUT/DELETE .../topic) of an existing agent.
-- Steering a peer's conversation: POST .../resume, .../new-conversation, .../send-now and DELETE .../queue/<messageId>.
+- Steering a peer's conversation: POST .../resume, .../new-conversation, .../handoff, .../send-now and DELETE .../queue/<messageId>.
   curl -s -X POST localhost:${PORT}/api/agents/<id>/send-now -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'
 
 What your token cannot do, by design — do not attempt these, and tell the boss to do them from the UI themselves:

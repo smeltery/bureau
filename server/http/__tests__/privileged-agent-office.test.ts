@@ -182,6 +182,9 @@ describe("privileged agent — agent lifecycle", () => {
     expect(dequeued?.status).toBe(204);
     const fresh = await agentRoute(`/api/agents/${UNROOTED_AGENT}/new-conversation`, fixture.privilegedToken, { body: JSON.stringify({}) });
     expect(fresh?.status).toBe(204);
+    const handedOff = await agentRoute(`/api/agents/${TARGET_AGENT}/handoff`, fixture.privilegedToken, { body: JSON.stringify({ text: "Continue the task." }) });
+    expect(handedOff?.status).toBe(200);
+    expect(await handedOff?.json()).toEqual({ ok: true });
   });
 
   test("is refused every lifecycle and steering route for an agent outside its manager's rooms", async () => {
@@ -193,9 +196,15 @@ describe("privileged agent — agent lifecycle", () => {
   });
 
   test("refuses a non-privileged agent token on every lifecycle and steering route", async () => {
-    for (const res of await hiddenAgentAttempts(fixture.plainToken, TARGET_AGENT)) {
-      expect(res?.status).toBe(401);
-      expect(await res?.json()).toEqual({ error: "unauthenticated" });
+    const results = await hiddenAgentAttempts(fixture.plainToken, TARGET_AGENT);
+    const expectedStatuses = [401, 401, 401, 401, 401, 401, 401, 403, 401, 401];
+    for (let i = 0; i < results.length; i++) {
+      expect(results[i]?.status).toBe(expectedStatuses[i]);
+      if (expectedStatuses[i] === 401) {
+        expect(await results[i]?.json()).toEqual({ error: "unauthenticated" });
+      } else {
+        expect(await results[i]?.json()).toEqual({ error: "forbidden" });
+      }
     }
     expect(agents.has(TARGET_AGENT)).toBe(true);
     expect(AgentManager.getAgent(TARGET_AGENT)?.topic).toBeNull();
@@ -211,6 +220,7 @@ function hiddenAgentAttempts(token: string, agentId: string = HIDDEN_AGENT): Pro
     agentRoute(`/api/agents/${agentId}/topic`, token, { method: "DELETE" }),
     agentRoute(`/api/agents/${agentId}/resume`, token, { body: JSON.stringify({ sessionId: "s-1" }) }),
     agentRoute(`/api/agents/${agentId}/new-conversation`, token, { body: JSON.stringify({}) }),
+    agentRoute(`/api/agents/${agentId}/handoff`, token, { body: JSON.stringify({ text: "brief" }) }),
     agentRoute(`/api/agents/${agentId}/send-now`, token, { body: JSON.stringify({}) }),
     agentRoute(`/api/agents/${agentId}/queue/missing-message`, token, { method: "DELETE" }),
   ]);

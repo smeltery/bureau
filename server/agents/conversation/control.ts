@@ -4,7 +4,10 @@ import { createSession, replaceSession } from "../session/runtime.ts";
 import { validateCwd } from "../session/paths.ts";
 import { errMessage } from "../../../shared/errors.ts";
 import { generateTopic, persistCurrentSessionTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
-import { flushQueue } from "./message-queue.ts";
+import { flushQueue, enqueueMessage, type EnqueueResult } from "./message-queue.ts";
+import { getAgentDisplay } from "../lifecycle.ts";
+
+const handoffInProgress = new Set<string>();
 
 // cwd is a property of the session (source of truth in sessions.json); the
 // agent's info.cwd is just a denormalized mirror. Before resuming a session,
@@ -143,6 +146,24 @@ export async function newConversation(agentId: string) {
   } catch (err: any) {
     addLogEntry(agentId, "error", `Failed to start new conversation: ${err.message}`);
     updateState(agentId, "error");
+  }
+}
+
+export async function handoff(agentId: string, text: string): Promise<EnqueueResult> {
+  if (!agents.has(agentId)) return { ok: false, error: "agent not found", status: 404 };
+  if (handoffInProgress.has(agentId)) return { ok: false, error: "handoff_in_progress", status: 409 };
+  handoffInProgress.add(agentId);
+  try {
+    await newConversation(agentId);
+    const self = getAgentDisplay(agentId);
+    if (!self) return { ok: false, error: "agent not found", status: 404 };
+    return enqueueMessage(agentId, {
+      sender: { kind: "agent", agentId, agentName: self.name, roomName: self.roomName },
+      text,
+      handoff: true,
+    });
+  } finally {
+    handoffInProgress.delete(agentId);
   }
 }
 
