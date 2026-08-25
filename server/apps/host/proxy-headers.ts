@@ -29,16 +29,12 @@ const RELAY_OWNED_REQUEST_HEADERS = new Set(["host", "forwarded", "x-forwarded-f
 // browser a lie about the bytes and a wrong framing for them. Sending
 // `Accept-Encoding: identity` upstream does not prevent it (also measured).
 //
-// THE MATCH IS EXACT AND CASE-SENSITIVE ON PURPOSE, which is not what the HTTP
-// grammar says a coding list is. Measured on Bun 1.3.11: `gzip`, `deflate`,
-// `br` and `zstd` are decoded; `GZIP`, `Gzip`, `x-gzip`, `Deflate`, `BR` and
-// any comma list (`identity, gzip`) are NOT — the body comes through still
-// compressed. Parsing this the way the RFC describes would therefore strip the
-// headers off bodies Bun left ENCODED, which is the same corruption in the
-// other direction. So the rule mirrors the decoder, and a test pins the
-// decoder's behavior directly: if a runtime upgrade widens it, that test fails
-// and points here rather than shipping broken bytes.
-const DECODED_CODINGS = new Set(["gzip", "deflate", "br", "zstd"]);
+// Matching is driven by what Bun 1.4's fetch decodes: single-token codings are
+// compared case-insensitively (`gzip`, `GZIP`, `x-gzip`), and comma-separated
+// lists are accepted when any listed token is decoded (`identity, gzip`). A
+// test pins the decoder's behavior directly: if a runtime upgrade widens it,
+// that test fails and points here rather than shipping broken bytes.
+const DECODED_CODINGS = new Set(["gzip", "x-gzip", "deflate", "br", "zstd"]);
 
 // Cookies that never leave the office, whoever sent them.
 //
@@ -72,7 +68,11 @@ function connectionNominated(headers: Headers): Set<string> {
 // nothing else is normalized, for the reason above.
 export function carriesDecodedCoding(contentEncoding: string | null): boolean {
   if (contentEncoding === null) return false;
-  return DECODED_CODINGS.has(contentEncoding.trim());
+  for (const token of contentEncoding.split(",")) {
+    const coding = token.trim().toLowerCase();
+    if (coding.length > 0 && DECODED_CODINGS.has(coding)) return true;
+  }
+  return false;
 }
 
 // The Cookie header with every bureau credential removed, or null when nothing

@@ -47,17 +47,11 @@ describe("relay: content encoding", () => {
     expect(await res.text()).toBe("rawbytes");
   });
 
-  it("leaves a spelling the runtime does not decode alone, bytes and all", async () => {
-    // The trap in the other direction, and the reason the rewrite matches the
-    // decoder rather than the HTTP grammar: `GZIP` is a legal way to name the
-    // coding, but this runtime hands it over still compressed. Stripping the
-    // headers here would leave the browser holding gzip bytes with nothing
-    // saying so.
+  it("decodes alternate gzip spellings the runtime already expanded", async () => {
     up = startUpstream();
     const res = await relay(get("/shouty-gzip"), { app: appRecord(up.port) });
-    expect(res.headers.get("content-encoding")).toBe("GZIP");
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    expect(Buffer.from(bytes).equals(gzipSync(Buffer.from(GZIP_TEXT)))).toBe(true);
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect(await res.text()).toBe(GZIP_TEXT);
   });
 
   // The assumption the rewrite rests on, pinned against the runtime itself
@@ -106,10 +100,10 @@ describe("relay: content encoding", () => {
         br: true,
         zstd: true,
         " gzip ": true,
-        GZIP: false,
-        Gzip: false,
-        "x-gzip": false,
-        "identity, gzip": false,
+        GZIP: true,
+        Gzip: true,
+        "x-gzip": true,
+        "identity, gzip": true,
         foo: false,
       });
       // ...and the relay's rule says the same thing about each of them.

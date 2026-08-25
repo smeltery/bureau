@@ -216,7 +216,7 @@ describe("GET /api/agents/:id/logs", () => {
 
   test("times out pathological regex searches outside the server process", async () => {
     installAgent("agent-log-http");
-    appendEntry("session-one", "regex-one", "text", `${"a".repeat(60000)}!`);
+    appendEntry("session-one", "regex-one", "text", `${"a".repeat(250_000)}!`);
     const token = mintAgentToken("agent-log-http", null);
     const req = bearerRequest(`/api/agents/agent-log-http/logs?q=${encodeURIComponent("((a|aa)+)+$")}&regex=1&tier=full`, token);
 
