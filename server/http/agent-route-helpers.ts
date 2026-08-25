@@ -116,6 +116,17 @@ export function requireAgentAccessAllowingPrivileged(req: Request, auth: AuthRes
   return null;
 }
 
+/** Self-handoff via bearer, or operator/privileged steering with the same visibility rules as new-conversation. */
+export function requireHandoffAccess(req: Request, auth: AuthResult | undefined, agentId: string): Response | null {
+  const rawBearer = readBearerToken(req);
+  const bearer = resolveAgentToken(rawBearer);
+  if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
+  if (bearer?.agentId === agentId) return null;
+  if (privilegedAgentIdentity(req)) return requireAgentAccessAllowingPrivileged(req, auth, agentId);
+  if (bearer) return jsonError(403, "forbidden");
+  return requireAgentAccessAllowingPrivileged(req, auth, agentId);
+}
+
 /** Room-scoped sibling of the above, for routes that name a target room in the body (spawn, revive-style moves). */
 export function requireRoomAccessAllowingPrivileged(req: Request, auth: AuthResult | undefined, roomId: string): Response | null {
   const operator = privilegedAgentIdentity(req);

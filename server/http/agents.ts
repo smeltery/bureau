@@ -7,7 +7,17 @@ import { cancelScheduledMessage, listScheduledMessages, parseDeliverAt, schedule
 import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
-import { agentRouteParts, JSON_HEADERS, jsonError, projectedAgentsManifest, readJsonBody, requireAgentAccessAllowingPrivileged, requireUserAgentAccess, sessionUser } from "./agent-route-helpers.ts";
+import {
+  agentRouteParts,
+  JSON_HEADERS,
+  jsonError,
+  projectedAgentsManifest,
+  readJsonBody,
+  requireAgentAccessAllowingPrivileged,
+  requireHandoffAccess,
+  requireUserAgentAccess,
+  sessionUser,
+} from "./agent-route-helpers.ts";
 import { readAgentLogs, requiresIsolatedLogSearch } from "../agents/log-reader.ts";
 import { readAgentLogsIsolated } from "../agents/log-search-runner.ts";
 
@@ -39,6 +49,7 @@ import { readAgentLogsIsolated } from "../agents/log-search-runner.ts";
  *   GET  /api/agents/:id/sessions         — list resumable sessions.
  *   POST /api/agents/:id/resume           — resume a session.
  *   POST /api/agents/:id/new-conversation — start a fresh session.
+ *   POST /api/agents/:id/handoff           — reset and deliver a self-handoff brief.
  *   POST /api/agents/:id/send-now         — flush queued messages.
  *   DELETE /api/agents/:id/queue/:msg     — drop a queued message.
  *
@@ -217,6 +228,17 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       if (denied) return denied;
       void AgentManager.newConversation(agentId);
       return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+
+    if (req.method === "POST" && parts.length === 3 && parts[2] === "handoff") {
+      const denied = requireHandoffAccess(req, auth, agentId);
+      if (denied) return denied;
+      const body = await readJsonBody(req);
+      const text = typeof body?.text === "string" ? body.text : "";
+      if (!text) return jsonError(422, "text is required");
+      const result = await AgentManager.handoff(agentId, text);
+      if (!result.ok) return jsonError(result.status, result.error);
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS });
     }
 
     if (req.method === "POST" && parts.length === 3 && parts[2] === "send-now") {

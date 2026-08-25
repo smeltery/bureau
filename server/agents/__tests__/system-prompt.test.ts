@@ -89,6 +89,13 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("register it as a Bureau app");
   });
 
+  test("documents instant self-handoff REST", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("/api/agents/agent-1/handoff");
+    expect(prompt).toContain("forward-looking brief");
+  });
+
   test("tells agents to hand long-running web apps to Bureau rather than picking a port", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room");
 
@@ -177,6 +184,7 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("/api/rooms/<roomId>/settings");
     expect(prompt).toContain("hire a coworker");
     expect(prompt).toContain(".../new-conversation");
+    expect(prompt).toContain(".../handoff");
   });
 
   test("tells a privileged agent what it cannot do, privilege flags included", () => {

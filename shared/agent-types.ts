@@ -155,6 +155,8 @@ export interface QueuedMessage {
   queuedDuringBusyTurn?: boolean;
   scheduledFor?: number;
   scheduledSenderGone?: boolean;
+  // Set when this is a self-handoff brief injected by POST /api/agents/:id/handoff.
+  handoff?: boolean;
   attachments?: Attachment[];
   queuedAt: number;
 }

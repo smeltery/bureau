@@ -1,9 +1,9 @@
 import type { AgentState, Attachment, QueuedMessage, QueuedSender } from "../../../shared/types.ts";
-import { formatAgentSenderPrefix, formatAppSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
 import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { SessionSwappedError, createSession, installSession } from "../session/runtime.ts";
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
+import { flushPrefix } from "./queue-prefix.ts";
 // Circular with control.ts (which imports flushQueue from here); safe because
 // both modules only call across the cycle at request time, never at load time.
 import { resume, sendNow } from "./control.ts";
@@ -55,7 +55,7 @@ function steerRateLimited(managed: ManagedAgent): boolean {
 
 export function enqueueMessage(
   receiverId: string,
-  msg: { sender: QueuedSender; text: string; clientMessageId?: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean },
+  msg: { sender: QueuedSender; text: string; clientMessageId?: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean; handoff?: boolean },
   // Agent-initiated steering. Kept on this call so enqueue and interrupt use
   // the same state read and synchronous queue push.
   opts?: { steer?: boolean },
@@ -90,6 +90,7 @@ export function enqueueMessage(
     ...(canFlushNow ? {} : { queuedDuringBusyTurn: true }),
     ...(msg.scheduledFor ? { scheduledFor: msg.scheduledFor } : {}),
     ...(msg.scheduledSenderGone ? { scheduledSenderGone: true } : {}),
+    ...(msg.handoff ? { handoff: true } : {}),
     attachments: msg.attachments,
     queuedAt: Date.now(),
   });
@@ -149,17 +150,6 @@ function sameSender(a: QueuedSender, b: QueuedSender): boolean {
   return false;
 }
 
-function senderPrefixText(sender: QueuedSender): string {
-  switch (sender.kind) {
-    case "user":
-      return formatUserPrefix(sender.username);
-    case "agent":
-      return `${formatAgentSenderPrefix(sender.agentId, sender.agentName, sender.roomName)} `;
-    case "app":
-      return `${formatAppSenderPrefix(sender.appName)} `;
-  }
-}
-
 function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
   switch (sender.kind) {
     case "user":
@@ -173,13 +163,6 @@ function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
     case "app":
       return { sender_app_name: sender.appName };
   }
-}
-
-function scheduledPrefix(m: QueuedMessage): string | null {
-  if (!m.scheduledFor) return null;
-  const when = new Date(m.scheduledFor).toISOString();
-  const gone = m.scheduledSenderGone ? " The sender agent no longer exists." : "";
-  return `[Scheduled message for ${when}.${gone}]`;
 }
 
 export function enqueueUserMessage(agentId: string, managed: ManagedAgent, text: string, username: string | undefined, attachments: Attachment[] | undefined): boolean {
@@ -265,9 +248,9 @@ export async function flushQueue(agentId: string): Promise<void> {
     }
     for (const m of items) {
       const body = m.sdkText ?? m.text;
-      const scheduleNote = scheduledPrefix(m);
-      promptParts.push(`${scheduleNote ? `${scheduleNote}\n` : ""}${senderPrefixText(m.sender)}${body}`);
-      unprefixedParts.push(scheduleNote ? `${scheduleNote}\n${body}` : body);
+      const prefix = flushPrefix(m, agentId);
+      promptParts.push(`${prefix}${body}`);
+      unprefixedParts.push(m.scheduledFor ? `${prefix}${body}`.slice(prefix.length) : body);
       if (m.attachments) allAttachments.push(...m.attachments);
     }
     const prompt = promptParts.join("\n\n");
@@ -291,10 +274,18 @@ export async function flushQueue(agentId: string): Promise<void> {
           emitQueueUpdate(agentId, managed);
           persistAll();
           for (const m of items) {
-            const base = senderMeta(m.sender);
-            const withSchedule = m.scheduledFor ? { ...(base ?? {}), scheduledFor: m.scheduledFor, scheduledSenderGone: m.scheduledSenderGone ?? false } : base;
-            const meta = m.sdkText ? { ...(withSchedule ?? {}), sdkText: m.sdkText } : withSchedule;
-            addLogEntry(agentId, "user_message", m.text, meta, m.attachments);
+            addLogEntry(
+              agentId,
+              "user_message",
+              m.text,
+              {
+                ...(senderMeta(m.sender) ?? {}),
+                ...(m.scheduledFor ? { scheduledFor: m.scheduledFor, scheduledSenderGone: m.scheduledSenderGone ?? false } : {}),
+                ...(m.handoff ? { handoff: true } : {}),
+                ...(m.sdkText ? { sdkText: m.sdkText } : {}),
+              },
+              m.attachments,
+            );
           }
         },
       });

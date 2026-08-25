@@ -113,6 +113,29 @@ describe("flushQueue", () => {
         .map((entry) => entry.content),
     ).toEqual(["send first"]);
   });
+
+  test("prefixes self-handoff briefs without a sender preamble", async () => {
+    let managed!: ManagedAgent;
+    const sent: string[] = [];
+    managed = makeAgent(
+      "agent-1",
+      fakeSession(async (text) => {
+        sent.push(text);
+        settleTurn(managed);
+      }),
+    );
+    managed.messageQueue.push({
+      id: "handoff-1",
+      sender: { kind: "agent", agentId: "agent-1", agentName: "Self", roomName: "Lobby" },
+      text: "Finish the widget.",
+      handoff: true,
+      queuedAt: Date.now(),
+    });
+
+    await flushQueue("agent-1");
+
+    expect(sent).toEqual(["[Handoff from your previous session] Finish the widget."]);
+  });
 });
 
 const peerSender = { kind: "agent" as const, agentId: "peer-1", agentName: "Peer", roomName: "Lobby" };
