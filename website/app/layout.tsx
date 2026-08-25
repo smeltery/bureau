@@ -1,10 +1,21 @@
 import type { Metadata } from 'next';
 import '@/styles/globals.css';
-import { SITE_ORIGIN } from '@/site';
+import { SITE_DESCRIPTION, SITE_GITHUB_URL, SITE_ORIGIN, SITE_TITLE } from '@/site';
 
-const title = 'bureau — Your agent office for Claude Code';
-const description =
-  'Friction going from 1 Claude Code to 4+? Bureau is your local-first agent office for orchestrating, monitoring, and collaborating with multiple agents.';
+const title = SITE_TITLE;
+const description = SITE_DESCRIPTION;
+const canonicalUrl = `${SITE_ORIGIN}/`;
+const softwareApplicationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'bureau',
+  description,
+  url: canonicalUrl,
+  applicationCategory: 'DeveloperApplication',
+  operatingSystem: 'Linux, macOS',
+  isAccessibleForFree: true,
+  sameAs: [SITE_GITHUB_URL],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
@@ -66,6 +77,7 @@ export default function RootLayout({
       <head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }} />
       </head>
       <body>{children}</body>
     </html>
