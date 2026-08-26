@@ -44,27 +44,6 @@ import { SessionPrefixRules } from "./prefix-rules.ts";
 import { answerPendingApproval } from "./session-answer-approval.ts";
 import { startCodexTurn } from "./session-turn-start.ts";
 
-// ---------------------------------------------------------------------------
-// CodexSession
-// ---------------------------------------------------------------------------
-//
-// State machine:
-//
-//   constructor()
-//        │  (spawn subprocess; start bootstrap)
-//        ▼
-//   INITIALIZING ──── initialize() + thread/start ────► READY (system_init emitted)
-//        │                                                  │
-//        │                                                  │  send()/approve()/abort()
-//        ▼                                                  │
-//      CLOSED  ◄──────── close() ────────────────────────── │
-//
-// While INITIALIZING, send/approve/abort calls queue or reject (we just
-// reject — orchestrator-level state prevents calls until system_init lands).
-//
-// Stream output is buffered exactly like ClaudeSession: enqueue + wake the
-// stream's parked promise; stream() yields from buffer.
-
 export class CodexSession implements BackendSession {
   private client: JsonRpcLiteClient;
   private threadId: string | null = null;
@@ -74,6 +53,11 @@ export class CodexSession implements BackendSession {
   // Tracks whether we've yielded turn_completed for the current turn so we
   // can synthesize a failed one on subprocess exit if not.
   private turnInFlight = false;
+  // Covers turn/start before turnInFlight may safely arm subprocess-exit synthesis.
+  private turnStarting = false;
+  // Codex can deliver completed tool items after turn/completed.
+  private lateToolResultNoticeEmitted = false;
+  private lateToolResultNoticeArmed = false;
   private authGate = new CodexAuthSignalGate();
   // jsonRpcId-keyed map of in-flight server-initiated approval requests. The
   // orchestrator references these by approvalId == jsonRpcId.
@@ -185,14 +169,23 @@ export class CodexSession implements BackendSession {
     // (e.g. wire error) we don't want handleSubprocessExit to later synthesize
     // a phantom failed turn_completed for a turn that never actually started
     // — the orchestrator would surface a bogus mid-turn failure.
-    await startCodexTurn({
-      client: this.client,
-      threadId: this.threadId,
-      input,
-      authGate: this.authGate,
-      enqueueAuthAwareSystemText: (message) => this.enqueueAuthAwareSystemText(message),
-    });
+    this.turnStarting = true;
+    try {
+      await startCodexTurn({
+        client: this.client,
+        threadId: this.threadId,
+        input,
+        authGate: this.authGate,
+        enqueueAuthAwareSystemText: (message) => this.enqueueAuthAwareSystemText(message),
+      });
+    } catch (err) {
+      this.turnStarting = false;
+      throw err;
+    }
     this.turnInFlight = true;
+    this.turnStarting = false;
+    this.lateToolResultNoticeEmitted = false;
+    this.lateToolResultNoticeArmed = false;
   }
 
   async approve(approvalId: string, decision: ApprovalDecision): Promise<void> {
@@ -284,6 +277,10 @@ export class CodexSession implements BackendSession {
     handleCodexNotification(n, {
       threadId: this.threadId,
       childThreads: this.childThreads,
+      turnInFlight: this.turnInFlight,
+      turnStarting: this.turnStarting,
+      lateToolResultNoticeArmed: this.lateToolResultNoticeArmed,
+      lateToolResultNoticeEmitted: this.lateToolResultNoticeEmitted,
       selfInterruptedForAuth: this.authGate.selfInterruptedForAuth,
       authSignalEmittedThisTurn: this.authGate.authSignalEmittedThisTurn,
       usage: this.usage,
@@ -293,6 +290,12 @@ export class CodexSession implements BackendSession {
       },
       clearTurnInFlight: () => {
         this.turnInFlight = false;
+      },
+      armLateToolResultNotice: () => {
+        this.lateToolResultNoticeArmed = true;
+      },
+      markLateToolResultNoticeEmitted: () => {
+        this.lateToolResultNoticeEmitted = true;
       },
       resetAuthTurnState: () => {
         this.authGate.resetTurn();

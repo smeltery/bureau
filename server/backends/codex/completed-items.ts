@@ -3,6 +3,11 @@ import { formatPatchChangeKind, formatWebSearchAction } from "./protocol-format.
 
 const SUBAGENT_VISIBLE_ITEMS = new Set(["commandExecution", "fileChange", "mcpToolCall", "webSearch"]);
 
+export function isToolActivityItem(rawItem: unknown): boolean {
+  const type = (rawItem as { type?: unknown } | null)?.type;
+  return typeof type === "string" && SUBAGENT_VISIBLE_ITEMS.has(type);
+}
+
 export interface CompletedItemOptions {
   subagent?: SubagentOrigin;
   registerChildThread?(threadId: string, origin: SubagentOrigin): void;

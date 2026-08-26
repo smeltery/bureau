@@ -1,6 +1,6 @@
 import type { AttachmentSpec, NormalizedEvent, SubagentOrigin } from "../types.ts";
 import type { JsonRpcNotification } from "./client-types.ts";
-import { translateCompletedItem } from "./completed-items.ts";
+import { isToolActivityItem, translateCompletedItem } from "./completed-items.ts";
 import { AUTH_ERROR_PATTERNS } from "./config.ts";
 import { mapTurnStatus } from "./protocol-format.ts";
 import type { CodexRateLimitTracker } from "./session-rate-limits.ts";
@@ -11,12 +11,18 @@ import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/Thread
 export interface CodexNotificationDeps {
   threadId: string | null;
   childThreads: Map<string, SubagentOrigin>;
+  turnInFlight: boolean;
+  turnStarting: boolean;
+  lateToolResultNoticeArmed: boolean;
+  lateToolResultNoticeEmitted: boolean;
   selfInterruptedForAuth: boolean;
   authSignalEmittedThisTurn: boolean;
   usage: CodexUsageTracker;
   rateLimits: CodexRateLimitTracker;
   setActiveTurnId(turnId: string | null): void;
   clearTurnInFlight(): void;
+  armLateToolResultNotice(): void;
+  markLateToolResultNoticeEmitted(): void;
   resetAuthTurnState(): void;
   enqueue(event: NormalizedEvent): void;
   enqueueAuthAwareSystemText(text: string): void;
@@ -73,6 +79,7 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
       const wasSelfInterruptForAuth = deps.selfInterruptedForAuth;
       deps.setActiveTurnId(null);
       deps.clearTurnInFlight();
+      deps.armLateToolResultNotice();
       // "Model not supported" safety net. The spawn / edit dialog now
       // fetches model/list per-auth, so this branch should be rare —
       // most commonly it'll fire when the user's auth tier changed since
@@ -176,6 +183,14 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
           registerChildThread: (threadId, origin) => registerChildThread(deps, threadId, origin),
         })) {
           deps.enqueue(ev);
+        }
+        if (!deps.turnInFlight && !deps.turnStarting && deps.lateToolResultNoticeArmed && isToolActivityItem(item) && !deps.lateToolResultNoticeEmitted) {
+          deps.markLateToolResultNoticeEmitted();
+          deps.enqueue({
+            kind: "system_text",
+            text: "Turn ended before this tool result arrived.",
+            bureauAuthored: true,
+          });
         }
       }
       break;

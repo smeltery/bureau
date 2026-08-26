@@ -15,12 +15,18 @@ function deps(overrides: Partial<Parameters<typeof handleCodexNotification>[1]> 
     deps: {
       threadId: "parent-thread",
       childThreads,
+      turnInFlight: true,
+      turnStarting: false,
+      lateToolResultNoticeArmed: false,
+      lateToolResultNoticeEmitted: false,
       selfInterruptedForAuth: false,
       authSignalEmittedThisTurn: false,
       usage: new CodexUsageTracker(),
       rateLimits: new CodexRateLimitTracker(),
       setActiveTurnId() {},
       clearTurnInFlight() {},
+      armLateToolResultNotice() {},
+      markLateToolResultNoticeEmitted() {},
       resetAuthTurnState() {},
       enqueue(event: NormalizedEvent) {
         events.push(event);
@@ -184,5 +190,61 @@ describe("handleCodexNotification - child threads", () => {
     );
 
     expect(world.events).toEqual([]);
+  });
+});
+
+describe("handleCodexNotification - late tool items", () => {
+  it("adds one breadcrumb for tool activity that arrives after turn completion", () => {
+    const world = deps({
+      clearTurnInFlight() {
+        world.deps.turnInFlight = false;
+      },
+      armLateToolResultNotice() {
+        world.deps.lateToolResultNoticeArmed = true;
+      },
+      markLateToolResultNoticeEmitted() {
+        world.deps.lateToolResultNoticeEmitted = true;
+      },
+    });
+
+    handleCodexNotification(
+      notification("turn/completed", {
+        threadId: "parent-thread",
+        turn: { status: "completed" },
+      }),
+      world.deps,
+    );
+    handleCodexNotification(
+      notification("item/completed", {
+        threadId: "parent-thread",
+        item: {
+          type: "commandExecution",
+          id: "cmd-1",
+          command: "bun test",
+          aggregatedOutput: "ok",
+          exitCode: 0,
+        },
+      }),
+      world.deps,
+    );
+    handleCodexNotification(
+      notification("item/completed", {
+        threadId: "parent-thread",
+        item: {
+          type: "webSearch",
+          id: "search-1",
+          query: "docs",
+          action: { type: "search" },
+        },
+      }),
+      world.deps,
+    );
+
+    expect(world.events.map((event) => event.kind)).toEqual(["turn_completed", "tool_call", "tool_result", "system_text", "tool_call", "tool_result"]);
+    expect(world.events[3]).toEqual({
+      kind: "system_text",
+      text: "Turn ended before this tool result arrived.",
+      bureauAuthored: true,
+    });
   });
 });

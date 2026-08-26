@@ -57,7 +57,9 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
   const eventManaged = agents.get(agentId);
   if (eventManaged) eventManaged.lastNormalizedEventAt = Date.now();
   const newState = deriveStateFromEvent(ev);
-  if (newState) {
+  const derivesBusyState = newState === "thinking" || newState === "tool_executing";
+  const eventHasLiveTurn = eventManaged?.turnStartedAt !== 0;
+  if (newState && (!derivesBusyState || eventHasLiveTurn)) {
     const currentState = agents.get(agentId)?.info.state;
     if (!(currentState === "tool_executing" && newState === "thinking")) updateState(agentId, newState);
   }

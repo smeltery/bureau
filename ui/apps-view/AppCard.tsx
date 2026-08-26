@@ -189,7 +189,6 @@ export function AppCard({
 
       <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11 }}>
         <Meta label="port" value={String(app.port)} />
-        <Meta label="restarts" value={String(app.restartCount)} />
         {app.createdBy && <Meta label="created by" value={app.createdBy} />}
         {app.canManage && app.username && <Meta label="owner" value={app.username} />}
       </div>
