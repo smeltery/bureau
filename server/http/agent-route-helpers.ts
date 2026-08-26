@@ -220,6 +220,7 @@ export function projectedAgentsManifest(req: Request, auth: AuthResult | undefin
         model: FAMILY_TO_MODEL[agent.modelFamily as keyof typeof FAMILY_TO_MODEL] ?? agent.modelFamily,
         effort: agent.effort,
         inFlightTurn: AgentManager.getAgentInFlightTurnForManifest(agent.id),
+        pendingPrompt: agent.pendingPrompt ?? null,
         lastSessionId: AgentManager.getCurrentSessionId(agent.id),
       };
     }),

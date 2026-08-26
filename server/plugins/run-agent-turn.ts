@@ -44,7 +44,7 @@ import { beginTurn, logCache, rooms } from "../agents/state.ts";
 import { SessionSwappedError, createTurnDeferred } from "../agents/session/runtime.ts";
 import { getEnabledPlugins } from "./registry.ts";
 import { assistantTextFromEntries, runAfterTurn, runBeforeTurnHooks } from "./turn-hooks.ts";
-import { applyPluginPrefixes, formatWakeNoticeBlock } from "./plugin-prefix.ts";
+import { applyPluginPrefixes, formatMemoryNoticeBlock, formatWakeNoticeBlock } from "./plugin-prefix.ts";
 export { stripPluginPrefix } from "./plugin-prefix.ts";
 
 export type TurnOrigin = "user" | "queued" | "skill" | "edit-fork";
@@ -98,7 +98,9 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   // so it belongs ahead of the housekeeping context notices.
   const wakeNotice = managed.wakeNotice;
   const wakeNoticeBlock = wakeNotice ? formatWakeNoticeBlock(wakeNotice) : "";
-  const sdkTextWithNotices = [wakeNoticeBlock, contextNoticeText, sdkText].filter((part) => part !== "").join("\n\n");
+  const memoryNotice = managed.memoryNotice;
+  const memoryNoticeBlock = memoryNotice ? formatMemoryNoticeBlock(memoryNotice) : "";
+  const sdkTextWithNotices = [wakeNoticeBlock, memoryNoticeBlock, contextNoticeText, sdkText].filter((part) => part !== "").join("\n\n");
 
   // 1. Claim the turn lifecycle immediately, BEFORE any await. The
   // afterTurnPromise gate (up to 10s) plus per-plugin beforeTurn (up to 5s
@@ -203,6 +205,10 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
     // /resume, or a fresh wake) landed during the send, the slot now holds a
     // different notice, or null, and is not ours to clear.
     if (wakeNotice && managed.wakeNotice === wakeNotice) managed.wakeNotice = null;
+    if (memoryNotice && managed.memoryNotice === memoryNotice) {
+      managed.memoryNotice = null;
+      managed.memoryNoticeFired = true;
+    }
     if (onSendAccepted) {
       try {
         onSendAccepted();

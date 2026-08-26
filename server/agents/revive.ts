@@ -7,6 +7,7 @@ import { isValidDesk } from "../../shared/desks.ts";
 import { getSessionCwd, listAgentSessions, loadAgentHistory, loadLogWithAncestors, type AgentHistoryEntry } from "../persistence.ts";
 import { LOGS_DIR } from "../persistence/paths.ts";
 import { getBackend } from "../backends/index.ts";
+import { versionOf } from "../memory-store.ts";
 import { generateOutfit } from "./outfit.ts";
 import { createManagedAgent } from "./managed-factory.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, type ManagedAgent } from "./state.ts";
@@ -182,6 +183,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
     topic: entry.topic ?? null,
     topicStale: false,
     customInstructions: entry.customInstructions ?? null,
+    customInstructionsVersion: versionOf(entry.customInstructions ?? ""),
     queue: [],
   };
 

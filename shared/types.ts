@@ -22,6 +22,7 @@ export type {
   AgentInfo,
   AgentOutfit,
   AgentState,
+  PendingPromptKind,
   AgentSubscriptionUsage,
   AgentSubscriptionWindow,
   KilledAgentSummary,

@@ -1,7 +1,8 @@
 import { join } from "path";
 import { rmSync } from "fs";
-import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, LogInFlightTurn, ManifestInFlightTurn, SkillInfo } from "../../shared/types.ts";
+import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, LogInFlightTurn, ManifestInFlightTurn, PendingPromptKind, SkillInfo } from "../../shared/types.ts";
 import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
+import { versionOf } from "../memory-store.ts";
 import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { createSession, installSession } from "./session/runtime.ts";
@@ -26,10 +27,13 @@ export function getAgent(agentId: string): AgentInfo | undefined {
   return agents.get(agentId)?.info;
 }
 
-export function getAgentInstructions(agentId: string): { customInstructions: string | null } | null {
+export function getAgentInstructions(agentId: string): { customInstructions: string | null; customInstructionsVersion: string } | null {
   const agent = agents.get(agentId)?.info;
   if (!agent) return null;
-  return { customInstructions: agent.customInstructions };
+  return {
+    customInstructions: agent.customInstructions,
+    customInstructionsVersion: agent.customInstructionsVersion ?? versionOf(agent.customInstructions ?? ""),
+  };
 }
 
 // Resolve an agent's display identity (name + room) for prefixing
@@ -70,6 +74,12 @@ export function getAgentInFlightTurnForManifest(agentId: string): ManifestInFlig
     startedAt: live.startedAt,
     activeTool: live.activeTool ? { startedAt: live.activeTool.startedAt } : null,
   };
+}
+
+export function getAgentPendingPrompt(agentId: string): PendingPromptKind | null {
+  const managed = agents.get(agentId);
+  if (!managed) return null;
+  return managed.info.pendingPrompt ?? null;
 }
 
 // Get cached logs for an agent (used when browser connects after restore)

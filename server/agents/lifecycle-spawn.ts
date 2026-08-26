@@ -1,6 +1,7 @@
 import type { AgentBackendType, AgentInfo, AgentOutfit } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES } from "../../shared/types.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
+import { versionOf } from "../memory-store.ts";
 import { getBackend } from "../backends/index.ts";
 import { generateOutfit } from "./outfit.ts";
 import { resolveCwd } from "./session/paths.ts";
@@ -73,6 +74,7 @@ export function buildSpawnAgentDraft({
     topic: null,
     topicStale: false,
     customInstructions: customInstructions || null,
+    customInstructionsVersion: versionOf(customInstructions ?? ""),
     queue: [],
   };
 

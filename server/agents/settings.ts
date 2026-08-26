@@ -1,10 +1,19 @@
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../shared/types.ts";
 import { getBackend } from "../backends/index.ts";
+import { versionOf } from "../memory-store.ts";
 import { persistSessionCwd } from "../persistence.ts";
 import { moveClaudeSessionFile, resolveCwd } from "./session/paths.ts";
 import { buildSessionEnv, createSession, replaceSession } from "./session/runtime.ts";
 import { agents, emit, logCache, persistAll } from "./state.ts";
 import { mintAgentToken } from "./tokens.ts";
+
+export class AgentEditConflictError extends Error {
+  readonly status = 409 as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "AgentEditConflictError";
+  }
+}
 
 export async function editAgent(
   agentId: string,
@@ -13,6 +22,7 @@ export async function editAgent(
     cwd?: string;
     outfit?: AgentInfo["outfit"];
     customInstructions?: string;
+    customInstructionsVersion?: string;
     agentType?: AgentInfo["agentType"];
     modelFamily?: string;
     permissionMode?: AgentInfo["permissionMode"];
@@ -63,9 +73,20 @@ export async function editAgent(
     managed.info.outfit = changes.outfit;
     updated.outfit = changes.outfit;
   }
-  if (changes.customInstructions !== undefined && changes.customInstructions !== managed.info.customInstructions) {
-    managed.info.customInstructions = changes.customInstructions || null;
-    updated.customInstructions = managed.info.customInstructions;
+  if (changes.customInstructions !== undefined) {
+    if (typeof changes.customInstructionsVersion !== "string" || changes.customInstructionsVersion.length === 0) {
+      throw new Error("customInstructionsVersion is required when customInstructions is present (read it via GET /api/agents/:id/instructions first)");
+    }
+    if (changes.customInstructionsVersion !== (managed.info.customInstructionsVersion ?? versionOf(managed.info.customInstructions ?? ""))) {
+      throw new AgentEditConflictError("custom instructions changed since you read them; re-read and retry");
+    }
+    const next = changes.customInstructions || null;
+    if (next !== managed.info.customInstructions) {
+      managed.info.customInstructions = next;
+      managed.info.customInstructionsVersion = versionOf(next ?? "");
+      updated.customInstructions = managed.info.customInstructions;
+      updated.customInstructionsVersion = managed.info.customInstructionsVersion;
+    }
   }
   if (changes.agentType && changes.agentType !== managed.info.agentType) {
     managed.info.agentType = changes.agentType;

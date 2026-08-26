@@ -61,6 +61,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     selectedTemplateKey,
     subtitle,
     title,
+    instructionsStale,
   } = useEditAgentDialogController(props);
   const killedAgents = useAppState().killedAgents;
 
@@ -131,6 +132,9 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
         Run <code>/bureau-system-prompt</code> in a chat to see the agent's full system prompt.
         {!isSpawn && " Changes take effect on next conversation."}
       </p>
+      {!isSpawn && instructionsStale && (
+        <p style={{ fontSize: 11, color: "var(--orange)", margin: "6px 0 0" }}>Custom instructions changed since you opened this dialog. Close and reopen to edit the latest version.</p>
+      )}
 
       {isSpawn && props.room !== undefined && killedAgents.length > 0 && (
         <ReviveAgentSection deskIndex={props.deskIndex} roomId={rooms[props.room]?.id} killedAgents={killedAgents} onRevived={props.onClose} />
