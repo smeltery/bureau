@@ -1,7 +1,21 @@
 import { useEffect, useState } from "react";
-import type { AgentState } from "../../shared/types.ts";
+import type { AgentState, PendingPromptKind } from "../../shared/types.ts";
 import { sendAbortDebounced } from "../utils/abort.ts";
 import { ESCALATION_AMBER_MS, escalationColor, formatElapsed } from "../utils/time.ts";
+
+export const PENDING_PROMPT_BADGE: Record<PendingPromptKind, string> = {
+  permission: "permission",
+  resume: "session",
+  model: "model",
+  effort: "effort",
+};
+
+export const PENDING_PROMPT_LABEL: Record<PendingPromptKind, string> = {
+  permission: "Waiting for permission",
+  resume: "Waiting for a session pick",
+  model: "Waiting for a model pick",
+  effort: "Waiting for an effort pick",
+};
 
 export const STATE_LABELS: Partial<Record<AgentState, string>> = {
   thinking: "Thinking",

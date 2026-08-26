@@ -116,6 +116,8 @@ export interface ManagedAgent {
   lastWrittenEntryId: string | null;
   contextNudgesSent: Set<50 | 75>;
   pendingContextNotices: string[];
+  memoryNotice: string | null;
+  memoryNoticeFired: boolean;
   // --- Subscription-allowance usage (the pill next to the context battery).
   // Latest committed reading for the ACCOUNT this agent's backend is signed in
   // to, or null/absent when there is none (Claude API-key/Bedrock/Vertex

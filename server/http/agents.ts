@@ -81,7 +81,8 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       const result = requiresIsolatedLogSearch(url.searchParams) ? await readAgentLogsIsolated(agentId, url.searchParams) : readAgentLogs(agentId, url.searchParams);
       if (!result.ok) return jsonError(result.status, result.error);
       const inFlightTurn = AgentManager.getAgentInFlightTurnForLogs(agentId);
-      return new Response(JSON.stringify(result.body.mode === "search" ? result.body : { ...result.body, inFlightTurn }), { headers: JSON_HEADERS });
+      const pendingPrompt = AgentManager.getAgentPendingPrompt(agentId);
+      return new Response(JSON.stringify(result.body.mode === "search" ? result.body : { ...result.body, inFlightTurn, pendingPrompt }), { headers: JSON_HEADERS });
     }
 
     if (req.method === "PATCH" && parts.length === 4 && parts[2] === "messages") {

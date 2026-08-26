@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import type { AgentInfo } from "../../../shared/types.ts";
+import type { AgentInfo, PendingPromptKind } from "../../../shared/types.ts";
+import { PENDING_PROMPT_BADGE } from "../../log-view/StateIndicators.tsx";
 import { DeskSprite } from "./DeskSprite.tsx";
 import { Character } from "./Character.tsx";
 import { StatusLight } from "./StatusLight.tsx";
@@ -181,6 +182,22 @@ export function DeskUnit({
           <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.01em" }}>
             <span style={{ opacity: 0.5 }}>{agent.desk + 1} ·</span> {agent.name}
           </span>
+          {agent.pendingPrompt && (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: "white",
+                background: "var(--orange)",
+                padding: "1px 6px",
+                borderRadius: 8,
+                letterSpacing: "0.02em",
+                flexShrink: 0,
+              }}
+            >
+              {PENDING_PROMPT_BADGE[agent.pendingPrompt]}
+            </span>
+          )}
         </div>
         {agent.topic && agent.topic !== "..." && (
           <div

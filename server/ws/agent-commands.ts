@@ -113,6 +113,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
           cwd: cmd.cwd,
           outfit: cmd.outfit,
           customInstructions: cmd.customInstructions,
+          customInstructionsVersion: cmd.customInstructionsVersion,
           agentType: cmd.agentType,
           modelFamily: cmd.modelFamily,
           permissionMode: cmd.permissionMode,

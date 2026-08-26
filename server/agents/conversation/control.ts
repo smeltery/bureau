@@ -131,6 +131,8 @@ export async function newConversation(agentId: string) {
     managed.contextNudgesSent.clear();
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
+    managed.memoryNotice = null;
+    managed.memoryNoticeFired = false;
     managed.info.topic = null;
     managed.info.topicStale = false;
     managed.info.contextUsage = null;
@@ -192,6 +194,8 @@ export async function resume(agentId: string, sessionId: string) {
     managed.contextNudgesSent.clear();
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
+    managed.memoryNotice = null;
+    managed.memoryNoticeFired = false;
     managed.info.contextUsage = null;
     // Record the cwd we actually resumed in: backfill a legacy/missing value, or
     // repair a present-but-invalid one so it isn't sticky on future resumes.

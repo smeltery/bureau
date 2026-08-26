@@ -1,6 +1,7 @@
 import type { AgentInfo } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES } from "../../shared/types.ts";
 import { getBackend } from "../backends/index.ts";
+import { versionOf } from "../memory-store.ts";
 import type { loadAgents } from "../persistence.ts";
 
 type PersistedAgent = ReturnType<typeof loadAgents>[number]["agents"][number];
@@ -29,6 +30,7 @@ export function buildRestoredAgentInfo(persisted: PersistedAgent, room: number):
     // agents whose persisted topic is still current.
     topicStale: false,
     customInstructions: persisted.customInstructions ?? null,
+    customInstructionsVersion: versionOf(persisted.customInstructions ?? ""),
     queue: Array.isArray(persisted.queue) ? persisted.queue : [],
   };
 }

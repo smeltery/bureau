@@ -4,6 +4,7 @@ import { appendLog, loadOfficeConfig, type OfficeConfig } from "../persistence.t
 import { saveLiveAgentHistory, saveLiveAgents, writeAgentsManifest } from "./state-persistence.ts";
 import type { AgentEvent, EventHandler, InternalRoom, ManagedAgent } from "./state-types.ts";
 export type { AgentEvent, EventHandler, InternalRoom, ManagedAgent } from "./state-types.ts";
+import { pendingPromptOf } from "./pending-prompt.ts";
 
 // ---------------------------------------------------------------------------
 // Mutable singletons
@@ -105,9 +106,17 @@ export function clearLiveTurn(managed: ManagedAgent) {
   managed.toolCallTimestamps.clear();
 }
 
+export function syncPendingPrompt(agentId: string, managed: ManagedAgent) {
+  const next = pendingPromptOf(managed);
+  if ((managed.info.pendingPrompt ?? null) === next) return;
+  managed.info = { ...managed.info, pendingPrompt: next };
+  emit({ type: "agent_updated", agentId, changes: { pendingPrompt: next } });
+}
+
 export function updateState(agentId: string, state: AgentState) {
   const managed = agents.get(agentId);
   if (!managed) return;
+  syncPendingPrompt(agentId, managed);
   if (state === "thinking" && managed.info.state !== "thinking") {
     managed.thinkingStartedAt = Date.now();
   }

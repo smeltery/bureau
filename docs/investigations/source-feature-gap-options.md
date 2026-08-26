@@ -1,6 +1,6 @@
 # Source Feature Gap Options
 
-Date: 2026-08-25 (updated after feature-gap pass against nmamano/isomux)
+Date: 2026-08-26 (updated after feature-gap pass against nmamano/isomux)
 
 This investigation records accepted, rejected, and deferred options from a
 source feature-gap comparison. Source behavior was used as evidence;
@@ -47,6 +47,9 @@ implementation stays in Bureau naming and architecture.
 
 ## Implemented since the prior note (2026-07-14)
 
+- Pending prompt visibility (`pendingPrompt`) on manifests, logs, desk chips, and chat headers.
+- Memory cap turn-start notices when auto-loaded scopes are near their size caps.
+- Custom instructions optimistic concurrency via `customInstructionsVersion` on read and PATCH.
 - Sender-visible failure notices for scheduled messages that can no longer be
   delivered. The sender now receives a system log entry when a due message is
   dropped after the delivery deadline or because the receiver no longer exists.

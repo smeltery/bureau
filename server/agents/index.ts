@@ -15,6 +15,7 @@ export {
   getAgentContextUsage,
   getAgentInFlightTurnForLogs,
   getAgentInFlightTurnForManifest,
+  getAgentPendingPrompt,
   listSessions,
   getCurrentSessionId,
   emitAgentDiff,

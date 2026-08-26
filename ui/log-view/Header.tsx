@@ -1,8 +1,8 @@
-import type { AgentInfo } from "../../shared/types.ts";
+import type { AgentInfo, PendingPromptKind } from "../../shared/types.ts";
 import { familyDisplayLabel } from "../../shared/types.ts";
 import { useAppState } from "../store.tsx";
 import { StatusLight } from "../office/scene/StatusLight.tsx";
-import { HeaderTimer, STATE_LABELS } from "./StateIndicators.tsx";
+import { HeaderTimer, PENDING_PROMPT_LABEL, STATE_LABELS } from "./StateIndicators.tsx";
 import { HeaderTopic } from "./HeaderTopic.tsx";
 import { HeaderMobile } from "./HeaderMobile.tsx";
 import { HeaderActions } from "./header/HeaderActions.tsx";
@@ -106,6 +106,7 @@ export function Header({
           {agent.name}
         </span>
         {STATE_LABELS[agent.state] && <HeaderTimer state={agent.state} stateChangedAt={stateChangedAt.get(agent.id)} />}
+        {agent.pendingPrompt && <PendingPromptLabel kind={agent.pendingPrompt} />}
         <HeaderTopic agent={agent} />
         <span style={{ color: "var(--text-ghost)", flexShrink: 0 }}>&middot;</span>
         <span
@@ -161,4 +162,8 @@ export function Header({
       />
     </div>
   );
+}
+
+function PendingPromptLabel({ kind }: { kind: PendingPromptKind }) {
+  return <span style={{ fontSize: 11, fontWeight: 600, color: "var(--orange)", whiteSpace: "nowrap" }}>{PENDING_PROMPT_LABEL[kind]}</span>;
 }

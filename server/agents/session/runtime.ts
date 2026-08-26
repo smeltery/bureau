@@ -1,5 +1,6 @@
 import { rollSessionUsageOnResume } from "../../persistence.ts";
-import { clearLiveTurn, emit, officeConfig, rooms, type ManagedAgent } from "../state.ts";
+import { armMemoryNotice } from "../memory-notice.ts";
+import { clearLiveTurn, emit, officeConfig, rooms, syncPendingPrompt, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { memoryStore } from "../../memory-store.ts";
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
@@ -168,7 +169,9 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   // next user message isn't swallowed by a dead request.
   if (managed.pendingPermission) {
     managed.pendingPermission = null;
+    syncPendingPrompt(managed.info.id, managed);
   }
+  armMemoryNotice(managed);
   // Preflight checks so failures surface as readable errors instead of the SDK's
   // opaque "Claude Code process exited with code 1".
   try {

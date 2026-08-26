@@ -1,4 +1,5 @@
 import type { AgentInfo, SkillInfo } from "../../shared/types.ts";
+import { versionOf } from "../memory-store.ts";
 import { autocompleteCommands } from "./commands.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
 import type { ManagedAgent } from "./state.ts";
@@ -11,10 +12,14 @@ export function createManagedAgent(input: {
   slashCommands?: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[];
   skills?: SkillInfo[];
 }): ManagedAgent {
+  const info: AgentInfo = {
+    ...input.info,
+    customInstructionsVersion: input.info.customInstructionsVersion ?? versionOf(input.info.customInstructions ?? ""),
+  };
   const slashCommands = input.slashCommands ?? autocompleteCommands();
   const skills = input.skills ?? deduplicateSkills([...discoverUserSkills(), ...discoverProjectSkills(input.skillCwd), ...discoverPluginSkills(), ...discoverBundledSkills()]);
   return {
-    info: input.info,
+    info,
     session: null,
     sessionId: input.sessionId ?? null,
     lastActivityAt: Date.now(),
@@ -49,6 +54,8 @@ export function createManagedAgent(input: {
     lastWrittenEntryId: null,
     contextNudgesSent: new Set(),
     pendingContextNotices: [],
+    memoryNotice: null,
+    memoryNoticeFired: false,
     wakeNotice: null,
     dormantReason: null,
   };

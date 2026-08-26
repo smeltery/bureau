@@ -9,9 +9,15 @@ export interface PluginPromptPrefix {
 // stripPluginPrefix round-trip it for edit-to-fork matching.
 export const WAKE_NOTICE_BLOCK_OPEN = "--- begin bureau: wake-notice ---";
 export const WAKE_NOTICE_BLOCK_CLOSE = "--- end bureau: wake-notice ---";
+export const MEMORY_NOTICE_BLOCK_OPEN = "--- begin bureau: memory-check ---";
+export const MEMORY_NOTICE_BLOCK_CLOSE = "--- end bureau: memory-check ---";
 
 export function formatWakeNoticeBlock(note: string): string {
   return `${WAKE_NOTICE_BLOCK_OPEN}\n${note}\n${WAKE_NOTICE_BLOCK_CLOSE}`;
+}
+
+export function formatMemoryNoticeBlock(note: string): string {
+  return `${MEMORY_NOTICE_BLOCK_OPEN}\n${note}\n${MEMORY_NOTICE_BLOCK_CLOSE}`;
 }
 
 export function applyPluginPrefixes(prefixes: PluginPromptPrefix[], sdkText: string): string {

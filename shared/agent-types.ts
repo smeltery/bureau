@@ -4,6 +4,8 @@ import type { Attachment } from "./log-types.ts";
 // Agent states derived from SDK stream events
 export type AgentState = "idle" | "thinking" | "tool_executing" | "waiting_for_response" | "error" | "stopped";
 
+export type PendingPromptKind = "permission" | "resume" | "model" | "effort";
+
 // Deterministic outfit from name hash
 export interface AgentOutfit {
   hat: "none" | "cap" | "beanie" | "bow" | "headband";
@@ -68,6 +70,8 @@ export interface AgentInfo {
   topic: string | null;
   topicStale: boolean;
   customInstructions: string | null;
+  customInstructionsVersion?: string;
+  pendingPrompt?: PendingPromptKind | null;
   // True while the agent's SDK session is being replaced (e.g. resume,
   // model change, edit/fork, slash-command compact). The chat UI shows a
   // "Restarting session..." hint until the swap completes — without it

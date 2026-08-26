@@ -57,6 +57,8 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const [cwd, setCwd] = useState(agent?.cwd ?? props.defaultCwd ?? "~");
   const [outfit, setOutfit] = useState<AgentOutfit>(agent ? { ...agent.outfit } : makeRandomOutfit);
   const [customInstructions, setCustomInstructions] = useState(agent?.customInstructions ?? "");
+  const instructionsVersionAtOpen = useRef(agent?.customInstructionsVersion ?? "");
+  const instructionsStale = !isSpawn && !!agent && agent.customInstructionsVersion !== instructionsVersionAtOpen.current;
   const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
   const [modelFamily, setModelFamily] = useState<string>(agent?.modelFamily ?? modelOptions[0].family);
   const [effort, setEffort] = useState<EffortLevel>(agent?.effort ?? DEFAULT_EFFORT);
@@ -215,7 +217,10 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       if (cwd.trim() && cwd.trim() !== agent!.cwd) cmd.cwd = cwd.trim();
       if (JSON.stringify(outfit) !== JSON.stringify(agent!.outfit)) cmd.outfit = outfit;
       const trimmedInstructions = customInstructions.trim();
-      if (trimmedInstructions !== (agent!.customInstructions ?? "")) cmd.customInstructions = trimmedInstructions;
+      if (trimmedInstructions !== (agent!.customInstructions ?? "")) {
+        cmd.customInstructions = trimmedInstructions;
+        cmd.customInstructionsVersion = instructionsVersionAtOpen.current;
+      }
       if (modelFamily !== agent!.modelFamily) cmd.modelFamily = modelFamily;
       if (agentType !== agent!.agentType) cmd.agentType = agentType;
       if (effort !== (agent!.effort ?? DEFAULT_EFFORT)) cmd.effort = effort;
@@ -318,5 +323,6 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     selectedTemplateKey,
     subtitle,
     title,
+    instructionsStale,
   };
 }

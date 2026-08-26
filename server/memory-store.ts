@@ -95,6 +95,13 @@ export interface MemoryAppendResult {
 
 export type MemoryReplaceResult = { ok: true; version: string } | { ok: false; conflict: true; version: string };
 
+export interface MemoryScopeMeasurement {
+  scope: MemoryScope;
+  label: string;
+  contentChars: number;
+  cap: number;
+}
+
 export interface MemoryStore {
   read(scope: MemoryScope, scopeId: string | null): MemoryReadResult;
   readText(scope: MemoryScope, scopeId: string | null): string;
@@ -103,6 +110,7 @@ export interface MemoryStore {
   findDuplicate(scope: MemoryScope, scopeId: string | null, text: string): MemoryItem | null;
   renderForPrompt(scope: MemoryScope, scopeId: string | null): string | null;
   renderForPromptMulti(refs: readonly MemoryScopeRef[]): string | null;
+  measureForPromptMulti(refs: readonly MemoryScopeRef[]): MemoryScopeMeasurement[];
 }
 
 export interface MemoryStoreDeps {
@@ -203,7 +211,24 @@ export function createMemoryStore(deps: MemoryStoreDeps = {}): MemoryStore {
     return blocks.length > 0 ? blocks.join("\n\n") : null;
   }
 
-  return { read, readText, append, replace, findDuplicate, renderForPrompt, renderForPromptMulti };
+  function measureForPromptMulti(refs: readonly MemoryScopeRef[]): MemoryScopeMeasurement[] {
+    const out: MemoryScopeMeasurement[] = [];
+    for (const ref of refs) {
+      const lines = readText(ref.scope, ref.scopeId)
+        .split("\n")
+        .filter((line) => line.trim() !== "");
+      if (lines.length === 0) continue;
+      out.push({
+        scope: ref.scope,
+        label: ref.label,
+        contentChars: lines.join("\n").length,
+        cap: caps[ref.scope],
+      });
+    }
+    return out;
+  }
+
+  return { read, readText, append, replace, findDuplicate, renderForPrompt, renderForPromptMulti, measureForPromptMulti };
 }
 
 export const memoryStore = createMemoryStore();

@@ -2,32 +2,18 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import { agents } from "../../agents/state.ts";
 import { createManagedAgent } from "../../agents/managed-factory.ts";
+import { editAgent } from "../../agents/settings.ts";
 import { handleAgentsRequest } from "../agents.ts";
-import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
+import { testAgentInfo } from "../../__tests__/agent-info-fixture.ts";
+import { versionOf } from "../../memory-store.ts";
 
 afterEach(() => {
   _testResetAgentTokens();
   agents.clear();
 });
 
-function installAgent(id: string, overrides: Partial<AgentInfo> = {}) {
-  const info: AgentInfo = {
-    id,
-    name: "Instruction Agent",
-    desk: 0,
-    room: 0,
-    cwd: process.cwd(),
-    outfit: { hat: "none", color: "#000000", hair: "#000000", hairStyle: "short", skin: "#000000", beard: "none", accessory: null },
-    permissionMode: "default",
-    modelFamily: "sonnet",
-    agentType: "claude",
-    capabilities: DEFAULT_AGENT_CAPABILITIES,
-    state: "idle",
-    topic: null,
-    topicStale: false,
-    customInstructions: null,
-    ...overrides,
-  };
+function installAgent(id: string, overrides: Partial<ReturnType<typeof testAgentInfo>> = {}) {
+  const info = testAgentInfo({ id, name: "Instruction Agent", ...overrides });
   agents.set(id, createManagedAgent({ info, skillCwd: process.cwd(), slashCommands: [], skills: [] }));
 }
 
@@ -42,7 +28,10 @@ describe("agent instructions read route", () => {
     const res = await handleAgentsRequest(req, new URL(req.url));
 
     expect(res?.status).toBe(200);
-    expect(await res?.json()).toEqual({ customInstructions: "Prefer short answers." });
+    expect(await res?.json()).toEqual({
+      customInstructions: "Prefer short answers.",
+      customInstructionsVersion: versionOf("Prefer short answers."),
+    });
   });
 
   test("returns null custom instructions through the instructions read route", async () => {
@@ -55,7 +44,7 @@ describe("agent instructions read route", () => {
     const res = await handleAgentsRequest(req, new URL(req.url));
 
     expect(res?.status).toBe(200);
-    expect(await res?.json()).toEqual({ customInstructions: null });
+    expect(await res?.json()).toEqual({ customInstructions: null, customInstructionsVersion: versionOf("") });
   });
 
   test("requires a valid bearer token for the instructions read route", async () => {
@@ -68,5 +57,29 @@ describe("agent instructions read route", () => {
 
     expect(res?.status).toBe(401);
     expect(await res?.json()).toEqual({ error: "missing or invalid bearer token" });
+  });
+});
+
+describe("customInstructionsVersion guard", () => {
+  test("returns 409 when the version is stale", async () => {
+    installAgent("agent-1", { customInstructions: "v1" });
+    const req = new Request("http://local.test/api/agents/agent-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customInstructions: "v2", customInstructionsVersion: "deadbeef0000" }),
+    });
+
+    const res = await handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+
+    expect(res?.status).toBe(409);
+    expect(await res?.json()).toEqual({ error: "custom instructions changed since you read them; re-read and retry" });
+  });
+
+  test("bumps the version on a successful instructions write", async () => {
+    installAgent("agent-1", { customInstructions: "v1" });
+    const before = versionOf("v1");
+    await editAgent("agent-1", { customInstructions: "v2", customInstructionsVersion: before });
+    expect(agents.get("agent-1")?.info.customInstructions).toBe("v2");
+    expect(agents.get("agent-1")?.info.customInstructionsVersion).toBe(versionOf("v2"));
   });
 });
