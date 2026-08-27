@@ -14,6 +14,12 @@ import {
 import { buildCronjobSchedule, type ScheduleType } from "./CronjobScheduleFields.tsx";
 import { shouldHostCloseOnEscape } from "./expandedEditorState.ts";
 
+const DEFAULT_CODEX_CRONJOB_SANDBOX: CodexSandboxMode = "danger-full-access";
+
+export function defaultCronjobCodexSandboxForTest(): CodexSandboxMode {
+  return DEFAULT_CODEX_CRONJOB_SANDBOX;
+}
+
 export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?: Cronjob; username: string; onClose: () => void }) {
   const isEdit = !!cronjob;
   const [name, setName] = useState(cronjob?.name ?? "");
@@ -31,7 +37,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
   const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
   const [modelFamily, setModelFamily] = useState<string>(cronjob?.modelFamily ?? modelOptions[0].family);
   const [effort, setEffort] = useState<EffortLevel>(cronjob?.effort ?? DEFAULT_EFFORT);
-  const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(cronjob?.codexSandbox ?? "workspace-write");
+  const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(cronjob?.codexSandbox ?? DEFAULT_CODEX_CRONJOB_SANDBOX);
   const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(cronjob?.permissionMode ?? "bypassPermissions");
   const effortOptions = agentType === "codex" ? EFFORT_LEVELS : EFFORT_LEVELS.filter((e) => e.level !== "minimal" && (e.level !== "max" || modelFamily === "opus" || modelFamily === "fable"));
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
@@ -131,7 +137,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
     setAgentType(next);
     setModelFamily(next === "codex" ? CODEX_MODELS[0].value : MODEL_FAMILIES[0].family);
     setEffort(DEFAULT_EFFORT);
-    setCodexSandbox("workspace-write");
+    setCodexSandbox(DEFAULT_CODEX_CRONJOB_SANDBOX);
     setPermissionMode(next === "codex" ? "never" : "bypassPermissions");
   }
 

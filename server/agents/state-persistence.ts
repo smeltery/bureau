@@ -21,6 +21,9 @@ export function writeAgentsManifest(agents: Iterable<ManagedAgent>, rooms: Inter
       capabilities: a.info.capabilities,
       modelFamily: a.info.modelFamily,
       model: FAMILY_TO_MODEL[a.info.modelFamily as keyof typeof FAMILY_TO_MODEL] ?? a.info.modelFamily,
+      effort: a.info.effort,
+      permissionMode: a.info.permissionMode,
+      sandbox: a.info.codexSandbox ?? null,
       lastSessionId: a.sessionId,
     })),
   );

@@ -250,6 +250,8 @@ export function projectedAgentsManifest(req: Request, auth: AuthResult | undefin
         modelFamily: agent.modelFamily,
         model: FAMILY_TO_MODEL[agent.modelFamily as keyof typeof FAMILY_TO_MODEL] ?? agent.modelFamily,
         effort: agent.effort,
+        permissionMode: agent.permissionMode,
+        sandbox: agent.codexSandbox ?? null,
         inFlightTurn: AgentManager.getAgentInFlightTurnForManifest(agent.id),
         pendingPrompt: agent.pendingPrompt ?? null,
         lastSessionId: AgentManager.getCurrentSessionId(agent.id),

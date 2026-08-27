@@ -111,6 +111,8 @@ export function writeManifest(
     modelFamily: string;
     model: ClaudeModel;
     effort?: AgentInfo["effort"];
+    permissionMode: AgentInfo["permissionMode"];
+    sandbox: AgentInfo["codexSandbox"] | null;
     inFlightTurn?: AgentInfo["inFlightTurn"];
     lastSessionId: string | null;
   }[],
@@ -140,6 +142,8 @@ export function buildAgentsManifest(
     modelFamily: string;
     model: ClaudeModel;
     effort?: AgentInfo["effort"];
+    permissionMode: AgentInfo["permissionMode"];
+    sandbox: AgentInfo["codexSandbox"] | null;
     inFlightTurn?: AgentInfo["inFlightTurn"];
     lastSessionId: string | null;
   }[],
@@ -161,6 +165,8 @@ export function buildAgentsManifest(
     modelFamily: a.modelFamily,
     model: a.model,
     effort: a.effort,
+    permissionMode: a.permissionMode,
+    sandbox: a.sandbox,
     inFlightTurn: a.inFlightTurn ?? null,
     lastSessionId: a.lastSessionId,
     logDir: join(LOGS_DIR, a.id),

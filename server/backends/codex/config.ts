@@ -53,7 +53,7 @@ export const PERMISSION_MODES: PermissionModeOption[] = [
   { value: "never", label: "Never ask (use with sandbox)" },
 ];
 
-export const DEFAULT_SANDBOX_MODE = "workspace-write";
+export const DEFAULT_SANDBOX_MODE = "danger-full-access";
 
 export function getCodexLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): { text: string; commands?: string[] } {
   if (isCodexAuthenticated(opts?.env)) {

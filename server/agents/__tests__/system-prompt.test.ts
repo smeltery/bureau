@@ -87,6 +87,15 @@ describe("buildSystemPrompt memory affordance", () => {
     // A process that must outlive the session is an APP now, not a hand-rolled
     // background job or a service the agent installs itself.
     expect(prompt).toContain("register it as a Bureau app");
+    expect(prompt).toContain("Background-task completion notifications report the wrapper's exit code");
+    expect(prompt).toContain("echo exit=$?");
+  });
+
+  test("documents permission posture in the agent manifest", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("permissionMode");
+    expect(prompt).toContain("sandbox (null for Claude agents)");
   });
 
   test("documents instant self-handoff REST", () => {
