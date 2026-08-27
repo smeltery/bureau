@@ -9,6 +9,7 @@ import {
 
 import { FAMILY_TO_MODEL, MODEL_FAMILIES, type ModelFamily } from "../../shared/types.ts";
 import { CLAUDE_NATIVE_BIN } from "../agents/session/claude-native.ts";
+import { claudeProjectDir, claudeSessionFileExists } from "../agents/session/paths.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
 import { isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
 import { createClaudeSubscriptionUsageReader, type ClaudeUsageCapableQuery } from "./claude-subscription-usage.ts";
@@ -195,6 +196,13 @@ export const claudeBackend: Backend = {
   },
   resumeSession(sessionId, opts) {
     return new ClaudeBackendSession(opts, sessionId);
+  },
+  checkSessionResumable(sessionId, opts) {
+    if (claudeSessionFileExists(opts.cwd, sessionId, opts.env)) return null;
+    return (
+      `Cannot resume session ${sessionId.slice(0, 8)}...: its file is missing from ${claudeProjectDir(opts.cwd, opts.env)}. ` +
+      "Most commonly this happens after the cwd was moved or renamed - the Claude CLI stores sessions under a path derived from cwd."
+    );
   },
   async forkSessionBeforeMessage(sessionId, targetMessageId): Promise<ForkSessionBeforeMessageResult> {
     const result = await sdkForkSession(sessionId, { upToMessageId: targetMessageId });

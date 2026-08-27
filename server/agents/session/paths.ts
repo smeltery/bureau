@@ -1,7 +1,8 @@
 import { join, resolve } from "path";
 import { homedir } from "os";
-import { existsSync, mkdirSync, renameSync, statSync } from "fs";
+import { closeSync, existsSync, mkdirSync, openSync, readSync, readdirSync, renameSync, statSync } from "fs";
 import { errMessage } from "../../../shared/errors.ts";
+import { BUREAU_CODEX_HOME } from "../../backends/codex/native-bin.ts";
 
 // Resolve ~ in paths
 export function resolveCwd(cwd: string): string {
@@ -51,6 +52,88 @@ export function claudeProjectDir(cwd: string, env?: { [key: string]: string | un
 
 export function claudeSessionFileExists(cwd: string, sessionId: string, env?: { [key: string]: string | undefined }): boolean {
   return existsSync(join(claudeProjectDir(cwd, env), `${sessionId}.jsonl`));
+}
+
+export function codexSessionsDir(env?: { [key: string]: string | undefined }): string {
+  return join(env?.CODEX_HOME || BUREAU_CODEX_HOME, "sessions");
+}
+
+const CODEX_ROLLOUT_SCAN_DIR_CAP = 50_000;
+const CODEX_ROLLOUT_HEADER_SCAN_LINES = 16;
+const CODEX_THREAD_ID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+export function codexRolloutFileExists(threadId: string, env?: { [key: string]: string | undefined }): boolean {
+  return findCodexRolloutPath(threadId, env) !== null;
+}
+
+export function codexRolloutHasHistory(threadId: string, env?: { [key: string]: string | undefined }): boolean {
+  const path = findCodexRolloutPath(threadId, env);
+  if (path === null) return false;
+  if (path === "") return true;
+  return rolloutFileHasNonMetaLine(path);
+}
+
+function findCodexRolloutPath(threadId: string, env?: { [key: string]: string | undefined }): string | null {
+  if (!CODEX_THREAD_ID_PATTERN.test(threadId)) return null;
+  const sessionsDir = codexSessionsDir(env);
+  if (!existsSync(sessionsDir)) return null;
+  const filenameSuffix = `-${threadId}.jsonl`;
+  let dirsVisited = 0;
+  const stack = [sessionsDir];
+  while (stack.length > 0) {
+    if (dirsVisited >= CODEX_ROLLOUT_SCAN_DIR_CAP) return "";
+    const dir = stack.pop()!;
+    dirsVisited++;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) stack.push(full);
+      else if (entry.isFile() && entry.name.startsWith("rollout-") && entry.name.endsWith(filenameSuffix)) return full;
+    }
+  }
+  return null;
+}
+
+function rolloutFileHasNonMetaLine(path: string): boolean {
+  const HEAD_BYTES = 128 * 1024;
+  let head: string;
+  try {
+    const fd = openSync(path, "r");
+    try {
+      const tmp = Buffer.alloc(HEAD_BYTES);
+      const n = readSync(fd, tmp, 0, HEAD_BYTES, 0);
+      head = tmp.subarray(0, n).toString("utf8");
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return true;
+  }
+  const segments = head.split("\n");
+  const trailingNewline = head.endsWith("\n");
+  let scanned = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    const isLast = i === segments.length - 1;
+    if (isLast && trailingNewline && !segment.length) continue;
+    if (scanned >= CODEX_ROLLOUT_HEADER_SCAN_LINES) return true;
+    if (!segment.length) continue;
+    scanned++;
+    let parsed: { type?: unknown } | null = null;
+    try {
+      parsed = JSON.parse(segment) as { type?: unknown };
+    } catch {
+      if (isLast && !trailingNewline) return true;
+      continue;
+    }
+    if (parsed && typeof parsed === "object" && parsed.type && parsed.type !== "session_meta") return true;
+  }
+  return false;
 }
 
 // Move a single Claude CLI session's files from one cwd's project dir to

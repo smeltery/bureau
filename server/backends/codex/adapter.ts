@@ -18,6 +18,7 @@ import type {
 import { forkCodexSessionBeforeMessage, getCodexSessionMessages, listCodexModels, oneShotCodexPrompt } from "./backend-ops.ts";
 import { AUTH_ERROR_PATTERNS, CAPABILITIES, MODEL_OPTIONS, PERMISSION_MODES, getCodexLoginInstructions } from "./config.ts";
 import { CodexSession } from "./session.ts";
+import { codexRolloutFileExists, codexSessionsDir } from "../../agents/session/paths.ts";
 
 export const codexBackend: Backend = {
   capabilities: CAPABILITIES,
@@ -59,6 +60,14 @@ export const codexBackend: Backend = {
       env: opts.env,
       resumeThreadId: sessionId,
     });
+  },
+
+  checkSessionResumable(sessionId: string, opts: { cwd: string; env?: { [key: string]: string | undefined } }): string | null {
+    if (codexRolloutFileExists(sessionId, opts.env)) return null;
+    return (
+      `Cannot resume Codex thread ${sessionId.slice(0, 8)}...: no rollout file found under ${codexSessionsDir(opts.env)}. ` +
+      "This usually means the thread was started but never received a user turn before its process exited."
+    );
   },
 
   async forkSessionBeforeMessage(sessionId: string, targetMessageId: string): Promise<ForkSessionBeforeMessageResult> {

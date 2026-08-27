@@ -3,7 +3,7 @@ import { armMemoryNotice } from "../memory-notice.ts";
 import { clearLiveTurn, emit, officeConfig, rooms, syncPendingPrompt, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { memoryStore } from "../../memory-store.ts";
-import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
+import { validateCwd } from "./paths.ts";
 import { getBackend } from "../../backends/index.ts";
 import type { BackendSession } from "../../backends/types.ts";
 import { getUserById } from "../../users.ts";
@@ -179,15 +179,18 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   } catch (err: any) {
     throw new Error(`cwd is invalid: ${err.message}. Click the agent name in the log view header to fix it.`);
   }
-  // Compute env once — both the resume preflight (Claude sessions dir lookup
-  // honors CLAUDE_CONFIG_DIR) and the session opts use it.
+  // Compute env once so the resume preflight and session opts see the same
+  // auth/config paths.
   const env = buildSessionEnv(managed);
-  if (managed.info.agentType === "claude" && resumeSessionId && !claudeSessionFileExists(managed.info.cwd, resumeSessionId, env)) {
-    throw new Error(
-      `Cannot resume session ${resumeSessionId.slice(0, 8)}…: its file is missing from ${claudeProjectDir(managed.info.cwd, env)}. ` +
-        `Most commonly this happens after the agent's cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd. ` +
-        `Use /resume to pick a different session, or move the session .jsonl into the new project dir.`,
-    );
+  const backend = getBackend(managed.info.agentType);
+  if (resumeSessionId) {
+    const resumableError = backend.checkSessionResumable(resumeSessionId, {
+      cwd: managed.info.cwd,
+      env,
+    });
+    if (resumableError) {
+      throw new Error(`${resumableError} Use /resume to pick a different session.`);
+    }
   }
   const room = rooms[managed.info.room]!;
   const memoryPrompt = buildMemoryPromptForAgent(managed);
@@ -225,6 +228,5 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     // prior-runs accumulator so lifetime cost survives the reset.
     rollSessionUsageOnResume(managed.info.id, resumeSessionId);
   }
-  const backend = getBackend(managed.info.agentType);
   return resumeSessionId ? backend.resumeSession(resumeSessionId, opts) : backend.createSession(opts);
 }

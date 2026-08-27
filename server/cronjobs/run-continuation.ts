@@ -1,4 +1,4 @@
-import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "../agents/session/paths.ts";
+import { validateCwd } from "../agents/session/paths.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
 import { appendRunLog, findRun, updateRun } from "../persistence.ts";
 import { cronjobRunStreamId, type Cronjob, type CronjobRun, type LogEntry } from "../../shared/types.ts";
@@ -111,7 +111,6 @@ export async function editRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
 }
 
 function checkCronRunSessionFile(deps: RunContinuationDeps, run: CronjobRun, leaf: string, action: "resume" | "edit"): boolean {
-  if ((run.agentTypeSnapshot ?? "claude") !== "claude") return true;
   let env: { [key: string]: string | undefined } | undefined;
   try {
     const job = deps.getCronjobs().find((c) => c.id === run.cronjobId);
@@ -120,16 +119,12 @@ function checkCronRunSessionFile(deps: RunContinuationDeps, run: CronjobRun, lea
     emitRunErrorEntry(deps, run.cronjobId, run.id, `Cannot ${action}: env file is invalid: ${err.message || String(err)}`);
     return false;
   }
-  if (claudeSessionFileExists(run.cwdSnapshot, leaf, env)) return true;
-
-  const prefix = action === "resume" ? `Cannot resume session ${leaf.slice(0, 8)}…` : `Cannot edit: session ${leaf.slice(0, 8)}…`;
-  emitRunErrorEntry(
-    deps,
-    run.cronjobId,
-    run.id,
-    `${prefix}: its file is missing from ${claudeProjectDir(run.cwdSnapshot, env)}. ` +
-      `Most commonly this happens after the cwd was moved or renamed — the Claude CLI stores sessions under a path derived from cwd.`,
-  );
+  const error = cronRunBackend(run).checkSessionResumable(leaf, {
+    cwd: run.cwdSnapshot,
+    env,
+  });
+  if (!error) return true;
+  emitRunErrorEntry(deps, run.cronjobId, run.id, action === "resume" ? error : `Cannot edit: ${error}`);
   return false;
 }
 

@@ -69,7 +69,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
         ? "bypassPermissions"
         : (agent?.permissionMode ?? "auto");
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
-  const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(agent?.codexSandbox ?? (isSpawn ? "danger-full-access" : "workspace-write"));
+  const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(agent?.codexSandbox ?? "danger-full-access");
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string | null>(null);
   const [privileged, setPrivileged] = useState(agent?.privileged ?? false);
   const canTogglePrivileged = canToggleAgentPrivilege(isSpawn, sessionContext, agent);
@@ -225,7 +225,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       if (agentType !== agent!.agentType) cmd.agentType = agentType;
       if (effort !== (agent!.effort ?? DEFAULT_EFFORT)) cmd.effort = effort;
       if (permissionMode !== agent!.permissionMode) cmd.permissionMode = permissionMode;
-      if (agentType === "codex" && codexSandbox !== (agent!.codexSandbox ?? "workspace-write")) cmd.codexSandbox = codexSandbox;
+      if (agentType === "codex" && codexSandbox !== (agent!.codexSandbox ?? "danger-full-access")) cmd.codexSandbox = codexSandbox;
       const privilegedChanged = canTogglePrivileged && privileged !== (agent!.privileged ?? false);
       const hasAgentChanges = !!(cmd.name || cmd.cwd || cmd.outfit || cmd.customInstructions !== undefined || cmd.modelFamily || cmd.agentType || cmd.effort || cmd.permissionMode || cmd.codexSandbox);
       if (!hasAgentChanges && !privilegedChanged) {
