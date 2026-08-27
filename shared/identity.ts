@@ -31,6 +31,8 @@ export function formatAppSenderPrefix(appName: string): string {
   return `[app "${appName}"]`;
 }
 
+const API_TOKEN_DEVICE_PREFIX = 'API token "';
+
 export function formatApiTokenDevice(tokenName: string): string {
   const normalized = tokenName
     // eslint-disable-next-line no-control-regex -- controls are the threat here
@@ -39,5 +41,9 @@ export function formatApiTokenDevice(tokenName: string): string {
     .replace(/"/g, "'")
     .trim()
     .slice(0, 64);
-  return `API token "${normalized}"`;
+  return `${API_TOKEN_DEVICE_PREFIX}${normalized}"`;
+}
+
+export function isApiTokenDevice(device: string | undefined): boolean {
+  return device?.startsWith(API_TOKEN_DEVICE_PREFIX) === true;
 }

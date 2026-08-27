@@ -7,6 +7,7 @@ import { DiffCard } from "../DiffCard.tsx";
 import { EditRequestCard } from "../EditRequestCard.tsx";
 import { FileViewCard } from "../FileViewCard.tsx";
 import { TerminalCommandCard } from "../TerminalCommandCard.tsx";
+import { isApiTokenDevice } from "../../../shared/identity.ts";
 
 export { serializeEntries } from "./serialize.ts";
 export { isFoldedToolResult } from "./ToolEntries.tsx";
@@ -46,12 +47,14 @@ export function LogEntryCard({
   switch (entry.kind) {
     case "user_message": {
       const username = entry.metadata?.username as string | undefined;
+      const device = entry.metadata?.device as string | undefined;
       const agentName = entry.metadata?.sender_agent_name as string | undefined;
       const agentRoom = entry.metadata?.sender_agent_room as string | undefined;
       const cronjobName = entry.metadata?.sender_cronjob_name as string | undefined;
+      const isProgrammaticUser = isApiTokenDevice(device);
       // Agent-sent messages aren't editable: "edit & branch" rewrites the
       // human's own prompt, not a peer-attributed message.
-      if (isEditing && !agentName && !cronjobName) {
+      if (isEditing && !agentName && !cronjobName && !isProgrammaticUser) {
         return <EditableUserMessage content={entry.content} entryId={entry.id} isMobile={isMobile} username={username} onCancel={onCancelEdit} onSubmit={onSubmitEdit} />;
       }
       return (
@@ -59,12 +62,13 @@ export function LogEntryCard({
           content={entry.content}
           isMobile={isMobile}
           username={username}
+          device={device}
           agentName={agentName}
           agentRoom={agentRoom}
           cronjobName={cronjobName}
           attachments={entry.attachments}
           agentId={entry.agentId}
-          canEdit={canEdit && !agentName && !cronjobName}
+          canEdit={canEdit && !agentName && !cronjobName && !isProgrammaticUser}
           onEdit={onStartEdit ? () => onStartEdit(entry.id) : undefined}
         />
       );

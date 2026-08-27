@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Attachment } from "../../../shared/types.ts";
+import { isApiTokenDevice } from "../../../shared/identity.ts";
 import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { EditIcon } from "../../components/controls/Icons.tsx";
 import { AttachmentDisplay } from "./shared.tsx";
@@ -8,6 +9,7 @@ export function UserMessage({
   content,
   isMobile,
   username,
+  device,
   agentName,
   agentRoom,
   cronjobName,
@@ -19,6 +21,7 @@ export function UserMessage({
   content: string;
   isMobile?: boolean;
   username?: string;
+  device?: string;
   agentName?: string;
   agentRoom?: string;
   cronjobName?: string;
@@ -31,7 +34,7 @@ export function UserMessage({
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   // Programmatic senders get a distinct dashed treatment so they don't read as
   // the human's own typing. Mirrors QueueChips for queued programmatic messages.
-  const sender = describeUserMessageSender({ username, agentName, agentRoom, cronjobName });
+  const sender = describeUserMessageSender({ username, device, agentName, agentRoom, cronjobName });
   return (
     <div
       style={{
@@ -96,13 +99,26 @@ export function UserMessage({
   );
 }
 
-export function describeUserMessageSender({ username, agentName, agentRoom, cronjobName }: { username?: string; agentName?: string; agentRoom?: string; cronjobName?: string }): {
+export function describeUserMessageSender({
+  username,
+  device,
+  agentName,
+  agentRoom,
+  cronjobName,
+}: {
+  username?: string;
+  device?: string;
+  agentName?: string;
+  agentRoom?: string;
+  cronjobName?: string;
+}): {
   label: string;
   fromHuman: boolean;
 } {
   if (agentName) return { label: `${agentName} · agent · Room "${agentRoom ?? "?"}"`, fromHuman: false };
   if (cronjobName) return { label: `${cronjobName} · cron job`, fromHuman: false };
-  return { label: username ?? "You", fromHuman: true };
+  const label = username ? (device ? `${username} (${device})` : username) : (device ?? "You");
+  return { label, fromHuman: !isApiTokenDevice(device) };
 }
 
 export function EditableUserMessage({
