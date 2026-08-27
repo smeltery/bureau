@@ -58,21 +58,22 @@ function eventSession(events: NormalizedEvent[]): BackendSession {
 
 describe("runConsumer", () => {
   test("does not let late activity restore a busy state after a turn ends", async () => {
+    const agentId = `event-consumer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const session = eventSession([
       { kind: "turn_completed", status: "completed" },
       { kind: "tool_call", toolUseId: "late-1", name: "Bash", input: { command: "date" } },
       { kind: "assistant_text", text: "late text" },
     ]);
-    const managed = createManagedAgent({ info: agentInfo("agent-1"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+    const managed = createManagedAgent({ info: agentInfo(agentId), skillCwd: process.cwd(), slashCommands: [], skills: [] });
     managed.session = session;
     managed.turnStartedAt = 123;
     managed.info = { ...managed.info, state: "thinking" };
-    agents.set("agent-1", managed);
+    agents.set(agentId, managed);
 
-    await runConsumer("agent-1", managed, session);
+    await runConsumer(agentId, managed, session);
 
     expect(managed.turnStartedAt).toBe(0);
     expect(managed.info.state).toBe("waiting_for_response");
-    expect(logCache.get("agent-1")?.map((entry) => entry.kind)).toEqual(["tool_call", "text"]);
+    expect(logCache.get(agentId)?.map((entry) => entry.kind)).toEqual(["tool_call", "text"]);
   });
 });
