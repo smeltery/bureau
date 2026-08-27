@@ -141,7 +141,11 @@ export interface AgentSubscriptionUsage {
 // comes from the token it authenticated with, so there is no field a caller
 // could lie in. Apps have no room and no id of their own — the receiving agent
 // is the one that built the app.
-export type QueuedSender = { kind: "user"; username?: string; device?: string } | { kind: "agent"; agentId: string; agentName: string; roomName: string } | { kind: "app"; appName: string };
+export type QueuedSender =
+  | { kind: "user"; username?: string; device?: string }
+  | { kind: "agent"; agentId: string; agentName: string; roomName: string }
+  | { kind: "app"; appName: string }
+  | { kind: "cronjob"; cronjobId?: string; cronjobName: string };
 
 export interface QueuedMessage {
   id: string; // short hex; UI uses this to cancel

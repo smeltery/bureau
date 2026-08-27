@@ -47,11 +47,15 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
       </div>
       {queue.map((msg) => {
         const attachmentCount = msg.attachments?.length ?? 0;
-        const isAgent = msg.sender.kind === "agent";
-        // An app chip reads as the app, not as a person: it is a program the
-        // agent built, reporting back.
+        const isProgrammatic = msg.sender.kind === "agent" || msg.sender.kind === "app" || msg.sender.kind === "cronjob";
         const senderLabel =
-          msg.sender.kind === "agent" ? `${msg.sender.agentName} · agent · Room "${msg.sender.roomName}"` : msg.sender.kind === "app" ? `${msg.sender.appName} · app` : msg.sender.username || "you";
+          msg.sender.kind === "agent"
+            ? `${msg.sender.agentName} · agent · Room "${msg.sender.roomName}"`
+            : msg.sender.kind === "app"
+              ? `${msg.sender.appName} · app`
+              : msg.sender.kind === "cronjob"
+                ? `${msg.sender.cronjobName} · cron job`
+                : msg.sender.username || "you";
         return (
           <div
             key={msg.id}
@@ -61,8 +65,8 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
               gap: 8,
               padding: "6px 10px",
               borderRadius: 8,
-              background: isAgent ? "var(--bg-base)" : "var(--bg-hover)",
-              border: `1px ${isAgent ? "dashed" : "solid"} var(--border-medium)`,
+              background: isProgrammatic ? "var(--bg-base)" : "var(--bg-hover)",
+              border: `1px ${isProgrammatic ? "dashed" : "solid"} var(--border-medium)`,
               fontSize: isMobile ? 13 : 12,
               fontFamily: "'JetBrains Mono',monospace",
               color: "var(--text-secondary)",

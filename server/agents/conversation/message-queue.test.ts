@@ -136,6 +136,30 @@ describe("flushQueue", () => {
 
     expect(sent).toEqual(["[Handoff from your previous session] Finish the widget."]);
   });
+
+  test("stamps cron job sender metadata when flushing queued messages", async () => {
+    let managed!: ManagedAgent;
+    managed = makeAgent(
+      "agent-1",
+      fakeSession(() => {
+        settleTurn(managed);
+      }),
+    );
+    managed.messageQueue.push({
+      id: "cron-1",
+      sender: { kind: "cronjob", cronjobId: "job-1", cronjobName: "Business health check" },
+      text: "Report status.",
+      queuedAt: Date.now(),
+    });
+
+    await flushQueue("agent-1");
+
+    const entry = logCache.get("agent-1")?.find((item) => item.kind === "user_message");
+    expect(entry?.metadata).toMatchObject({
+      sender_cronjob_id: "job-1",
+      sender_cronjob_name: "Business health check",
+    });
+  });
 });
 
 const peerSender = { kind: "agent" as const, agentId: "peer-1", agentName: "Peer", roomName: "Lobby" };

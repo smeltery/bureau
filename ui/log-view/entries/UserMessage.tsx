@@ -29,9 +29,8 @@ export function UserMessage({
 }) {
   const getText = useCallback(() => content, [content]);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  // Messages sent from another agent (a2a) get a distinct dashed treatment so
-  // they don't read as the human's own typing. Mirrors the dashed agent style
-  // QueueChips uses for queued agent messages.
+  // Programmatic senders get a distinct dashed treatment so they don't read as
+  // the human's own typing. Mirrors QueueChips for queued programmatic messages.
   const sender = describeUserMessageSender({ username, agentName, agentRoom, cronjobName });
   return (
     <div

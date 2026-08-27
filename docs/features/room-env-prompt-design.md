@@ -27,7 +27,7 @@ No per-agent env. Identity is per-room (all agents in a room act as the same use
 
 ### Env files are user-managed, paths are absolute
 
-Bureau does not own or manage an env directory. The user creates env files wherever they want and provides absolute paths. Bureau reads from those paths at spawn time. Standard dotenv format.
+Bureau does not own or manage an env directory. The user creates env files wherever they want and provides absolute paths. Bureau reads from those paths at session start. Standard dotenv format.
 
 Example:
 
@@ -42,7 +42,7 @@ GIT_COMMITTER_EMAIL=marc@example.com
 
 ### Env merge semantics
 
-At spawn time:
+At session start:
 
 ```
 merged = { ...process.env, ...officeEnv, ...roomEnv }
@@ -62,7 +62,7 @@ env?: { [envVar: string]: string | undefined };
 
 > "Environment variables to pass to the Claude Code process. Defaults to `process.env`."
 
-At spawn time, bureau reads the office and room env files, merges them, and passes the result via the SDK session options. Credentials never appear in launcher scripts or any bureau-managed file.
+At session start, bureau reads the office and room env files, merges them, and passes the result via the SDK session options. Credentials never appear in launcher scripts or any bureau-managed file.
 
 Spawn path:
 1. Read office env file (if configured) → parse dotenv → `officeEnv`
@@ -206,7 +206,7 @@ Replaces `roomCount`, `roomNames`. `currentRoom` remains an index for UI selecti
 
 1. `shared/types.ts` — `Room` type (renamed from `PersistedRoom`), wire protocol additions.
 2. `server/persistence.ts` — `Room` type, migrations (room ID assignment, `office-prompt.md` → `office-config.json` fold), read/write of `office-config.json`, env file reading.
-3. `server/agent-manager.ts` — room/office settings state, env merging at spawn time, pass `env` to SDK session, office prompt lookup moves from the `.md` file to the config.
+3. `server/agent-manager.ts` — room/office settings state, env merging at session start, pass `env` to SDK session, office prompt lookup moves from the `.md` file to the config.
 4. `server/index.ts` — handle `update_office_settings` / `update_room_settings`, validate env files on save and on settings fetch, include `office` + full room shape in `full_state`, remove `set_office_prompt`.
 5. `ui/store.tsx` — unified `rooms` array, reducer cases for the new broadcasts, `office` object replacing `officePrompt`.
 6. `ui/components/OfficePromptModal.tsx` — add Env File Path input and validation feedback.

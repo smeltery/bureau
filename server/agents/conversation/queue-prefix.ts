@@ -9,6 +9,8 @@ function senderPrefixText(sender: QueuedSender): string {
       return `${formatAgentSenderPrefix(sender.agentId, sender.agentName, sender.roomName)} `;
     case "app":
       return `${formatAppSenderPrefix(sender.appName)} `;
+    case "cronjob":
+      return `[Cron job ${sender.cronjobName}] `;
   }
 }
 

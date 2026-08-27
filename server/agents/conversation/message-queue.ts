@@ -147,6 +147,7 @@ function sameSender(a: QueuedSender, b: QueuedSender): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === "user" && b.kind === "user") return a.username === b.username && a.device === b.device;
   if (a.kind === "agent" && b.kind === "agent") return a.agentId === b.agentId;
+  if (a.kind === "cronjob" && b.kind === "cronjob") return a.cronjobId === b.cronjobId && a.cronjobName === b.cronjobName;
   return false;
 }
 
@@ -162,6 +163,11 @@ function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
       };
     case "app":
       return { sender_app_name: sender.appName };
+    case "cronjob":
+      return {
+        ...(sender.cronjobId ? { sender_cronjob_id: sender.cronjobId } : {}),
+        sender_cronjob_name: sender.cronjobName,
+      };
   }
 }
 

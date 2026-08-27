@@ -91,7 +91,7 @@ export function ApiTokensPane() {
           userSelect: "text",
         }}
       >
-        {`# list your agents and their ids
+        {`# list your visible agents and their ids
 curl ${window.location.origin}/api/agents -H "Authorization: Bearer <token>"
 
 # message one
@@ -120,7 +120,7 @@ curl -X POST ${window.location.origin}/api/agents/<id>/messages \\
             <strong style={{ fontSize: 12 }}>Copy this token now</strong>
             <p style={hint}>It will not be shown again.</p>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <code style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere", userSelect: "all" }}>{minted}</code>
+              <code style={{ flex: 1, minWidth: 0, fontFamily: "monospace", fontSize: 12, overflowWrap: "anywhere", userSelect: "all" }}>{minted}</code>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(minted).then(

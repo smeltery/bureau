@@ -10,4 +10,8 @@ describe("describeUserMessageSender", () => {
       }),
     ).toEqual({ label: "Business health check · cron job", fromHuman: false });
   });
+
+  test("keeps agent senders ahead of human fallback", () => {
+    expect(describeUserMessageSender({ agentName: "Peer", agentRoom: "Lobby", username: "Nil" })).toEqual({ label: 'Peer · agent · Room "Lobby"', fromHuman: false });
+  });
 });
