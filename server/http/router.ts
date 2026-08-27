@@ -9,6 +9,7 @@ import { tryHandleAuthRoute } from "../auth/auth-routes.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "../public-origin.ts";
 import { pushPresenceListToEachWs } from "../ws-initial-payload.ts";
 import type { WsData } from "../ws/websocket-handlers.ts";
+import { handleApiTokensRequest } from "../auth/api-tokens-route.ts";
 import { applyViewPreference, deleteUserForApi, readAccessSettingsForApi, saveAccessSettingsForApi, setUserAccessForApi, updateUserForApi } from "./access-adapters.ts";
 import { mintInviteForApi, mintRecoveryInviteForApi, mintSelfInviteForApi, revokeInviteForApi } from "./access-invite-adapters.ts";
 import { logoutSessionForApi, revokeSessionForApi } from "./access-session-adapters.ts";
@@ -213,6 +214,9 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
     revoke: revokeInviteForApi,
   });
   if (invitesResp) return invitesResp;
+
+  const apiTokensResp = await handleApiTokensRequest(req, url, httpAuth);
+  if (apiTokensResp) return apiTokensResp;
 
   const accessResp = await handleAccessRequest(req, url, httpAuth, {
     get: readAccessSettingsForApi,

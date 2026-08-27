@@ -7,6 +7,7 @@ import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./moda
 import { AccessPane, sectionHeader } from "./AccessPane.tsx";
 import { InvitesPane } from "./InvitesPane.tsx";
 import { MyDevicesPane } from "./MyDevicesPane.tsx";
+import { ApiTokensPane } from "./ApiTokensPane.tsx";
 import { SessionsPane } from "./SessionsPane.tsx";
 import { buildAccountSections, type AccountSection } from "./UserSettingsSections.ts";
 import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
@@ -36,7 +37,6 @@ export function UserSettingsView({
   const editIsDirtyRef = useRef(false);
   const selectedUser = selection?.kind === "user" ? userList.find((user) => user.id === selection.id) : null;
   const accountSections = buildAccountSections(isOwner, !!sessionContext);
-
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
@@ -50,7 +50,6 @@ export function UserSettingsView({
     window.addEventListener("keydown", handleKey, true);
     return () => window.removeEventListener("keydown", handleKey, true);
   });
-
   useEffect(() => {
     if (selection || isMobile || !sessionContext?.userId) return;
     if (userList.some((user) => user.id === sessionContext.userId)) {
@@ -61,7 +60,6 @@ export function UserSettingsView({
   useEffect(() => {
     if (isOwner && !activeSessionsLoaded) send({ type: "list_active_sessions" });
   }, [isOwner, activeSessionsLoaded]);
-
   function guardDirty(): boolean {
     return !editIsDirtyRef.current || window.confirm("Discard unsaved changes?");
   }
@@ -217,6 +215,8 @@ export function UserSettingsView({
               <SessionsPane />
             ) : selection?.kind === "section" && selection.section === "devices" ? (
               <MyDevicesPane />
+            ) : selection?.kind === "section" && selection.section === "api-tokens" ? (
+              <ApiTokensPane />
             ) : selection?.kind === "section" && selection.section === "signout" ? (
               <SignOutPane />
             ) : (

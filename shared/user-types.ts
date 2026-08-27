@@ -85,6 +85,15 @@ export interface InviteWire {
   bootstrap?: true; // present on bootstrap invites so the UI can label them
 }
 
+export interface ApiTokenWire {
+  id: string;
+  name: string;
+  tokenPrefix: string;
+  createdAt: number;
+  expiresAt: number | null;
+  lastUsedAt: number | null;
+}
+
 // A room with stable ID, display name, and per-room config
 export interface RoomWire {
   id: string; // 8-char hex, stable

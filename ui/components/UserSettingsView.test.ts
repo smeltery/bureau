@@ -8,6 +8,7 @@ describe("buildAccountSections", () => {
       { section: "invites", label: "Invites" },
       { section: "sessions", label: "Sessions" },
       { section: "devices", label: "My devices" },
+      { section: "api-tokens", label: "API tokens" },
       { section: "signout", label: "Sign out" },
     ]);
   });
@@ -15,6 +16,7 @@ describe("buildAccountSections", () => {
   test("keeps members scoped to their own devices and signout", () => {
     expect(buildAccountSections(false, true)).toEqual([
       { section: "devices", label: "My devices" },
+      { section: "api-tokens", label: "API tokens" },
       { section: "signout", label: "Sign out" },
     ]);
   });

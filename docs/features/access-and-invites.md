@@ -72,7 +72,24 @@ ghost appearance, notification rooms, personal agent context, env file path, and
 language preference. The saved language follows the user across devices and is
 used for agents they spawn plus browser speech input/output where supported.
 
-### 6. Sign out
+### 6. Personal API tokens
+
+Each signed-in user can create bearer tokens in `User Settings` -> `API tokens`
+for scripts or off-device API calls. A token is shown once at creation, stored
+only as a SHA-256 hash in `~/.bureau/api-tokens.json`, and can expire after 30
+days, 1 year, or never. Revoking a token removes it immediately.
+
+Use one as:
+
+```
+curl -s http://<office>/api/agents -H "Authorization: Bearer bureau_pat_..."
+```
+
+Personal tokens authenticate as the owning user for HTTP API routes. They do not
+create browser sessions, cannot accept invites, and do not satisfy the SPA shell
+login path.
+
+### 7. Sign out
 
 `User Settings` → `Sign out` revokes the current device's session and reloads. Other devices for the same user stay signed in. If you're the office's last active owner session, sign-out is refused with a lockout-prevention message — mint another owner invite first, accept it on a second device, then retry.
 
@@ -134,6 +151,7 @@ Stored in `~/.bureau/`:
 - `users.json` — boss profiles. Each record carries `role: "owner" | "member"`.
 - `invites.json` — outstanding invites, keyed by sha256(token). Raw tokens never persist; only the hash and an 8-char display prefix.
 - `sessions.json` — active sessions, keyed by sha256(session-id). Raw IDs never persist.
+- `api-tokens.json` — personal API tokens, keyed by generated token ID and storing only SHA-256 hashes plus display metadata.
 - `admin.sock` — Unix-domain socket for the owner-login recovery CLI (mode 0600).
 
 All three JSON files are written atomically (temp + rename) and serialized under a single in-process mutex so invite acceptance (which touches all three) can't race.

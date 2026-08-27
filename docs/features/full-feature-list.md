@@ -54,8 +54,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Active session revocation and one-time invite management.
 - Live user/device presence in the office.
 - Full-page user settings for profiles, access, self-service device links,
-  ghost appearance, saved language preference, and roster online/session
-  summaries.
+  personal API tokens, ghost appearance, saved language preference, and roster
+  online/session summaries.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers.
 

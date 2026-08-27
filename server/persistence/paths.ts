@@ -21,6 +21,7 @@ export const SCHEDULED_MESSAGES_FILE = join(BUREAU_DIR, "scheduled-messages.json
 // interleave with a concurrent acceptance of the same token.
 export const INVITES_FILE = join(BUREAU_DIR, "invites.json");
 export const SESSIONS_FILE = join(BUREAU_DIR, "sessions.json");
+export const API_TOKENS_FILE = join(BUREAU_DIR, "api-tokens.json");
 
 // Unix-domain admin socket used by the owner-login recovery CLI. Filesystem
 // permissions (mode 0600 + the parent dir's existing perms) are the auth

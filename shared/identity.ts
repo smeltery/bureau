@@ -30,3 +30,14 @@ export function formatAgentSenderPrefix(agentId: string, agentName: string, room
 export function formatAppSenderPrefix(appName: string): string {
   return `[app "${appName}"]`;
 }
+
+export function formatApiTokenDevice(tokenName: string): string {
+  const normalized = tokenName
+    // eslint-disable-next-line no-control-regex -- controls are the threat here
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/"/g, "'")
+    .trim()
+    .slice(0, 64);
+  return `API token "${normalized}"`;
+}
