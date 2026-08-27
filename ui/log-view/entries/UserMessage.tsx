@@ -10,6 +10,7 @@ export function UserMessage({
   username,
   agentName,
   agentRoom,
+  cronjobName,
   attachments,
   agentId,
   canEdit,
@@ -20,6 +21,7 @@ export function UserMessage({
   username?: string;
   agentName?: string;
   agentRoom?: string;
+  cronjobName?: string;
   attachments?: Attachment[];
   agentId?: string;
   canEdit?: boolean;
@@ -30,8 +32,7 @@ export function UserMessage({
   // Messages sent from another agent (a2a) get a distinct dashed treatment so
   // they don't read as the human's own typing. Mirrors the dashed agent style
   // QueueChips uses for queued agent messages.
-  const isAgent = !!agentName;
-  const label = isAgent ? `${agentName} · agent · Room "${agentRoom ?? "?"}"` : (username ?? "You");
+  const sender = describeUserMessageSender({ username, agentName, agentRoom, cronjobName });
   return (
     <div
       style={{
@@ -40,12 +41,14 @@ export function UserMessage({
         paddingRight: 40,
         borderRadius: 10,
         background: "var(--user-msg-bg)",
-        borderLeft: `3px ${isAgent ? "dashed" : "solid"} var(--accent)`,
+        borderLeft: `3px ${sender.fromHuman ? "solid" : "dashed"} var(--accent)`,
         position: "relative",
       }}
     >
-      <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: isAgent ? "var(--text-muted)" : "var(--accent)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-        {label.toUpperCase()}
+      <div
+        style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: sender.fromHuman ? "var(--accent)" : "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}
+      >
+        {sender.label.toUpperCase()}
       </div>
       {content && (
         <div
@@ -92,6 +95,15 @@ export function UserMessage({
       </div>
     </div>
   );
+}
+
+export function describeUserMessageSender({ username, agentName, agentRoom, cronjobName }: { username?: string; agentName?: string; agentRoom?: string; cronjobName?: string }): {
+  label: string;
+  fromHuman: boolean;
+} {
+  if (agentName) return { label: `${agentName} · agent · Room "${agentRoom ?? "?"}"`, fromHuman: false };
+  if (cronjobName) return { label: `${cronjobName} · cron job`, fromHuman: false };
+  return { label: username ?? "You", fromHuman: true };
 }
 
 export function EditableUserMessage({

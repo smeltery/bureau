@@ -48,9 +48,10 @@ export function LogEntryCard({
       const username = entry.metadata?.username as string | undefined;
       const agentName = entry.metadata?.sender_agent_name as string | undefined;
       const agentRoom = entry.metadata?.sender_agent_room as string | undefined;
+      const cronjobName = entry.metadata?.sender_cronjob_name as string | undefined;
       // Agent-sent messages aren't editable: "edit & branch" rewrites the
       // human's own prompt, not a peer-attributed message.
-      if (isEditing && !agentName) {
+      if (isEditing && !agentName && !cronjobName) {
         return <EditableUserMessage content={entry.content} entryId={entry.id} isMobile={isMobile} username={username} onCancel={onCancelEdit} onSubmit={onSubmitEdit} />;
       }
       return (
@@ -60,9 +61,10 @@ export function LogEntryCard({
           username={username}
           agentName={agentName}
           agentRoom={agentRoom}
+          cronjobName={cronjobName}
           attachments={entry.attachments}
           agentId={entry.agentId}
-          canEdit={canEdit && !agentName}
+          canEdit={canEdit && !agentName && !cronjobName}
           onEdit={onStartEdit ? () => onStartEdit(entry.id) : undefined}
         />
       );

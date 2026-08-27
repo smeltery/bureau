@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ApiTokenWire } from "../../shared/types.ts";
-import { dialogInput, dialogSaveBtn } from "./modals/dialog-styles.ts";
+import { dialogInput, dialogLabel, dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { sectionHeader } from "./AccessPane.tsx";
 import { cardStyle, hint, subsectionHeader } from "./AccessPaneShared.tsx";
 
@@ -17,6 +17,7 @@ export function ApiTokensPane() {
   const [name, setName] = useState("");
   const [expiresInDays, setExpiresInDays] = useState<number | null>(30);
   const [minted, setMinted] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [pending, setPending] = useState(false);
 
   async function load() {
@@ -42,6 +43,7 @@ export function ApiTokensPane() {
     setPending(true);
     setError(null);
     setMinted(null);
+    setCopied(false);
     const res = await fetch("/api/api-tokens", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -73,6 +75,31 @@ export function ApiTokensPane() {
     <div style={{ marginTop: 24 }}>
       <h4 style={sectionHeader}>API tokens</h4>
       <p style={hint}>Create personal bearer tokens for scripts and off-device API access.</p>
+      <label style={{ ...dialogLabel, marginTop: 14 }}>How to use</label>
+      <pre
+        style={{
+          margin: "0 0 12px",
+          padding: "8px 10px",
+          borderRadius: 6,
+          background: "var(--bg-code)",
+          border: "1px solid var(--border)",
+          fontSize: 11,
+          lineHeight: 1.5,
+          whiteSpace: "pre-wrap",
+          overflowWrap: "anywhere",
+          color: "var(--text-secondary)",
+          userSelect: "text",
+        }}
+      >
+        {`# list your agents and their ids
+curl ${window.location.origin}/api/agents -H "Authorization: Bearer <token>"
+
+# message one
+curl -X POST ${window.location.origin}/api/agents/<id>/messages \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"text":"..."}'`}
+      </pre>
 
       <div style={cardStyle}>
         <div style={{ display: "grid", gap: 10, maxWidth: 520 }}>
@@ -89,10 +116,26 @@ export function ApiTokensPane() {
           </button>
         </div>
         {minted && (
-          <div
-            style={{ marginTop: 12, padding: 10, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-input)", fontFamily: "monospace", fontSize: 12, overflowWrap: "anywhere" }}
-          >
-            {minted}
+          <div style={{ marginTop: 12, padding: 10, border: "1px solid var(--border)", borderRadius: 6, background: "var(--bg-input)" }}>
+            <strong style={{ fontSize: 12 }}>Copy this token now</strong>
+            <p style={hint}>It will not be shown again.</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <code style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere", userSelect: "all" }}>{minted}</code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(minted).then(
+                    () => {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    },
+                    () => {},
+                  );
+                }}
+                style={{ ...dialogSaveBtn, flexShrink: 0 }}
+              >
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
           </div>
         )}
         {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "8px 0 0" }}>{error}</p>}

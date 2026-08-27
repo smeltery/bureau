@@ -6,9 +6,9 @@ import type { CSSProperties } from "react";
 
 export const dialogLabel: Readonly<CSSProperties> = Object.freeze({
   display: "block",
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 600,
-  color: "var(--text-muted)",
+  color: "var(--text-dim)",
   marginBottom: 5,
 });
 
@@ -63,5 +63,6 @@ export const dialogChip: Readonly<CSSProperties> = Object.freeze({
 
 export const dialogHint: Readonly<CSSProperties> = Object.freeze({
   fontWeight: 400,
-  color: "var(--text-ghost)",
+  fontSize: 12,
+  color: "var(--text-muted)",
 });

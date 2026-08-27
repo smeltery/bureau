@@ -148,6 +148,10 @@ export function UserEditPanel({
         </button>
       </div>
       <ValidationLine status={envStatus} />
+      <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "4px 0 0", lineHeight: 1.4 }}>
+        A file of NAME=value lines on the server, loaded into the environment of your agents and cron jobs. Put ANTHROPIC_API_KEY=... (Claude) or OPENAI_API_KEY=... (Codex) here to run them on API-key
+        billing instead of a subscription sign-in. Each agent reads the file when it starts or resumes a conversation.
+      </p>
       <label style={{ ...dialogLabel, marginTop: 12 }}>Language</label>
       <select value={language} onChange={(e) => setLanguage(e.target.value as SupportedLanguageCode | "")} style={dialogInput}>
         <option value="">Default</option>
