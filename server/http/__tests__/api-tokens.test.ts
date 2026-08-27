@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { unlinkSync } from "fs";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
-import { _testResetApiTokens } from "../../auth/api-tokens.ts";
+import { _testResetApiTokens, mintApiToken, resolveApiToken } from "../../auth/api-tokens.ts";
+import { agents } from "../../agents/state.ts";
+import * as AgentManager from "../../agent-manager.ts";
 import { API_TOKENS_FILE } from "../../persistence/paths.ts";
-import { claimUserByName, deleteUserById, getUserByName } from "../../users.ts";
+import { claimUserByName, deleteUserById, getUserByName, updateUserById } from "../../users.ts";
 import { handleApiTokensRequest } from "../../auth/api-tokens-route.ts";
+import { handleAgentsRequest } from "../agents.ts";
+import { installAgent } from "./privileged-agent-fixture.ts";
 
 const USERNAME = "API Token Route Tester";
 
@@ -15,6 +19,7 @@ function reset() {
   _testResetApiTokens();
   const existing = getUserByName(USERNAME);
   if (existing) deleteUserById(existing.id);
+  agents.clear();
   try {
     unlinkSync(API_TOKENS_FILE);
   } catch {}
@@ -63,9 +68,48 @@ describe("handleApiTokensRequest", () => {
   test("requires a browser or personal-token authenticated user", async () => {
     const req = request("/api/api-tokens", { method: "GET" });
 
-    const res = await handleApiTokensRequest(req, new URL(req.url), { kind: "loopback" });
+    const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
+    const minted = await mintApiToken({ userId: user.id, name: "automation", expiresInDays: 30 });
+    const token = resolveApiToken(minted.token);
+    if (!token) throw new Error("expected API token to resolve");
+    const res = await handleApiTokensRequest(req, new URL(req.url), { kind: "api", token });
 
     expect(res?.status).toBe(401);
     expect(await res?.json()).toEqual({ error: "authenticated session required" });
+  });
+
+  test("lists and messages only visible live agents", async () => {
+    const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
+    const visibleRoomId = AgentManager.getRooms()[0]!.id;
+    const hiddenRoomId = AgentManager.createRoom("API token hidden");
+    const hiddenRoom = AgentManager.getRooms().findIndex((room) => room.id === hiddenRoomId);
+    updateUserById(user.id, { allowedRooms: [visibleRoomId] });
+    installAgent("api-visible", 0, user.id);
+    installAgent("api-hidden", hiddenRoom, user.id);
+    const minted = await mintApiToken({ userId: user.id, name: "automation", expiresInDays: 30 });
+    const token = resolveApiToken(minted.token);
+    if (!token) throw new Error("expected API token to resolve");
+    const apiAuth: AuthResult = { kind: "api", token };
+
+    const listReq = request("/api/agents", { headers: { Authorization: `Bearer ${minted.token}` } });
+    const list = await handleAgentsRequest(listReq, new URL(listReq.url), apiAuth);
+    expect(list?.status).toBe(200);
+    expect((await list!.json()).map((agent: { id: string }) => agent.id)).toEqual(["api-visible"]);
+
+    const blocked = await handleAgentsRequest(
+      request("/api/agents/api-visible/messages", { method: "POST", headers: { Authorization: `Bearer ${minted.token}` }, body: JSON.stringify({ text: "hi", sendNow: true }) }),
+      new URL("http://local.test/api/agents/api-visible/messages"),
+      apiAuth,
+    );
+    expect(blocked?.status).toBe(400);
+
+    const hidden = await handleAgentsRequest(
+      request("/api/agents/api-hidden/messages", { method: "POST", headers: { Authorization: `Bearer ${minted.token}` }, body: JSON.stringify({ text: "hi" }) }),
+      new URL("http://local.test/api/agents/api-hidden/messages"),
+      apiAuth,
+    );
+    expect(hidden?.status).toBe(403);
+
+    AgentManager.closeRoom(hiddenRoomId);
   });
 });

@@ -145,7 +145,7 @@ export function enqueueMessage(
 
 function sameSender(a: QueuedSender, b: QueuedSender): boolean {
   if (a.kind !== b.kind) return false;
-  if (a.kind === "user" && b.kind === "user") return a.username === b.username;
+  if (a.kind === "user" && b.kind === "user") return a.username === b.username && a.device === b.device;
   if (a.kind === "agent" && b.kind === "agent") return a.agentId === b.agentId;
   return false;
 }
@@ -153,7 +153,7 @@ function sameSender(a: QueuedSender, b: QueuedSender): boolean {
 function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
   switch (sender.kind) {
     case "user":
-      return sender.username ? { username: sender.username } : undefined;
+      return sender.username || sender.device ? { ...(sender.username ? { username: sender.username } : {}), ...(sender.device ? { device: sender.device } : {}) } : undefined;
     case "agent":
       return {
         sender_agent_id: sender.agentId,

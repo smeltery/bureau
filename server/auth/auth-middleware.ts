@@ -2,7 +2,7 @@
 
 import type { Server } from "bun";
 import { browserSessionDiagnostic, emitBrowserSessionDiagnostic, readSessionCookies, validateSession, type SessionLookup } from "./auth.ts";
-import { resolveApiToken } from "./api-tokens.ts";
+import { resolveApiToken, type ResolvedApiToken } from "./api-tokens.ts";
 import { renderLoginPage, securityHeaders } from "./auth-pages.ts";
 import { checkOrigin, requestIsLoopback } from "./auth-request-guards.ts";
 
@@ -18,12 +18,16 @@ export interface AuthOk {
 export interface AuthLoopback {
   kind: "loopback";
 }
+export interface AuthApi {
+  kind: "api";
+  token: ResolvedApiToken;
+}
 export interface AuthRejected {
   kind: "rejected";
   response: Response;
 }
 
-export type AuthResult = AuthOk | AuthLoopback | AuthRejected;
+export type AuthResult = AuthOk | AuthLoopback | AuthApi | AuthRejected;
 
 function wantsJson(req: Request): boolean {
   const accept = req.headers.get("accept") ?? "";
@@ -75,18 +79,7 @@ export function authenticate<T>(req: Request, server: Server<T>, opts?: { allowL
   const bearerMatch = bearer ? /^bearer[ \t]+(.+)$/i.exec(bearer.trim()) : null;
   const apiToken = resolveApiToken(bearerMatch?.[1]?.trim() || null);
   if (apiToken) {
-    return {
-      kind: "ok",
-      session: {
-        sessionIdHash: `api-token:${apiToken.tokenId}`,
-        sessionPrefix: "api-token",
-        userId: apiToken.userId,
-        username: apiToken.username,
-        role: apiToken.role,
-        needsRolling: false,
-        absoluteExpiresAt: Number.MAX_SAFE_INTEGER,
-      },
-    };
+    return { kind: "api", token: apiToken };
   }
   if (looped) {
     return { kind: "loopback" };

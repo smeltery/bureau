@@ -4,7 +4,7 @@ import { formatAgentSenderPrefix, formatAppSenderPrefix, formatUserPrefix } from
 function senderPrefixText(sender: QueuedSender): string {
   switch (sender.kind) {
     case "user":
-      return formatUserPrefix(sender.username);
+      return sender.device ? formatUserPrefix(`${sender.username ?? "User"} (${sender.device})`) : formatUserPrefix(sender.username);
     case "agent":
       return `${formatAgentSenderPrefix(sender.agentId, sender.agentName, sender.roomName)} `;
     case "app":

@@ -9,6 +9,7 @@ import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
 import {
   agentRouteParts,
+  handleApiTokenMessage,
   JSON_HEADERS,
   jsonError,
   projectedAgentsManifest,
@@ -144,7 +145,9 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       const deliverAtRaw = body?.deliverAt;
       const rawBearer = readBearerToken(req);
       const bearer = resolveAgentToken(rawBearer);
-      if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
+      if (rawBearer && !bearer && auth?.kind !== "api") return jsonError(401, "missing or invalid bearer token");
+      const apiTokenResponse = auth ? handleApiTokenMessage(auth, agentId, body, text, deliverAtRaw) : null;
+      if (apiTokenResponse) return apiTokenResponse;
       if (bearer) {
         if (body?.sendNow !== undefined) return jsonError(400, "sendNow is only supported for user senders");
         if (!text) return jsonError(400, "text is required");

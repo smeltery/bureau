@@ -19,6 +19,7 @@ export interface ResolvedApiToken {
   username: string;
   role: "owner" | "member";
   tokenId: string;
+  tokenName: string;
 }
 
 let tokens: Map<string, StoredApiToken> | null = null;
@@ -163,7 +164,7 @@ export function resolveApiToken(raw: string | null, now = Date.now()): ResolvedA
       console.error("[auth] failed to persist API token last-used time:", err);
     }
   }
-  return { userId: user.id, username: user.name, role: user.role, tokenId: id };
+  return { userId: user.id, username: user.name, role: user.role, tokenId: id, tokenName: record.name };
 }
 
 export function _testResetApiTokens(): void {

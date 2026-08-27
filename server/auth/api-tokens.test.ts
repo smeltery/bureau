@@ -44,6 +44,7 @@ describe("personal API tokens", () => {
       username: USERNAME,
       role: "owner",
       tokenId: result.apiToken.id,
+      tokenName: "script",
     });
     expect(await revokeApiToken(user.id, result.apiToken.id)).toBe(true);
     expect(resolveApiToken(result.token, 3_000)).toBeNull();

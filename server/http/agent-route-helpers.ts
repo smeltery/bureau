@@ -4,6 +4,7 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import { buildAgentsManifest, buildKilledManifest } from "../persistence.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { FAMILY_TO_MODEL, type AgentInfo, type UserRecord } from "../../shared/types.ts";
+import { formatApiTokenDevice } from "../../shared/identity.ts";
 
 export const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -23,6 +24,31 @@ export function jsonError(status: number, error: string): Response {
 export function sessionUser(auth: AuthResult | undefined): UserRecord | null {
   if (auth?.kind !== "ok") return null;
   return getUserById(auth.session.userId);
+}
+
+export function apiTokenUser(auth: AuthResult | undefined): UserRecord | null {
+  if (auth?.kind !== "api") return null;
+  return getUserById(auth.token.userId);
+}
+
+export function handleApiTokenMessage(auth: AuthResult, agentId: string, body: Record<string, unknown> | null, text: string, deliverAtRaw: unknown): Response | null {
+  if (auth.kind !== "api") return null;
+  if (body?.sendNow !== undefined || body?.steer !== undefined || deliverAtRaw !== undefined || body?.senderAgentId !== undefined || body?.attachments !== undefined) {
+    return jsonError(400, "device, attachments, senderAgentId, sendNow, steer, and deliverAt are not supported for API token senders");
+  }
+  if (!text) return jsonError(400, "text is required");
+  const user = apiTokenUser(auth);
+  if (!user) return jsonError(403, "forbidden");
+  const agent = AgentManager.getAgent(agentId);
+  if (!agent) return jsonError(404, "agent not found");
+  const roomId = AgentManager.getRooms()[agent.room]?.id ?? agent.roomId;
+  if (!roomId || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
+  const result = AgentManager.enqueueMessage(agentId, {
+    sender: { kind: "user", username: user.name, device: formatApiTokenDevice(auth.token.tokenName) },
+    text,
+    clientMessageId: typeof body?.clientMessageId === "string" ? body.clientMessageId : undefined,
+  });
+  return result.ok ? new Response(JSON.stringify({ messageId: "" }), { headers: JSON_HEADERS }) : jsonError(result.status, result.error);
 }
 
 export function requireUserAgentAccess(auth: AuthResult | undefined, agentId: string): Response | null {
@@ -169,13 +195,14 @@ export function requireAgentManagerAccess(auth: AuthResult | undefined, agentId:
 export function projectedAgentsManifest(req: Request, auth: AuthResult | undefined): Response | unknown[] {
   const rawBearer = readBearerToken(req);
   const bearer = resolveAgentToken(rawBearer);
-  if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
+  if (rawBearer && !bearer && auth?.kind !== "api") return jsonError(401, "missing or invalid bearer token");
 
   if (new URL(req.url).searchParams.get("killed") === "1") {
     if (bearer) {
       if (!bearer.userId) return jsonError(403, "forbidden");
       return buildKilledManifest(AgentManager.getKilledAgentSummariesForManager(bearer.userId));
     }
+    if (auth?.kind === "api") return jsonError(403, "forbidden");
     if (auth?.kind === "loopback" || (auth?.kind === "ok" && auth.session.role === "owner")) {
       return buildKilledManifest(AgentManager.getKilledAgentSummaries());
     }
@@ -189,6 +216,10 @@ export function projectedAgentsManifest(req: Request, auth: AuthResult | undefin
   if (bearer) {
     const user = bearer.userId ? getUserById(bearer.userId) : null;
     agents = user ? projectAgentsForUser(user, rooms) : AgentManager.getAllAgents().filter((agent) => agent.id === bearer.agentId);
+  } else if (auth?.kind === "api") {
+    const user = apiTokenUser(auth);
+    if (!user) return jsonError(403, "forbidden");
+    agents = projectAgentsForUser(user, rooms);
   } else if (auth?.kind === "loopback") {
     agents = AgentManager.getAllAgents();
   } else if (auth?.kind === "ok" && auth.session.role === "owner") {
