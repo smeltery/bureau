@@ -3,7 +3,7 @@ import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import { normalizePublicOrigin } from "../../shared/public-origin.ts";
 import { loadOfficeConfig, normalizePreviewAllowHosts, saveOfficeConfig } from "../persistence.ts";
 import { getUserById, getWsUser } from "../users.ts";
-import { isProcessBoundLoopback, mintInvite, setOfficeName } from "../auth/auth.ts";
+import { isOutsideReachabilityBlocked, mintInvite, setOfficeName } from "../auth/auth.ts";
 
 export async function handleAccessSettingsCommand(
   cmd: Extract<ClientCommand, { type: "get_access_settings" | "update_access_settings" }>,
@@ -37,7 +37,7 @@ export async function handleAccessSettingsCommand(
           previewAllowHosts: cfg.previewAllowHosts,
           envOriginSet,
           envOrigin,
-          boundLoopback: isProcessBoundLoopback(),
+          boundLoopback: isOutsideReachabilityBlocked(),
           officeName: cfg.officeName,
         } as ServerMessage),
       );
@@ -109,6 +109,7 @@ export async function handleAccessSettingsCommand(
           envFile: prevCfg.envFile,
           publicOrigin,
           externalAccess: wantsExternal,
+          networkBind: prevCfg.networkBind,
           officeName: nextOfficeName,
           previewAllowHosts,
         });

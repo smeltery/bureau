@@ -12,7 +12,8 @@
 
 import { describe, it, expect } from "bun:test";
 import { reconcileAppUrls } from "../url-reconcile.ts";
-import { deriveAppHostDomain } from "../domain.ts";
+import { appPublicUrl, deriveAppHostDomain } from "../domain.ts";
+import { appUrlEnvDirective } from "../supervisor.ts";
 import { DOMAIN, TAILNET_HOST, TAILNET_ORIGIN, oneApp, record, unitFor, world } from "./url-reconcile-world.ts";
 
 describe("app-urls: convergence", () => {
@@ -59,6 +60,19 @@ describe("app-urls: convergence", () => {
     const report = reconcileAppUrls(w.deps);
     expect(w.calls).toEqual([]);
     expect(report.converged).toEqual([]);
+    expect(report.restarted).toEqual([]);
+  });
+
+  it("adds the loopback bind host to an existing hostname app", () => {
+    const app = record();
+    const w = oneApp({ wrote: DOMAIN, domain: DOMAIN, app });
+    w.units.set(app.name, `[Service]\nEnvironment="PORT=${app.port}"\n${appUrlEnvDirective(appPublicUrl(app.hostLabel, DOMAIN)!)}\n`);
+
+    const report = reconcileAppUrls(w.deps);
+
+    expect(w.calls).toEqual(["regenerate:hello"]);
+    expect(w.units.get("hello")).toContain('Environment="BUREAU_APP_HOST=127.0.0.1"');
+    expect(report.converged).toEqual(["hello"]);
     expect(report.restarted).toEqual([]);
   });
 

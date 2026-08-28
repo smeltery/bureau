@@ -44,6 +44,7 @@ export {
   clearCookieHeaders,
   freezeBootState,
   getOfficeName,
+  isOutsideReachabilityBlocked,
   isProcessBoundLoopback,
   isProcessPreClaim,
   readSessionCookie,

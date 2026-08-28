@@ -63,11 +63,10 @@ const server = Bun.serve<WsData>({
   // so a large upload would 413 at the HTTP layer before reaching the handler.
   // Keep this above MAX_TOTAL (see server/http/files.ts).
   maxRequestBodySize: 512 * 1024 * 1024, // 512MB
-  // Bind decision is locked to the boot-frozen externalAccess: loopback-only
-  // pre-claim OR when external access is off; widened to all interfaces
-  // (host: undefined → Bun's default 0.0.0.0) only when the office has been
-  // claimed AND externalAccess is true. A mid-process claim does NOT widen
-  // the bind; the operator restarts after flipping the Access pane toggle.
+  // Bind decision is locked at boot: pre-claim always stays loopback-only,
+  // while a claimed office follows externalAccess unless office-config.json
+  // carries networkBind="loopback" or "all". A local proxy can therefore
+  // provide outside reachability without exposing this socket directly.
   ...(socketPath
     ? { unix: socketPath }
     : {

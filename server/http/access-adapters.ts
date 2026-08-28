@@ -5,7 +5,7 @@ import { browsers } from "../ws/broadcast.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
 import { refreshPresenceForUser } from "../presence.ts";
 import { loadOfficeConfig, normalizePreviewAllowHosts, saveOfficeConfig } from "../persistence.ts";
-import { evictSessionsForUserId, isProcessBoundLoopback, mintInvite, setOfficeName } from "../auth/auth.ts";
+import { evictSessionsForUserId, isOutsideReachabilityBlocked, mintInvite, setOfficeName } from "../auth/auth.ts";
 import { deleteUserById, getUserById, getUserByName, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { pushInvitesListToEachWs } from "../access-broadcasts.ts";
 import type { AccessSettingsWire, SetAccessResult } from "./access.ts";
@@ -23,7 +23,7 @@ export function readAccessSettingsForApi(): AccessSettingsWire {
     previewAllowHosts: cfg.previewAllowHosts,
     envOriginSet: envRaw.length > 0,
     envOrigin,
-    boundLoopback: isProcessBoundLoopback(),
+    boundLoopback: isOutsideReachabilityBlocked(),
     officeName: cfg.officeName,
   };
 }
@@ -57,6 +57,7 @@ export async function saveAccessSettingsForApi(actorUserId: string, input: { ext
       envFile: prevCfg.envFile,
       publicOrigin,
       externalAccess: input.externalAccess,
+      networkBind: prevCfg.networkBind,
       officeName: prevCfg.officeName,
       previewAllowHosts,
     });

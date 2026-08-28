@@ -14,6 +14,11 @@ export interface OfficeConfig {
   // when the field has never been set on disk — the boot block infers a
   // default from the presence of any publicOrigin source and backfills.
   externalAccess: boolean | null;
+  // Deployment-authored listener policy. "auto" keeps the historical rule:
+  // bind all interfaces only when external access is enabled. "loopback" lets
+  // a local reverse proxy provide outside reachability without exposing the
+  // Bureau socket directly. "all" forces a direct-port listener.
+  networkBind: "auto" | "loopback" | "all";
   // Display name for this bureau instance, prefixed onto the auth page
   // titles ("<OfficeName> | Bureau — sign in") so owners managing multiple
   // bureau instances can tell them apart at a glance. null falls back to
@@ -50,6 +55,7 @@ export function loadOfficeConfig(): OfficeConfig {
         envFile: typeof parsed.envFile === "string" && parsed.envFile ? parsed.envFile : null,
         publicOrigin: typeof parsed.publicOrigin === "string" && parsed.publicOrigin ? parsed.publicOrigin : null,
         externalAccess: typeof parsed.externalAccess === "boolean" ? parsed.externalAccess : null,
+        networkBind: parseNetworkBind(parsed.networkBind),
         officeName: typeof parsed.officeName === "string" && parsed.officeName.trim() ? parsed.officeName.trim().slice(0, 64) : null,
         previewAllowHosts: parsePreviewAllowHosts(parsed.previewAllowHosts),
       };
@@ -65,7 +71,7 @@ export function loadOfficeConfig(): OfficeConfig {
       if (raw.trim()) legacyPrompt = raw;
     }
   } catch {}
-  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null, externalAccess: null, officeName: null, previewAllowHosts: [] };
+  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null, externalAccess: null, networkBind: "auto", officeName: null, previewAllowHosts: [] };
   // Only persist if the legacy prompt actually had content — otherwise a fresh
   // install touches a new file for no reason, and the next save/set will write
   // it anyway once there's real data.
@@ -110,6 +116,13 @@ export function isValidPreviewAllowHost(host: string): boolean {
 function parsePreviewAllowHosts(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return normalizePreviewAllowHosts(value.filter((item): item is string => typeof item === "string"));
+}
+
+function parseNetworkBind(value: unknown): "auto" | "loopback" | "all" {
+  if (value === undefined || value === null) return "auto";
+  if (value === "auto" || value === "loopback" || value === "all") return value;
+  console.error('[office-config] networkBind in office-config.json must be "auto", "loopback", or "all"; using auto');
+  return "auto";
 }
 
 // Raw read of office-config.json — returns the parsed object verbatim without

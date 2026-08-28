@@ -3,7 +3,8 @@ import { loadOfficeConfig, saveOfficeConfig } from "./persistence.ts";
 import { freezeBootState, setOfficeName, setPublicOriginFallback } from "./auth/auth.ts";
 
 // Resolve access settings, migrate the deprecated env var, backfill
-// externalAccess to disk, then freeze cookie/bind state for this process.
+// externalAccess to disk, then freeze cookie/origin and listener-bind state for
+// this process.
 export function initializeAccessConfig(): void {
   let cfg = loadOfficeConfig();
   const envRaw = process.env.BUREAU_PUBLIC_ORIGIN?.trim();
@@ -41,6 +42,7 @@ export function initializeAccessConfig(): void {
         envFile: cfg.envFile,
         publicOrigin: cfg.publicOrigin,
         externalAccess,
+        networkBind: cfg.networkBind,
         officeName: cfg.officeName,
         previewAllowHosts: cfg.previewAllowHosts,
       });
@@ -51,7 +53,10 @@ export function initializeAccessConfig(): void {
 
   setPublicOriginFallback(cfg.publicOrigin);
   setOfficeName(cfg.officeName);
-  freezeBootState({ externalAccess });
+  freezeBootState({ externalAccess, networkBind: cfg.networkBind });
+  if (cfg.networkBind === "loopback") {
+    console.log('[network] networkBind="loopback": office listener uses 127.0.0.1. Set networkBind to "all" for direct-port access.');
+  }
 }
 
 export function boundExternal(): boolean {

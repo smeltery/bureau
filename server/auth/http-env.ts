@@ -48,10 +48,12 @@ function evaluateEnvOrigin(): string | null {
 
 let bootHadOwner: boolean | null = null;
 let bootExternalAccess: boolean | null = null;
+let bootNetworkBind: "auto" | "loopback" | "all" | null = null;
 
-export function freezeBootState(opts: { externalAccess: boolean }): void {
+export function freezeBootState(opts: { externalAccess: boolean; networkBind?: "auto" | "loopback" | "all" }): void {
   bootHadOwner = hasOwnerProvider();
   bootExternalAccess = opts.externalAccess;
+  bootNetworkBind = opts.networkBind ?? "auto";
 }
 
 let officeName: string | null = null;
@@ -67,6 +69,7 @@ export function getOfficeName(): string | null {
 function ensureBootCaptured(): void {
   if (bootHadOwner === null) bootHadOwner = hasOwnerProvider();
   if (bootExternalAccess === null) bootExternalAccess = false;
+  if (bootNetworkBind === null) bootNetworkBind = "auto";
 }
 
 export function isProcessPreClaim(): boolean {
@@ -76,6 +79,11 @@ export function isProcessPreClaim(): boolean {
 
 export function isProcessBoundLoopback(): boolean {
   ensureBootCaptured();
+  return bootHadOwner === false || (bootNetworkBind === "auto" && bootExternalAccess !== true) || bootNetworkBind === "loopback";
+}
+
+export function isOutsideReachabilityBlocked(): boolean {
+  ensureBootCaptured();
   return bootHadOwner === false || bootExternalAccess !== true;
 }
 
@@ -84,7 +92,7 @@ export function buildPublicOrigin(): {
   isHttps: boolean;
   source: "env" | "config" | "localhost";
 } {
-  if (isProcessBoundLoopback()) {
+  if (isOutsideReachabilityBlocked()) {
     const fallback = `http://localhost:${process.env.PORT || "4000"}`;
     return { origin: fallback, isHttps: false, source: "localhost" };
   }
