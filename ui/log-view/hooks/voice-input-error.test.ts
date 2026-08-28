@@ -13,6 +13,6 @@ describe("voiceInputErrorMessage", () => {
   test("suppresses non-actionable stop events and falls back for unknown codes", () => {
     expect(voiceInputErrorMessage("no-speech")).toBeNull();
     expect(voiceInputErrorMessage("aborted")).toBeNull();
-    expect(voiceInputErrorMessage("unknown")).toBe("Voice input failed.");
+    expect(voiceInputErrorMessage("not-a-real-speech-error")).toBe("Voice input failed.");
   });
 });

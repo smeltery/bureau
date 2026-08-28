@@ -127,12 +127,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           )}
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Backend</label>
-          <select
-            value={agentType}
-            onChange={(e) => selectAgentType(e.target.value as AgentBackendType)}
-            disabled={isEdit}
-            style={{ ...inputStyle, appearance: "none", cursor: isEdit ? "default" : "pointer", opacity: isEdit ? 0.85 : 1 }}
-          >
+          <select value={agentType} onChange={(e) => selectAgentType(e.target.value as AgentBackendType)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
             <option value="claude">Claude</option>
             <option value="codex">Codex</option>
           </select>
