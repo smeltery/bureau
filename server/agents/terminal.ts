@@ -1,6 +1,7 @@
 import { homedir } from "os";
 import { join } from "path";
 import { agents, emit, type ManagedAgent } from "./state.ts";
+import { createTerminalFinalizer } from "./terminal-finalizer.ts";
 
 // --- Terminal PTY management (via Node.js sidecar) ---
 
@@ -40,6 +41,14 @@ export function openTerminal(agentId: string): boolean {
   managed.ptySidecar = sidecar;
   managed.ptyBuffer = "";
 
+  const finalize = createTerminalFinalizer({
+    isCurrent: () => managed.ptySidecar === sidecar,
+    detach: () => {
+      managed.ptySidecar = null;
+    },
+    emitExit: (exitCode) => emit({ type: "terminal_exit", agentId, exitCode }),
+  });
+
   // Read stdout as text lines using Bun's native ReadableStream
   (async () => {
     const reader = sidecar.stdout.getReader();
@@ -61,6 +70,7 @@ export function openTerminal(agentId: string): boolean {
             continue;
           }
           if (msg.type === "output") {
+            if (managed.ptySidecar !== sidecar) continue;
             managed.ptyBuffer += msg.data;
             if (managed.ptyBuffer.length > MAX_PTY_BUFFER) {
               managed.ptyBuffer = managed.ptyBuffer.slice(-MAX_PTY_BUFFER);
@@ -68,19 +78,14 @@ export function openTerminal(agentId: string): boolean {
             emit({ type: "terminal_output", agentId, data: msg.data });
           } else if (msg.type === "exit") {
             console.log(`[terminal] PTY exited for ${agentId}: code=${msg.exitCode}, signal=${msg.signal}`);
-            managed.ptySidecar = null;
-            emit({ type: "terminal_exit", agentId, exitCode: msg.exitCode });
+            finalize(typeof msg.exitCode === "number" ? msg.exitCode : 0);
           }
         }
       }
     } catch {}
   })();
 
-  sidecar.exited.then(() => {
-    if (managed.ptySidecar === sidecar) {
-      managed.ptySidecar = null;
-    }
-  });
+  sidecar.exited.then((exitCode) => finalize(exitCode));
 
   // Tell sidecar to spawn the PTY
   sidecarSend(managed, {

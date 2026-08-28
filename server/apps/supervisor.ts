@@ -88,6 +88,8 @@ export const APP_TOKEN_ENV_VAR = "BUREAU_APP_TOKEN";
 // of "am I reachable at a hostname" - an empty value would answer that
 // question wrongly on every dev box.
 export const APP_URL_ENV_VAR = "BUREAU_APP_URL";
+export const APP_HOST_ENV_VAR = "BUREAU_APP_HOST";
+export const APP_LOOPBACK_HOST = "127.0.0.1";
 export const VITE_ALLOWED_HOST_ENV_VAR = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS";
 export const APP_CPU_QUOTA = "100%";
 // Only AUTOMATIC restarts wait; an explicit restart through the API does not.
@@ -387,6 +389,8 @@ export const tokenEnvDirective = (tokenEnvPath: string): string => `EnvironmentF
 // and a second literal would let the two disagree about what "already correct"
 // means.
 export const appUrlEnvDirective = (url: string): string => `Environment=${unitQuoted(`${APP_URL_ENV_VAR}=${url}`, "the app's public URL")}`;
+export const appHostForUrl = (appUrl: string | null): string | null => (appUrl === null ? null : APP_LOOPBACK_HOST);
+export const appHostEnvDirective = (host: string): string => `Environment=${unitQuoted(`${APP_HOST_ENV_VAR}=${host}`, "the app's bind host")}`;
 
 // What an INSTALLED unit says about the app's URL. Three answers, kept apart on
 // purpose:
@@ -406,9 +410,9 @@ export const appUrlEnvDirective = (url: string): string => `Environment=${unitQu
 // hand-written unquoted or multi-assignment line still counts - because the
 // safe direction here is to notice an assignment and rewrite the unit
 // canonically, never to miss one and leave a wrong URL live.
-export type InstalledAppUrl = { unit: false } | { unit: true; assignment: string | null };
+export type InstalledAppEnvAssignment = { unit: false } | { unit: true; assignment: string | null };
 
-export function parseUnitAppUrl(contents: string | null): InstalledAppUrl {
+function parseUnitEnvAssignment(contents: string | null, variable: string): InstalledAppEnvAssignment {
   if (contents === null) return { unit: false };
   let assignment: string | null = null;
   for (const line of contents.split("\n")) {
@@ -417,11 +421,14 @@ export function parseUnitAppUrl(contents: string | null): InstalledAppUrl {
     const rest = trimmed.slice("Environment=".length);
     // A bare start, or one after whitespace or an opening quote: the three
     // places systemd can begin an assignment on this line.
-    if (!new RegExp(`(^|[\\s"])${APP_URL_ENV_VAR}=`).test(rest)) continue;
+    if (!new RegExp(`(^|[\\s"])${variable}=`).test(rest)) continue;
     assignment = trimmed;
   }
   return { unit: true, assignment };
 }
+
+export const parseUnitAppUrl = (contents: string | null): InstalledAppEnvAssignment => parseUnitEnvAssignment(contents, APP_URL_ENV_VAR);
+export const parseUnitAppHost = (contents: string | null): InstalledAppEnvAssignment => parseUnitEnvAssignment(contents, APP_HOST_ENV_VAR);
 
 export interface UnitRenderOpts {
   launcherPath: string;
@@ -444,6 +451,8 @@ export function renderUnit(app: AppRecord, opts: UnitRenderOpts): string {
   const base = opts.unitName.replace(/\.service$/, "");
   // No URL, no line at all - not an empty one. See APP_URL_ENV_VAR.
   const appUrlLine = opts.appUrl === null ? "" : `\n${appUrlEnvDirective(opts.appUrl)}`;
+  const appHost = appHostForUrl(opts.appUrl);
+  const appHostLine = appHost === null ? "" : `\n${appHostEnvDirective(appHost)}`;
   // Vite treats this as one additional allowed-host slot. Use the public app
   // hostname so generated Vite apps reachable through Bureau do not reject
   // their own host via DNS-rebinding protection. Other servers ignore it.
@@ -466,7 +475,7 @@ WorkingDirectory=${unitPathValue(app.cwd, "the app's working directory")}
 Environment=${unitQuoted(`PORT=${app.port}`, "the app's port")}
 Environment=${unitQuoted(`BUREAU_APP_NAME=${app.name}`, "the app's name")}
 Environment=${unitQuoted(`BUREAU_APP_DATA_DIR=${app.dataDir}`, "the app's data directory")}
-Environment=${unitQuoted(`PATH=${opts.path}`, "the app's PATH")}${appUrlLine}${viteAllowedHostLine}
+Environment=${unitQuoted(`PATH=${opts.path}`, "the app's PATH")}${appUrlLine}${appHostLine}${viteAllowedHostLine}
 # The app's bureau token, by reference. The leading "-" makes the file optional:
 # an app that has no token (one registered before tokens existed, or one whose
 # token could not be provisioned) starts normally without BUREAU_APP_TOKEN set,

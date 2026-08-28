@@ -110,6 +110,7 @@ describe("buildSystemPrompt memory affordance", () => {
 
     expect(prompt).toContain("How to run a web app for the boss");
     expect(prompt).toContain("Bureau allocates the port");
+    expect(prompt).toContain("$BUREAU_APP_HOST");
     // The address is permanent: a bad command is a PATCH, not a re-register.
     expect(prompt).toContain("fix a bad command with PATCH");
     expect(prompt).toContain("$BUREAU_APP_DATA_DIR");

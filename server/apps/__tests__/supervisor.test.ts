@@ -282,10 +282,6 @@ describe("app-supervisor: unit generation", () => {
 
 // --- the app's own address --------------------------------------------------
 
-// The rule this section exists to hold: PRESENT exactly when the office has an
-// address for the app, ABSENT otherwise - never an empty value. An app reads
-// `if (process.env.BUREAU_APP_URL)` to find out whether it is reachable at a
-// hostname at all, and an empty string is a different answer from no answer.
 describe("app-supervisor: BUREAU_APP_URL in the unit", () => {
   const renderWith = (appUrl: string | null, over: Partial<AppRecord> = {}) =>
     renderUnit(record(over), {
@@ -296,23 +292,26 @@ describe("app-supervisor: BUREAU_APP_URL in the unit", () => {
       appUrl,
     });
 
-  it("injects the URL and Vite host as Environment directives when there is one", () => {
+  it("injects the URL, bind host, and Vite host as Environment directives when there is one", () => {
     const unit = renderWith("https://hello.office.example");
     expect(directives(unit)).toEqual(
-      expect.arrayContaining(['Environment="BUREAU_APP_URL=https://hello.office.example"', 'Environment="__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=hello.office.example"']),
+      expect.arrayContaining([
+        'Environment="BUREAU_APP_URL=https://hello.office.example"',
+        'Environment="BUREAU_APP_HOST=127.0.0.1"',
+        'Environment="__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=hello.office.example"',
+      ]),
     );
   });
 
   it("leaves the variable OUT entirely when there is none", () => {
     expect(renderWith(null)).not.toContain("BUREAU_APP_URL");
+    expect(renderWith(null)).not.toContain("BUREAU_APP_HOST");
   });
 
   it("keeps every other directive identical either way", () => {
-    // The URL is additive: turning app hostnames on must not change how an app
-    // is started, only what it knows about itself.
     const without = directives(renderWith(null));
     const with_ = directives(renderWith("https://hello.office.example"));
-    expect(with_.filter((d) => !d.includes("BUREAU_APP_URL") && !d.includes("__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"))).toEqual(without);
+    expect(with_.filter((d) => !d.includes("BUREAU_APP_URL") && !d.includes("BUREAU_APP_HOST") && !d.includes("__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"))).toEqual(without);
   });
 
   it("is the app's LABEL, so a re-registered name never inherits the old URL", () => {

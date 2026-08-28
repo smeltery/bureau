@@ -6,7 +6,7 @@
 // (url-reconcile-failure.test.ts) - and both need the same world. Nothing
 // outside those two files imports it.
 
-import { appUrlEnvDirective } from "../supervisor.ts";
+import { appHostEnvDirective, appHostForUrl, appUrlEnvDirective } from "../supervisor.ts";
 import { appPublicUrl } from "../domain.ts";
 import type { AppUrlReconcileDeps } from "../url-reconcile.ts";
 import type { AppRecord, AppState } from "../../../shared/apps.ts";
@@ -37,7 +37,11 @@ export const record = (over: Partial<AppRecord> = {}): AppRecord => ({
 export const unitFor = (app: AppRecord, domain: string | null): string => {
   const url = appPublicUrl(app.hostLabel, domain);
   const lines = ["[Service]", `Environment="PORT=${app.port}"`];
-  if (url !== null) lines.push(appUrlEnvDirective(url));
+  if (url !== null) {
+    lines.push(appUrlEnvDirective(url));
+    const host = appHostForUrl(url);
+    if (host !== null) lines.push(appHostEnvDirective(host));
+  }
   return `${lines.join("\n")}\n`;
 };
 

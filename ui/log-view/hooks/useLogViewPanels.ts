@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useAppState, useDispatch } from "../../store.tsx";
 import { send } from "../../ws.ts";
 import { useSidePanelLayout } from "./useSidePanelLayout.ts";
+import { commandInputBytes } from "../terminal/terminal-command.ts";
 
 export function useLogViewPanels(agentId: string) {
   const { sidePanels } = useAppState();
@@ -47,7 +48,7 @@ export function useLogViewPanels(agentId: string) {
       dispatch({ type: "set_side_panel", agentId, panel: "terminal" });
       const delay = wasOpen ? 0 : 250;
       setTimeout(() => {
-        send({ type: "terminal_input", agentId, data: command });
+        send({ type: "terminal_input", agentId, data: commandInputBytes(command) });
         const helper = (terminalContainerRef.current ?? document).querySelector(".xterm-helper-textarea") as HTMLTextAreaElement | null;
         helper?.focus();
       }, delay);

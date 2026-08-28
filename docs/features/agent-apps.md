@@ -163,7 +163,7 @@ to app owners and office owners.
 
 Environment variables an app receives: `PORT`, `BUREAU_APP_NAME`,
 `BUREAU_APP_DATA_DIR`, `BUREAU_APP_TOKEN`, and — only where the office has app
-hostnames — `BUREAU_APP_URL`.
+hostnames — `BUREAU_APP_URL` and `BUREAU_APP_HOST=127.0.0.1`.
 
 ## The app-host arm
 

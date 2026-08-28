@@ -1,4 +1,4 @@
-export function TerminalHeader({ mobile, onClose }: { mobile: boolean; onClose: () => void }) {
+export function TerminalHeader({ mobile, onClose, onInterrupt, onRestart }: { mobile: boolean; onClose: () => void; onInterrupt?: () => void; onRestart?: () => void }) {
   return (
     <div
       style={{
@@ -24,21 +24,53 @@ export function TerminalHeader({ mobile, onClose }: { mobile: boolean; onClose: 
         {!mobile && <span style={{ color: "var(--green)", fontSize: 13 }}>&#9654;</span>}
         Terminal
       </span>
-      <button
-        onClick={onClose}
-        style={{
-          background: "none",
-          border: "none",
-          color: "var(--text-muted)",
-          cursor: "pointer",
-          fontSize: mobile ? 24 : 16,
-          padding: mobile ? "4px 10px" : "0 4px",
-          lineHeight: 1,
-        }}
-        title="Close terminal"
-      >
-        &times;
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <button
+          onClick={onInterrupt}
+          style={{
+            padding: "3px 7px",
+            borderRadius: 5,
+            border: "1px solid var(--border-medium)",
+            background: "var(--bg-overlay)",
+            color: "var(--text-secondary)",
+            fontSize: mobile ? 11 : 10,
+            cursor: "pointer",
+          }}
+          title="Interrupt the foreground command"
+        >
+          Interrupt
+        </button>
+        <button
+          onClick={onRestart}
+          style={{
+            padding: "3px 7px",
+            borderRadius: 5,
+            border: "1px solid var(--border-medium)",
+            background: "var(--bg-overlay)",
+            color: "var(--text-secondary)",
+            fontSize: mobile ? 11 : 10,
+            cursor: "pointer",
+          }}
+          title="Restart terminal"
+        >
+          Restart
+        </button>
+        <button
+          onClick={onClose}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--text-muted)",
+            cursor: "pointer",
+            fontSize: mobile ? 24 : 16,
+            padding: mobile ? "4px 10px" : "0 4px",
+            lineHeight: 1,
+          }}
+          title="Close terminal"
+        >
+          &times;
+        </button>
+      </div>
     </div>
   );
 }

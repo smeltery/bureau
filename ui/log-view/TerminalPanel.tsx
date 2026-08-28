@@ -213,7 +213,7 @@ export function TerminalPanel({
         position: "relative",
       }}
     >
-      <TerminalHeader mobile={mobile} onClose={onClose} />
+      <TerminalHeader mobile={mobile} onClose={onClose} onInterrupt={() => sendInput("\x03")} onRestart={handleRespawn} />
 
       {/* Terminal body. position:relative so the exit overlay anchors to the
           body bottom (above the soft-key bar) without a hard-coded offset. */}

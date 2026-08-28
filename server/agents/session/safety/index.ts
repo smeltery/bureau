@@ -19,6 +19,7 @@ import { normalizeAbsolutePaths, stripQuotedStrings } from "./bash-parser.ts";
 import { DESTRUCTIVE_PATTERNS, SAFE_PATTERNS } from "./patterns.ts";
 import { BUREAU_DIR, commandWritesToBureau } from "./bureau-protection.ts";
 import { FILE_READ_COMMANDS, isSensitiveFile } from "./secrets.ts";
+import { checkProcessNetworkSafety } from "./process-network.ts";
 
 // ---------------------------------------------------------------------------
 // Hook callbacks
@@ -32,6 +33,9 @@ const checkBashSafety: HookCallback = async (input) => {
   // Strip quoted strings so patterns don't match commit messages, echo args, etc.
   const stripped = stripQuotedStrings(command);
   const normalized = normalizeAbsolutePaths(stripped);
+
+  const processNetworkMatch = checkProcessNetworkSafety(command);
+  if (processNetworkMatch) return denyMessage(processNetworkMatch.reason, command);
 
   // Check ~/.bureau/ write protection first
   if (commandWritesToBureau(stripped)) {
