@@ -98,6 +98,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
           schedule: buildCronjobSchedule({ scheduleType, hourStr, minuteStr, weekday, intervalStr }),
           prompt,
           cwd,
+          agentType,
           modelFamily,
           effort,
           permissionMode,

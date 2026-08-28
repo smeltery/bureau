@@ -42,6 +42,7 @@ export function InputBar({
   setShowMicHint,
   speechApiPresent,
   isSecureContext,
+  voiceInputError,
   // Autocomplete props
   showAutocomplete,
   filteredCommands,
@@ -78,6 +79,7 @@ export function InputBar({
   setShowMicHint: (v: boolean | ((prev: boolean) => boolean)) => void;
   speechApiPresent: boolean;
   isSecureContext: boolean;
+  voiceInputError: string | null;
   showAutocomplete: boolean;
   filteredCommands: string[];
   skillOrigins: Map<string, string>;
@@ -149,6 +151,11 @@ export function InputBar({
           if (fileInputRef.current) fileInputRef.current.value = "";
         }}
       />
+      {voiceInputError && (
+        <div role="alert" style={{ marginBottom: 8, color: "var(--red)", fontSize: isMobile ? 12 : 11 }}>
+          {voiceInputError}
+        </div>
+      )}
       <AttachmentChips stagedAttachments={stagedAttachments} isMobile={isMobile} removeStaged={removeStaged} />
       {skillsOpen && (
         <SkillsPopover

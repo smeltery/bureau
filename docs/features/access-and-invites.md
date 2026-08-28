@@ -172,6 +172,32 @@ The 1-year cap is a deliberate usability/security trade-off. The cookie carries 
 - **Agents run with the host Linux user's permissions.** The cookie auth doesn't constrain what an agent does once it's spawned in the office.
 - **Session revocation stops future use of a session but doesn't undo past actions.** Anything the leaked session already wrote stays written.
 
+## Use your own provider account
+
+Set your Env file path in User Settings to a file with API keys:
+
+```text
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+```
+
+For subscription billing, create a separate config directory and sign in once:
+
+```bash
+mkdir -p ~/.bureau-users/<user>/.claude
+CLAUDE_CONFIG_DIR=~/.bureau-users/<user>/.claude claude auth login
+
+mkdir -p ~/.bureau-users/<user>/.codex
+CODEX_HOME=~/.bureau-users/<user>/.codex ~/.bureau/bin/codex login --device-auth
+```
+
+Then put the config directory in the env file with an absolute path. Bureau does not expand `~` or `$VAR` there.
+
+```text
+CLAUDE_CONFIG_DIR=/home/<linux-user>/.bureau-users/<user>/.claude
+CODEX_HOME=/home/<linux-user>/.bureau-users/<user>/.codex
+```
+
 ## Bootstrap-window exposure
 
 Before an owner exists, the first-owner form is served only on `127.0.0.1`, so the OS bind rules out off-box clients regardless of LAN/VPN topology — Bureau is not reachable to an outside attacker.

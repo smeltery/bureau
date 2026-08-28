@@ -209,6 +209,7 @@ describe("securityHeaders", () => {
     expect(headers["Content-Security-Policy"]).toContain("base-uri 'self'");
     expect(headers["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
     expect(headers["Permissions-Policy"]).toContain("camera=()");
+    expect(headers["Permissions-Policy"]).toContain("microphone=(self)");
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
     expect(headers["X-Frame-Options"]).toBe("DENY");
   });

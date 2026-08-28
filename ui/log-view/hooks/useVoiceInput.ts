@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { advanceDictationSession, reconcileDictationEdit, startDictationSession, type DictationSession } from "./spoken-punctuation.ts";
+import { voiceInputErrorMessage } from "./voice-input-error.ts";
 
 /**
  * Speech-recognition input.
@@ -33,6 +34,7 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
   const [isListening, setIsListening] = useState(false);
   const isListeningRef = useRef(false);
   const [showMicHint, setShowMicHint] = useState(false);
+  const [voiceInputError, setVoiceInputError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   // The draft text as it stood when the mic opened, plus every finalized
   // fragment since — kept unjoined so punctuation can be decided per fragment.
@@ -43,6 +45,7 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
 
   function startListening() {
     if (isListeningRef.current || !SpeechRecognition) return;
+    setVoiceInputError(null);
     isListeningRef.current = true;
     setIsListening(true);
     dictationRef.current = startDictationSession(inputRef.current, locale);
@@ -74,9 +77,11 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
       isListeningRef.current = false;
       setIsListening(false);
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       isListeningRef.current = false;
       setIsListening(false);
+      const message = voiceInputErrorMessage(event.error);
+      if (message) setVoiceInputError(message);
     };
     recognitionRef.current = recognition;
     recognition.start();
@@ -138,6 +143,7 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
     setShowMicHint,
     speechApiPresent,
     isSecureContext,
+    voiceInputError,
     reconcileDraftEdit,
   };
 }

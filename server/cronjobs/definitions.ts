@@ -20,7 +20,7 @@ export interface AddCronjobInput {
   device?: string;
 }
 
-export type UpdateCronjobChanges = Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "effort" | "permissionMode" | "codexSandbox" | "enabled">>;
+export type UpdateCronjobChanges = Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "agentType" | "modelFamily" | "effort" | "permissionMode" | "codexSandbox" | "enabled">>;
 
 export function addCronjobDefinition(cronjobs: Cronjob[], input: AddCronjobInput): Cronjob {
   const schedule = clampSchedule(input.schedule);
@@ -59,18 +59,21 @@ export function updateCronjobDefinition(cronjobs: Cronjob[], id: string, changes
   if (idx < 0) return null;
   const prev = cronjobs[idx];
   const next: Cronjob = { ...prev };
+  const agentType = changes.agentType === "claude" || changes.agentType === "codex" ? changes.agentType : prev.agentType;
+  const engineChanged = agentType !== prev.agentType;
+  next.agentType = agentType;
   if (changes.name !== undefined) next.name = changes.name.trim() || prev.name;
   if (changes.prompt !== undefined) next.prompt = changes.prompt;
   if (changes.cwd !== undefined) next.cwd = resolveCwd(changes.cwd);
-  if (changes.modelFamily !== undefined) next.modelFamily = validateModelFamily(next.agentType, changes.modelFamily);
-  if (changes.effort !== undefined || changes.modelFamily !== undefined) {
-    next.effort = validateEffort(next.agentType, next.modelFamily, changes.effort ?? next.effort);
+  if (engineChanged || changes.modelFamily !== undefined || changes.effort !== undefined || changes.permissionMode !== undefined) {
+    next.modelFamily = validateModelFamily(agentType, changes.modelFamily ?? (engineChanged ? undefined : prev.modelFamily));
+    next.effort = validateEffort(agentType, next.modelFamily, changes.effort ?? (engineChanged ? undefined : prev.effort));
+    next.permissionMode = validateCronjobPermissionMode(agentType, changes.permissionMode ?? (engineChanged ? undefined : prev.permissionMode));
   }
-  if (changes.permissionMode !== undefined) {
-    next.permissionMode = validateCronjobPermissionMode(next.agentType, changes.permissionMode);
-  }
-  if (changes.codexSandbox !== undefined) {
-    const sandbox = next.agentType === "codex" ? validateCodexSandbox(changes.codexSandbox) : undefined;
+  if (agentType === "claude") {
+    if (engineChanged) delete next.codexSandbox;
+  } else if (changes.codexSandbox !== undefined) {
+    const sandbox = validateCodexSandbox(changes.codexSandbox);
     if (sandbox) next.codexSandbox = sandbox;
     else delete next.codexSandbox;
   }

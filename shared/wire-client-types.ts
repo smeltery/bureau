@@ -104,7 +104,7 @@ export type ClientCommand =
       type: "update_cronjob";
       requestId?: string;
       id: string;
-      changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "modelFamily" | "effort" | "permissionMode" | "codexSandbox" | "enabled">>;
+      changes: Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "agentType" | "modelFamily" | "effort" | "permissionMode" | "codexSandbox" | "enabled">>;
     }
   | { type: "delete_cronjob"; id: string }
   | { type: "run_cronjob_now"; id: string; username: string; device?: string }

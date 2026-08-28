@@ -177,6 +177,7 @@ export function LogView({
       setShowMicHint={voice.setShowMicHint}
       speechApiPresent={voice.speechApiPresent}
       isSecureContext={voice.isSecureContext}
+      voiceInputError={voice.voiceInputError}
       showAutocomplete={autocomplete.showAutocomplete}
       filteredCommands={autocomplete.filteredCommands}
       skillOrigins={autocomplete.skillOrigins}

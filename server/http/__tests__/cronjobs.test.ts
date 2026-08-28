@@ -92,6 +92,25 @@ describe("handleCronjobsRequest", () => {
     expect(updatedRes?.status).toBe(200);
     expect(updated.enabled).toBe(false);
 
+    const engineUpdateReq = new Request(`http://local.test/api/cronjobs/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        agentType: "claude",
+        modelFamily: "opus",
+        effort: "high",
+        permissionMode: "bypassPermissions",
+      }),
+    });
+    const engineUpdatedRes = await handleCronjobsRequest(engineUpdateReq, new URL(engineUpdateReq.url), ownerAuth);
+    const engineUpdated = await engineUpdatedRes?.json();
+
+    expect(engineUpdatedRes?.status).toBe(200);
+    expect(engineUpdated.agentType).toBe("claude");
+    expect(engineUpdated.modelFamily).toBe("opus");
+    expect(engineUpdated.effort).toBe("high");
+    expect(engineUpdated.permissionMode).toBe("bypassPermissions");
+    expect(engineUpdated.codexSandbox).toBeUndefined();
+
     const deleteReq = new Request(`http://local.test/api/cronjobs/${created.id}`, { method: "DELETE" });
     const deletedRes = await handleCronjobsRequest(deleteReq, new URL(deleteReq.url), ownerAuth);
 
@@ -140,6 +159,32 @@ describe("handleCronjobsRequest", () => {
 
     expect(res?.status).toBe(400);
     expect(await res?.json()).toEqual({ error: "schedule must be daily, weekly, or interval with finite numeric fields" });
+
+    CronjobManager.deleteCronjob(cronjob.id);
+  });
+
+  test("rejects malformed cronjob update agent types", async () => {
+    const cronjob = CronjobManager.addCronjob({
+      name: "Update engine",
+      schedule: { type: "daily", hour: 9, minute: 0 },
+      prompt: "Check",
+      cwd: process.cwd(),
+      agentType: "claude",
+      modelFamily: "opus",
+      effort: "high",
+      permissionMode: "bypassPermissions",
+      username: "Owner",
+      userId: "owner-1",
+    });
+    const req = new Request(`http://local.test/api/cronjobs/${cronjob.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ agentType: "bogus" }),
+    });
+
+    const res = await handleCronjobsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "agentType must be claude or codex" });
 
     CronjobManager.deleteCronjob(cronjob.id);
   });
