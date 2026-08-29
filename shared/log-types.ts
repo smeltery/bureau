@@ -48,6 +48,20 @@ export interface TerminalCommandPayload {
   command: string; // single-line shell command
 }
 
+export interface ChoicePromptChoice {
+  value: string;
+  label: string;
+  description?: string;
+  current?: boolean;
+}
+
+export interface ChoicePromptPayload {
+  kind: "resume" | "model" | "effort";
+  title: string;
+  instruction: string;
+  choices: ChoicePromptChoice[];
+}
+
 // Which loop a tool call came from, when it was NOT the agent's own. A
 // subagent (Claude's Agent/Task tool) runs its own tool calls, and the SDK
 // forwards them on the same stream as the parent's — so an unmarked transcript
@@ -72,7 +86,7 @@ export interface LogEntry {
   timestamp: number;
   kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "diff" | "edit-request" | "terminal-command" | "file-view";
   content: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> & { choicePrompt?: ChoicePromptPayload };
   ephemeral?: boolean;
   attachments?: Attachment[]; // file attachments, served via /api/files/<agentId>/<filename>
   diff?: DiffPayload; // present only when kind === "diff"

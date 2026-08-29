@@ -6,13 +6,22 @@ export async function handleModelCommand(agentId: string, managed: ManagedAgent,
   emitEphemeralLog(agentId, "user_message", rawText, userMeta);
   const currentLabel = familyDisplayLabel(managed.info.modelFamily);
   const lines: string[] = [`Switch model (current: **${currentLabel}**):\n`];
-  for (let i = 0; i < MODEL_FAMILIES.length; i++) {
-    const model = MODEL_FAMILIES[i];
-    const marker = model.family === managed.info.modelFamily ? " (current)" : "";
-    lines.push(`  ${i + 1}. ${familyDisplayLabel(model.family)}${marker}`);
-  }
-  lines.push("\nReply with a number to switch, or anything else to cancel.");
-  emitEphemeralLog(agentId, "system", lines.join("\n"));
+  const choices = MODEL_FAMILIES.map((model) => ({
+    value: model.family,
+    label: familyDisplayLabel(model.family),
+    current: model.family === managed.info.modelFamily,
+  }));
+  lines.push(...choices.map((choice, index) => `  ${index + 1}. ${choice.label}${choice.current ? " (current)" : ""}`));
+  const instruction = "\nReply with a number to switch, or anything else to cancel.";
+  lines.push(instruction);
+  emitEphemeralLog(agentId, "system", lines.join("\n"), {
+    choicePrompt: {
+      kind: "model",
+      title: "Switch model",
+      instruction: instruction.trim(),
+      choices,
+    },
+  });
   managed.pendingModelPick = true;
   updateState(agentId, "waiting_for_response");
   return true;
@@ -23,13 +32,22 @@ export async function handleEffortCommand(agentId: string, managed: ManagedAgent
   emitEphemeralLog(agentId, "user_message", rawText, userMeta);
   const currentLabel = effortDisplayLabel(managed.info.effort);
   const lines: string[] = [`Switch thinking effort (current: **${currentLabel}**):\n`];
-  for (let i = 0; i < EFFORT_LEVELS.length; i++) {
-    const effort = EFFORT_LEVELS[i];
-    const marker = effort.level === managed.info.effort ? " (current)" : "";
-    lines.push(`  ${i + 1}. ${effortDisplayLabel(effort.level)}${marker}`);
-  }
-  lines.push("\nReply with a number to switch, or anything else to cancel.");
-  emitEphemeralLog(agentId, "system", lines.join("\n"));
+  const choices = EFFORT_LEVELS.map((effort) => ({
+    value: effort.level,
+    label: effortDisplayLabel(effort.level),
+    current: effort.level === managed.info.effort,
+  }));
+  lines.push(...choices.map((choice, index) => `  ${index + 1}. ${choice.label}${choice.current ? " (current)" : ""}`));
+  const instruction = "\nReply with a number to switch, or anything else to cancel.";
+  lines.push(instruction);
+  emitEphemeralLog(agentId, "system", lines.join("\n"), {
+    choicePrompt: {
+      kind: "effort",
+      title: "Switch thinking effort",
+      instruction: instruction.trim(),
+      choices,
+    },
+  });
   managed.pendingEffortPick = true;
   updateState(agentId, "waiting_for_response");
   return true;

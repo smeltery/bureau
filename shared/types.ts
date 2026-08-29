@@ -43,7 +43,7 @@ export type { AgentCapabilities, AgentPermissionMode, ClaudeModel, ClaudePermiss
 export { cronjobRunStreamId, humanizeSchedule, parseStreamId } from "./cronjobs.ts";
 export type { Cronjob, CronjobPermissionMode, CronjobRun, CronjobRunStatus, CronjobRunTrigger, Schedule } from "./cronjobs.ts";
 export type { CCAvailablePlugin, CCInstalledPlugin, CCMarketplace, CCPluginScope, CCPluginsState } from "./cc-plugin-types.ts";
-export type { Attachment, DiffFileSummary, DiffPayload, FilePayload, LogEntry, SubagentOrigin, TerminalCommandPayload } from "./log-types.ts";
+export type { Attachment, ChoicePromptChoice, ChoicePromptPayload, DiffFileSummary, DiffPayload, FilePayload, LogEntry, SubagentOrigin, TerminalCommandPayload } from "./log-types.ts";
 export type { EnsureSlideReq, EnsureSlideRes, SlideDeck, SlideDeckRes, SlideFailureReason, SlideRecord } from "./slides.ts";
 export { generateHexId, generateTaskId, isValidPriority, isValidStatus } from "./tasks.ts";
 export type { TaskItem, TaskPriority, TaskStatus } from "./tasks.ts";

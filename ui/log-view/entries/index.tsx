@@ -1,6 +1,6 @@
-import type { LogEntry } from "../../../shared/types.ts";
+import type { ChoicePromptPayload, LogEntry } from "../../../shared/types.ts";
 import { UserMessage, EditableUserMessage } from "./UserMessage.tsx";
-import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage, TaskBreadcrumb, PermissionDeniedCard } from "./AssistantEntries.tsx";
+import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage, TaskBreadcrumb, PermissionDeniedCard, ChoicePromptCard } from "./AssistantEntries.tsx";
 import { findMatchingToolResult, isFoldedToolResult, ToolCall, ToolResult } from "./ToolEntries.tsx";
 import { subagentOf } from "./subagentOrigin.ts";
 import { DiffCard } from "../DiffCard.tsx";
@@ -31,6 +31,7 @@ export function LogEntryCard({
   onSubmitEdit,
   onOpenInEditor,
   onCopyToTerminal,
+  onChoicePick,
 }: {
   entry: LogEntry;
   isLastInTurn?: boolean;
@@ -43,6 +44,7 @@ export function LogEntryCard({
   onSubmitEdit?: (entryId: string, newText: string) => void;
   onOpenInEditor?: (path: string) => void;
   onCopyToTerminal?: (command: string) => void;
+  onChoicePick?: (kind: ChoicePromptPayload["kind"], position: number) => void;
 }) {
   switch (entry.kind) {
     case "user_message": {
@@ -110,6 +112,10 @@ export function LogEntryCard({
       }
       if (entry.metadata?.taskEvent && typeof entry.metadata.taskEvent === "object") {
         return <TaskBreadcrumb content={entry.content} phase={(entry.metadata.taskEvent as { phase?: unknown }).phase} isMobile={isMobile} />;
+      }
+      if (entry.metadata?.choicePrompt) {
+        const prompt = entry.metadata.choicePrompt;
+        return <ChoicePromptCard prompt={prompt} isMobile={isMobile} onPick={onChoicePick ? (position) => onChoicePick(prompt.kind, position) : undefined} />;
       }
       return <SystemMessage content={entry.content} isMobile={isMobile} />;
     case "diff": {

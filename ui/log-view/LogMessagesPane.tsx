@@ -104,6 +104,10 @@ export function LogMessagesPane({
             }}
             onOpenInEditor={onOpenInEditor}
             onCopyToTerminal={onCopyToTerminal}
+            onChoicePick={(kind, position) => {
+              if (agent.pendingPrompt !== kind) return;
+              send({ type: "send_message", agentId: agent.id, text: String(position), username });
+            }}
           />
         );
         return isUserMsg ? (

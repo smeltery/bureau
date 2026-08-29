@@ -179,7 +179,6 @@ export const commandHandlers: Record<string, HandlerFn> = {
       return true;
     }
     const lines: string[] = ["Resume a past conversation:\n"];
-    let num = 1;
     const pickable: typeof sessions = [];
     for (const s of sessions.slice(0, 20)) {
       const date = new Date(s.lastModified);
@@ -191,9 +190,8 @@ export const commandHandlers: Record<string, HandlerFn> = {
       if (s.sessionId === managed.sessionId) {
         lines.push(`  \u25cf ${label}  ${dateStr}${cwdStr}  (current)`);
       } else {
-        lines.push(`  ${num}. ${label}  ${dateStr}${cwdStr}${suffix}`);
+        lines.push(`  ${pickable.length + 1}. ${label}  ${dateStr}${cwdStr}${suffix}`);
         pickable.push(s);
-        num++;
       }
     }
     if (pickable.length === 0) {
@@ -201,8 +199,22 @@ export const commandHandlers: Record<string, HandlerFn> = {
       updateState(agentId, "waiting_for_response");
       return true;
     }
-    lines.push("\nReply with a number to resume, or anything else to cancel.");
-    emitEphemeralLog(agentId, "system", lines.join("\n"));
+    const instruction = "\nReply with a number to resume, or anything else to cancel.";
+    lines.push(instruction);
+    emitEphemeralLog(agentId, "system", lines.join("\n"), {
+      choicePrompt: {
+        kind: "resume",
+        title: "Resume a past conversation",
+        instruction: instruction.trim(),
+        choices: pickable.map((session) => {
+          const date = new Date(session.lastModified);
+          const dateStr = date.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+          const label = session.topic || `${session.sessionId.slice(0, 8)}...`;
+          const details = [dateStr, session.cwd ? tildifyCwd(session.cwd) : null, session.branched ? "branched" : null].filter(Boolean).join("  ");
+          return { value: session.sessionId, label, description: details || undefined };
+        }),
+      },
+    });
     managed.pendingResume = true;
     managed.pendingResumeSessions = pickable;
     updateState(agentId, "waiting_for_response");
