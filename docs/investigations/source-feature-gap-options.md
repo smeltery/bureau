@@ -1,6 +1,6 @@
 # Source Feature Gap Options
 
-Date: 2026-08-29 (updated after feature-gap pass against nmamano/isomux)
+Date: 2026-08-29 (skill-driven residual pass)
 
 This investigation records accepted, rejected, and deferred options from a
 source feature-gap comparison. Source behavior was used as evidence;
@@ -80,5 +80,5 @@ implementation stays in Bureau naming and architecture.
   master prior to this pass).
 - First-install welcome agents, edit attachment carry-over/matching, and
   `clientMessageId` 5-minute queue TTL dedup.
-- Cron-run agent alerts (separate PR).
+- Cron-run agent alerts.
 - Creator `memberPrompt` injection into cron-run system prompts (this pass).

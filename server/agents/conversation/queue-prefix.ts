@@ -1,5 +1,5 @@
 import type { QueuedMessage, QueuedSender } from "../../../shared/types.ts";
-import { formatAgentSenderPrefix, formatAppSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
+import { formatAgentSenderPrefix, formatAppSenderPrefix, formatCronjobSenderPrefix, formatUserPrefix } from "../../../shared/identity.ts";
 
 function senderPrefixText(sender: QueuedSender): string {
   switch (sender.kind) {
@@ -10,7 +10,7 @@ function senderPrefixText(sender: QueuedSender): string {
     case "app":
       return `${formatAppSenderPrefix(sender.appName)} `;
     case "cronjob":
-      return `[Cron job ${sender.cronjobName}] `;
+      return `${formatCronjobSenderPrefix(sender.cronjobName)} `;
   }
 }
 

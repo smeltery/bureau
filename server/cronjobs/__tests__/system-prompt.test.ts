@@ -65,6 +65,15 @@ describe("buildCronjobSystemPrompt", () => {
     expect(prompt).toContain('If you can\'t tell, use "Daily report".');
   });
 
+  test("documents creator-scoped agent discovery and desk-agent alerts", () => {
+    const prompt = buildCronjobSystemPrompt(cronjob(), "cron-1", "run-1");
+
+    expect(prompt).toContain("rooms your creator can access");
+    expect(prompt).toContain("How to alert a desk agent during this run");
+    expect(prompt).toContain("/api/agents/<receiver-id>/messages");
+    expect(prompt).toContain("do not pass sendNow, steer, deliverAt, attachments, or senderAgentId");
+  });
+
   test("injects the creator memberPrompt looked up at build time", () => {
     const creator = claimUserByName(`Cron Prompt ${crypto.randomUUID()}`, { role: "member", allowedRooms: [] });
     createdUserIds.push(creator.id);
