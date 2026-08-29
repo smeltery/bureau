@@ -95,4 +95,8 @@ implementation stays in Bureau naming and architecture.
   `PUT /api/me/view/shown`).
 - Cron-run authenticated task board (globals-only `/api/tasks` with job-name
   attribution) and desk-agent task visibility via the manager's accessible
-  rooms, with matching system-prompt docs (this pass).
+  rooms, with matching system-prompt docs.
+
+Residual skill compare after the above: **no further actionable gaps**. Remaining
+items stay deferred (privileged-agent cron CRUD; ephemeral slash-echo edit
+rewrite) or rejected (branding / hosted SaaS / public screenshots).
