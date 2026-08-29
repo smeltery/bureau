@@ -1,8 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import type { Cronjob } from "../../../shared/types.ts";
+import { claimUserByName, deleteUserById, updateUserById } from "../../users.ts";
 import { buildCronjobSystemPrompt } from "../index.ts";
 
-function cronjob(): Cronjob {
+const createdUserIds: string[] = [];
+
+afterEach(() => {
+  for (const id of createdUserIds.splice(0)) deleteUserById(id);
+});
+
+function cronjob(overrides: Partial<Cronjob> = {}): Cronjob {
   return {
     id: "cron-1",
     name: "Daily report",
@@ -21,6 +28,7 @@ function cronjob(): Cronjob {
     createdAt: 1,
     lastFireAt: null,
     nextFireAt: 2,
+    ...overrides,
   };
 }
 
@@ -64,5 +72,25 @@ describe("buildCronjobSystemPrompt", () => {
     expect(prompt).toContain("How to alert a desk agent during this run");
     expect(prompt).toContain("/api/agents/<receiver-id>/messages");
     expect(prompt).toContain("do not pass sendNow, steer, deliverAt, attachments, or senderAgentId");
+  });
+
+  test("injects the creator memberPrompt looked up at build time", () => {
+    const creator = claimUserByName(`Cron Prompt ${crypto.randomUUID()}`, { role: "member", allowedRooms: [] });
+    createdUserIds.push(creator.id);
+    expect(updateUserById(creator.id, { memberPrompt: "Prefer short reports." }).ok).toBe(true);
+
+    const prompt = buildCronjobSystemPrompt(cronjob({ userId: creator.id, username: creator.name, createdBy: creator.name }), "cron-1", "run-1", "Shared cron rules.");
+
+    expect(prompt).toContain(`## Special Instructions For ${creator.name}`);
+    expect(prompt).toContain("Prefer short reports.");
+    expect(prompt.indexOf("## Cron Jobs Instructions")).toBeLessThan(prompt.indexOf("## Special Instructions For"));
+    expect(prompt.indexOf("Prefer short reports.")).toBeLessThan(prompt.indexOf("## Durable Memory"));
+  });
+
+  test("skips memberPrompt when the creator has none", () => {
+    const creator = claimUserByName(`Cron Prompt Empty ${crypto.randomUUID()}`, { role: "member", allowedRooms: [] });
+    createdUserIds.push(creator.id);
+    const prompt = buildCronjobSystemPrompt(cronjob({ userId: creator.id, username: creator.name }), "cron-1", "run-1");
+    expect(prompt).not.toContain("## Special Instructions For");
   });
 });

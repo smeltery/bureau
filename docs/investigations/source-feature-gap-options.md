@@ -33,6 +33,9 @@ implementation stays in Bureau naming and architecture.
 - Cron-run agent alerts. A live cron-run bearer can list creator-visible agents
   and POST a plain queue message to one of them; attribution is server-derived
   from the job, and human/agent delivery controls are refused.
+- Creator `memberPrompt` on cron runs. Each fire looks up the job creator's
+  living user record and injects their member prompt into the run system prompt
+  (same heading style as desk-agent manager instructions).
 
 ## Rejected
 
@@ -77,4 +80,5 @@ implementation stays in Bureau naming and architecture.
   master prior to this pass).
 - First-install welcome agents, edit attachment carry-over/matching, and
   `clientMessageId` 5-minute queue TTL dedup.
-- Cron-run agent alerts (this pass).
+- Cron-run agent alerts.
+- Creator `memberPrompt` injection into cron-run system prompts (this pass).
