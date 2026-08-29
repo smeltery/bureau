@@ -1,6 +1,7 @@
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
+import { projectAgentsForCronRun, resolveCronRunBearer } from "../cronjobs/run-messaging.ts";
 import { buildAgentsManifest, buildKilledManifest } from "../persistence.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { FAMILY_TO_MODEL, type AgentInfo, type UserRecord } from "../../shared/types.ts";
@@ -195,9 +196,11 @@ export function requireAgentManagerAccess(auth: AuthResult | undefined, agentId:
 export function projectedAgentsManifest(req: Request, auth: AuthResult | undefined): Response | unknown[] {
   const rawBearer = readBearerToken(req);
   const bearer = resolveAgentToken(rawBearer);
-  if (rawBearer && !bearer && auth?.kind !== "api") return jsonError(401, "missing or invalid bearer token");
+  const cronRun = !bearer ? resolveCronRunBearer(rawBearer) : null;
+  if (rawBearer && !bearer && !cronRun && auth?.kind !== "api") return jsonError(401, "missing or invalid bearer token");
 
   if (new URL(req.url).searchParams.get("killed") === "1") {
+    if (cronRun) return jsonError(403, "forbidden");
     if (bearer) {
       if (!bearer.userId) return jsonError(403, "forbidden");
       return buildKilledManifest(AgentManager.getKilledAgentSummariesForManager(bearer.userId));
@@ -213,7 +216,11 @@ export function projectedAgentsManifest(req: Request, auth: AuthResult | undefin
 
   const rooms = AgentManager.getRooms();
   let agents: AgentInfo[];
-  if (bearer) {
+  if (cronRun) {
+    const projected = projectAgentsForCronRun(cronRun, rooms);
+    if (projected instanceof Response) return projected;
+    agents = projected;
+  } else if (bearer) {
     const user = bearer.userId ? getUserById(bearer.userId) : null;
     agents = user ? projectAgentsForUser(user, rooms) : AgentManager.getAllAgents().filter((agent) => agent.id === bearer.agentId);
   } else if (auth?.kind === "api") {

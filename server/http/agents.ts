@@ -4,6 +4,7 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import type { Attachment } from "../../shared/types.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { cancelScheduledMessage, listScheduledMessages, parseDeliverAt, scheduleAgentMessage } from "../scheduled-messages.ts";
+import { handleCronRunAgentMessage, resolveCronRunBearer } from "../cronjobs/run-messaging.ts";
 import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
@@ -145,7 +146,11 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       const deliverAtRaw = body?.deliverAt;
       const rawBearer = readBearerToken(req);
       const bearer = resolveAgentToken(rawBearer);
-      if (rawBearer && !bearer && auth?.kind !== "api") return jsonError(401, "missing or invalid bearer token");
+      const cronRun = !bearer ? resolveCronRunBearer(rawBearer) : null;
+      if (rawBearer && !bearer && !cronRun && auth?.kind !== "api") return jsonError(401, "missing or invalid bearer token");
+      if (cronRun) {
+        return handleCronRunAgentMessage(cronRun, agentId, body, text);
+      }
       const apiTokenResponse = auth ? handleApiTokenMessage(auth, agentId, body, text, deliverAtRaw) : null;
       if (apiTokenResponse) return apiTokenResponse;
       if (bearer) {
