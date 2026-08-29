@@ -1,6 +1,6 @@
 import { forkSession, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
 import { persistSessionFork } from "../../persistence.ts";
-import { addLogEntry, agents, emit, logCache, persistAll, updateState } from "../state.ts";
+import { addLogEntry, agents, emit, emitQueueUpdate, logCache, persistAll, updateState } from "../state.ts";
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
@@ -30,21 +30,31 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     return;
   }
 
+  const oldLogCache = [...(logCache.get(agentId) ?? [])];
+  // Find target up front so a not-found error returns before queue drain or
+  // the fork pipeline runs.
+  const targetEntry = oldLogCache.find((e) => e.id === logEntryId);
+  if (!targetEntry || targetEntry.kind !== "user_message") {
+    addLogEntry(agentId, "error", "Cannot edit: message not found.");
+    return;
+  }
+
+  // Editing forks the conversation; queued messages were addressed to the
+  // pre-edit context and should not bleed into the new branch. Mirrors /clear
+  // and /resume.
+  if (managed.messageQueue.length > 0) {
+    managed.messageQueue = [];
+    emitQueueUpdate(agentId, managed);
+    persistAll();
+  }
+
   const oldSessionId = managed.sessionId;
   persistCurrentSessionTopic(agentId, managed);
-  const oldLogCache = [...(logCache.get(agentId) ?? [])];
   const oldTopic = managed.info.topic;
   const oldTopicStale = managed.info.topicStale;
 
   try {
     // --- Phase 1: Fallible SDK operations (no UI/cache mutations yet) ---
-
-    // 1. Find the target LogEntry in the current log cache
-    const targetEntry = oldLogCache.find((e) => e.id === logEntryId);
-    if (!targetEntry || targetEntry.kind !== "user_message") {
-      addLogEntry(agentId, "error", "Cannot edit: message not found.");
-      return;
-    }
 
     // 2. Get SDK session messages and match by content + occurrence index
     const sdkMessages = await getSessionMessages(oldSessionId);
@@ -147,7 +157,11 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // runAgentTurn so it's part of the visible timeline; runAgentTurn's
     // newLogEntries snapshot is taken AFTER, so the user_message is
     // excluded from the slice plugins observe.
-    addLogEntry(agentId, "user_message", newText, username ? { username } : undefined);
+    //
+    // The edit UI rewrites text only, so the original message's attachments
+    // ride along to the replacement turn — dropping them would silently strip
+    // the files the edited text is usually talking about.
+    addLogEntry(agentId, "user_message", newText, username ? { username } : undefined, targetEntry.attachments);
 
     const prefixedNew = username ? `[${username}] ${newText}` : newText;
     await runAgentTurn({
@@ -158,6 +172,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       originalText: newText,
       sdkText: prefixedNew,
       username: username ?? null,
+      attachments: targetEntry.attachments,
       origin: "edit-fork",
       humanInput: true,
     });

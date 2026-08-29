@@ -1,6 +1,7 @@
 import { FAMILY_TO_MODEL } from "../../shared/types.ts";
 import { loadAgentHistory, saveAgentHistory, saveAgents, writeManifest, type AgentHistory, type PersistedAgent, type Room } from "../persistence.ts";
 import { getUserById } from "../users.ts";
+import { queueDedupeForPersist } from "./conversation/queue-dedupe.ts";
 import type { InternalRoom, ManagedAgent } from "./state-types.ts";
 
 export function writeAgentsManifest(agents: Iterable<ManagedAgent>, rooms: InternalRoom[]) {
@@ -90,6 +91,7 @@ export function saveLiveAgents(agents: Iterable<ManagedAgent>, rooms: InternalRo
         topic: a.info.topic,
         customInstructions: a.info.customInstructions,
         queue: a.messageQueue,
+        queueDedupe: queueDedupeForPersist(a),
       });
     }
   }

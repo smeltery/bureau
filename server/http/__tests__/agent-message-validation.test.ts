@@ -239,6 +239,8 @@ describe("agent message validation", () => {
     expect(first?.status).toBe(200);
     expect(second?.status).toBe(200);
     expect(firstBody.messageId).toBe(secondBody.messageId);
+    expect(firstBody.queued).toBe(true);
+    expect(secondBody.queued).toBe(true);
     expect(receiver.messageQueue.map((m) => m.text)).toEqual(["retry once"]);
   });
 });

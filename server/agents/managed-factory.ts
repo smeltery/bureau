@@ -48,6 +48,7 @@ export function createManagedAgent(input: {
     ptySidecar: null,
     ptyBuffer: "",
     messageQueue: [],
+    queueDedupe: new Map(),
     autoResumeInProgress: false,
     flushInProgress: false,
     recentSteers: [],

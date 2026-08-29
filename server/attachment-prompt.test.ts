@@ -3,7 +3,8 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 
 import { BUREAU_DIR } from "./persistence.ts";
-import { formatAttachmentLines, quoteOneLine, resolveAttachmentNotices } from "./attachment-prompt.ts";
+import { formatAttachmentLines, quoteOneLine, resolveAttachmentNotices, stripAttachmentNotices } from "./attachment-prompt.ts";
+import { stripPluginPrefix } from "./plugins/plugin-prefix.ts";
 
 const TEST_AGENT_ID = `test-attachment-prompt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const FILES_DIR = join(BUREAU_DIR, "logs", TEST_AGENT_ID, "files");
@@ -85,5 +86,46 @@ describe("formatAttachmentLines", () => {
 describe("quoteOneLine", () => {
   test("round-trips ordinary JSON strings", () => {
     expect(JSON.parse(quoteOneLine("hello world"))).toBe("hello world");
+  });
+});
+
+describe("stripAttachmentNotices", () => {
+  const NOTICE =
+    '[Attachment: "image.png" (image/png, 527.0 KB) saved at ' + '"/home/nil/.bureau/logs/agent-1/files/image_7.png". ' + "If your reply depends on it, open it before answering about its contents.]";
+
+  test("leaves text without a notice block untouched", () => {
+    expect(stripAttachmentNotices("[Nil] hello world")).toBe("[Nil] hello world");
+    expect(stripAttachmentNotices("")).toBe("");
+  });
+
+  test("strips a notice glued straight onto the user text", () => {
+    const userText = "[Nil (Windows)] Here is the screenshot of the cutoff slide.";
+    expect(stripAttachmentNotices(userText + NOTICE)).toBe(userText);
+  });
+
+  test("strips a multi-attachment block joined by newlines", () => {
+    const second = '[Attachment: "notes.md" (text/plain, 2.0 KB) saved at "/tmp/notes.md". ' + "If your reply depends on it, open it before answering about its contents.]";
+    expect(stripAttachmentNotices("[Nil] two files" + NOTICE + "\n" + second)).toBe("[Nil] two files");
+  });
+
+  test("matches the block the formatter actually produces", () => {
+    fixtureFile("strip-me.txt", "x");
+    const lines = formatAttachmentLines(resolveAttachmentNotices(TEST_AGENT_ID, [spec("strip-me.txt")]));
+    expect(stripAttachmentNotices("[Nil] here" + lines.join("\n"))).toBe("[Nil] here");
+  });
+
+  test("preserves the user's own trailing newline", () => {
+    expect(stripAttachmentNotices("[Nil] trailing\n" + NOTICE)).toBe("[Nil] trailing\n");
+  });
+
+  test("only strips at the end, never mid-message", () => {
+    const text = "[Nil] see " + NOTICE + " and then some more words";
+    expect(stripAttachmentNotices(text)).toBe(text);
+  });
+
+  test("composes with stripPluginPrefix to recover the bare sdkText", () => {
+    const sdkText = "[Nil] both at once";
+    const recorded = "--- begin plugin: mem0 ---\n" + "prior note\n" + "--- end plugin: mem0 ---\n\n" + "User message:\n" + sdkText + NOTICE;
+    expect(stripAttachmentNotices(stripPluginPrefix(recorded))).toBe(sdkText);
   });
 });

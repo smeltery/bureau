@@ -4,6 +4,7 @@ import { SessionSwappedError, createSession, installSession } from "../session/r
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { flushPrefix } from "./queue-prefix.ts";
+import { lookupQueueDedupe, recordQueueDedupe } from "./queue-dedupe.ts";
 // Circular with control.ts (which imports flushQueue from here); safe because
 // both modules only call across the cycle at request time, never at load time.
 import { resume, sendNow } from "./control.ts";
@@ -70,11 +71,14 @@ export function enqueueMessage(
   if (state === "error" && !autoResumeSessionId) {
     return { ok: false, error: "agent is not accepting messages", status: 409 };
   }
+  // Idempotency first; record only after a successful accept below so a
+  // 429-rejected retry does not poison the dedup map.
   if (msg.clientMessageId) {
-    const duplicate = managed.messageQueue.find((item) => item.clientMessageId === msg.clientMessageId && sameSender(item.sender, msg.sender));
-    // The duplicate is still sitting in the queue, so queued:true stays
-    // truthful. No steer fields: this retry interrupted nobody.
-    if (duplicate) return { ok: true, queued: true, messageId: duplicate.id };
+    const reserved = lookupQueueDedupe(managed, msg.clientMessageId);
+    if (reserved) {
+      const stillQueued = managed.messageQueue.some((item) => item.id === reserved.messageId);
+      return { ok: true, queued: stillQueued, messageId: reserved.messageId };
+    }
   }
   if (managed.messageQueue.length >= QUEUE_MAX) {
     return { ok: false, error: `queue full (limit ${QUEUE_MAX})`, status: 429 };
@@ -94,6 +98,7 @@ export function enqueueMessage(
     attachments: msg.attachments,
     queuedAt: Date.now(),
   });
+  if (msg.clientMessageId) recordQueueDedupe(managed, msg.clientMessageId, id);
   emitQueueUpdate(receiverId, managed);
   persistAll();
   const steerRequested = opts?.steer === true;
@@ -141,14 +146,6 @@ export function enqueueMessage(
     return { ok: true, queued: false, messageId: id, steered: true };
   }
   return { ok: true, queued: true, messageId: id };
-}
-
-function sameSender(a: QueuedSender, b: QueuedSender): boolean {
-  if (a.kind !== b.kind) return false;
-  if (a.kind === "user" && b.kind === "user") return a.username === b.username && a.device === b.device;
-  if (a.kind === "agent" && b.kind === "agent") return a.agentId === b.agentId;
-  if (a.kind === "cronjob" && b.kind === "cronjob") return a.cronjobId === b.cronjobId && a.cronjobName === b.cronjobName;
-  return false;
 }
 
 function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {

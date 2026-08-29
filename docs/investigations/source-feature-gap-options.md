@@ -1,6 +1,6 @@
 # Source Feature Gap Options
 
-Date: 2026-08-26 (updated after feature-gap pass against nmamano/isomux)
+Date: 2026-08-29 (updated after feature-gap pass against nmamano/isomux)
 
 This investigation records accepted, rejected, and deferred options from a
 source feature-gap comparison. Source behavior was used as evidence;
@@ -20,6 +20,16 @@ implementation stays in Bureau naming and architecture.
   one call, with a self-handoff prefix so the clean copy does not reply to
   itself. Agents may hand off only themselves; privileged operators may hand off
   visible agents.
+- First-install welcome agents. On first owner claim of an empty office, Bureau
+  seeds one Claude and one Codex welcome agent with fixed outfits and onboarding
+  prompts so the new boss can try whichever backend they have set up.
+- Edit-message attachment matching and carry-over. Editing a message that had
+  attachments strips trailing attachment notice blocks when matching the backend
+  transcript, clears the pre-edit queue, and reattaches the original files to
+  the replacement turn.
+- Live-queue `clientMessageId` TTL dedup. A repeated `clientMessageId` on a
+  receiver is reserved for five minutes after accept (including across restarts),
+  and agents are told retries are safe for that window.
 
 ## Rejected
 
@@ -44,6 +54,9 @@ implementation stays in Bureau naming and architecture.
   subresources.
 - A bundled browser dependency. Bureau uses an installed Chrome-compatible
   browser to avoid increasing package size and install complexity.
+- Ephemeral slash-echo edit rewrite. Source rewrites failed ephemeral slash
+  echoes without a backend fork; Bureau can add that hygiene later if users hit
+  the gap.
 
 ## Implemented since the prior note (2026-07-14)
 
@@ -56,3 +69,5 @@ implementation stays in Bureau naming and architecture.
 - Kaomoji browser-tab faces for focused agents (`ui/agent-tab-label.ts`).
 - Live app previews and richer agent spawn templates (separate parity commits on
   master prior to this pass).
+- First-install welcome agents, edit attachment carry-over/matching, and
+  `clientMessageId` 5-minute queue TTL dedup (this pass).
