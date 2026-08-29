@@ -68,7 +68,8 @@ describe("buildSystemPrompt memory affordance", () => {
 
     expect(prompt).toContain('"roomId":"<roomId>"');
     expect(prompt).toContain("the server attributes the task to your agent token");
-    expect(prompt).toContain("omit it for office-wide work");
+    expect(prompt).toContain('pass roomId:"" for office-wide globals');
+    expect(prompt).toContain("rooms your manager can access");
   });
 
   test("explains that terminal-command cards run on the server", () => {

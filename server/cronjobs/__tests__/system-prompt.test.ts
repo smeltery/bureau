@@ -58,11 +58,14 @@ describe("buildCronjobSystemPrompt", () => {
     expect(prompt).toContain("clickable file chip");
   });
 
-  test("documents boss attribution when creating tasks", () => {
+  test("documents authenticated globals-only task board usage", () => {
     const prompt = buildCronjobSystemPrompt(cronjob(), "cron-1", "run-1");
 
-    expect(prompt).toContain('"createdBy":"<boss-name>"');
-    expect(prompt).toContain('If you can\'t tell, use "Daily report".');
+    expect(prompt).toContain("/api/tasks");
+    expect(prompt).toContain("Authorization: Bearer $BUREAU_AGENT_TOKEN");
+    expect(prompt).toContain("global (office-wide) tasks");
+    expect(prompt).toContain("do not pass createdBy");
+    expect(prompt).not.toContain('"createdBy":"<boss-name>"');
   });
 
   test("documents creator-scoped agent discovery and desk-agent alerts", () => {
