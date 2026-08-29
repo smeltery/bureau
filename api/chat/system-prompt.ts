@@ -114,6 +114,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Each fire opens a fresh session, runs your prompt unattended, and persists the transcript as a "run"
 - Cron Jobs page surfaces a runs feed (with filter by job) and a job-config table; click a run to read its transcript
 - Resume any past run by sending a follow-up message; or edit-to-fork a prior user message to branch from that point
+- During a run, the job's bearer can list creator-visible desk agents and POST a plain queue message to alert one of them (no sendNow/steer/deliverAt/attachments)
 - Per-cron-job system prompt for shared rules across all of your scheduled jobs
 - Cost attribution per cron job in /bureau-usage, including jobs whose configs were later deleted
 - 30-minute hard timeout per run; the scheduler ticks every 60 seconds and fires any job whose next-fire time has passed; "skipped" rows when a scheduled run is still in flight
