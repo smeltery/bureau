@@ -2,11 +2,20 @@ import { humanizeSchedule, type Cronjob } from "../../shared/types.ts";
 import { memorySection } from "../agents/session/system-prompt.ts";
 import { officeConfig } from "../agents/state.ts";
 import { memoryStore } from "../memory-store.ts";
+import { getUserById, getUserByName } from "../users.ts";
 
 const PORT = process.env.PORT || "4000";
 
 export function buildCronjobMemoryPrompt(): string | null {
   return memoryStore.renderForPromptMulti([{ scope: "office", scopeId: null, label: "Office memory" }]);
+}
+
+function creatorMemberPrompt(cronjob: Cronjob): { name: string; memberPrompt: string } | null {
+  // Prefer userId so a display-name rename still finds the living creator; fall
+  // back to username for older jobs that only recorded the name.
+  const creator = (cronjob.userId ? getUserById(cronjob.userId) : null) ?? (cronjob.username ? getUserByName(cronjob.username) : null);
+  if (!creator?.memberPrompt) return null;
+  return { name: creator.name, memberPrompt: creator.memberPrompt };
 }
 
 export function buildCronjobSystemPrompt(cronjob: Cronjob, jobId: string, runId: string, cronjobsPrompt: string | null, memoryPrompt?: string | null): string {
@@ -46,6 +55,10 @@ How to read prior runs of this cronjob: ~/.bureau/cronjobs/${jobId}/runs.json li
 
   if (officeConfig.prompt) prompt += `\n\n## Office Instructions\n\n${officeConfig.prompt}`;
   if (cronjobsPrompt) prompt += `\n\n## Cron Jobs Instructions\n\n${cronjobsPrompt}`;
+  // Creator memberPrompt is looked up at build time so profile edits apply on
+  // the next fire without rewriting the cronjob record.
+  const creatorPrompt = creatorMemberPrompt(cronjob);
+  if (creatorPrompt) prompt += `\n\n## Special Instructions For ${creatorPrompt.name}\n\n${creatorPrompt.memberPrompt}`;
   prompt += memorySection(memoryPrompt);
   return prompt;
 }

@@ -30,6 +30,12 @@ implementation stays in Bureau naming and architecture.
 - Live-queue `clientMessageId` TTL dedup. A repeated `clientMessageId` on a
   receiver is reserved for five minutes after accept (including across restarts),
   and agents are told retries are safe for that window.
+- Cron-run agent alerts. A live cron-run bearer can list creator-visible agents
+  and POST a plain queue message to one of them; attribution is server-derived
+  from the job, and human/agent delivery controls are refused.
+- Creator `memberPrompt` on cron runs. Each fire looks up the job creator's
+  living user record and injects their member prompt into the run system prompt
+  (same heading style as desk-agent manager instructions).
 
 ## Rejected
 
@@ -57,6 +63,9 @@ implementation stays in Bureau naming and architecture.
 - Ephemeral slash-echo edit rewrite. Source rewrites failed ephemeral slash
   echoes without a backend fork; Bureau can add that hygiene later if users hit
   the gap.
+- Privileged-agent cron job management. Desk agents with operator privilege
+  currently steer rooms and agents, not cron CRUD; that is a separate auth
+  expansion.
 
 ## Implemented since the prior note (2026-07-14)
 
@@ -70,4 +79,6 @@ implementation stays in Bureau naming and architecture.
 - Live app previews and richer agent spawn templates (separate parity commits on
   master prior to this pass).
 - First-install welcome agents, edit attachment carry-over/matching, and
-  `clientMessageId` 5-minute queue TTL dedup (this pass).
+  `clientMessageId` 5-minute queue TTL dedup.
+- Cron-run agent alerts (separate PR).
+- Creator `memberPrompt` injection into cron-run system prompts (this pass).
