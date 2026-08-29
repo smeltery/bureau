@@ -115,6 +115,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Cron Jobs page surfaces a runs feed (with filter by job) and a job-config table; click a run to read its transcript
 - Resume any past run by sending a follow-up message; or edit-to-fork a prior user message to branch from that point
 - During a run, the job's bearer can list creator-visible desk agents and POST a plain queue message to alert one of them (no sendNow/steer/deliverAt/attachments)
+- During a run, the job's bearer can also use authenticated \`/api/tasks\` for global (office-wide) tasks only; creates are attributed to the job name
 - Per-cron-job system prompt for shared rules across all of your scheduled jobs
 - Cost attribution per cron job in /bureau-usage, including jobs whose configs were later deleted
 - 30-minute hard timeout per run; the scheduler ticks every 60 seconds and fires any job whose next-fire time has passed; "skipped" rows when a scheduled run is still in flight
@@ -156,7 +157,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Each agent can read every other agent's current conversation logs
 - Agents can message each other directly, choosing between queueing behind the receiver's current turn and steering (interrupting it — rate-limited, with the ack reporting honestly whether the message was delivered, queued, or steered)
 - You can ask one agent "What do you think of Agent X's approach?" and it just works — it reads the other agent's conversation and gives feedback
-- Shared task board: humans and agents can create, assign, claim, and close tasks — full interop via UI and HTTP API
+- Shared task board: humans and agents can create, assign, claim, and close tasks — full interop via UI and HTTP API. Agents see tasks in rooms their manager can access; cron runs are limited to global tasks via their bearer token.
 - Owners can mark selected agents with a privileged operator token from the agent settings dialog. A privileged token is accepted on the office-management routes — rooms (create, rename, close, settings, desk swaps), agent lifecycle (spawn, kill, edit, move, topic), and conversation steering (resume, new conversation, send-now, dequeue) — always scoped to the rooms and agents that agent's manager can see. It is deliberately refused on office settings and external access, invites, browser sessions, user records, view preferences, the terminal, and the privilege toggle itself, so no agent can ever make itself or another agent privileged. Normal agents get none of this authority.
 
 ### Persistence & Lifecycle
