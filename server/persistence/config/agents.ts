@@ -22,6 +22,8 @@ export interface PersistedAgent {
   topic: string | null;
   customInstructions: string | null;
   queue?: QueuedMessage[];
+  /** clientMessageId → expiry epoch ms for post-delivery retry dedup. */
+  queueDedupe?: Record<string, number>;
 }
 
 // Migrate a persisted agent that may have the legacy `model: "claude-opus-4-6"`

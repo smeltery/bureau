@@ -1,4 +1,5 @@
 import type { LogEntry } from "../../../shared/types.ts";
+import { stripAttachmentNotices } from "../../attachment-prompt.ts";
 import { listAgentSessions, loadLog, loadSessionsMap } from "../../persistence.ts";
 import { stripPluginPrefix } from "../../plugins/run-agent-turn.ts";
 
@@ -24,7 +25,10 @@ export function findSdkUserMessageIndex(sdkMessages: any[], prefixedContent: str
   for (let i = 0; i < sdkMessages.length; i++) {
     const message = sdkMessages[i];
     if (message.type !== "user") continue;
-    if (stripPluginPrefix(sdkTextContent(message.message)) === prefixedContent) {
+    // stripPluginPrefix recovers sdkText from beforeTurn/context envelopes;
+    // stripAttachmentNotices recovers it from trailing attachment notice
+    // blocks that backends flatten onto user text with no separator.
+    if (stripAttachmentNotices(stripPluginPrefix(sdkTextContent(message.message))) === prefixedContent) {
       if (matchCount === occurrenceIndex) return i;
       matchCount++;
     }

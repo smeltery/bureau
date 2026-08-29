@@ -105,6 +105,13 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("forward-looking brief");
   });
 
+  test("documents clientMessageId retry safety on inter-agent send", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("clientMessageId");
+    expect(prompt).toContain("retries safe for 5 minutes");
+  });
+
   test("tells agents to hand long-running web apps to Bureau rather than picking a port", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room");
 

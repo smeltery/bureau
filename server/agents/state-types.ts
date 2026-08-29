@@ -95,6 +95,10 @@ export interface ManagedAgent {
   // Pending messages queued while the agent was busy. Flushed together
   // as the agent transitions to an idle state. In-memory only.
   messageQueue: import("../../shared/types.ts").QueuedMessage[];
+  // clientMessageId → expiry + original message id. Makes POST /message
+  // retries safe for a short window after delivery (and while still queued).
+  // Persisted expiry survives restarts; messageId is live-ack only.
+  queueDedupe: Map<string, { expiresAt: number; messageId: string }>;
   // Set synchronously when an inbound message claims recovery of an errored
   // backend. Later messages join the same durable queue instead of starting a
   // second resume against the same transcript.

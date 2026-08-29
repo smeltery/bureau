@@ -76,6 +76,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Two engines, chosen per agent when you click an empty desk: **Claude** (uses your Claude Code login) or **Codex** (uses your ChatGPT subscription or \`OPENAI_API_KEY\`). Both kinds of agent sit in the same office and are driven the same way
 - Claude agents pick a model family — Opus, Sonnet, Haiku, or Fable — and families resolve to exact versions centrally, so an agent follows the current model without being re-created. Codex agents pick a GPT-5.x model
 - Per-agent effort level (minimal → max, default xhigh) controls how much thinking an agent spends per turn
+- Fresh offices seed one Claude and one Codex welcome agent on first owner claim so you can try whichever backend you have set up
 - Click empty desk to spawn — name, working directory, model, permission mode, custom instructions
 - Working directory input with recent CWD suggestions
 - Outfit customization: color swatches, hat, accessory, randomize with live preview

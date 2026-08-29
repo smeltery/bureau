@@ -4,6 +4,7 @@ import { browsers } from "../ws/broadcast.ts";
 import { getWsUser } from "../users.ts";
 import { listActiveSessions, listInvites, setOnInviteConsumed, setOnSessionsChanged, setRoomsSnapshotProvider } from "./auth.ts";
 import { setOnOwnerCreated } from "./auth-routes.ts";
+import { seedWelcomeAgents } from "./welcome-agents.ts";
 
 export function installAuthCallbacks(getRooms: () => RoomWire[]) {
   // Inject the room snapshot provider auth.ts uses when seeding a new owner's
@@ -34,10 +35,10 @@ export function installAuthCallbacks(getRooms: () => RoomWire[]) {
     }
   });
 
-  // First-claim hook: seed the office when the first owner is created. Bureau
-  // starts empty for now; this is the supported extension point for future
-  // welcome agents.
+  // First-claim hook: seed one Claude + one Codex welcome agent on a fresh
+  // office. Guarded inside seedWelcomeAgents so owner-recovery on an already
+  // populated office does not double-seed.
   setOnOwnerCreated(async ({ username }) => {
-    void username;
+    await seedWelcomeAgents(username);
   });
 }

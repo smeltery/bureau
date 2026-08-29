@@ -31,6 +31,25 @@ export function formatAttachmentLines(notices: AttachmentNotice[]): string[] {
   );
 }
 
+// One notice line, anchored on structure rather than prose: quoted name,
+// parenthesized metadata, quoted path, then whatever advisory tail the current
+// format appends. Keeping the tail loose means a future wording change to
+// formatAttachmentLines does not strand transcripts written under the old
+// wording.
+const NOTICE_LINE = '\\[Attachment: "(?:[^"\\\\\\n]|\\\\.)*" \\([^\\n()]*\\) saved at "(?:[^"\\\\\\n]|\\\\.)*"[^\\n\\]]*\\]';
+
+// The block as backends record it: notices joined by "\n", the whole run
+// sitting at the very end of the flattened message text.
+const TRAILING_NOTICE_BLOCK = new RegExp(`${NOTICE_LINE}(?:\\n${NOTICE_LINE})*$`);
+
+/** Recover the user's own text from a backend-recorded user message that
+ *  carried attachments. Backends flatten the notice block onto user text with
+ *  no separator, while Bureau log entries only hold the user text — edit
+ *  matching must strip the trailing notice block first. */
+export function stripAttachmentNotices(text: string): string {
+  return text.replace(TRAILING_NOTICE_BLOCK, "");
+}
+
 export function quoteOneLine(value: string): string {
   return JSON.stringify(value).replace(/[\u2028\u2029]/g, (char) => `\\u${char.charCodeAt(0).toString(16)}`);
 }

@@ -13,6 +13,7 @@ import { mintAgentToken } from "./tokens.ts";
 import { createManagedAgent } from "./managed-factory.ts";
 import { buildSpawnAgentDraft } from "./lifecycle-spawn.ts";
 import { buildRestoredAgentInfo } from "./lifecycle-restore.ts";
+import { queueDedupeFromPersist } from "./conversation/queue-dedupe.ts";
 import { getAgentContextUsage as getAgentContextUsageForManaged, type AgentContextUsageResponse } from "./context-usage.ts";
 
 export { emitAgentDiff, emitAgentEditFile, emitAgentPreviewUrl, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
@@ -201,6 +202,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         topicMessageCount: persistedTopicCount,
       });
       managed.messageQueue = Array.isArray(p.queue) ? [...p.queue] : [];
+      managed.queueDedupe = queueDedupeFromPersist(p.queueDedupe);
       agents.set(p.id, managed);
 
       // Load log history into cache (browsers connect later, so we cache it).

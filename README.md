@@ -71,6 +71,7 @@ Then open **http://localhost:4000** and click an empty desk.
 
 - **Visual office metaphor** — isometric desks, animated characters, status lights
 - **Multi-agent orchestration** — spawn, manage, and monitor concurrent agent sessions
+- **Welcome agents on first claim** — a fresh office seeds one Claude and one Codex welcome agent so you can try whichever backend you have set up
 - **Two engines, per agent** — pick **Claude** (your Claude Code login) or **Codex** (your ChatGPT subscription or `OPENAI_API_KEY`) when you click an empty desk; both kinds share the office and are driven identically. Claude agents pick a model family (Opus, Sonnet, Haiku, Fable) that resolves to an exact version centrally, so an agent tracks the current model without being re-created; Codex agents pick a GPT-5.x model. Effort level is per agent (minimal → max, default `xhigh`)
 - **Agent templates** — start from Blank or choose one of 12 editable profiles like Side Project Builder, Money Planner, Health Navigator, Code Reviewer, and Trip Planner; each fills the name, instructions, outfit, model, and effort before you spawn
 - **Real-time sync** — WebSocket keeps every connected device in lockstep
