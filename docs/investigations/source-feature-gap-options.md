@@ -36,6 +36,9 @@ implementation stays in Bureau naming and architecture.
 - Creator `memberPrompt` on cron runs. Each fire looks up the job creator's
   living user record and injects their member prompt into the run system prompt
   (same heading style as desk-agent manager instructions).
+- Member room re-show. Members receive accessible rooms (including hidden) as
+  `allRooms`, can `GET /api/me/rooms`, and can `PUT /api/me/view/shown` so a
+  hidden-but-accessible room can be displayed again.
 
 ## Rejected
 
@@ -81,4 +84,6 @@ implementation stays in Bureau naming and architecture.
 - First-install welcome agents, edit attachment carry-over/matching, and
   `clientMessageId` 5-minute queue TTL dedup.
 - Cron-run agent alerts.
-- Creator `memberPrompt` injection into cron-run system prompts (this pass).
+- Creator `memberPrompt` injection into cron-run system prompts.
+- Member room re-show (`allRooms` for accessible rooms, `GET /api/me/rooms`,
+  `PUT /api/me/view/shown`) (this pass).

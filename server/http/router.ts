@@ -10,7 +10,7 @@ import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "../p
 import { pushPresenceListToEachWs } from "../ws-initial-payload.ts";
 import type { WsData } from "../ws/websocket-handlers.ts";
 import { handleApiTokensRequest } from "../auth/api-tokens-route.ts";
-import { applyViewPreference, deleteUserForApi, readAccessSettingsForApi, saveAccessSettingsForApi, setUserAccessForApi, updateUserForApi } from "./access-adapters.ts";
+import { applyViewPreference, deleteUserForApi, listAccessibleRoomsForApi, readAccessSettingsForApi, saveAccessSettingsForApi, setUserAccessForApi, updateUserForApi } from "./access-adapters.ts";
 import { mintInviteForApi, mintRecoveryInviteForApi, mintSelfInviteForApi, revokeInviteForApi } from "./access-invite-adapters.ts";
 import { logoutSessionForApi, revokeSessionForApi } from "./access-session-adapters.ts";
 import { handleAccessRequest } from "./access.ts";
@@ -234,7 +234,10 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   });
   if (usersResp) return usersResp;
 
-  const viewResp = await handleViewRequest(req, url, httpAuth, { applyView: applyViewPreference });
+  const viewResp = await handleViewRequest(req, url, httpAuth, {
+    applyView: applyViewPreference,
+    listAccessibleRooms: listAccessibleRoomsForApi,
+  });
   if (viewResp) return viewResp;
 
   const memoryResp = await handleMemoryRequest(req, url, httpAuth);
