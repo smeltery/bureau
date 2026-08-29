@@ -6,6 +6,7 @@ import { mapTurnStatus } from "./protocol-format.ts";
 import type { CodexRateLimitTracker } from "./session-rate-limits.ts";
 import type { CodexUsageTracker } from "./session-usage.ts";
 import type { AccountRateLimitsUpdatedNotification } from "./_generated/v2/AccountRateLimitsUpdatedNotification.ts";
+import type { ErrorNotification } from "./_generated/v2/ErrorNotification.ts";
 import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/ThreadTokenUsageUpdatedNotification.ts";
 
 export interface CodexNotificationDeps {
@@ -229,8 +230,11 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
 
     // ---- Failure / warnings ----
     case "error": {
-      const message = params?.message as string | undefined;
-      if (message) deps.enqueue({ kind: "error", message });
+      const notification = params as ErrorNotification | null | undefined;
+      const message = notification?.error.message;
+      if (message) {
+        deps.enqueue(notification.willRetry === true ? { kind: "system_text", text: message } : { kind: "error", message });
+      }
       break;
     }
     case "warning":

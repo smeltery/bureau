@@ -34,6 +34,16 @@ describe("isSensitiveFile — safe-suffix exemptions (templates)", () => {
   });
 });
 
+describe("isSensitiveFile — backend credential files", () => {
+  test.each(["/home/someone/.claude/.credentials.json", "/home/someone/.isomux/codex-home/auth.json", "/home/someone/.codex/auth.json"])("flags %s as sensitive", (path) => {
+    expect(isSensitiveFile(path)).toBe(true);
+  });
+
+  test("does not flag unrelated auth.json files", () => {
+    expect(isSensitiveFile("/tmp/project/auth.json")).toBe(false);
+  });
+});
+
 describe("isSensitiveFile — non-secrets", () => {
   test.each(["/etc/hosts", "/home/x/README.md", "/etc/index.html", "/var/log/app.log", "/tmp/foo.txt", "package.json", "/srv/db/data.sqlite"])("treats %s as NOT sensitive", (path) => {
     expect(isSensitiveFile(path)).toBe(false);

@@ -248,3 +248,34 @@ describe("handleCodexNotification - late tool items", () => {
     });
   });
 });
+
+describe("handleCodexNotification - errors", () => {
+  it("treats retryable errors as non-terminal notices", () => {
+    const world = deps();
+
+    handleCodexNotification(
+      notification("error", {
+        threadId: "parent-thread",
+        error: { message: "Reconnecting... 2/5" },
+        willRetry: true,
+      }),
+      world.deps,
+    );
+
+    expect(world.events).toEqual([{ kind: "system_text", text: "Reconnecting... 2/5" }]);
+  });
+
+  it("fails safe when an error notification has no retry flag", () => {
+    const world = deps();
+
+    handleCodexNotification(
+      notification("error", {
+        threadId: "parent-thread",
+        error: { message: "future wire error" },
+      }),
+      world.deps,
+    );
+
+    expect(world.events).toEqual([{ kind: "error", message: "future wire error" }]);
+  });
+});

@@ -27,8 +27,13 @@ export const FILE_READ_COMMANDS = ["cat", "head", "tail", "less", "more", "bat",
 /** Suffixes that indicate a template/example file, not real secrets */
 const SAFE_SUFFIXES = [".example", ".template", ".sample", ".dist"];
 
+const BACKEND_CREDENTIAL_PATHS: RegExp[] = [/(^|\/)\.credentials\.json$/, /(^|\/)(\.codex|codex-home)\/auth\.json$/];
+
 export function isSensitiveFile(filePath: string): boolean {
-  const name = basename(filePath);
+  const path = filePath.replace(/\*+$/, "");
+  if (BACKEND_CREDENTIAL_PATHS.some((pattern) => pattern.test(path))) return true;
+
+  const name = basename(filePath).replace(/\*+$/, "");
   // Allow .env.example, .env.template, etc.
   if (SAFE_SUFFIXES.some((s) => name.endsWith(s))) return false;
   if (SENSITIVE_EXACT.has(name)) return true;
