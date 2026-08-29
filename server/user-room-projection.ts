@@ -36,7 +36,7 @@ export function reconcileUserRooms(user: UserRecord, allRoomIds: string[]): User
 
 export function projectRooms(user: UserRecord | null, rooms: RoomWire[]): RoomWire[] {
   if (!user) return rooms;
-  const accessible = user.role === "owner" ? rooms : rooms.filter((r) => user.allowedRooms.includes(r.id));
+  const accessible = listAccessibleRooms(user, rooms);
   const hidden = new Set(user.hidden ?? []);
   const orderRank = new Map<string, number>();
   for (const id of user.order ?? []) {
@@ -51,6 +51,12 @@ export function projectRooms(user: UserRecord | null, rooms: RoomWire[]): RoomWi
       return ar === br ? a.officeIndex - b.officeIndex : ar - br;
     })
     .map(({ room }) => room);
+}
+
+/** Every room the user can ACCESS, including ones they currently hide from view. */
+export function listAccessibleRooms(user: UserRecord | null, rooms: RoomWire[]): RoomWire[] {
+  if (!user || user.role === "owner") return rooms;
+  return rooms.filter((r) => user.allowedRooms.includes(r.id));
 }
 
 export function projectAgents(user: UserRecord | null, agents: AgentInfo[], rooms: RoomWire[]): AgentInfo[] {

@@ -95,7 +95,10 @@ describe("privileged agent — human account surfaces stay out of reach", () => 
   test("refuses per-user view preferences", async () => {
     const req = bearerRequest("/api/me/view/order", fixture.privilegedToken, { method: "PUT", body: JSON.stringify({ order: [fixture.visibleRoomId] }) });
 
-    const res = await handleViewRequest(req, new URL(req.url), noSession, { applyView: refuse });
+    const res = await handleViewRequest(req, new URL(req.url), noSession, {
+      applyView: refuse,
+      listAccessibleRooms: () => null,
+    });
 
     expect(res?.status).toBe(401);
     expect(await res?.json()).toEqual({ error: "unauthenticated" });

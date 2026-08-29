@@ -3,7 +3,7 @@ import { loadUsers, saveUsers, normalizeUserKey, generateUserId } from "./persis
 import { reconcileUserRooms } from "./user-room-projection.ts";
 import { bindWsUser, getBoundWsUser } from "./user-sockets.ts";
 import { applyBootstrapUserChanges, applyInteractiveUserChanges, createUserRecord, type UserRecordChanges } from "./user-record-updates.ts";
-export { projectAgents, projectRooms } from "./user-room-projection.ts";
+export { projectAgents, projectRooms, listAccessibleRooms } from "./user-room-projection.ts";
 export { clearWsUser, getSessionContext, listActiveSessions, setWsSessionPrefix } from "./user-sockets.ts";
 
 const users = new Map<string, UserRecord>();

@@ -4,23 +4,36 @@ const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "appl
 
 export interface ViewChangeInput {
   order?: string[];
+  shown?: string[];
   notifRooms?: string[];
   defaultRoomId?: string | null;
 }
 
 export interface ViewHttpDeps {
   applyView(userId: string, change: ViewChangeInput): boolean;
+  listAccessibleRooms(userId: string): { id: string; name: string }[] | null;
 }
 
 /**
  * Handle self-scoped view preference routes:
- *   PUT /api/me/view/order        — set sparse room ordering.
- *   PUT /api/me/view/notif-rooms  — set notification room allowlist.
- *   PUT /api/me/view/default-room — set or clear the default room.
+ *   GET  /api/me/rooms            — accessible rooms (hidden included) for re-show UI.
+ *   PUT  /api/me/view/order       — set sparse room ordering.
+ *   PUT  /api/me/view/shown       — set displayed rooms (hidden = accessible − shown).
+ *   PUT  /api/me/view/notif-rooms — set notification room allowlist.
+ *   PUT  /api/me/view/default-room — set or clear the default room.
  *
  * Returns null for any other URL so the caller can fall through.
  */
 export async function handleViewRequest(req: Request, url: URL, auth: AuthResult | undefined, deps: ViewHttpDeps): Promise<Response | null> {
+  if (url.pathname === "/api/me/rooms") {
+    if (req.method !== "GET") return null;
+    // Session-only: same grounds as the PUT view prefs below.
+    if (auth?.kind !== "ok") return jsonError(401, "unauthenticated");
+    const rooms = deps.listAccessibleRooms(auth.session.userId);
+    if (!rooms) return jsonError(404, "user not found");
+    return new Response(JSON.stringify({ rooms }), { status: 200, headers: JSON_HEADERS });
+  }
+
   const route = viewRoute(url.pathname);
   if (!route) return null;
   if (req.method !== "PUT") return null;
@@ -37,6 +50,12 @@ export async function handleViewRequest(req: Request, url: URL, auth: AuthResult
     const order = body.order;
     if (!isStringArray(order)) return jsonError(422, "order must be an array of room ids");
     return apply(auth.session.userId, { order }, deps);
+  }
+
+  if (route === "shown") {
+    const shown = body.shown;
+    if (!isStringArray(shown)) return jsonError(422, "shown must be an array of room ids");
+    return apply(auth.session.userId, { shown }, deps);
   }
 
   if (route === "notif-rooms") {
@@ -57,10 +76,10 @@ function apply(userId: string, change: ViewChangeInput, deps: ViewHttpDeps): Res
   return new Response(null, { status: 204, headers: JSON_HEADERS });
 }
 
-function viewRoute(pathname: string): "order" | "notif-rooms" | "default-room" | null {
+function viewRoute(pathname: string): "order" | "shown" | "notif-rooms" | "default-room" | null {
   const parts = pathname.split("/").filter(Boolean);
   if (parts.length !== 4 || parts[0] !== "api" || parts[1] !== "me" || parts[2] !== "view") return null;
-  if (parts[3] === "order" || parts[3] === "notif-rooms" || parts[3] === "default-room") return parts[3];
+  if (parts[3] === "order" || parts[3] === "shown" || parts[3] === "notif-rooms" || parts[3] === "default-room") return parts[3];
   return null;
 }
 

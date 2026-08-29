@@ -6,6 +6,7 @@ import { loadRecentCwds } from "./persistence.ts";
 import { listAllPresence } from "./presence.ts";
 import { getUpdateStatus } from "./update-checker.ts";
 import { canSeeRoom, getSessionContext, getWsUser, listUsers, projectAgents, projectRooms } from "./users.ts";
+import { listAccessibleRooms } from "./user-room-projection.ts";
 import { browsers, tasks } from "./ws/broadcast.ts";
 
 function killedAgentsFor(ws: import("bun").ServerWebSocket<unknown>): KilledAgentSummary[] {
@@ -71,7 +72,7 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
       recentCwds: loadRecentCwds(),
       office: AgentManager.getOfficeSettings(),
       rooms: projectedRooms,
-      allRooms: user?.role === "owner" ? rooms : undefined,
+      allRooms: user ? listAccessibleRooms(user, rooms) : undefined,
       killedAgents: killedAgentsFor(ws),
     } as ServerMessage),
   );

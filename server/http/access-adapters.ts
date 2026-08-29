@@ -6,10 +6,11 @@ import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payl
 import { refreshPresenceForUser } from "../presence.ts";
 import { loadOfficeConfig, normalizePreviewAllowHosts, saveOfficeConfig } from "../persistence.ts";
 import { evictSessionsForUserId, isOutsideReachabilityBlocked, mintInvite, setOfficeName } from "../auth/auth.ts";
-import { deleteUserById, getUserById, getUserByName, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
+import { deleteUserById, getUserById, getUserByName, listAccessibleRooms, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { pushInvitesListToEachWs } from "../access-broadcasts.ts";
 import type { AccessSettingsWire, SetAccessResult } from "./access.ts";
 import type { UserDeleteResult, UserMutationResult, UserRecordChanges } from "./users.ts";
+import type { UserRecordChanges as InteractiveUserChanges } from "../user-record-updates.ts";
 import type { ViewChangeInput } from "./view.ts";
 
 export function readAccessSettingsForApi(): AccessSettingsWire {
@@ -91,10 +92,29 @@ export async function saveAccessSettingsForApi(actorUserId: string, input: { ext
 
 export function applyViewPreference(userId: string, change: ViewChangeInput): boolean {
   const actor = getUserById(userId);
-  const updated = updateUser(actor, userId, change, AgentManager.getRooms());
+  if (!actor) return false;
+  const rooms = AgentManager.getRooms();
+  const accessIds = listAccessibleRooms(actor, rooms).map((room) => room.id);
+  const updates: InteractiveUserChanges = {};
+  if (change.order) updates.order = change.order;
+  if (change.notifRooms) updates.notifRooms = change.notifRooms;
+  if (change.defaultRoomId !== undefined) updates.defaultRoomId = change.defaultRoomId;
+  if (change.shown) {
+    // Unknown / inaccessible ids are silently dropped (no existence oracle).
+    // Hidden = accessible minus shown; notifRooms are clamped by updateUser.
+    const shown = new Set(change.shown.filter((id) => accessIds.includes(id)));
+    updates.hidden = accessIds.filter((id) => !shown.has(id));
+  }
+  const updated = updateUser(actor, userId, updates, rooms);
   if (!updated) return false;
   pushUserViewUpdate(updated);
   return true;
+}
+
+export function listAccessibleRoomsForApi(userId: string): { id: string; name: string }[] | null {
+  const user = getUserById(userId);
+  if (!user) return null;
+  return listAccessibleRooms(user, AgentManager.getRooms()).map((room) => ({ id: room.id, name: room.name }));
 }
 
 export async function updateUserForApi(actorUserId: string, actorRole: "owner" | "member", username: string, changes: UserRecordChanges): Promise<UserMutationResult> {
