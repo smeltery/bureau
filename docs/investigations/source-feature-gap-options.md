@@ -39,6 +39,12 @@ implementation stays in Bureau naming and architecture.
 - Member room re-show. Members receive accessible rooms (including hidden) as
   `allRooms`, can `GET /api/me/rooms`, and can `PUT /api/me/view/shown` so a
   hidden-but-accessible room can be displayed again.
+- Cron-run task board auth. A live cron-run bearer can use `/api/tasks` for
+  global tasks only, with creates attributed to the job name; room tasks stay
+  out of reach and DELETE is refused.
+- Desk-agent task room ACL. Agents see and mutate tasks in rooms their manager
+  can access; omit `roomId` on create files in the agent's current room, and
+  `roomId:""` files a global.
 
 ## Rejected
 
@@ -86,4 +92,7 @@ implementation stays in Bureau naming and architecture.
 - Cron-run agent alerts.
 - Creator `memberPrompt` injection into cron-run system prompts.
 - Member room re-show (`allRooms` for accessible rooms, `GET /api/me/rooms`,
-  `PUT /api/me/view/shown`) (this pass).
+  `PUT /api/me/view/shown`).
+- Cron-run authenticated task board (globals-only `/api/tasks` with job-name
+  attribution) and desk-agent task visibility via the manager's accessible
+  rooms, with matching system-prompt docs (this pass).
