@@ -79,6 +79,10 @@ beforeEach(() => {
       },
     },
     publicUrl: () => null,
+    preview: async () => ({ ok: true, png: Buffer.from("png") }),
+    invalidatePreview: (name) => {
+      calls.push(`invalidatePreview:${name}`);
+    },
   };
 });
 
@@ -196,6 +200,18 @@ describe("apps routes: reads", () => {
     expect("url" in body).toBe(false);
   });
 
+  test("a running visible app exposes a PNG preview", async () => {
+    await register("one");
+    runtimes.set("one", { state: "running", restartCount: 0 });
+
+    const request = req("GET", "/api/apps/one/preview");
+    const res = await handleAppsRequest(request, new URL(request.url), ownerAuth, deps);
+
+    expect(res?.status).toBe(200);
+    expect(res?.headers.get("Content-Type")).toBe("image/png");
+    expect(Buffer.from(await res!.arrayBuffer()).toString()).toBe("png");
+  });
+
   test("an unknown name is 404", async () => {
     expect((await call("GET", "/api/apps/nope")).status).toBe(404);
   });
@@ -219,7 +235,7 @@ describe("apps routes: control verbs and logs", () => {
       expect(status).toBe(200);
       expect(body.state).toBe("running");
     }
-    expect(calls).toEqual(["start:hello", "stop:hello", "restart:hello"]);
+    expect(calls).toEqual(["start:hello", "invalidatePreview:hello", "stop:hello", "invalidatePreview:hello", "restart:hello", "invalidatePreview:hello"]);
   });
 
   test("a verb that throws announces nothing and carries the supervisor's code", async () => {
@@ -283,7 +299,7 @@ describe("apps routes: update", () => {
 
     expect(status).toBe(200);
     expect(body.command).toBe("bun run other");
-    expect(calls).toEqual(["reinstall:hello"]);
+    expect(calls).toEqual(["reinstall:hello", "invalidatePreview:hello"]);
   });
 
   test("a description-only edit never bounces the process", async () => {
@@ -369,7 +385,7 @@ describe("apps routes: delete", () => {
 
     // Revoke while the record still exists (so a retry can finish the job),
     // forget the rate limit only once the removal committed.
-    expect(calls).toEqual(["teardown:hello", "revokeToken:hello", "forget:hello"]);
+    expect(calls).toEqual(["teardown:hello", "revokeToken:hello", "forget:hello", "invalidatePreview:hello"]);
   });
 
   test("a failed revoke keeps the record: a credential outliving its app is worth a retry", async () => {

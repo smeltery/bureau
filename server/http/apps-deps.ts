@@ -9,6 +9,7 @@ import { appSupervisor } from "../apps/supervisor.ts";
 import { appTokens } from "../apps/tokens.ts";
 import { appMessageLimiter } from "../apps/message-limits.ts";
 import { appHostDomain, appPublicUrl } from "../apps/domain.ts";
+import { appPreviewCapture } from "../apps/preview.ts";
 import type { AppsDeps } from "./apps-seam.ts";
 
 export const defaultAppsDeps: AppsDeps = {
@@ -33,6 +34,8 @@ export const defaultAppsDeps: AppsDeps = {
   // app-host domain and the app's issued LABEL (never its reusable name), so
   // the wire cannot disagree with the address the app's own unit carries.
   publicUrl: (record) => appPublicUrl(record.hostLabel, appHostDomain()),
+  preview: (record) => appPreviewCapture.capture(record),
+  invalidatePreview: (name) => appPreviewCapture.invalidate(name),
 };
 
 // Mint + persist + write the plaintext, as one step whose halves cannot come

@@ -4,8 +4,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { AppListWire, AppState as AppRunState } from "../../shared/apps.ts";
 import { APP_PREVIEW_OPEN_TTL_MS, getAppPreviewOpenedAt, markAppPreviewOpened } from "../device-settings.ts";
+import { appPreviewQueue } from "./previewQueue.ts";
 import { appHref, appLinkLabel } from "./appLinks.ts";
-import { appCanPreview, appPreviewPhase, BACKGROUND_OPEN_FALLBACK_MS } from "./appPreview.ts";
+import { appCanPreview, appPreviewPhase, appPreviewUrl, BACKGROUND_OPEN_FALLBACK_MS } from "./appPreview.ts";
 import { APP_VERBS, STATE_COLOR, VERB_TITLES, stateIsHollow, verbInert, type AppVerb } from "./appVerbs.ts";
 import { appBtnStyle, appMonoPane } from "./styles.ts";
 
@@ -45,6 +46,8 @@ function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppListW
   const [openedAt, setOpenedAt] = useState(() => getAppPreviewOpenedAt(href));
   const [now, setNow] = useState(Date.now);
   const [waitingForReturn, setWaitingForReturn] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const phase = appPreviewPhase(openedAt, now, visible, waitingForReturn, framesAllowed);
 
   useEffect(() => {
@@ -87,6 +90,33 @@ function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppListW
     return () => clearTimeout(timer);
   }, [openedAt]);
 
+  useEffect(() => {
+    if (phase !== "image") return;
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    const cancel = appPreviewQueue.enqueue(async () => {
+      setError(null);
+      try {
+        const response = await fetch(appPreviewUrl(app), { cache: "no-store" });
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(body?.error?.message ?? `Preview failed (${response.status})`);
+        }
+        objectUrl = URL.createObjectURL(await response.blob());
+        if (cancelled) return;
+        setImageUrl(objectUrl);
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Preview failed");
+      }
+    });
+    return () => {
+      cancelled = true;
+      cancel();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [app, phase]);
+
   const recordOpen = () => {
     const opened = Date.now();
     markAppPreviewOpened(href, opened);
@@ -124,8 +154,12 @@ function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppListW
         <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12 }}>Open app to enable preview</span>
       ) : phase === "loading" ? (
         <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12 }}>Loading preview...</span>
+      ) : error ? (
+        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12, padding: 12, textAlign: "center" }}>{error}</span>
+      ) : imageUrl ? (
+        <img src={imageUrl} alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />
       ) : (
-        <iframe src={href} title={`${app.name} preview`} sandbox="allow-scripts" tabIndex={-1} style={{ display: "block", width: "100%", height: "100%", border: 0, pointerEvents: "none" }} />
+        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12 }}>Loading preview...</span>
       )}
       {phase !== "open-prompt" && (
         <span

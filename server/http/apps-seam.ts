@@ -7,6 +7,7 @@ import type { AppRegistry } from "../apps/registry.ts";
 import type { AppRuntime } from "../apps/supervisor.ts";
 import type { AppMessageLimiter } from "../apps/message-limits.ts";
 import type { AppRecord } from "../../shared/apps.ts";
+import type { AppPreviewResult } from "../apps/preview.ts";
 
 export interface AppsDeps {
   registry: AppRegistry;
@@ -53,4 +54,7 @@ export interface AppsDeps {
   limiter: AppMessageLimiter;
   // The app's public address, or null when this office has no app hostnames.
   publicUrl(record: AppRecord): string | null;
+  // Capture and cache a screenshot for the Apps tab preview card.
+  preview(record: AppRecord): Promise<AppPreviewResult>;
+  invalidatePreview(name: string): void;
 }

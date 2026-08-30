@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { APP_PREVIEW_OPEN_TTL_MS } from "../device-settings.ts";
-import { appCanPreview, appPreviewPhase } from "./appPreview.ts";
+import { appCanPreview, appPreviewPhase, appPreviewUrl } from "./appPreview.ts";
 
 describe("appCanPreview", () => {
   test("previews a running app at an office-issued origin", () => {
@@ -29,8 +29,8 @@ describe("appPreviewPhase", () => {
     expect(appPreviewPhase(1000, 1001, true, true)).toBe("loading");
   });
 
-  test("frames a recently opened app after the browser returns", () => {
-    expect(appPreviewPhase(1000, 1001, true, false)).toBe("frame");
+  test("loads an image after the browser returns", () => {
+    expect(appPreviewPhase(1000, 1001, true, false)).toBe("image");
   });
 
   test("prompts again when the app session lifetime has elapsed", () => {
@@ -39,5 +39,11 @@ describe("appPreviewPhase", () => {
 
   test("prompts instead of framing when live previews are disabled", () => {
     expect(appPreviewPhase(1000, 1001, true, false, false)).toBe("open-prompt");
+  });
+});
+
+describe("appPreviewUrl", () => {
+  test("uses the app preview route with encoded names", () => {
+    expect(appPreviewUrl({ name: "hello world" })).toBe("/api/apps/hello%20world/preview");
   });
 });

@@ -70,7 +70,7 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
   const parts = url.pathname.split("/").filter(Boolean);
   if (parts[0] !== "api" || parts[1] !== "apps") return null;
   if (parts.length > 4) return null;
-  // The only sub-resources: the control verbs and the log tail.
+  // The only sub-resources: the control verbs, the log tail and previews.
   if (parts.length === 4 && !APP_SUBROUTES.has(parts[3]!)) return null;
 
   const identity = resolveAppsIdentity(req, auth);
@@ -116,9 +116,20 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
       if (verb === "start") deps.start(record.name);
       else if (verb === "stop") deps.stop(record.name);
       else deps.restart(record.name);
+      deps.invalidatePreview(record.name);
       const wire = wireOf(record, deps.states([record.name]).get(record.name));
       announced(record.name, () => broadcastAppUpdated(record, deps.states([record.name]).get(record.name), deps));
       return json(200, wire);
+    }
+
+    if (parts.length === 4 && parts[3] === "preview" && req.method === "GET") {
+      const record = visibleApp(deps.registry.get(parts[2]!), identity);
+      if (!record) return jsonError(404, "not_found", "no app has that name");
+      const runtime = deps.states([record.name]).get(record.name);
+      if (runtime?.state !== "running") return jsonError(409, "not_running", "app is not running");
+      const result = await deps.preview(record);
+      if (!result.ok) return jsonError(result.status, result.code, result.error);
+      return new Response(Uint8Array.from(result.png).buffer, { headers: { "Content-Type": "image/png", "Cache-Control": "private, max-age=300" } });
     }
 
     if (parts.length === 4 && parts[3] === "logs" && req.method === "GET") {
@@ -164,6 +175,7 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
       // because forgetting a rate limit is not worth failing a delete that
       // already happened.
       deps.limiter.forget(record.name);
+      deps.invalidatePreview(record.name);
       // AFTER the removal committed, from the record read before teardown.
       announced(record.name, () => broadcastAppRemoved(record));
       return new Response(null, { status: 204, headers: JSON_HEADERS });
@@ -282,7 +294,8 @@ async function updateApp(req: Request, name: string, identity: AppsIdentity, dep
   // The machine only hears about changes it can act on. A description edit
   // leaves systemd alone entirely, so editing an app's blurb never bounces a
   // running process.
-  if (after.command !== before.command || after.cwd !== before.cwd) {
+  const runtimeChanged = after.command !== before.command || after.cwd !== before.cwd;
+  if (runtimeChanged) {
     try {
       deps.reinstall(after);
     } catch (err) {
@@ -293,12 +306,13 @@ async function updateApp(req: Request, name: string, identity: AppsIdentity, dep
       console.error(`[apps] "${after.name}" updated but its unit was not brought in line:`, err);
     }
   }
+  if (runtimeChanged) deps.invalidatePreview(after.name);
   const wire = wireOf(after, deps.states([after.name]).get(after.name));
   announced(after.name, () => broadcastAppUpdated(after, deps.states([after.name]).get(after.name), deps));
   return json(200, wire);
 }
 
-const APP_SUBROUTES: ReadonlySet<string> = new Set(["start", "stop", "restart", "logs"]);
+const APP_SUBROUTES: ReadonlySet<string> = new Set(["start", "stop", "restart", "logs", "preview"]);
 
 function browserIdentity(ws: typeof browsers extends Set<infer T> ? T : never): AppsIdentity {
   const user = getWsUser(ws);

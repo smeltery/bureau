@@ -38,7 +38,7 @@ const checkBashSafety: HookCallback = async (input) => {
   if (processNetworkMatch) return denyMessage(processNetworkMatch.reason, command);
 
   // Check ~/.bureau/ write protection first
-  if (commandWritesToBureau(stripped)) {
+  if (commandWritesToBureau(stripped, (input as PreToolUseHookInput).cwd)) {
     return denyMessage("Writing to ~/.bureau/ is not allowed. This directory is managed by the bureau server. " + "Read operations (cat, ls, grep, etc.) are permitted.", command);
   }
 

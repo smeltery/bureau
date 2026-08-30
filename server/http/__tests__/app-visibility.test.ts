@@ -33,6 +33,8 @@ beforeEach(() => {
     sendAsApp: () => ({ ok: true, messageId: "unused" }),
     limiter: { takeBurst: () => ({ ok: true }), commitDaily: () => {}, forget: () => {} },
     publicUrl: () => null,
+    preview: async () => ({ ok: true, png: Buffer.from("png") }),
+    invalidatePreview: () => {},
   };
 });
 

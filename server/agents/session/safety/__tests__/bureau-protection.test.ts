@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { homedir } from "os";
+import { basename, dirname } from "path";
 import { BUREAU_DIR, commandWritesToBureau } from "../bureau-protection.ts";
 
 describe("commandWritesToBureau — redirections", () => {
@@ -12,6 +14,10 @@ describe("commandWritesToBureau — redirections", () => {
 
   test("blocks redirects to absolute BUREAU_DIR path", () => {
     expect(commandWritesToBureau(`echo hi > ${BUREAU_DIR}/foo`)).toBe(true);
+  });
+
+  test("blocks relative redirects resolved against the agent cwd", () => {
+    expect(commandWritesToBureau("echo hi > .bureau/foo", homedir())).toBe(true);
   });
 
   test("does not block redirects to other paths", () => {
@@ -43,11 +49,24 @@ describe("commandWritesToBureau — write commands", () => {
   test("matches when an absolute /home/<user>/.bureau path is used directly", () => {
     expect(commandWritesToBureau(`rm -rf ${BUREAU_DIR}/cronjobs`)).toBe(true);
   });
+
+  test("does not overmatch siblings of the bureau directory", () => {
+    expect(commandWritesToBureau(`rm -rf ${BUREAU_DIR}-workspace`)).toBe(false);
+  });
+
+  test("blocks relative paths resolved into the bureau directory", () => {
+    expect(commandWritesToBureau("rm .bureau/agents.json", homedir())).toBe(true);
+    expect(commandWritesToBureau(`rm ${basename(BUREAU_DIR)}/agents.json`, dirname(BUREAU_DIR))).toBe(true);
+  });
 });
 
 describe("commandWritesToBureau — copy commands (only block destination writes)", () => {
   test("blocks `cp foo ~/.bureau/foo` (writing TO bureau)", () => {
     expect(commandWritesToBureau("cp foo ~/.bureau/foo")).toBe(true);
+  });
+
+  test("blocks `cp foo .bureau/foo` from the user's home", () => {
+    expect(commandWritesToBureau("cp foo .bureau/foo", homedir())).toBe(true);
   });
 
   test("allows `cp ~/.bureau/foo /tmp/foo` (reading FROM bureau)", () => {
