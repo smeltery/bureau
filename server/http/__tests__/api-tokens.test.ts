@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { unlinkSync } from "fs";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { _testResetApiTokens, mintApiToken, resolveApiToken } from "../../auth/api-tokens.ts";
+import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import { agents } from "../../agents/state.ts";
 import * as AgentManager from "../../agent-manager.ts";
 import { API_TOKENS_FILE } from "../../persistence/paths.ts";
@@ -17,6 +18,7 @@ afterEach(reset);
 
 function reset() {
   _testResetApiTokens();
+  _testResetAgentTokens();
   const existing = getUserByName(USERNAME);
   if (existing) deleteUserById(existing.id);
   agents.clear();
@@ -110,6 +112,81 @@ describe("handleApiTokensRequest", () => {
     );
     expect(hidden?.status).toBe(403);
 
+    agents.get("api-visible")!.info.state = "waiting_for_response";
+    const sent = await handleAgentsRequest(
+      request("/api/agents/api-visible/messages", { method: "POST", headers: { Authorization: `Bearer ${minted.token}` }, body: JSON.stringify({ text: "off-office alert" }) }),
+      new URL("http://local.test/api/agents/api-visible/messages"),
+      apiAuth,
+    );
+    expect(sent?.status).toBe(200);
+    expect(agents.get("api-visible")!.messageQueue[0]?.sender).toEqual({
+      kind: "user",
+      username: USERNAME,
+      device: `API token "automation" (${minted.apiToken.id})`,
+    });
+
     AgentManager.closeRoom(hiddenRoomId);
+  });
+
+  test("lets an agent send replies to a personal token inbox", async () => {
+    const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
+    const visibleRoomId = AgentManager.getRooms()[0]!.id;
+    updateUserById(user.id, { allowedRooms: [visibleRoomId] });
+    installAgent("api-replier", 0, user.id);
+    const agentToken = mintAgentToken("api-replier", user.id, false);
+    const minted = await mintApiToken({ userId: user.id, name: "phone", expiresInDays: 30 });
+    const apiToken = resolveApiToken(minted.token);
+    if (!apiToken) throw new Error("expected API token to resolve");
+
+    const sent = await handleApiTokensRequest(
+      request(`/api/api-token-inboxes/${minted.apiToken.id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${agentToken}` },
+        body: JSON.stringify({ text: "The report is ready." }),
+      }),
+      new URL(`http://local.test/api/api-token-inboxes/${minted.apiToken.id}/messages`),
+      undefined,
+    );
+    expect(sent?.status).toBe(200);
+    const sentBody = await sent!.json();
+    expect(sentBody.lastDrainedAt).toBeNull();
+    expect(typeof sentBody.messageId).toBe("string");
+    expect(AgentManager.getAgentLogs("api-replier").at(-1)).toMatchObject({
+      kind: "api_token_outbound",
+      content: "The report is ready.",
+      metadata: { recipient_api_token_name: "phone" },
+    });
+
+    const drained = await handleApiTokensRequest(
+      request("/api/me/api-token-inbox/drain", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${minted.token}` },
+      }),
+      new URL("http://local.test/api/me/api-token-inbox/drain"),
+      { kind: "api", token: apiToken },
+    );
+    expect(drained?.status).toBe(200);
+    const drainedBody = await drained!.json();
+    expect(drainedBody.messages).toHaveLength(1);
+    expect(drainedBody.messages[0]).toMatchObject({
+      id: sentBody.messageId,
+      text: "The report is ready.",
+      senderAgentId: "api-replier",
+      senderAgentName: "Agent api-replier",
+      senderRoomName: "Room 1",
+    });
+    expect(typeof drainedBody.messages[0].sentAt).toBe("number");
+    expect(drainedBody.previouslyDrainedAt).toBeNull();
+    expect(typeof drainedBody.drainedAt).toBe("number");
+
+    const empty = await handleApiTokensRequest(
+      request("/api/me/api-token-inbox/drain", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${minted.token}` },
+      }),
+      new URL("http://local.test/api/me/api-token-inbox/drain"),
+      { kind: "api", token: apiToken },
+    );
+    expect((await empty!.json()).messages).toEqual([]);
   });
 });

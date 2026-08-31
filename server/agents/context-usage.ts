@@ -39,6 +39,7 @@ export async function refreshContextUsage(agentId: string, managed: ManagedAgent
 }
 
 export function maybeNudgeForContextUsage(agentId: string, managed: ManagedAgent) {
+  if (managed.info.agentType === "codex") return;
   const usage = managed.info.contextUsage;
   if (!usage) return;
   const threshold = usage.percentage >= 75 ? 75 : usage.percentage >= 50 ? 50 : null;

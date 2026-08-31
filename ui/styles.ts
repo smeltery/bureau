@@ -46,6 +46,7 @@ ${emitThemesCss()}
   body { background: var(--bg-base); overflow:hidden; font-family: 'DM Sans', sans-serif; }
   html, body { max-width: 100vw; overflow-x: hidden; }
   input, select, textarea, button { font-family: inherit; }
+  select option, select optgroup { background: var(--bg-base); color: var(--text-primary); }
 
   /* Markdown content styles */
   .md-content { font-size: 13px; line-height: 1.7; color: var(--text-secondary); }

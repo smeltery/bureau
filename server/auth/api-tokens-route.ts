@@ -1,6 +1,9 @@
 import type { ApiTokenWire } from "../../shared/types.ts";
+import * as AgentManager from "../agent-manager.ts";
+import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
+import { addLogEntry } from "../agents/state.ts";
 import type { AuthResult } from "./auth-middleware.ts";
-import { API_TOKEN_EXPIRY_DAYS, listApiTokens, mintApiToken, revokeApiToken } from "./api-tokens.ts";
+import { API_TOKEN_EXPIRY_DAYS, drainApiTokenInbox, enqueueApiTokenInboxMessage, listApiTokens, mintApiToken, revokeApiToken } from "./api-tokens.ts";
 
 const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -14,6 +17,50 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
       },
     });
   }
+  if (req.method === "OPTIONS" && (url.pathname.startsWith("/api/api-token-inboxes") || url.pathname === "/api/me/api-token-inbox/drain")) {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      },
+    });
+  }
+
+  const inboxSendMatch = /^\/api\/api-token-inboxes\/([^/]+)\/messages$/.exec(url.pathname);
+  if (inboxSendMatch && req.method === "POST") {
+    const agentToken = resolveAgentToken(readBearerToken(req));
+    if (!agentToken) return jsonError(401, "missing or invalid bearer token");
+    const sender = AgentManager.getAgent(agentToken.agentId);
+    const display = AgentManager.getAgentDisplay(agentToken.agentId);
+    if (!sender?.userId || !display) return jsonError(403, "forbidden");
+    const body = await readJson(req);
+    if (body instanceof Response) return body;
+    const text = typeof body.text === "string" ? body.text : "";
+    if (!text) return jsonError(400, "text is required");
+    const result = await enqueueApiTokenInboxMessage({
+      tokenId: decodeURIComponent(inboxSendMatch[1]!),
+      userId: sender.userId,
+      text,
+      senderAgentId: agentToken.agentId,
+      senderAgentName: display.name,
+      senderRoomName: display.roomName,
+    });
+    if (!result.ok) {
+      return result.reason === "full" ? jsonError(429, "inbox_full") : jsonError(404, "api token unavailable");
+    }
+    addLogEntry(agentToken.agentId, "api_token_outbound", text, {
+      recipient_api_token_name: result.tokenName,
+    });
+    return json({ messageId: result.message.id, lastDrainedAt: result.lastDrainedAt });
+  }
+
+  if (url.pathname === "/api/me/api-token-inbox/drain" && req.method === "POST") {
+    if (auth?.kind !== "api") return jsonError(401, "api token required");
+    const drained = await drainApiTokenInbox(auth.token.tokenId);
+    return drained ? json(drained) : jsonError(404, "api token unavailable");
+  }
+
   if (!url.pathname.startsWith("/api/api-tokens")) return null;
   if (auth?.kind !== "ok") return jsonError(401, "authenticated session required");
 
@@ -42,7 +89,7 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
   return jsonError(404, "not found");
 }
 
-function json(body: { apiTokens: ApiTokenWire[] } | { token: string; apiToken: ApiTokenWire }, status = 200): Response {
+function json(body: Record<string, unknown> | { apiTokens: ApiTokenWire[] } | { token: string; apiToken: ApiTokenWire }, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
 

@@ -85,9 +85,27 @@ Use one as:
 curl -s http://<office>/api/agents -H "Authorization: Bearer bureau_pat_..."
 ```
 
-Personal tokens authenticate as the owning user for HTTP API routes. They do not
-create browser sessions, cannot accept invites, and do not satisfy the SPA shell
-login path.
+Personal tokens authenticate as the owning user for operational HTTP API routes,
+including visible agents, rooms, tasks, apps, logs, cron jobs, editor and file
+actions, memory, and office reads. They do not create browser sessions, cannot
+accept invites, cannot mint durable access or revoke browser sessions, cannot
+change user access or office settings, and cannot grant privileged-agent access.
+
+Agents can reply to the token holder by posting to the token's inbox id:
+
+```
+curl -s -X POST http://<office>/api/api-token-inboxes/<token-id>/messages \
+  -H "Authorization: Bearer <agent-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"The report is ready."}'
+```
+
+The token drains its own inbox with an at-most-once poll:
+
+```
+curl -s -X POST http://<office>/api/me/api-token-inbox/drain \
+  -H "Authorization: Bearer bureau_pat_..."
+```
 
 ### 7. Sign out
 

@@ -11,6 +11,10 @@ import { DARK_TERMINAL_THEME, LIGHT_TERMINAL_THEME } from "./terminal-themes.ts"
 import { TerminalHeader } from "./terminal-chrome.tsx";
 import { TerminalPanelBody } from "./terminal/TerminalPanelBody.tsx";
 
+export function resetTerminalForRespawn(terminal: Pick<Terminal, "reset">): void {
+  terminal.reset();
+}
+
 export function TerminalPanel({
   agentId,
   onClose,
@@ -194,7 +198,7 @@ export function TerminalPanel({
 
   function handleRespawn() {
     setExited(null);
-    termRef.current?.clear();
+    if (termRef.current) resetTerminalForRespawn(termRef.current);
     // Close old PTY (if still around) and open a new one
     send({ type: "terminal_close", agentId });
     setTimeout(() => send({ type: "terminal_open", agentId }), 100);

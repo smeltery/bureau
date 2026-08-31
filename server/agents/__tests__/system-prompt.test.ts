@@ -135,6 +135,14 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("10 messages a minute and 500 a day");
   });
 
+  test("documents remote boss replies through API-token inboxes", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain('API token "Phone \'alerts" (pat-123)');
+    expect(prompt).toContain("/api/api-token-inboxes/<token-id>/messages");
+    expect(prompt).toContain("a full inbox means you should wait");
+  });
+
   test("documents the agent context usage self-check", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room");
 

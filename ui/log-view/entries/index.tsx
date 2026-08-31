@@ -75,6 +75,20 @@ export function LogEntryCard({
         />
       );
     }
+    case "api_token_outbound": {
+      const recipient = entry.metadata?.recipient_api_token_name;
+      return (
+        <UserMessage
+          content={entry.content}
+          isMobile={isMobile}
+          device={typeof recipient === "string" ? `To remote boss "${recipient}"` : "To remote boss"}
+          fromNonHuman
+          outgoing
+          agentId={entry.agentId}
+          canEdit={false}
+        />
+      );
+    }
     case "text":
       return <AssistantText content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     case "thinking": {

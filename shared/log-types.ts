@@ -84,7 +84,7 @@ export interface LogEntry {
   id: string;
   agentId: string;
   timestamp: number;
-  kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "diff" | "edit-request" | "terminal-command" | "file-view";
+  kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "api_token_outbound" | "diff" | "edit-request" | "terminal-command" | "file-view";
   content: string;
   metadata?: Record<string, unknown> & { choicePrompt?: ChoicePromptPayload };
   ephemeral?: boolean;

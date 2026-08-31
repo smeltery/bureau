@@ -47,7 +47,7 @@ export function formatCronjobSenderPrefix(cronjobName: string): string {
 
 const API_TOKEN_DEVICE_PREFIX = 'API token "';
 
-export function formatApiTokenDevice(tokenName: string): string {
+export function formatApiTokenDevice(tokenName: string, tokenId: string): string {
   const normalized = tokenName
     // eslint-disable-next-line no-control-regex -- controls are the threat here
     .replace(/[\u0000-\u001f\u007f-\u009f]/g, " ")
@@ -55,7 +55,7 @@ export function formatApiTokenDevice(tokenName: string): string {
     .replace(/"/g, "'")
     .trim()
     .slice(0, 64);
-  return `${API_TOKEN_DEVICE_PREFIX}${normalized}"`;
+  return `${API_TOKEN_DEVICE_PREFIX}${normalized}" (${tokenId})`;
 }
 
 export function isApiTokenDevice(device: string | undefined): boolean {

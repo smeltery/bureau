@@ -9,7 +9,7 @@ afterEach(() => {
   logCache.clear();
 });
 
-function managedWithContext(percentage: number) {
+function managedWithContext(percentage: number, agentType: AgentInfo["agentType"] = "claude") {
   const info: AgentInfo = {
     id: "agent-1",
     name: "Context Test",
@@ -19,7 +19,7 @@ function managedWithContext(percentage: number) {
     outfit: { hat: "none", color: "#000", hair: "#000", hairStyle: "short", skin: "#000", beard: "none", accessory: null },
     permissionMode: "default",
     modelFamily: "sonnet",
-    agentType: "claude",
+    agentType,
     capabilities: DEFAULT_AGENT_CAPABILITIES,
     state: "idle",
     topic: null,
@@ -65,5 +65,14 @@ describe("maybeNudgeForContextUsage", () => {
     expect(logs[1].content).toContain("over 75% full");
     expect(logs[1].metadata?.contextThreshold).toBe(75);
     expect(managed.pendingContextNotices).toHaveLength(2);
+  });
+
+  test("suppresses context-budget handoff advice for Codex agents", () => {
+    const managed = managedWithContext(76, "codex");
+
+    maybeNudgeForContextUsage("agent-1", managed);
+
+    expect(logCache.get("agent-1") ?? []).toHaveLength(0);
+    expect(managed.pendingContextNotices).toHaveLength(0);
   });
 });

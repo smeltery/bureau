@@ -74,7 +74,7 @@ export function ApiTokensPane() {
   return (
     <div style={{ marginTop: 24 }}>
       <h4 style={sectionHeader}>API tokens</h4>
-      <p style={hint}>Create personal bearer tokens for scripts and off-device API access.</p>
+      <p style={hint}>Drive your office from scripts and automations, and read the replies your agents send back.</p>
       <label style={{ ...dialogLabel, marginTop: 14 }}>How to use</label>
       <pre
         style={{
@@ -98,7 +98,11 @@ curl ${window.location.origin}/api/agents -H "Authorization: Bearer <token>"
 curl -X POST ${window.location.origin}/api/agents/<id>/messages \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
-  -d '{"text":"..."}'`}
+  -d '{"text":"..."}'
+
+# drain replies sent back to this token
+curl -X POST ${window.location.origin}/api/me/api-token-inbox/drain \\
+  -H "Authorization: Bearer <token>"`}
       </pre>
 
       <div style={cardStyle}>

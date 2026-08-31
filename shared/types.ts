@@ -47,7 +47,7 @@ export type { Attachment, ChoicePromptChoice, ChoicePromptPayload, DiffFileSumma
 export type { EnsureSlideReq, EnsureSlideRes, SlideDeck, SlideDeckRes, SlideFailureReason, SlideRecord } from "./slides.ts";
 export { generateHexId, generateTaskId, isValidPriority, isValidStatus } from "./tasks.ts";
 export type { TaskItem, TaskPriority, TaskStatus } from "./tasks.ts";
-export type { ApiTokenWire, InviteWire, OfficeSettings, PresenceInfo, RoomWire, SessionContext, SessionWire, UserRecord, UserRole } from "./user-types.ts";
+export type { ApiTokenInboxMessage, ApiTokenWire, InviteWire, OfficeSettings, PresenceInfo, RoomWire, SessionContext, SessionWire, UserRecord, UserRole } from "./user-types.ts";
 export type { AgentSaveResponse, ClientCommand, CwdValidationResponse, ServerMessage, SettingsSaveResponse, SettingsValidationResponse } from "./wire-types.ts";
 
 export interface UsageBucketWire {

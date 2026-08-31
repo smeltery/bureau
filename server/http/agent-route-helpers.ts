@@ -45,7 +45,7 @@ export function handleApiTokenMessage(auth: AuthResult, agentId: string, body: R
   const roomId = AgentManager.getRooms()[agent.room]?.id ?? agent.roomId;
   if (!roomId || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
   const result = AgentManager.enqueueMessage(agentId, {
-    sender: { kind: "user", username: user.name, device: formatApiTokenDevice(auth.token.tokenName) },
+    sender: { kind: "user", username: user.name, device: formatApiTokenDevice(auth.token.tokenName, auth.token.tokenId) },
     text,
     clientMessageId: typeof body?.clientMessageId === "string" ? body.clientMessageId : undefined,
   });

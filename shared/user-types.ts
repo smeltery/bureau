@@ -94,6 +94,15 @@ export interface ApiTokenWire {
   lastUsedAt: number | null;
 }
 
+export interface ApiTokenInboxMessage {
+  id: string;
+  sentAt: number;
+  text: string;
+  senderAgentId: string;
+  senderAgentName: string;
+  senderRoomName: string;
+}
+
 // A room with stable ID, display name, and per-room config
 export interface RoomWire {
   id: string; // 8-char hex, stable

@@ -13,6 +13,8 @@ export function UserMessage({
   agentName,
   agentRoom,
   cronjobName,
+  fromNonHuman,
+  outgoing,
   attachments,
   agentId,
   canEdit,
@@ -25,6 +27,8 @@ export function UserMessage({
   agentName?: string;
   agentRoom?: string;
   cronjobName?: string;
+  fromNonHuman?: boolean;
+  outgoing?: boolean;
   attachments?: Attachment[];
   agentId?: string;
   canEdit?: boolean;
@@ -35,21 +39,21 @@ export function UserMessage({
   // Programmatic senders get a distinct dashed treatment so they don't read as
   // the human's own typing. Mirrors QueueChips for queued programmatic messages.
   const sender = describeUserMessageSender({ username, device, agentName, agentRoom, cronjobName });
+  const fromHuman = sender.fromHuman && !fromNonHuman;
+  const edge = `3px ${fromHuman ? "solid" : "dashed"} ${fromHuman ? "var(--accent)" : "var(--text-muted)"}`;
   return (
     <div
       style={{
-        margin: "12px 0",
+        margin: outgoing ? "12px 0 12px 18px" : "12px 0",
         padding: "10px 14px",
         paddingRight: 40,
         borderRadius: 10,
         background: "var(--user-msg-bg)",
-        borderLeft: `3px ${sender.fromHuman ? "solid" : "dashed"} var(--accent)`,
+        ...(outgoing ? { borderRight: edge } : { borderLeft: edge }),
         position: "relative",
       }}
     >
-      <div
-        style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: sender.fromHuman ? "var(--accent)" : "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}
-      >
+      <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: fromHuman ? "var(--accent)" : "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
         {sender.label.toUpperCase()}
       </div>
       {content && (
