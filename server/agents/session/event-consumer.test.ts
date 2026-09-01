@@ -11,7 +11,7 @@ afterEach(() => {
   logCache.clear();
 });
 
-function agentInfo(id: string): AgentInfo {
+function agentInfo(id: string, agentType: AgentInfo["agentType"] = "claude"): AgentInfo {
   return {
     id,
     name: "Event Consumer Test",
@@ -29,7 +29,7 @@ function agentInfo(id: string): AgentInfo {
     },
     permissionMode: "default",
     modelFamily: "sonnet",
-    agentType: "claude",
+    agentType,
     capabilities: DEFAULT_AGENT_CAPABILITIES,
     state: "waiting_for_response",
     topic: null,
@@ -57,6 +57,47 @@ function eventSession(events: NormalizedEvent[]): BackendSession {
 }
 
 describe("runConsumer", () => {
+  test("collapses relayed provider auth text into login instructions", async () => {
+    const agentId = `event-consumer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const rawAuthText = "Codex failed with 401 authentication required.";
+    const session = eventSession([{ kind: "system_text", text: rawAuthText }]);
+    const managed = createManagedAgent({ info: agentInfo(agentId, "codex"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+    managed.session = session;
+    agents.set(agentId, managed);
+
+    await runConsumer(agentId, managed, session);
+
+    const entries = logCache.get(agentId) ?? [];
+    expect(entries.some((entry) => entry.content === rawAuthText)).toBe(false);
+    expect(entries.some((entry) => /sign in|login|log in/i.test(entry.content))).toBe(true);
+  });
+
+  test("keeps Bureau-authored auth-shaped system text verbatim", async () => {
+    const agentId = `event-consumer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const text = "Allowing any command starting with `grep 401` for this session.";
+    const session = eventSession([{ kind: "system_text", text, bureauAuthored: true }]);
+    const managed = createManagedAgent({ info: agentInfo(agentId, "codex"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+    managed.session = session;
+    agents.set(agentId, managed);
+
+    await runConsumer(agentId, managed, session);
+
+    expect(logCache.get(agentId)?.map((entry) => entry.content)).toEqual([text]);
+  });
+
+  test("keeps ordinary provider system text verbatim", async () => {
+    const agentId = `event-consumer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const text = "Provider session initialized.";
+    const session = eventSession([{ kind: "system_text", text }]);
+    const managed = createManagedAgent({ info: agentInfo(agentId, "codex"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+    managed.session = session;
+    agents.set(agentId, managed);
+
+    await runConsumer(agentId, managed, session);
+
+    expect(logCache.get(agentId)?.map((entry) => entry.content)).toEqual([text]);
+  });
+
   test("does not let late activity restore a busy state after a turn ends", async () => {
     const agentId = `event-consumer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const session = eventSession([

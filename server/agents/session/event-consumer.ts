@@ -101,12 +101,15 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       addLogEntry(agentId, "text", ev.text);
       break;
     case "system_text": {
-      addLogEntry(agentId, "system", ev.text);
       const managed = agents.get(agentId);
       // Bureau-authored breadcrumbs skip the auth sniff: they quote commands
       // and rules (a command containing `401` is not a sign-in problem), and
       // being ours they can never BE a provider auth notice.
-      if (!ev.bureauAuthored) emitLoginInstructionsIfAuth(agentId, managed, ev.text);
+      if (!ev.bureauAuthored && isAuthErrorForAgent(managed, ev.text)) {
+        emitLoginInstructionsImpl(agentId, managed);
+        break;
+      }
+      addLogEntry(agentId, "system", ev.text);
       break;
     }
     case "task_lifecycle":
