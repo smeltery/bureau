@@ -80,6 +80,7 @@ describe("managed env boot migration", () => {
         get path() {
           return officeLegacy;
         },
+        isManagedPath: (path: string) => path === store.officePath,
         legacyExists: existsSync,
         managedExists: store.managedOfficeEnvExists,
         readManaged: store.readManagedOfficeEnv,
@@ -91,6 +92,9 @@ describe("managed env boot migration", () => {
         clearLegacyPath: () => {
           officeLegacy = null;
         },
+        useManagedPath: () => {
+          officeLegacy = store.officePath;
+        },
       },
       users: [record],
       userSubject: () => ({
@@ -98,6 +102,7 @@ describe("managed env boot migration", () => {
         get path() {
           return record.envFile;
         },
+        isManagedPath: (path: string) => path === store.userPath,
         legacyExists: existsSync,
         managedExists: store.managedUserEnvExists,
         readManaged: store.readManagedUserEnv,
@@ -109,6 +114,9 @@ describe("managed env boot migration", () => {
         clearLegacyPath: () => {
           record.envFile = null;
         },
+        useManagedPath: () => {
+          record.envFile = store.userPath;
+        },
       }),
       log: () => {},
     };
@@ -116,6 +124,8 @@ describe("managed env boot migration", () => {
     migrateManagedEnvAtBoot(deps);
     expect(store.readManagedOfficeEnv()).toEqual({ GH_TOKEN: "office", TRAILING: "office value " });
     expect(store.readManagedUserEnv()).toEqual({ GH_TOKEN: "user's token", TRAILING: "user value " });
+    expect(officeLegacy).toBe(store.officePath);
+    expect(record.envFile).toBe(store.userPath);
     expect(reads).toBe(2);
 
     migrateManagedEnvAtBoot(deps);
@@ -137,12 +147,14 @@ describe("managed env boot migration", () => {
         office: {
           label: "office variables",
           path: null,
+          isManagedPath: (path: string) => path === store.officePath,
           legacyExists: existsSync,
           managedExists: store.managedOfficeEnvExists,
           readManaged: store.readManagedOfficeEnv,
           readLegacy: readEnvFile,
           writeManaged: store.writeManagedOfficeEnv,
           clearLegacyPath: () => {},
+          useManagedPath: () => {},
         },
         users: [record],
         userSubject: () => ({
@@ -150,6 +162,7 @@ describe("managed env boot migration", () => {
           get path() {
             return record.envFile;
           },
+          isManagedPath: (path: string) => path === store.userPath,
           legacyExists: existsSync,
           managedExists: store.managedUserEnvExists,
           readManaged: store.readManagedUserEnv,
@@ -157,6 +170,9 @@ describe("managed env boot migration", () => {
           writeManaged: store.writeManagedUserEnv,
           clearLegacyPath: () => {
             record.envFile = null;
+          },
+          useManagedPath: () => {
+            record.envFile = store.userPath;
           },
         }),
         log: (message) => logs.push(message),
@@ -179,12 +195,14 @@ describe("managed env boot migration", () => {
       office: {
         label: "office variables",
         path: null,
+        isManagedPath: (path: string) => path === store.officePath,
         legacyExists: existsSync,
         managedExists: store.managedOfficeEnvExists,
         readManaged: store.readManagedOfficeEnv,
         readLegacy: readEnvFile,
         writeManaged: store.writeManagedOfficeEnv,
         clearLegacyPath: () => {},
+        useManagedPath: () => {},
       },
       users: [record],
       userSubject: () => ({
@@ -192,6 +210,7 @@ describe("managed env boot migration", () => {
         get path() {
           return record.envFile;
         },
+        isManagedPath: (path: string) => path === store.userPath,
         legacyExists: existsSync,
         managedExists: store.managedUserEnvExists,
         readManaged: store.readManagedUserEnv,
@@ -199,6 +218,9 @@ describe("managed env boot migration", () => {
         writeManaged: store.writeManagedUserEnv,
         clearLegacyPath: () => {
           record.envFile = null;
+        },
+        useManagedPath: () => {
+          record.envFile = store.userPath;
         },
       }),
       log: (message) => logs.push(message),
@@ -224,12 +246,14 @@ describe("managed env boot migration", () => {
         office: {
           label: "office variables",
           path: null,
+          isManagedPath: (path: string) => path === store.officePath,
           legacyExists: existsSync,
           managedExists: store.managedOfficeEnvExists,
           readManaged: store.readManagedOfficeEnv,
           readLegacy: readEnvFile,
           writeManaged: store.writeManagedOfficeEnv,
           clearLegacyPath: () => {},
+          useManagedPath: () => {},
         },
         users: [record],
         userSubject: () => ({
@@ -237,6 +261,7 @@ describe("managed env boot migration", () => {
           get path() {
             return record.envFile;
           },
+          isManagedPath: (path: string) => path === store.userPath,
           legacyExists: existsSync,
           managedExists: store.managedUserEnvExists,
           readManaged: store.readManagedUserEnv,
@@ -244,6 +269,9 @@ describe("managed env boot migration", () => {
           writeManaged: store.writeManagedUserEnv,
           clearLegacyPath: () => {
             record.envFile = null;
+          },
+          useManagedPath: () => {
+            record.envFile = store.userPath;
           },
         }),
         log: (message) => logs.push(message),
@@ -255,6 +283,6 @@ describe("managed env boot migration", () => {
 
     store.writeManagedUserEnv({ GH_TOKEN: "legacy" });
     run();
-    expect(record.envFile).toBeNull();
+    expect(record.envFile).toBe(store.userPath);
   });
 });

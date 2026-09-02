@@ -14,12 +14,14 @@ export function legacyEnvFileExists(path: string): boolean {
 export interface LegacyEnvSubject {
   label: string;
   path: string | null;
+  isManagedPath(path: string): boolean;
   legacyExists(path: string): boolean;
   managedExists(): boolean;
   readManaged(): Record<string, string> | null;
   readLegacy(path: string): Record<string, string>;
   writeManaged(values: Record<string, string>): void;
   clearLegacyPath(): void;
+  useManagedPath(): void;
 }
 
 export interface ManagedEnvMigrationDeps {
@@ -36,6 +38,7 @@ export function migrateManagedEnvAtBoot(deps: ManagedEnvMigrationDeps): void {
 
 function migrateSubject(subject: LegacyEnvSubject, log: (message: string) => void): void {
   if (!subject.path) return;
+  if (subject.isManagedPath(subject.path)) return;
   try {
     if (!subject.legacyExists(subject.path)) {
       subject.clearLegacyPath();
@@ -48,12 +51,12 @@ function migrateSubject(subject: LegacyEnvSubject, log: (message: string) => voi
       if (sorted(subject.readManaged()) !== sorted(values)) {
         throw new Error("managed env already exists");
       }
-      subject.clearLegacyPath();
+      subject.useManagedPath();
       return;
     }
 
     subject.writeManaged(values);
-    subject.clearLegacyPath();
+    subject.useManagedPath();
   } catch {
     log(`[managed env migration] could not import ${subject.label}; retrying on next boot`);
   }
