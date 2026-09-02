@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, describe, expect, test } from "bun:test";
-import { createMemoryStore, isSafeScopeId, OVER_CAP_NOTICE, renderCapped, versionOf } from "../memory-store.ts";
+import { createMemoryStore, isSafeScopeId, MemoryCapError, MEMORY_LINE_MAX, MemoryLineTooLongError, OVER_CAP_NOTICE, renderCapped, versionOf } from "../memory-store.ts";
 
 const roots: string[] = [];
 
@@ -26,6 +26,8 @@ describe("memory store", () => {
 
     const appended = store.append({ scope: "office", scopeId: null, author: "Nina", text: "Prefer concise status updates." });
     expect(appended.item.raw).toBe("- Nina, 2026-07-04: Prefer concise status updates.");
+    expect(appended.size).toBe("- Nina, 2026-07-04: Prefer concise status updates.".length);
+    expect(appended.cap).toBe(2500);
 
     const read = store.read("office", null);
     expect(read.text).toBe("- Nina, 2026-07-04: Prefer concise status updates.\n");
@@ -50,6 +52,29 @@ describe("memory store", () => {
     const stale = store.replace({ scope: "room", scopeId: "room_1", author: "Nina", text: "", expectedVersion: first.version });
     expect(stale.ok).toBe(false);
     if (!stale.ok) expect(stale.version).toBe(versionOf("- Nina, 2026-07-04: Keep tests focused.\n"));
+  });
+
+  test("rejects memory lines over the single-line budget", () => {
+    const store = createMemoryStore({ stateRoot: tempRoot() });
+
+    expect(() => store.append({ scope: "agent", scopeId: "agent_1", author: "Nina", text: "x".repeat(MEMORY_LINE_MAX + 1) })).toThrow(MemoryLineTooLongError);
+  });
+
+  test("rejects appends that would exceed the scope prompt cap", () => {
+    const store = createMemoryStore({ stateRoot: tempRoot(), caps: { office: 45, room: 3500, agent: 5000, boss: 5000 }, today: () => "2026-07-04" });
+
+    store.append({ scope: "office", scopeId: null, author: "Nina", text: "short" });
+
+    expect(() => store.append({ scope: "office", scopeId: null, author: "Nina", text: "too much" })).toThrow(MemoryCapError);
+  });
+
+  test("inserts a separator before appending to a file without a trailing newline", () => {
+    const store = createMemoryStore({ stateRoot: tempRoot(), today: () => "2026-07-04" });
+
+    store.replace({ scope: "agent", scopeId: "agent_1", author: "Nina", text: "- Nina, 2026-07-03: first" });
+    store.append({ scope: "agent", scopeId: "agent_1", author: "Nina", text: "second" });
+
+    expect(store.readText("agent", "agent_1")).toBe("- Nina, 2026-07-03: first\n- Nina, 2026-07-04: second\n");
   });
 
   test("validates scope identifiers used in file paths", () => {

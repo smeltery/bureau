@@ -1,7 +1,7 @@
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
-import { injectedSize, isSafeScopeId, MEMORY_CAPS, memoryStore } from "../memory-store.ts";
+import { injectedSize, isSafeScopeId, MEMORY_CAPS, MemoryCapError, MemoryLineTooLongError, memoryStore } from "../memory-store.ts";
 import { getUserById, listUsers } from "../users.ts";
 import type { MemoryScope } from "../../shared/types.ts";
 
@@ -119,10 +119,16 @@ export async function handleMemoryRequest(req: Request, url: URL, auth?: AuthRes
     if (target instanceof Response) return target;
     const duplicate = memoryStore.findDuplicate(target.scope, target.scopeId, text);
     if (duplicate) return error(409, "duplicate_memory", "a matching memory already exists in this scope", { matched: { text: duplicate.text } });
-    return json(
-      memoryStore.append({ scope: target.scope, scopeId: target.scopeId, author: authorFromCaller(bearer, auth, authorFromRequest(req)), authorAgentId: bearer?.agentId ?? null, text }),
-      201,
-    );
+    try {
+      return json(
+        memoryStore.append({ scope: target.scope, scopeId: target.scopeId, author: authorFromCaller(bearer, auth, authorFromRequest(req)), authorAgentId: bearer?.agentId ?? null, text }),
+        201,
+      );
+    } catch (err) {
+      if (err instanceof MemoryLineTooLongError) return error(422, "memory_line_too_long", err.message, { size: err.size });
+      if (err instanceof MemoryCapError) return error(422, "memory_scope_over_cap", err.message, { size: err.size, cap: err.cap });
+      throw err;
+    }
   }
 
   if (req.method === "PUT") {

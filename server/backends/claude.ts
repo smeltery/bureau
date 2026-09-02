@@ -76,6 +76,10 @@ const PERMISSION_MODES: PermissionModeOption[] = [
   { value: "auto", label: "Ask in Bureau" },
 ];
 
+export const CLAUDE_MEMORY_OFF_SETTINGS: Extract<Options["settings"], object> = {
+  autoMemoryEnabled: false,
+};
+
 class ClaudeBackendSession implements BackendSession {
   private pendingApprovals = new Map<string, { input: Record<string, unknown>; suggestions?: PermissionUpdate[]; resolve: (r: PermissionResult) => void }>();
   private readonly raw: RawClaudeSession;
@@ -96,6 +100,7 @@ class ClaudeBackendSession implements BackendSession {
       systemPrompt: { type: "preset", preset: "claude_code", append: opts.systemPrompt },
       cwd: opts.cwd,
       hooks: createSafetyHooks(),
+      settings: CLAUDE_MEMORY_OFF_SETTINGS,
       canUseTool: ((toolName, input, callbackOpts) => this.requestPermission(toolName, input, callbackOpts)) as CanUseTool,
       ...(opts.env ? { env: opts.env } : {}),
       ...(resumeSessionId ? { resume: resumeSessionId } : {}),
@@ -220,6 +225,7 @@ export const claudeBackend: Backend = {
     const result = await runClaudeOneShot(prompt, {
       model: FAMILY_TO_MODEL[opts.modelFamily as ModelFamily] ?? FAMILY_TO_MODEL.sonnet,
       ...(opts.systemPrompt ? { systemPrompt: opts.systemPrompt } : {}),
+      settings: CLAUDE_MEMORY_OFF_SETTINGS,
       ...(opts.env ? { env: opts.env } : {}),
     });
     return result.subtype === "success" ? result.result : "";

@@ -38,7 +38,7 @@ export const FAMILY_TO_MODEL: Record<ModelFamily, ClaudeModel> = {
   opus: "claude-opus-5",
   sonnet: "claude-sonnet-5",
   haiku: "claude-haiku-4-5-20251001",
-  fable: "claude-fable-5",
+  fable: "claude-fable-5-1",
 };
 
 export const MODEL_FAMILIES: { family: ModelFamily; label: string }[] = [
@@ -48,8 +48,9 @@ export const MODEL_FAMILIES: { family: ModelFamily; label: string }[] = [
   { family: "fable", label: "Fable" },
 ];
 
-// Extract "4.8" from "claude-opus-4-8" for display. Single-number slugs like
-// "claude-fable-5" have no minor segment, so fall back to the trailing number.
+// Extract "4.8" from "claude-opus-4-8" or "5.1" from
+// "claude-fable-5-1" for display. Single-number slugs fall back to the
+// trailing number.
 export function modelVersionLabel(family: ModelFamily): string {
   const exact = FAMILY_TO_MODEL[family];
   const twoPart = exact.match(/-(\d+)-(\d+)/);

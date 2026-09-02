@@ -99,13 +99,13 @@ describe("model family helpers", () => {
   });
 
   test("modelVersionLabel falls back to a single trailing number (e.g. Fable)", () => {
-    expect(modelVersionLabel("fable")).toBe("5");
+    expect(modelVersionLabel("fable")).toBe("5.1");
   });
 
   test("familyDisplayLabel formats as '<Family> <X.Y>'", () => {
     expect(familyDisplayLabel("opus")).toBe("Opus 5");
     expect(familyDisplayLabel("sonnet")).toBe("Sonnet 5");
-    expect(familyDisplayLabel("fable")).toMatch(/^Fable \d+$/);
+    expect(familyDisplayLabel("fable")).toBe("Fable 5.1");
   });
 
   test("familyFromLegacyModel recognises substrings", () => {

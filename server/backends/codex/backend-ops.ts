@@ -1,6 +1,7 @@
 import type { BackendEffortOption, BackendModel, ForkSessionBeforeMessageResult, ListModelsOptions, NormalizedMessage, OneShotOptions } from "../types.ts";
 
 import { JsonRpcLiteClient } from "./client.ts";
+import { CODEX_THREAD_CONFIG_OVERRIDES } from "./config.ts";
 import { findTurnIndexContainingItemId, readThreadTurns } from "./thread-history.ts";
 
 import type { Model as CodexProtocolModel } from "./_generated/v2/Model.ts";
@@ -157,6 +158,7 @@ export async function oneShotCodexPrompt(prompt: string, opts: OneShotOptions): 
       ephemeral: true,
       experimentalRawEvents: false,
       persistExtendedHistory: false,
+      config: { ...CODEX_THREAD_CONFIG_OVERRIDES },
     });
     const threadId = startResp.thread.id;
     let result = "";

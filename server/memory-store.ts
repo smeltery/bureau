@@ -51,6 +51,7 @@ export const MEMORY_CAPS: Record<MemoryScope, number> = {
   boss: 5000,
 };
 
+export const MEMORY_LINE_MAX = 400;
 export const OVER_CAP_NOTICE = "Not all memories fit. Ask the boss to trim them.";
 
 export function injectedSize(text: string): number {
@@ -91,6 +92,8 @@ export interface MemoryReadResult {
 export interface MemoryAppendResult {
   item: MemoryItem;
   version: string;
+  size: number;
+  cap: number;
 }
 
 export type MemoryReplaceResult = { ok: true; version: string } | { ok: false; conflict: true; version: string };
@@ -118,6 +121,21 @@ export interface MemoryStoreDeps {
   today?: () => string;
   now?: () => string;
   caps?: Record<MemoryScope, number>;
+}
+
+export class MemoryCapError extends Error {
+  constructor(
+    readonly size: number,
+    readonly cap: number,
+  ) {
+    super(`memory scope size exceeds its cap (${size} of ${cap} chars)`);
+  }
+}
+
+export class MemoryLineTooLongError extends Error {
+  constructor(readonly size: number) {
+    super(`memory line is too long (${size} of ${MEMORY_LINE_MAX} chars)`);
+  }
 }
 
 export function createMemoryStore(deps: MemoryStoreDeps = {}): MemoryStore {
@@ -160,16 +178,27 @@ export function createMemoryStore(deps: MemoryStoreDeps = {}): MemoryStore {
   }
 
   function append(input: { scope: MemoryScope; scopeId: string | null; author: string; authorAgentId?: string | null; text: string }): MemoryAppendResult {
+    if (input.text.length > MEMORY_LINE_MAX) throw new MemoryLineTooLongError(input.text.length);
     const date = today();
     const selfAuthored = input.scope === "agent" && !!input.authorAgentId && input.authorAgentId === input.scopeId;
     const line = formatMemoryLine({ author: selfAuthored ? null : input.author, date, text: input.text });
+    const existing = readText(input.scope, input.scopeId);
+    const cap = caps[input.scope];
+    const prospective = injectedSize(existing) + line.length + 1;
+    if (prospective > cap) throw new MemoryCapError(prospective, cap);
     const path = filePath(input.scope, input.scopeId);
     mkdirSync(dirname(path), { recursive: true });
-    appendFileSync(path, line + "\n");
+    const separator = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
+    appendFileSync(path, separator + line + "\n");
     const content = readText(input.scope, input.scopeId);
     const version = versionOf(content);
     logOp({ ts: now(), actor: input.author, scope: input.scope, scopeId: input.scopeId, op: "append", text: input.text, content, version });
-    return { item: { scope: input.scope, scopeId: input.scopeId, author: selfAuthored ? null : input.author, date, text: input.text, raw: line }, version };
+    return {
+      item: { scope: input.scope, scopeId: input.scopeId, author: selfAuthored ? null : input.author, date, text: input.text, raw: line },
+      version,
+      size: injectedSize(content),
+      cap,
+    };
   }
 
   function replace(input: { scope: MemoryScope; scopeId: string | null; text: string; author: string; expectedVersion?: string | null }): MemoryReplaceResult {

@@ -17,6 +17,11 @@ export const ALREADY_AUTHED_INSTRUCTIONS = `Codex is signed in. Type \`/clear\` 
 
 export const AUTH_ERROR_PATTERNS = /unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|chatgpt.*login|openai_api_key|403|401/i;
 
+export const CODEX_THREAD_CONFIG_OVERRIDES: Readonly<Record<string, boolean>> = {
+  "memories.use_memories": false,
+  "memories.generate_memories": false,
+};
+
 // Capability flags for the Codex backend. Match the spec's parity table.
 // hooks: false because Codex emits hook/* notifications but provides no
 // programmatic register-from-client surface at 0.130.
