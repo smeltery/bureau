@@ -11,6 +11,8 @@ import { ApiTokensPane } from "./ApiTokensPane.tsx";
 import { SessionsPane } from "./SessionsPane.tsx";
 import { buildAccountSections, type AccountSection } from "./UserSettingsSections.ts";
 import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
+import { OfficeVariablesPane } from "./OfficeVariablesPane.tsx";
+import { SignOutPane } from "./SignOutPane.tsx";
 import { UserEditPanel } from "./modals/UserEditPanel.tsx";
 type Selection = { kind: "user"; id: string } | { kind: "section"; section: AccountSection };
 export function UserSettingsView({
@@ -209,6 +211,8 @@ export function UserSettingsView({
               </section>
             ) : selection?.kind === "section" && selection.section === "access" ? (
               <AccessPane onDirtyChange={setDetailDirty} />
+            ) : selection?.kind === "section" && selection.section === "office-env" ? (
+              <OfficeVariablesPane />
             ) : selection?.kind === "section" && selection.section === "invites" ? (
               <InvitesPane />
             ) : selection?.kind === "section" && selection.section === "sessions" ? (
@@ -225,20 +229,6 @@ export function UserSettingsView({
           </main>
         )}
       </div>
-    </div>
-  );
-}
-
-function SignOutPane() {
-  return (
-    <div style={{ marginTop: 24 }}>
-      <h4 style={sectionHeader}>Sign out</h4>
-      <p style={{ fontSize: 11, margin: "5px 0 8px", color: "var(--text-ghost)" }}>Sign out of this device. Other devices for the same user stay signed in.</p>
-      <form method="POST" action="/auth/logout" style={{ margin: 0 }}>
-        <button type="submit" style={dialogCancelBtn}>
-          Sign out
-        </button>
-      </form>
     </div>
   );
 }
