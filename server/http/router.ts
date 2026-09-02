@@ -31,7 +31,7 @@ import { handleFilesRequest } from "./files.ts";
 import { handleInvitesRequest } from "./invites.ts";
 import { handleLiveReloadRequest } from "./live-reload.ts";
 import { handleMemoryRequest } from "./memory.ts";
-import { handleOfficeSettingsRequest } from "./office-settings.ts";
+import { handleEnvSettingsRequest, handleOfficeSettingsRequest } from "./office-settings.ts";
 import { handlePluginsRequest } from "./plugins.ts";
 import { handleReadyRequest } from "./ready.ts";
 import { handleRoomsRequest } from "./rooms.ts";
@@ -226,6 +226,9 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
     },
   });
   if (accessResp) return accessResp;
+
+  const envSettingsResp = await handleEnvSettingsRequest(req, url, httpAuth);
+  if (envSettingsResp) return envSettingsResp;
 
   const usersResp = await handleUsersRequest(req, url, httpAuth, {
     update: updateUserForApi,

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
-import { handleOfficeSettingsRequest } from "../office-settings.ts";
+import { handleEnvSettingsRequest, handleOfficeSettingsRequest } from "../office-settings.ts";
 
 const ownerAuth: AuthResult = {
   kind: "ok",
@@ -86,5 +86,31 @@ describe("handleOfficeSettingsRequest", () => {
 
     expect(res?.status).toBe(400);
     expect(await res?.json()).toEqual({ error: "invalid JSON" });
+  });
+});
+
+describe("handleEnvSettingsRequest", () => {
+  test("returns null for unrelated routes", async () => {
+    const req = request("/api/users/Member");
+
+    await expect(handleEnvSettingsRequest(req, new URL(req.url), ownerAuth)).resolves.toBeNull();
+  });
+
+  test("requires owner access for office env", async () => {
+    const req = request("/api/office/env");
+
+    const res = await handleEnvSettingsRequest(req, new URL(req.url), memberAuth);
+
+    expect(res?.status).toBe(403);
+    expect(await res?.json()).toEqual({ error: "owner access required" });
+  });
+
+  test("rejects malformed value maps", async () => {
+    const req = request("/api/office/env", { method: "PUT", body: JSON.stringify({ values: { OK: 1 } }) });
+
+    const res = await handleEnvSettingsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({ error: "values must be a string map" });
   });
 });

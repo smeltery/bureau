@@ -5,6 +5,7 @@ describe("buildAccountSections", () => {
   test("splits owner account management into access, sessions, devices, and signout", () => {
     expect(buildAccountSections(true, true)).toEqual([
       { section: "access", label: "Access" },
+      { section: "office-env", label: "Office variables" },
       { section: "invites", label: "Invites" },
       { section: "sessions", label: "Sessions" },
       { section: "devices", label: "My devices" },
@@ -22,6 +23,9 @@ describe("buildAccountSections", () => {
   });
 
   test("shows only owner access before a session context is available", () => {
-    expect(buildAccountSections(true, false)).toEqual([{ section: "access", label: "Access" }]);
+    expect(buildAccountSections(true, false)).toEqual([
+      { section: "access", label: "Access" },
+      { section: "office-env", label: "Office variables" },
+    ]);
   });
 });

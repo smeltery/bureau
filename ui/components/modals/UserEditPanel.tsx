@@ -4,6 +4,7 @@ import type { GhostVariant } from "../../../shared/avatar.ts";
 import { SUPPORTED_LANGUAGES, type SupportedLanguageCode } from "../../../shared/languages.ts";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
+import { ManagedEnvEditor } from "./ManagedEnvEditor.tsx";
 import { UserAvatarPicker } from "./UserAvatarPicker.tsx";
 import { UserRoomPreferences } from "./UserRoomPreferences.tsx";
 
@@ -152,6 +153,10 @@ export function UserEditPanel({
         A file of NAME=value lines on the server, loaded into the environment of your agents and cron jobs. Use ANTHROPIC_API_KEY=... or OPENAI_API_KEY=... for API-key billing, or
         CLAUDE_CONFIG_DIR=... / CODEX_HOME=... for your own subscription sign-in. Each agent reads the file when it starts or resumes a conversation.
       </p>
+      <div style={{ border: "1px solid var(--border-subtle)", borderRadius: 8, padding: 12, marginTop: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 650, marginBottom: 6 }}>Managed variables for this user</div>
+        <ManagedEnvEditor path={`/api/users/${encodeURIComponent(user.name)}/env`} onSavedPath={setEnvFile} />
+      </div>
       <label style={{ ...dialogLabel, marginTop: 12 }}>Language</label>
       <select value={language} onChange={(e) => setLanguage(e.target.value as SupportedLanguageCode | "")} style={dialogInput}>
         <option value="">Default</option>
