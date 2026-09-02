@@ -27,8 +27,16 @@ export function readManagedUserEnv(userId: string): ManagedEnvValues {
   return existsSync(path) ? parseDotenv(readFileSync(path, "utf8")) : {};
 }
 
+export function managedUserEnvExists(userId: string): boolean {
+  return existsSync(managedUserEnvPath(userId));
+}
+
 export function readManagedOfficeEnv(): ManagedEnvValues {
   return existsSync(OFFICE_ENV_FILE) ? parseDotenv(readFileSync(OFFICE_ENV_FILE, "utf8")) : {};
+}
+
+export function managedOfficeEnvExists(): boolean {
+  return existsSync(OFFICE_ENV_FILE);
 }
 
 export function serializeManagedEnv(values: ManagedEnvValues): string {

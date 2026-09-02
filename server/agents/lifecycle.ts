@@ -1,10 +1,10 @@
 import { join } from "path";
 import { rmSync } from "fs";
 import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, LogInFlightTurn, ManifestInFlightTurn, PendingPromptKind, SkillInfo } from "../../shared/types.ts";
-import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
+import { listAgentSessions, loadAgents, loadLogWithAncestors, readEnvFile } from "../persistence.ts";
 import { versionOf } from "../memory-store.ts";
 import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
-import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
+import { addLogEntry, agents, emit, logCache, officeConfig, persistAll, rooms as roomList, roomsWire, setRooms, type ManagedAgent } from "./state.ts";
 import { createSession, installSession } from "./session/runtime.ts";
 import { armDormantWakeNotice } from "./session/wake-notice.ts";
 import { updateState } from "./state.ts";
@@ -15,6 +15,19 @@ import { buildSpawnAgentDraft } from "./lifecycle-spawn.ts";
 import { buildRestoredAgentInfo } from "./lifecycle-restore.ts";
 import { queueDedupeFromPersist } from "./conversation/queue-dedupe.ts";
 import { getAgentContextUsage as getAgentContextUsageForManaged, type AgentContextUsageResponse } from "./context-usage.ts";
+import { legacyEnvFileExists, migrateManagedEnvAtBoot } from "./session/managed-env-migration.ts";
+import { listUsers, updateUserById } from "../users.ts";
+import {
+  managedOfficeEnvExists,
+  managedOfficeEnvPath,
+  managedUserEnvExists,
+  managedUserEnvPath,
+  readManagedOfficeEnv,
+  readManagedUserEnv,
+  writeManagedOfficeEnv,
+  writeManagedUserEnv,
+} from "../persistence/managed-env.ts";
+import { setOfficeSettings } from "./rooms.ts";
 
 export { emitAgentDiff, emitAgentEditFile, emitAgentPreviewUrl, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
 export { kill } from "./lifecycle-kill.ts";
@@ -185,6 +198,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
 
   const loaded = loadAgents();
   setRooms(loaded.map((r) => ({ id: r.id, name: r.name, prompt: r.prompt, envFile: r.envFile })));
+  migrateLegacyManagedEnv();
 
   for (let roomIdx = 0; roomIdx < loaded.length; roomIdx++) {
     for (const p of loaded[roomIdx].agents) {
@@ -289,4 +303,38 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
       });
   }
   return [...agents.values()].map((a) => a.info);
+}
+
+function migrateLegacyManagedEnv(): void {
+  migrateManagedEnvAtBoot({
+    office: {
+      label: "office variables",
+      get path() {
+        return officeConfig.envFile;
+      },
+      legacyExists: legacyEnvFileExists,
+      managedExists: managedOfficeEnvExists,
+      readManaged: readManagedOfficeEnv,
+      readLegacy: readEnvFile,
+      writeManaged: writeManagedOfficeEnv,
+      clearLegacyPath: () => setOfficeSettings(officeConfig.prompt, managedOfficeEnvPath()),
+    },
+    users: listUsers(roomsWire()),
+    userSubject: (user) => ({
+      label: `user "${user.name}"`,
+      get path() {
+        return user.envFile;
+      },
+      legacyExists: legacyEnvFileExists,
+      managedExists: () => managedUserEnvExists(user.id),
+      readManaged: () => readManagedUserEnv(user.id),
+      readLegacy: readEnvFile,
+      writeManaged: (values) => writeManagedUserEnv(user.id, values),
+      clearLegacyPath: () => {
+        const result = updateUserById(user.id, { envFile: managedUserEnvPath(user.id) });
+        if (result.ok) user.envFile = result.user.envFile;
+      },
+    }),
+    log: (message) => console.warn(message),
+  });
 }
