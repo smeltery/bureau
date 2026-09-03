@@ -35,7 +35,16 @@ describe("isSensitiveFile — safe-suffix exemptions (templates)", () => {
 });
 
 describe("isSensitiveFile — backend credential files", () => {
-  test.each(["/home/someone/.claude/.credentials.json", "/home/someone/.isomux/codex-home/auth.json", "/home/someone/.codex/auth.json"])("flags %s as sensitive", (path) => {
+  test.each([
+    "/home/someone/.claude/.credentials.json",
+    "/home/someone/.bureau/codex-home/auth.json",
+    "/home/someone/.codex/auth.json",
+    "/home/someone/.local/share/opencode/auth.json",
+    "/home/someone/.local/share/opencode/mcp-auth.json",
+    "/home/someone/.bureau/opencode/profiles/shared/data/opencode/auth.json",
+    "/home/someone/.bureau/opencode/profiles/shared/data/opencode/mcp-auth.json",
+    "/home/someone/.bureau/provider-homes/u-alice/codex/auth.json",
+  ])("flags %s as sensitive", (path) => {
     expect(isSensitiveFile(path)).toBe(true);
   });
 

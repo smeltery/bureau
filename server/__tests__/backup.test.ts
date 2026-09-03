@@ -68,6 +68,27 @@ function finals(dir: string): string[] {
     .sort();
 }
 
+const realDeps = {
+  now: () => Date.UTC(2026, 7, 13, 12),
+  availableBytes: () => 10_000_000,
+  spawn: (argv: string[]) => Bun.spawn(argv, { stdout: "ignore", stderr: "pipe" }),
+};
+
+function write(root: string, relativePath: string, contents: string, mode = 0o600) {
+  const target = path.join(root, relativePath);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, contents, { mode });
+  return target;
+}
+
+function extract(f: ReturnType<typeof fixture>, file: string, name = "restored") {
+  const restored = path.join(f.root, name);
+  fs.mkdirSync(restored);
+  const result = Bun.spawnSync(["tar", "-xzf", path.join(f.backupDir, file), "-C", restored]);
+  expect(result.exitCode).toBe(0);
+  return path.join(restored, path.basename(f.state));
+}
+
 describe("verified backup publication", () => {
   test("publishes only after tar creation and a full verification pass", async () => {
     const f = fixture();
@@ -81,6 +102,56 @@ describe("verified backup publication", () => {
       ["tar", "-czf"],
       ["tar", "-tzf"],
     ]);
+  });
+
+  test("omits credential stores while preserving adjacent and customer state", async () => {
+    const f = fixture();
+    write(f.state, "users.json", JSON.stringify([{ id: "u-alice", name: "Alice" }]));
+    const excluded = [
+      "apps/units/hello.env",
+      "user-env/u-alice.env",
+      "office-env/office.env",
+      "codex-home/auth.json",
+      "codex-home/shell_snapshots/one.sh",
+      "provider-homes/u-alice/claude/.credentials.json",
+      "provider-homes/u-alice/codex/auth.json",
+      "provider-homes/u-alice/codex/shell_snapshots/two.sh",
+      ".local/share/opencode/auth.json",
+      ".local/share/opencode/mcp-auth.json",
+      "opencode/profiles/shared/data/opencode/auth.json",
+      "opencode/profiles/shared/data/opencode/mcp-auth.json",
+      "tls/cert.key",
+      "RESTORE.txt",
+    ];
+    const kept = [
+      "apps/apps.json",
+      "apps/app-tokens.json",
+      "apps/data/hello/state.json",
+      "apps/data/hello/user-env/keep.txt",
+      "api-tokens.json",
+      "codex-home/sessions/thread.jsonl",
+      "codex-home/memories/memory.md",
+      "provider-homes/u-alice/claude/.claude.json",
+      "provider-homes/u-alice/codex/state.db",
+      "opencode/profiles/shared/data/opencode/opencode.db",
+      "tls/cert.crt",
+    ];
+    for (const relativePath of excluded) write(f.state, relativePath, `EXCLUDED:${relativePath}\n`);
+    for (const relativePath of kept) write(f.state, relativePath, `KEPT:${relativePath}\n`);
+    write(f.state, "apps/units/hello.sh", "DERIVED_LAUNCHER\n");
+
+    const file = await runBackupOnceForTest(config(f), realDeps);
+    const restored = extract(f, file);
+
+    for (const relativePath of excluded.filter((p) => p !== "RESTORE.txt")) expect(fs.existsSync(path.join(restored, relativePath))).toBe(false);
+    for (const relativePath of kept) expect(fs.readFileSync(path.join(restored, relativePath), "utf8")).toBe(`KEPT:${relativePath}\n`);
+    expect(fs.existsSync(path.join(restored, "apps/units/hello.sh"))).toBe(false);
+    const report = fs.readFileSync(path.join(restored, "RESTORE.txt"), "utf8");
+    expect(report).not.toContain("EXCLUDED:RESTORE.txt");
+    expect(report).toContain('user "Alice"');
+    expect(report).toContain("OpenCode MCP OAuth credentials were omitted");
+    expect(report).toContain("opencode mcp auth <server-name>");
+    expect(report).toContain("This report does not claim that the archive is free of secrets.");
   });
 
   test("health is rebuilt from disk and a stale archive is not success", async () => {

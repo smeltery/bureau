@@ -34,6 +34,7 @@ import {
   type BackupDeps,
   type BackupStatus,
 } from "./backup/files.ts";
+import { removeBackupStaging, stageBackupRoot } from "./backup/exclusions.ts";
 
 export type { BackupStatus } from "./backup/files.ts";
 
@@ -99,8 +100,10 @@ async function runBackup(config: BackupConfig = DEFAULT_CONFIG, deps: BackupDeps
   const now = deps.now();
   const partial = partialPath(config.backupDir, now);
   const final = allocateFinalPath(config.backupDir, now);
+  let backupStaging: string | null = null;
   try {
-    const created = await runTar(["tar", "-czf", partial, "-C", config.stateRootParent, config.stateRootName], deps);
+    backupStaging = stageBackupRoot(config);
+    const created = await runTar(["tar", "-czf", partial, "-C", backupStaging, config.stateRootName], deps);
     if (created.exitCode >= 2) {
       throw new Error(`tar exit ${created.exitCode}: ${created.stderr || "no error text"}`);
     }
@@ -116,6 +119,7 @@ async function runBackup(config: BackupConfig = DEFAULT_CONFIG, deps: BackupDeps
     try {
       unlinkSync(partial);
     } catch {}
+    if (backupStaging) removeBackupStaging(backupStaging);
   }
 }
 
