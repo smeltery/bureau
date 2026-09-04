@@ -72,6 +72,9 @@ const server = Bun.serve<WsData>({
     : {
         port: PORT,
         hostname: isProcessPreClaim() || !boundExternal() ? "127.0.0.1" : "0.0.0.0",
+        // Long app proxy and preview requests can legitimately wait on a cold
+        // local server. Bun's default idle timeout is too short for that path.
+        idleTimeout: 120,
       }),
   fetch: createFetchHandler(),
   websocket: {
