@@ -5,7 +5,7 @@ import type { Cronjob, CronjobRun } from "./cronjobs.ts";
 import type { LogEntry } from "./log-types.ts";
 import type { SlideFailureReason, SlideRecord } from "./slides.ts";
 import type { TaskItem } from "./tasks.ts";
-import type { InviteWire, OfficeSettings, PresenceInfo, RoomWire, SessionContext, SessionWire, UserRecord } from "./user-types.ts";
+import type { InviteWire, OfficeSettings, PresenceInfo, RoomPet, RoomWire, SessionContext, SessionWire, UserRecord } from "./user-types.ts";
 import type { AgentSaveResponse, CwdValidationResponse, SettingsSaveResponse, SettingsValidationResponse } from "./wire-response-types.ts";
 import type { UpdateStatusWire } from "./update-types.ts";
 
@@ -110,6 +110,7 @@ export type ServerMessage =
   | { type: "room_closed"; roomId: string }
   | { type: "room_renamed"; roomId: string; name: string }
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
+  | { type: "room_pet_updated"; roomId: string; pet: RoomPet | null }
   | { type: "rooms_reordered"; order: string[] }
   | SettingsSaveResponse
   | SettingsValidationResponse

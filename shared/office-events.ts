@@ -1,4 +1,5 @@
 import type { AgentInfo, OfficeSettings, RoomWire, TaskItem } from "./types.ts";
+import type { RoomPet } from "./user-types.ts";
 
 // Domain events — callers translate these to ServerMessage
 export type OfficeEvent =
@@ -9,6 +10,7 @@ export type OfficeEvent =
   | { type: "room_closed"; roomId: string }
   | { type: "room_renamed"; roomId: string; name: string }
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
+  | { type: "room_pet_updated"; roomId: string; pet: RoomPet | null }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
   | { type: "tasks_changed"; tasks: TaskItem[] };
 

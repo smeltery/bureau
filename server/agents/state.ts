@@ -1,5 +1,5 @@
 import type { AgentState, Attachment, LogEntry, OfficeSettings, RoomWire } from "../../shared/types.ts";
-import { DEFAULT_AGENT_CAPABILITIES, generateRoomId } from "../../shared/types.ts";
+import { DEFAULT_AGENT_CAPABILITIES, generateRoomId, normalizeRoomPet } from "../../shared/types.ts";
 import { appendLog, loadOfficeConfig, type OfficeConfig } from "../persistence.ts";
 import { saveLiveAgentHistory, saveLiveAgents, writeAgentsManifest } from "./state-persistence.ts";
 import type { AgentEvent, EventHandler, InternalRoom, ManagedAgent } from "./state-types.ts";
@@ -15,7 +15,7 @@ export const logCache = new Map<string, LogEntry[]>(); // agentId → entries
 
 let eventHandler: EventHandler = () => {};
 export let officeConfig: OfficeConfig = loadOfficeConfig();
-export let rooms: InternalRoom[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null }];
+export let rooms: InternalRoom[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null }];
 
 // Setters for modules that need to mutate the shared office/rooms state.
 export function setOfficeConfig(next: OfficeConfig) {
@@ -30,7 +30,7 @@ export function setRooms(next: InternalRoom[]) {
 // ---------------------------------------------------------------------------
 
 export function roomsWire(): RoomWire[] {
-  return rooms.map((r) => ({ id: r.id, name: r.name, prompt: r.prompt, envFile: r.envFile }));
+  return rooms.map((r) => ({ id: r.id, name: r.name, prompt: r.prompt, envFile: r.envFile, pet: normalizeRoomPet(r.pet) }));
 }
 
 export function findRoomIndex(roomId: string): number {

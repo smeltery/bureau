@@ -20,6 +20,7 @@ import type {
   UserRecord,
 } from "../shared/types.ts";
 import type { AppListWire } from "../shared/apps.ts";
+import type { RoomPet } from "../shared/types.ts";
 import type { UpdateStatusWire } from "../shared/update-types.ts";
 import { type SidePanel } from "./store-side-panels.ts";
 import type { LogsReplay } from "./store-replay.ts";
@@ -150,6 +151,7 @@ export type Action =
   | { type: "room_closed"; roomId: string }
   | { type: "room_renamed"; roomId: string; name: string }
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
+  | { type: "room_pet_updated"; roomId: string; pet: RoomPet | null }
   | { type: "rooms_reordered"; order: string[] }
   | { type: "cc_plugins_state"; plugins: CCPluginsState }
   | { type: "cronjobs_state"; cronjobs: Cronjob[]; cronjobsPrompt: string | null }

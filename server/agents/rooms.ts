@@ -1,5 +1,5 @@
-import type { RoomWire } from "../../shared/types.ts";
-import { generateRoomId } from "../../shared/types.ts";
+import type { RoomPet, RoomWire } from "../../shared/types.ts";
+import { generateRoomId, normalizeRoomPet } from "../../shared/types.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { readEnvFile, saveOfficeConfig } from "../persistence.ts";
 import { agents, emit, findRoomIndex, officeConfig, persistAll, roomsWire, rooms, setOfficeConfig, type InternalRoom } from "./state.ts";
@@ -32,11 +32,21 @@ export function setRoomSettings(roomId: string, prompt: string | null, envFile: 
   return true;
 }
 
-export function getRoomSettings(roomId: string): { prompt: string | null; envFile: string | null } | null {
+export function getRoomSettings(roomId: string): { prompt: string | null; envFile: string | null; pet: RoomPet | null } | null {
   const idx = findRoomIndex(roomId);
   if (idx < 0) return null;
   const room = rooms[idx];
-  return { prompt: room.prompt, envFile: room.envFile };
+  return { prompt: room.prompt, envFile: room.envFile, pet: normalizeRoomPet(room.pet) };
+}
+
+export function setRoomPet(roomId: string, pet: RoomPet | null): boolean {
+  const idx = findRoomIndex(roomId);
+  if (idx < 0) return false;
+  const room = rooms[idx];
+  room.pet = normalizeRoomPet(pet);
+  persistAll();
+  emit({ type: "room_pet_updated", roomId, pet: room.pet });
+  return true;
 }
 
 // Validate an env file path. Returns key count on success, throws on failure.
@@ -69,10 +79,10 @@ export function createRoom(name?: string): string {
   const existingIds = rooms.map((r) => r.id);
   const id = generateRoomId(existingIds);
   const displayName = (name || `Room ${rooms.length + 1}`).trim().slice(0, 40);
-  const room: InternalRoom = { id, name: displayName, prompt: null, envFile: null };
+  const room: InternalRoom = { id, name: displayName, prompt: null, envFile: null, pet: null };
   rooms.push(room);
   persistAll();
-  emit({ type: "room_created", room: { id: room.id, name: room.name, prompt: room.prompt, envFile: room.envFile } });
+  emit({ type: "room_created", room: { id: room.id, name: room.name, prompt: room.prompt, envFile: room.envFile, pet: room.pet } });
   return id;
 }
 

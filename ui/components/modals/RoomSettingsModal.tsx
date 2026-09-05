@@ -5,6 +5,7 @@ import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
+import { DEFAULT_ROOM_PET, ROOM_PET_COATS, type RoomPetCoat } from "../../../shared/types.ts";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
@@ -13,6 +14,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
   const room = rooms.find((r) => r.id === roomId);
   const [prompt, setPrompt] = useState(room?.prompt ?? "");
   const [envFile, setEnvFile] = useState(room?.envFile ?? "");
+  const [petCoat, setPetCoat] = useState<RoomPetCoat>(room?.pet?.coat ?? DEFAULT_ROOM_PET.coat);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -71,6 +73,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       roomId,
       prompt: prompt.trim() ? prompt : null,
       envFile: envFile.trim() || null,
+      pet: { coat: petCoat },
     });
   }
 
@@ -101,6 +104,15 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
         style={inputStyle}
       />
       <ValidationLine status={status} />
+
+      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Room Pet</label>
+      <select value={petCoat} onChange={(e) => setPetCoat(e.target.value as RoomPetCoat)} style={inputStyle}>
+        {ROOM_PET_COATS.map((coat) => (
+          <option key={coat} value={coat}>
+            {coatLabel(coat)}
+          </option>
+        ))}
+      </select>
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         Room Prompt <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional, appended after office prompt)</span>
@@ -143,6 +155,10 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       </div>
     </Modal>
   );
+}
+
+function coatLabel(coat: RoomPetCoat): string {
+  return coat[0]!.toUpperCase() + coat.slice(1);
 }
 
 function ValidationLine({ status }: { status: ValidationStatus }) {

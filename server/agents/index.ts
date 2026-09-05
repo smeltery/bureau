@@ -4,7 +4,7 @@
 export { buildSystemPrompt } from "./session/system-prompt.ts";
 export { validateCwd } from "./session/paths.ts";
 export { onEvent, getOfficeSettings } from "./state.ts";
-export { getRooms, getRoomSettings, setOfficeSettings, setRoomSettings, validateEnvPath, swapDesks, createRoom, closeRoom, renameRoom, reorderRooms, moveAgent } from "./rooms.ts";
+export { getRooms, getRoomSettings, setOfficeSettings, setRoomSettings, setRoomPet, validateEnvPath, swapDesks, createRoom, closeRoom, renameRoom, reorderRooms, moveAgent } from "./rooms.ts";
 export {
   getAgent,
   getAgentInstructions,

@@ -207,6 +207,10 @@ export function reducer(state: AppState, action: Action): AppState {
       const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, prompt: action.prompt, envFile: action.envFile } : r));
       return { ...state, rooms: newRooms };
     }
+    case "room_pet_updated": {
+      const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, pet: action.pet } : r));
+      return { ...state, rooms: newRooms };
+    }
     case "cc_plugins_state":
       return { ...state, ccPlugins: action.plugins };
     case "cronjobs_state":

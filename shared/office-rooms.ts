@@ -10,6 +10,7 @@ export function createRoomInList(rooms: RoomWire[], name?: string): { room: Room
     name: name || `Room ${rooms.length + 1}`,
     prompt: null,
     envFile: null,
+    pet: null,
   };
   return {
     room,

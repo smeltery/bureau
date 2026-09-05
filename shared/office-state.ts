@@ -1,5 +1,7 @@
 import type { AgentInfo, AgentOutfit, TaskItem, TaskPriority, RoomWire, OfficeSettings } from "./types.ts";
 import type { OfficeEvent, OfficeStateData } from "./office-events.ts";
+import type { RoomPet } from "./user-types.ts";
+import { normalizeRoomPet } from "./user-types.ts";
 import { generateRoomId } from "./types.ts";
 import { createAgentInfo, firstOpenDesk, hasDuplicateAgentName, roomIndexById } from "./office-agents.ts";
 import { closeRoomInList, createRoomInList, moveAgentToRoom, renameRoomInList } from "./office-rooms.ts";
@@ -9,7 +11,7 @@ export type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 
 export class OfficeState {
   private agents = new Map<string, AgentInfo>();
-  private _rooms: RoomWire[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null }];
+  private _rooms: RoomWire[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null }];
   private _office: OfficeSettings = { prompt: null, envFile: null, previewAllowHosts: [] };
   private _tasks: TaskItem[] = [];
   private _recentCwds: string[] = [];
@@ -52,7 +54,7 @@ export class OfficeState {
   }
 
   setRooms(rooms: RoomWire[]) {
-    this._rooms = rooms.length > 0 ? [...rooms] : [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null }];
+    this._rooms = rooms.length > 0 ? rooms.map((room) => ({ ...room, pet: normalizeRoomPet(room.pet) })) : [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null }];
   }
 
   setOfficeDirect(office: OfficeSettings) {
@@ -207,6 +209,14 @@ export class OfficeState {
     const normalizedPrompt = prompt && prompt.trim() ? prompt.trim() : null;
     this._rooms[idx] = { ...this._rooms[idx], prompt: normalizedPrompt, envFile: envFile || null };
     return [{ type: "room_settings_updated", roomId, prompt: normalizedPrompt, envFile: envFile || null }];
+  }
+
+  setRoomPet(roomId: string, pet: RoomPet | null): OfficeEvent[] {
+    const idx = this._rooms.findIndex((r) => r.id === roomId);
+    if (idx < 0) return [];
+    const normalizedPet = normalizeRoomPet(pet);
+    this._rooms[idx] = { ...this._rooms[idx], pet: normalizedPet };
+    return [{ type: "room_pet_updated", roomId, pet: normalizedPet }];
   }
 
   setTopic(agentId: string, topic: string): OfficeEvent[] {

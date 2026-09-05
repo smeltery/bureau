@@ -1,18 +1,20 @@
 import { SCENE_W, SCENE_H, VB_X, VB_Y } from "../grid.ts";
 import { useAppState } from "../../store.tsx";
+import { DEFAULT_ROOM_PET, type RoomPetCoat } from "../../../shared/types.ts";
 
-const CAT_PALETTES = [
-  { body: "#E8A050", stripe: "#C08030", ear: "#D08040", nose: "#D08080" }, // orange tabby
-  { body: "#A0A0A8", stripe: "#707078", ear: "#909098", nose: "#C09090" }, // silver
-  { body: "#3A3A3A", stripe: "#222222", ear: "#4A4A4A", nose: "#705050" }, // black
-  { body: "#E8E0D8", stripe: "#C0B8B0", ear: "#DCC8C0", nose: "#D0A0A0" }, // white
-  { body: "#D07030", stripe: "#A05020", ear: "#C06030", nose: "#C07060" }, // ginger
-  { body: "#E0D8C8", stripe: "#8B7060", ear: "#C0A890", nose: "#C08888" }, // siamese
-];
+const CAT_PALETTES: Record<RoomPetCoat, { body: string; stripe: string; ear: string; nose: string }> = {
+  orange: { body: "#E8A050", stripe: "#C08030", ear: "#D08040", nose: "#D08080" },
+  silver: { body: "#A0A0A8", stripe: "#707078", ear: "#909098", nose: "#C09090" },
+  black: { body: "#3A3A3A", stripe: "#222222", ear: "#4A4A4A", nose: "#705050" },
+  white: { body: "#E8E0D8", stripe: "#C0B8B0", ear: "#DCC8C0", nose: "#D0A0A0" },
+  ginger: { body: "#D07030", stripe: "#A05020", ear: "#C06030", nose: "#C07060" },
+  siamese: { body: "#E0D8C8", stripe: "#8B7060", ear: "#C0A890", nose: "#C08888" },
+};
 
 export function RoomProps() {
   const { currentRoom, rooms } = useAppState();
-  const cat = CAT_PALETTES[currentRoom % CAT_PALETTES.length];
+  const coat = rooms[currentRoom]?.pet?.coat ?? DEFAULT_ROOM_PET.coat;
+  const cat = CAT_PALETTES[coat] ?? CAT_PALETTES[DEFAULT_ROOM_PET.coat];
   const isLastRoom = currentRoom === rooms.length - 1;
   return (
     <svg style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }} width={SCENE_W} height={SCENE_H} viewBox={`${VB_X} ${VB_Y} ${SCENE_W} ${SCENE_H}`} overflow="visible">

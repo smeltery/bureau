@@ -4,6 +4,7 @@ import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { privilegedAgentIdentity, type PrivilegedAgentIdentity } from "./agent-route-helpers.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
+import { normalizeRoomPet } from "../../shared/types.ts";
 import { createHash } from "crypto";
 
 const jsonHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
@@ -92,6 +93,7 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
     const currentVersion = roomSettingsVersion(current);
     if (version !== currentVersion) return error(409, "room settings changed; fetch the latest version and retry");
     if (!AgentManager.setRoomSettings(roomId, prompt, envFile)) return error(404, "room not found");
+    if ("pet" in body) AgentManager.setRoomPet(roomId, normalizeRoomPet(body.pet));
     return new Response(null, { status: 204, headers: noContentHeaders });
   }
 
@@ -122,9 +124,9 @@ function error(status: number, message: string): Response {
   return new Response(JSON.stringify({ error: message }), { status, headers: jsonHeaders });
 }
 
-function roomSettingsVersion(settings: { prompt: string | null; envFile: string | null }): string {
+function roomSettingsVersion(settings: { prompt: string | null; envFile: string | null; pet?: unknown }): string {
   return createHash("sha256")
-    .update(JSON.stringify({ prompt: settings.prompt ?? null, envFile: settings.envFile ?? null }))
+    .update(JSON.stringify({ prompt: settings.prompt ?? null, envFile: settings.envFile ?? null, pet: normalizeRoomPet(settings.pet) }))
     .digest("hex")
     .slice(0, 12);
 }

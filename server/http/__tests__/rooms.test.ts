@@ -91,9 +91,29 @@ describe("handleRoomsRequest", () => {
 
     expect(res?.status).toBe(200);
     const body = await res?.json();
-    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, version: body.version });
+    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, pet: null, version: body.version });
     expect(typeof body.version).toBe("string");
     AgentManager.setRoomSettings(room.id, null, null);
+  });
+
+  test("saves room pet choices with versioned room settings", async () => {
+    const room = AgentManager.getRooms()[0]!;
+    const current = await handleRoomsRequest(request(`/api/rooms/${room.id}/settings`), new URL(`http://local.test/api/rooms/${room.id}/settings`), ownerAuth);
+    expect(current).not.toBeNull();
+    const version = ((await current!.json()) as { version: string }).version;
+
+    const saved = await handleRoomsRequest(
+      request(`/api/rooms/${room.id}/settings`, {
+        method: "PUT",
+        body: JSON.stringify({ prompt: null, envFile: null, pet: { coat: "silver" }, version }),
+      }),
+      new URL(`http://local.test/api/rooms/${room.id}/settings`),
+      ownerAuth,
+    );
+
+    expect(saved?.status).toBe(204);
+    expect(AgentManager.getRoomSettings(room.id)?.pet).toEqual({ coat: "silver" });
+    AgentManager.setRoomPet(room.id, null);
   });
 
   test("requires the current room settings version when saving", async () => {

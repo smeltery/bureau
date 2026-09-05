@@ -1,4 +1,4 @@
-import type { AgentInfo, AgentSubscriptionUsage, KilledAgentSummary, LogEntry, RoomWire, SkillInfo, SlideFailureReason, SlideRecord } from "../../shared/types.ts";
+import type { AgentInfo, AgentSubscriptionUsage, KilledAgentSummary, LogEntry, RoomPet, RoomWire, SkillInfo, SlideFailureReason, SlideRecord } from "../../shared/types.ts";
 import type { BackendSession } from "../backends/types.ts";
 
 // Internal agent state
@@ -184,6 +184,7 @@ export type AgentEvent =
   | { type: "room_closed"; roomId: string }
   | { type: "room_renamed"; roomId: string; name: string }
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
+  | { type: "room_pet_updated"; roomId: string; pet: RoomPet | null }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
   | { type: "rooms_reordered"; order: string[] }
   | { type: "clear_logs"; agentId: string }
@@ -206,4 +207,5 @@ export interface InternalRoom {
   name: string;
   prompt: string | null;
   envFile: string | null;
+  pet?: RoomPet | null;
 }

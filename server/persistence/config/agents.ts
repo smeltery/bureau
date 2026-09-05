@@ -1,7 +1,8 @@
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import type { AgentCapabilities, AgentInfo, ClaudeModel, KilledAgentSummary, QueuedMessage } from "../../../shared/types.ts";
-import { familyFromLegacyModel, generateRoomId } from "../../../shared/types.ts";
+import { familyFromLegacyModel, generateRoomId, normalizeRoomPet } from "../../../shared/types.ts";
+import type { RoomPet } from "../../../shared/types.ts";
 import { AGENTS_FILE, atomicWriteFileSync, LOGS_DIR, MANIFEST_FILE } from "../paths.ts";
 
 // Persisted agent config (subset of AgentInfo + session tracking)
@@ -41,11 +42,12 @@ export interface Room {
   name: string; // display name
   prompt: string | null; // room-level prompt
   envFile: string | null; // absolute path to dotenv file
+  pet?: RoomPet | null;
   agents: PersistedAgent[];
 }
 
 export function loadAgents(): Room[] {
-  const defaultRoom = (): Room => ({ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, agents: [] });
+  const defaultRoom = (): Room => ({ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, agents: [] });
   let rooms: any[];
   try {
     if (!existsSync(AGENTS_FILE)) return [defaultRoom()];
@@ -63,10 +65,11 @@ export function loadAgents(): Room[] {
         name: `Room ${i + 1}`,
         prompt: null,
         envFile: null,
+        pet: null,
         agents,
       }));
     } else {
-      rooms = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, agents: parsed as PersistedAgent[] }];
+      rooms = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, agents: parsed as PersistedAgent[] }];
     }
   } catch {
     return [defaultRoom()];
@@ -82,6 +85,7 @@ export function loadAgents(): Room[] {
     }
     if (typeof room.prompt !== "string") room.prompt = null;
     if (typeof room.envFile !== "string") room.envFile = null;
+    room.pet = normalizeRoomPet(room.pet);
     for (const agent of room.agents as PersistedAgent[]) migratePersistedAgent(agent);
   }
   return rooms as Room[];
