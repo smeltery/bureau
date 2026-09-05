@@ -117,7 +117,7 @@ function backendReport(id: BackendCredentialPath["id"], paths: string[], root: s
   if (id === "codex-login") return [`- Codex sign-in credentials were omitted${forUsers}. Each affected user must open User Settings > Connections > Codex and sign in again.`];
   if (id === "opencode-login")
     return [
-      "- OpenCode provider credentials were omitted. Each affected user must open User Settings > Connections > Environment variables > Variables for agents I spawn, enter ANTHROPIC_API_KEY or OPENAI_API_KEY, and then use /clear on affected agents.",
+      "- OpenCode provider credentials were omitted. Each affected user must open User Settings > Connections > Environment variables > Variables for agents I spawn, enter OPENCODE_API_KEY, and then use /clear on affected agents.",
     ];
   return ["- OpenCode MCP OAuth credentials were omitted. Reconnect each affected server with the profile-scoped command: opencode mcp auth <server-name>."];
 }

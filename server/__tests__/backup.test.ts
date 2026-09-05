@@ -149,6 +149,8 @@ describe("verified backup publication", () => {
     const report = fs.readFileSync(path.join(restored, "RESTORE.txt"), "utf8");
     expect(report).not.toContain("EXCLUDED:RESTORE.txt");
     expect(report).toContain('user "Alice"');
+    expect(report).toContain("enter OPENCODE_API_KEY");
+    expect(report).not.toContain("enter ANTHROPIC_API_KEY or OPENAI_API_KEY");
     expect(report).toContain("OpenCode MCP OAuth credentials were omitted");
     expect(report).toContain("opencode mcp auth <server-name>");
     expect(report).toContain("This report does not claim that the archive is free of secrets.");
