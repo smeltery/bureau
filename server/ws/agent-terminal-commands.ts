@@ -20,7 +20,7 @@ export function handleAgentTerminalCommand(cmd: AgentTerminalCommand, canUseAgen
         // Replay buffered output so the browser catches up.
         const buffer = AgentManager.getTerminalBuffer(cmd.agentId);
         if (buffer) {
-          broadcast({ type: "terminal_output", agentId: cmd.agentId, data: buffer } as ServerMessage);
+          broadcast({ type: "terminal_output", agentId: cmd.agentId, data: buffer, replay: true } as ServerMessage);
         }
       }
       return;

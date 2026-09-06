@@ -10,6 +10,7 @@ import { useTerminalSoftKeys } from "./terminal/useTerminalSoftKeys.ts";
 import { DARK_TERMINAL_THEME, LIGHT_TERMINAL_THEME } from "./terminal-themes.ts";
 import { TerminalHeader } from "./terminal-chrome.tsx";
 import { TerminalPanelBody } from "./terminal/TerminalPanelBody.tsx";
+import { installReplayGuard, type ReplayGuard } from "./terminal/terminal-replay-guard.ts";
 
 export function resetTerminalForRespawn(terminal: Pick<Terminal, "reset">): void {
   terminal.reset();
@@ -43,6 +44,7 @@ export function TerminalPanel({
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputProxyRef = useRef<HTMLTextAreaElement>(null);
   const termRef = useRef<Terminal | null>(null);
+  const replayGuardRef = useRef<ReplayGuard | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   // Lets handleBodyTap query whether the just-completed touch was a scroll
   // gesture (in which case we should NOT focus the input proxy and pop the
@@ -58,7 +60,13 @@ export function TerminalPanel({
       try {
         const msg = JSON.parse(data) as ServerMessage;
         if (msg.type === "terminal_output" && msg.agentId === agentId) {
-          termRef.current?.write(msg.data);
+          const term = termRef.current;
+          if (!term) return;
+          if (msg.replay) {
+            replayGuardRef.current?.writeReplay(msg.data);
+          } else {
+            term.write(msg.data);
+          }
         } else if (msg.type === "terminal_exit" && msg.agentId === agentId) {
           setExited(msg.exitCode);
         }
@@ -140,6 +148,7 @@ export function TerminalPanel({
 
     termRef.current = term;
     fitRef.current = fitAddon;
+    replayGuardRef.current = installReplayGuard(term);
 
     // Listen for terminal messages via raw WebSocket listener
     // (survives reconnects, avoids unnecessary React re-renders)
@@ -163,6 +172,8 @@ export function TerminalPanel({
     return () => {
       observer.disconnect();
       removeRawListener(handleRawMessage);
+      replayGuardRef.current?.dispose();
+      replayGuardRef.current = null;
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
