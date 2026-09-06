@@ -82,7 +82,8 @@ describe("handleApiTokensRequest", () => {
 
   test("lists and messages only visible live agents", async () => {
     const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
-    const visibleRoomId = AgentManager.getRooms()[0]!.id;
+    const visibleRoom = AgentManager.getRooms()[0]!;
+    const visibleRoomId = visibleRoom.id;
     const hiddenRoomId = AgentManager.createRoom("API token hidden");
     const hiddenRoom = AgentManager.getRooms().findIndex((room) => room.id === hiddenRoomId);
     updateUserById(user.id, { allowedRooms: [visibleRoomId] });
@@ -130,7 +131,8 @@ describe("handleApiTokensRequest", () => {
 
   test("lets an agent send replies to a personal token inbox", async () => {
     const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
-    const visibleRoomId = AgentManager.getRooms()[0]!.id;
+    const visibleRoom = AgentManager.getRooms()[0]!;
+    const visibleRoomId = visibleRoom.id;
     updateUserById(user.id, { allowedRooms: [visibleRoomId] });
     installAgent("api-replier", 0, user.id);
     const agentToken = mintAgentToken("api-replier", user.id, false);
@@ -173,7 +175,7 @@ describe("handleApiTokensRequest", () => {
       text: "The report is ready.",
       senderAgentId: "api-replier",
       senderAgentName: "Agent api-replier",
-      senderRoomName: "Room 1",
+      senderRoomName: visibleRoom.name,
     });
     expect(typeof drainedBody.messages[0].sentAt).toBe("number");
     expect(drainedBody.previouslyDrainedAt).toBeNull();
