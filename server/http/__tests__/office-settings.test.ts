@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
+import { writeManagedUserEnv } from "../../persistence/managed-env.ts";
+import { claimUserByName } from "../../users.ts";
 import { handleEnvSettingsRequest, handleOfficeSettingsRequest } from "../office-settings.ts";
 
 const ownerAuth: AuthResult = {
@@ -112,5 +114,26 @@ describe("handleEnvSettingsRequest", () => {
 
     expect(res?.status).toBe(400);
     expect(await res?.json()).toEqual({ error: "values must be a string map" });
+  });
+
+  test("lets owners inspect only member variable names", async () => {
+    const member = claimUserByName(`Member Env Names ${crypto.randomUUID()}`, { role: "member" });
+    writeManagedUserEnv(member.id, { BETA_KEY: "hidden", ALPHA_KEY: "also-hidden" });
+    const req = request(`/api/users/${encodeURIComponent(member.name)}/env/names`);
+
+    const res = await handleEnvSettingsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toEqual({ names: ["ALPHA_KEY", "BETA_KEY"] });
+  });
+
+  test("keeps member variable names owner-only", async () => {
+    const member = claimUserByName(`Member Env Names Gate ${crypto.randomUUID()}`, { role: "member" });
+    const req = request(`/api/users/${encodeURIComponent(member.name)}/env/names`);
+
+    const res = await handleEnvSettingsRequest(req, new URL(req.url), memberAuth);
+
+    expect(res?.status).toBe(403);
+    expect(await res?.json()).toEqual({ error: "owner access required" });
   });
 });

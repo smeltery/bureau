@@ -11,6 +11,7 @@ import { ApiTokensPane } from "./ApiTokensPane.tsx";
 import { SessionsPane } from "./SessionsPane.tsx";
 import { buildAccountSections, type AccountSection } from "./UserSettingsSections.ts";
 import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
+import { MemberVariableNames } from "./MemberVariableNames.tsx";
 import { OfficeVariablesPane } from "./OfficeVariablesPane.tsx";
 import { SignOutPane } from "./SignOutPane.tsx";
 import { UserEditPanel } from "./modals/UserEditPanel.tsx";
@@ -208,6 +209,7 @@ export function UserSettingsView({
                   }}
                   onDirtyChange={(dirty) => (editIsDirtyRef.current = dirty)}
                 />
+                {isOwner && <MemberVariableNames username={selectedUser.name} />}
               </section>
             ) : selection?.kind === "section" && selection.section === "access" ? (
               <AccessPane onDirtyChange={setDetailDirty} />

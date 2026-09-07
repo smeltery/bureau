@@ -6,8 +6,8 @@ import {
   ManagedEnvValidationError,
   managedOfficeEnvPath,
   managedUserEnvPath,
-  readManagedOfficeEnv,
   readManagedUserEnv,
+  readManagedOfficeEnv,
   writeManagedOfficeEnv,
   writeManagedUserEnv,
 } from "../persistence/managed-env.ts";
@@ -68,6 +68,19 @@ export async function handleEnvSettingsRequest(req: Request, url: URL, auth: Aut
   if (route.scope === "user") {
     const target = getUserByName(route.username);
     if (!target) return error(404, "user not found");
+
+    if (route.names) {
+      if (auth.session.role !== "owner") return error(403, "owner access required");
+      if (req.method === "GET") {
+        try {
+          return json({ names: Object.keys(readManagedUserEnv(target.id)).sort((a, b) => a.localeCompare(b)) });
+        } catch {
+          return error(500, "could not read managed env file");
+        }
+      }
+      return error(404, "not found");
+    }
+
     if (auth.session.role !== "owner" && auth.session.userId !== target.id) return error(403, "forbidden");
 
     if (req.method === "GET") {
@@ -133,10 +146,10 @@ function json(body: unknown): Response {
   return new Response(JSON.stringify(body), { headers: jsonHeaders });
 }
 
-function parseEnvRoute(pathname: string): { scope: "office" } | { scope: "user"; username: string } | null {
+function parseEnvRoute(pathname: string): { scope: "office" } | { scope: "user"; username: string; names: boolean } | null {
   if (pathname === "/api/office/env") return { scope: "office" };
-  const match = pathname.match(/^\/api\/users\/([^/]+)\/env$/);
-  return match ? { scope: "user", username: decodeURIComponent(match[1]) } : null;
+  const match = pathname.match(/^\/api\/users\/([^/]+)\/env(\/names)?$/);
+  return match ? { scope: "user", username: decodeURIComponent(match[1]), names: !!match[2] } : null;
 }
 
 async function valuesFromRequest(req: Request): Promise<Record<string, string> | Response> {
