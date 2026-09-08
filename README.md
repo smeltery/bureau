@@ -121,6 +121,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Voice I/O** — speech-to-text prompts and text-to-speech responses use each user's saved language preference when set
 - **6 color themes** — Dark, Light, Nord, Dracula, Solarized Dark, Solarized Light; pick from the theme picker in the header. First load follows your OS `prefers-color-scheme` (and live-updates if you flip it system-wide) until you make an explicit choice. The wall moon/sun cycles through every theme from lightest to darkest
 - **Wall affordances & shortcuts** — corkboard opens Tasks, clock opens Schedules, vent opens Settings, apps plaque opens Apps; press `t` / `s` to toggle Tasks or open Settings when not typing
+- **Bookmarkable panels** — Tasks, Schedules, Apps, Plugins, and Settings live at `/tasks`, `/schedules`, `/apps`, `/plugins`, and `/settings` (refresh and share keep the panel; agent chats stay on `/`)
 - **Seasonal office decorations** — string lights in late December, a jack-o'-lantern the week before Halloween, and a chocolate box on Valentine's Day; add `?officeDate=YYYY-MM-DD` (or `all`) to preview out of season
 - **Log secret redaction** — provider tokens and common `api_key` / `secret` / `token` / `password` assignments are masked on write before conversation logs hit disk or the live UI
 

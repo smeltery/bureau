@@ -23,6 +23,7 @@ import { storageGetItem, storageSetItem } from "./browser-storage.ts";
 import { normalizeDraftUser, pruneDraftsForUser, readDraftsForUser, writeDraftForUser } from "./store-drafts.ts";
 import { readSavedView, writeSavedView } from "./store-view.ts";
 import { agentTabLabel } from "./agent-tab-label.ts";
+import { pageForPath } from "./routes.ts";
 
 export function App() {
   const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext, hasReceivedInitialState } = useAppState();
@@ -45,6 +46,22 @@ export function App() {
   const [appsOpen, setAppsOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
+
+  // Deep-link boot: /tasks, /schedules, /apps, /plugins, /settings open the
+  // matching panel. Runs once on mount; saved-view restore below skips when a
+  // path already named a panel.
+  const [bootedPage] = useState(() => pageForPath(window.location.pathname));
+  useEffect(() => {
+    if (!bootedPage) return;
+    if (bootedPage === "tasks") setTasksOpen(true);
+    else if (bootedPage === "schedules") setCronjobsOpen(true);
+    else if (bootedPage === "apps") setAppsOpen(true);
+    else if (bootedPage === "plugins") setPluginsOpen(true);
+    else if (bootedPage === "settings") {
+      setEditingUserId(null);
+      setEditingUsername(true);
+    }
+  }, [bootedPage]);
 
   const focusedAgent = focusedAgentId ? (agents.find((a) => a.id === focusedAgentId) ?? null) : null;
   const anyModalOpen = editingUsername || editingDeviceSettings || editingOfficePrompt || editingRoomSettings !== null || updateOpen;
@@ -86,11 +103,12 @@ export function App() {
     const agent = saved.agentId ? agents.find((candidate) => candidate.id === saved.agentId) : null;
     if (roomIndex >= 0) dispatch({ type: "set_current_room", room: roomIndex });
     if (agent) dispatch({ type: "focus", agentId: agent.id });
+    if (bootedPage) return;
     if (saved.panel === "tasks") setTasksOpen(true);
     else if (saved.panel === "cronjobs") setCronjobsOpen(true);
     else if (saved.panel === "apps") setAppsOpen(true);
     else if (saved.panel === "plugins") setPluginsOpen(true);
-  }, [agents, dispatch, draftUser, hasReceivedInitialState, rooms]);
+  }, [agents, bootedPage, dispatch, draftUser, hasReceivedInitialState, rooms]);
 
   useEffect(() => {
     if (!draftUser || !hasRestoredViewRef.current) return;
@@ -111,7 +129,7 @@ export function App() {
     document.title = label ? `${label} | Bureau` : "Bureau";
   }, [appsOpen, connected, cronjobsOpen, currentRoomName, focusedAgentName, focusedAgentState, pluginsOpen, tasksOpen]);
 
-  const { goHome, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
+  const { goHome, closeTasks, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
     agents,
     connected,
     currentRoom,
@@ -139,6 +157,11 @@ export function App() {
       setEditingUserId(null);
       setEditingUsername(true);
     },
+    closeSettings: () => {
+      setEditingUsername(false);
+      setEditingUserId(null);
+    },
+    bootPage: bootedPage,
   });
 
   return (
@@ -147,15 +170,7 @@ export function App() {
       <ConnectionBanner />
       {username === null && <UserManagementModal currentUsername={null} forceCreate onSwitchUser={setUsername} />}
       {editingUsername && username !== null ? (
-        <UserSettingsView
-          currentUsername={username}
-          initialUserId={editingUserId}
-          onSwitchUser={setUsername}
-          onClose={() => {
-            setEditingUsername(false);
-            setEditingUserId(null);
-          }}
-        />
+        <UserSettingsView currentUsername={username} initialUserId={editingUserId} onSwitchUser={setUsername} onClose={goHome} />
       ) : pluginsOpen ? (
         <PluginsView onClose={goHome} />
       ) : cronjobsOpen ? (
@@ -165,7 +180,7 @@ export function App() {
       ) : tasksOpen ? (
         <TaskView
           username={username ?? ""}
-          onClose={goHome}
+          onClose={closeTasks}
           onFocusAgent={(agentId) => {
             setTasksOpen(false);
             dispatch({ type: "focus", agentId });

@@ -78,6 +78,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Clickable wall affordances: corkboard → Tasks, clock → Schedules, vent →
   Settings, apps plaque → Apps (moon/sun still toggles theme).
 - Keyboard shortcuts `t` (toggle Tasks) and `s` (open Settings) when not typing.
+- Bookmarkable full-page URLs for Tasks (`/tasks`), Schedules (`/schedules`),
+  Apps (`/apps`), Plugins (`/plugins`), and Settings (`/settings`); agent chats
+  stay on `/`. Legacy `/cronjobs` and `/users` still open Schedules / Settings.
 - Topic labels so long-running agents remain recognizable at a glance.
 - Mobile agent list view for smaller screens.
 

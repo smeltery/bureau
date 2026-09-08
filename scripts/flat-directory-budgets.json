@@ -1,6 +1,10 @@
 {
   "default_files": 40,
   "directories": {
+    "ui": {
+      "limit": 42,
+      "reason": "routes.ts (+ test) owns the panel path table for bookmarkable History API URLs so App wiring stays free of a hard-coded pathname switch."
+    },
     "server": {
       "limit": 44,
       "reason": "oom-stamp.ts (+ test) biases descendant oom_score_adj; process-name.ts (+ test) renames the office to `bureau` so name-based protectors can shield it without shielding agent bun builds. Both stay flat boot-time modules beside backup.ts / update-checker.ts."

@@ -5,6 +5,16 @@ import { send } from "./ws.ts";
 import { getDevice } from "./device-settings.ts";
 import { shouldHostCloseOnEscape } from "./components/modals/expandedEditorState.ts";
 import type { ViewportControls } from "./office/OfficeView.tsx";
+import { pageForPath, pathForPage, type Page } from "./routes.ts";
+
+function pageFromFlags(flags: { tasksOpen: boolean; cronjobsOpen: boolean; appsOpen: boolean; pluginsOpen: boolean; settingsOpen: boolean }): Page | null {
+  if (flags.settingsOpen) return "settings";
+  if (flags.tasksOpen) return "tasks";
+  if (flags.cronjobsOpen) return "schedules";
+  if (flags.appsOpen) return "apps";
+  if (flags.pluginsOpen) return "plugins";
+  return null;
+}
 
 type ViewMode = "office" | "log" | "away";
 
@@ -50,6 +60,8 @@ export function useAppNavigation({
   setEditAgent,
   settingsOpen,
   openSettings,
+  closeSettings,
+  bootPage,
 }: {
   agents: AgentInfo[];
   connected: boolean;
@@ -75,9 +87,16 @@ export function useAppNavigation({
   setEditAgent: Dispatch<SetStateAction<AgentInfo | null>>;
   settingsOpen: boolean;
   openSettings: () => void;
+  closeSettings: () => void;
+  /** Panel named by the load URL, or null for office / unknown paths. */
+  bootPage: Page | null;
 }) {
   const roomCount = rooms.length;
   const viewportControlsRef = useRef<ViewportControls | null>(null);
+  // History ownership for the current entry (isomux ruling 8):
+  // none = office on the load entry; adopted = cold deep link we did not push;
+  // pushed = we pushed the entry, so Close/Escape may history.back().
+  const entryRef = useRef<"none" | "adopted" | "pushed">(bootPage === null ? "none" : "adopted");
 
   useEffect(() => {
     if (username && connected) sendClaim(username);
@@ -111,18 +130,39 @@ export function useAppNavigation({
     if (nextId) dispatch({ type: "focus", agentId: nextId });
   }, [dispatch, agents, drafts, currentRoom, focusedAgentId]);
 
-  const deepRef = useRef(false);
+  const applyPage = useCallback(
+    (page: Page | null) => {
+      setTasksOpen(page === "tasks");
+      setCronjobsOpen(page === "schedules");
+      setAppsOpen(page === "apps");
+      setPluginsOpen(page === "plugins");
+      if (page === "settings") openSettings();
+      else closeSettings();
+    },
+    [closeSettings, openSettings, setAppsOpen, setCronjobsOpen, setPluginsOpen, setTasksOpen],
+  );
+
   const goHome = useCallback(() => {
-    if (deepRef.current) {
-      window.history.back();
-    } else {
-      setTasksOpen(false);
-      setCronjobsOpen(false);
-      setAppsOpen(false);
-      setPluginsOpen(false);
-      dispatch({ type: "focus", agentId: null });
+    if (entryRef.current === "pushed") {
+      window.history.back(); // popstate resets panel/focus state
+      return;
     }
-  }, [dispatch, setAppsOpen, setCronjobsOpen, setPluginsOpen, setTasksOpen]);
+    // Cold deep link: nothing underneath — replace in place so Close still works.
+    if (entryRef.current === "adopted") {
+      window.history.replaceState({ bureau: true, page: null }, "", "/");
+    }
+    entryRef.current = "none";
+    applyPage(null);
+    dispatch({ type: "focus", agentId: null });
+  }, [applyPage, dispatch]);
+
+  // Tasks opened over a focused chat: closing the board returns to that chat
+  // (still deep). Otherwise Close returns to the office.
+  const tasksOverChat = tasksOpen && !!focusedAgent;
+  const closeTasks = useCallback(() => {
+    if (tasksOverChat) setTasksOpen(false);
+    else goHome();
+  }, [goHome, setTasksOpen, tasksOverChat]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -195,34 +235,59 @@ export function useAppNavigation({
     return () => window.removeEventListener("keydown", handleKey);
   }, [dispatch, goHome, focusedAgentId, agents, drafts, currentRoom, roomCount, setCtxMenu, setEditAgent, setSpawnDesk, setTasksOpen, settingsOpen, openSettings]);
 
-  const isDeep = tasksOpen || cronjobsOpen || appsOpen || pluginsOpen || focusedAgentId !== null;
+  // Agent chats are not routes — they share "/" with the office. Panels get
+  // real paths so refresh/share keep working.
+  const page = pageFromFlags({ tasksOpen, cronjobsOpen, appsOpen, pluginsOpen, settingsOpen });
+  const isDeep = page !== null || focusedAgentId !== null;
   useEffect(() => {
-    if (isDeep && !deepRef.current) {
-      window.history.pushState({ bureau: true }, "");
-      deepRef.current = true;
-    } else if (isDeep && deepRef.current) {
-      window.history.replaceState({ bureau: true }, "");
-    } else if (!isDeep && deepRef.current) {
-      deepRef.current = false;
+    const entry = { bureau: true, page };
+    const path = pathForPage(page);
+    if (isDeep && entryRef.current === "none") {
+      window.history.pushState(entry, "", path);
+      entryRef.current = "pushed";
+    } else if (isDeep) {
+      // Deep→deep, or boot on an adopted entry: rewrite path in place
+      // (canonicalises /cronjobs → /schedules, /users → /settings).
+      window.history.replaceState(entry, "", path);
+    } else if (entryRef.current !== "none") {
+      // Returned to office without history.back() (e.g. "t" toggle): keep the
+      // stack entry but point it at the office so the address bar matches.
+      window.history.replaceState({ bureau: true, page: null }, "", "/");
+      entryRef.current = "none";
     }
-  }, [isDeep]);
+  }, [isDeep, page]);
+
+  // Non-route paths show the office — normalise the address bar to "/".
+  useEffect(() => {
+    if (bootPage !== null || window.location.pathname === "/") return;
+    window.history.replaceState({ bureau: true, page: null }, "", "/");
+  }, [bootPage]);
 
   useEffect(() => {
     function handlePopState() {
-      deepRef.current = false;
-      setTasksOpen(false);
-      setCronjobsOpen(false);
-      setAppsOpen(false);
-      setPluginsOpen(false);
+      const target = pageForPath(window.location.pathname);
+      if (target !== null) {
+        if (entryRef.current === "none") entryRef.current = "pushed";
+        applyPage(target);
+        return;
+      }
+      entryRef.current = "none";
+      if (tasksOverChat) {
+        // Back from tasks-over-chat steps to the chat, not the office.
+        setTasksOpen(false);
+        return;
+      }
+      applyPage(null);
       dispatch({ type: "focus", agentId: null });
     }
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [dispatch, setAppsOpen, setCronjobsOpen, setPluginsOpen, setTasksOpen]);
+  }, [applyPage, dispatch, setTasksOpen, tasksOverChat]);
 
   return {
     goHome,
+    closeTasks,
     swipeAgentNext,
     swipeAgentPrev,
     swipeRoomNext,
