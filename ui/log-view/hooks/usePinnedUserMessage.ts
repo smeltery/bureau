@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LogEntry } from "../../../shared/types.ts";
+import { pinnedHumanMessageId } from "./pinned-human-message.ts";
 
 /**
- * Pin a user message to the top of the chat when none are visible in the
- * viewport, so the user always has context for what they asked. The pinned
- * one is the most-recent user_message that's scrolled above the viewport.
+ * Pin the most recent *human* user message above the viewport when none are
+ * visible, so the viewer keeps context for what they asked. Agent / app /
+ * cron / API-token user_messages are skipped (see pinnedHumanMessageId).
  *
  * We measure positions from the DOM rather than relying on IntersectionObserver
  * because IO only fires on isIntersecting flips — when the auto-scroll jumps
@@ -34,24 +35,22 @@ export function usePinnedUserMessage(scrollRef: React.RefObject<HTMLDivElement |
   const [pinnedMessageId, setPinnedMessageId] = useState<string | null>(null);
   const recomputePinned = useCallback(() => {
     const root = scrollRef.current;
-    if (!root) return;
-    const rootRect = root.getBoundingClientRect();
-    for (let i = logs.length - 1; i >= 0; i--) {
-      const e = logs[i];
-      if (e.kind !== "user_message") continue;
-      const node = userMsgNodesRef.current.get(e.id);
-      if (!node) continue;
-      const r = node.getBoundingClientRect();
-      if (r.bottom > rootRect.top && r.top < rootRect.bottom) {
-        setPinnedMessageId(null);
-        return;
-      }
-      if (r.bottom <= rootRect.top) {
-        setPinnedMessageId(e.id);
-        return;
-      }
+    if (!root) {
+      setPinnedMessageId(null);
+      return;
     }
-    setPinnedMessageId(null);
+    const rootRect = root.getBoundingClientRect();
+    const nextId = pinnedHumanMessageId(
+      logs,
+      (id) => {
+        const node = userMsgNodesRef.current.get(id);
+        if (!node) return undefined;
+        const r = node.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+      },
+      { top: rootRect.top, bottom: rootRect.bottom },
+    );
+    setPinnedMessageId(nextId);
   }, [logs, scrollRef]);
 
   // Recompute after every render that could affect positions, on the next

@@ -147,3 +147,7 @@ implementation stays in Bureau naming and architecture.
 - Storage/Usage as User Settings panes: Account sidebar entries for Usage
   (any signed-in user) and Storage (owner-only), embedding the existing
   storage/usage surfaces instead of nesting them under Office Settings.
+- Pinned human-message banner: extract `pinnedHumanMessageId` /
+  `senderIsHuman` and skip agent / app / cron / API-token `user_message`
+  entries so the sticky banner keeps human ask context (mirrors isomux
+  `pinned-message.ts`).
