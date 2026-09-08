@@ -2,6 +2,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { join } from "path";
 import type { LogEntry } from "../../shared/types.ts";
+import { prepareLogEntry } from "./logs/log-redaction.ts";
 import { atomicWriteFileSync, CRONJOBS_DIR } from "./paths.ts";
 import type { PersistedUsage } from "./logs/sessions.ts";
 
@@ -168,6 +169,8 @@ export function appendRunSessionUsageSnapshot(jobId: string, runId: string, sess
 // ---------------------------------------------------------------------------
 
 export function appendRunLog(jobId: string, runId: string, sessionId: string, entry: LogEntry) {
+  if (entry.ephemeral) return;
+  entry = prepareLogEntry(entry);
   try {
     mkdirSync(runDir(jobId, runId), { recursive: true });
     appendFileSync(sessionLogFile(jobId, runId, sessionId), JSON.stringify(entry) + "\n");

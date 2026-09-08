@@ -4,8 +4,14 @@ import type { LogEntry } from "../../../shared/types.ts";
 import { LOGS_DIR } from "../paths.ts";
 import { EXTENSION_TO_MIME } from "../files.ts";
 import { loadSessionsMap } from "./sessions.ts";
+import { prepareLogEntry } from "./log-redaction.ts";
+
+export { prepareLogEntry, redactLogEntry } from "./log-redaction.ts";
 
 export function appendLog(agentId: string, sessionId: string, entry: LogEntry) {
+  // Ephemeral entries must never reach disk — defense-in-depth for future callers.
+  if (entry.ephemeral) return;
+  entry = prepareLogEntry(entry);
   try {
     const agentDir = join(LOGS_DIR, agentId);
     mkdirSync(agentDir, { recursive: true });

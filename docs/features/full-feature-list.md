@@ -133,6 +133,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   quoting, chaining, redirection, globbing or expansion) can match or be stored.
 - Claude safety hooks for destructive shell commands, Bureau state protection,
   and secret-file reads.
+- Write-path secret redaction in agent and cron conversation logs (provider tokens and common `api_key`/`secret`/`token`/`password` assignments), without rewriting history.
 - Plugin hooks around agent turns with deterministic prefix ordering and
   isolated plugin failure logging.
 - Per-agent MCP access design and plugin-management design docs for future

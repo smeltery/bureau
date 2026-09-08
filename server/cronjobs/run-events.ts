@@ -1,6 +1,6 @@
 import type { Attachment, CronjobRun, LogEntry } from "../../shared/types.ts";
 import type { BackendSession, NormalizedEvent } from "../backends/types.ts";
-import { accumulateRunSessionUsage, appendRunLog, appendRunSessionUsageSnapshot, updateRun } from "../persistence.ts";
+import { prepareLogEntry, accumulateRunSessionUsage, appendRunLog, appendRunSessionUsageSnapshot, updateRun } from "../persistence.ts";
 import type { CronjobEvent } from "./index.ts";
 
 export interface ActiveRun {
@@ -122,7 +122,7 @@ export function writeLog(
   attachments?: Attachment[],
   extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
 ) {
-  const entry: LogEntry = {
+  const entry = prepareLogEntry({
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     agentId: active.streamId,
     timestamp: Date.now(),
@@ -131,7 +131,7 @@ export function writeLog(
     ...(metadata ? { metadata } : {}),
     ...(attachments && attachments.length > 0 ? { attachments } : {}),
     ...(extra ?? {}),
-  };
+  });
   if (active.sessionId) {
     appendRunLog(active.jobId, active.runId, active.sessionId, entry);
     active.lastWrittenEntryId = entry.id;

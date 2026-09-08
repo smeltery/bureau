@@ -121,6 +121,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Voice I/O** — speech-to-text prompts and text-to-speech responses use each user's saved language preference when set
 - **6 color themes** — Dark, Light, Nord, Dracula, Solarized Dark, Solarized Light; pick from the theme picker in the header. First load follows your OS `prefers-color-scheme` (and live-updates if you flip it system-wide) until you make an explicit choice. The wall moon/sun cycles through every theme from lightest to darkest
 - **Seasonal office decorations** — string lights in late December, a jack-o'-lantern the week before Halloween, and a chocolate box on Valentine's Day; add `?officeDate=YYYY-MM-DD` (or `all`) to preview out of season
+- **Log secret redaction** — provider tokens and common `api_key` / `secret` / `token` / `password` assignments are masked on write before conversation logs hit disk or the live UI
 
 For the full feature list, see the [design & architecture article](articles/punching-in-building-an-office-for-ai-agents.md).
 
