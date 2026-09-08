@@ -82,6 +82,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 ## Conversation
 
+- Sticky last-human ask banner in chat: pins the most recent human composer message above the viewport (skips agent / app / cron / API-token user messages).
 - Markdown, syntax highlighting, Mermaid diagrams, citations, and rich cards.
 - Collapsible thinking/tool-call cards with timing.
 - File attachments via path notices, inline image display, and PDF handling.
