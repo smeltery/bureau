@@ -54,6 +54,7 @@ export function createManagedAgent(input: {
     recentSteers: [],
     lastWrittenEntryId: null,
     contextNudgesSent: new Set(),
+    firedUiThresholds: new Set(),
     pendingContextNotices: [],
     memoryNotice: null,
     memoryNoticeFired: false,

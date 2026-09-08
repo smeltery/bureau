@@ -127,6 +127,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         managed.sessionId = picked.sessionId;
         managed.topicGenerating = false;
         managed.contextNudgesSent.clear();
+        managed.firedUiThresholds.clear();
         managed.pendingContextNotices = [];
         managed.wakeNotice = null;
         managed.info.contextUsage = null;

@@ -119,6 +119,9 @@ export interface ManagedAgent {
   // cumulative-at-the-fork-point so shared turns aren't double-counted.
   lastWrittenEntryId: string | null;
   contextNudgesSent: Set<50 | 75>;
+  // Boss-facing ephemeral context wrap-up notices (separate audience from
+  // contextNudgesSent). Reset at conversation boundaries with the agent set.
+  firedUiThresholds: Set<50 | 75>;
   pendingContextNotices: string[];
   memoryNotice: string | null;
   memoryNoticeFired: boolean;

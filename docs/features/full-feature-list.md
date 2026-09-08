@@ -111,6 +111,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   on SIGTERM/SIGKILL or another signal, or when the harness reports
   `error_during_execution`. Ordinary exit codes and unrecognized failures stay
   verbatim; the original backend string is kept in log metadata for diagnosis.
+- Boss-facing ephemeral context wrap-up notices at 50%/75% (50% size-gated to
+  windows ≥ 500k tokens), pointing at `/clear` and `/handoff`, separate from the
+  agent-facing context budget nudge.
 
 ## Developer Tools
 
