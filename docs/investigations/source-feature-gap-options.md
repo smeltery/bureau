@@ -144,3 +144,6 @@ implementation stays in Bureau naming and architecture.
   (same `versionOf` rail as memory / custom instructions). Missing → 400;
   stale → 409 with the current version before field validation; the office
   settings dialog GETs the version on open.
+- Storage/Usage as User Settings panes: Account sidebar entries for Usage
+  (any signed-in user) and Storage (owner-only), embedding the existing
+  storage/usage surfaces instead of nesting them under Office Settings.

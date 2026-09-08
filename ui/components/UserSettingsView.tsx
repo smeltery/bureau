@@ -14,6 +14,8 @@ import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
 import { MemberVariableNames } from "./MemberVariableNames.tsx";
 import { OfficeVariablesPane } from "./OfficeVariablesPane.tsx";
 import { SignOutPane } from "./SignOutPane.tsx";
+import { StorageModal } from "./modals/StorageModal.tsx";
+import { UsageModal } from "./modals/UsageModal.tsx";
 import { UserEditPanel } from "./modals/UserEditPanel.tsx";
 type Selection = { kind: "user"; id: string } | { kind: "section"; section: AccountSection };
 export function UserSettingsView({
@@ -215,6 +217,10 @@ export function UserSettingsView({
               <AccessPane onDirtyChange={setDetailDirty} />
             ) : selection?.kind === "section" && selection.section === "office-env" ? (
               <OfficeVariablesPane />
+            ) : selection?.kind === "section" && selection.section === "usage" ? (
+              <UsageModal embedded />
+            ) : selection?.kind === "section" && selection.section === "storage" && isOwner ? (
+              <StorageModal embedded />
             ) : selection?.kind === "section" && selection.section === "invites" ? (
               <InvitesPane />
             ) : selection?.kind === "section" && selection.section === "sessions" ? (

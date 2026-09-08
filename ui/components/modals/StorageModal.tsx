@@ -30,7 +30,7 @@ async function apiFetch<T>(method: "GET" | "POST", path: string, body?: unknown)
   return (await res.json()) as T;
 }
 
-export function StorageModal({ onBack }: { onBack: () => void }) {
+export function StorageModal({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
   const [usage, setUsage] = useState<StorageUsageWire | null>(null);
   const [backup, setBackup] = useState<BackupStatusWire | "unavailable" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -109,8 +109,8 @@ export function StorageModal({ onBack }: { onBack: () => void }) {
     }
   }
 
-  return (
-    <Modal onClose={() => !deleting && onBack()} width={560} allowBackdropClose={!deleting}>
+  const body = (
+    <>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Storage</h3>
       <UsageBlock usage={usage} error={loadError} />
       <BackupBlock backup={backup} />
@@ -181,11 +181,21 @@ export function StorageModal({ onBack }: { onBack: () => void }) {
       )}
       {phase.kind === "done" && <ResultBlock result={phase.result} />}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-        <button onClick={onBack} disabled={deleting} style={{ ...dialogCancelBtn, opacity: deleting ? 0.5 : 1, cursor: deleting ? "not-allowed" : "pointer" }}>
-          {deleting ? "Deleting..." : "Back to settings"}
-        </button>
-      </div>
+      {!embedded && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+          <button onClick={onBack} disabled={deleting} style={{ ...dialogCancelBtn, opacity: deleting ? 0.5 : 1, cursor: deleting ? "not-allowed" : "pointer" }}>
+            {deleting ? "Deleting..." : "Back to settings"}
+          </button>
+        </div>
+      )}
+    </>
+  );
+
+  if (embedded) return <div style={{ marginTop: 8 }}>{body}</div>;
+
+  return (
+    <Modal onClose={() => !deleting && onBack?.()} width={560} allowBackdropClose={!deleting}>
+      {body}
     </Modal>
   );
 }

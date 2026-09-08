@@ -4,8 +4,6 @@ import { send, addRawListener, removeRawListener } from "../../ws.ts";
 import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
-import { StorageModal } from "./StorageModal.tsx";
-import { UsageModal } from "./UsageModal.tsx";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
@@ -18,8 +16,6 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const [name, setName] = useState(username);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
-  const [storageOpen, setStorageOpen] = useState(false);
-  const [usageOpen, setUsageOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const requestIdRef = useRef<string>("");
   const officeMemory = useMemoryEditor("office", null);
@@ -126,9 +122,6 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
     }
   }, []);
 
-  if (storageOpen) return <StorageModal onBack={() => setStorageOpen(false)} />;
-  if (usageOpen) return <UsageModal onBack={() => setUsageOpen(false)} />;
-
   return (
     <Modal onClose={onClose}>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Settings</h3>
@@ -164,19 +157,6 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         style={{ ...inputStyle, resize: "vertical" }}
       />
       <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>
-
-      {sessionContext?.role === "owner" && (
-        <>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Storage</label>
-          <button type="button" onClick={() => setStorageOpen(true)} style={{ ...dialogCancelBtn, width: "100%" }}>
-            Open storage...
-          </button>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Usage</label>
-          <button type="button" onClick={() => setUsageOpen(true)} style={{ ...dialogCancelBtn, width: "100%" }}>
-            Open usage...
-          </button>
-        </>
-      )}
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         Memory{" "}
