@@ -13,8 +13,20 @@ import * as AgentManager from "../../agent-manager.ts";
 import { agents } from "../../agents/state.ts";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { handleAgentsRequest } from "../agents.ts";
+import { handleCronjobsRequest } from "../cronjobs.ts";
+import * as CronjobManager from "../../cronjobs/index.ts";
 import { handleRoomsRequest } from "../rooms.ts";
-import { bearerRequest, grantRooms, HIDDEN_AGENT, setupPrivilegedFixture, TARGET_AGENT, teardownPrivilegedFixture, UNROOTED_AGENT, type PrivilegedFixture } from "./privileged-agent-fixture.ts";
+import {
+  bearerRequest,
+  grantRooms,
+  HIDDEN_AGENT,
+  OPERATOR_AGENT,
+  setupPrivilegedFixture,
+  TARGET_AGENT,
+  teardownPrivilegedFixture,
+  UNROOTED_AGENT,
+  type PrivilegedFixture,
+} from "./privileged-agent-fixture.ts";
 
 // Loopback is the strictest realistic non-session auth for a local agent's curl;
 // the room routes refuse it outright, so anything that passes below passed on the
@@ -225,3 +237,58 @@ function hiddenAgentAttempts(token: string, agentId: string = HIDDEN_AGENT): Pro
     agentRoute(`/api/agents/${agentId}/queue/missing-message`, token, { method: "DELETE" }),
   ]);
 }
+
+describe("privileged agent — schedules", () => {
+  const draft = () => ({
+    name: "Agent schedule",
+    schedule: { type: "daily" as const, hour: 9, minute: 0 },
+    prompt: "Ping the queue",
+    cwd: process.cwd(),
+    agentType: "claude" as const,
+    modelFamily: "sonnet",
+    effort: "high" as const,
+    permissionMode: "bypassPermissions" as const,
+  });
+
+  function cron(path: string, token: string, init: RequestInit = {}) {
+    const req = bearerRequest(path, token, init);
+    return handleCronjobsRequest(req, new URL(req.url), undefined);
+  }
+
+  test("creates, updates, and deletes schedules owned by its manager", async () => {
+    const createdRes = await cron("/api/cronjobs", fixture.privilegedToken, { body: JSON.stringify(draft()) });
+    expect(createdRes?.status).toBe(201);
+    const created = (await createdRes!.json()) as { id: string; userId: string; username: string };
+    expect(created.userId).toBe(fixture.manager.id);
+    expect(created.username).toContain(OPERATOR_AGENT);
+
+    const patched = await cron(`/api/cronjobs/${created.id}`, fixture.privilegedToken, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect(patched?.status).toBe(200);
+    expect(((await patched!.json()) as { enabled: boolean }).enabled).toBe(false);
+    const deleted = await cron(`/api/cronjobs/${created.id}`, fixture.privilegedToken, { method: "DELETE" });
+    expect(deleted?.status).toBe(204);
+  });
+
+  test("cannot mutate another user's schedule", async () => {
+    const foreign = CronjobManager.addCronjob({
+      ...draft(),
+      name: "Foreign",
+      username: fixture.ownerManager.name,
+      userId: fixture.ownerManager.id,
+    });
+    const patched = await cron(`/api/cronjobs/${foreign.id}`, fixture.privilegedToken, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect(patched?.status).toBe(403);
+    CronjobManager.deleteCronjob(foreign.id);
+  });
+
+  test("plain agent tokens cannot manage schedules", async () => {
+    const created = await cron("/api/cronjobs", fixture.plainToken, { body: JSON.stringify(draft()) });
+    expect(created?.status).toBe(401);
+  });
+});

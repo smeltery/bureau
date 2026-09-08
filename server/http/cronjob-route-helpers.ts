@@ -1,14 +1,45 @@
 import type { AuthOk, AuthResult } from "../auth/auth-middleware.ts";
 import * as AgentManager from "../agent-manager.ts";
+import { privilegedAgentIdentity } from "./agent-route-helpers.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import type { AgentBackendType, CodexSandboxMode, Cronjob, CronjobPermissionMode, EffortLevel, Schedule } from "../../shared/types.ts";
 
 export const cronjobCorsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
+export type CronjobCaller = {
+  session: { username: string; userId: string; role: AuthOk["session"]["role"] | "privileged_agent" };
+};
+
 export function browserSessionOrError(auth: AuthResult | undefined): AuthOk | Response {
   return auth?.kind === "ok" ? auth : jsonError(401, "authenticated browser session required");
 }
 
+/**
+ * Browser-session owner/member-owner gate, OR a privileged agent whose manager
+ * owns the job. Create callers pass no cronjob; mutations pass the target.
+ * Office cron prompt stays browser-owner-only (see cronjobs.ts).
+ */
+export function cronjobCallerOrError(req: Request, auth: AuthResult | undefined, cronjob?: Cronjob): CronjobCaller | Response {
+  if (auth?.kind === "ok") {
+    if (!cronjob || auth.session.role === "owner" || cronjob.userId === auth.session.userId) {
+      return { session: { username: auth.session.username, userId: auth.session.userId, role: auth.session.role } };
+    }
+    return jsonError(403, "owner access required");
+  }
+  const operator = privilegedAgentIdentity(req);
+  if (!operator) return jsonError(401, "authenticated browser session required");
+  if (cronjob && cronjob.userId !== operator.manager.id) return jsonError(403, "owner access required");
+  const agent = AgentManager.getAgent(operator.agentId);
+  return {
+    session: {
+      username: agent?.name ?? operator.manager.name,
+      userId: operator.manager.id,
+      role: "privileged_agent",
+    },
+  };
+}
+
+/** @deprecated Prefer cronjobCallerOrError — kept name as thin wrapper for browser-only call sites. */
 export function cronjobOwnerOrError(auth: AuthResult | undefined, cronjob: Cronjob): AuthOk | Response {
   const caller = browserSessionOrError(auth);
   if (caller instanceof Response) return caller;

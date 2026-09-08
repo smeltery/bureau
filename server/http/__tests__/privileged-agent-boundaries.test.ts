@@ -10,6 +10,7 @@ import { handleAccessRequest } from "../access.ts";
 import { handleAgentsRequest } from "../agents.ts";
 import { handleInvitesRequest } from "../invites.ts";
 import { handleOfficeSettingsRequest } from "../office-settings.ts";
+import { handleCronjobsRequest } from "../cronjobs.ts";
 import { handleSessionsRequest } from "../sessions.ts";
 import { handleUsersRequest } from "../users.ts";
 import { handleViewRequest } from "../view.ts";
@@ -136,5 +137,17 @@ describe("privileged agent — no path flips a privilege flag", () => {
     expect(res?.status).toBe(200);
     expect(AgentManager.getAgent(TARGET_AGENT)?.name).toBe("Edited By Operator");
     expect(AgentManager.getAgent(TARGET_AGENT)?.privileged ?? false).toBe(false);
+  });
+});
+
+describe("privileged agent — office-wide schedule prompt stays out of reach", () => {
+  test("refuses PUT /api/cron-prompt", async () => {
+    const req = bearerRequest("/api/cron-prompt", fixture.privilegedToken, {
+      method: "PUT",
+      body: JSON.stringify({ value: "Agent-written cron prompt" }),
+    });
+    const res = await handleCronjobsRequest(req, new URL(req.url), noSession);
+    expect(res?.status).toBe(401);
+    expect(await res?.json()).toEqual({ error: "authenticated browser session required" });
   });
 });
