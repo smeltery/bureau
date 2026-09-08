@@ -180,3 +180,8 @@ implementation stays in Bureau naming and architecture.
   Account → Variables sidebar entry (`PersonalVariablesPane`) that edits
   `/api/users/:name/env` via the existing ManagedEnvEditor. Provider Connections
   sign-in stays deferred.
+- Bookmarkable panel URLs: Tasks, Schedules, Apps, Plugins, and Settings are
+  real paths (`/tasks`, `/schedules`, `/apps`, `/plugins`, `/settings`) via the
+  History API. Refresh and share keep the panel; cold links adopt the entry so
+  Close replaces to `/` instead of leaving the site; agent chats stay on `/`.
+  Legacy `/cronjobs` and `/users` aliases still open Schedules / Settings.
