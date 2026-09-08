@@ -11,6 +11,8 @@ describe("styleForModel", () => {
 
   test("styles known Codex model families", () => {
     expect(styleForModel("gpt-5.6-sol").deskProp).toBe("book");
+    expect(styleForModel("gpt-6-astra").deskProp).toBe("book");
+    expect(styleForModel("gpt-6-astra").border).toBe("rgba(60,230,190,0.95)");
     expect(styleForModel("gpt-5.6-terra").deskProp).toBeUndefined();
     expect(styleForModel("gpt-5.6-luna").deskProp).toBe("crayons");
     expect(styleForModel("gpt-5.4-mini").border).toBe("rgba(120,220,160,0.62)");

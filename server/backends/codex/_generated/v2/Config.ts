@@ -12,6 +12,8 @@ import type { AnalyticsConfig } from "./AnalyticsConfig";
 import type { ApprovalsReviewer } from "./ApprovalsReviewer";
 import type { AppsConfig } from "./AppsConfig";
 import type { AskForApproval } from "./AskForApproval";
+import type { BrowserUseConfig } from "./BrowserUseConfig";
+import type { ComputerUseConfig } from "./ComputerUseConfig";
 import type { ForcedChatgptWorkspaceIds } from "./ForcedChatgptWorkspaceIds";
 import type { SandboxMode } from "./SandboxMode";
 import type { SandboxWorkspaceWrite } from "./SandboxWorkspaceWrite";
@@ -45,5 +47,7 @@ export type Config = {
   service_tier: string | null;
   analytics: AnalyticsConfig | null;
   apps: AppsConfig | null;
+  browser_use: BrowserUseConfig | null;
+  computer_use: ComputerUseConfig | null;
   desktop: { [key in string]?: JsonValue } | null;
 } & { [key in string]?: number | string | boolean | Array<JsonValue> | { [key in string]?: JsonValue } | null };

@@ -59,7 +59,10 @@ export function modelVersionLabel(family: ModelFamily): string {
   return onePart ? onePart[1] : exact;
 }
 
-export type EffortLevel = "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+// Reasoning effort levels. Most are shared across Claude (--effort) and Codex
+// (ReasoningEffort); `minimal` and `ultra` are Codex-only, and `max` is Claude
+// top-tier families plus Codex frontier models. UI filters per backend.
+export type EffortLevel = "minimal" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
 
 export const EFFORT_LEVELS: { level: EffortLevel; label: string }[] = [
   { level: "minimal", label: "Minimal (Codex only)" },
@@ -67,7 +70,8 @@ export const EFFORT_LEVELS: { level: EffortLevel; label: string }[] = [
   { level: "medium", label: "Medium" },
   { level: "high", label: "High" },
   { level: "xhigh", label: "Extra high" },
-  { level: "max", label: "Max (Opus/Fable only)" },
+  { level: "max", label: "Max" },
+  { level: "ultra", label: "Ultra (Codex only)" },
 ];
 
 export const DEFAULT_EFFORT: EffortLevel = "xhigh";
@@ -78,12 +82,20 @@ export function effortDisplayLabel(level: EffortLevel | undefined): string {
 }
 
 export function effortLevelsFor(agentType: "claude" | "codex", modelFamily: string): typeof EFFORT_LEVELS {
+  // Codex: full static list. The live allow-list is per-model
+  // supportedReasoningEfforts from model/list; Codex rejects unsupported
+  // values at thread/start (same pass-through stance as validateEffort).
   if (agentType === "codex") return EFFORT_LEVELS;
-  return EFFORT_LEVELS.filter((e) => e.level !== "minimal" && (e.level !== "max" || familyAllowsAutoPermission(modelFamily)));
+  return EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && (e.level !== "max" || familyAllowsAutoPermission(modelFamily)));
 }
 
+// Codex model identifiers and UI labels. Verified against `codex debug models`
+// on codex-cli 0.153.4 (2026-09-05). Default first (CODEX_MODELS[0]):
+// gpt-5.6-sol; gpt-6-astra is the newer flagship (Codex 0.153 lists it first)
+// and is not the default here until product owners decide otherwise.
 export const CODEX_MODELS: { value: string; label: string }[] = [
   { value: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
+  { value: "gpt-6-astra", label: "GPT-6 Astra" },
   { value: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
   { value: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
   { value: "gpt-5.5", label: "GPT-5.5" },

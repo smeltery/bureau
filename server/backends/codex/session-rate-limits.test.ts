@@ -20,6 +20,7 @@ function snapshot(over: Partial<Record<string, unknown>> = {}): RateLimitSnapsho
     secondary: null,
     credits: null,
     individualLimit: null,
+    spendControlReached: null,
     planType: "plus",
     rateLimitReachedType: null,
     ...over,

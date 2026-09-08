@@ -130,6 +130,7 @@ export function mergeRateLimitSnapshots(older: RateLimitSnapshot, newer: RateLim
     secondary: mergeRateLimitWindow(older.secondary, newer.secondary),
     credits: newer.credits ?? older.credits,
     individualLimit: newer.individualLimit ?? older.individualLimit,
+    spendControlReached: newer.spendControlReached ?? older.spendControlReached,
     planType: newer.planType ?? older.planType,
     rateLimitReachedType: newer.rateLimitReachedType ?? older.rateLimitReachedType,
   };

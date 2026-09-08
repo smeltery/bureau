@@ -9,8 +9,8 @@ export const APPS_REGISTRATION_CLAUSE =
 export const PLAIN_LANGUAGE_CLAUSE = "Do not use jargon when talking to the user. Do not use technical language unless you have established that they are technical.";
 
 const SHARED_WORKFLOW = `${FIRST_TURN_CLAUSE}\n\n${PERSONAL_SOFTWARE_CLAUSE}\n\n${SCOPE_AGREEMENT_CLAUSE}\n\n${APPS_REGISTRATION_CLAUSE}\n\n${PLAIN_LANGUAGE_CLAUSE}`;
-const CODEX_FRONTIER = ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.5"];
-const CODEX_BALANCED = ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.4"];
+const CODEX_FRONTIER = ["gpt-5.6-sol", "gpt-6-astra", "gpt-5.6-terra", "gpt-5.5"];
+const CODEX_BALANCED = ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-6-astra", "gpt-5.4"];
 
 export type AgentTemplateGroup = "build" | "work" | "life" | "places";
 

@@ -1,6 +1,6 @@
 # Source Feature Gap Options
 
-Date: 2026-08-29 (skill-driven residual pass)
+Date: 2026-09-08 (skill-driven residual pass)
 
 This investigation records accepted, rejected, and deferred options from a
 source feature-gap comparison. Source behavior was used as evidence;
@@ -58,6 +58,12 @@ implementation stays in Bureau naming and architecture.
 - Hosted control plane, billing, VPS unattended installer, and in-UI one-click
   update apply. Bureau is self-hosted product software, not the upstream hosted
   SaaS or its deploy automation.
+- Interactive lounge/scene editor (drag-handle prop placer with per-object
+  inspector). Screenshots of such a tool were reviewed during the 2026-09-08
+  pass, but no matching shipped product surface exists in published
+  `nmamano/isomux` `main` (no editor routes, asset catalog ids, or UI copy).
+  Treat as upstream-local art tooling or an unreleased concept unless product
+  owners explicitly request a Bureau-native room decorator.
 
 ## Deferred
 
@@ -75,6 +81,18 @@ implementation stays in Bureau naming and architecture.
 - Privileged-agent cron job management. Desk agents with operator privilege
   currently steer rooms and agents, not cron CRUD; that is a separate auth
   expansion.
+- OpenCode as a third first-class agent backend. Real product gap, but a large
+  architecture/public-API change that needs an explicit Bureau design pass.
+- Sequenced API-token conversation log (merged send/reply drain with
+  Idempotency-Key). Bureau already has a capacity-limited agent-reply inbox;
+  full log parity is a public API expansion.
+- Full UI i18n catalogs / Catalan. Bureau already has language preference for
+  agent replies and speech (en/es); source's full catalog + `ca` is a broader
+  localization project.
+- Seasonal office decorations. Cute static props gated by calendar date; kept
+  behind the Codex currency slice for this pass.
+- Generic secret redaction in persisted conversation logs. Distinct from
+  existing agent-token redaction; safety hardening for a later pass.
 
 ## Implemented since the prior note (2026-07-14)
 
@@ -97,6 +115,9 @@ implementation stays in Bureau naming and architecture.
   attribution) and desk-agent task visibility via the manager's accessible
   rooms, with matching system-prompt docs.
 
-Residual skill compare after the above: **no further actionable gaps**. Remaining
-items stay deferred (privileged-agent cron CRUD; ephemeral slash-echo edit
-rewrite) or rejected (branding / hosted SaaS / public screenshots).
+## Implemented in this pass (2026-09-08)
+
+- Codex drift reduction: bump bundled `@openai/codex` 0.144.6 → 0.153.4,
+  regenerate app-server schemas, offer `gpt-6-astra` in the Codex model list
+  (Sol remains default), add Codex-only `ultra` effort, and keep Claude UIs
+  from selecting `ultra`.
