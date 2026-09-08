@@ -13,6 +13,7 @@ import { buildAccountSections, type AccountSection } from "./UserSettingsSection
 import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
 import { MemberVariableNames } from "./MemberVariableNames.tsx";
 import { OfficeVariablesPane } from "./OfficeVariablesPane.tsx";
+import { PersonalVariablesPane } from "./PersonalVariablesPane.tsx";
 import { SignOutPane } from "./SignOutPane.tsx";
 import { StorageModal } from "./modals/StorageModal.tsx";
 import { UsageModal } from "./modals/UsageModal.tsx";
@@ -217,6 +218,8 @@ export function UserSettingsView({
               <AccessPane onDirtyChange={setDetailDirty} />
             ) : selection?.kind === "section" && selection.section === "office-env" ? (
               <OfficeVariablesPane />
+            ) : selection?.kind === "section" && selection.section === "personal-env" && sessionContext ? (
+              <PersonalVariablesPane username={sessionContext.username} />
             ) : selection?.kind === "section" && selection.section === "usage" ? (
               <UsageModal embedded />
             ) : selection?.kind === "section" && selection.section === "storage" && isOwner ? (

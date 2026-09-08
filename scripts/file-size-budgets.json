@@ -8,6 +8,7 @@
     "server/apps/__tests__/tokens.test.ts": 547,
     "server/apps/registry.ts": 985,
     "server/apps/supervisor.ts": 1172,
-    "server/http/__tests__/apps.test.ts": 454
+    "server/http/__tests__/apps.test.ts": 454,
+    "ui/components/UserSettingsView.tsx": 360
   }
 }

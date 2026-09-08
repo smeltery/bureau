@@ -176,3 +176,7 @@ implementation stays in Bureau naming and architecture.
 - Schedules user-facing rename: header button, panel title, dialogs, tabs, and
   related copy say "Schedules" / "Schedule" instead of "Cron jobs", matching the
   wall-clock affordance. Internal `cronjob` IDs/APIs unchanged.
+- Personal Variables Account pane: signed-in users get a first-class
+  Account → Variables sidebar entry (`PersonalVariablesPane`) that edits
+  `/api/users/:name/env` via the existing ManagedEnvEditor. Provider Connections
+  sign-in stays deferred.

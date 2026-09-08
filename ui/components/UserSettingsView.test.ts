@@ -6,6 +6,7 @@ describe("buildAccountSections", () => {
     expect(buildAccountSections(true, true)).toEqual([
       { section: "access", label: "Access" },
       { section: "office-env", label: "Office variables" },
+      { section: "personal-env", label: "Variables" },
       { section: "usage", label: "Usage" },
       { section: "storage", label: "Storage" },
       { section: "invites", label: "Invites" },
@@ -18,6 +19,7 @@ describe("buildAccountSections", () => {
 
   test("keeps members scoped to their own devices and signout", () => {
     expect(buildAccountSections(false, true)).toEqual([
+      { section: "personal-env", label: "Variables" },
       { section: "usage", label: "Usage" },
       { section: "devices", label: "My devices" },
       { section: "api-tokens", label: "API tokens" },
