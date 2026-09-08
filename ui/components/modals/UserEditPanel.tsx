@@ -150,7 +150,7 @@ export function UserEditPanel({
       </div>
       <ValidationLine status={envStatus} />
       <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "4px 0 0", lineHeight: 1.4 }}>
-        A file of NAME=value lines on the server, loaded into the environment of your agents and cron jobs. Use ANTHROPIC_API_KEY=... or OPENAI_API_KEY=... for API-key billing, or
+        A file of NAME=value lines on the server, loaded into the environment of your agents and schedules. Use ANTHROPIC_API_KEY=... or OPENAI_API_KEY=... for API-key billing, or
         CLAUDE_CONFIG_DIR=... / CODEX_HOME=... for your own subscription sign-in. Each agent reads the file when it starts or resumes a conversation.
       </p>
       <div style={{ border: "1px solid var(--border-subtle)", borderRadius: 8, padding: 12, marginTop: 12 }}>

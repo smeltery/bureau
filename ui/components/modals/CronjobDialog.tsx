@@ -82,7 +82,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
         }}
       >
         <div style={{ overflowY: "auto", flex: 1, padding: isMobile ? "max(24px, env(safe-area-inset-top)) 20px 0" : "24px 28px 0" }}>
-          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{isEdit ? "Edit Cron Job" : "New Cron Job"}</h3>
+          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{isEdit ? "Edit Schedule" : "New Schedule"}</h3>
           {isEdit && <p style={{ fontSize: 11, color: "var(--text-faint)", margin: "2px 0 18px", fontFamily: "'JetBrains Mono',monospace" }}>#{cronjob!.id}</p>}
 
           <label style={labelStyle}>Name</label>
@@ -105,7 +105,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Prompt</label>
           <ExpandableTextarea
-            title={isEdit ? `${name || "Cron Job"} · Prompt` : "Cron Job Prompt"}
+            title={isEdit ? `${name || "Schedule"} · Prompt` : "Schedule Prompt"}
             hint="Sent to the agent at every scheduled run."
             value={prompt}
             onChange={setPrompt}
@@ -165,7 +165,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as CronjobPermissionMode)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
             {agentType === "claude" ? <option value="bypassPermissions">Bypass (auto-approve all)</option> : <option value="never">Never ask (unattended)</option>}
           </select>
-          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Cron jobs run unattended — modes that require human approval are not available.</p>
+          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Schedules run unattended — modes that require human approval are not available.</p>
 
           {isEdit && (
             <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8 }}>
