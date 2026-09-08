@@ -45,6 +45,34 @@ export function handleSettingsCommand(cmd: ClientCommand, ws: ServerWebSocket<un
     }
     case "update_room_settings": {
       if (!canUseRoom(cmd.roomId)) return true;
+      const version = typeof cmd.version === "string" ? cmd.version : "";
+      if (!version) {
+        ws.send(
+          JSON.stringify({
+            type: "settings_save_response",
+            requestId: cmd.requestId,
+            ok: false,
+            error: "settings version is required",
+          } as ServerMessage),
+        );
+        return true;
+      }
+      const current = AgentManager.getRoomSettings(cmd.roomId);
+      if (!current) {
+        ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: false, error: "Room not found" } as ServerMessage));
+        return true;
+      }
+      if (version !== AgentManager.roomSettingsVersion(current)) {
+        ws.send(
+          JSON.stringify({
+            type: "settings_save_response",
+            requestId: cmd.requestId,
+            ok: false,
+            error: "Room settings changed since you opened this. Reopen the dialog to edit the latest version.",
+          } as ServerMessage),
+        );
+        return true;
+      }
       const envFile = cmd.envFile && cmd.envFile.trim() ? cmd.envFile.trim() : null;
       if (envFile) {
         try {

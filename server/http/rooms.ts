@@ -5,7 +5,6 @@ import { privilegedAgentIdentity, type PrivilegedAgentIdentity } from "./agent-r
 import { canSeeRoom, getUserById } from "../users.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { normalizeRoomPet } from "../../shared/types.ts";
-import { createHash } from "crypto";
 
 const jsonHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 const noContentHeaders = { "Access-Control-Allow-Origin": "*" };
@@ -50,7 +49,7 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
     if (!canReadRoomSettings(req, auth, roomId, operator)) return error(403, "room access required");
     const settings = AgentManager.getRoomSettings(roomId);
     if (!settings) return error(404, "room not found");
-    return new Response(JSON.stringify({ ...settings, version: roomSettingsVersion(settings) }), { headers: jsonHeaders });
+    return new Response(JSON.stringify({ ...settings, version: AgentManager.roomSettingsVersion(settings) }), { headers: jsonHeaders });
   }
 
   // Single room-visibility gate covering close, rename, settings write, and
@@ -90,7 +89,7 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
     if (!current) return error(404, "room not found");
     const version = typeof body.version === "string" ? body.version : "";
     if (!version) return error(400, "settings version is required");
-    const currentVersion = roomSettingsVersion(current);
+    const currentVersion = AgentManager.roomSettingsVersion(current);
     if (version !== currentVersion) return error(409, "room settings changed; fetch the latest version and retry");
     if (!AgentManager.setRoomSettings(roomId, prompt, envFile)) return error(404, "room not found");
     if ("pet" in body) AgentManager.setRoomPet(roomId, normalizeRoomPet(body.pet));
@@ -122,13 +121,6 @@ async function readJson(req: Request): Promise<Record<string, unknown> | Respons
 
 function error(status: number, message: string): Response {
   return new Response(JSON.stringify({ error: message }), { status, headers: jsonHeaders });
-}
-
-function roomSettingsVersion(settings: { prompt: string | null; envFile: string | null; pet?: unknown }): string {
-  return createHash("sha256")
-    .update(JSON.stringify({ prompt: settings.prompt ?? null, envFile: settings.envFile ?? null, pet: normalizeRoomPet(settings.pet) }))
-    .digest("hex")
-    .slice(0, 12);
 }
 
 function sessionCanSeeRoom(auth: AuthResult, roomId: string): boolean {
