@@ -12,6 +12,7 @@ import { SessionsPane } from "./SessionsPane.tsx";
 import { buildAccountSections, type AccountSection } from "./UserSettingsSections.ts";
 import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
 import { MemberVariableNames } from "./MemberVariableNames.tsx";
+import { ConnectionsPane } from "./ConnectionsPane.tsx";
 import { OfficeVariablesPane } from "./OfficeVariablesPane.tsx";
 import { PersonalVariablesPane } from "./PersonalVariablesPane.tsx";
 import { SignOutPane } from "./SignOutPane.tsx";
@@ -22,11 +23,13 @@ type Selection = { kind: "user"; id: string } | { kind: "section"; section: Acco
 export function UserSettingsView({
   currentUsername,
   initialUserId,
+  initialSection,
   onSwitchUser,
   onClose,
 }: {
   currentUsername: string | null;
   initialUserId?: string | null;
+  initialSection?: AccountSection | null;
   onSwitchUser: (name: string) => void;
   onClose: () => void;
 }) {
@@ -36,6 +39,7 @@ export function UserSettingsView({
   const editorRooms = allRooms.length ? allRooms : rooms;
   const [newName, setNewName] = useState("");
   const [selection, setSelection] = useState<Selection | null>(() => {
+    if (initialSection) return { kind: "section", section: initialSection };
     if (initialUserId) return { kind: "user", id: initialUserId };
     if (!isMobile && sessionContext?.userId) return { kind: "user", id: sessionContext.userId };
     return null;
@@ -216,6 +220,8 @@ export function UserSettingsView({
               </section>
             ) : selection?.kind === "section" && selection.section === "access" ? (
               <AccessPane onDirtyChange={setDetailDirty} />
+            ) : selection?.kind === "section" && selection.section === "connections" && sessionContext ? (
+              <ConnectionsPane username={sessionContext.username} />
             ) : selection?.kind === "section" && selection.section === "office-env" ? (
               <OfficeVariablesPane />
             ) : selection?.kind === "section" && selection.section === "personal-env" && sessionContext ? (

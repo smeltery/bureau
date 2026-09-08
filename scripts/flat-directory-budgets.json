@@ -10,12 +10,16 @@
       "reason": "oom-stamp.ts (+ test) biases descendant oom_score_adj; process-name.ts (+ test) renames the office to `bureau` so name-based protectors can shield it without shielding agent bun builds. Both stay flat boot-time modules beside backup.ts / update-checker.ts."
     },
     "server/http": {
-      "limit": 41,
-      "reason": "idempotency.ts owns the small Idempotency-Key cache shared by API-token drain/send routes."
+      "limit": 42,
+      "reason": "provider-accounts.ts serves Connections REST; idempotency.ts is the shared Idempotency-Key cache for API-token send/drain."
     },
     "shared": {
+      "limit": 42,
+      "reason": "provider-accounts.ts owns Connections wire shapes (status + key-update request/response) without secrets so UI and HTTP share one contract."
+    },
+    "server/http/__tests__": {
       "limit": 41,
-      "reason": "pets.ts owns room-pet species, named coats, and palettes so the server can validate without importing UI and the scene can paint without a second coat list."
+      "reason": "provider-accounts.test.ts covers Connections status listing and key-update secret hygiene."
     }
   }
 }

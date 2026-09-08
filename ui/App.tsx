@@ -24,6 +24,8 @@ import { normalizeDraftUser, pruneDraftsForUser, readDraftsForUser, writeDraftFo
 import { readSavedView, writeSavedView } from "./store-view.ts";
 import { agentTabLabel } from "./agent-tab-label.ts";
 import { pageForPath } from "./routes.ts";
+import { OPEN_ACCOUNT_SECTION_EVENT, type OpenAccountSectionDetail } from "./components/account-navigation.ts";
+import type { AccountSection } from "./components/UserSettingsSections.ts";
 
 export function App() {
   const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext, hasReceivedInitialState } = useAppState();
@@ -38,6 +40,7 @@ export function App() {
   const [username, setUsername] = useState<string | null>(() => storageGetItem("bureau-username"));
   const [editingUsername, setEditingUsername] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingAccountSection, setEditingAccountSection] = useState<AccountSection | null>(null);
   const [editingDeviceSettings, setEditingDeviceSettings] = useState(false);
   const [editingOfficePrompt, setEditingOfficePrompt] = useState(false);
   const [editingRoomSettings, setEditingRoomSettings] = useState<string | null>(null);
@@ -59,9 +62,22 @@ export function App() {
     else if (bootedPage === "plugins") setPluginsOpen(true);
     else if (bootedPage === "settings") {
       setEditingUserId(null);
+      setEditingAccountSection(null);
       setEditingUsername(true);
     }
   }, [bootedPage]);
+
+  useEffect(() => {
+    function onOpenSection(event: Event) {
+      const detail = (event as CustomEvent<OpenAccountSectionDetail>).detail;
+      if (!detail?.section) return;
+      setEditingUserId(null);
+      setEditingAccountSection(detail.section);
+      setEditingUsername(true);
+    }
+    window.addEventListener(OPEN_ACCOUNT_SECTION_EVENT, onOpenSection);
+    return () => window.removeEventListener(OPEN_ACCOUNT_SECTION_EVENT, onOpenSection);
+  }, []);
 
   const focusedAgent = focusedAgentId ? (agents.find((a) => a.id === focusedAgentId) ?? null) : null;
   const anyModalOpen = editingUsername || editingDeviceSettings || editingOfficePrompt || editingRoomSettings !== null || updateOpen;
@@ -155,11 +171,13 @@ export function App() {
     settingsOpen: editingUsername,
     openSettings: () => {
       setEditingUserId(null);
+      setEditingAccountSection(null);
       setEditingUsername(true);
     },
     closeSettings: () => {
       setEditingUsername(false);
       setEditingUserId(null);
+      setEditingAccountSection(null);
     },
     bootPage: bootedPage,
   });
@@ -170,7 +188,7 @@ export function App() {
       <ConnectionBanner />
       {username === null && <UserManagementModal currentUsername={null} forceCreate onSwitchUser={setUsername} />}
       {editingUsername && username !== null ? (
-        <UserSettingsView currentUsername={username} initialUserId={editingUserId} onSwitchUser={setUsername} onClose={goHome} />
+        <UserSettingsView currentUsername={username} initialUserId={editingUserId} initialSection={editingAccountSection} onSwitchUser={setUsername} onClose={goHome} />
       ) : pluginsOpen ? (
         <PluginsView onClose={goHome} />
       ) : cronjobsOpen ? (

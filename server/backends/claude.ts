@@ -36,7 +36,10 @@ import type {
 
 export { runClaudeOneShot } from "./claude-raw-session.ts";
 
-const LOGIN_INSTRUCTIONS = `To authenticate Claude Code:
+const LOGIN_INSTRUCTIONS = `Claude authentication failed.
+
+Open User Settings → Connections to paste an ANTHROPIC_API_KEY, or sign in on the host:
+
 1. Open the built-in terminal
 2. Run \`claude\`
 3. Type \`/login\`
@@ -54,7 +57,7 @@ macOS users with Homebrew can alternatively run \`brew install --cask claude-cod
 
 After install, open a new shell and run \`claude\` to sign in. If \`claude\` is not found, make sure \`~/.local/bin\` is on your PATH.
 
-Alternative: add \`ANTHROPIC_API_KEY\` to your envFile (User Settings -> Env File Path, then \`/clear\`).`;
+Alternative: open User Settings → Connections and paste an ANTHROPIC_API_KEY, then \`/clear\`.`;
 
 const AUTH_ERROR_PATTERNS = /unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|not logged in|run \/login|403|401/i;
 

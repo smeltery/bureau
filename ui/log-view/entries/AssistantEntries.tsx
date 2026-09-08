@@ -107,7 +107,7 @@ export function ErrorBlock({ content, isLastInTurn, turnEntries, isMobile }: { c
   );
 }
 
-export function SystemMessage({ content, isMobile }: { content: string; isMobile?: boolean }) {
+export function SystemMessage({ content, isMobile, openConnections, onOpenConnections }: { content: string; isMobile?: boolean; openConnections?: boolean; onOpenConnections?: () => void }) {
   const isMultiline = content.includes("\n");
   return (
     <div
@@ -123,6 +123,25 @@ export function SystemMessage({ content, isMobile }: { content: string; isMobile
       }}
     >
       {isMultiline ? <Markdown content={content} /> : content}
+      {openConnections && onOpenConnections && (
+        <div style={{ marginTop: 10, textAlign: "left" }}>
+          <button
+            type="button"
+            onClick={onOpenConnections}
+            style={{
+              padding: "7px 14px",
+              borderRadius: 8,
+              border: "1px solid var(--accent)",
+              background: "var(--btn-surface)",
+              color: "var(--text-primary)",
+              fontSize: isMobile ? 13 : 12,
+              cursor: "pointer",
+            }}
+          >
+            Open Connections
+          </button>
+        </div>
+      )}
     </div>
   );
 }

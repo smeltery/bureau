@@ -22,6 +22,7 @@ export function LogMessagesPane({
   getUserMsgRefCb,
   onOpenInEditor,
   onCopyToTerminal,
+  onOpenConnections,
   stateChangedAt,
 }: {
   agent: AgentInfo;
@@ -38,6 +39,7 @@ export function LogMessagesPane({
   getUserMsgRefCb: (id: string) => RefCallback<HTMLDivElement>;
   onOpenInEditor?: (path: string) => void;
   onCopyToTerminal?: (command: string) => void;
+  onOpenConnections?: () => void;
   stateChangedAt?: number;
 }) {
   const turnData = useLogTurnData(logs);
@@ -104,6 +106,7 @@ export function LogMessagesPane({
             }}
             onOpenInEditor={onOpenInEditor}
             onCopyToTerminal={onCopyToTerminal}
+            onOpenConnections={onOpenConnections}
             onChoicePick={(kind, position) => {
               if (agent.pendingPrompt !== kind) return;
               send({ type: "send_message", agentId: agent.id, text: String(position), username });
