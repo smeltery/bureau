@@ -125,3 +125,7 @@ implementation stays in Bureau naming and architecture.
   unsupported command) trims the failed echo and re-dispatches via sendMessage
   without an SDK fork, so a typo like `/hepl` → `/help` works even with no
   session and on non-forking backends.
+- Multi-species room pets: rooms store `{ species, coat }` (named coats per
+  species: cat / dog / rabbit / tortoise). Legacy coat-only values migrate to
+  cat. Room settings picks species + coat; the office scene draws the matching
+  sleeper (dog bed / basket / sand box).

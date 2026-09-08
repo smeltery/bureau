@@ -112,7 +112,7 @@ describe("handleRoomsRequest", () => {
     );
 
     expect(saved?.status).toBe(204);
-    expect(AgentManager.getRoomSettings(room.id)?.pet).toEqual({ coat: "silver" });
+    expect(AgentManager.getRoomSettings(room.id)?.pet).toEqual({ species: "cat", coat: "silver" });
     AgentManager.setRoomPet(room.id, null);
   });
 

@@ -76,7 +76,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Agent templates** — start from Blank or choose one of 12 editable profiles like Side Project Builder, Money Planner, Health Navigator, Code Reviewer, and Trip Planner; each fills the name, instructions, outfit, model, and effort before you spawn
 - **Real-time sync** — WebSocket keeps every connected device in lockstep
 - **Live presence** — other users and devices appear in the office with customizable ghosts, so shared rooms show who is around; User Settings also shows online state and owner-visible session recency in the user roster
-- **Room pet customisation** — each room can choose the coat for its sleepy office companion from Room settings
+- **Room pet customisation** — each room can pick a sleepy office companion (cat, dog, rabbit, or tortoise) and coat from Room settings
 - **Per-agent message queue** — typing while an agent is busy queues messages as chips above the input; they survive Bureau restarts, flush automatically when the agent idles, can be cancelled before they send, and can be forced through immediately with Send now or Ctrl/Cmd+Enter
 - **Session-swap indicator** — chat shows a brief "Restarting session..." hint during `/resume`, `/model`, or fork-from-edit so the drain → install gap isn't silent
 

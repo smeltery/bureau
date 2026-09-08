@@ -5,16 +5,22 @@ import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
-import { DEFAULT_ROOM_PET, ROOM_PET_COATS, type RoomPetCoat } from "../../../shared/types.ts";
+import { DEFAULT_ROOM_PET, PET_COATS, PET_SPECIES, type PetSpecies, type RoomPet } from "../../../shared/types.ts";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
+
+function defaultCoatFor(species: PetSpecies): string {
+  return PET_COATS[species][0]!;
+}
 
 export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose: () => void }) {
   const { rooms } = useAppState();
   const room = rooms.find((r) => r.id === roomId);
   const [prompt, setPrompt] = useState(room?.prompt ?? "");
   const [envFile, setEnvFile] = useState(room?.envFile ?? "");
-  const [petCoat, setPetCoat] = useState<RoomPetCoat>(room?.pet?.coat ?? DEFAULT_ROOM_PET.coat);
+  const initialPet = room?.pet ?? DEFAULT_ROOM_PET;
+  const [petSpecies, setPetSpecies] = useState<PetSpecies>(initialPet.species);
+  const [petCoat, setPetCoat] = useState<string>(initialPet.coat);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -67,13 +73,14 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       } catch {}
     };
     addRawListener(listener);
+    const pet = { species: petSpecies, coat: petCoat } as RoomPet;
     send({
       type: "update_room_settings",
       requestId: reqId,
       roomId,
       prompt: prompt.trim() ? prompt : null,
       envFile: envFile.trim() || null,
-      pet: { coat: petCoat },
+      pet,
     });
   }
 
@@ -106,13 +113,31 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       <ValidationLine status={status} />
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Room Pet</label>
-      <select value={petCoat} onChange={(e) => setPetCoat(e.target.value as RoomPetCoat)} style={inputStyle}>
-        {ROOM_PET_COATS.map((coat) => (
-          <option key={coat} value={coat}>
-            {coatLabel(coat)}
-          </option>
-        ))}
-      </select>
+      <div style={{ display: "flex", gap: 8 }}>
+        <select
+          value={petSpecies}
+          onChange={(e) => {
+            const next = e.target.value as PetSpecies;
+            setPetSpecies(next);
+            const coats = PET_COATS[next] as readonly string[];
+            setPetCoat(coats.includes(petCoat) ? petCoat : defaultCoatFor(next));
+          }}
+          style={{ ...inputStyle, flex: 1 }}
+        >
+          {PET_SPECIES.map((species) => (
+            <option key={species} value={species}>
+              {speciesLabel(species)}
+            </option>
+          ))}
+        </select>
+        <select value={petCoat} onChange={(e) => setPetCoat(e.target.value)} style={{ ...inputStyle, flex: 1 }}>
+          {PET_COATS[petSpecies].map((coat) => (
+            <option key={coat} value={coat}>
+              {coatLabel(coat)}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         Room Prompt <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional, appended after office prompt)</span>
@@ -157,8 +182,15 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
   );
 }
 
-function coatLabel(coat: RoomPetCoat): string {
-  return coat[0]!.toUpperCase() + coat.slice(1);
+function speciesLabel(species: PetSpecies): string {
+  return species[0]!.toUpperCase() + species.slice(1);
+}
+
+function coatLabel(coat: string): string {
+  return coat
+    .split("-")
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function ValidationLine({ status }: { status: ValidationStatus }) {
