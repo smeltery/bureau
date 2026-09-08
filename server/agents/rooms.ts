@@ -39,6 +39,17 @@ export function setRoomSettings(roomId: string, prompt: string | null, envFile: 
   return true;
 }
 
+/** Content hash over the room settings PUT surface (prompt + envFile + pet). */
+export function roomSettingsVersion(settings: { prompt: string | null; envFile: string | null; pet?: unknown }): string {
+  return versionOf(
+    JSON.stringify({
+      prompt: settings.prompt ?? null,
+      envFile: settings.envFile ?? null,
+      pet: normalizeRoomPet(settings.pet),
+    }),
+  );
+}
+
 export function getRoomSettings(roomId: string): { prompt: string | null; envFile: string | null; pet: RoomPet | null } | null {
   const idx = findRoomIndex(roomId);
   if (idx < 0) return null;

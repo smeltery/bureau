@@ -8,6 +8,7 @@ export {
   getRooms,
   getRoomSettings,
   officeSettingsVersion,
+  roomSettingsVersion,
   setOfficeSettings,
   setRoomSettings,
   setRoomPet,

@@ -151,3 +151,8 @@ implementation stays in Bureau naming and architecture.
   `senderIsHuman` and skip agent / app / cron / API-token `user_message`
   entries so the sticky banner keeps human ask context (mirrors isomux
   `pinned-message.ts`).
+
+- Room settings optimistic concurrency on WS/UI: `update_room_settings`
+  requires the content-hash `version` from `GET /api/rooms/:id/settings`
+  (same rail as the existing REST PUT); the room settings dialog GETs it on
+  open. Shared `roomSettingsVersion` lives next to `officeSettingsVersion`.

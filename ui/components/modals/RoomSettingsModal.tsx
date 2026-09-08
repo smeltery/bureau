@@ -23,12 +23,39 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
   const [petCoat, setPetCoat] = useState<string>(initialPet.coat);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
+  const [settingsVersion, setSettingsVersion] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const roomMemory = useMemoryEditor("room", roomId, !!room);
 
-  // Ask the server to re-validate the stored env file on open
+  // Pin the optimistic-concurrency version from a GET on open (same rail as office settings).
   useEffect(() => {
-    const saved = room?.envFile;
+    let cancelled = false;
+    fetch(`/api/rooms/${encodeURIComponent(roomId)}/settings`, { credentials: "same-origin" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("could not load room settings");
+        return (await res.json()) as { prompt: string | null; envFile: string | null; pet?: RoomPet | null; version: string };
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setPrompt(data.prompt ?? "");
+        setEnvFile(data.envFile ?? "");
+        const pet = data.pet ?? DEFAULT_ROOM_PET;
+        setPetSpecies(pet.species);
+        setPetCoat(pet.coat);
+        setSettingsVersion(data.version);
+      })
+      .catch(() => {
+        if (!cancelled) setStatus({ kind: "error", message: "Could not load room settings version. Reopen and try again." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId]);
+
+  // Ask the server to re-validate the stored env file once the GET version lands
+  useEffect(() => {
+    if (!settingsVersion) return;
+    const saved = envFile;
     if (!saved) {
       setStatus({ kind: "idle" });
       return;
@@ -48,9 +75,13 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     addRawListener(listener);
     send({ type: "request_settings_validation", requestId: reqId, scope: "room", roomId });
     return () => removeRawListener(listener);
-  }, [room?.envFile, roomId]);
+  }, [settingsVersion]);
 
   async function handleSave() {
+    if (!settingsVersion) {
+      setStatus({ kind: "error", message: "Room settings version is still loading. Try again in a moment." });
+      return;
+    }
     const memoryResult = await roomMemory.save();
     if (!memoryResult.ok) {
       setStatus({ kind: "error", message: memoryResult.message });
@@ -81,6 +112,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       prompt: prompt.trim() ? prompt : null,
       envFile: envFile.trim() || null,
       pet,
+      version: settingsVersion,
     });
   }
 
@@ -174,7 +206,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
         <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>
           Cancel
         </button>
-        <button onClick={handleSave} style={saveBtnStyle} disabled={saving}>
+        <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>
           {saving ? "Saving…" : "Save"}
         </button>
       </div>
