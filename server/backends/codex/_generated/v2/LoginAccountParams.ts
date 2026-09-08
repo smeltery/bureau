@@ -25,4 +25,6 @@ export type LoginAccountParams =
        * claims. If unavailable, the plan defaults to `unknown`.
        */
       chatgptPlanType?: string | null;
-    };
+    }
+  | { type: "amazonBedrock"; apiKey: string; region: string }
+  | { type: "amazonBedrockAccessKeys"; accessKeyId: string; secretAccessKey: string; sessionToken?: string | null; region: string };

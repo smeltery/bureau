@@ -60,6 +60,11 @@ export type ThreadStartParams = {
    */
   threadSource?: ThreadSource | null;
   /**
+   * Optional project identity for this new thread. Durable threads persist
+   * the assignment; ephemeral threads expose it only in live responses.
+   */
+  projectId?: string | null;
+  /**
    * Optional sticky environments for this thread.
    *
    * Omitted selects the default environment when environment access is

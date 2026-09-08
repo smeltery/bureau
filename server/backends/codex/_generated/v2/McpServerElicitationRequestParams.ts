@@ -19,5 +19,6 @@ export type McpServerElicitationRequestParams = {
 } & (
   | { mode: "form"; _meta: JsonValue | null; message: string; requestedSchema: McpElicitationSchema }
   | { mode: "openai/form"; _meta: JsonValue | null; message: string; requestedSchema: JsonValue }
+  | { mode: "openaiForm"; _meta: JsonValue | null; message: string; requestedSchema: JsonValue }
   | { mode: "url"; _meta: JsonValue | null; message: string; url: string; elicitationId: string }
 );

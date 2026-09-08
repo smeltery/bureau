@@ -39,7 +39,8 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
   const [effort, setEffort] = useState<EffortLevel>(cronjob?.effort ?? DEFAULT_EFFORT);
   const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(cronjob?.codexSandbox ?? DEFAULT_CODEX_CRONJOB_SANDBOX);
   const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(cronjob?.permissionMode ?? "bypassPermissions");
-  const effortOptions = agentType === "codex" ? EFFORT_LEVELS : EFFORT_LEVELS.filter((e) => e.level !== "minimal" && (e.level !== "max" || modelFamily === "opus" || modelFamily === "fable"));
+  const effortOptions =
+    agentType === "codex" ? EFFORT_LEVELS : EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && (e.level !== "max" || modelFamily === "opus" || modelFamily === "fable"));
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

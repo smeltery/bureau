@@ -63,8 +63,8 @@ export function validateEffort(agentType: AgentBackendType, modelFamily: string,
     return DEFAULT_EFFORT;
   }
   if (!raw || !EFFORT_LEVELS.some((e) => e.level === raw)) return DEFAULT_EFFORT;
-  // Claude family-level rules: "minimal" is Codex-only; "max" is opus/fable-only.
-  if (raw === "minimal") return DEFAULT_EFFORT;
+  // Claude family-level rules: "minimal"/"ultra" are Codex-only; "max" is opus/fable-only.
+  if (raw === "minimal" || raw === "ultra") return DEFAULT_EFFORT;
   if (raw === "max" && modelFamily !== "opus" && modelFamily !== "fable") return DEFAULT_EFFORT;
   return raw;
 }

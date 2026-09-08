@@ -36,10 +36,11 @@ export const CAPABILITIES: BackendCapabilities = {
   mcp: true,
 };
 
-// Slugs verified against `codex debug models` on codex-cli 0.144.1
-// (2026-07-11); mirror of CODEX_MODELS in shared/types.ts.
+// Slugs verified against `codex debug models` on codex-cli 0.153.4
+// (2026-09-05); mirror of CODEX_MODELS in shared/agent-models.ts.
 export const MODEL_OPTIONS: ModelOption[] = [
   { value: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
+  { value: "gpt-6-astra", label: "GPT-6 Astra" },
   { value: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
   { value: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
   { value: "gpt-5.5", label: "GPT-5.5" },
