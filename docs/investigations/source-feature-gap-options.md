@@ -139,3 +139,8 @@ implementation stays in Bureau naming and architecture.
 - Interactive office wall affordances: clock opens schedules, vent opens
   settings, apps plaque opens Apps (corkboard already opens Tasks). Global
   `t` / `s` shortcuts toggle Tasks and open Settings.
+- Office settings optimistic concurrency: `GET/PUT /api/office/settings` and
+  `update_office_settings` carry a content-hash `version` over prompt+envFile
+  (same `versionOf` rail as memory / custom instructions). Missing → 400;
+  stale → 409 with the current version before field validation; the office
+  settings dialog GETs the version on open.

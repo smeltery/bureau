@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
+import * as AgentManager from "../../agent-manager.ts";
 import { writeManagedUserEnv } from "../../persistence/managed-env.ts";
 import { claimUserByName } from "../../users.ts";
 import { handleEnvSettingsRequest, handleOfficeSettingsRequest } from "../office-settings.ts";
@@ -76,6 +77,8 @@ describe("handleOfficeSettingsRequest", () => {
     expect(body).toHaveProperty("envFile");
     expect(typeof body.prompt === "string" || body.prompt === null).toBe(true);
     expect(typeof body.envFile === "string" || body.envFile === null).toBe(true);
+    expect(typeof body.version).toBe("string");
+    expect(body.version).toMatch(/^[0-9a-f]{12}$/);
   });
 
   test("rejects invalid JSON before saving settings", async () => {
@@ -88,6 +91,72 @@ describe("handleOfficeSettingsRequest", () => {
 
     expect(res?.status).toBe(400);
     expect(await res?.json()).toEqual({ error: "invalid JSON" });
+  });
+
+  test("requires the current office settings version when saving", async () => {
+    const currentReq = request("/api/office/settings");
+    const current = await handleOfficeSettingsRequest(currentReq, new URL(currentReq.url), ownerAuth);
+    const version = ((await current!.json()) as { version: string }).version;
+
+    const missing = await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({ prompt: "no version", envFile: null }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
+    expect(missing?.status).toBe(400);
+    expect(await missing?.json()).toEqual({ error: "settings version is required" });
+
+    AgentManager.setOfficeSettings("writer-b", null);
+
+    const stale = await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({ prompt: "stale write", envFile: null, version }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
+    expect(stale?.status).toBe(409);
+    const staleBody = (await stale?.json()) as { error: string; version: string };
+    expect(staleBody.error).toBe("office settings changed; fetch the latest version and retry");
+    expect(staleBody.version).toBe(AgentManager.officeSettingsVersion());
+    expect(AgentManager.getOfficeSettings().prompt).toBe("writer-b");
+
+    const latestReq = request("/api/office/settings");
+    const latest = await handleOfficeSettingsRequest(latestReq, new URL(latestReq.url), ownerAuth);
+    const latestVersion = ((await latest!.json()) as { version: string }).version;
+
+    const ok = await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({ prompt: "saved", envFile: null, version: latestVersion }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
+    expect(ok?.status).toBe(204);
+    expect(AgentManager.getOfficeSettings().prompt).toBe("saved");
+  });
+
+  test("stale version wins over invalid env path (re-read before field errors)", async () => {
+    const currentReq = request("/api/office/settings");
+    const current = await handleOfficeSettingsRequest(currentReq, new URL(currentReq.url), ownerAuth);
+    const staleVersion = ((await current!.json()) as { version: string }).version;
+    AgentManager.setOfficeSettings("after-b", null);
+
+    const res = await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({ prompt: "x", envFile: "/no/such/env/file.env", version: staleVersion }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
+    expect(res?.status).toBe(409);
+    expect(AgentManager.getOfficeSettings().prompt).toBe("after-b");
   });
 });
 
