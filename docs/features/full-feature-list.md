@@ -146,6 +146,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 ## Safety And Extensibility
 
+- Office process renames itself to `bureau` on Linux so name-based OOM
+  protection can distinguish the server from agent `bun` builds, alongside
+  descendant `oom_score_adj` biasing.
 - Codex escalation prompts offer allow-once, allow-for-this-session, deny, and
   allow-every-command-starting-with-a-prefix for the rest of the session. Prefix
   rules are held in the session's memory and die with it — Bureau never writes a

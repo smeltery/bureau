@@ -9,6 +9,7 @@ import { loadPlugins } from "./plugins/registry.ts";
 import { join as joinPath } from "path";
 import { onUpdateChange, startUpdateChecker } from "./update-checker.ts";
 import { startAgentOomStamping } from "./oom-stamp.ts";
+import { setProcessName } from "./process-name.ts";
 import { startBackupScheduler } from "./backup.ts";
 import { reconcileAppsAtBoot } from "./apps/boot.ts";
 import { freezeAppHostDomain } from "./apps/domain.ts";
@@ -89,6 +90,12 @@ onUpdateChange((status) => {
   broadcast({ type: "update_status", ...status } as ServerMessage);
 });
 startUpdateChecker();
+
+// Name this process `bureau` rather than `bun`, so name-based out-of-memory
+// protection can shield the office without also shielding agent builds that
+// share the name `bun` (see server/process-name.ts). After the owner-login CLI
+// fast-path above, which is a different program and keeps its own name.
+setProcessName();
 
 // Bias the kernel's OOM killer toward whatever this office spawns (agent
 // backends, and whatever they in turn build/run) and away from the office

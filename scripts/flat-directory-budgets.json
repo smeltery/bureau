@@ -2,8 +2,8 @@
   "default_files": 40,
   "directories": {
     "server": {
-      "limit": 42,
-      "reason": "oom-stamp.ts + its test add the office's OOM-bias sweep as a flat, single-purpose boot-time module, matching the existing backup.ts/update-checker.ts/scheduled-messages.ts pattern rather than a new subdirectory."
+      "limit": 44,
+      "reason": "oom-stamp.ts (+ test) biases descendant oom_score_adj; process-name.ts (+ test) renames the office to `bureau` so name-based protectors can shield it without shielding agent bun builds. Both stay flat boot-time modules beside backup.ts / update-checker.ts."
     },
     "shared": {
       "limit": 41,
