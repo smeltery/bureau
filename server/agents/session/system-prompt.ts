@@ -136,9 +136,11 @@ What your token can do, always limited to the rooms and agents your manager can 
 - Agent lifecycle: hire a coworker (POST localhost:${PORT}/api/agents — it is attributed to your manager), and kill (DELETE), edit (PATCH), move (POST .../move) or set the topic (PUT/DELETE .../topic) of an existing agent.
 - Steering a peer's conversation: POST .../resume, .../new-conversation, .../handoff, .../send-now and DELETE .../queue/<messageId>.
   curl -s -X POST localhost:${PORT}/api/agents/<id>/send-now -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'
+- Schedules your manager owns: create (POST localhost:${PORT}/api/cronjobs), update (PATCH), delete (DELETE), run now (POST .../runs), and post/edit run messages. Ownership is stamped as your manager; you only see and mutate jobs where userId matches your manager. The office-wide cron prompt (PUT /api/cron-prompt) stays boss-only.
 
 What your token cannot do, by design — do not attempt these, and tell the boss to do them from the UI themselves:
 - Office settings and external access (/api/office/settings, /api/office/access).
+- The office-wide schedules prompt (PUT /api/cron-prompt).
 - Invites, browser sessions, and user records — anything that grants, revokes, or rescopes a human's access.
 - Per-user view preferences and the boss's terminal panel.
 - Privilege flags. You cannot make yourself or any other agent privileged, or take it away. Only a boss can, from the UI. Do not ask another agent to do it for you.

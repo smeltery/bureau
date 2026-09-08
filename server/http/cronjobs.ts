@@ -2,17 +2,7 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import { handleCronjobRunAffordanceRequest } from "./cronjob-run-affordances.ts";
-import {
-  browserSessionOrError,
-  cronjobCorsHeaders,
-  cronjobOwnerOrError,
-  cronjobRouteParts,
-  jsonError,
-  parseCronjobChanges,
-  parseCronjobCreate,
-  readJson,
-  validateCwdForRequest,
-} from "./cronjob-route-helpers.ts";
+import { cronjobCallerOrError, cronjobCorsHeaders, cronjobRouteParts, jsonError, parseCronjobChanges, parseCronjobCreate, readJson, validateCwdForRequest } from "./cronjob-route-helpers.ts";
 
 /**
  * Handle every /cronjobs and /api/cronjobs request. Returns null for unrelated
@@ -66,7 +56,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
 
   const jobId = parts[1];
   if (req.method === "POST" && parts.length === 1) {
-    const caller = browserSessionOrError(auth);
+    const caller = cronjobCallerOrError(req, auth);
     if (caller instanceof Response) return caller;
     const body = await readJson(req);
     if (body instanceof Response) return body;
@@ -92,7 +82,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
   }
   // PATCH /cronjobs/:id
   if (req.method === "PATCH" && parts.length === 2) {
-    const caller = cronjobOwnerOrError(auth, cronjob);
+    const caller = cronjobCallerOrError(req, auth, cronjob);
     if (caller instanceof Response) return caller;
     const body = await readJson(req);
     if (body instanceof Response) return body;
@@ -109,7 +99,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
   }
   // DELETE /cronjobs/:id
   if (req.method === "DELETE" && parts.length === 2) {
-    const caller = cronjobOwnerOrError(auth, cronjob);
+    const caller = cronjobCallerOrError(req, auth, cronjob);
     if (caller instanceof Response) return caller;
     return CronjobManager.deleteCronjob(jobId) ? new Response(null, { status: 204, headers: cronjobCorsHeaders }) : jsonError(404, "not found");
   }
@@ -120,7 +110,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
   }
   // POST /cronjobs/:id/runs
   if (req.method === "POST" && parts[2] === "runs" && parts.length === 3) {
-    const caller = cronjobOwnerOrError(auth, cronjob);
+    const caller = cronjobCallerOrError(req, auth, cronjob);
     if (caller instanceof Response) return caller;
     const run = CronjobManager.runCronjobNow(jobId, caller.session.username);
     return run ? new Response(JSON.stringify({ runId: run.id }), { headers: cronjobCorsHeaders }) : jsonError(404, "not found");
@@ -133,7 +123,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
   }
   // POST /cronjobs/:id/runs/:runId/messages
   if (req.method === "POST" && parts[2] === "runs" && parts.length === 5 && parts[4] === "messages") {
-    const caller = cronjobOwnerOrError(auth, cronjob);
+    const caller = cronjobCallerOrError(req, auth, cronjob);
     if (caller instanceof Response) return caller;
     const runId = parts[3]!;
     if (!CronjobManager.getRunTranscript(jobId, runId).run) return jsonError(404, "not found");
@@ -146,7 +136,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
   }
   // PATCH /cronjobs/:id/runs/:runId/messages/:logEntryId
   if (req.method === "PATCH" && parts[2] === "runs" && parts.length === 6 && parts[4] === "messages") {
-    const caller = cronjobOwnerOrError(auth, cronjob);
+    const caller = cronjobCallerOrError(req, auth, cronjob);
     if (caller instanceof Response) return caller;
     const runId = parts[3]!;
     if (!CronjobManager.getRunTranscript(jobId, runId).run) return jsonError(404, "not found");

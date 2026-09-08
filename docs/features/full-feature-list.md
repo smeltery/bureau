@@ -138,6 +138,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Cron jobs with daily, weekly, and interval schedules.
 - Account → Variables pane for each signed-in user’s managed env (overrides office variables).
 - User-facing "Schedules" naming for cron jobs (header, panels, dialogs); APIs stay `cronjob`.
+- Privileged agents can create/update/delete/run schedules owned by their manager; the office-wide schedules prompt stays boss-only.
 - One-off scheduled agent messages persist in `scheduled-messages.json`.
 - Per-run transcripts, manual run-now, resume, and fork from prior runs.
 - File-system persistence under `~/.bureau/` or `BUREAU_HOME`.

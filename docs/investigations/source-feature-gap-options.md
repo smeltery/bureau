@@ -78,9 +78,6 @@ implementation stays in Bureau naming and architecture.
   subresources.
 - A bundled browser dependency. Bureau uses an installed Chrome-compatible
   browser to avoid increasing package size and install complexity.
-- Privileged-agent cron job management. Desk agents with operator privilege
-  currently steer rooms and agents, not cron CRUD; that is a separate auth
-  expansion.
 - OpenCode as a third first-class agent backend. Real product gap, but a large
   architecture/public-API change that needs an explicit Bureau design pass.
 - Sequenced API-token conversation log (merged send/reply drain with
@@ -185,3 +182,4 @@ implementation stays in Bureau naming and architecture.
   History API. Refresh and share keep the panel; cold links adopt the entry so
   Close replaces to `/` instead of leaving the site; agent chats stay on `/`.
   Legacy `/cronjobs` and `/users` aliases still open Schedules / Settings.
+- Privileged-agent schedule CRUD: privileged desk agents may create/update/delete/run schedules owned by their manager via `/api/cronjobs` (office-wide `PUT /api/cron-prompt` remains browser-owner only). System prompt documents the new reach.

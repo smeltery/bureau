@@ -204,6 +204,8 @@ describe("buildSystemPrompt memory affordance", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room", null, null, null, null, "Boss One", null, true);
 
     expect(prompt).toContain("## Privileged Operator Context");
+    expect(prompt).toContain("Schedules your manager owns");
+    expect(prompt).toContain("/api/cron-prompt");
     expect(prompt).toContain("Use it ONLY when a boss explicitly asks you to");
     expect(prompt).toContain("limited to the rooms and agents your manager can see");
     expect(prompt).toContain("create a room (only if your manager is an owner)");
