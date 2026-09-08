@@ -134,6 +134,11 @@ export function App() {
     setSpawnDesk,
     setCtxMenu,
     setEditAgent,
+    settingsOpen: editingUsername,
+    openSettings: () => {
+      setEditingUserId(null);
+      setEditingUsername(true);
+    },
   });
 
   return (

@@ -70,6 +70,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   mid-December, and Valentine's Day (override with `?officeDate=` for review).
 - Per-room office pets: choose a cat, dog, rabbit, or tortoise and a coat in
   Room settings; legacy coat-only configs migrate to the cat.
+- Clickable wall affordances: corkboard → Tasks, clock → Schedules, vent →
+  Settings, apps plaque → Apps (moon/sun still toggles theme).
+- Keyboard shortcuts `t` (toggle Tasks) and `s` (open Settings) when not typing.
 - Topic labels so long-running agents remain recognizable at a glance.
 - Mobile agent list view for smaller screens.
 
