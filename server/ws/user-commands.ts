@@ -2,7 +2,7 @@ import type { ServerWebSocket } from "bun";
 import type { ClientCommand } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { evictSessionsForUserId } from "../auth/auth.ts";
-import { pushPresenceListToEachWs, sendInitialPayload } from "../index.ts";
+import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
 import { refreshPresenceForUser, setPresence } from "../presence.ts";
 import { canSeeRoom, claimUser, deleteUser, getSessionContext, getUserById, getWsUser, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { browsers } from "./broadcast.ts";

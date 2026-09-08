@@ -1,7 +1,7 @@
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
-import { pushPresenceListToEachWs } from "../index.ts";
+import { pushPresenceListToEachWs } from "../ws-initial-payload.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import { getWsUser } from "../users.ts";
 import { handleAgentConversationCommand } from "./agent-conversation-commands.ts";

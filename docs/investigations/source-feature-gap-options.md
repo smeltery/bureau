@@ -89,8 +89,6 @@ implementation stays in Bureau naming and architecture.
 - Full UI i18n catalogs / Catalan. Bureau already has language preference for
   agent replies and speech (en/es); source's full catalog + `ca` is a broader
   localization project.
-- Generic secret redaction in persisted conversation logs. Distinct from
-  existing agent-token redaction; safety hardening for a later pass.
 
 ## Implemented since the prior note (2026-07-14)
 
@@ -122,3 +120,7 @@ implementation stays in Bureau naming and architecture.
 - Seasonal office decorations: calendar-gated string lights (late December),
   desk pumpkin (week before Halloween), and Valentine chocolate box, with
   `?officeDate=` review override. Mounted in the office scene beside room props.
+- Generic secret redaction on write for agent and cron conversation logs
+  (`prepareLogEntry` / `redactLogEntry`): provider token prefixes and
+  `api_key`/`secret`/`token`/`password` assignments are masked before cache,
+  WebSocket emit, and JSONL persistence. History is not rewritten.

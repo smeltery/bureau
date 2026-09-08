@@ -1,6 +1,6 @@
 import type { AgentState, Attachment, LogEntry, OfficeSettings, RoomWire } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES, generateRoomId, normalizeRoomPet } from "../../shared/types.ts";
-import { appendLog, loadOfficeConfig, type OfficeConfig } from "../persistence.ts";
+import { appendLog, loadOfficeConfig, prepareLogEntry, type OfficeConfig } from "../persistence.ts";
 import { saveLiveAgentHistory, saveLiveAgents, writeAgentsManifest } from "./state-persistence.ts";
 import type { AgentEvent, EventHandler, InternalRoom, ManagedAgent } from "./state-types.ts";
 export type { AgentEvent, EventHandler, InternalRoom, ManagedAgent } from "./state-types.ts";
@@ -147,7 +147,7 @@ export function addLogEntry(
   attachments?: Attachment[],
   extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
 ) {
-  const entry: LogEntry = {
+  const entry = prepareLogEntry({
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     agentId,
     timestamp: Date.now(),
@@ -156,7 +156,7 @@ export function addLogEntry(
     metadata,
     ...(attachments && attachments.length > 0 ? { attachments } : {}),
     ...(extra ?? {}),
-  };
+  });
   // Cache locally
   const cached = logCache.get(agentId) ?? [];
   cached.push(entry);
@@ -201,15 +201,16 @@ export function addLogEntry(
 // called, the backfill logic in processMessage (system/init) would write them to disk. In practice
 // this doesn't happen because /resume requires existing sessions (sessionId already set).
 export function emitEphemeralLog(agentId: string, kind: LogEntry["kind"], content: string, metadata?: Record<string, unknown>, extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>) {
-  const entry: LogEntry = {
+  const entry = prepareLogEntry({
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     agentId,
     timestamp: Date.now(),
     kind,
     content,
     metadata,
+    ephemeral: true,
     ...(extra ?? {}),
-  };
+  });
   const cached = logCache.get(agentId) ?? [];
   cached.push(entry);
   logCache.set(agentId, cached);

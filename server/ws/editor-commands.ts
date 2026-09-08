@@ -2,7 +2,7 @@ import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { stopWatch, watchFile } from "../file-editor.ts";
-import { editorWatchers } from "../index.ts";
+import { editorWatchers } from "../editor-watchers.ts";
 
 function editorKey(agentId: string, absPath: string): string {
   return `${agentId}\0${absPath}`;
