@@ -75,9 +75,6 @@ implementation stays in Bureau naming and architecture.
   subresources.
 - A bundled browser dependency. Bureau uses an installed Chrome-compatible
   browser to avoid increasing package size and install complexity.
-- Ephemeral slash-echo edit rewrite. Source rewrites failed ephemeral slash
-  echoes without a backend fork; Bureau can add that hygiene later if users hit
-  the gap.
 - Privileged-agent cron job management. Desk agents with operator privilege
   currently steer rooms and agents, not cron CRUD; that is a separate auth
   expansion.
@@ -124,3 +121,7 @@ implementation stays in Bureau naming and architecture.
   (`prepareLogEntry` / `redactLogEntry`): provider token prefixes and
   `api_key`/`secret`/`token`/`password` assignments are masked before cache,
   WebSocket emit, and JSONL persistence. History is not rewritten.
+- Ephemeral slash-echo edit rewrite: editing an ephemeral slash echo (unknown /
+  unsupported command) trims the failed echo and re-dispatches via sendMessage
+  without an SDK fork, so a typo like `/hepl` → `/help` works even with no
+  session and on non-forking backends.

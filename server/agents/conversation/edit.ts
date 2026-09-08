@@ -5,17 +5,67 @@ import { SessionSwappedError, createSession, replaceSession } from "../session/r
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
+import { inMultiStepFlow } from "../pending-prompt.ts";
+import { sendMessage } from "./send.ts";
 import { entriesBefore, findForkSourceSession, findOwnerSessionHint, findSdkUserMessageIndex, prefixedUserContent, topicMessageCount, userMessageOccurrenceIndex } from "./edit-helpers.ts";
 
 export async function editMessage(agentId: string, logEntryId: string, newText: string, username?: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
-  if (!managed.sessionId) {
-    addLogEntry(agentId, "error", "Cannot edit: no active session.");
-    return;
-  }
   if (managed.info.state !== "waiting_for_response") {
     addLogEntry(agentId, "error", "Cannot edit while agent is busy.");
+    return;
+  }
+
+  const oldLogCache = [...(logCache.get(agentId) ?? [])];
+  // Find target up front so the ephemeral short-circuit and the not-found
+  // error can return before the fork pipeline runs.
+  const targetEntry = oldLogCache.find((e) => e.id === logEntryId);
+  if (!targetEntry || targetEntry.kind !== "user_message") {
+    addLogEntry(agentId, "error", "Cannot edit: message not found.");
+    return;
+  }
+
+  // Ephemeral entries (e.g. unknown / unsupported slash echoes) never reached
+  // the backend transcript, so there is no fork point. Rewrite the failed
+  // attempt by trimming it plus any trailing ephemeral siblings and
+  // re-dispatching through sendMessage, which routes corrected slash text
+  // back through the slash-command pipeline. Refuse if real turns or later
+  // user messages follow — the user cannot selectively rewrite without also
+  // discarding subsequent conversation.
+  if (targetEntry.ephemeral) {
+    // Multi-step flows (/resume, /model, /effort, permission prompts) leave
+    // pending state expecting the next user message as the pick. Re-dispatching
+    // via sendMessage would be consumed by that pending handler rather than
+    // treated as a replacement. Force the user to answer or cancel first.
+    if (inMultiStepFlow(managed)) {
+      addLogEntry(agentId, "error", "Cannot edit: finish or cancel the pending prompt first.");
+      return;
+    }
+    const targetPos = oldLogCache.findIndex((e) => e.id === logEntryId);
+    const afterTarget = oldLogCache.slice(targetPos + 1);
+    const hasRealAfter = afterTarget.some((e) => !e.ephemeral);
+    const hasUserAfter = afterTarget.some((e) => e.kind === "user_message");
+    if (hasRealAfter || hasUserAfter) {
+      addLogEntry(agentId, "error", "Cannot edit: this message was not sent to the agent (later messages follow).");
+      return;
+    }
+    const trimmed = oldLogCache.slice(0, targetPos);
+    logCache.set(agentId, trimmed);
+    emit({ type: "clear_logs", agentId });
+    for (const entry of trimmed) {
+      emit({ type: "log_entry", entry });
+    }
+    await sendMessage(agentId, newText, username);
+    return;
+  }
+
+  // The fork pipeline below needs a backend session to fork from. Checked
+  // here rather than at function entry so the ephemeral short-circuit above
+  // can still fix a failed slash command in a session-less / first-message
+  // state where sessionId is unset.
+  if (!managed.sessionId) {
+    addLogEntry(agentId, "error", "Cannot edit: no active session.");
     return;
   }
   // Editing is a session FORK, and every fork below goes through the Claude
@@ -27,15 +77,6 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
   // an HTTP PATCH can arrive without it, so this is the boundary that decides.
   if (managed.info.capabilities?.fork === false) {
     addLogEntry(agentId, "error", "Cannot edit: this agent's backend does not support forking a conversation. Send a new message instead.");
-    return;
-  }
-
-  const oldLogCache = [...(logCache.get(agentId) ?? [])];
-  // Find target up front so a not-found error returns before queue drain or
-  // the fork pipeline runs.
-  const targetEntry = oldLogCache.find((e) => e.id === logEntryId);
-  if (!targetEntry || targetEntry.kind !== "user_message") {
-    addLogEntry(agentId, "error", "Cannot edit: message not found.");
     return;
   }
 
