@@ -44,9 +44,22 @@ function errors(id: string): string[] {
   return (logCache.get(id) ?? []).filter((e) => e.kind === "error").map((e) => e.content);
 }
 
+function seedDurableUser(id: string, entryId = "entry-1"): void {
+  logCache.set(id, [
+    {
+      id: entryId,
+      agentId: id,
+      timestamp: Date.now(),
+      kind: "user_message",
+      content: "original text",
+    },
+  ]);
+}
+
 describe("editMessage fork capability", () => {
   test("a backend that cannot fork is refused, with a next step", async () => {
     install("agent-codex", false);
+    seedDurableUser("agent-codex");
 
     await editMessage("agent-codex", "entry-1", "revised text");
 
@@ -59,6 +72,7 @@ describe("editMessage fork capability", () => {
 
   test("the refusal happens before the SDK, so nothing else is disturbed", async () => {
     install("agent-codex", false);
+    seedDurableUser("agent-codex");
     const managed = agents.get("agent-codex")!;
 
     await editMessage("agent-codex", "entry-1", "revised text");
@@ -70,6 +84,7 @@ describe("editMessage fork capability", () => {
 
   test("a forking backend is not refused by this check", async () => {
     install("agent-claude", true);
+    seedDurableUser("agent-claude");
 
     await editMessage("agent-claude", "entry-1", "revised text");
 

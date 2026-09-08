@@ -88,9 +88,12 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   iframe under a deny-everything CSP. Per-slide regenerate accepts a one-shot
   instruction.
 - Conversation branching by editing a past user message. Offered only where the
-  agent's backend can fork a session — each backend declares that for itself,
+  backend can fork a session: the Claude backend can, so Claude agents show edit,
   and the Codex backend cannot, so Codex agents show no edit affordance and the
-  server refuses the request independently.
+  server refuses the command. Ephemeral slash-command echoes (unknown /
+  unsupported commands) are an exception: editing them trims the failed echo and
+  re-dispatches without a fork, including on Codex and before a session exists.
+
 - Session resume, new conversation, model/effort changes, and usage views.
 
 ## Developer Tools
