@@ -67,9 +67,6 @@ implementation stays in Bureau naming and architecture.
 
 ## Deferred
 
-- In-UI provider Connections (Claude / Codex sign-in). Real product gap, but it
-  expands credential and public-API surface; needs an explicit product go-ahead
-  before a Bureau-native port.
 - Recurring agent-to-agent scheduled messages. Bureau already has cron jobs for
   recurring work; one-off scheduled messages cover reminders and delayed
   handoffs without adding a second recurrence model.
@@ -186,3 +183,8 @@ implementation stays in Bureau naming and architecture.
   (`after`, page size 500). Capacity/inbox_full removed. Optional
   `Idempotency-Key` on drain + inbox send + API send (replay header / 409 body
   conflict); API token senders reject `clientMessageId`.
+- Provider Connections MVP: Account → Connections shows Claude/Codex status
+  (CLI credentials vs `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`), lets the signed-in
+  user paste keys into personal managed env (`PUT /api/me/provider-accounts/keys`,
+  secrets never echoed), documents host CLI login, and deep-links auth-failure
+  chat notices to that pane. In-browser OAuth/device login deferred.

@@ -43,8 +43,11 @@ export function isAuthErrorForAgent(managed: ManagedAgent | undefined, text: str
 
 export function emitLoginInstructions(agentId: string, managed: ManagedAgent | undefined) {
   if (!managed) return;
+  const provider = managed.info.agentType === "codex" ? "codex" : managed.info.agentType === "claude" ? "claude" : null;
   const instructions = getBackend(managed.info.agentType).getLoginInstructions({ env: envForHints(managed) });
-  emitEphemeralLog(agentId, "system", instructions.text);
+  // Connections deep-link: system notice carries providerLogin so the log card
+  // can open Account → Connections without embedding secrets or OAuth state.
+  emitEphemeralLog(agentId, "system", instructions.text, provider ? { providerLogin: provider, openConnections: true } : undefined);
   for (const command of instructions.commands ?? []) {
     addLogEntry(agentId, "terminal-command", command, undefined, undefined, { terminal: { command } });
   }

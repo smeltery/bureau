@@ -24,6 +24,7 @@ import { ScrollToBottomButton } from "./ScrollToBottomButton.tsx";
 import { DeckView } from "./deck/DeckView.tsx";
 import { useSlideMode } from "../hooks/useSlideMode.ts";
 import { useSpeechLocale } from "../hooks/useSpeechLocale.ts";
+import { requestOpenAccountSection } from "../components/account-navigation.ts";
 
 export function LogView({
   agent,
@@ -263,6 +264,7 @@ export function LogView({
               getUserMsgRefCb={getUserMsgRefCb}
               onOpenInEditor={features.editor ? panels.openInEditor : undefined}
               onCopyToTerminal={features.terminal ? panels.copyToTerminal : undefined}
+              onOpenConnections={() => requestOpenAccountSection("connections")}
               stateChangedAt={stateChangedAt.get(agent.id)}
             />
 

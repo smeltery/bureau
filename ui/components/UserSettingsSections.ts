@@ -1,8 +1,10 @@
-export type AccountSection = "access" | "office-env" | "personal-env" | "usage" | "storage" | "invites" | "sessions" | "devices" | "api-tokens" | "signout";
+export type AccountSection = "access" | "connections" | "office-env" | "personal-env" | "usage" | "storage" | "invites" | "sessions" | "devices" | "api-tokens" | "signout";
 
 export function buildAccountSections(isOwner: boolean, hasSession: boolean): { section: AccountSection; label: string }[] {
   return [
     ...(isOwner ? [{ section: "access" as const, label: "Access" }] : []),
+    // Provider status + API-key paste for Claude/Codex (signed-in user scope).
+    ...(hasSession ? [{ section: "connections" as const, label: "Connections" }] : []),
     ...(isOwner ? [{ section: "office-env" as const, label: "Office variables" }] : []),
     // Personal managed env — any signed-in user can edit their own
     // (`GET/PUT /api/users/:name/env`). Distinct from provider Connections sign-in.

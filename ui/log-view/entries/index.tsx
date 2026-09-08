@@ -32,6 +32,7 @@ export function LogEntryCard({
   onOpenInEditor,
   onCopyToTerminal,
   onChoicePick,
+  onOpenConnections,
 }: {
   entry: LogEntry;
   isLastInTurn?: boolean;
@@ -45,6 +46,7 @@ export function LogEntryCard({
   onOpenInEditor?: (path: string) => void;
   onCopyToTerminal?: (command: string) => void;
   onChoicePick?: (kind: ChoicePromptPayload["kind"], position: number) => void;
+  onOpenConnections?: () => void;
 }) {
   switch (entry.kind) {
     case "user_message": {
@@ -131,7 +133,14 @@ export function LogEntryCard({
         const prompt = entry.metadata.choicePrompt;
         return <ChoicePromptCard prompt={prompt} isMobile={isMobile} onPick={onChoicePick ? (position) => onChoicePick(prompt.kind, position) : undefined} />;
       }
-      return <SystemMessage content={entry.content} isMobile={isMobile} />;
+      return (
+        <SystemMessage
+          content={entry.content}
+          isMobile={isMobile}
+          openConnections={entry.metadata?.openConnections === true}
+          onOpenConnections={entry.metadata?.openConnections === true ? onOpenConnections : undefined}
+        />
+      );
     case "diff": {
       if (!entry.diff) return <SystemMessage content={entry.content} isMobile={isMobile} />;
       return <DiffCard payload={entry.diff} />;

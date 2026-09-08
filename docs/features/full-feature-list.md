@@ -9,6 +9,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Mix providers across desks in the same office.
 - Use existing CLI authentication where available. Codex runs through Bureau's
   bundled `@openai/codex` launcher and isolated `CODEX_HOME`.
+- Account → Connections shows Claude/Codex connection status for the signed-in
+  user, accepts API keys into personal managed env (no secret echo), and points
+  at host CLI login. Auth-failure chat notices deep-link to Connections.
 
 ## Multi-Agent
 
@@ -57,7 +60,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Active session revocation and one-time invite management.
 - Live user/device presence in the office.
 - Full-page user settings for profiles, access, self-service device links,
-  personal API tokens, ghost appearance, saved language preference, and roster
+  personal API tokens, provider Connections (Claude/Codex status + API keys),
+  ghost appearance, saved language preference, and roster
   online/session summaries.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers.

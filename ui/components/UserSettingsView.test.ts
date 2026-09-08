@@ -5,6 +5,7 @@ describe("buildAccountSections", () => {
   test("splits owner account management into access, sessions, devices, and signout", () => {
     expect(buildAccountSections(true, true)).toEqual([
       { section: "access", label: "Access" },
+      { section: "connections", label: "Connections" },
       { section: "office-env", label: "Office variables" },
       { section: "personal-env", label: "Variables" },
       { section: "usage", label: "Usage" },
@@ -19,6 +20,7 @@ describe("buildAccountSections", () => {
 
   test("keeps members scoped to their own devices and signout", () => {
     expect(buildAccountSections(false, true)).toEqual([
+      { section: "connections", label: "Connections" },
       { section: "personal-env", label: "Variables" },
       { section: "usage", label: "Usage" },
       { section: "devices", label: "My devices" },

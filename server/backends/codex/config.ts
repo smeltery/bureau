@@ -4,14 +4,14 @@ import { getCodexLoginCommands, isCodexAuthenticated } from "./native-bin.ts";
 // Bureau runs codex against its own isolated CODEX_HOME (~/.bureau/codex-home/
 // by default), separate from the user's interactive `~/.codex/`. That means
 // the user needs a one-time `codex login` against bureau's CODEX_HOME.
-export const LOGIN_INSTRUCTIONS = `To sign in to Codex, click [Copy to terminal] on one of the cards below:
+export const LOGIN_INSTRUCTIONS = `To sign in to Codex, open User Settings → Connections to paste an OPENAI_API_KEY, or click [Copy to terminal] on one of the cards below:
 
 - \`~/.bureau/bin/codex login\`: if running bureau locally
 - \`~/.bureau/bin/codex login --device-auth\`: for remote or headless hosts (e.g. a Mac mini or Linux box you reach over a VPN)
 
 Press Enter to run, follow the prompts, then \`/clear\` this conversation to apply the new auth. Other codex agents apply on their next \`/clear\`.
 
-Alternative: add \`OPENAI_API_KEY\` to your envFile (User Settings → Env File Path, then \`/clear\`). For envFile users with a custom CODEX_HOME: prefix the login commands above with \`CODEX_HOME=<your value>\` first.`;
+For envFile users with a custom CODEX_HOME: prefix the login commands above with \`CODEX_HOME=<your value>\` first.`;
 
 export const ALREADY_AUTHED_INSTRUCTIONS = `Codex is signed in. Type \`/clear\` to refresh this agent's session and pick up the new auth.`;
 

@@ -32,6 +32,7 @@ import { handleInvitesRequest } from "./invites.ts";
 import { handleLiveReloadRequest } from "./live-reload.ts";
 import { handleMemoryRequest } from "./memory.ts";
 import { handleEnvSettingsRequest, handleOfficeSettingsRequest } from "./office-settings.ts";
+import { handleProviderAccountsRequest } from "./provider-accounts.ts";
 import { handlePluginsRequest } from "./plugins.ts";
 import { handleReadyRequest } from "./ready.ts";
 import { handleRoomsRequest } from "./rooms.ts";
@@ -180,6 +181,9 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
   const officeSettingsResp = await handleOfficeSettingsRequest(req, url, httpAuth);
   if (officeSettingsResp) return officeSettingsResp;
+
+  const providerAccountsResp = await handleProviderAccountsRequest(req, url, httpAuth);
+  if (providerAccountsResp) return providerAccountsResp;
 
   const validateResp = await handleValidateRequest(req, url, httpAuth);
   if (validateResp) return validateResp;

@@ -73,7 +73,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - The entire SVG scene (~1,600 lines of raw coordinates and bezier curves) was drawn by Claude Opus — no libraries, assets, or tools
 
 ### Agent Creation & Editing
-- Two engines, chosen per agent when you click an empty desk: **Claude** (uses your Claude Code login) or **Codex** (uses your ChatGPT subscription or \`OPENAI_API_KEY\`). Both kinds of agent sit in the same office and are driven the same way
+- Two engines, chosen per agent when you click an empty desk: **Claude** (uses your Claude Code login) or **Codex** (uses your ChatGPT subscription or \`OPENAI_API_KEY\`). Both kinds of agent sit in the same office and are driven the same way. **User Settings → Connections** shows Claude/Codex auth status and lets you paste API keys (or use CLI login on the host)
 - Claude agents pick a model family — Opus, Sonnet, Haiku, or Fable — and families resolve to exact versions centrally, so an agent follows the current model without being re-created. Codex agents pick a GPT-5.x model
 - Per-agent effort level (minimal → ultra, default xhigh) controls how much thinking an agent spends per turn; Codex also offers ultra, and GPT-6 Astra is available alongside the GPT-5.6 Sol/Terra/Luna family
 - Fresh offices seed one Claude and one Codex welcome agent on first owner claim so you can try whichever backend you have set up
