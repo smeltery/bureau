@@ -14,6 +14,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const { office, sessionContext } = useAppState();
   const [text, setText] = useState(office.prompt ?? "");
   const [envFile, setEnvFile] = useState(office.envFile ?? "");
+  const [settingsVersion, setSettingsVersion] = useState<string | null>(null);
   const [name, setName] = useState(username);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
@@ -24,9 +25,33 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const officeMemory = useMemoryEditor("office", null);
   const bossMemory = useMemoryEditor("boss", sessionContext?.userId ?? null, !!sessionContext?.userId);
 
-  // Ask the server to re-validate the stored env file on open
+  // Pin the optimistic-concurrency version from a GET on open (same rail as room
+  // settings / memory). Store may lag a concurrent tab's save until WS lands.
   useEffect(() => {
-    const saved = office.envFile;
+    let cancelled = false;
+    fetch("/api/office/settings", { credentials: "same-origin" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("could not load office settings");
+        return (await res.json()) as { prompt: string | null; envFile: string | null; version: string };
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setText(data.prompt ?? "");
+        setEnvFile(data.envFile ?? "");
+        setSettingsVersion(data.version);
+      })
+      .catch(() => {
+        if (!cancelled) setStatus({ kind: "error", message: "Could not load office settings version. Reopen and try again." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Re-validate the saved env file once the GET version lands (not on every keystroke).
+  useEffect(() => {
+    if (!settingsVersion) return;
+    const saved = envFile;
     if (!saved) {
       setStatus({ kind: "idle" });
       return;
@@ -47,9 +72,13 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
     addRawListener(listener);
     send({ type: "request_settings_validation", requestId: reqId, scope: "office" });
     return () => removeRawListener(listener);
-  }, [office.envFile]);
+  }, [settingsVersion]);
 
   async function handleSave() {
+    if (!settingsVersion) {
+      setStatus({ kind: "error", message: "Office settings version is still loading. Try again in a moment." });
+      return;
+    }
     const memoryResult = await officeMemory.save();
     if (!memoryResult.ok) {
       setStatus({ kind: "error", message: memoryResult.message });
@@ -84,6 +113,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
       requestId: reqId,
       prompt: text.trim() ? text : null,
       envFile: envFile.trim() || null,
+      version: settingsVersion,
     });
   }
 
@@ -184,7 +214,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>
           Cancel
         </button>
-        <button onClick={handleSave} style={saveBtnStyle} disabled={saving}>
+        <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>
           {saving ? "Saving…" : "Save"}
         </button>
       </div>

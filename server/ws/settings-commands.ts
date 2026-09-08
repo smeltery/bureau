@@ -6,6 +6,30 @@ import { getUserById, getWsUser } from "../users.ts";
 export function handleSettingsCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>, canUseRoom: (roomId: string) => boolean): boolean {
   switch (cmd.type) {
     case "update_office_settings": {
+      const version = typeof cmd.version === "string" ? cmd.version : "";
+      if (!version) {
+        ws.send(
+          JSON.stringify({
+            type: "settings_save_response",
+            requestId: cmd.requestId,
+            ok: false,
+            error: "settings version is required",
+          } as ServerMessage),
+        );
+        return true;
+      }
+      const currentVersion = AgentManager.officeSettingsVersion();
+      if (version !== currentVersion) {
+        ws.send(
+          JSON.stringify({
+            type: "settings_save_response",
+            requestId: cmd.requestId,
+            ok: false,
+            error: "Office settings changed since you opened this. Reopen the dialog to edit the latest version.",
+          } as ServerMessage),
+        );
+        return true;
+      }
       const envFile = cmd.envFile && cmd.envFile.trim() ? cmd.envFile.trim() : null;
       if (envFile) {
         try {

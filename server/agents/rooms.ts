@@ -1,11 +1,18 @@
 import type { RoomPet, RoomWire } from "../../shared/types.ts";
 import { generateRoomId, normalizeRoomPet } from "../../shared/types.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
+import { versionOf } from "../memory-store.ts";
 import { readEnvFile, saveOfficeConfig } from "../persistence.ts";
 import { agents, emit, findRoomIndex, officeConfig, persistAll, roomsWire, rooms, setOfficeConfig, type InternalRoom } from "./state.ts";
 
 export function getRooms(): RoomWire[] {
   return roomsWire();
+}
+
+/** Content hash over the office settings PUT surface (prompt + envFile). */
+export function officeSettingsVersion(settings?: { prompt: string | null; envFile: string | null }): string {
+  const s = settings ?? { prompt: officeConfig.prompt, envFile: officeConfig.envFile };
+  return versionOf(JSON.stringify([s.prompt ?? null, s.envFile ?? null]));
 }
 
 // Update office settings. Caller is responsible for validating envFile (see validateEnvPath).

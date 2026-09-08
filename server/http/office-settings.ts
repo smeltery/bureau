@@ -37,12 +37,21 @@ export async function handleOfficeSettingsRequest(req: Request, url: URL, auth: 
   if (auth.session.role !== "owner") return error(403, "owner access required");
 
   if (req.method === "GET") {
-    return new Response(JSON.stringify(AgentManager.getOfficeSettings()), { headers: jsonHeaders });
+    const settings = AgentManager.getOfficeSettings();
+    return new Response(JSON.stringify({ ...settings, version: AgentManager.officeSettingsVersion(settings) }), { headers: jsonHeaders });
   }
 
   if (req.method === "PUT") {
     const body = await readJson(req);
     if (body instanceof Response) return body;
+    // Version guard before field validation — stale writers re-read first.
+    const version = typeof body.version === "string" ? body.version : "";
+    if (!version) return error(400, "settings version is required");
+    const current = AgentManager.getOfficeSettings();
+    const currentVersion = AgentManager.officeSettingsVersion(current);
+    if (version !== currentVersion) {
+      return error(409, "office settings changed; fetch the latest version and retry", { version: currentVersion });
+    }
     const prompt = typeof body.prompt === "string" ? body.prompt : null;
     const envFile = typeof body.envFile === "string" && body.envFile.trim() ? body.envFile.trim() : null;
     if (envFile) {
@@ -138,8 +147,8 @@ async function readJson(req: Request): Promise<Record<string, unknown> | Respons
   }
 }
 
-function error(status: number, message: string): Response {
-  return new Response(JSON.stringify({ error: message }), { status, headers: jsonHeaders });
+function error(status: number, message: string, extra?: Record<string, unknown>): Response {
+  return new Response(JSON.stringify({ error: message, ...extra }), { status, headers: jsonHeaders });
 }
 
 function json(body: unknown): Response {
