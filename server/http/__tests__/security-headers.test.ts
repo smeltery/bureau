@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { _testResetAppHostDomain, freezeAppHostDomain } from "../../apps/domain.ts";
+import { describe, expect, test } from "bun:test";
+import { freezeAppHostDomain } from "../../apps/domain.ts";
 import { createFetchHandler } from "../router.ts";
 
 function server(address: string | null = "127.0.0.1") {
@@ -9,8 +9,11 @@ function server(address: string | null = "127.0.0.1") {
   } as never;
 }
 
-afterEach(() => _testResetAppHostDomain());
-
+// Freeze before each call into the production fetch handler, and leave the
+// module frozen afterwards. Resetting here used to clear the boot freeze for
+// the rest of the suite; with any leftover Bun.serve still answering (or a
+// browser probing localhost), a late GET /ws then threw
+// "appHostDomain() called before freezeAppHostDomain" between tests.
 describe("office security headers", () => {
   test("adds baseline hardening headers to public office responses", async () => {
     freezeAppHostDomain();
