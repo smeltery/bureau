@@ -20,6 +20,10 @@
     "server/http/__tests__": {
       "limit": 41,
       "reason": "provider-accounts.test.ts covers Connections status listing and key-update secret hygiene."
+    },
+    "server/backends/opencode": {
+      "limit": 12,
+      "reason": "OpenCode MVP backend: runtime resolve, supervisor, parse, transport(+events), session, adapter(+test), config, index — PATH-based, no authority-broker."
     }
   }
 }

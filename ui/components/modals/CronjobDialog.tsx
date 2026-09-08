@@ -132,6 +132,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           <select value={agentType} onChange={(e) => selectAgentType(e.target.value as AgentBackendType)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
             <option value="claude">Claude</option>
             <option value="codex">Codex</option>
+            <option value="opencode">OpenCode</option>
           </select>
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Model</label>
@@ -165,7 +166,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
 
           <label style={{ ...labelStyle, marginTop: 14 }}>Permission Mode</label>
           <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as CronjobPermissionMode)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-            {agentType === "claude" ? <option value="bypassPermissions">Bypass (auto-approve all)</option> : <option value="never">Never ask (unattended)</option>}
+            {agentType === "codex" ? <option value="never">Never ask (unattended)</option> : <option value="bypassPermissions">Bypass (auto-approve all)</option>}
           </select>
           <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Schedules run unattended — modes that require human approval are not available.</p>
 

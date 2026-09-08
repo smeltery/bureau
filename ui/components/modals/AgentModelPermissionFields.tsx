@@ -54,6 +54,11 @@ export function AgentModelPermissionFields({
             <option value="acceptEdits">Accept Edits (auto-approve file changes)</option>
             <option value="bypassPermissions">Bypass (auto-approve all)</option>
           </>
+        ) : agentType === "opencode" ? (
+          <>
+            <option value="default">Ask</option>
+            <option value="bypassPermissions">Bypass (auto-approve all)</option>
+          </>
         ) : (
           <>
             <option value="never">Never ask</option>

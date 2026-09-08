@@ -14,6 +14,7 @@ import {
   DEFAULT_EFFORT,
   EFFORT_LEVELS,
   isClaudeFamily,
+  OPENCODE_MODELS,
   type AgentBackendType,
   type AgentPermissionMode,
   type CodexSandboxMode,
@@ -29,6 +30,10 @@ export function validatePermissionMode(agentType: AgentBackendType, raw: AgentPe
     if (raw === "untrusted" || raw === "on-request" || raw === "never") return raw;
     return "on-request";
   }
+  if (agentType === "opencode") {
+    if (raw === "default" || raw === "bypassPermissions") return raw;
+    return "default";
+  }
   if (raw === "default" || raw === "acceptEdits" || raw === "bypassPermissions" || raw === "auto") return raw;
   return "auto";
 }
@@ -43,6 +48,11 @@ export function validateModelFamily(agentType: AgentBackendType, raw: string | u
     // hint already points the user back at settings).
     if (raw && typeof raw === "string" && raw.length > 0) return raw;
     return CODEX_MODELS[0].value;
+  }
+  if (agentType === "opencode") {
+    // Pass-through provider/model ids from live /provider discovery.
+    if (raw && typeof raw === "string" && raw.includes("/")) return raw;
+    return OPENCODE_MODELS[0].value;
   }
   if (raw && isClaudeFamily(raw)) return raw;
   return "opus";
@@ -63,8 +73,9 @@ export function validateEffort(agentType: AgentBackendType, modelFamily: string,
     return DEFAULT_EFFORT;
   }
   if (!raw || !EFFORT_LEVELS.some((e) => e.level === raw)) return DEFAULT_EFFORT;
-  // Claude family-level rules: "minimal"/"ultra" are Codex-only; "max" is opus/fable-only.
+  // Claude / OpenCode: "minimal"/"ultra" are Codex-only; "max" is opus/fable-only.
   if (raw === "minimal" || raw === "ultra") return DEFAULT_EFFORT;
+  if (agentType === "opencode" && raw === "max") return DEFAULT_EFFORT;
   if (raw === "max" && modelFamily !== "opus" && modelFamily !== "fable") return DEFAULT_EFFORT;
   return raw;
 }
@@ -80,8 +91,7 @@ export function validateEffort(agentType: AgentBackendType, modelFamily: string,
 // events. A stale client sending `auto` is migrated to `bypassPermissions`.
 export function validateCronjobPermissionMode(agentType: AgentBackendType, raw: string | undefined): CronjobPermissionMode {
   if (agentType === "codex") return "never";
-  // Claude: only "bypassPermissions" is unattended-safe with the Backend
-  // abstraction. Migrate legacy "auto" up to "bypassPermissions".
+  // Claude + OpenCode: only "bypassPermissions" is unattended-safe.
   if (raw === "bypassPermissions") return "bypassPermissions";
   return "bypassPermissions";
 }

@@ -19,4 +19,9 @@ describe("validateCronjobPermissionMode", () => {
     expect(validateCronjobPermissionMode("codex", "on-request")).toBe("never");
     expect(validateCronjobPermissionMode("codex", undefined)).toBe("never");
   });
+
+  test("uses bypass for unattended opencode cron records", () => {
+    expect(validateCronjobPermissionMode("opencode", "default")).toBe("bypassPermissions");
+    expect(validateCronjobPermissionMode("opencode", undefined)).toBe("bypassPermissions");
+  });
 });

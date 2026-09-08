@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentBackendType, AgentInfo, AgentOutfit, ClientCommand, CodexSandboxMode, EffortLevel } from "../../../shared/types.ts";
-import { CODEX_MODELS, DEFAULT_EFFORT, effortLevelsFor, familyAllowsAutoPermission, MODEL_FAMILIES } from "../../../shared/types.ts";
+import { CODEX_MODELS, DEFAULT_EFFORT, familyAllowsAutoPermission, MODEL_FAMILIES, OPENCODE_MODELS } from "../../../shared/types.ts";
 import { templateFormValues, type AgentTemplate } from "../../agent-templates.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { useAppState } from "../../store.tsx";
@@ -8,6 +8,7 @@ import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import { makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
 import type { EditAgentDialogProps } from "./EditAgentDialog.tsx";
 import { useI18n } from "../../i18n.tsx";
+import { applySpawnEngineDefaults } from "./spawn-engine-defaults.ts";
 
 export function canToggleAgentPrivilege(isSpawn: boolean, sessionContext: { role: "owner" | "member"; userId: string } | null, agent: Pick<AgentInfo, "userId"> | undefined): boolean {
   return !isSpawn && (sessionContext?.role === "owner" || (sessionContext?.userId != null && agent?.userId === sessionContext.userId));
@@ -61,15 +62,24 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const [customInstructions, setCustomInstructions] = useState(agent?.customInstructions ?? "");
   const instructionsVersionAtOpen = useRef(agent?.customInstructionsVersion ?? "");
   const instructionsStale = !isSpawn && !!agent && agent.customInstructionsVersion !== instructionsVersionAtOpen.current;
-  const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
+  const modelOptions =
+    agentType === "codex"
+      ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label }))
+      : agentType === "opencode"
+        ? OPENCODE_MODELS.map((m) => ({ family: m.value, label: m.label }))
+        : MODEL_FAMILIES;
   const [modelFamily, setModelFamily] = useState<string>(agent?.modelFamily ?? modelOptions[0].family);
   const [effort, setEffort] = useState<EffortLevel>(agent?.effort ?? DEFAULT_EFFORT);
   const initialPermissionMode: AgentInfo["permissionMode"] =
     agentType === "codex"
       ? (agent?.permissionMode ?? (isSpawn ? "never" : "on-request"))
-      : agent?.permissionMode === "auto" && !familyAllowsAutoPermission(agent?.modelFamily ?? MODEL_FAMILIES[0].family)
-        ? "bypassPermissions"
-        : (agent?.permissionMode ?? "auto");
+      : agentType === "opencode"
+        ? agent?.permissionMode === "bypassPermissions"
+          ? "bypassPermissions"
+          : (agent?.permissionMode ?? "default")
+        : agent?.permissionMode === "auto" && !familyAllowsAutoPermission(agent?.modelFamily ?? MODEL_FAMILIES[0].family)
+          ? "bypassPermissions"
+          : (agent?.permissionMode ?? "auto");
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
   const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(agent?.codexSandbox ?? "danger-full-access");
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string | null>(null);
@@ -148,16 +158,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
 
   useEffect(() => {
     if (!isSpawn) return;
-    if (agentType === "codex") {
-      setModelFamily((current) => (CODEX_MODELS.some((m) => m.value === current) ? current : CODEX_MODELS[0].value));
-      setPermissionMode((current) => (current === "never" || current === "on-request" || current === "untrusted" ? current : "never"));
-      setCodexSandbox((current) => current ?? "danger-full-access");
-      setEffort((current) => (effortLevelsFor("codex", modelFamily).some((option) => option.level === current) ? current : DEFAULT_EFFORT));
-    } else {
-      setModelFamily((current) => (MODEL_FAMILIES.some((m) => m.family === current) ? current : MODEL_FAMILIES[0].family));
-      setPermissionMode((current) => (current === "auto" || current === "default" || current === "acceptEdits" || current === "bypassPermissions" ? current : "auto"));
-      setEffort((current) => (effortLevelsFor("claude", modelFamily).some((option) => option.level === current) ? current : DEFAULT_EFFORT));
-    }
+    applySpawnEngineDefaults(agentType, modelFamily, setModelFamily, setPermissionMode, setCodexSandbox, setEffort);
   }, [agentType, isSpawn, modelFamily]);
 
   async function handleSave() {

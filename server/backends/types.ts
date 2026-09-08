@@ -1,8 +1,9 @@
-// Backend abstraction shared by Claude (claude-agent-sdk) and Codex (App Server).
+// Backend abstraction shared by Claude (claude-agent-sdk), Codex (App Server),
+// and OpenCode (local `opencode serve` HTTP/SSE).
 //
 // agent-manager.ts holds runConsumer / queue / abort / fork / topic-gen / etc.
 // in backend-agnostic form; engines implement this contract under
-// server/backends/{claude,codex}/ and the dispatch lives in
+// server/backends/{claude,codex,opencode}/ and the dispatch lives in
 // server/backends/index.ts (`getBackend(agentType)`).
 //
 // All session-lifecycle methods (`createSession`, `resumeSession`) are

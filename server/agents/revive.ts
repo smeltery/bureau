@@ -228,7 +228,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
   // live snapshot with killedAt: null).
   emit({ type: "agent_added", agent: info });
   emit({ type: "slash_commands", agentId, commands: managed.slashCommands, skills: managed.skills });
-  addLogEntry(agentId, "system", `Revived ${agentType === "codex" ? "Codex" : "Claude"} agent "${info.name}" at ${resolvedCwd}.`);
+  addLogEntry(agentId, "system", `Revived ${agentType === "codex" ? "Codex" : agentType === "opencode" ? "OpenCode" : "Claude"} agent "${info.name}" at ${resolvedCwd}.`);
   persistAll();
   emit({ type: "killed_agent_removed", agentId, lastRoomId: entry.lastRoomId });
   return { ok: true, agent: info };

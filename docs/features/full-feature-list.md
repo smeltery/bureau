@@ -5,13 +5,15 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 ## Multi-Provider
 
-- Choose Claude or Codex when spawning an agent.
+- Choose Claude, Codex, or OpenCode when spawning an agent.
 - Mix providers across desks in the same office.
 - Use existing CLI authentication where available. Codex runs through Bureau's
   bundled `@openai/codex` launcher and isolated `CODEX_HOME`.
 - Account → Connections shows Claude/Codex connection status for the signed-in
   user, accepts API keys into personal managed env (no secret echo), and points
   at host CLI login. Auth-failure chat notices deep-link to Connections.
+- OpenCode uses the host `opencode` binary on PATH (or `OPENCODE_BINARY`) plus
+  `OPENCODE_API_KEY` / host `opencode auth login` — the CLI is not bundled.
 
 ## Multi-Agent
 
@@ -71,7 +73,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 - Isometric rooms with desks, character sprites, status lights, and animated
   state.
-- Desk drinkware signals backend: Claude desks show a mug, Codex desks a teacup on a saucer.
+- Desk drinkware signals backend: Claude desks show a mug, Codex desks a teacup on a saucer, OpenCode desks a small flask.
 - Room tabs, room settings, drag/move flows, and desk swapping.
 - Usage and Storage panes in User Settings (Usage for all signed-in users; Storage prune for owners). Nested Office Settings links removed.
 - Theme picker with dark, light, Nord, Dracula, Solarized Dark, and Solarized

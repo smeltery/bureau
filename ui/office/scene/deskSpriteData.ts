@@ -79,7 +79,9 @@ export function wrapCwd(text: string): string[] {
   return lines;
 }
 
-/** Desk drinkware that signals Claude vs Codex at a glance. */
-export function vesselForAgentType(agentType: AgentBackendType | undefined): "mug" | "cup" {
-  return agentType === "codex" ? "cup" : "mug";
+/** Desk vessel that signals Claude / Codex / OpenCode at a glance. */
+export function vesselForAgentType(agentType: AgentBackendType | undefined): "mug" | "cup" | "flask" {
+  if (agentType === "codex") return "cup";
+  if (agentType === "opencode") return "flask";
+  return "mug";
 }
