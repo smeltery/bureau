@@ -66,6 +66,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Room tabs, room settings, drag/move flows, and desk swapping.
 - Theme picker with dark, light, Nord, Dracula, Solarized Dark, and Solarized
   Light themes.
+- Seasonal office decorations that appear automatically around Halloween,
+  mid-December, and Valentine's Day (override with `?officeDate=` for review).
 - Topic labels so long-running agents remain recognizable at a glance.
 - Mobile agent list view for smaller screens.
 

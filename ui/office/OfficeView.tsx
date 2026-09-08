@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAppState, useDispatch, useTheme, useFeatures } from "../store.tsx";
 import { Floor, Walls } from "./scene/Floor.tsx";
 import { RoomProps } from "./scene/RoomProps.tsx";
+import { Seasonal } from "./scene/Seasonal.tsx";
 import { SCENE_W, SCENE_H } from "./grid.ts";
 import { useGhostTransitions, type DoorCoord } from "./useGhostTransitions.ts";
 import { getRoomCounts } from "../components/overlays/MobileHeader.tsx";
@@ -212,6 +213,7 @@ export function OfficeView({
             />
             <Floor />
             <RoomProps />
+            <Seasonal />
             <RoomDoorDropZones
               agents={agents}
               currentRoom={currentRoom}

@@ -89,8 +89,6 @@ implementation stays in Bureau naming and architecture.
 - Full UI i18n catalogs / Catalan. Bureau already has language preference for
   agent replies and speech (en/es); source's full catalog + `ca` is a broader
   localization project.
-- Seasonal office decorations. Cute static props gated by calendar date; kept
-  behind the Codex currency slice for this pass.
 - Generic secret redaction in persisted conversation logs. Distinct from
   existing agent-token redaction; safety hardening for a later pass.
 
@@ -121,3 +119,6 @@ implementation stays in Bureau naming and architecture.
   regenerate app-server schemas, offer `gpt-6-astra` in the Codex model list
   (Sol remains default), add Codex-only `ultra` effort, and keep Claude UIs
   from selecting `ultra`.
+- Seasonal office decorations: calendar-gated string lights (late December),
+  desk pumpkin (week before Halloween), and Valentine chocolate box, with
+  `?officeDate=` review override. Mounted in the office scene beside room props.
