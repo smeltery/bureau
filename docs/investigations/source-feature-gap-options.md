@@ -166,3 +166,7 @@ implementation stays in Bureau naming and architecture.
   per band per conversation (`firedUiThresholds`), separate from the agent-facing
   nudge. Copy points at `/clear` and `/handoff`. Size-gating also applies to the
   agent nudge so small windows skip the noisy 50% band.
+- Process rename for OOM discrimination: the office server names itself
+  `bureau` via `/proc/self/comm` at boot (`server/process-name.ts`), so
+  name-based protectors (e.g. earlyoom) can shield the office without also
+  shielding agent `bun` builds. Complements `oom-stamp.ts` score bias.
