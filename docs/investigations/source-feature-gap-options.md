@@ -136,3 +136,6 @@ implementation stays in Bureau naming and architecture.
   across `;` / `&&` / `||` / newlines, drop the `process.cwd()` fallback for
   missing agent cwd, and fail closed on protected relative candidates and
   unresolvable directory changes (`shell-cwd.ts`).
+- Interactive office wall affordances: clock opens schedules, vent opens
+  settings, apps plaque opens Apps (corkboard already opens Tasks). Global
+  `t` / `s` shortcuts toggle Tasks and open Settings.

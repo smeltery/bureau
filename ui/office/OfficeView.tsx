@@ -189,6 +189,9 @@ export function OfficeView({
               onWallPanelClick={(x, y) => setWallMenu({ x, y })}
               hasOfficePrompt={!!officePrompt}
               onOpenTasks={onOpenTasks}
+              onOpenCronjobs={embed ? undefined : onOpenCronjobs}
+              onOpenSettings={embed ? undefined : onEditUsername}
+              onOpenApps={embed ? undefined : onOpenApps}
               taskCount={tasks.filter((t) => t.status !== "done" && t.status !== "backlog").length}
               leftDoor={
                 currentRoom > 0

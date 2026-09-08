@@ -48,6 +48,8 @@ export function useAppNavigation({
   setSpawnDesk,
   setCtxMenu,
   setEditAgent,
+  settingsOpen,
+  openSettings,
 }: {
   agents: AgentInfo[];
   connected: boolean;
@@ -71,6 +73,8 @@ export function useAppNavigation({
   setSpawnDesk: Dispatch<SetStateAction<number | null>>;
   setCtxMenu: Dispatch<SetStateAction<{ x: number; y: number; agent: AgentInfo } | null>>;
   setEditAgent: Dispatch<SetStateAction<AgentInfo | null>>;
+  settingsOpen: boolean;
+  openSettings: () => void;
 }) {
   const roomCount = rooms.length;
   const viewportControlsRef = useRef<ViewportControls | null>(null);
@@ -160,6 +164,20 @@ export function useAppNavigation({
         }
       }
 
+      // "t": toggle the task board from office or agent chat, unless Settings is
+      // open (jumping away would skip unsaved-edit checks on that page).
+      if (!isInput && e.key === "t" && !settingsOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setTasksOpen((open) => !open);
+      }
+
+      // "s": open Settings. Only opens — Escape (via the page) is the way out so
+      // we never skip its unsaved-edits check by toggling closed here.
+      if (!isInput && e.key === "s" && !settingsOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        openSettings();
+      }
+
       if (!isInput && !focusedAgentId && e.key === "Tab" && roomCount > 1 && !e.defaultPrevented) {
         e.preventDefault();
         const next = e.shiftKey ? (currentRoom - 1 + roomCount) % roomCount : (currentRoom + 1) % roomCount;
@@ -175,7 +193,7 @@ export function useAppNavigation({
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [dispatch, goHome, focusedAgentId, agents, drafts, currentRoom, roomCount, setCtxMenu, setEditAgent, setSpawnDesk]);
+  }, [dispatch, goHome, focusedAgentId, agents, drafts, currentRoom, roomCount, setCtxMenu, setEditAgent, setSpawnDesk, setTasksOpen, settingsOpen, openSettings]);
 
   const isDeep = tasksOpen || cronjobsOpen || appsOpen || pluginsOpen || focusedAgentId !== null;
   useEffect(() => {

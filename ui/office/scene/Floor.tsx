@@ -81,6 +81,9 @@ export function Walls({
   onWallPanelClick,
   hasOfficePrompt,
   onOpenTasks,
+  onOpenCronjobs,
+  onOpenSettings,
+  onOpenApps,
   taskCount = 0,
   leftDoor,
   rightDoor,
@@ -89,6 +92,9 @@ export function Walls({
   onWallPanelClick?: (x: number, y: number) => void;
   hasOfficePrompt?: boolean;
   onOpenTasks?: () => void;
+  onOpenCronjobs?: () => void;
+  onOpenSettings?: () => void;
+  onOpenApps?: () => void;
   taskCount?: number;
   leftDoor?: DoorProps | null;
   rightDoor?: DoorProps | null;
@@ -130,8 +136,27 @@ export function Walls({
 
       <Corkboard taskCount={taskCount} onOpenTasks={onOpenTasks} />
       <OfficePromptSign hasOfficePrompt={hasOfficePrompt} onWallPanelClick={onWallPanelClick} />
-      {/* Clock on right wall (skewed to match 2:1 wall angle ~27°) */}
-      <g transform="translate(240,-85) skewY(27)">
+      {/* Clock on right wall (skewed to match 2:1 wall angle ~27°) — opens schedules */}
+      <g
+        data-no-pan
+        transform="translate(240,-85) skewY(27)"
+        role={onOpenCronjobs ? "button" : undefined}
+        tabIndex={onOpenCronjobs ? 0 : undefined}
+        aria-label={onOpenCronjobs ? "Schedules" : undefined}
+        onClick={onOpenCronjobs}
+        onKeyDown={
+          onOpenCronjobs
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpenCronjobs();
+                }
+              }
+            : undefined
+        }
+        style={onOpenCronjobs ? { cursor: "pointer", pointerEvents: "auto" } : undefined}
+      >
+        {onOpenCronjobs && <title>Schedules</title>}
         <circle cx="0" cy="0" r={R} fill="var(--wall-decor)" stroke="var(--wall-decor-stroke)" strokeWidth="1" />
         <circle cx="0" cy="0" r={r} fill="var(--wall-decor-inner)" />
         {/* Hour ticks */}
@@ -151,8 +176,55 @@ export function Walls({
         <circle cx="0" cy="0" r="1.5" fill="var(--clock-hand)" />
       </g>
 
-      {/* Vent — upper-east area of right wall */}
-      <g transform="translate(500, 60) skewY(27)">
+      {/* Apps plaque on right wall — below the clock */}
+      {onOpenApps && (
+        <g
+          data-no-pan
+          transform="translate(340, -20) skewY(27)"
+          role="button"
+          tabIndex={0}
+          aria-label="Apps"
+          onClick={onOpenApps}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onOpenApps();
+            }
+          }}
+          style={{ cursor: "pointer", pointerEvents: "auto" }}
+        >
+          <title>Apps</title>
+          <rect x="-22" y="-18" width="44" height="36" rx="3" fill="var(--wall-decor)" stroke="var(--wall-decor-stroke)" strokeWidth="1" />
+          <rect x="-16" y="-12" width="32" height="20" rx="2" fill="var(--wall-decor-inner)" />
+          <circle cx="-6" cy="-2" r="3" fill="var(--wall-decor-stroke)" opacity="0.55" />
+          <circle cx="6" cy="-2" r="3" fill="var(--wall-decor-stroke)" opacity="0.55" />
+          <text x="0" y="14" textAnchor="middle" fontSize="7" fill="var(--wall-decor-stroke)" fontFamily="'DM Sans',sans-serif" fontWeight="600">
+            Apps
+          </text>
+        </g>
+      )}
+
+      {/* Vent — upper-east area of right wall — opens settings */}
+      <g
+        data-no-pan
+        transform="translate(500, 60) skewY(27)"
+        role={onOpenSettings ? "button" : undefined}
+        tabIndex={onOpenSettings ? 0 : undefined}
+        aria-label={onOpenSettings ? "Settings" : undefined}
+        onClick={onOpenSettings}
+        onKeyDown={
+          onOpenSettings
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpenSettings();
+                }
+              }
+            : undefined
+        }
+        style={onOpenSettings ? { cursor: "pointer", pointerEvents: "auto" } : undefined}
+      >
+        {onOpenSettings && <title>Settings</title>}
         <rect x="-25" y="-15" width="50" height="30" rx="2" fill="var(--wall-decor)" stroke="var(--wall-decor-stroke)" strokeWidth="0.8" />
         <line x1="-22" y1="-8" x2="22" y2="-8" stroke="var(--wall-decor-stroke)" strokeWidth="1.5" />
         <line x1="-22" y1="-2" x2="22" y2="-2" stroke="var(--wall-decor-stroke)" strokeWidth="1.5" />
