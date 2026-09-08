@@ -6,11 +6,68 @@ import { SpeakButton } from "../../components/controls/SpeakButton.tsx";
 import { DurationLabel, TurnCopyButton } from "./shared.tsx";
 import { serializeEntries } from "./serialize.ts";
 
+const COLLAPSED_TEXT_CHARS = 2400;
+const COLLAPSED_TEXT_LINES = 36;
+const COLLAPSED_MAX_HEIGHT = 360;
+
+export function shouldCollapseAssistantText(content: string): boolean {
+  return content.length > COLLAPSED_TEXT_CHARS || content.split("\n").length > COLLAPSED_TEXT_LINES;
+}
+
 export function AssistantText({ content, isLastInTurn, turnEntries, isMobile }: { content: string; isLastInTurn?: boolean; turnEntries?: LogEntry[]; isMobile?: boolean }) {
   const getText = useCallback(() => content, [content]);
+  const canCollapse = shouldCollapseAssistantText(content);
+  const [expanded, setExpanded] = useState(false);
   return (
     <div style={{ margin: "8px 0", padding: "10px 14px", paddingRight: 40, borderRadius: 10, background: "var(--bg-subtle)", position: "relative", fontSize: isMobile ? 15 : undefined }}>
-      <Markdown content={content} />
+      <div
+        style={
+          canCollapse && !expanded
+            ? {
+                maxHeight: COLLAPSED_MAX_HEIGHT,
+                overflow: "hidden",
+                position: "relative",
+              }
+            : undefined
+        }
+      >
+        <Markdown content={content} />
+        {canCollapse && !expanded && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 72,
+              background: "linear-gradient(to bottom, rgba(0,0,0,0), var(--bg-subtle))",
+              pointerEvents: "none",
+            }}
+          />
+        )}
+      </div>
+      {canCollapse && (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          aria-expanded={expanded}
+          style={{
+            marginTop: 8,
+            border: "1px solid var(--border-light)",
+            borderRadius: 6,
+            background: "var(--bg-base)",
+            color: "var(--text-muted)",
+            cursor: "pointer",
+            fontSize: isMobile ? 13 : 12,
+            fontFamily: "'DM Sans',sans-serif",
+            fontWeight: 600,
+            padding: "4px 9px",
+          }}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      )}
       <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
         <SpeakButton getText={getText} />
         {isLastInTurn && turnEntries && <CopyButton getText={() => serializeEntries(turnEntries)} />}
