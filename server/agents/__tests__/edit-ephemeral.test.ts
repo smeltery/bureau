@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo, type LogEntry } from "../../../shared/types.ts";
 import { createManagedAgent } from "../managed-factory.ts";
 import { agents, emitEphemeralLog, logCache, persistAll } from "../state.ts";
@@ -7,19 +7,14 @@ import { editMessage } from "../conversation/edit.ts";
 // Ephemeral slash echoes (unknown / unsupported commands) never reach the
 // backend transcript. Editing them must trim the failed echo and re-dispatch
 // through sendMessage — not attempt an SDK fork.
-
-const sendCalls: Array<{ agentId: string; text: string; username?: string }> = [];
-
-mock.module("../conversation/send.ts", () => ({
-  sendMessage: async (agentId: string, text: string, username?: string) => {
-    sendCalls.push({ agentId, text, username });
-  },
-}));
+//
+// Do not mock.module("send.ts"): Bun's module mock is process-wide and leaks
+// into later files (e.g. agent message validation). Assert through real
+// sendMessage side effects instead.
 
 afterEach(() => {
   agents.clear();
   logCache.clear();
-  sendCalls.length = 0;
   persistAll();
 });
 
@@ -40,7 +35,7 @@ function install(id: string, opts?: { fork?: boolean; sessionId?: string | null 
     topicStale: false,
     customInstructions: null,
   };
-  const managed = createManagedAgent({ info, skillCwd: process.cwd(), slashCommands: [], skills: [] });
+  const managed = createManagedAgent({ info, skillCwd: process.cwd(), slashCommands: [{ name: "help", description: "List available commands" }], skills: [] });
   if (opts && "sessionId" in opts) managed.sessionId = opts.sessionId ?? null;
   else managed.sessionId = "session-1";
   agents.set(id, managed);
@@ -58,6 +53,10 @@ function errors(id: string): string[] {
   return (logCache.get(id) ?? []).filter((e) => e.kind === "error").map((e) => e.content);
 }
 
+function contents(id: string): string[] {
+  return (logCache.get(id) ?? []).map((e) => e.content);
+}
+
 describe("editMessage ephemeral slash rewrite", () => {
   test("trims the failed echo and re-dispatches through sendMessage", async () => {
     install("agent-1");
@@ -65,9 +64,11 @@ describe("editMessage ephemeral slash rewrite", () => {
 
     await editMessage("agent-1", echo.id, "/help");
 
-    expect(sendCalls).toEqual([{ agentId: "agent-1", text: "/help", username: undefined }]);
-    // Failed echo + "Unknown command…" are gone; sendMessage owns what follows.
-    expect(logCache.get("agent-1")).toEqual([]);
+    const text = contents("agent-1");
+    expect(text.some((c) => c.includes("/hepl"))).toBe(false);
+    expect(text.some((c) => c.includes("Unknown command"))).toBe(false);
+    // Real /help landed via sendMessage.
+    expect(text.some((c) => c.includes("**Tips:**") || c.includes("/help"))).toBe(true);
   });
 
   test("works without a sessionId (first-message slash typo)", async () => {
@@ -76,9 +77,8 @@ describe("editMessage ephemeral slash rewrite", () => {
 
     await editMessage("agent-1", echo.id, "/help");
 
-    expect(sendCalls).toHaveLength(1);
-    expect(sendCalls[0]!.text).toBe("/help");
     expect(errors("agent-1")).toEqual([]);
+    expect(contents("agent-1").some((c) => c.includes("/hepl"))).toBe(false);
   });
 
   test("works on a non-forking backend (no SDK fork attempted)", async () => {
@@ -87,18 +87,17 @@ describe("editMessage ephemeral slash rewrite", () => {
 
     await editMessage("agent-codex", echo.id, "/help");
 
-    expect(sendCalls).toHaveLength(1);
     expect(errors("agent-codex").some((e) => e.includes("does not support forking"))).toBe(false);
+    expect(contents("agent-codex").some((c) => c.includes("/hepl"))).toBe(false);
   });
 
   test("refuses while a multi-step prompt is pending", async () => {
     const managed = install("agent-1");
-    managed.pendingModelPick = { models: [], resolve: () => {} } as never;
+    managed.pendingModelPick = true;
     const echo = seedEphemeralSlash("agent-1", "/hepl");
 
     await editMessage("agent-1", echo.id, "/help");
 
-    expect(sendCalls).toEqual([]);
     expect(errors("agent-1")[0]).toContain("pending prompt");
     // Echo remains so the user can still see what they typed.
     expect(logCache.get("agent-1")!.some((e) => e.id === echo.id)).toBe(true);
@@ -118,7 +117,6 @@ describe("editMessage ephemeral slash rewrite", () => {
 
     await editMessage("agent-1", echo.id, "/help");
 
-    expect(sendCalls).toEqual([]);
     expect(errors("agent-1")[0]).toContain("not sent");
   });
 
@@ -129,7 +127,6 @@ describe("editMessage ephemeral slash rewrite", () => {
 
     await editMessage("agent-1", echo.id, "/help");
 
-    expect(sendCalls).toEqual([]);
     expect(errors("agent-1")[0]).toContain("not sent");
   });
 
@@ -146,7 +143,6 @@ describe("editMessage ephemeral slash rewrite", () => {
 
     await editMessage("agent-codex", durable.id, "hello again");
 
-    expect(sendCalls).toEqual([]);
     expect(errors("agent-codex")[0]).toContain("does not support forking");
   });
 });
