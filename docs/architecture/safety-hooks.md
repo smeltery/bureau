@@ -81,6 +81,7 @@ Blocks all writes to `~/.bureau/` — the directory managed by the server:
 1. **Redirection**: `> ~/.bureau/` or `>> ~/.bureau/` — blocked.
 2. **Write commands**: `cp`, `mv`, `rm`, `mkdir`, `touch`, `sed`, `python`, etc. with `~/.bureau/` as argument — blocked.
 3. **Copy commands**: `cp`, `rsync`, `scp` — only the destination (last arg) is checked. Reading *from* `~/.bureau/` is allowed.
+4. **Shell cwd-set**: Bash is walked across `;` / `&&` / `||` / newlines so relative writes after `cd` are checked against every directory the shell could still be in. Missing or non-absolute agent cwd no longer falls back to the server process cwd; protected relative candidates (a `.bureau` path segment) and relative writes after an unresolvable `cd`/`pushd`/`popd` fail closed.
 
 ### Read-Only Commands (Always Allowed)
 

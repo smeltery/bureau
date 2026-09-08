@@ -1,9 +1,11 @@
 import { isAbsolute, resolve } from "path";
 import { homedir } from "os";
 import { BUREAU_DIR as RAW_BUREAU_DIR, DEFAULT_BUREAU_DIR as RAW_DEFAULT_BUREAU_DIR } from "../../../persistence/paths.ts";
+import { directoriesForStages, splitShellStages, stageWritesToProtected, type ShellDirectory } from "./shell-cwd.ts";
 
 export const BUREAU_DIR = resolve(RAW_BUREAU_DIR);
 const DEFAULT_BUREAU_DIR = resolve(RAW_DEFAULT_BUREAU_DIR);
+const PROTECTED_SEGMENT = ".bureau";
 
 // ---------------------------------------------------------------------------
 // Bureau config protection — block writes to ~/.bureau/
@@ -22,39 +24,73 @@ const WRITE_COMMANDS = ["cp", "mv", "rm", "mkdir", "rmdir", "touch", "chmod", "c
 // Silence unused-warning for the READ_ONLY list (documentational allowlist).
 void READ_ONLY_COMMANDS;
 
-function pathTargetsBureau(path: string, cwd: string): boolean {
+function pathTargetsBureau(path: string, cwd: ShellDirectory): boolean {
   const unquoted = path.replace(/^['"]|['"]$/g, "");
-  const resolved = unquoted.startsWith("~/") ? resolve(homedir(), unquoted.slice(2)) : unquoted === "~" ? homedir() : isAbsolute(unquoted) ? resolve(unquoted) : resolve(cwd, unquoted);
+  let resolved: string;
+  if (unquoted.startsWith("~/")) {
+    resolved = resolve(homedir(), unquoted.slice(2));
+  } else if (unquoted === "~") {
+    resolved = homedir();
+  } else if (isAbsolute(unquoted)) {
+    resolved = resolve(unquoted);
+  } else if (typeof cwd === "string") {
+    resolved = resolve(cwd, unquoted);
+  } else {
+    return false;
+  }
   return resolved === BUREAU_DIR || resolved.startsWith(BUREAU_DIR + "/") || resolved === DEFAULT_BUREAU_DIR || resolved.startsWith(DEFAULT_BUREAU_DIR + "/");
 }
 
-export function commandWritesToBureau(command: string, cwd: string = process.cwd()): boolean {
-  // Check 1: Redirection (> or >>) targeting ~/.bureau/
-  // Match: > ~/.bureau/, >> .bureau/foo, or > /home/user/.bureau/foo.
-  for (const match of command.matchAll(/(?:^|\s)>>?\s*(\S+)/g)) {
+/** Collect write destinations from a single shell stage (no `;`/`&&`/`||` splits). */
+function collectWriteTargets(stage: string): string[] {
+  const targets: string[] = [];
+
+  for (const match of stage.matchAll(/(?:^|\s)>>?\s*(\S+)/g)) {
     const target = match[1];
-    if (target && pathTargetsBureau(target, cwd)) return true;
+    if (target) targets.push(target);
   }
 
-  // Check 2: Write commands with ~/.bureau/ as an argument
-  // Split on pipe/semicolon/&&/|| to get individual sub-commands
-  const subCommands = command.split(/[|;&]+/).map((s) => s.trim());
-  for (const sub of subCommands) {
+  // Split pipes inside the stage so `cat x | tee dest` is checked.
+  for (const sub of stage.split(/\|+/).map((s) => s.trim())) {
     const firstToken = sub.split(/\s+/)[0]?.replace(/^.*\//, "") ?? "";
     if (!WRITE_COMMANDS.includes(firstToken)) continue;
     const args = sub.split(/\s+/).slice(1);
 
-    // For copy-like commands, only the destination (last arg) is a write target.
-    // Reading *from* ~/.bureau/ is fine — only block if writing *to* it.
     if (COPY_COMMANDS.includes(firstToken)) {
       const positional = args.filter((a) => !a.startsWith("-"));
-      const dest = positional[positional.length - 1] ?? "";
-      if (pathTargetsBureau(dest, cwd)) return true;
+      const dest = positional[positional.length - 1];
+      if (dest) targets.push(dest);
       continue;
     }
 
-    if (args.some((arg) => !arg.startsWith("-") && pathTargetsBureau(arg, cwd))) return true;
+    for (const arg of args) {
+      if (!arg.startsWith("-")) targets.push(arg);
+    }
   }
 
+  return targets;
+}
+
+/**
+ * True when a Bash command would write into ~/.bureau/.
+ *
+ * Tracks `cd` across `;` / `&&` / `||` / newlines so relative paths are checked
+ * against every directory the shell could still be in. Missing or non-absolute
+ * agent cwd no longer falls back to the bureau server's process.cwd().
+ */
+export function commandWritesToBureau(command: string, cwd?: string | null): boolean {
+  const stages = splitShellStages(command);
+  if (stages.length === 0) return false;
+  const directories = directoriesForStages(stages, cwd);
+  const probe = {
+    pathWrites: pathTargetsBureau,
+    protectedSegment: PROTECTED_SEGMENT,
+  };
+
+  for (let i = 0; i < stages.length; i++) {
+    if (stageWritesToProtected(stages[i]!.text, directories[i]!, probe, collectWriteTargets)) {
+      return true;
+    }
+  }
   return false;
 }

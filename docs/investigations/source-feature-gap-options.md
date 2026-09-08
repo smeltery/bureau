@@ -67,6 +67,9 @@ implementation stays in Bureau naming and architecture.
 
 ## Deferred
 
+- In-UI provider Connections (Claude / Codex sign-in). Real product gap, but it
+  expands credential and public-API surface; needs an explicit product go-ahead
+  before a Bureau-native port.
 - Recurring agent-to-agent scheduled messages. Bureau already has cron jobs for
   recurring work; one-off scheduled messages cover reminders and delayed
   handoffs without adding a second recurrence model.
@@ -129,3 +132,7 @@ implementation stays in Bureau naming and architecture.
   species: cat / dog / rabbit / tortoise). Legacy coat-only values migrate to
   cat. Room settings picks species + coat; the office scene draws the matching
   sleeper (dog bed / basket / sand box).
+- Safety-hook shell cwd-set: Bash PreToolUse bureau-write checks track `cd`
+  across `;` / `&&` / `||` / newlines, drop the `process.cwd()` fallback for
+  missing agent cwd, and fail closed on protected relative candidates and
+  unresolvable directory changes (`shell-cwd.ts`).
