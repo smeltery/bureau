@@ -48,7 +48,10 @@ export type { EnsureSlideReq, EnsureSlideRes, SlideDeck, SlideDeckRes, SlideFail
 export { generateHexId, generateTaskId, isValidPriority, isValidStatus } from "./tasks.ts";
 export type { TaskItem, TaskPriority, TaskStatus } from "./tasks.ts";
 export type {
+  ApiTokenInboxDrainRes,
   ApiTokenInboxMessage,
+  ApiTokenLogEntry,
+  ApiTokenSentMessage,
   ApiTokenWire,
   CatCoat,
   DogCoat,

@@ -22,6 +22,7 @@ export const SCHEDULED_MESSAGES_FILE = join(BUREAU_DIR, "scheduled-messages.json
 export const INVITES_FILE = join(BUREAU_DIR, "invites.json");
 export const SESSIONS_FILE = join(BUREAU_DIR, "sessions.json");
 export const API_TOKENS_FILE = join(BUREAU_DIR, "api-tokens.json");
+export const API_TOKEN_LOGS_DIR = join(BUREAU_DIR, "token-logs");
 
 // Unix-domain admin socket used by the owner-login recovery CLI. Filesystem
 // permissions (mode 0600 + the parent dir's existing perms) are the auth
@@ -45,6 +46,7 @@ try {
   mkdirSync(BUREAU_DIR, { recursive: true });
   mkdirSync(LOGS_DIR, { recursive: true });
   mkdirSync(CRONJOBS_DIR, { recursive: true });
+  mkdirSync(API_TOKEN_LOGS_DIR, { recursive: true });
 } catch {}
 
 // Atomic file write: write to a sibling .tmp file then rename. Renames are

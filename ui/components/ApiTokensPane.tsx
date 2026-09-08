@@ -94,15 +94,18 @@ export function ApiTokensPane() {
         {`# list your visible agents and their ids
 curl ${window.location.origin}/api/agents -H "Authorization: Bearer <token>"
 
-# message one
+# message one (optional Idempotency-Key for safe retries)
 curl -X POST ${window.location.origin}/api/agents/<id>/messages \\
   -H "Authorization: Bearer <token>" \\
   -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: send-1" \\
   -d '{"text":"..."}'
 
-# drain replies sent back to this token
+# drain the conversation log (cursored; pass last sequence as after)
 curl -X POST ${window.location.origin}/api/me/api-token-inbox/drain \\
-  -H "Authorization: Bearer <token>"`}
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"after":0}'`}
       </pre>
 
       <div style={cardStyle}>
