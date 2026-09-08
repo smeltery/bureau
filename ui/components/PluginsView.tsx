@@ -4,6 +4,8 @@ import type { CCPluginsState } from "../../shared/types.ts";
 import { DiscoverList } from "./PluginsDiscoverList.tsx";
 import { InstalledTable } from "./PluginsInstalledTable.tsx";
 import { MarketplacesTable } from "./PluginsMarketplacesTable.tsx";
+import { useI18n } from "../i18n.tsx";
+import type { PlainMessageKey } from "../../shared/i18n/translate.ts";
 
 // Claude Code plugin manager — Installed / Discover / Marketplaces. Mutations
 // go through the HTTP API (server shells out to the headless `claude plugin`
@@ -11,7 +13,11 @@ import { MarketplacesTable } from "./PluginsMarketplacesTable.tsx";
 // POST response carries the same snapshot so this tab updates immediately.
 
 type Tab = "installed" | "discover" | "marketplaces";
-const TAB_LABEL: Record<Tab, string> = { installed: "installed", discover: "discover", marketplaces: "marketplaces" };
+const TAB_LABEL_KEYS: Record<Tab, PlainMessageKey> = {
+  installed: "plugins.tab.installed",
+  discover: "plugins.tab.discover",
+  marketplaces: "plugins.tab.marketplaces",
+};
 
 async function fetchState(refresh: boolean): Promise<CCPluginsState> {
   const res = await fetch(`/plugins${refresh ? "?refresh=1" : ""}`);
@@ -34,6 +40,7 @@ async function postPlugins(path: string, body: Record<string, unknown>): Promise
 export function PluginsView({ onClose }: { onClose: () => void }) {
   const { ccPlugins, isMobile } = useAppState();
   const dispatch = useDispatch();
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("installed");
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -102,22 +109,22 @@ export function PluginsView({ onClose }: { onClose: () => void }) {
             ←
           </button>
           <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden" }}>
-            {(["installed", "discover", "marketplaces"] as Tab[]).map((t) => (
+            {(["installed", "discover", "marketplaces"] as Tab[]).map((tabKey) => (
               <button
-                key={t}
-                onClick={() => setTab(t)}
+                key={tabKey}
+                onClick={() => setTab(tabKey)}
                 style={{
                   padding: "5px 12px",
                   border: "none",
-                  background: tab === t ? "var(--accent)" : "transparent",
-                  color: tab === t ? "var(--bg-base)" : "var(--text-muted)",
+                  background: tab === tabKey ? "var(--accent)" : "transparent",
+                  color: tab === tabKey ? "var(--bg-base)" : "var(--text-muted)",
                   fontSize: 11,
                   fontWeight: 600,
                   cursor: "pointer",
                   textTransform: "capitalize",
                 }}
               >
-                {TAB_LABEL[t]}
+                {t(TAB_LABEL_KEYS[tabKey])}
               </button>
             ))}
           </div>
@@ -136,7 +143,7 @@ export function PluginsView({ onClose }: { onClose: () => void }) {
             opacity: refreshing ? 0.6 : 1,
           }}
         >
-          {refreshing ? "Refreshing…" : "Refresh"}
+          {refreshing ? t("plugins.refreshing") : t("plugins.refresh")}
         </button>
       </div>
 

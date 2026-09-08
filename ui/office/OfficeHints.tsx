@@ -1,4 +1,8 @@
+import { useI18n } from "../i18n.tsx";
+
 export function OfficeHints({ isMobile }: { isMobile: boolean }) {
+  const { t } = useI18n();
+  const hints = isMobile ? [t("office.hints.tap"), t("office.hints.longPress")] : [t("office.hints.click"), t("office.hints.dragSwap"), t("office.hints.rightClick"), t("office.hints.esc")];
   return (
     <div
       style={{
@@ -15,7 +19,7 @@ export function OfficeHints({ isMobile }: { isMobile: boolean }) {
         zIndex: 500,
       }}
     >
-      {(isMobile ? ["TAP → open", "LONG-PRESS → actions"] : ["CLICK → open agent", "DRAG → swap desks or move to door", "RIGHT-CLICK → actions", "ESC → back"]).map((h, i) => (
+      {hints.map((h, i) => (
         <span
           key={i}
           style={{

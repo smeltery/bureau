@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { StoreProvider, ThemeProvider, FeaturesProvider } from "../ui/store.tsx";
 import { DEMO_FEATURES } from "../shared/features.ts";
 import { App } from "../ui/App.tsx";
+import { LanguageProvider } from "../ui/i18n.tsx";
 import { setShim } from "../ui/ws.ts";
 import { handleCommand, sendInitialState, setEmbedMode } from "./demo-server.ts";
 
@@ -72,7 +73,9 @@ root.render(
   <ThemeProvider>
     <FeaturesProvider features={features}>
       <StoreProvider>
-        <DemoApp />
+        <LanguageProvider>
+          <DemoApp />
+        </LanguageProvider>
       </StoreProvider>
     </FeaturesProvider>
   </ThemeProvider>

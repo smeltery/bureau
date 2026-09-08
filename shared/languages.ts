@@ -1,6 +1,7 @@
 export const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English", englishName: "English", speechLocale: "en-US" },
   { code: "es", label: "Espanol", englishName: "Spanish", speechLocale: "es-ES" },
+  { code: "ca", label: "Català", englishName: "Catalan", speechLocale: "ca-ES" },
 ] as const;
 
 export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"];
@@ -20,6 +21,11 @@ export function detectBrowserLanguage(navigatorLanguage: string | null | undefin
   if (typeof navigatorLanguage !== "string") return null;
   const primary = navigatorLanguage.split("-")[0]?.toLowerCase();
   return SUPPORTED_LANGUAGES.find((language) => language.code === primary)?.code ?? null;
+}
+
+/** Effective UI language: saved preference, else supported browser language, else English. */
+export function displayLanguage(record: { language: SupportedLanguageCode | null } | null | undefined, navigatorLanguage: string | null | undefined): SupportedLanguageCode {
+  return record?.language ?? detectBrowserLanguage(navigatorLanguage) ?? DEFAULT_LANGUAGE;
 }
 
 export function speechLocaleFor(language: SupportedLanguageCode | null | undefined, navigatorLanguage: string | null | undefined): string {

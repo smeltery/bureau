@@ -7,6 +7,7 @@ import { useAppState } from "../../store.tsx";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import { makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
 import type { EditAgentDialogProps } from "./EditAgentDialog.tsx";
+import { useI18n } from "../../i18n.tsx";
 
 export function canToggleAgentPrivilege(isSpawn: boolean, sessionContext: { role: "owner" | "member"; userId: string } | null, agent: Pick<AgentInfo, "userId"> | undefined): boolean {
   return !isSpawn && (sessionContext?.role === "owner" || (sessionContext?.userId != null && agent?.userId === sessionContext.userId));
@@ -52,6 +53,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const [agentType, setAgentType] = useState<AgentBackendType>(initialAgentType);
 
   const { recentCwds: allRecentCwds, isMobile, agents, rooms, sessionContext } = useAppState();
+  const { t } = useI18n();
   const roomCount = rooms.length;
   const [name, setName] = useState(agent?.name ?? "");
   const [cwd, setCwd] = useState(agent?.cwd ?? props.defaultCwd ?? "~");
@@ -261,8 +263,13 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     }
   }
 
-  const title = isSpawn ? "Spawn New Agent" : "Edit Agent";
-  const subtitle = isSpawn ? `Desk #${props.deskIndex! + 1}` : `${roomCount > 1 ? `${rooms[agent!.room]?.name ?? `Room ${agent!.room + 1}`}, ` : ""}Desk #${agent!.desk + 1}`;
+  const title = isSpawn ? t("dialogs.agent.titleSpawn") : t("dialogs.agent.titleEdit");
+  const deskNumber = isSpawn ? props.deskIndex! + 1 : agent!.desk + 1;
+  const subtitle = isSpawn
+    ? t("dialogs.agent.desk", { desk: deskNumber })
+    : roomCount > 1
+      ? t("dialogs.agent.roomDesk", { room: rooms[agent!.room]?.name ?? t("common.roomFallback", { number: agent!.room + 1 }), desk: deskNumber })
+      : t("dialogs.agent.desk", { desk: deskNumber });
 
   function applyTemplate(template: AgentTemplate | null) {
     if (!isSpawn) return;

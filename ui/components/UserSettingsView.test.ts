@@ -1,38 +1,35 @@
 import { describe, expect, test } from "bun:test";
-import { buildAccountSections } from "./UserSettingsSections.ts";
+import { ACCOUNT_SECTION_LABEL_KEYS, buildAccountSections } from "./UserSettingsSections.ts";
+import { en } from "../../shared/i18n/en.ts";
 
 describe("buildAccountSections", () => {
   test("splits owner account management into access, sessions, devices, and signout", () => {
-    expect(buildAccountSections(true, true)).toEqual([
-      { section: "access", label: "Access" },
-      { section: "connections", label: "Connections" },
-      { section: "office-env", label: "Office variables" },
-      { section: "personal-env", label: "Variables" },
-      { section: "usage", label: "Usage" },
-      { section: "storage", label: "Storage" },
-      { section: "invites", label: "Invites" },
-      { section: "sessions", label: "Sessions" },
-      { section: "devices", label: "My devices" },
-      { section: "api-tokens", label: "API tokens" },
-      { section: "signout", label: "Sign out" },
+    expect(buildAccountSections(true, true).map((entry) => entry.section)).toEqual([
+      "access",
+      "connections",
+      "office-env",
+      "personal-env",
+      "usage",
+      "storage",
+      "invites",
+      "sessions",
+      "devices",
+      "api-tokens",
+      "signout",
     ]);
   });
 
   test("keeps members scoped to their own devices and signout", () => {
-    expect(buildAccountSections(false, true)).toEqual([
-      { section: "connections", label: "Connections" },
-      { section: "personal-env", label: "Variables" },
-      { section: "usage", label: "Usage" },
-      { section: "devices", label: "My devices" },
-      { section: "api-tokens", label: "API tokens" },
-      { section: "signout", label: "Sign out" },
-    ]);
+    expect(buildAccountSections(false, true).map((entry) => entry.section)).toEqual(["connections", "personal-env", "usage", "devices", "api-tokens", "signout"]);
   });
 
   test("shows only owner access before a session context is available", () => {
-    expect(buildAccountSections(true, false)).toEqual([
-      { section: "access", label: "Access" },
-      { section: "office-env", label: "Office variables" },
-    ]);
+    expect(buildAccountSections(true, false).map((entry) => entry.section)).toEqual(["access", "office-env"]);
+  });
+
+  test("sidebar label keys exist in the English catalog", () => {
+    for (const key of Object.values(ACCOUNT_SECTION_LABEL_KEYS)) {
+      expect(en[key]).toBeTruthy();
+    }
   });
 });

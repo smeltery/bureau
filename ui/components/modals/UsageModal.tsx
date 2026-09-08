@@ -3,6 +3,7 @@ import type { UsageBucketWire, UsageReportWire } from "../../../shared/types.ts"
 import { dialogCancelBtn } from "./dialog-styles.ts";
 import { ErrorLine, SectionLabel } from "./StorageModalParts.tsx";
 import { Modal } from "./Modal.tsx";
+import { useI18n } from "../../i18n.tsx";
 
 class ApiError extends Error {}
 
@@ -20,24 +21,25 @@ async function apiFetch<T>(path: string): Promise<T> {
 }
 
 export function UsageModal({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
+  const { t } = useI18n();
   const [usage, setUsage] = useState<UsageReportWire | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<UsageReportWire>("/api/usage")
       .then(setUsage)
-      .catch((err: unknown) => setError(err instanceof ApiError ? err.message : "Could not load usage."));
-  }, []);
+      .catch((err: unknown) => setError(err instanceof ApiError ? err.message : t("usage.loadFailed")));
+  }, [t]);
 
   const body = (
     <>
-      <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Usage</h3>
-      <p style={hint}>Subscription plan limits are not shown here. This page reports token usage and estimated cost recorded by Bureau.</p>
-      {usage?.scoped && <p style={hint}>Scoped to the rooms you can access. Schedule usage is not included.</p>}
+      <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{t("usage.title")}</h3>
+      <p style={hint}>{t("usage.intro")}</p>
+      {usage?.scoped && <p style={hint}>{t("usage.scoped")}</p>}
       {error ? (
         <ErrorLine>{error}</ErrorLine>
       ) : !usage ? (
-        <p style={{ fontSize: 11, color: "var(--text-ghost)", marginTop: 16 }}>Loading...</p>
+        <p style={{ fontSize: 11, color: "var(--text-ghost)", marginTop: 16 }}>{t("common.loadingDots")}</p>
       ) : (
         <>
           <UsageTable

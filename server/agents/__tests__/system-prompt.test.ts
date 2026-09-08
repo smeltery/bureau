@@ -183,6 +183,12 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt.indexOf("Spanish as their default language")).toBeLessThan(prompt.indexOf("ROOM-MARK"));
   });
 
+  test("adds a Catalan manager language preference via englishName", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room", "OFFICE-MARK", "ROOM-MARK", null, null, "Boss One", null, false, "ca");
+
+    expect(prompt).toContain("Boss One has indicated Catalan as their default language");
+  });
+
   test("does not add a language clause for the default language", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room", null, null, null, null, "Boss One", null, false, "en");
 

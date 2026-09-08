@@ -19,6 +19,7 @@ import { SignOutPane } from "./SignOutPane.tsx";
 import { StorageModal } from "./modals/StorageModal.tsx";
 import { UsageModal } from "./modals/UsageModal.tsx";
 import { UserEditPanel } from "./modals/UserEditPanel.tsx";
+import { useI18n } from "../i18n.tsx";
 type Selection = { kind: "user"; id: string } | { kind: "section"; section: AccountSection };
 export function UserSettingsView({
   currentUsername,
@@ -33,6 +34,7 @@ export function UserSettingsView({
   onSwitchUser: (name: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const { users, rooms, allRooms, sessionContext, activeSessions, activeSessionsLoaded, presences, isMobile } = useAppState();
   const isOwner = sessionContext?.role === "owner";
   const userList = useMemo(() => [...users.values()].sort((a, b) => a.name.localeCompare(b.name)), [users]);
@@ -71,7 +73,7 @@ export function UserSettingsView({
     if (isOwner && !activeSessionsLoaded) send({ type: "list_active_sessions" });
   }, [isOwner, activeSessionsLoaded]);
   function guardDirty(): boolean {
-    return !editIsDirtyRef.current || window.confirm("Discard unsaved changes?");
+    return !editIsDirtyRef.current || window.confirm(t("common.discardPrompt"));
   }
 
   function select(next: Selection | null) {
@@ -121,8 +123,8 @@ export function UserSettingsView({
           &larr;
         </button>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>User Settings</div>
-          {!isMobile && <div style={{ fontSize: 11, color: "var(--text-ghost)" }}>Profiles, access, devices, and per-user agent context</div>}
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{t("settings.title")}</div>
+          {!isMobile && <div style={{ fontSize: 11, color: "var(--text-ghost)" }}>{t("settings.subtitle")}</div>}
         </div>
       </div>
 
@@ -131,12 +133,12 @@ export function UserSettingsView({
           <aside style={sidebarStyle(isMobile)}>
             {accountSections.length > 0 && (
               <div>
-                <div style={sidebarLabel}>Account</div>
+                <div style={sidebarLabel}>{t("settings.sidebar.account")}</div>
                 {accountSections.map((entry) => (
                   <SidebarButton
                     key={entry.section}
                     active={selection?.kind === "section" && selection.section === entry.section}
-                    label={entry.label}
+                    label={t(entry.labelKey)}
                     onClick={() => select({ kind: "section", section: entry.section })}
                   />
                 ))}
@@ -144,7 +146,7 @@ export function UserSettingsView({
             )}
 
             <div style={{ marginTop: 18 }}>
-              <div style={sidebarLabel}>Users</div>
+              <div style={sidebarLabel}>{t("settings.sidebar.users")}</div>
               {userList.map((user) => {
                 const isMe = sessionContext ? sessionContext.userId === user.id : currentUsername?.toLocaleLowerCase() === user.name.toLocaleLowerCase();
                 const canEdit = isOwner || isMe;
@@ -162,14 +164,14 @@ export function UserSettingsView({
                     >
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {user.name}
-                        {isMe ? " (you)" : ""}
+                        {isMe ? ` ${t("settings.you")}` : ""}
                       </span>
                       <RoleBadge role={user.role} />
                       <UserSettingsRosterMeta user={user} rooms={editorRooms} presences={presences} sessions={activeSessions} showSessionStats={isOwner} />
                     </button>
                     {!isMe && (
                       <button style={smallBtn} onClick={() => switchUser(user.name)}>
-                        Use
+                        {t("common.use")}
                       </button>
                     )}
                   </div>
@@ -178,7 +180,7 @@ export function UserSettingsView({
             </div>
 
             <div style={{ marginTop: 18 }}>
-              <div style={sidebarLabel}>Create or claim user</div>
+              <div style={sidebarLabel}>{t("settings.sidebar.createClaim")}</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <input
                   value={newName}
@@ -187,11 +189,11 @@ export function UserSettingsView({
                     if (e.key === "Enter" && !e.nativeEvent.isComposing) createUser();
                     e.stopPropagation();
                   }}
-                  placeholder="Username"
+                  placeholder={t("settings.usernamePlaceholder")}
                   style={dialogInput}
                 />
                 <button onClick={createUser} style={{ ...dialogSaveBtn, flexShrink: 0 }}>
-                  Use
+                  {t("common.use")}
                 </button>
               </div>
             </div>
@@ -204,7 +206,7 @@ export function UserSettingsView({
               <section>
                 <h3 style={sectionHeader}>
                   {selectedUser.name}
-                  {sessionContext?.userId === selectedUser.id ? " (you)" : ""}
+                  {sessionContext?.userId === selectedUser.id ? ` ${t("settings.you")}` : ""}
                 </h3>
                 <UserEditPanel
                   user={selectedUser}
@@ -241,7 +243,7 @@ export function UserSettingsView({
             ) : selection?.kind === "section" && selection.section === "signout" ? (
               <SignOutPane />
             ) : (
-              <div style={{ color: "var(--text-ghost)", fontSize: 13 }}>Select a user or account section.</div>
+              <div style={{ color: "var(--text-ghost)", fontSize: 13 }}>{t("settings.selectHint")}</div>
             )}
           </main>
         )}
@@ -259,6 +261,7 @@ function SidebarButton({ active, label, onClick }: { active: boolean; label: str
 }
 
 function RoleBadge({ role }: { role: UserRole }) {
+  const { t } = useI18n();
   return (
     <span
       style={{
@@ -271,7 +274,7 @@ function RoleBadge({ role }: { role: UserRole }) {
         padding: "1px 6px",
       }}
     >
-      {role}
+      {role === "owner" ? t("settings.role.owner") : t("settings.role.member")}
     </span>
   );
 }

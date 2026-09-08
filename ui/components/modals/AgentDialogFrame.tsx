@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { dialogCancelBtn, dialogSaveBtn } from "./dialog-styles.ts";
 import { shouldHostCloseOnEscape } from "./expandedEditorState.ts";
+import { useI18n } from "../../i18n.tsx";
 
 type AgentDialogFrameProps = {
   children: ReactNode;
@@ -14,6 +15,7 @@ type AgentDialogFrameProps = {
 };
 
 export function AgentDialogFrame({ children, isMobile, isSpawn, onClose, onSave, saving, subtitle, title }: AgentDialogFrameProps) {
+  const { t } = useI18n();
   // Own Escape while the dialog is open (capture + stopPropagation), so it
   // routes through onClose's discard guard instead of App's global keydown
   // handler — which would drop the whole form, even mid-typing in a field.
@@ -82,10 +84,10 @@ export function AgentDialogFrame({ children, isMobile, isSpawn, onClose, onSave,
           }}
         >
           <button onClick={onClose} style={dialogCancelBtn} disabled={saving}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button onClick={onSave} style={dialogSaveBtn} disabled={saving}>
-            {saving ? "Saving…" : isSpawn ? "Spawn" : "Save"}
+            {saving ? t("common.saving") : isSpawn ? t("dialogs.agent.spawn") : t("common.save")}
           </button>
         </div>
       </div>

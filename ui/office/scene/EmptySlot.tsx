@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { deskPixelPos, DESK_SLOTS } from "../grid.ts";
+import { useI18n } from "../../i18n.tsx";
 
 export function EmptySlot({ deskIndex, onClick, onSwap }: { deskIndex: number; onClick: () => void; onSwap?: (sourceDesk: number, targetDesk: number) => void }) {
+  const { t } = useI18n();
   const [hov, setHov] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const pos = DESK_SLOTS[deskIndex];
@@ -107,7 +109,7 @@ export function EmptySlot({ deskIndex, onClick, onSwap }: { deskIndex: number; o
           >
             +
           </div>
-          <div style={{ fontSize: 10, color: "var(--accent)", fontWeight: 500 }}>New Agent</div>
+          <div style={{ fontSize: 10, color: "var(--accent)", fontWeight: 500 }}>{t("office.empty.newAgent")}</div>
         </div>
       )}
     </div>

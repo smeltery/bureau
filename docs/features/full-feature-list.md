@@ -61,7 +61,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Live user/device presence in the office.
 - Full-page user settings for profiles, access, self-service device links,
   personal API tokens, provider Connections (Claude/Codex status + API keys),
-  ghost appearance, saved language preference, and roster
+  ghost appearance, saved language preference (English / Spanish / Catalan;
+  UI chrome follows the same preference), and roster
   online/session summaries.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers.
@@ -97,7 +98,10 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Collapsible thinking/tool-call cards with timing.
 - File attachments via path notices, inline image display, and PDF handling.
 - Voice input and speech synthesis where supported by the browser, using the
-  signed-in user's saved language preference when set.
+  signed-in user's saved language preference when set (en / es / ca).
+- Office UI localization (English, Spanish, Catalan) via typed catalogs and
+  `LanguageProvider` — header/nav, settings shell, Connections, panel titles,
+  spawn/edit agent dialogs, and related empty states.
 - Per-agent drafts and queued message chips, including restart-surviving queued
   messages and Ctrl/Cmd+Enter send-now delivery.
 - Device-gated Slide Mode presents each agent conversation as a per-turn deck

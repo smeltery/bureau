@@ -77,9 +77,6 @@ implementation stays in Bureau naming and architecture.
   browser to avoid increasing package size and install complexity.
 - OpenCode as a third first-class agent backend. Real product gap, but a large
   architecture/public-API change that needs an explicit Bureau design pass.
-- Full UI i18n catalogs / Catalan. Bureau already has language preference for
-  agent replies and speech (en/es); source's full catalog + `ca` is a broader
-  localization project.
 
 ## Implemented since the prior note (2026-07-14)
 
@@ -188,3 +185,8 @@ implementation stays in Bureau naming and architecture.
   user paste keys into personal managed env (`PUT /api/me/provider-accounts/keys`,
   secrets never echoed), documents host CLI login, and deep-links auth-failure
   chat notices to that pane. In-browser OAuth/device login deferred.
+- Full UI i18n catalogs + Catalan: typed `shared/i18n` catalogs (en/es/ca),
+  `LanguageProvider` / `useI18n`, display language from user preference with
+  navigator fallback, and high-traffic office chrome/settings/Connections/
+  panel titles/spawn dialogs localized. Language preference now accepts `ca`
+  for agent reply/speech via `englishName`.
