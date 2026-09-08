@@ -17,7 +17,7 @@ export interface AgentOutfit {
   accessory: "glasses" | "headphones" | "bow_tie" | "tie" | "earrings" | null;
 }
 
-export type AgentBackendType = "claude" | "codex";
+export type AgentBackendType = "claude" | "codex" | "opencode";
 
 // Summary of a killed agent shown as a "revive" chip in the spawn menu.
 // Carries only what the chip needs to render plus the id + lastRoomId for

@@ -67,13 +67,15 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
   } = useEditAgentDialogController(props);
   const killedAgents = useAppState().killedAgents;
   const { t } = useI18n();
-  const engineLabelKey: Record<"claude" | "codex", PlainMessageKey> = {
+  const engineLabelKey: Record<"claude" | "codex" | "opencode", PlainMessageKey> = {
     claude: "dialogs.agent.engine.claude",
     codex: "dialogs.agent.engine.codex",
+    opencode: "dialogs.agent.engine.opencode",
   };
-  const engineBlurbKey: Record<"claude" | "codex", PlainMessageKey> = {
+  const engineBlurbKey: Record<"claude" | "codex" | "opencode", PlainMessageKey> = {
     claude: "dialogs.agent.engineBlurb.claude",
     codex: "dialogs.agent.engineBlurb.codex",
+    opencode: "dialogs.agent.engineBlurb.opencode",
   };
 
   return (
@@ -82,7 +84,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
 
       <div style={{ marginBottom: 14 }}>
         <label style={labelStyle}>{t("dialogs.agent.engine")}</label>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
           {ENGINE_OPTIONS.map((option) => (
             <button key={option.agentType} onClick={() => setAgentType(option.agentType)} style={engineButtonStyle(agentType === option.agentType, option.accent)} type="button">
               <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{t(engineLabelKey[option.agentType])}</span>

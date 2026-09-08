@@ -69,7 +69,8 @@ export function loadCronjobs(): Cronjob[] {
 }
 
 function normalizeCronjobAgentType(value: unknown): AgentBackendType {
-  return value === "codex" ? "codex" : "claude";
+  if (value === "codex" || value === "opencode") return value;
+  return "claude";
 }
 
 function normalizeCronjobModelFamily(value: unknown): string {

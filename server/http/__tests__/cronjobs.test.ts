@@ -184,7 +184,7 @@ describe("handleCronjobsRequest", () => {
     const res = await handleCronjobsRequest(req, new URL(req.url), ownerAuth);
 
     expect(res?.status).toBe(400);
-    expect(await res?.json()).toEqual({ error: "agentType must be claude or codex" });
+    expect(await res?.json()).toEqual({ error: "agentType must be claude, codex, or opencode" });
 
     CronjobManager.deleteCronjob(cronjob.id);
   });

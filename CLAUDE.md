@@ -25,7 +25,7 @@ Read the [design and architecture article](articles/punching-in-building-an-offi
 - No database. In-memory state, flat file logs, `agents.json` for persistence.
 - 8 desks max. Agent = persistent identity (name, desk, outfit, cwd). Conversation = ephemeral SDK session.
 - Agents persist across restarts. Auto-resume last conversation on startup.
-- Multi-provider: Claude (Opus/Sonnet/Haiku/Fable families) and Codex (GPT-5.x) selectable per agent, plus per-agent effort level. Default: Opus (currently `claude-opus-5`), `xhigh` effort. Model families resolve to exact versions centrally via `FAMILY_TO_MODEL` in `shared/types.ts`.
+- Multi-provider: Claude (Opus/Sonnet/Haiku/Fable families) and Codex (GPT-5.x) selectable per agent, plus OpenCode (`provider/model` via host `opencode` CLI), plus per-agent effort level. Default: Opus (currently `claude-opus-5`), `xhigh` effort. Model families resolve to exact versions centrally via `FAMILY_TO_MODEL` in `shared/types.ts`.
 - SDK spawns CLI subprocesses which inherit the user's global Claude skills and MCP config.
 - Agents can message each other (`POST /api/agents/:id/message`, queue-aware — flushes when the target is idle; also the `/bureau-message` command and the handoff/peer skills) and read each other's logs. There is no separate comm bus; messages land in the target's normal chat.
 - Not in scope: remote agents (we support remote connections via Tailscale instead), a CLI bureau tool.

@@ -59,7 +59,7 @@ export function updateCronjobDefinition(cronjobs: Cronjob[], id: string, changes
   if (idx < 0) return null;
   const prev = cronjobs[idx];
   const next: Cronjob = { ...prev };
-  const agentType = changes.agentType === "claude" || changes.agentType === "codex" ? changes.agentType : prev.agentType;
+  const agentType = changes.agentType === "claude" || changes.agentType === "codex" || changes.agentType === "opencode" ? changes.agentType : prev.agentType;
   const engineChanged = agentType !== prev.agentType;
   next.agentType = agentType;
   if (changes.name !== undefined) next.name = changes.name.trim() || prev.name;
@@ -70,7 +70,7 @@ export function updateCronjobDefinition(cronjobs: Cronjob[], id: string, changes
     next.effort = validateEffort(agentType, next.modelFamily, changes.effort ?? (engineChanged ? undefined : prev.effort));
     next.permissionMode = validateCronjobPermissionMode(agentType, changes.permissionMode ?? (engineChanged ? undefined : prev.permissionMode));
   }
-  if (agentType === "claude") {
+  if (agentType !== "codex") {
     if (engineChanged) delete next.codexSandbox;
   } else if (changes.codexSandbox !== undefined) {
     const sandbox = validateCodexSandbox(changes.codexSandbox);

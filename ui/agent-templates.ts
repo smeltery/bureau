@@ -1,5 +1,5 @@
 import type { AgentBackendType, AgentOutfit, AgentPermissionMode, EffortLevel } from "../shared/types.ts";
-import { CODEX_MODELS, DEFAULT_EFFORT, MODEL_FAMILIES, effortLevelsFor, familyAllowsAutoPermission } from "../shared/types.ts";
+import { CODEX_MODELS, DEFAULT_EFFORT, MODEL_FAMILIES, OPENCODE_MODELS, effortLevelsFor, familyAllowsAutoPermission } from "../shared/types.ts";
 
 export const FIRST_TURN_CLAUSE = "To start, learn what the user wants and propose a direction.";
 export const SCOPE_AGREEMENT_CLAUSE = "Before you build software, agree with the user on scope.";
@@ -203,6 +203,7 @@ function clampEffort(desired: EffortLevel, current: EffortLevel, supported: Effo
 }
 
 export function resolveTemplatePermission(engine: AgentBackendType, modelFamily: string, current: AgentPermissionMode): AgentPermissionMode {
+  if (engine === "opencode") return current === "bypassPermissions" ? "bypassPermissions" : "default";
   return engine === "claude" && current === "auto" && !familyAllowsAutoPermission(modelFamily) ? "bypassPermissions" : current;
 }
 
@@ -210,7 +211,11 @@ export function templateFormValues(template: AgentTemplate, engine: AgentBackend
   const modelFamily =
     engine === "claude"
       ? (template.recommendations.claude.preferredFamilies.find((family) => MODEL_FAMILIES.some((m) => m.family === family)) ?? current.modelFamily)
-      : (template.recommendations.codex.preferredModelIds.find((id) => CODEX_MODELS.some((m) => m.value === id)) ?? current.modelFamily);
+      : engine === "opencode"
+        ? OPENCODE_MODELS.some((m) => m.value === current.modelFamily)
+          ? current.modelFamily
+          : OPENCODE_MODELS[0].value
+        : (template.recommendations.codex.preferredModelIds.find((id) => CODEX_MODELS.some((m) => m.value === id)) ?? current.modelFamily);
   const desired = engine === "claude" ? template.recommendations.claude.desiredEffort : template.recommendations.codex.desiredEffort;
   const supported = effortLevelsFor(engine, modelFamily).map((option) => option.level);
   const effort = clampEffort(desired, current.effort, supported);

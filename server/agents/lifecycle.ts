@@ -162,7 +162,11 @@ export async function spawn(
   // Create V2 session
   try {
     installSession(info.id, managed, createSession(managed));
-    addLogEntry(info.id, "system", `${agentType === "codex" ? "Codex" : "Claude"} agent "${name}" ready. Working in ${resolvedCwd}. Permission mode: ${permissionMode}.`);
+    addLogEntry(
+      info.id,
+      "system",
+      `${agentType === "codex" ? "Codex" : agentType === "opencode" ? "OpenCode" : "Claude"} agent "${name}" ready. Working in ${resolvedCwd}. Permission mode: ${permissionMode}.`,
+    );
     // First stream() will deliver system/init + response to the first send().
   } catch (err: any) {
     console.error(`Failed to create session for ${name}:`, err.message);

@@ -8,12 +8,14 @@ export {
   EFFORT_LEVELS,
   FAMILY_TO_MODEL,
   MODEL_FAMILIES,
+  OPENCODE_MODELS,
   effortDisplayLabel,
   effortLevelsFor,
   familyAllowsAutoPermission,
   familyDisplayLabel,
   familyFromLegacyModel,
   isClaudeFamily,
+  isOpenCodeModel,
   modelVersionLabel,
 } from "./agent-models.ts";
 export type {

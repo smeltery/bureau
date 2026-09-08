@@ -10,6 +10,10 @@ describe("vesselForAgentType", () => {
     expect(vesselForAgentType("codex")).toBe("cup");
   });
 
+  test("OpenCode desks get a flask", () => {
+    expect(vesselForAgentType("opencode")).toBe("flask");
+  });
+
   test("missing backend defaults to mug", () => {
     expect(vesselForAgentType(undefined)).toBe("mug");
   });

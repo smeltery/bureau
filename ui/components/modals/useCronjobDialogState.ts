@@ -5,6 +5,7 @@ import {
   DEFAULT_EFFORT,
   EFFORT_LEVELS,
   MODEL_FAMILIES,
+  OPENCODE_MODELS,
   type AgentBackendType,
   type CodexSandboxMode,
   type Cronjob,
@@ -34,13 +35,22 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
   const [prompt, setPrompt] = useState(cronjob?.prompt ?? "");
   const [cwd, setCwd] = useState(cronjob?.cwd ?? "~");
   const [agentType, setAgentType] = useState<AgentBackendType>(cronjob?.agentType ?? "claude");
-  const modelOptions = agentType === "codex" ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label })) : MODEL_FAMILIES;
+  const modelOptions =
+    agentType === "codex"
+      ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label }))
+      : agentType === "opencode"
+        ? OPENCODE_MODELS.map((m) => ({ family: m.value, label: m.label }))
+        : MODEL_FAMILIES;
   const [modelFamily, setModelFamily] = useState<string>(cronjob?.modelFamily ?? modelOptions[0].family);
   const [effort, setEffort] = useState<EffortLevel>(cronjob?.effort ?? DEFAULT_EFFORT);
   const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(cronjob?.codexSandbox ?? DEFAULT_CODEX_CRONJOB_SANDBOX);
   const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(cronjob?.permissionMode ?? "bypassPermissions");
   const effortOptions =
-    agentType === "codex" ? EFFORT_LEVELS : EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && (e.level !== "max" || modelFamily === "opus" || modelFamily === "fable"));
+    agentType === "codex"
+      ? EFFORT_LEVELS
+      : agentType === "opencode"
+        ? EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && e.level !== "max")
+        : EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && (e.level !== "max" || modelFamily === "opus" || modelFamily === "fable"));
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +147,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
 
   function selectAgentType(next: AgentBackendType) {
     setAgentType(next);
-    setModelFamily(next === "codex" ? CODEX_MODELS[0].value : MODEL_FAMILIES[0].family);
+    setModelFamily(next === "codex" ? CODEX_MODELS[0].value : next === "opencode" ? OPENCODE_MODELS[0].value : MODEL_FAMILIES[0].family);
     setEffort(DEFAULT_EFFORT);
     setCodexSandbox(DEFAULT_CODEX_CRONJOB_SANDBOX);
     setPermissionMode(next === "codex" ? "never" : "bypassPermissions");

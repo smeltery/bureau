@@ -75,11 +75,18 @@ implementation stays in Bureau naming and architecture.
   subresources.
 - A bundled browser dependency. Bureau uses an installed Chrome-compatible
   browser to avoid increasing package size and install complexity.
-- OpenCode as a third first-class agent backend. Real product gap, but a large
-  architecture/public-API change that needs an explicit Bureau design pass.
+- OpenCode follow-ons beyond the Bureau-native MVP: authority-broker / FFI peer
+  auth, full credential-scan suite, live certification harness, darwin-only
+  packaging polish beyond PATH detection, and a V2 client.
 
 ## Implemented since the prior note (2026-07-14)
 
+- OpenCode as a third first-class agent backend (Bureau-native MVP):
+  `AgentBackendType` `"opencode"`, `server/backends/opencode/` (PATH/`OPENCODE_BINARY`
+  resolve, local `opencode serve` supervisor, HTTP/SSE → `NormalizedEvent`),
+  spawn/edit/schedule pickers, flask desk vessel, `OPENCODE_API_KEY` / host
+  `opencode auth login` guidance. Skills/hooks/MCP capability flags stay false.
+  Requires an installed `opencode` CLI on PATH (not bundled).
 - Pending prompt visibility (`pendingPrompt`) on manifests, logs, desk chips, and chat headers.
 - Memory cap turn-start notices when auto-loaded scopes are near their size caps.
 - Custom instructions optimistic concurrency via `customInstructionsVersion` on read and PATCH.
@@ -159,8 +166,8 @@ implementation stays in Bureau naming and architecture.
   name-based protectors (e.g. earlyoom) can shield the office without also
   shielding agent `bun` builds. Complements `oom-stamp.ts` score bias.
 - Desk vessel by backend: Claude desks draw a coffee mug; Codex desks draw a
-  teacup on a saucer (`vesselForAgentType`), so mixed offices show backend at a
-  glance without opening chat.
+  teacup on a saucer; OpenCode desks draw a small flask (`vesselForAgentType`),
+  so mixed offices show backend at a glance without opening chat.
 - Schedules user-facing rename: header button, panel title, dialogs, tabs, and
   related copy say "Schedules" / "Schedule" instead of "Cron jobs", matching the
   wall-clock affordance. Internal `cronjob` IDs/APIs unchanged.
@@ -190,3 +197,4 @@ implementation stays in Bureau naming and architecture.
   navigator fallback, and high-traffic office chrome/settings/Connections/
   panel titles/spawn dialogs localized. Language preference now accepts `ca`
   for agent reply/speech via `englishName`.
+- OpenCode MVP backend: PATH/`OPENCODE_BINARY` `opencode serve` adapter with HTTP/SSE→NormalizedEvent, spawn/edit/schedule UI, flask desk vessel; skills/hooks/MCP deferred.

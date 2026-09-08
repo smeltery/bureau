@@ -83,7 +83,7 @@ export function parseCronjobCreate(body: Record<string, unknown>): { ok: true; d
   const schedule = parseSchedule(body.schedule);
   if (!schedule) return { ok: false, error: "schedule must be daily, weekly, or interval with finite numeric fields" };
   const agentType = parseAgentType(body.agentType);
-  if (body.agentType !== undefined && !agentType) return { ok: false, error: "agentType must be claude or codex" };
+  if (body.agentType !== undefined && !agentType) return { ok: false, error: "agentType must be claude, codex, or opencode" };
   if (typeof body.modelFamily !== "string" || !body.modelFamily.trim()) return { ok: false, error: "modelFamily must be a string" };
   const effort = parseEffort(body.effort);
   if (!effort) return { ok: false, error: "effort must be a string" };
@@ -118,7 +118,7 @@ export function parseCronjobChanges(body: Record<string, unknown>): { ok: true; 
   if (typeof body.prompt === "string") changes.prompt = body.prompt;
   if (typeof body.cwd === "string") changes.cwd = body.cwd;
   const agentType = parseAgentType(body.agentType);
-  if (body.agentType !== undefined && !agentType) return { ok: false, error: "agentType must be claude or codex" };
+  if (body.agentType !== undefined && !agentType) return { ok: false, error: "agentType must be claude, codex, or opencode" };
   if (agentType) changes.agentType = agentType;
   if (typeof body.modelFamily === "string") changes.modelFamily = body.modelFamily;
   if (body.effort !== undefined) {
@@ -156,7 +156,7 @@ function isFiniteNumber(value: unknown): value is number {
 
 function parseAgentType(value: unknown): AgentBackendType | undefined {
   if (value === undefined) return undefined;
-  return value === "claude" || value === "codex" ? value : undefined;
+  return value === "claude" || value === "codex" || value === "opencode" ? value : undefined;
 }
 
 function parseEffort(value: unknown): EffortLevel | undefined {

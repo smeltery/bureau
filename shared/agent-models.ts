@@ -81,11 +81,16 @@ export function effortDisplayLabel(level: EffortLevel | undefined): string {
   return EFFORT_LEVELS.find((e) => e.level === resolved)?.label ?? resolved;
 }
 
-export function effortLevelsFor(agentType: "claude" | "codex", modelFamily: string): typeof EFFORT_LEVELS {
+export function effortLevelsFor(agentType: "claude" | "codex" | "opencode", modelFamily: string): typeof EFFORT_LEVELS {
   // Codex: full static list. The live allow-list is per-model
   // supportedReasoningEfforts from model/list; Codex rejects unsupported
   // values at thread/start (same pass-through stance as validateEffort).
   if (agentType === "codex") return EFFORT_LEVELS;
+  // OpenCode: effort is accepted on the wire but not forwarded to serve yet;
+  // offer the shared non-Codex-only levels so the picker stays usable.
+  if (agentType === "opencode") {
+    return EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && e.level !== "max");
+  }
   return EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && (e.level !== "max" || familyAllowsAutoPermission(modelFamily)));
 }
 
@@ -103,8 +108,21 @@ export const CODEX_MODELS: { value: string; label: string }[] = [
   { value: "gpt-5.4-mini", label: "GPT-5.4 mini" },
 ];
 
+// OpenCode model identifiers (provider/model). Live /provider discovery can
+// replace this list when the local `opencode` serve is reachable.
+export const OPENCODE_MODELS: { value: string; label: string }[] = [
+  { value: "opencode/gpt-5-nano", label: "GPT-5 Nano (OpenCode)" },
+  { value: "opencode/claude-sonnet-4", label: "Claude Sonnet 4 (OpenCode)" },
+  { value: "opencode/gemini-2.5-flash", label: "Gemini 2.5 Flash (OpenCode)" },
+  { value: "opencode/big-pickle", label: "Big Pickle (free)" },
+];
+
 export function isClaudeFamily(s: string): s is ModelFamily {
   return s === "opus" || s === "sonnet" || s === "haiku" || s === "fable";
+}
+
+export function isOpenCodeModel(s: string): boolean {
+  return s.includes("/") && !isClaudeFamily(s) && !CODEX_MODELS.some((m) => m.value === s);
 }
 
 // The classifier-backed "auto" permission mode is only offered for the
@@ -114,11 +132,11 @@ export function familyAllowsAutoPermission(family: string | undefined): boolean 
 }
 
 export function familyDisplayLabel(family: string): string {
-  if (!isClaudeFamily(family)) {
-    return CODEX_MODELS.find((m) => m.value === family)?.label ?? family;
+  if (isClaudeFamily(family)) {
+    const base = MODEL_FAMILIES.find((m) => m.family === family)?.label ?? family;
+    return `${base} ${modelVersionLabel(family)}`;
   }
-  const base = MODEL_FAMILIES.find((m) => m.family === family)?.label ?? family;
-  return `${base} ${modelVersionLabel(family)}`;
+  return OPENCODE_MODELS.find((m) => m.value === family)?.label ?? CODEX_MODELS.find((m) => m.value === family)?.label ?? family;
 }
 
 // Migrate a legacy exact model ID (e.g. "claude-opus-4-6") to a family.

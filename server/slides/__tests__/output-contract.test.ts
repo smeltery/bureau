@@ -67,4 +67,8 @@ describe("slideModelFamily", () => {
   it("pins Codex agents to a cheap GPT-5.x family", () => {
     expect(slideModelFamily("codex")).toBe("gpt-5.6-terra");
   });
+
+  it("pins OpenCode agents to a cheap provider/model", () => {
+    expect(slideModelFamily("opencode")).toBe("opencode/gpt-5-nano");
+  });
 });
