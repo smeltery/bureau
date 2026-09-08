@@ -173,3 +173,6 @@ implementation stays in Bureau naming and architecture.
 - Desk vessel by backend: Claude desks draw a coffee mug; Codex desks draw a
   teacup on a saucer (`vesselForAgentType`), so mixed offices show backend at a
   glance without opening chat.
+- Schedules user-facing rename: header button, panel title, dialogs, tabs, and
+  related copy say "Schedules" / "Schedule" instead of "Cron jobs", matching the
+  wall-clock affordance. Internal `cronjob` IDs/APIs unchanged.

@@ -6,7 +6,7 @@ import { RunsTable } from "./CronjobRunsTable.tsx";
 import { CronjobsTable } from "./CronjobsTable.tsx";
 import { useCronjobsViewController, type CronjobsViewTab } from "./useCronjobsViewController.ts";
 
-const TAB_LABEL: Record<CronjobsViewTab, string> = { runs: "runs", cronjobs: "cron jobs" };
+const TAB_LABEL: Record<CronjobsViewTab, string> = { runs: "runs", cronjobs: "schedules" };
 
 export function CronjobsView({ username, onClose }: { username: string; onClose: () => void }) {
   const {
@@ -130,7 +130,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
       {/* Filter chip */}
       {tab === "runs" && runFilter && (
         <div style={{ padding: "8px 20px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Cron job:</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Schedule:</span>
           <button
             onClick={() => setRunFilter(null)}
             style={{

@@ -105,7 +105,7 @@ export function App() {
   const currentRoomName = rooms[currentRoom]?.name ?? null;
   useEffect(() => {
     if (!connected) return;
-    const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Cron Jobs" : appsOpen ? "Apps" : pluginsOpen ? "Plugins" : null;
+    const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Schedules" : appsOpen ? "Apps" : pluginsOpen ? "Plugins" : null;
     const focusedAgentTitle = focusedAgentName && focusedAgentState ? agentTabLabel(focusedAgentName, focusedAgentState) : null;
     const label = panelTitle ?? focusedAgentTitle ?? currentRoomName ?? null;
     document.title = label ? `${label} | Bureau` : "Bureau";

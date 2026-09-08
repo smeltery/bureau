@@ -87,15 +87,15 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
           animation: "hudIn 0.2s ease-out",
         }}
       >
-        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Cron Jobs Settings</h3>
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Schedules Settings</h3>
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>
-          Rules <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(system prompt for all cron jobs)</span>
+          Rules <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(system prompt for all schedules)</span>
         </label>
         <ExpandableTextarea
           textareaRef={textareaRef}
-          title="Cron Job Rules"
-          hint="System prompt for all cron jobs. Applied to the next run; in-flight runs use their captured snapshot."
+          title="Schedule Rules"
+          hint="System prompt for all schedules. Applied to the next run; in-flight runs use their captured snapshot."
           value={text}
           onChange={setText}
           placeholder="e.g. Always write findings to a markdown file. Be terse."

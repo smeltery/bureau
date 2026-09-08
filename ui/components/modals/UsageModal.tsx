@@ -33,7 +33,7 @@ export function UsageModal({ onBack, embedded = false }: { onBack?: () => void; 
     <>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Usage</h3>
       <p style={hint}>Subscription plan limits are not shown here. This page reports token usage and estimated cost recorded by Bureau.</p>
-      {usage?.scoped && <p style={hint}>Scoped to the rooms you can access. Cron job usage is not included.</p>}
+      {usage?.scoped && <p style={hint}>Scoped to the rooms you can access. Schedule usage is not included.</p>}
       {error ? (
         <ErrorLine>{error}</ErrorLine>
       ) : !usage ? (
@@ -122,7 +122,7 @@ function LifetimeTable({ title, rows }: { title: string; rows: Omit<UsageRow, "s
         <table style={tableStyle}>
           <thead>
             <tr>
-              <th style={leftHead}>Cron job</th>
+              <th style={leftHead}>Schedule</th>
               <th style={head}>In (life)</th>
               <th style={head}>Out (life)</th>
               <th style={head}>$ (life)</th>

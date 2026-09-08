@@ -73,7 +73,7 @@ export function CronjobsTable({
   };
 
   if (cronjobs.length === 0) {
-    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{loaded ? `No cron jobs yet. Click "+ New" to create one.` : "Loading..."}</div>;
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{loaded ? `No schedules yet. Click "+ New" to create one.` : "Loading..."}</div>;
   }
 
   return (

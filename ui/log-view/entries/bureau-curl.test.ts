@@ -85,6 +85,6 @@ JSON`),
     expect(summarizeBureauCurl("curl -s localhost:4000/api/storage/usage")).toBe("Bureau API: storage usage");
     expect(summarizeBureauCurl("curl -s -X POST localhost:4000/api/storage/prune")).toBe("Bureau API: storage prune");
     expect(summarizeBureauCurl("curl -s localhost:4000/api/cron-runs")).toBe("Bureau API: recent cron runs");
-    expect(summarizeBureauCurl("curl -s localhost:4000/api/cronjobs/job-1/runs")).toBe("Bureau API: cron jobs");
+    expect(summarizeBureauCurl("curl -s localhost:4000/api/cronjobs/job-1/runs")).toBe("Bureau API: schedules");
   });
 });

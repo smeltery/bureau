@@ -37,7 +37,7 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/skill-usage$/, "Bureau API: skill-use counts"],
   [/^\/api\/storage\/usage$/, "Bureau API: storage usage"],
   [/^\/api\/storage\/prune$/, "Bureau API: storage prune"],
-  [/^\/api\/cronjobs(?:\/.*)?$/, "Bureau API: cron jobs"],
+  [/^\/api\/cronjobs(?:\/.*)?$/, "Bureau API: schedules"],
   [/^\/api\/cron-runs$/, "Bureau API: recent cron runs"],
   [/^\/api\/rooms\/[^/]+\/settings$/, "Bureau API: room settings"],
 ];

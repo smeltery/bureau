@@ -115,7 +115,7 @@ export function DesktopOfficeHeader({
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifySelf: "end" }}>
         <HeaderButton icon={<TasksIcon />} label="Tasks" onClick={onOpenTasks} />
-        {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label="Cron jobs" title="Cron jobs" onClick={onOpenCronjobs} />}
+        {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label="Schedules" title="Schedules" onClick={onOpenCronjobs} />}
         {onOpenApps && <HeaderButton icon={<AppsIcon />} label="Apps" title="Apps agents built and bureau keeps running" onClick={onOpenApps} />}
         {onOpenPlugins && <HeaderButton icon={<PlugIcon />} label="Plugins" title="Manage Claude Code plugins" onClick={onOpenPlugins} />}
         <HeaderButton icon={<UserIcon />} label="User" title={username || "User settings"} onClick={onEditUsername} />
