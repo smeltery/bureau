@@ -12,6 +12,8 @@ import { AGENT_TEMPLATES, type AgentTemplate } from "../../agent-templates.ts";
 import { ENGINE_ACCENT, ENGINE_OPTIONS } from "./engine-options.ts";
 import { useAppState } from "../../store.tsx";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
+import { useI18n } from "../../i18n.tsx";
+import type { PlainMessageKey } from "../../../shared/i18n/translate.ts";
 
 export type EditAgentDialogProps = {
   onClose: () => void;
@@ -64,25 +66,40 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     instructionsStale,
   } = useEditAgentDialogController(props);
   const killedAgents = useAppState().killedAgents;
+  const { t } = useI18n();
+  const engineLabelKey: Record<"claude" | "codex", PlainMessageKey> = {
+    claude: "dialogs.agent.engine.claude",
+    codex: "dialogs.agent.engine.codex",
+  };
+  const engineBlurbKey: Record<"claude" | "codex", PlainMessageKey> = {
+    claude: "dialogs.agent.engineBlurb.claude",
+    codex: "dialogs.agent.engineBlurb.codex",
+  };
 
   return (
     <AgentDialogFrame isMobile={isMobile} isSpawn={isSpawn} onClose={requestClose} onSave={handleSave} saving={saving} subtitle={subtitle} title={title}>
       {isSpawn && <AgentTemplatePicker selectedKey={selectedTemplateKey} onPick={applyTemplate} />}
 
       <div style={{ marginBottom: 14 }}>
-        <label style={labelStyle}>Engine</label>
+        <label style={labelStyle}>{t("dialogs.agent.engine")}</label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {ENGINE_OPTIONS.map((option) => (
             <button key={option.agentType} onClick={() => setAgentType(option.agentType)} style={engineButtonStyle(agentType === option.agentType, option.accent)} type="button">
-              <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{option.label}</span>
-              <span style={{ display: "block", marginTop: 2, fontSize: 11, lineHeight: 1.35, color: "var(--text-muted)" }}>{option.blurb}</span>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{t(engineLabelKey[option.agentType])}</span>
+              <span style={{ display: "block", marginTop: 2, fontSize: 11, lineHeight: 1.35, color: "var(--text-muted)" }}>{t(engineBlurbKey[option.agentType])}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <label style={labelStyle}>Name</label>
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isSpawn ? `Agent ${props.deskIndex! + 1}` : undefined} autoFocus={isSpawn} style={inputStyle} />
+      <label style={labelStyle}>{t("common.name")}</label>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder={isSpawn ? t("dialogs.agent.namePlaceholder", { number: props.deskIndex! + 1 }) : undefined}
+        autoFocus={isSpawn}
+        style={inputStyle}
+      />
 
       <AgentWorkingDirectoryField
         cwd={cwd}
@@ -113,14 +130,14 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
         setPrivileged={setPrivileged}
       />
 
-      <label style={{ ...labelStyle, marginTop: 14 }}>Appearance</label>
+      <label style={{ ...labelStyle, marginTop: 14 }}>{t("dialogs.agent.appearance")}</label>
       <AgentAppearanceEditor outfit={outfit} onChange={setOutfit} selectStyle={selectStyle} />
 
       <label style={{ ...labelStyle, marginTop: 14 }}>
-        Custom Instructions <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
+        {t("dialogs.agent.customInstructions")} <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>{t("common.optional")}</span>
       </label>
       <ExpandableTextarea
-        title="Custom Instructions"
+        title={t("dialogs.agent.customInstructions")}
         hint="Personal system prompt for this agent. Run /bureau-system-prompt in a chat to see the agent's full system prompt."
         value={customInstructions}
         onChange={setCustomInstructions}

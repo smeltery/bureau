@@ -10,11 +10,13 @@ import { AppCard } from "./AppCard.tsx";
 import { AppDeleteDialog } from "./AppDeleteDialog.tsx";
 import { useAppsViewController } from "./useAppsViewController.ts";
 import { useFeatures } from "../store.tsx";
+import { useI18n } from "../i18n.tsx";
 
 export function AppsView({ onClose }: { onClose: () => void }) {
   const { act, appsLoaded, busy, confirmDelete, doDelete, error, isMobile, logError, logLines, openLogs, previewsEnabled, setConfirmDelete, setPreviewsEnabled, sorted, toggleLogs } =
     useAppsViewController();
   const features = useFeatures();
+  const { t } = useI18n();
 
   return (
     <div style={{ height: isMobile ? "100dvh" : "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)", color: "var(--text-primary)" }}>
@@ -35,14 +37,14 @@ export function AppsView({ onClose }: { onClose: () => void }) {
           zIndex: 500,
         }}
       >
-        <button onClick={onClose} aria-label="Back" style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer", padding: "2px 8px" }}>
+        <button onClick={onClose} aria-label={t("common.back")} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer", padding: "2px 8px" }}>
           ←
         </button>
-        <div style={{ fontSize: 13, fontWeight: 600 }}>Apps</div>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>{t("apps.title")}</div>
         <button
           type="button"
           onClick={() => setPreviewsEnabled(!previewsEnabled)}
-          title={previewsEnabled ? "Hide app previews" : "Show app previews"}
+          title={previewsEnabled ? t("apps.hidePreviews") : t("apps.showPreviews")}
           style={{
             marginLeft: "auto",
             padding: "3px 7px",
@@ -54,7 +56,7 @@ export function AppsView({ onClose }: { onClose: () => void }) {
             cursor: "pointer",
           }}
         >
-          previews {previewsEnabled ? "on" : "off"}
+          {previewsEnabled ? t("apps.previewsOn") : t("apps.previewsOff")}
         </button>
         <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{appsLoaded ? `${sorted.length}` : ""}</div>
       </div>
@@ -63,7 +65,7 @@ export function AppsView({ onClose }: { onClose: () => void }) {
 
       <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? 12 : 20 }}>
         {!appsLoaded ? null : sorted.length === 0 ? (
-          <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "24px 4px" }}>No apps yet.</div>
+          <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "24px 4px" }}>{t("apps.empty")}</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {sorted.map((app) => (

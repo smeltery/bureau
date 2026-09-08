@@ -4,11 +4,12 @@ import { applyRequest, planMatchesForm, previewRequest, type PolicyForm } from "
 import { dialogCancelBtn, dialogInput } from "./dialog-styles.ts";
 import { Modal } from "./Modal.tsx";
 import { BackupBlock, ErrorLine, FieldLabel, PlanBlock, ResultBlock, SectionLabel, UsageBlock, type BackupStatusWire, type StoragePhase } from "./StorageModalParts.tsx";
+import { useI18n } from "../../i18n.tsx";
 
-const TARGET_LABELS: Record<PruneTarget, string> = {
-  transcripts: "Conversations",
-  attachments: "Orphaned attachments",
-};
+const TARGET_LABELS = {
+  transcripts: "storage.target.transcripts",
+  attachments: "storage.target.attachments",
+} as const;
 
 class ApiError extends Error {}
 
@@ -31,6 +32,7 @@ async function apiFetch<T>(method: "GET" | "POST", path: string, body?: unknown)
 }
 
 export function StorageModal({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
+  const { t } = useI18n();
   const [usage, setUsage] = useState<StorageUsageWire | null>(null);
   const [backup, setBackup] = useState<BackupStatusWire | "unavailable" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -111,7 +113,7 @@ export function StorageModal({ onBack, embedded = false }: { onBack?: () => void
 
   const body = (
     <>
-      <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Storage</h3>
+      <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{t("storage.title")}</h3>
       <UsageBlock usage={usage} error={loadError} />
       <BackupBlock backup={backup} />
 
@@ -124,7 +126,7 @@ export function StorageModal({ onBack, embedded = false }: { onBack?: () => void
       <div style={{ display: "flex", gap: 8 }}>
         {(Object.keys(TARGET_LABELS) as PruneTarget[]).map((item) => (
           <button key={item} onClick={() => editForm(() => setTarget(item))} disabled={busy} style={toggleStyle(target === item, busy)}>
-            {TARGET_LABELS[item]}
+            {t(TARGET_LABELS[item])}
           </button>
         ))}
       </div>

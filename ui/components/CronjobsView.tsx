@@ -5,10 +5,13 @@ import { CronjobRunView } from "./CronjobRunView.tsx";
 import { RunsTable } from "./CronjobRunsTable.tsx";
 import { CronjobsTable } from "./CronjobsTable.tsx";
 import { useCronjobsViewController, type CronjobsViewTab } from "./useCronjobsViewController.ts";
+import { useI18n } from "../i18n.tsx";
+import type { PlainMessageKey } from "../../shared/i18n/translate.ts";
 
-const TAB_LABEL: Record<CronjobsViewTab, string> = { runs: "runs", cronjobs: "schedules" };
+const TAB_LABEL_KEYS: Record<CronjobsViewTab, PlainMessageKey> = { runs: "schedules.tab.runs", cronjobs: "schedules.tab.cronjobs" };
 
 export function CronjobsView({ username, onClose }: { username: string; onClose: () => void }) {
+  const { t } = useI18n();
   const {
     creating,
     cronjobRunsByJob,
@@ -74,22 +77,22 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
             ←
           </button>
           <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden" }}>
-            {(["runs", "cronjobs"] as CronjobsViewTab[]).map((t) => (
+            {(["runs", "cronjobs"] as CronjobsViewTab[]).map((tabKey) => (
               <button
-                key={t}
-                onClick={() => setTab(t)}
+                key={tabKey}
+                onClick={() => setTab(tabKey)}
                 style={{
                   padding: "5px 12px",
                   border: "none",
-                  background: tab === t ? "var(--accent)" : "transparent",
-                  color: tab === t ? "var(--bg-base)" : "var(--text-muted)",
+                  background: tab === tabKey ? "var(--accent)" : "transparent",
+                  color: tab === tabKey ? "var(--bg-base)" : "var(--text-muted)",
                   fontSize: 11,
                   fontWeight: 600,
                   cursor: "pointer",
                   textTransform: "capitalize",
                 }}
               >
-                {TAB_LABEL[t]}
+                {t(TAB_LABEL_KEYS[tabKey])}
               </button>
             ))}
           </div>
@@ -107,7 +110,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
               cursor: "pointer",
             }}
           >
-            Settings
+            {t("common.settings")}
           </button>
           <button
             onClick={() => setCreating(true)}
@@ -122,7 +125,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
               cursor: "pointer",
             }}
           >
-            + New
+            {t("schedules.newButton")}
           </button>
         </div>
       </div>

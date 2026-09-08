@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import type { ProviderAccountWire, ProviderAccountsWire, ProviderKeysUpdateRes } from "../../shared/provider-accounts.ts";
 import { sectionHeader } from "./AccessPane.tsx";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "./modals/dialog-styles.ts";
+import { useI18n } from "../i18n.tsx";
 
 class ApiError extends Error {}
 
 export function ConnectionsPane({ username }: { username: string }) {
+  const { t } = useI18n();
   const [accounts, setAccounts] = useState<ProviderAccountWire[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -17,7 +19,7 @@ export function ConnectionsPane({ username }: { username: string }) {
       const result = await apiFetch<ProviderAccountsWire>(refresh ? "POST" : "GET", refresh ? "/api/me/provider-accounts/refresh" : "/api/me/provider-accounts");
       setAccounts(result.accounts);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "Could not check provider connections");
+      setError(caught instanceof ApiError ? caught.message : t("connections.checkFailed"));
     } finally {
       setRefreshing(false);
     }
@@ -25,20 +27,18 @@ export function ConnectionsPane({ username }: { username: string }) {
 
   useEffect(() => {
     void load(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
   }, []);
 
   return (
     <div style={{ marginTop: 24 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h4 style={sectionHeader}>Connections</h4>
+        <h4 style={sectionHeader}>{t("connections.title")}</h4>
         <button type="button" style={dialogCancelBtn} disabled={refreshing} onClick={() => void load(true)}>
-          {refreshing ? "Refreshing…" : "Refresh"}
+          {refreshing ? t("common.refreshing") : t("common.refresh")}
         </button>
       </div>
-      <p style={dialogHint}>
-        Claude and Codex auth for agents you spawn. Paste an API key here (saved to your personal variables as {username}), or sign in with the CLI on the Bureau host. Office-wide keys live under
-        Office variables.
-      </p>
+      <p style={dialogHint}>{t("connections.intro", { username })}</p>
       {error && (
         <p role="alert" style={{ color: "var(--red)", fontSize: 12 }}>
           {error}
@@ -47,13 +47,14 @@ export function ConnectionsPane({ username }: { username: string }) {
       {accounts.map((account) => (
         <ProviderConnectionCard key={account.provider} account={account} onUpdated={setAccounts} />
       ))}
-      {accounts.length === 0 && !error && <p style={dialogHint}>Loading…</p>}
+      {accounts.length === 0 && !error && <p style={dialogHint}>{t("common.loading")}</p>}
     </div>
   );
 }
 
 function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccountWire; onUpdated: (accounts: ProviderAccountWire[]) => void }) {
-  const title = account.provider === "claude" ? "Claude" : "Codex";
+  const { t } = useI18n();
+  const title = account.provider === "claude" ? t("dialogs.agent.engine.claude") : t("dialogs.agent.engine.codex");
   const keyName = account.provider === "claude" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
   const [keyValue, setKeyValue] = useState("");
   const [pending, setPending] = useState(false);
@@ -61,7 +62,13 @@ function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccou
   const [savedNote, setSavedNote] = useState<string | null>(null);
 
   const status =
-    account.accountStatus === "connected" ? (account.accountLabel ? `Connected (${account.accountLabel})` : "Connected") : account.accountStatus === "unavailable" ? "Unavailable" : "Not connected";
+    account.accountStatus === "connected"
+      ? account.accountLabel
+        ? t("connections.statusConnectedLabeled", { label: account.accountLabel })
+        : t("connections.statusConnected")
+      : account.accountStatus === "unavailable"
+        ? t("connections.statusUnavailable")
+        : t("connections.statusNotConnected");
 
   async function saveKey() {
     setPending(true);
@@ -73,9 +80,26 @@ function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccou
       // Never leave a pasted secret in the input after a successful write.
       setKeyValue("");
       onUpdated(result.accounts);
-      setSavedNote(keyValue.trim() ? `${keyName} saved. Use /clear on affected agents.` : `${keyName} cleared.`);
+      setSavedNote(keyValue.trim() ? t("connections.keySaved", { keyName }) : t("connections.keyCleared", { keyName }));
     } catch (caught) {
-      setLocalError(caught instanceof ApiError ? caught.message : "Could not save API key");
+      setLocalError(caught instanceof ApiError ? caught.message : t("connections.saveFailed"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function clearKey() {
+    setPending(true);
+    setLocalError(null);
+    setSavedNote(null);
+    try {
+      const body = account.provider === "claude" ? { anthropicApiKey: "" } : { openaiApiKey: "" };
+      const result = await apiFetch<ProviderKeysUpdateRes>("PUT", "/api/me/provider-accounts/keys", body);
+      setKeyValue("");
+      onUpdated(result.accounts);
+      setSavedNote(t("connections.keyCleared", { keyName }));
+    } catch (caught) {
+      setLocalError(caught instanceof ApiError ? caught.message : t("connections.clearFailed"));
     } finally {
       setPending(false);
     }
@@ -91,9 +115,9 @@ function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccou
     >
       <h5 style={{ margin: "0 0 8px", fontSize: 13 }}>{title}</h5>
       <p style={{ ...dialogHint, margin: "0 0 8px" }}>
-        <strong>Status:</strong> {status}
-        {account.hasApiKey ? " · API key present" : ""}
-        {account.provider === "claude" && account.cliInstalled === false ? " · Claude CLI not on PATH" : ""}
+        <strong>{t("connections.statusLabel")}</strong> {status}
+        {account.hasApiKey ? ` · ${t("connections.apiKeyPresent")}` : ""}
+        {account.provider === "claude" && account.cliInstalled === false ? ` · ${t("connections.cliMissing")}` : ""}
       </p>
       {account.error && (
         <p role="alert" style={{ color: "var(--red)", fontSize: 12 }}>
@@ -107,18 +131,18 @@ function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccou
           type="password"
           autoComplete="off"
           value={keyValue}
-          placeholder={account.hasApiKey ? "•••••••• (enter new value to replace)" : "Paste API key"}
+          placeholder={account.hasApiKey ? t("connections.replacePlaceholder") : t("connections.pastePlaceholder")}
           style={{ ...dialogInput, marginTop: 4 }}
           onChange={(event) => setKeyValue(event.target.value)}
         />
       </label>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
         <button type="button" style={dialogSaveBtn} disabled={pending || !keyValue.trim()} onClick={() => void saveKey()}>
-          {pending ? "Saving…" : "Save API key"}
+          {pending ? t("common.saving") : t("connections.saveKey")}
         </button>
         {account.hasApiKey && (
           <button type="button" style={dialogCancelBtn} disabled={pending} onClick={() => void clearKey()}>
-            Clear key
+            {t("connections.clearKey")}
           </button>
         )}
       </div>
@@ -129,10 +153,7 @@ function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccou
       )}
       {savedNote && <p style={{ ...dialogHint, marginTop: 8 }}>{savedNote}</p>}
 
-      <p style={{ ...dialogHint, marginTop: 12 }}>
-        Or sign in with the CLI on the Bureau host
-        {account.provider === "claude" ? " (`claude`, then `/login`)" : ""}, then `/clear` the agent:
-      </p>
+      <p style={{ ...dialogHint, marginTop: 12 }}>{account.provider === "claude" ? t("connections.cliSignInClaude") : t("connections.cliSignInCodex")}</p>
       <ul style={{ ...dialogHint, margin: "4px 0 0", paddingLeft: 18 }}>
         {account.hostHints.map((hint) => (
           <li key={hint} style={{ marginBottom: 4 }}>
@@ -142,23 +163,6 @@ function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccou
       </ul>
     </section>
   );
-
-  async function clearKey() {
-    setPending(true);
-    setLocalError(null);
-    setSavedNote(null);
-    try {
-      const body = account.provider === "claude" ? { anthropicApiKey: "" } : { openaiApiKey: "" };
-      const result = await apiFetch<ProviderKeysUpdateRes>("PUT", "/api/me/provider-accounts/keys", body);
-      setKeyValue("");
-      onUpdated(result.accounts);
-      setSavedNote(`${keyName} cleared.`);
-    } catch (caught) {
-      setLocalError(caught instanceof ApiError ? caught.message : "Could not clear API key");
-    } finally {
-      setPending(false);
-    }
-  }
 }
 
 async function apiFetch<T>(method: "GET" | "POST" | "PUT", path: string, body?: unknown): Promise<T> {

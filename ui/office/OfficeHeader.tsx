@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { SunIcon, MoonIcon } from "../components/controls/Icons.tsx";
+import { useI18n } from "../i18n.tsx";
 
 export interface OfficeHeaderCounts {
   working: number;
@@ -39,6 +40,13 @@ export function DesktopOfficeHeader({
   onOpenUpdate: () => void;
   onOpenTheme: () => void;
 }) {
+  const { t } = useI18n();
+  const statusLabels = {
+    working: t("office.status.working"),
+    waiting: t("office.status.waiting"),
+    error: t("office.status.error"),
+    idle: t("office.status.idle"),
+  } as const;
   return (
     <div
       style={{
@@ -72,17 +80,17 @@ export function DesktopOfficeHeader({
             }}
           >
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--blue, #58a6ff)", boxShadow: "0 0 8px var(--blue, #58a6ff)" }} />
-            update available
+            {t("office.header.updateAvailable")}
           </span>
         )}
       </div>
       <div style={{ display: "flex", gap: 12, justifySelf: "center" }}>
         {(
           [
-            { n: counts.working, c: "var(--green)", l: "working" },
-            { n: counts.waiting, c: "var(--purple)", l: "waiting" },
-            { n: counts.error, c: "var(--red)", l: "error" },
-            { n: counts.idle, c: "var(--text-muted)", l: "idle" },
+            { n: counts.working, c: "var(--green)", l: "working" as const },
+            { n: counts.waiting, c: "var(--purple)", l: "waiting" as const },
+            { n: counts.error, c: "var(--red)", l: "error" as const },
+            { n: counts.idle, c: "var(--text-muted)", l: "idle" as const },
           ] as const
         )
           .filter((s) => s.n > 0)
@@ -109,20 +117,20 @@ export function DesktopOfficeHeader({
                   boxShadow: `0 0 6px ${s.c}`,
                 }}
               />
-              {s.n} {s.l}
+              {s.n} {statusLabels[s.l]}
             </div>
           ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifySelf: "end" }}>
-        <HeaderButton icon={<TasksIcon />} label="Tasks" onClick={onOpenTasks} />
-        {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label="Schedules" title="Schedules" onClick={onOpenCronjobs} />}
-        {onOpenApps && <HeaderButton icon={<AppsIcon />} label="Apps" title="Apps agents built and bureau keeps running" onClick={onOpenApps} />}
-        {onOpenPlugins && <HeaderButton icon={<PlugIcon />} label="Plugins" title="Manage Claude Code plugins" onClick={onOpenPlugins} />}
-        <HeaderButton icon={<UserIcon />} label="User" title={username || "User settings"} onClick={onEditUsername} />
-        <HeaderButton icon={<DeviceIcon />} label="Device" title="Device settings" onClick={onOpenDeviceSettings} />
-        <HeaderButton icon={<BuildingIcon />} label="Office" title="Office settings" onClick={onEditOfficePrompt} />
-        {onEditRoomSettings && <HeaderButton icon={<DoorIcon />} label="Room" title="Room settings" onClick={onEditRoomSettings} />}
-        <HeaderButton icon={mode === "dark" ? <MoonIcon /> : <SunIcon />} label="Theme" title="Change theme" onClick={onOpenTheme} />
+        <HeaderButton icon={<TasksIcon />} label={t("common.tasks")} onClick={onOpenTasks} />
+        {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label={t("common.schedules")} title={t("common.schedules")} onClick={onOpenCronjobs} />}
+        {onOpenApps && <HeaderButton icon={<AppsIcon />} label={t("common.apps")} title={t("office.header.appsTitle")} onClick={onOpenApps} />}
+        {onOpenPlugins && <HeaderButton icon={<PlugIcon />} label={t("common.plugins")} title={t("office.header.pluginsTitle")} onClick={onOpenPlugins} />}
+        <HeaderButton icon={<UserIcon />} label={t("common.user")} title={username || t("office.header.userSettings")} onClick={onEditUsername} />
+        <HeaderButton icon={<DeviceIcon />} label={t("common.device")} title={t("office.header.deviceSettings")} onClick={onOpenDeviceSettings} />
+        <HeaderButton icon={<BuildingIcon />} label={t("common.office")} title={t("office.header.officeSettings")} onClick={onEditOfficePrompt} />
+        {onEditRoomSettings && <HeaderButton icon={<DoorIcon />} label={t("common.room")} title={t("office.header.roomSettings")} onClick={onEditRoomSettings} />}
+        <HeaderButton icon={mode === "dark" ? <MoonIcon /> : <SunIcon />} label={t("common.theme")} title={t("common.changeTheme")} onClick={onOpenTheme} />
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dial
 import { ManagedEnvEditor } from "./ManagedEnvEditor.tsx";
 import { UserAvatarPicker } from "./UserAvatarPicker.tsx";
 import { UserRoomPreferences } from "./UserRoomPreferences.tsx";
+import { useI18n } from "../../i18n.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
@@ -23,6 +24,7 @@ export function UserEditPanel({
   onClose: () => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState<UserRole>(user.role);
   const [allowedRooms, setAllowedRooms] = useState(() => new Set(user.allowedRooms));
@@ -87,7 +89,7 @@ export function UserEditPanel({
   }
 
   function cancel() {
-    if (isDirty && !window.confirm("Discard unsaved changes?")) return;
+    if (isDirty && !window.confirm(t("common.discardPrompt"))) return;
     onClose();
   }
 
@@ -99,7 +101,7 @@ export function UserEditPanel({
         const msg = JSON.parse(data);
         if (msg.type === "settings_validation" && msg.requestId === reqId) {
           if (msg.ok) setEnvStatus({ kind: "ok", keyCount: msg.keyCount });
-          else setEnvStatus({ kind: "error", message: msg.error || "Invalid env file" });
+          else setEnvStatus({ kind: "error", message: msg.error || t("settings.profile.envInvalid") });
           removeRawListener(listener);
         }
       } catch {}
@@ -116,7 +118,7 @@ export function UserEditPanel({
 
   return (
     <div style={{ padding: "0 12px 12px 12px" }}>
-      <label style={dialogLabel}>Display name</label>
+      <label style={dialogLabel}>{t("settings.profile.displayName")}</label>
       <input value={name} onChange={(e) => setName(e.target.value)} style={dialogInput} />
       <UserAvatarPicker color={avatarColor} variant={avatarVariant} onColorChange={setAvatarColor} onVariantChange={setAvatarVariant} />
       <UserRoomPreferences
@@ -133,7 +135,7 @@ export function UserEditPanel({
         notifRooms={notifRooms}
         setNotifRooms={setNotifRooms}
       />
-      <label style={{ ...dialogLabel, marginTop: 12 }}>Env file path</label>
+      <label style={{ ...dialogLabel, marginTop: 12 }}>{t("settings.profile.envFilePath")}</label>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <input
           value={envFile}
@@ -145,47 +147,44 @@ export function UserEditPanel({
           style={{ ...dialogInput, flex: 1 }}
         />
         <button type="button" style={{ ...smallBtn, height: 30 }} onClick={validateEnv} disabled={envStatus.kind === "pending"}>
-          {envStatus.kind === "pending" ? "Checking..." : "Validate"}
+          {envStatus.kind === "pending" ? t("settings.profile.checking") : t("settings.profile.validate")}
         </button>
       </div>
       <ValidationLine status={envStatus} />
-      <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "4px 0 0", lineHeight: 1.4 }}>
-        A file of NAME=value lines on the server, loaded into the environment of your agents and schedules. Use ANTHROPIC_API_KEY=... or OPENAI_API_KEY=... for API-key billing, or
-        CLAUDE_CONFIG_DIR=... / CODEX_HOME=... for your own subscription sign-in. Each agent reads the file when it starts or resumes a conversation.
-      </p>
+      <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "4px 0 0", lineHeight: 1.4 }}>{t("settings.profile.envFileHint")}</p>
       <div style={{ border: "1px solid var(--border-subtle)", borderRadius: 8, padding: 12, marginTop: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 650, marginBottom: 6 }}>Managed variables for this user</div>
+        <div style={{ fontSize: 12, fontWeight: 650, marginBottom: 6 }}>{t("settings.profile.managedVars")}</div>
         <ManagedEnvEditor path={`/api/users/${encodeURIComponent(user.name)}/env`} onSavedPath={setEnvFile} />
       </div>
-      <label style={{ ...dialogLabel, marginTop: 12 }}>Language</label>
+      <label style={{ ...dialogLabel, marginTop: 12 }}>{t("preferences.language")}</label>
       <select value={language} onChange={(e) => setLanguage(e.target.value as SupportedLanguageCode | "")} style={dialogInput}>
-        <option value="">Default</option>
+        <option value="">{t("preferences.languageDefault")}</option>
         {SUPPORTED_LANGUAGES.map((option) => (
           <option key={option.code} value={option.code}>
             {option.label}
           </option>
         ))}
       </select>
-      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "4px 0 0" }}>Agents you spawn use this as your default reply and speech language.</p>
+      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "4px 0 0" }}>{t("preferences.languageHint")}</p>
       <label style={{ ...dialogLabel, display: "flex", gap: 8, marginTop: 12 }}>
         <input type="checkbox" checked={slideMode} onChange={(e) => setSlideMode(e.target.checked)} style={{ accentColor: "var(--accent)", cursor: "pointer" }} />
-        <span>Slide Mode</span>
+        <span>{t("settings.profile.slideMode")}</span>
       </label>
-      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "2px 0 0 24px", lineHeight: 1.4 }}>Shows the slide view toggle on agent logs.</p>
-      <label style={{ ...dialogLabel, marginTop: 12 }}>Personal context</label>
+      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "2px 0 0 24px", lineHeight: 1.4 }}>{t("settings.profile.slideModeHint")}</p>
+      <label style={{ ...dialogLabel, marginTop: 12 }}>{t("settings.profile.personalContext")}</label>
       <textarea
         value={memberPrompt}
         onChange={(e) => setMemberPrompt(e.target.value)}
         rows={4}
-        placeholder="Context injected into agents you own"
+        placeholder={t("settings.profile.personalContextPlaceholder")}
         style={{ ...dialogInput, resize: "vertical", minHeight: 86 }}
       />
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
         <button style={dialogCancelBtn} onClick={cancel}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button style={dialogSaveBtn} onClick={save}>
-          Save
+          {t("common.save")}
         </button>
       </div>
     </div>
@@ -193,15 +192,12 @@ export function UserEditPanel({
 }
 
 function ValidationLine({ status }: { status: ValidationStatus }) {
+  const { t, tn } = useI18n();
   if (status.kind === "idle") return null;
-  if (status.kind === "pending") return <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "4px 0 0" }}>Checking...</p>;
+  if (status.kind === "pending") return <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "4px 0 0" }}>{t("settings.profile.checking")}</p>;
   if (status.kind === "ok") {
-    if (status.keyCount === undefined) return <p style={{ fontSize: 10, color: "var(--accent)", margin: "4px 0 0" }}>No env file configured.</p>;
-    return (
-      <p style={{ fontSize: 10, color: "var(--accent)", margin: "4px 0 0" }}>
-        Loaded {status.keyCount} variable{status.keyCount === 1 ? "" : "s"}.
-      </p>
-    );
+    if (status.keyCount === undefined) return <p style={{ fontSize: 10, color: "var(--accent)", margin: "4px 0 0" }}>{t("settings.profile.noEnvFile")}</p>;
+    return <p style={{ fontSize: 10, color: "var(--accent)", margin: "4px 0 0" }}>{tn("settings.profile.loadedVariables", status.keyCount)}</p>;
   }
   return <p style={{ fontSize: 10, color: "#ff6b6b", margin: "4px 0 0" }}>{status.message}</p>;
 }

@@ -1,4 +1,5 @@
 import type { TaskRoomScope, TaskStatusFilter } from "./taskFilters.ts";
+import { useI18n } from "../i18n.tsx";
 
 type TaskViewHeaderProps = {
   isMobile: boolean;
@@ -29,6 +30,7 @@ export function TaskViewHeader({
   onClose,
   onCreate,
 }: TaskViewHeaderProps) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -62,8 +64,8 @@ export function TaskViewHeader({
           >
             &larr;
           </button>
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>Tasks</span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{shownCount} shown</span>
+          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>{t("tasks.title")}</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{t("tasks.shown", { count: shownCount })}</span>
         </div>
         <button
           onClick={onCreate}
@@ -78,18 +80,13 @@ export function TaskViewHeader({
             cursor: "pointer",
           }}
         >
-          Add
+          {t("common.add")}
         </button>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <select
-          value={roomScope}
-          onChange={(event) => setRoomScope(event.target.value)}
-          title="Filter tasks and set where new tasks are filed"
-          style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}
-        >
-          <option value="all">All rooms</option>
-          <option value="global">Office-wide</option>
+        <select value={roomScope} onChange={(event) => setRoomScope(event.target.value)} title={t("tasks.filterTitle")} style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}>
+          <option value="all">{t("tasks.allRooms")}</option>
+          <option value="global">{t("tasks.officeWide")}</option>
           {rooms.map((room) => (
             <option key={room.id} value={room.id}>
               {room.name}

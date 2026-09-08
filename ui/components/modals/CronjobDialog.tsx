@@ -5,8 +5,10 @@ import { CronjobScheduleFields } from "./CronjobScheduleFields.tsx";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 import { useCronjobDialogState } from "./useCronjobDialogState.ts";
 import { shortenCwd } from "../../cwd-display.ts";
+import { useI18n } from "../../i18n.tsx";
 
 export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjob; username: string; onClose: () => void }) {
+  const { t } = useI18n();
   const { recentCwds, isMobile } = useAppState();
   const {
     agentType,
@@ -82,7 +84,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
         }}
       >
         <div style={{ overflowY: "auto", flex: 1, padding: isMobile ? "max(24px, env(safe-area-inset-top)) 20px 0" : "24px 28px 0" }}>
-          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{isEdit ? "Edit Schedule" : "New Schedule"}</h3>
+          <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{isEdit ? t("schedules.dialog.edit") : t("schedules.dialog.new")}</h3>
           {isEdit && <p style={{ fontSize: 11, color: "var(--text-faint)", margin: "2px 0 18px", fontFamily: "'JetBrains Mono',monospace" }}>#{cronjob!.id}</p>}
 
           <label style={labelStyle}>Name</label>

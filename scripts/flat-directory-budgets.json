@@ -2,8 +2,8 @@
   "default_files": 40,
   "directories": {
     "ui": {
-      "limit": 42,
-      "reason": "routes.ts (+ test) owns the panel path table for bookmarkable History API URLs so App wiring stays free of a hard-coded pathname switch."
+      "limit": 44,
+      "reason": "i18n.tsx (+ test) hosts LanguageProvider/useI18n beside store/bootstrap; routes.ts (+ test) owns bookmarkable panel paths."
     },
     "server": {
       "limit": 44,
