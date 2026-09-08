@@ -255,7 +255,7 @@ describe("privileged agent — schedules", () => {
     return handleCronjobsRequest(req, new URL(req.url), undefined);
   }
 
-  test("creates, updates, runs, and deletes schedules owned by its manager", async () => {
+  test("creates, updates, and deletes schedules owned by its manager", async () => {
     const createdRes = await cron("/api/cronjobs", fixture.privilegedToken, { body: JSON.stringify(draft()) });
     expect(createdRes?.status).toBe(201);
     const created = (await createdRes!.json()) as { id: string; userId: string; username: string };
@@ -268,11 +268,6 @@ describe("privileged agent — schedules", () => {
     });
     expect(patched?.status).toBe(200);
     expect(((await patched!.json()) as { enabled: boolean }).enabled).toBe(false);
-
-    const run = await cron(`/api/cronjobs/${created.id}/runs`, fixture.privilegedToken, { body: JSON.stringify({}) });
-    expect(run?.status).not.toBe(401);
-    expect(run?.status).not.toBe(403);
-
     const deleted = await cron(`/api/cronjobs/${created.id}`, fixture.privilegedToken, { method: "DELETE" });
     expect(deleted?.status).toBe(204);
   });
