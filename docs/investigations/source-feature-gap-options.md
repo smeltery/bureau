@@ -170,3 +170,6 @@ implementation stays in Bureau naming and architecture.
   `bureau` via `/proc/self/comm` at boot (`server/process-name.ts`), so
   name-based protectors (e.g. earlyoom) can shield the office without also
   shielding agent `bun` builds. Complements `oom-stamp.ts` score bias.
+- Desk vessel by backend: Claude desks draw a coffee mug; Codex desks draw a
+  teacup on a saucer (`vesselForAgentType`), so mixed offices show backend at a
+  glance without opening chat.

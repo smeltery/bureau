@@ -1,16 +1,23 @@
 import type { AgentState } from "../../../shared/types.ts";
-import { DESKS_WITHOUT_MUG, DESKS_WITHOUT_PLANT, MUG_VARIANTS, PLANT_VARIANTS, visualDeskState, wrapCwd } from "./deskSpriteData.ts";
+import type { AgentInfo } from "../../../shared/types.ts";
+import { DESKS_WITHOUT_PLANT, MUG_VARIANTS, PLANT_VARIANTS, vesselForAgentType, visualDeskState, wrapCwd } from "./deskSpriteData.ts";
 import { shortenCwd } from "../../cwd-display.ts";
 import { DeskModelItem } from "./DeskModelItem.tsx";
 
-export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily }: { state: AgentState; deskIndex?: number; cwd?: string; modelFamily?: string }) {
+// The vessel says which backend the agent runs on. Ceramic colour still varies
+// by desk; Claude always gets a mug, Codex a teacup+saucer. Empty-desk fixtures
+// keep the mug so the furniture still reads as occupied.
+
+export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily, agentType }: { state: AgentState; deskIndex?: number; cwd?: string; modelFamily?: string; agentType?: AgentInfo["agentType"] }) {
   const vs = visualDeskState(state);
   const glow = { working: "#50B86C", waiting_for_response: "#9B59B6", error: "#E85D75", idle: "#223" }[vs];
   const on = vs !== "idle";
   const hasPlant = !DESKS_WITHOUT_PLANT.has(deskIndex);
-  const hasMug = !DESKS_WITHOUT_MUG.has(deskIndex);
+  const vessel = vesselForAgentType(agentType);
   const leaves = PLANT_VARIANTS[deskIndex % PLANT_VARIANTS.length];
   const [mugBody, mugSide, mugRim, mugLiquid] = MUG_VARIANTS[deskIndex % MUG_VARIANTS.length];
+  // Cup drinks read as tea rather than coffee so the vessel and its contents agree.
+  const cupLiquid = "#B5701F";
 
   const lampId = `lamp-glow-${deskIndex}`;
   const screenClipId = `screen-clip-${deskIndex}`;
@@ -126,25 +133,37 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily }: { state: 
         )}
       </g>
 
-      {/* Coffee mug — solid ceramic */}
-      {hasMug && (
+      {/* Mug — Claude. Solid ceramic; colour varies by desk. */}
+      {vessel === "mug" && (
         <g>
-          {/* Mug body — front face */}
           <path d="M134 62 L134 55 L146 55 L146 62" fill={mugBody} />
-          {/* Mug body — side shading */}
           <path d="M134 55 L134 62 L137 62 L137 55 Z" fill={mugSide} />
-          {/* Bottom ellipse */}
           <ellipse cx="140" cy="62" rx="6" ry="3" fill={mugSide} />
-          {/* Rim / top ellipse */}
           <ellipse cx="140" cy="55" rx="6" ry="3" fill={mugRim} />
-          {/* Liquid inside */}
           <ellipse cx="140" cy="55.5" rx="4.5" ry="2" fill={mugLiquid} />
-          {/* Handle */}
           <path d="M146 57 Q152 57 152 60 Q152 63 146 62" fill="none" stroke={mugSide} strokeWidth="1.5" strokeLinecap="round" />
-          {/* Steam when active */}
           {on && (
             <path d="M138 53 Q136 47 140 43" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8">
               <animate attributeName="d" values="M138 53 Q136 47 140 43;M138 53 Q140 45 137 40;M138 53 Q136 47 140 43" dur="2.5s" repeatCount="indefinite" />
+            </path>
+          )}
+        </g>
+      )}
+
+      {/* Teacup + saucer — Codex. Shallower/wider; the saucer is the glance cue. */}
+      {vessel === "cup" && (
+        <g>
+          <ellipse cx="140" cy="63.1" rx="8.2" ry="3.5" fill={mugSide} />
+          <ellipse cx="140" cy="62.4" rx="8.2" ry="3.5" fill={mugBody} />
+          <ellipse cx="140" cy="62.4" rx="5" ry="2.1" fill={mugSide} opacity="0.55" />
+          <path d="M134.5 57.2 Q135 61.2 140 62 Q145 61.2 145.5 57.2 Z" fill={mugBody} />
+          <path d="M134.5 57.2 Q135 61.2 140 62 Q137.2 59.9 137 57.2 Z" fill={mugSide} />
+          <ellipse cx="140" cy="57.2" rx="5.5" ry="2.5" fill={mugRim} />
+          <ellipse cx="140" cy="57.5" rx="4.2" ry="1.8" fill={cupLiquid} />
+          <path d="M145.4 58.4 Q149.2 58.4 149.2 60.1 Q149.2 61.6 145.6 61.2" fill="none" stroke={mugSide} strokeWidth="1.2" strokeLinecap="round" />
+          {on && (
+            <path d="M138.6 55.2 Q136.6 49.4 140.4 45.6" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8">
+              <animate attributeName="d" values="M138.6 55.2 Q136.6 49.4 140.4 45.6;M138.6 55.2 Q140.6 47.6 137.8 42.8;M138.6 55.2 Q136.6 49.4 140.4 45.6" dur="2.5s" repeatCount="indefinite" />
             </path>
           )}
         </g>
