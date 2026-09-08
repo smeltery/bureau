@@ -161,3 +161,8 @@ implementation stays in Bureau naming and architecture.
   (`server/agents/session/backend-failure-text.ts`), with the raw diagnostic
   kept in log metadata. Auth classification still runs on the raw text.
   Destination-native (no i18n Translator).
+- Boss-facing context wrap-up notices: when a Claude agent's reported window
+  crosses 50% (only if maxTokens ≥ 500k) or 75%, emit one ephemeral system line
+  per band per conversation (`firedUiThresholds`), separate from the agent-facing
+  nudge. Copy points at `/clear` and `/handoff`. Size-gating also applies to the
+  agent nudge so small windows skip the noisy 50% band.
