@@ -1,4 +1,4 @@
-import type { AgentState } from "../../../shared/types.ts";
+import type { AgentBackendType, AgentState } from "../../../shared/types.ts";
 
 export function visualDeskState(state: AgentState): "working" | "waiting_for_response" | "error" | "idle" {
   switch (state) {
@@ -59,7 +59,6 @@ export const MUG_VARIANTS: Array<[string, string, string, string]> = [
 ];
 
 export const DESKS_WITHOUT_PLANT = new Set([1, 3, 6]);
-export const DESKS_WITHOUT_MUG = new Set([2, 5, 7]);
 
 const CWD_CHARS_PER_LINE = 12;
 
@@ -78,4 +77,9 @@ export function wrapCwd(text: string): string[] {
     remaining = remaining.slice(breakAt);
   }
   return lines;
+}
+
+/** Desk drinkware that signals Claude vs Codex at a glance. */
+export function vesselForAgentType(agentType: AgentBackendType | undefined): "mug" | "cup" {
+  return agentType === "codex" ? "cup" : "mug";
 }
