@@ -1,22 +1,9 @@
 import type { GhostVariant } from "./avatar.ts";
 import type { SupportedLanguageCode } from "./languages.ts";
 
-export const ROOM_PET_COATS = ["orange", "silver", "black", "white", "ginger", "siamese"] as const;
-
-export type RoomPetCoat = (typeof ROOM_PET_COATS)[number];
-
-export interface RoomPet {
-  coat: RoomPetCoat;
-}
-
-export const DEFAULT_ROOM_PET: RoomPet = { coat: "orange" };
-
-export function normalizeRoomPet(value: unknown): RoomPet | null {
-  if (value === null || value === undefined) return null;
-  if (!value || typeof value !== "object") return null;
-  const coat = (value as { coat?: unknown }).coat;
-  return typeof coat === "string" && ROOM_PET_COATS.includes(coat as RoomPetCoat) ? { coat: coat as RoomPetCoat } : null;
-}
+import type { CatCoat, DogCoat, PetPalette, PetSpecies, RabbitCoat, RoomPet, RoomPetCoat, TortoiseCoat } from "./pets.ts";
+export type { CatCoat, DogCoat, PetPalette, PetSpecies, RabbitCoat, RoomPet, RoomPetCoat, TortoiseCoat };
+export { CAT_COATS, DEFAULT_ROOM_PET, DOG_COATS, PET_COATS, PET_PALETTES, PET_SPECIES, RABBIT_COATS, ROOM_PET_COATS, TORTOISE_COATS, isPetSpecies, normalizeRoomPet, paletteForPet } from "./pets.ts";
 
 // Office-level settings (prompt + optional env file path)
 export interface OfficeSettings {

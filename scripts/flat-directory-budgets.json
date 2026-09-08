@@ -4,6 +4,10 @@
     "server": {
       "limit": 42,
       "reason": "oom-stamp.ts + its test add the office's OOM-bias sweep as a flat, single-purpose boot-time module, matching the existing backup.ts/update-checker.ts/scheduled-messages.ts pattern rather than a new subdirectory."
+    },
+    "shared": {
+      "limit": 41,
+      "reason": "pets.ts owns room-pet species, named coats, and palettes so the server can validate without importing UI and the scene can paint without a second coat list."
     }
   }
 }
