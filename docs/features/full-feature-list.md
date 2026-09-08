@@ -136,8 +136,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   into a permanent office-wide allow. A typed prefix must be a whole-token prefix
   of the command actually being approved, and only plain argv commands (no
   quoting, chaining, redirection, globbing or expansion) can match or be stored.
-- Claude safety hooks for destructive shell commands, Bureau state protection,
-  and secret-file reads.
+- Claude safety hooks for destructive shell commands, Bureau state protection
+  (including shell cwd-set tracking so relative writes after `cd` cannot sneak
+  into `~/.bureau/`), and secret-file reads.
 - Write-path secret redaction in agent and cron conversation logs (provider tokens and common `api_key`/`secret`/`token`/`password` assignments), without rewriting history.
 - Plugin hooks around agent turns with deterministic prefix ordering and
   isolated plugin failure logging.
