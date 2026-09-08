@@ -1,11 +1,13 @@
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
+import { sendApiTokenMessage } from "../auth/api-tokens.ts";
 import { projectAgentsForCronRun, resolveCronRunBearer } from "../cronjobs/run-messaging.ts";
 import { buildAgentsManifest, buildKilledManifest } from "../persistence.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { FAMILY_TO_MODEL, type AgentInfo, type UserRecord } from "../../shared/types.ts";
 import { formatApiTokenDevice } from "../../shared/identity.ts";
+import { apiTokenIdempotency, cachedJson, idempotencyToResponse, readIdempotencyKey } from "./idempotency.ts";
 
 export const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
@@ -32,8 +34,11 @@ export function apiTokenUser(auth: AuthResult | undefined): UserRecord | null {
   return getUserById(auth.token.userId);
 }
 
-export function handleApiTokenMessage(auth: AuthResult, agentId: string, body: Record<string, unknown> | null, text: string, deliverAtRaw: unknown): Response | null {
+export async function handleApiTokenMessage(auth: AuthResult, agentId: string, body: Record<string, unknown> | null, text: string, deliverAtRaw: unknown, req?: Request): Promise<Response | null> {
   if (auth.kind !== "api") return null;
+  if (body?.clientMessageId !== undefined) {
+    return jsonError(400, "clientMessageId is not supported for API token senders. Use Idempotency-Key.");
+  }
   if (body?.sendNow !== undefined || body?.steer !== undefined || deliverAtRaw !== undefined || body?.senderAgentId !== undefined || body?.attachments !== undefined) {
     return jsonError(400, "device, attachments, senderAgentId, sendNow, steer, and deliverAt are not supported for API token senders");
   }
@@ -42,14 +47,32 @@ export function handleApiTokenMessage(auth: AuthResult, agentId: string, body: R
   if (!user) return jsonError(403, "forbidden");
   const agent = AgentManager.getAgent(agentId);
   if (!agent) return jsonError(404, "agent not found");
+  const display = AgentManager.getAgentDisplay(agentId);
+  if (!display) return jsonError(404, "agent not found");
   const roomId = AgentManager.getRooms()[agent.room]?.id ?? agent.roomId;
   if (!roomId || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
-  const result = AgentManager.enqueueMessage(agentId, {
-    sender: { kind: "user", username: user.name, device: formatApiTokenDevice(auth.token.tokenName, auth.token.tokenId) },
-    text,
-    clientMessageId: typeof body?.clientMessageId === "string" ? body.clientMessageId : undefined,
-  });
-  return result.ok ? new Response(JSON.stringify({ messageId: "" }), { headers: JSON_HEADERS }) : jsonError(result.status, result.error);
+
+  const rawBody = JSON.stringify(body ?? { text });
+  const outcome = await apiTokenIdempotency.run(
+    {
+      subject: `api:${auth.token.tokenId}`,
+      op: "api-token-agent-send",
+      idempotencyKey: req ? readIdempotencyKey(req) : null,
+      rawBody,
+    },
+    async () => {
+      const result = await sendApiTokenMessage(auth.token.tokenId, { targetAgentId: agentId, targetAgentName: display.name, targetRoomName: display.roomName, text }, () => {
+        const enqueued = AgentManager.enqueueMessage(agentId, {
+          sender: { kind: "user", username: user.name, device: formatApiTokenDevice(auth.token.tokenName, auth.token.tokenId) },
+          text,
+        });
+        return enqueued.ok ? { ok: true as const } : { ok: false as const, status: enqueued.status, error: enqueued.error };
+      });
+      if (!result.ok) return cachedJson(result.status, { error: result.error });
+      return cachedJson(200, { messageId: result.messageId });
+    },
+  );
+  return idempotencyToResponse(outcome);
 }
 
 export function requireUserAgentAccess(auth: AuthResult | undefined, agentId: string): Response | null {

@@ -4,8 +4,10 @@ import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { addLogEntry } from "../agents/state.ts";
 import type { AuthResult } from "./auth-middleware.ts";
 import { API_TOKEN_EXPIRY_DAYS, drainApiTokenInbox, enqueueApiTokenInboxMessage, listApiTokens, mintApiToken, revokeApiToken } from "./api-tokens.ts";
+import { apiTokenIdempotency, cachedJson, idempotencyToResponse, readIdempotencyKey } from "../http/idempotency.ts";
 
 const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+const CORS_ALLOW_HEADERS = "Authorization, Content-Type, Idempotency-Key";
 
 export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthResult | undefined): Promise<Response | null> {
   if (req.method === "OPTIONS" && url.pathname.startsWith("/api/api-tokens")) {
@@ -13,7 +15,7 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+        "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
       },
     });
   }
@@ -22,7 +24,7 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+        "Access-Control-Allow-Headers": CORS_ALLOW_HEADERS,
       },
     });
   }
@@ -34,31 +36,57 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
     const sender = AgentManager.getAgent(agentToken.agentId);
     const display = AgentManager.getAgentDisplay(agentToken.agentId);
     if (!sender?.userId || !display) return jsonError(403, "forbidden");
-    const body = await readJson(req);
-    if (body instanceof Response) return body;
+    const rawBody = await req.text();
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(rawBody || "{}") as Record<string, unknown>;
+    } catch {
+      return jsonError(400, "invalid JSON");
+    }
     const text = typeof body.text === "string" ? body.text : "";
     if (!text) return jsonError(400, "text is required");
-    const result = await enqueueApiTokenInboxMessage({
-      tokenId: decodeURIComponent(inboxSendMatch[1]!),
-      userId: sender.userId,
-      text,
-      senderAgentId: agentToken.agentId,
-      senderAgentName: display.name,
-      senderRoomName: display.roomName,
+    const tokenId = decodeURIComponent(inboxSendMatch[1]!);
+    const outcome = await apiTokenIdempotency.run({ subject: `agent:${agentToken.agentId}`, op: "api-token-inbox-send", idempotencyKey: readIdempotencyKey(req), rawBody }, async () => {
+      const result = await enqueueApiTokenInboxMessage({
+        tokenId,
+        userId: sender.userId!,
+        text,
+        senderAgentId: agentToken.agentId,
+        senderAgentName: display.name,
+        senderRoomName: display.roomName,
+      });
+      if (!result.ok) return cachedJson(404, { error: "api token unavailable" });
+      addLogEntry(agentToken.agentId, "api_token_outbound", text, {
+        recipient_api_token_name: result.tokenName,
+      });
+      return cachedJson(200, { messageId: result.message.id, lastDrainedAt: result.lastDrainedAt });
     });
-    if (!result.ok) {
-      return result.reason === "full" ? jsonError(429, "inbox_full") : jsonError(404, "api token unavailable");
-    }
-    addLogEntry(agentToken.agentId, "api_token_outbound", text, {
-      recipient_api_token_name: result.tokenName,
-    });
-    return json({ messageId: result.message.id, lastDrainedAt: result.lastDrainedAt });
+    return idempotencyToResponse(outcome);
   }
 
   if (url.pathname === "/api/me/api-token-inbox/drain" && req.method === "POST") {
     if (auth?.kind !== "api") return jsonError(401, "api token required");
-    const drained = await drainApiTokenInbox(auth.token.tokenId);
-    return drained ? json(drained) : jsonError(404, "api token unavailable");
+    const rawBody = await req.text();
+    let after = 0;
+    if (rawBody.trim()) {
+      try {
+        const body = JSON.parse(rawBody) as Record<string, unknown>;
+        if (body.after !== undefined) {
+          if (!Number.isSafeInteger(body.after) || (body.after as number) < 0) return jsonError(400, "invalid_after");
+          after = body.after as number;
+        }
+      } catch {
+        return jsonError(400, "invalid JSON");
+      }
+    }
+    const outcome = await apiTokenIdempotency.run(
+      { subject: `api:${auth.token.tokenId}`, op: "api-token-inbox-drain", idempotencyKey: readIdempotencyKey(req), rawBody: rawBody || "{}" },
+      async () => {
+        const drained = await drainApiTokenInbox(auth.token.tokenId, Date.now(), after);
+        return drained ? cachedJson(200, drained) : cachedJson(404, { error: "api token unavailable" });
+      },
+    );
+    return idempotencyToResponse(outcome);
   }
 
   if (!url.pathname.startsWith("/api/api-tokens")) return null;
@@ -82,7 +110,7 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
 
   const match = /^\/api\/api-tokens\/([^/]+)$/.exec(url.pathname);
   if (match && req.method === "DELETE") {
-    if (!(await revokeApiToken(auth.session.userId, decodeURIComponent(match[1])))) return jsonError(404, "API token not found");
+    if (!(await revokeApiToken(auth.session.userId, decodeURIComponent(match[1]!)))) return jsonError(404, "API token not found");
     return new Response(null, { status: 204, headers: JSON_HEADERS });
   }
 

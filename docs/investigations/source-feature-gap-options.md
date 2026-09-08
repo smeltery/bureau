@@ -80,9 +80,6 @@ implementation stays in Bureau naming and architecture.
   browser to avoid increasing package size and install complexity.
 - OpenCode as a third first-class agent backend. Real product gap, but a large
   architecture/public-API change that needs an explicit Bureau design pass.
-- Sequenced API-token conversation log (merged send/reply drain with
-  Idempotency-Key). Bureau already has a capacity-limited agent-reply inbox;
-  full log parity is a public API expansion.
 - Full UI i18n catalogs / Catalan. Bureau already has language preference for
   agent replies and speech (en/es); source's full catalog + `ca` is a broader
   localization project.
@@ -183,3 +180,9 @@ implementation stays in Bureau naming and architecture.
   Close replaces to `/` instead of leaving the site; agent chats stay on `/`.
   Legacy `/cronjobs` and `/users` aliases still open Schedules / Settings.
 - Privileged-agent schedule CRUD: privileged desk agents may create/update/delete/run schedules owned by their manager via `/api/cronjobs` (office-wide `PUT /api/cron-prompt` remains browser-owner only). System prompt documents the new reach.
+- Sequenced API-token conversation log: append-only per-token JSONL under
+  `~/.bureau/token-logs/` with monotonic `sequence` and
+  `direction: from_agent | to_agent`. Drain is a cursored, non-destructive page
+  (`after`, page size 500). Capacity/inbox_full removed. Optional
+  `Idempotency-Key` on drain + inbox send + API send (replay header / 409 body
+  conflict); API token senders reject `clientMessageId`.

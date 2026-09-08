@@ -151,7 +151,7 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       if (cronRun) {
         return handleCronRunAgentMessage(cronRun, agentId, body, text);
       }
-      const apiTokenResponse = auth ? handleApiTokenMessage(auth, agentId, body, text, deliverAtRaw) : null;
+      const apiTokenResponse = auth ? await handleApiTokenMessage(auth, agentId, body, text, deliverAtRaw, req) : null;
       if (apiTokenResponse) return apiTokenResponse;
       if (bearer) {
         if (body?.sendNow !== undefined) return jsonError(400, "sendNow is only supported for user senders");

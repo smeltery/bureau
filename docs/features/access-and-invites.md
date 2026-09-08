@@ -97,15 +97,26 @@ Agents can reply to the token holder by posting to the token's inbox id:
 curl -s -X POST http://<office>/api/api-token-inboxes/<token-id>/messages \
   -H "Authorization: Bearer <agent-token>" \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: reply-1" \
   -d '{"text":"The report is ready."}'
 ```
 
-The token drains its own inbox with an at-most-once poll:
+The token drains its conversation log with a cursored, non-destructive poll
+(`after` defaults to `0`; pass the last seen `sequence` to advance). Both
+API→agent sends and agent replies appear as sequenced entries under
+`~/.bureau/token-logs/<token-id>.jsonl`:
 
 ```
 curl -s -X POST http://<office>/api/me/api-token-inbox/drain \
-  -H "Authorization: Bearer bureau_pat_..."
+  -H "Authorization: Bearer bureau_pat_..." \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: drain-1" \
+  -d '{"after":0}'
 ```
+
+Mutating token routes accept an optional `Idempotency-Key` header (same key +
+same body replays with `Idempotency-Replayed: true`; same key + different body
+→ 409). Prefer that over `clientMessageId`, which API token senders cannot use.
 
 ### 7. Sign out
 
@@ -169,7 +180,7 @@ Stored in `~/.bureau/`:
 - `users.json` — boss profiles. Each record carries `role: "owner" | "member"`.
 - `invites.json` — outstanding invites, keyed by sha256(token). Raw tokens never persist; only the hash and an 8-char display prefix.
 - `sessions.json` — active sessions, keyed by sha256(session-id). Raw IDs never persist.
-- `api-tokens.json` — personal API tokens, keyed by generated token ID and storing only SHA-256 hashes plus display metadata.
+- `api-tokens.json` — personal API tokens, keyed by generated token ID and storing only SHA-256 hashes plus display metadata (`lastSequence`, `lastDrainedAt`). Conversation rows live in `token-logs/<id>.jsonl`.
 - `admin.sock` — Unix-domain socket for the owner-login recovery CLI (mode 0600).
 
 All three JSON files are written atomically (temp + rename) and serialized under a single in-process mutex so invite acceptance (which touches all three) can't race.

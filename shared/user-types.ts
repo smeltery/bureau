@@ -99,12 +99,35 @@ export interface ApiTokenWire {
 }
 
 export interface ApiTokenInboxMessage {
+  direction: "from_agent";
+  sequence: number;
   id: string;
   sentAt: number;
   text: string;
   senderAgentId: string;
   senderAgentName: string;
   senderRoomName: string;
+}
+
+export interface ApiTokenSentMessage {
+  direction: "to_agent";
+  sequence: number;
+  id: string;
+  sentAt: number;
+  text: string;
+  targetAgentId: string;
+  targetAgentName: string;
+  targetRoomName: string;
+}
+
+export type ApiTokenLogEntry = ApiTokenInboxMessage | ApiTokenSentMessage;
+
+export interface ApiTokenInboxDrainRes {
+  entries: ApiTokenLogEntry[];
+  firstSequence: number;
+  latestSequence: number;
+  previouslyDrainedAt: number | null;
+  drainedAt: number;
 }
 
 // A room with stable ID, display name, and per-room config

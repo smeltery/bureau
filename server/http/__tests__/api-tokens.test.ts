@@ -1,14 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { unlinkSync } from "fs";
+import { rmSync } from "fs";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { _testResetApiTokens, mintApiToken, resolveApiToken } from "../../auth/api-tokens.ts";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import { agents } from "../../agents/state.ts";
 import * as AgentManager from "../../agent-manager.ts";
-import { API_TOKENS_FILE } from "../../persistence/paths.ts";
+import { API_TOKEN_LOGS_DIR, API_TOKENS_FILE } from "../../persistence/paths.ts";
 import { claimUserByName, deleteUserById, getUserByName, updateUserById } from "../../users.ts";
 import { handleApiTokensRequest } from "../../auth/api-tokens-route.ts";
 import { handleAgentsRequest } from "../agents.ts";
+import { apiTokenIdempotency } from "../idempotency.ts";
 import { installAgent } from "./privileged-agent-fixture.ts";
 
 const USERNAME = "API Token Route Tester";
@@ -18,12 +19,16 @@ afterEach(reset);
 
 function reset() {
   _testResetApiTokens();
+  apiTokenIdempotency._reset();
   _testResetAgentTokens();
   const existing = getUserByName(USERNAME);
   if (existing) deleteUserById(existing.id);
   agents.clear();
   try {
-    unlinkSync(API_TOKENS_FILE);
+    rmSync(API_TOKENS_FILE, { force: true });
+  } catch {}
+  try {
+    rmSync(API_TOKEN_LOGS_DIR, { recursive: true, force: true });
   } catch {}
 }
 
@@ -80,7 +85,7 @@ describe("handleApiTokensRequest", () => {
     expect(await res?.json()).toEqual({ error: "authenticated session required" });
   });
 
-  test("lists and messages only visible live agents", async () => {
+  test("lists and messages only visible live agents with a real outbound messageId", async () => {
     const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
     const visibleRoom = AgentManager.getRooms()[0]!;
     const visibleRoomId = visibleRoom.id;
@@ -113,13 +118,16 @@ describe("handleApiTokensRequest", () => {
     );
     expect(hidden?.status).toBe(403);
 
-    agents.get("api-visible")!.info.state = "waiting_for_response";
+    agents.get("api-visible")!.info.state = "thinking";
     const sent = await handleAgentsRequest(
       request("/api/agents/api-visible/messages", { method: "POST", headers: { Authorization: `Bearer ${minted.token}` }, body: JSON.stringify({ text: "off-office alert" }) }),
       new URL("http://local.test/api/agents/api-visible/messages"),
       apiAuth,
     );
     expect(sent?.status).toBe(200);
+    const sentBody = await sent!.json();
+    expect(typeof sentBody.messageId).toBe("string");
+    expect(sentBody.messageId.length).toBeGreaterThan(0);
     expect(agents.get("api-visible")!.messageQueue[0]?.sender).toEqual({
       kind: "user",
       username: USERNAME,
@@ -129,18 +137,70 @@ describe("handleApiTokensRequest", () => {
     AgentManager.closeRoom(hiddenRoomId);
   });
 
-  test("lets an agent send replies to a personal token inbox", async () => {
+  test("rejects clientMessageId for API token senders", async () => {
+    const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
+    updateUserById(user.id, { allowedRooms: [AgentManager.getRooms()[0]!.id] });
+    installAgent("api-visible", 0, user.id);
+    agents.get("api-visible")!.info.state = "thinking";
+    const minted = await mintApiToken({ userId: user.id, name: "automation", expiresInDays: 30 });
+    const token = resolveApiToken(minted.token);
+    if (!token) throw new Error("expected API token to resolve");
+
+    const res = await handleAgentsRequest(
+      request("/api/agents/api-visible/messages", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${minted.token}` },
+        body: JSON.stringify({ text: "hi", clientMessageId: "client-1" }),
+      }),
+      new URL("http://local.test/api/agents/api-visible/messages"),
+      { kind: "api", token },
+    );
+    expect(res?.status).toBe(400);
+    expect(await res?.json()).toEqual({
+      error: "clientMessageId is not supported for API token senders. Use Idempotency-Key.",
+    });
+  });
+
+  test("logs bidirectional conversation order and supports idempotent drain/send", async () => {
     const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
     const visibleRoom = AgentManager.getRooms()[0]!;
-    const visibleRoomId = visibleRoom.id;
-    updateUserById(user.id, { allowedRooms: [visibleRoomId] });
+    updateUserById(user.id, { allowedRooms: [visibleRoom.id] });
     installAgent("api-replier", 0, user.id);
+    agents.get("api-replier")!.info.state = "thinking";
     const agentToken = mintAgentToken("api-replier", user.id, false);
     const minted = await mintApiToken({ userId: user.id, name: "phone", expiresInDays: 30 });
     const apiToken = resolveApiToken(minted.token);
     if (!apiToken) throw new Error("expected API token to resolve");
+    const apiAuth: AuthResult = { kind: "api", token: apiToken };
 
-    const sent = await handleApiTokensRequest(
+    const sendBody = JSON.stringify({ text: "request once" });
+    const sendReq = {
+      method: "POST" as const,
+      headers: { Authorization: `Bearer ${minted.token}`, "Idempotency-Key": "send-once", "Content-Type": "application/json" },
+      body: sendBody,
+    };
+    const sent = await handleAgentsRequest(request("/api/agents/api-replier/messages", sendReq), new URL("http://local.test/api/agents/api-replier/messages"), apiAuth);
+    expect(sent?.status).toBe(200);
+    const sentBody = await sent!.json();
+    expect(typeof sentBody.messageId).toBe("string");
+    expect(sentBody.messageId.length).toBeGreaterThan(0);
+
+    const replay = await handleAgentsRequest(request("/api/agents/api-replier/messages", sendReq), new URL("http://local.test/api/agents/api-replier/messages"), apiAuth);
+    expect(replay?.headers.get("Idempotency-Replayed")).toBe("true");
+    expect(await replay!.json()).toEqual(sentBody);
+
+    const conflict = await handleAgentsRequest(
+      request("/api/agents/api-replier/messages", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${minted.token}`, "Idempotency-Key": "send-once", "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "different" }),
+      }),
+      new URL("http://local.test/api/agents/api-replier/messages"),
+      apiAuth,
+    );
+    expect(conflict?.status).toBe(409);
+
+    const reply = await handleApiTokensRequest(
       request(`/api/api-token-inboxes/${minted.apiToken.id}/messages`, {
         method: "POST",
         headers: { Authorization: `Bearer ${agentToken}` },
@@ -149,46 +209,81 @@ describe("handleApiTokensRequest", () => {
       new URL(`http://local.test/api/api-token-inboxes/${minted.apiToken.id}/messages`),
       undefined,
     );
-    expect(sent?.status).toBe(200);
-    const sentBody = await sent!.json();
-    expect(sentBody.lastDrainedAt).toBeNull();
-    expect(typeof sentBody.messageId).toBe("string");
+    expect(reply?.status).toBe(200);
+    const replyBody = await reply!.json();
+    expect(typeof replyBody.messageId).toBe("string");
+
+    const drained = await handleApiTokensRequest(
+      request("/api/me/api-token-inbox/drain", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${minted.token}`, "Idempotency-Key": "drain-1" },
+        body: JSON.stringify({ after: 0 }),
+      }),
+      new URL("http://local.test/api/me/api-token-inbox/drain"),
+      apiAuth,
+    );
+    expect(drained?.status).toBe(200);
+    const drainedBody = await drained!.json();
+    expect(drainedBody.entries).toMatchObject([
+      { direction: "to_agent", sequence: 1, id: sentBody.messageId, text: "request once", targetAgentId: "api-replier" },
+      {
+        direction: "from_agent",
+        sequence: 2,
+        id: replyBody.messageId,
+        text: "The report is ready.",
+        senderAgentId: "api-replier",
+        senderAgentName: "Agent api-replier",
+        senderRoomName: visibleRoom.name,
+      },
+    ]);
+    expect(drainedBody.previouslyDrainedAt).toBeNull();
+    expect(typeof drainedBody.drainedAt).toBe("number");
+    expect(drainedBody.latestSequence).toBe(2);
+
+    const drainReplay = await handleApiTokensRequest(
+      request("/api/me/api-token-inbox/drain", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${minted.token}`, "Idempotency-Key": "drain-1" },
+        body: JSON.stringify({ after: 0 }),
+      }),
+      new URL("http://local.test/api/me/api-token-inbox/drain"),
+      apiAuth,
+    );
+    expect(drainReplay?.headers.get("Idempotency-Replayed")).toBe("true");
+    expect(await drainReplay!.json()).toEqual(drainedBody);
+
+    const again = await handleApiTokensRequest(
+      request("/api/me/api-token-inbox/drain", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${minted.token}` },
+        body: JSON.stringify({ after: 0 }),
+      }),
+      new URL("http://local.test/api/me/api-token-inbox/drain"),
+      apiAuth,
+    );
+    expect((await again!.json()).entries).toHaveLength(2);
+
+    const after = await handleApiTokensRequest(
+      request("/api/me/api-token-inbox/drain", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${minted.token}` },
+        body: JSON.stringify({ after: 2 }),
+      }),
+      new URL("http://local.test/api/me/api-token-inbox/drain"),
+      apiAuth,
+    );
+    expect((await after!.json()).entries).toEqual([]);
+
     expect(AgentManager.getAgentLogs("api-replier").at(-1)).toMatchObject({
       kind: "api_token_outbound",
       content: "The report is ready.",
       metadata: { recipient_api_token_name: "phone" },
     });
+  });
 
-    const drained = await handleApiTokensRequest(
-      request("/api/me/api-token-inbox/drain", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${minted.token}` },
-      }),
-      new URL("http://local.test/api/me/api-token-inbox/drain"),
-      { kind: "api", token: apiToken },
-    );
-    expect(drained?.status).toBe(200);
-    const drainedBody = await drained!.json();
-    expect(drainedBody.messages).toHaveLength(1);
-    expect(drainedBody.messages[0]).toMatchObject({
-      id: sentBody.messageId,
-      text: "The report is ready.",
-      senderAgentId: "api-replier",
-      senderAgentName: "Agent api-replier",
-      senderRoomName: visibleRoom.name,
-    });
-    expect(typeof drainedBody.messages[0].sentAt).toBe("number");
-    expect(drainedBody.previouslyDrainedAt).toBeNull();
-    expect(typeof drainedBody.drainedAt).toBe("number");
-
-    const empty = await handleApiTokensRequest(
-      request("/api/me/api-token-inbox/drain", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${minted.token}` },
-      }),
-      new URL("http://local.test/api/me/api-token-inbox/drain"),
-      { kind: "api", token: apiToken },
-    );
-    expect((await empty!.json()).messages).toEqual([]);
+  test("CORS preflight allows Idempotency-Key", async () => {
+    const req = request("/api/me/api-token-inbox/drain", { method: "OPTIONS" });
+    const res = await handleApiTokensRequest(req, new URL(req.url), undefined);
+    expect(res?.headers.get("Access-Control-Allow-Headers")).toContain("Idempotency-Key");
   });
 });

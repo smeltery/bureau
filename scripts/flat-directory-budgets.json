@@ -9,6 +9,10 @@
       "limit": 44,
       "reason": "oom-stamp.ts (+ test) biases descendant oom_score_adj; process-name.ts (+ test) renames the office to `bureau` so name-based protectors can shield it without shielding agent bun builds. Both stay flat boot-time modules beside backup.ts / update-checker.ts."
     },
+    "server/http": {
+      "limit": 41,
+      "reason": "idempotency.ts owns the small Idempotency-Key cache shared by API-token drain/send routes."
+    },
     "shared": {
       "limit": 41,
       "reason": "pets.ts owns room-pet species, named coats, and palettes so the server can validate without importing UI and the scene can paint without a second coat list."
