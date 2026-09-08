@@ -156,3 +156,8 @@ implementation stays in Bureau naming and architecture.
   requires the content-hash `version` from `GET /api/rooms/:id/settings`
   (same rail as the existing REST PUT); the room settings dialog GETs it on
   open. Shared `roomSettingsVersion` lives next to `officeSettingsVersion`.
+- Humanized backend failure text: opaque SIGTERM/SIGKILL/signal exits and
+  harness `error_during_execution` blobs become readable English sentences
+  (`server/agents/session/backend-failure-text.ts`), with the raw diagnostic
+  kept in log metadata. Auth classification still runs on the raw text.
+  Destination-native (no i18n Translator).

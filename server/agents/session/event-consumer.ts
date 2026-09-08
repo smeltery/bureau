@@ -5,6 +5,7 @@ import { autocompleteCommands } from "../commands.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
 import { addLogEntry, agents, clearLiveTurn, emit, emitEphemeralLog, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { diagnoseProcessExit, emitLoginInstructions as emitLoginInstructionsImpl, emitLoginInstructionsIfAuth, isAuthErrorForAgent } from "./diagnostics.ts";
+import { backendFailureMeta, humanizeBackendFailure } from "./backend-failure-text.ts";
 import { maybeNudgeForContextUsage, refreshContextUsage } from "../context-usage.ts";
 
 // Persistent consumer. Runs for the session's lifetime, iterating `stream()`
@@ -28,14 +29,16 @@ export async function runConsumer(agentId: string, managed: ManagedAgent, boundS
     managed.pendingTurn = null;
     clearLiveTurn(managed);
     if (turn) turn.reject(err);
-    const errorText = `Stream error: ${err.message ?? String(err)}`;
-    addLogEntry(agentId, "error", errorText);
+    const raw = err.message ?? String(err);
+    const failure = humanizeBackendFailure(raw);
+    const errorText = failure.text.startsWith("Stream error:") ? failure.text : `Stream error: ${failure.text}`;
+    addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
     if (managed.info.agentType === "claude") {
       const hints = diagnoseProcessExit(managed);
       if (hints) emitEphemeralLog(agentId, "system", hints);
     }
-    emitLoginInstructionsIfAuth(agentId, managed, errorText);
-    updateState(agentId, isAuthErrorForAgent(managed, errorText) ? "waiting_for_response" : "error");
+    emitLoginInstructionsIfAuth(agentId, managed, raw);
+    updateState(agentId, isAuthErrorForAgent(managed, raw) ? "waiting_for_response" : "error");
   }
 }
 
@@ -169,9 +172,11 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       if (managed && ev.status !== "completed") {
         const isInterrupted = managed.aborting && ev.status === "interrupted";
         if (!isInterrupted) {
-          const errorText = ev.error ?? `Agent stopped: ${ev.status}.`;
-          addLogEntry(agentId, "error", errorText);
-          const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, errorText);
+          const raw = ev.error ?? `Agent stopped: ${ev.status}.`;
+          const failure = humanizeBackendFailure(raw);
+          const errorText = failure.text;
+          addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
+          const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, raw);
           if (ev.causedByAuth !== true && auth) emitLoginInstructionsImpl(agentId, managed);
           updateState(agentId, auth ? "waiting_for_response" : "error");
         }
@@ -201,11 +206,13 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       break;
     case "error": {
       const managed = agents.get(agentId);
-      addLogEntry(agentId, "error", ev.message);
+      const failure = humanizeBackendFailure(ev.message);
+      addLogEntry(agentId, "error", failure.text, backendFailureMeta(failure));
       if (managed?.info.agentType === "claude") {
         const hints = diagnoseProcessExit(managed);
         if (hints) emitEphemeralLog(agentId, "system", hints);
       }
+      // Auth classification must stay on the raw backend text, not the humanized sentence.
       emitLoginInstructionsIfAuth(agentId, managed, ev.message);
       const turn = managed?.pendingTurn;
       if (managed) clearLiveTurn(managed);

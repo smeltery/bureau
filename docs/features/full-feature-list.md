@@ -107,6 +107,10 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   re-dispatches without a fork, including on Codex and before a session exists.
 
 - Session resume, new conversation, model/effort changes, and usage views.
+- Humanized backend death notices in chat when a Claude/Codex subprocess exits
+  on SIGTERM/SIGKILL or another signal, or when the harness reports
+  `error_during_execution`. Ordinary exit codes and unrecognized failures stay
+  verbatim; the original backend string is kept in log metadata for diagnosis.
 
 ## Developer Tools
 

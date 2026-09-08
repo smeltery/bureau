@@ -3,6 +3,7 @@ import type { AgentState, Attachment } from "../../../shared/types.ts";
 import { accumulateSessionUsage, appendSessionUsageSnapshot, saveFile } from "../../persistence.ts";
 import { agents, addLogEntry, clearLiveTurn, emitEphemeralLog, updateState } from "../state.ts";
 import { handleInitMessage } from "./init-message.ts";
+import { backendFailureMeta, humanizeBackendFailure } from "./backend-failure-text.ts";
 export { buildUserMessage } from "./user-message-builder.ts";
 
 // ---------------------------------------------------------------------------
@@ -181,9 +182,10 @@ export function processMessage(agentId: string, msg: SDKMessage) {
       const subtype = (msg as any).subtype;
       if (subtype !== "success") {
         const errors = (msg as any).errors;
-        const errorText = `Agent stopped: ${subtype}. ${errors?.join(", ") || ""}`;
-        addLogEntry(agentId, "error", errorText);
-        if (isAuthError(errorText)) {
+        const raw = `Agent stopped: ${subtype}. ${errors?.join(", ") || ""}`;
+        const failure = humanizeBackendFailure(raw);
+        addLogEntry(agentId, "error", failure.text, backendFailureMeta(failure));
+        if (isAuthError(failure.raw ?? failure.text)) {
           emitEphemeralLog(agentId, "system", LOGIN_INSTRUCTIONS);
         }
         updateState(agentId, "error");
