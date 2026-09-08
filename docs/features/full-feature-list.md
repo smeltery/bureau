@@ -67,6 +67,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Isometric rooms with desks, character sprites, status lights, and animated
   state.
 - Room tabs, room settings, drag/move flows, and desk swapping.
+- Usage and Storage panes in User Settings (Usage for all signed-in users; Storage prune for owners). Nested Office Settings links removed.
 - Theme picker with dark, light, Nord, Dracula, Solarized Dark, and Solarized
   Light themes.
 - Seasonal office decorations that appear automatically around Halloween,

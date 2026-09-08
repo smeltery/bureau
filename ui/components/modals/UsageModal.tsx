@@ -19,7 +19,7 @@ async function apiFetch<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function UsageModal({ onBack }: { onBack: () => void }) {
+export function UsageModal({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
   const [usage, setUsage] = useState<UsageReportWire | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +29,8 @@ export function UsageModal({ onBack }: { onBack: () => void }) {
       .catch((err: unknown) => setError(err instanceof ApiError ? err.message : "Could not load usage."));
   }, []);
 
-  return (
-    <Modal onClose={onBack} width={760}>
+  const body = (
+    <>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Usage</h3>
       <p style={hint}>Subscription plan limits are not shown here. This page reports token usage and estimated cost recorded by Bureau.</p>
       {usage?.scoped && <p style={hint}>Scoped to the rooms you can access. Cron job usage is not included.</p>}
@@ -57,11 +57,21 @@ export function UsageModal({ onBack }: { onBack: () => void }) {
           <UsageTable title={usage.scoped ? "Total" : "Office total"} firstHeader="" rows={[{ key: "total", label: "Total", session: usage.total.session, lifetime: usage.total.lifetime }]} />
         </>
       )}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-        <button onClick={onBack} style={dialogCancelBtn}>
-          Back to settings
-        </button>
-      </div>
+      {!embedded && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+          <button onClick={onBack} style={dialogCancelBtn}>
+            Back to settings
+          </button>
+        </div>
+      )}
+    </>
+  );
+
+  if (embedded) return <div style={{ marginTop: 8 }}>{body}</div>;
+
+  return (
+    <Modal onClose={() => onBack?.()} width={760}>
+      {body}
     </Modal>
   );
 }
