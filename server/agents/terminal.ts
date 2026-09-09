@@ -1,6 +1,8 @@
-import { homedir } from "os";
+import { homedir, userInfo } from "os";
 import { join } from "path";
-import { agents, emit, type ManagedAgent } from "./state.ts";
+import { readEnvFile } from "../persistence.ts";
+import { getUserById } from "../users.ts";
+import { agents, emit, officeConfig, rooms, type ManagedAgent } from "./state.ts";
 import { createTerminalFinalizer } from "./terminal-finalizer.ts";
 
 // --- Terminal PTY management (via Node.js sidecar) ---
@@ -20,14 +22,23 @@ export function openTerminal(agentId: string): boolean {
   // Already running — just replay buffered output
   if (managed.ptySidecar) return true;
 
+  let managedEnv: Record<string, string | undefined>;
+  try {
+    managedEnv = buildTerminalEnv(managed);
+  } catch (err) {
+    console.warn(`[terminal] cannot open PTY for ${agentId}:`, err);
+    emit({ type: "terminal_exit", agentId, exitCode: 1 });
+    return false;
+  }
+
   const shell = process.env.SHELL || "/bin/bash";
   const home = homedir();
   const ptyEnv: Record<string, string> = {
-    ...(process.env as Record<string, string>),
+    ...(managedEnv as Record<string, string>),
     TERM: "xterm-256color",
     SHELL: shell,
     HOME: home,
-    USER: process.env.USER || require("os").userInfo().username,
+    USER: process.env.USER || userInfo().username,
     LANG: process.env.LANG || "en_US.UTF-8",
     PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin",
   };
@@ -99,6 +110,16 @@ export function openTerminal(agentId: string): boolean {
 
   console.log(`[terminal] Spawned sidecar for ${agentId}: shell=${shell}, cwd=${managed.info.cwd}, pid=${sidecar.pid}`);
   return true;
+}
+
+function buildTerminalEnv(managed: ManagedAgent): Record<string, string | undefined> {
+  const roomEnvFile = rooms[managed.info.room]?.envFile ?? null;
+  const userEnvFile = managed.info.userId ? (getUserById(managed.info.userId)?.envFile ?? null) : null;
+  const merged: Record<string, string | undefined> = { ...process.env };
+  if (officeConfig.envFile) Object.assign(merged, readEnvFile(officeConfig.envFile));
+  if (roomEnvFile) Object.assign(merged, readEnvFile(roomEnvFile));
+  if (userEnvFile) Object.assign(merged, readEnvFile(userEnvFile));
+  return merged;
 }
 
 export function getTerminalBuffer(agentId: string): string | null {

@@ -84,7 +84,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   Room settings; legacy coat-only configs migrate to the cat.
 - Clickable wall affordances: corkboard → Tasks, clock → Schedules, vent →
   Settings, apps plaque → Apps (moon/sun still toggles theme).
-- Keyboard shortcuts `t` (toggle Tasks) and `s` (open Settings) when not typing.
+- Keyboard shortcuts `t` (toggle Tasks), `a` (toggle Apps), and `s` (open
+  Settings) when not typing.
 - Bookmarkable full-page URLs for Tasks (`/tasks`), Schedules (`/schedules`),
   Apps (`/apps`), Plugins (`/plugins`), and Settings (`/settings`); agent chats
   stay on `/`. Legacy `/cronjobs` and `/users` still open Schedules / Settings.
@@ -131,8 +132,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 ## Developer Tools
 
-- Embedded terminal per agent, with standard copy/paste shortcuts across
-  platforms.
+- Embedded terminal per agent, inheriting the agent owner's managed
+  environment and standard copy/paste shortcuts across platforms.
 - Built-in file editor with tabs, syntax highlighting, empty-state guidance,
   dirty-buffer tracking,
   and external-change detection.

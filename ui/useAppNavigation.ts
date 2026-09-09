@@ -211,6 +211,18 @@ export function useAppNavigation({
         setTasksOpen((open) => !open);
       }
 
+      // "a": toggle Apps from office or agent chat, unless Settings is open.
+      if (!isInput && e.key === "a" && !settingsOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        if (appsOpen && !tasksOpen && !cronjobsOpen && !pluginsOpen) goHome();
+        else {
+          setTasksOpen(false);
+          setCronjobsOpen(false);
+          setPluginsOpen(false);
+          setAppsOpen(true);
+        }
+      }
+
       // "s": open Settings. Only opens — Escape (via the page) is the way out so
       // we never skip its unsaved-edits check by toggling closed here.
       if (!isInput && e.key === "s" && !settingsOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -233,7 +245,28 @@ export function useAppNavigation({
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [dispatch, goHome, focusedAgentId, agents, drafts, currentRoom, roomCount, setCtxMenu, setEditAgent, setSpawnDesk, setTasksOpen, settingsOpen, openSettings]);
+  }, [
+    appsOpen,
+    cronjobsOpen,
+    dispatch,
+    goHome,
+    focusedAgentId,
+    agents,
+    drafts,
+    currentRoom,
+    pluginsOpen,
+    roomCount,
+    setAppsOpen,
+    setCronjobsOpen,
+    setCtxMenu,
+    setEditAgent,
+    setPluginsOpen,
+    setSpawnDesk,
+    setTasksOpen,
+    tasksOpen,
+    settingsOpen,
+    openSettings,
+  ]);
 
   // Agent chats are not routes — they share "/" with the office. Panels get
   // real paths so refresh/share keep working.
