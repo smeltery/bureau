@@ -1,5 +1,11 @@
 import type { AgentOutfit } from "./types.ts";
 
+export const COSTUMES = ["none", "doctor", "police", "firefighter", "chef", "construction", "astronaut"] as const;
+
+export function costumeOf(value: unknown): NonNullable<AgentOutfit["costume"]> {
+  return COSTUMES.includes(value as (typeof COSTUMES)[number]) ? (value as NonNullable<AgentOutfit["costume"]>) : "none";
+}
+
 export const SHIRT_COLORS = ["#4A90D9", "#E85D75", "#50B86C", "#D4A843", "#9B6DFF", "#FF8C42", "#45B7D1", "#FF6B9D"];
 
 export const HAIR_COLORS = ["#3a2a1a", "#8B4513", "#1a1a2e", "#C4A265", "#222", "#8a5a3a", "#E84393", "#6C5CE7"];

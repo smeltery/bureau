@@ -1,5 +1,5 @@
 import type { AgentOutfit } from "../../../shared/types.ts";
-import { ACCESSORIES, BEARDS, HAIR_COLORS, HAIR_STYLES, HATS, SHIRT_COLORS, SKIN_COLORS } from "../../../shared/outfit-options.ts";
+import { ACCESSORIES, BEARDS, COSTUMES, costumeOf, HAIR_COLORS, HAIR_STYLES, HATS, SHIRT_COLORS, SKIN_COLORS } from "../../../shared/outfit-options.ts";
 import { Character } from "../../office/scene/Character.tsx";
 
 const HAIR_STYLE_LABELS: Record<AgentOutfit["hairStyle"], string> = {
@@ -18,6 +18,16 @@ const HAT_LABELS: Record<AgentOutfit["hat"], string> = {
   beanie: "Beanie",
   bow: "Hair Bow",
   headband: "Headband",
+};
+
+const COSTUME_LABELS: Record<NonNullable<AgentOutfit["costume"]>, string> = {
+  none: "None",
+  doctor: "Doctor",
+  police: "Police",
+  firefighter: "Firefighter",
+  chef: "Chef",
+  construction: "Construction",
+  astronaut: "Astronaut",
 };
 
 const ACCESSORY_LABELS: Record<string, string> = {
@@ -40,6 +50,7 @@ const BEARD_LABELS: Record<AgentOutfit["beard"], string> = {
 export function makeRandomOutfit(): AgentOutfit {
   return {
     hat: HATS[Math.floor(Math.random() * HATS.length)],
+    costume: COSTUMES[Math.floor(Math.random() * COSTUMES.length)],
     color: SHIRT_COLORS[Math.floor(Math.random() * SHIRT_COLORS.length)],
     hair: HAIR_COLORS[Math.floor(Math.random() * HAIR_COLORS.length)],
     hairStyle: HAIR_STYLES[Math.floor(Math.random() * HAIR_STYLES.length)],
@@ -70,6 +81,17 @@ export function AgentAppearanceEditor({ outfit, onChange, selectStyle }: AgentAp
       <ColorSwatches label="Skin" colors={SKIN_COLORS} selected={outfit.skin} onSelect={(skin) => onChange({ ...outfit, skin })} />
       <ColorSwatches label="Shirt" colors={SHIRT_COLORS} selected={outfit.color} onSelect={(color) => onChange({ ...outfit, color })} />
       <ColorSwatches label="Hair Color" colors={HAIR_COLORS} selected={outfit.hair} onSelect={(hair) => onChange({ ...outfit, hair })} />
+
+      <div style={{ marginBottom: 8 }}>
+        <div style={fieldLabelStyle}>Costume</div>
+        <select value={costumeOf(outfit.costume)} onChange={(e) => onChange({ ...outfit, costume: costumeOf(e.target.value) })} style={selectStyle}>
+          {COSTUMES.map((costume) => (
+            <option key={costume} value={costume}>
+              {COSTUME_LABELS[costume]}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>

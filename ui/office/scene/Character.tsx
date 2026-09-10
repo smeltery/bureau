@@ -1,5 +1,7 @@
 import type { AgentState, AgentOutfit } from "../../../shared/types.ts";
+import { costumeOf } from "../../../shared/outfit-options.ts";
 import { Accessory, Beard, Hair, Hat } from "./CharacterParts.tsx";
+import { COSTUME_COLORS, CostumeBody, CostumeHead } from "./Costume.tsx";
 
 // Map our states to visual poses
 function visualState(state: AgentState): "working" | "waiting_for_response" | "error" | "idle" {
@@ -18,7 +20,8 @@ function visualState(state: AgentState): "working" | "waiting_for_response" | "e
 
 export function Character({ state, outfit }: { state: AgentState; outfit: AgentOutfit }) {
   const skin = outfit.skin ?? "#FFD5B8";
-  const bc = outfit.color;
+  const costume = costumeOf(outfit.costume);
+  const bc = COSTUME_COLORS[costume] ?? outfit.color;
   const hair = outfit.hair;
   const hairStyle = outfit.hairStyle ?? "short";
   const beard = outfit.beard ?? "none";
@@ -36,9 +39,11 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
     return wrap(
       <>
         <ellipse cx={hCx} cy={50} rx={11} ry={10} fill={bc} />
+        <CostumeBody costume={costume} seated={true} />
         <ellipse cx={hCx} cy={hCy} rx={10} ry={9} fill={skin} />
         <Hair style={hairStyle} color={hair} headCx={hCx} headCy={hCy} />
         <Hat type={outfit.hat} color={bc} headCx={hCx} headCy={hCy} />
+        <CostumeHead costume={costume} headCx={hCx} headCy={hCy} />
         <Accessory type={outfit.accessory} headCx={hCx} headCy={hCy} />
         {/* Closed eyes */}
         <line x1={hCx - 6} y1={hCy + 1} x2={hCx - 2} y2={hCy + 1} stroke="#333" strokeWidth={1} strokeLinecap="round" />
@@ -68,11 +73,13 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
     return wrap(
       <>
         <rect x={16} y={36} width={20} height={16} fill={bc} rx={3} />
+        <CostumeBody costume={costume} seated={false} />
         <rect x={5} y={28} width={7} height={4} fill={skin} rx={2} transform="rotate(-25 8 30)" />
         <rect x={40} y={28} width={7} height={4} fill={skin} rx={2} transform="rotate(25 43 30)" />
         <ellipse cx={hCx} cy={hCy} rx={10} ry={10} fill={skin} />
         <Hair style={hairStyle} color={hair} headCx={hCx} headCy={hCy} />
         <Hat type={outfit.hat} color={bc} headCx={hCx} headCy={hCy} />
+        <CostumeHead costume={costume} headCx={hCx} headCy={hCy} />
         <g stroke="#c33" strokeWidth={1.5} strokeLinecap="round">
           <line x1={hCx - 6} y1={hCy - 3} x2={hCx - 3} y2={hCy + 1} />
           <line x1={hCx - 3} y1={hCy - 3} x2={hCx - 6} y2={hCy + 1} />
@@ -102,6 +109,7 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
     return wrap(
       <>
         <rect x={16} y={36} width={20} height={16} fill={bc} rx={3} />
+        <CostumeBody costume={costume} seated={false} />
         <g>
           <rect x={38} y={20} width={7} height={10} fill={skin} rx={2} transform="rotate(-5 41 25)">
             <animate attributeName="transform" values="rotate(-5 41 25);rotate(12 41 25);rotate(-5 41 25)" dur="0.8s" repeatCount="indefinite" />
@@ -114,6 +122,7 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
         <ellipse cx={hCx} cy={hCy} rx={10} ry={10} fill={skin} />
         <Hair style={hairStyle} color={hair} headCx={hCx} headCy={hCy} />
         <Hat type={outfit.hat} color={bc} headCx={hCx} headCy={hCy} />
+        <CostumeHead costume={costume} headCx={hCx} headCy={hCy} />
         <Accessory type={outfit.accessory} headCx={hCx} headCy={hCy} />
         <circle cx={hCx - 4} cy={hCy + 1} r={1.8} fill="#333" />
         <circle cx={hCx + 4} cy={hCy + 1} r={1.8} fill="#333" />
@@ -134,6 +143,7 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
   return wrap(
     <>
       <rect x={16} y={36} width={20} height={16} fill={bc} rx={3} />
+      <CostumeBody costume={costume} seated={false} />
       <g>
         <rect x={7} y={42} width={8} height={4} fill={skin} rx={2}>
           <animate attributeName="y" values="42;41;42" dur="0.3s" repeatCount="indefinite" />
@@ -145,6 +155,7 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
       <ellipse cx={hCx} cy={hCy} rx={10} ry={10} fill={skin} />
       <Hair style={hairStyle} color={hair} headCx={hCx} headCy={hCy} />
       <Hat type={outfit.hat} color={bc} headCx={hCx} headCy={hCy} />
+      <CostumeHead costume={costume} headCx={hCx} headCy={hCy} />
       <Accessory type={outfit.accessory} headCx={hCx} headCy={hCy} />
       <circle cx={hCx - 4} cy={hCy + 1} r={1.5} fill="#333" />
       <circle cx={hCx + 4} cy={hCy + 1} r={1.5} fill="#333" />

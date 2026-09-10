@@ -9,6 +9,7 @@ export type PendingPromptKind = "permission" | "resume" | "model" | "effort";
 // Deterministic outfit from name hash
 export interface AgentOutfit {
   hat: "none" | "cap" | "beanie" | "bow" | "headband";
+  costume?: "none" | "doctor" | "police" | "firefighter" | "chef" | "construction" | "astronaut";
   color: string; // shirt color hex
   hair: string; // hair color hex
   hairStyle: "short" | "long" | "ponytail" | "bun" | "pigtails" | "curly" | "bald";
