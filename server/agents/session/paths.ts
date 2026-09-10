@@ -46,8 +46,12 @@ export function validateCwd(cwd: string): string {
 // the same projects/ tree the spawned subprocess uses. Falls back to ~/.claude
 // when env is unset or omitted — preserves today's behavior for default users.
 export function claudeProjectDir(cwd: string, env?: { [key: string]: string | undefined }): string {
-  const configDir = env?.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
+  const configDir = claudeConfigRoot(env);
   return join(configDir, "projects", cwd.replace(/[^a-zA-Z0-9-]/g, "-"));
+}
+
+export function claudeConfigRoot(env?: { [key: string]: string | undefined }): string {
+  return resolve(env?.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"));
 }
 
 export function claudeSessionFileExists(cwd: string, sessionId: string, env?: { [key: string]: string | undefined }): boolean {

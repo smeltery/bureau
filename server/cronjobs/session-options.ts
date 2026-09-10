@@ -1,5 +1,6 @@
 import { cronjobRunStreamId, type Cronjob, type CronjobRun } from "../../shared/types.ts";
-import { rollRunSessionUsageOnResume, readEnvFile } from "../persistence.ts";
+import { ensureRunSessionClaudeConfigDir, getRunSessionClaudeConfigDir, readEnvFile, rollRunSessionUsageOnResume } from "../persistence.ts";
+import { claudeConfigRoot } from "../agents/session/paths.ts";
 import { officeConfig } from "../agents/state.ts";
 import { getBackend } from "../backends/index.ts";
 import type { Backend, CreateSessionOptions } from "../backends/types.ts";
@@ -76,7 +77,12 @@ export function buildRunResumeOptions({
   // empty append instead of synthesizing a partial prompt.
   const job = cronjobs.find((c) => c.id === run.cronjobId);
   const baseEnv = buildCronjobEnv(job?.userId ?? null);
-  const env = withRunTokenEnv(baseEnv, runToken);
+  let env = withRunTokenEnv(baseEnv, runToken);
+  if ((run.agentTypeSnapshot ?? "claude") === "claude") {
+    const pinnedRoot = getRunSessionClaudeConfigDir(run.cronjobId, run.id, resumeSessionId);
+    if (pinnedRoot) env = { ...env, CLAUDE_CONFIG_DIR: pinnedRoot };
+    else ensureRunSessionClaudeConfigDir(run.cronjobId, run.id, resumeSessionId, claudeConfigRoot(env));
+  }
   return {
     agentId: cronjobRunStreamId(run.id),
     modelFamily: run.modelFamilySnapshot,

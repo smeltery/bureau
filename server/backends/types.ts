@@ -93,6 +93,11 @@ export interface ListModelsOptions {
   includeHidden?: boolean;
 }
 
+export interface SessionAccessOptions {
+  cwd: string;
+  env?: { [key: string]: string | undefined };
+}
+
 // Per-model effort option as reported by the backend. Codex's
 // ReasoningEffortOption maps directly; backends that don't expose
 // per-model efforts can return an empty array.
@@ -140,7 +145,7 @@ export interface Backend {
 
   createSession(opts: CreateSessionOptions): BackendSession;
   resumeSession(sessionId: string, opts: CreateSessionOptions): BackendSession;
-  checkSessionResumable(sessionId: string, opts: { cwd: string; env?: { [key: string]: string | undefined } }): string | null;
+  checkSessionResumable(sessionId: string, opts: SessionAccessOptions): string | null;
 
   // Branch a conversation so that `targetMessageId` and everything after it
   // is replaced. The backend resolves predecessor / first-message semantics
@@ -148,8 +153,8 @@ export interface Backend {
   //   - Claude: middle → SDK forkSession at predecessor; first → fresh session
   //   - Codex: thread/fork parent + thread/rollback child to before target's
   //     turn (always linked, including first-message — gives /resume parity)
-  forkSessionBeforeMessage(sessionId: string, targetMessageId: string): Promise<ForkSessionBeforeMessageResult>;
-  getSessionMessages(sessionId: string, cwd: string): Promise<NormalizedMessage[]>;
+  forkSessionBeforeMessage(sessionId: string, targetMessageId: string, access?: SessionAccessOptions): Promise<ForkSessionBeforeMessageResult>;
+  getSessionMessages(sessionId: string, cwd: string, access?: SessionAccessOptions): Promise<NormalizedMessage[]>;
 
   // Single-prompt operation used by topic generation. Returns the assistant
   // text. Throws on failure.

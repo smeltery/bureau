@@ -1,6 +1,6 @@
 import { cronjobRunStreamId, type CronjobRun, type LogEntry } from "../../shared/types.ts";
 import type { Backend, BackendSession, CreateSessionOptions, NormalizedMessage } from "../backends/types.ts";
-import { findUsageAtForkRun, loadRunLog, loadRunLogWithAncestors, loadRunSessionsMap, persistRunSessionFork, updateRun } from "../persistence.ts";
+import { findUsageAtForkRun, getRunSessionClaudeConfigDir, loadRunLog, loadRunLogWithAncestors, loadRunSessionsMap, persistRunSessionFork, updateRun } from "../persistence.ts";
 import type { CronjobEvent } from "./index.ts";
 import { writeLog, type ActiveRun } from "./run-events.ts";
 
@@ -26,9 +26,11 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
   }
 
   const backend = deps.cronRunBackend(run);
+  const leafResumeOptions = deps.buildRunResumeOptions(run, leaf);
+  const leafAccess = { cwd: run.cwdSnapshot, env: leafResumeOptions.env };
   let sessionMessages: NormalizedMessage[];
   try {
-    sessionMessages = await backend.getSessionMessages(leaf, run.cwdSnapshot);
+    sessionMessages = await backend.getSessionMessages(leaf, run.cwdSnapshot, leafAccess);
   } catch (err: any) {
     deps.emitRunErrorEntry(jobId, runId, `Failed to load session messages: ${err.message || String(err)}`);
     return;
@@ -71,7 +73,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
   let newSessionId: string;
   let forkFromBackendSessionId = leaf;
   try {
-    const forkResult = await backend.forkSessionBeforeMessage(leaf, sessionMessages[targetIdx].uuid);
+    const forkResult = await backend.forkSessionBeforeMessage(leaf, sessionMessages[targetIdx].uuid, leafAccess);
     if (forkResult.kind === "fresh") {
       deps.emitRunErrorEntry(jobId, runId, "Cannot edit: backend returned a fresh fork without a session id.");
       return;
@@ -85,7 +87,8 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
 
   let session: BackendSession;
   try {
-    session = backend.resumeSession(newSessionId, deps.buildRunResumeOptions(run, newSessionId));
+    const forkResumeOptions = deps.buildRunResumeOptions(run, newSessionId);
+    session = backend.resumeSession(newSessionId, forkResumeOptions);
   } catch (err: any) {
     deps.revokeRunToken(runId);
     deps.emitRunErrorEntry(jobId, runId, `Failed to start fork: ${err.message || String(err)}`);
@@ -110,7 +113,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
   }
 
   const parentBase = findUsageAtForkRun(jobId, runId, forkFromSessionId, logEntryId);
-  persistRunSessionFork(jobId, runId, newSessionId, forkFromSessionId, logEntryId, parentBase);
+  persistRunSessionFork(jobId, runId, newSessionId, forkFromSessionId, logEntryId, getRunSessionClaudeConfigDir(jobId, runId, leaf) ?? undefined, parentBase);
   const updatedRun = updateRun(jobId, runId, { currentSessionId: newSessionId });
   if (updatedRun) deps.emitEvent({ type: "cronjob_run_updated", run: updatedRun });
 

@@ -1,7 +1,8 @@
-import { forkSession, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
-import { persistSessionFork } from "../../persistence.ts";
+import { getBackend } from "../../backends/index.ts";
+import { getSessionClaudeConfigDir, persistSessionFork } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitQueueUpdate, logCache, persistAll, updateState } from "../state.ts";
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
+import { buildSessionEnv } from "../session/session-env.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
@@ -98,7 +99,13 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // --- Phase 1: Fallible SDK operations (no UI/cache mutations yet) ---
 
     // 2. Get SDK session messages and match by content + occurrence index
-    const sdkMessages = await getSessionMessages(oldSessionId);
+    const env = buildSessionEnv(managed);
+    const access = {
+      cwd: managed.info.cwd,
+      env: getSessionClaudeConfigDir(agentId, oldSessionId) ? { ...(env ?? process.env), CLAUDE_CONFIG_DIR: getSessionClaudeConfigDir(agentId, oldSessionId)! } : env,
+    };
+    const backend = getBackend(managed.info.agentType);
+    const sdkMessages = await backend.getSessionMessages(oldSessionId, managed.info.cwd, access);
     const prefixedContent = prefixedUserContent(targetEntry);
     const occurrenceIndex = userMessageOccurrenceIndex(oldLogCache, logEntryId, prefixedContent);
 
@@ -130,8 +137,13 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       newSessionId = ""; // placeholder, set after createSession
     } else {
       const predecessorUuid = sdkMessages[targetIdx - 1].uuid;
-      const forkResult = await forkSession(oldSessionId, { upToMessageId: predecessorUuid });
-      newSessionId = forkResult.sessionId;
+      const forkResult = await backend.forkSessionBeforeMessage(oldSessionId, predecessorUuid, access);
+      if (forkResult.kind === "fresh") {
+        isFirstMessage = true;
+        newSessionId = "";
+      } else {
+        newSessionId = forkResult.sessionId;
+      }
     }
 
     // 4. Persist fork metadata (skip for first-message edits — those are fresh sessions
@@ -154,7 +166,17 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       const parentTopicMessageCount = topicMessageCount(entriesBefore(oldLogCache, logEntryId));
       // Fork inherits the active session's cwd (cwd is per-session), so the new
       // branch keeps working in the same directory.
-      persistSessionFork(agentId, newSessionId, forkFromSessionId, logEntryId, oldTopic, parentTopicMessageCount, managed.info.cwd, parentBase);
+      persistSessionFork(
+        agentId,
+        newSessionId,
+        forkFromSessionId,
+        logEntryId,
+        oldTopic,
+        parentTopicMessageCount,
+        managed.info.cwd,
+        getSessionClaudeConfigDir(agentId, oldSessionId) ?? undefined,
+        parentBase,
+      );
     }
 
     // 5. Create new session from fork (or fresh session for first-message edit), then close old

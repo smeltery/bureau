@@ -168,6 +168,9 @@ export interface ManagedAgent {
   // this deliberately" and the wake paths warn accordingly. Cleared by
   // installSession, i.e. the moment the agent has a session again.
   dormantReason: "idle" | null;
+  // Effective CLAUDE_CONFIG_DIR used by the currently launched Claude process.
+  // Stamped into session metadata when system_init reports the session id.
+  launchedClaudeConfigDir?: string;
 }
 
 export type AgentEvent =

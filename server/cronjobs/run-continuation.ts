@@ -1,6 +1,6 @@
 import { validateCwd } from "../agents/session/paths.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
-import { appendRunLog, findRun, updateRun } from "../persistence.ts";
+import { appendRunLog, findRun, getRunSessionClaudeConfigDir, updateRun } from "../persistence.ts";
 import { cronjobRunStreamId, type Cronjob, type CronjobRun, type LogEntry } from "../../shared/types.ts";
 import { buildCronjobEnv, buildRunResumeOptions as buildRunResumeOptionsWithDeps, cronRunBackend } from "./session-options.ts";
 import { mintRunToken, revokeRunToken } from "./tokens.ts";
@@ -48,7 +48,8 @@ export async function sendRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
   try {
     let session: BackendSession;
     try {
-      session = cronRunBackend(run).resumeSession(leaf, buildRunResumeOptions(deps, run, leaf));
+      const sessionOpts = buildRunResumeOptions(deps, run, leaf);
+      session = cronRunBackend(run).resumeSession(leaf, sessionOpts);
     } catch (err: any) {
       revokeRunToken(runId);
       emitRunErrorEntry(deps, jobId, runId, `Failed to resume: ${err.message || String(err)}`);
@@ -184,6 +185,7 @@ function installResumedActive(deps: RunContinuationDeps, run: CronjobRun, sessio
     killed: false,
     pendingEntries: [],
     isResume: true,
+    launchedClaudeConfigDir: (run.agentTypeSnapshot ?? "claude") === "claude" ? (getRunSessionClaudeConfigDir(run.cronjobId, run.id, sessionId) ?? undefined) : undefined,
   };
   deps.activeRuns.set(run.id, active);
   // Reset terminal state — the run row goes back to "running" until finalize.

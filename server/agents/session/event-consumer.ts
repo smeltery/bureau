@@ -1,5 +1,5 @@
 import type { AgentState } from "../../../shared/types.ts";
-import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, ensureSessionCwd, loadLogWithAncestors } from "../../persistence.ts";
+import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, ensureSessionClaudeConfigDir, ensureSessionCwd, loadLogWithAncestors } from "../../persistence.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { autocompleteCommands } from "../commands.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
@@ -86,6 +86,9 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         // persistSessionFork so this no-ops there; a plain fresh session
         // (spawn / new conversation) gets the agent's current mirror cwd here.
         ensureSessionCwd(agentId, ev.sessionId, managed.info.cwd);
+        if (managed.info.agentType === "claude" && managed.launchedClaudeConfigDir) {
+          ensureSessionClaudeConfigDir(agentId, ev.sessionId, managed.launchedClaudeConfigDir);
+        }
         if (!hadPreviousSession) {
           for (const entry of logCache.get(agentId) ?? []) appendLog(agentId, ev.sessionId, entry);
         }

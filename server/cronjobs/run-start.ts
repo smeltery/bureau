@@ -3,6 +3,7 @@ import type { BackendSession, CreateSessionOptions } from "../backends/types.ts"
 import type { CronjobEvent } from "./index.ts";
 import { writeLog, type ActiveRun } from "./run-events.ts";
 import type { RunLifecycleDeps } from "./run-lifecycle.ts";
+import { claudeConfigRoot } from "../agents/session/paths.ts";
 
 export interface RunStartDeps {
   activeRuns: Map<string, ActiveRun>;
@@ -109,6 +110,7 @@ export function fireCronjobRunWithDeps(deps: RunStartDeps, job: Cronjob, trigger
     killed: false,
     pendingEntries: [],
     isResume: false,
+    launchedClaudeConfigDir: job.agentType === "claude" ? claudeConfigRoot(opts.env) : undefined,
   };
   deps.activeRuns.set(runId, active);
   active.consumerPromise = deps.runConsumer(active);

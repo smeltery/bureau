@@ -43,6 +43,10 @@ export type SessionsMap = Record<
     // persisted before this field existed — callers backfill from the agent
     // cwd then (see getSessionCwd / ensureSessionCwd).
     cwd?: string;
+    // Effective CLAUDE_CONFIG_DIR for this Claude session. A conversation keeps
+    // reading the account/config directory it started under even if the user's
+    // current Connections setting later changes.
+    claudeConfigDir?: string;
     forkedFrom?: string;
     forkMessageId?: string;
     usage?: PersistedUsage;
@@ -111,6 +115,20 @@ export function ensureSessionCwd(agentId: string, sessionId: string, fallbackCwd
   return fallbackCwd;
 }
 
+export function getSessionClaudeConfigDir(agentId: string, sessionId: string): string | null {
+  const map = loadSessionsMap(agentId);
+  return map[sessionId]?.claudeConfigDir ?? null;
+}
+
+export function ensureSessionClaudeConfigDir(agentId: string, sessionId: string, fallbackDir: string): string {
+  const map = loadSessionsMap(agentId);
+  const existing = map[sessionId];
+  if (existing?.claudeConfigDir) return existing.claudeConfigDir;
+  map[sessionId] = { ...(existing ?? { topic: null, lastModified: 0 }), claudeConfigDir: fallbackDir, lastModified: existing?.lastModified ?? Date.now() };
+  saveSessionsMap(agentId, map);
+  return fallbackDir;
+}
+
 export function persistSessionFork(
   agentId: string,
   sessionId: string,
@@ -119,11 +137,22 @@ export function persistSessionFork(
   topic: string | null,
   topicMessageCount: number,
   cwd: string,
+  claudeConfigDir?: string,
   forkBaseUsage?: PersistedUsage,
 ) {
   const map = loadSessionsMap(agentId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
-  map[sessionId] = { ...existing, topic, topicMessageCount, cwd, lastModified: Date.now(), forkedFrom, forkMessageId, ...(forkBaseUsage ? { forkBaseUsage } : {}) };
+  map[sessionId] = {
+    ...existing,
+    topic,
+    topicMessageCount,
+    cwd,
+    ...(claudeConfigDir ? { claudeConfigDir } : {}),
+    lastModified: Date.now(),
+    forkedFrom,
+    forkMessageId,
+    ...(forkBaseUsage ? { forkBaseUsage } : {}),
+  };
   saveSessionsMap(agentId, map);
 }
 

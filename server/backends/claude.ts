@@ -2,6 +2,8 @@ import {
   forkSession as sdkForkSession,
   getSessionMessages as sdkGetSessionMessages,
   type CanUseTool,
+  type ForkSessionOptions,
+  type GetSessionMessagesOptions,
   type Options,
   type PermissionResult,
   type PermissionUpdate,
@@ -13,6 +15,7 @@ import { claudeProjectDir, claudeSessionFileExists } from "../agents/session/pat
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
 import { isClaudeCloudSelected, isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
 import { createClaudeSubscriptionUsageReader, type ClaudeUsageCapableQuery } from "./claude-subscription-usage.ts";
+import { claudeSessionStore } from "./claude/session-store.ts";
 import { buildUserMessage, extractMessageText, normalizeClaudeMessage, TaskBreadcrumbTracker } from "./claude-messages.ts";
 import { RawClaudeSession, runClaudeOneShot } from "./claude-raw-session.ts";
 import type {
@@ -222,12 +225,21 @@ export const claudeBackend: Backend = {
       "Most commonly this happens after the cwd was moved or renamed - the Claude CLI stores sessions under a path derived from cwd."
     );
   },
-  async forkSessionBeforeMessage(sessionId, targetMessageId): Promise<ForkSessionBeforeMessageResult> {
-    const result = await sdkForkSession(sessionId, { upToMessageId: targetMessageId });
+  async forkSessionBeforeMessage(sessionId, targetMessageId, access): Promise<ForkSessionBeforeMessageResult> {
+    const cwd = access?.cwd ?? process.cwd();
+    const sdkOptions: GetSessionMessagesOptions & ForkSessionOptions = {
+      dir: cwd,
+      sessionStore: claudeSessionStore(sessionId, cwd, access?.env),
+    };
+    const result = await sdkForkSession(sessionId, { upToMessageId: targetMessageId, ...sdkOptions });
     return { kind: "fork", sessionId: result.sessionId, forkedFromSessionId: sessionId };
   },
-  async getSessionMessages(sessionId): Promise<NormalizedMessage[]> {
-    const messages = await sdkGetSessionMessages(sessionId);
+  async getSessionMessages(sessionId, cwd, access): Promise<NormalizedMessage[]> {
+    const actualCwd = access?.cwd ?? cwd;
+    const messages = await sdkGetSessionMessages(sessionId, {
+      dir: actualCwd,
+      sessionStore: claudeSessionStore(sessionId, actualCwd, access?.env),
+    });
     return messages.map((m: any) => ({
       uuid: m.uuid,
       role: m.type === "user" ? "user" : m.type === "assistant" ? "assistant" : m.type === "result" ? "result" : "system",

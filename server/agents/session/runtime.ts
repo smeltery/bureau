@@ -1,9 +1,9 @@
-import { rollSessionUsageOnResume } from "../../persistence.ts";
+import { ensureSessionClaudeConfigDir, getSessionClaudeConfigDir, rollSessionUsageOnResume } from "../../persistence.ts";
 import { armMemoryNotice } from "../memory-notice.ts";
 import { clearLiveTurn, emit, officeConfig, rooms, syncPendingPrompt, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { memoryStore } from "../../memory-store.ts";
-import { validateCwd } from "./paths.ts";
+import { claudeConfigRoot, validateCwd } from "./paths.ts";
 import { getBackend } from "../../backends/index.ts";
 import type { BackendSession } from "../../backends/types.ts";
 import { getUserById } from "../../users.ts";
@@ -181,8 +181,16 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   }
   // Compute env once so the resume preflight and session opts see the same
   // auth/config paths.
-  const env = buildSessionEnv(managed);
+  let env = buildSessionEnv(managed);
   const backend = getBackend(managed.info.agentType);
+  if (managed.info.agentType === "claude" && resumeSessionId) {
+    const pinnedRoot = getSessionClaudeConfigDir(managed.info.id, resumeSessionId);
+    if (pinnedRoot) {
+      env = { ...(env ?? process.env), CLAUDE_CONFIG_DIR: pinnedRoot };
+    } else {
+      ensureSessionClaudeConfigDir(managed.info.id, resumeSessionId, claudeConfigRoot(env));
+    }
+  }
   if (resumeSessionId) {
     const resumableError = backend.checkSessionResumable(resumeSessionId, {
       cwd: managed.info.cwd,
@@ -228,5 +236,6 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     // prior-runs accumulator so lifetime cost survives the reset.
     rollSessionUsageOnResume(managed.info.id, resumeSessionId);
   }
+  managed.launchedClaudeConfigDir = managed.info.agentType === "claude" ? claudeConfigRoot(env) : undefined;
   return resumeSessionId ? backend.resumeSession(resumeSessionId, opts) : backend.createSession(opts);
 }

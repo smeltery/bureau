@@ -34,6 +34,7 @@ type RunSessionsMap = Record<
     lastModified: number;
     forkedFrom?: string;
     forkMessageId?: string;
+    claudeConfigDir?: string;
     usage?: PersistedUsage;
     priorRunsUsage?: PersistedUsage;
     forkBaseUsage?: PersistedUsage;
@@ -63,7 +64,7 @@ function saveRunSessionsMap(jobId: string, runId: string, map: RunSessionsMap) {
 // Mirror of persistSessionFork (agent side) for cronjob runs. Records that
 // `sessionId` was forked from `forkedFrom` at log entry `forkMessageId`, so
 // loadRunLogWithAncestors can walk back through the chain when rendering.
-export function persistRunSessionFork(jobId: string, runId: string, sessionId: string, forkedFrom: string, forkMessageId: string, forkBaseUsage?: PersistedUsage) {
+export function persistRunSessionFork(jobId: string, runId: string, sessionId: string, forkedFrom: string, forkMessageId: string, claudeConfigDir?: string, forkBaseUsage?: PersistedUsage) {
   const map = loadRunSessionsMap(jobId, runId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
   map[sessionId] = {
@@ -72,9 +73,24 @@ export function persistRunSessionFork(jobId: string, runId: string, sessionId: s
     lastModified: Date.now(),
     forkedFrom,
     forkMessageId,
+    ...(claudeConfigDir ? { claudeConfigDir } : {}),
     ...(forkBaseUsage ? { forkBaseUsage } : {}),
   };
   saveRunSessionsMap(jobId, runId, map);
+}
+
+export function getRunSessionClaudeConfigDir(jobId: string, runId: string, sessionId: string): string | null {
+  const map = loadRunSessionsMap(jobId, runId);
+  return map[sessionId]?.claudeConfigDir ?? null;
+}
+
+export function ensureRunSessionClaudeConfigDir(jobId: string, runId: string, sessionId: string, fallbackDir: string): string {
+  const map = loadRunSessionsMap(jobId, runId);
+  const existing = map[sessionId];
+  if (existing?.claudeConfigDir) return existing.claudeConfigDir;
+  map[sessionId] = { ...(existing ?? { topic: null, lastModified: 0 }), claudeConfigDir: fallbackDir, lastModified: existing?.lastModified ?? Date.now() };
+  saveRunSessionsMap(jobId, runId, map);
+  return fallbackDir;
 }
 
 // Mirror of findUsageAtFork (agent side) for cronjob runs. Walks the parent's
