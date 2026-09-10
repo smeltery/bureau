@@ -58,6 +58,7 @@ import { homedir } from "os";
 import { dirname, join } from "path";
 import { BUREAU_DIR, DEFAULT_BUREAU_DIR, atomicWriteFileSync } from "../persistence/paths.ts";
 import { appHostDomain, appPublicUrl } from "./domain.ts";
+import { createContainerAppSupervisor } from "./container-supervisor.ts";
 import type { AppRecord, AppErrorCode, AppState } from "../../shared/apps.ts";
 
 // Whether this office runs on the default state root (no BUREAU_HOME override).
@@ -1166,4 +1167,4 @@ export function createAppSupervisor(options: AppSupervisorOptions = {}): AppSupe
 
 // Production singleton. Constructing it touches nothing: no directory is
 // created and no subprocess runs until an app is actually installed.
-export const appSupervisor: AppSupervisor = createAppSupervisor();
+export const appSupervisor: AppSupervisor = process.env.BUREAU_APP_SUPERVISOR === "container" ? createContainerAppSupervisor() : createAppSupervisor();
