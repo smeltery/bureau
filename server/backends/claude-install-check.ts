@@ -24,6 +24,24 @@ export function isClaudeCodeInstalled(): boolean {
 
 export function isClaudeCodeAuthenticated(env?: { [key: string]: string | undefined }): boolean {
   const effective = env ?? process.env;
+  if (isClaudeCloudSelected(effective)) return true;
   if (effective.ANTHROPIC_API_KEY) return true;
-  return existsSync(join(homedir(), ".claude", ".credentials.json"));
+  const configDir = effective.CLAUDE_CONFIG_DIR?.trim() || join(homedir(), ".claude");
+  return existsSync(join(configDir, ".credentials.json"));
+}
+
+function enabled(value: string | undefined): boolean {
+  switch (value?.trim().toLowerCase()) {
+    case "1":
+    case "true":
+    case "yes":
+    case "on":
+      return true;
+    default:
+      return false;
+  }
+}
+
+export function isClaudeCloudSelected(env: { [key: string]: string | undefined } = process.env): boolean {
+  return enabled(env.CLAUDE_CODE_USE_BEDROCK) || enabled(env.CLAUDE_CODE_USE_VERTEX);
 }
