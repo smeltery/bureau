@@ -44,4 +44,21 @@ describe("provider-accounts status + keys", () => {
     expect(codex?.accountStatus).toBe("connected");
     expect(JSON.stringify(listed)).not.toContain("sk-list-test");
   });
+
+  test("listProviderAccounts labels Claude cloud selection as connected", () => {
+    const user = claimUserByName(`Claude Cloud ${crypto.randomUUID()}`);
+    setProviderKeys(user.id, {});
+    const dir = mkdtempSync(join(tmpdir(), "bureau-provider-cloud-"));
+    const envPath = join(dir, "user.env");
+    writeFileSync(envPath, "CLAUDE_CODE_USE_BEDROCK=1\n");
+    const actor = getUserById(user.id)!;
+    updateUser(actor, user.id, { envFile: envPath }, []);
+    invalidateProviderAccountCache(user.id);
+
+    const listed = listProviderAccounts(user.id, true);
+    const claude = listed.accounts.find((a) => a.provider === "claude");
+    expect(claude?.accountStatus).toBe("connected");
+    expect(claude?.accountLabel).toBe("Amazon Bedrock");
+    expect(claude?.authVia).toBe("none");
+  });
 });

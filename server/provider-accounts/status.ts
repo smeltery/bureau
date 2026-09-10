@@ -1,4 +1,4 @@
-import { isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "../backends/claude-install-check.ts";
+import { isClaudeCloudSelected, isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "../backends/claude-install-check.ts";
 import { getCodexLoginCommands, isCodexAuthenticated } from "../backends/codex/native-bin.ts";
 import { readEnvFile } from "../persistence.ts";
 import { managedUserEnvExists, readManagedUserEnv } from "../persistence/managed-env.ts";
@@ -60,18 +60,25 @@ export function invalidateProviderAccountCache(userId: string): void {
 
 function probeClaude(env: { [key: string]: string | undefined }): ProviderAccountWire {
   const hasApiKey = Boolean(env.ANTHROPIC_API_KEY?.trim());
+  const cloudSelected = isClaudeCloudSelected(env);
   const cliInstalled = isClaudeCodeInstalled();
   const connected = isClaudeCodeAuthenticated(env);
-  const authVia = authViaOf(hasApiKey, connected && !hasApiKey);
+  const authVia = authViaOf(hasApiKey, connected && !hasApiKey && !cloudSelected);
   return {
     provider: "claude",
     accountStatus: connected ? "connected" : "not_connected",
-    accountLabel: connected ? (hasApiKey ? "API key" : "CLI credentials") : undefined,
+    accountLabel: connected ? (hasApiKey ? "API key" : cloudSelected ? claudeCloudLabel(env) : "CLI credentials") : undefined,
     authVia,
     hasApiKey,
     cliInstalled,
     hostHints: claudeHostHints(cliInstalled),
   };
+}
+
+function claudeCloudLabel(env: { [key: string]: string | undefined }): string {
+  if (isClaudeCloudSelected({ CLAUDE_CODE_USE_BEDROCK: env.CLAUDE_CODE_USE_BEDROCK })) return "Amazon Bedrock";
+  if (isClaudeCloudSelected({ CLAUDE_CODE_USE_VERTEX: env.CLAUDE_CODE_USE_VERTEX })) return "Google Vertex AI";
+  return "Cloud provider";
 }
 
 function probeCodex(env: { [key: string]: string | undefined }): ProviderAccountWire {

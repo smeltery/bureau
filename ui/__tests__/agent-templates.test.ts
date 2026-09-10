@@ -28,4 +28,10 @@ describe("agent template prompts", () => {
     expect(template("Side Project Builder").customInstructions).toContain("The default that works in Bureau without extra setup is TypeScript on Bun");
     expect(template("Trip Planner").customInstructions).toContain("terminal access to the whole filesystem");
   });
+
+  it("matches specialist costumes to builder and health templates", () => {
+    expect(template("Side Project Builder").outfit.costume).toBe("construction");
+    expect(template("Personal Site Builder").outfit.costume).toBe("construction");
+    expect(template("Health Navigator").outfit.costume).toBe("doctor");
+  });
 });

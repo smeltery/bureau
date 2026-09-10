@@ -191,6 +191,7 @@ export class OpenCodeSupervisor {
       XDG_CACHE_HOME: join(this.profileDir, "cache"),
       OPENCODE_CONFIG: configPath,
       OPENCODE_DISABLE_AUTOUPDATE: "1",
+      OPENCODE_DISABLE_SHARE: "1",
       OPENCODE_SERVER_USERNAME: USERNAME,
       OPENCODE_SERVER_PASSWORD: password,
     };

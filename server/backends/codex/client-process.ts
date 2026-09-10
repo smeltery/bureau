@@ -14,7 +14,7 @@ export const CODEX_LAUNCH_FAILED_MESSAGE = `Bureau's bundled Codex CLI failed to
 const CODEX_KILL_GRACE_MS = 2000;
 
 export function spawnCodexAppServer(opts: JsonRpcLiteClientOptions): ChildProcessWithoutNullStreams {
-  const codexArgs = opts.args ?? ["app-server", "--listen", "stdio://"];
+  const codexArgs = [...(opts.args ?? ["app-server", "--listen", "stdio://"]), "-c", "analytics.enabled=false"];
   let bin: string;
   let spawnArgs: string[];
   if (opts.codexBin) {
