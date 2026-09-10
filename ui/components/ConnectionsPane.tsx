@@ -48,7 +48,21 @@ export function ConnectionsPane({ username }: { username: string }) {
         <ProviderConnectionCard key={account.provider} account={account} onUpdated={setAccounts} />
       ))}
       {accounts.length === 0 && !error && <p style={dialogHint}>{t("common.loading")}</p>}
+      <BedrockHint />
     </div>
+  );
+}
+
+const BEDROCK_GUIDE = "/docs/features/access-and-invites#claude-on-amazon-bedrock";
+
+function BedrockHint() {
+  const { t } = useI18n();
+  return (
+    <p style={{ ...dialogHint, marginTop: 12 }}>
+      <a href={BEDROCK_GUIDE} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+        {t("connections.bedrockHint")}
+      </a>
+    </p>
   );
 }
 

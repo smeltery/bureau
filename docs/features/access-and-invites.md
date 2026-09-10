@@ -227,6 +227,24 @@ CLAUDE_CONFIG_DIR=/home/<linux-user>/.bureau-users/<user>/.claude
 CODEX_HOME=/home/<linux-user>/.bureau-users/<user>/.codex
 ```
 
+### Claude on Amazon Bedrock
+
+Set these variables in the Env file that applies to the agents:
+
+```text
+CLAUDE_CODE_USE_BEDROCK=1
+AWS_REGION=us-west-2
+AWS_BEARER_TOKEN_BEDROCK=ABSK...
+```
+
+The bearer token is a Bedrock API key from the AWS console (Bedrock → API keys). If you use an IAM access key instead, replace that line with `AWS_ACCESS_KEY_ID=AKIA...` and `AWS_SECRET_ACCESS_KEY=...`, plus `AWS_SESSION_TOKEN=...` if the credentials are temporary.
+
+Then `/clear` Claude agents to pick up the variables.
+
+Model pins are optional: with none, the picker’s `opus` is Opus 5 and `sonnet` is Sonnet 4.5 on Bedrock. To change a default, set the family’s pin to a Bedrock model or inference-profile ID, for example `ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6`; the others are `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL` and `ANTHROPIC_DEFAULT_FABLE_MODEL`. Conversation titles use the Sonnet default. `ANTHROPIC_MODEL` does not override the picker. Agents pick the variables up on their next new or resumed conversation.
+
+Connections shows Bedrock as connected when the variables are set; it does not check AWS model access. A user who wants their own Claude login in a Bedrock office sets `CLAUDE_CODE_USE_BEDROCK=0` in their own Env file. Vertex works the same way with `CLAUDE_CODE_USE_VERTEX`.
+
 ## Bootstrap-window exposure
 
 Before an owner exists, the first-owner form is served only on `127.0.0.1`, so the OS bind rules out off-box clients regardless of LAN/VPN topology — Bureau is not reachable to an outside attacker.

@@ -128,6 +128,7 @@ export const en = {
   "connections.keySaved": "{keyName} saved. Use /clear on affected agents.",
   "connections.pastePlaceholder": "Paste API key",
   "connections.providerKeyNote": "Paste <code>ANTHROPIC_API_KEY</code> or <code>OPENAI_API_KEY</code>, then <code>/clear</code> affected agents.",
+  "connections.bedrockHint": "Want to connect Bedrock? Read here.",
   "connections.replacePlaceholder": "•••••••• (enter new value to replace)",
   "connections.saveFailed": "Could not save API key",
   "connections.saveKey": "Save API key",

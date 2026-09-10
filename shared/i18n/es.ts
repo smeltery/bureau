@@ -128,6 +128,7 @@ export const es = {
   "connections.keySaved": "{keyName} guardada. Usa /clear en los agentes afectados.",
   "connections.pastePlaceholder": "Pegar clave de API",
   "connections.providerKeyNote": "Pega <code>ANTHROPIC_API_KEY</code> u <code>OPENAI_API_KEY</code>, y luego haz <code>/clear</code> a los agentes afectados.",
+  "connections.bedrockHint": "¿Quieres conectar Bedrock? Lee aquí.",
   "connections.replacePlaceholder": "•••••••• (introduce un valor nuevo para reemplazar)",
   "connections.saveFailed": "No se pudo guardar la clave de API",
   "connections.saveKey": "Guardar clave de API",

@@ -128,6 +128,7 @@ export const ca = {
   "connections.keySaved": "{keyName} desada. Fes /clear als agents afectats.",
   "connections.pastePlaceholder": "Enganxa la clau d’API",
   "connections.providerKeyNote": "Enganxa <code>ANTHROPIC_API_KEY</code> o <code>OPENAI_API_KEY</code>, i després fes <code>/clear</code> als agents afectats.",
+  "connections.bedrockHint": "Vols connectar Bedrock? Llegeix-ho aquí.",
   "connections.replacePlaceholder": "•••••••• (introdueix un valor nou per substituir)",
   "connections.saveFailed": "No s’ha pogut desar la clau d’API",
   "connections.saveKey": "Desa la clau d’API",
