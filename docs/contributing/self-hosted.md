@@ -5,6 +5,10 @@ other machine you keep online. The setup has three parts: keep the server
 running, make it reachable from the devices and people who need it, and use
 invite-link auth to control access.
 
+For a hosted cloud path, the [Render deployment](#deploy-on-render) creates one
+Docker web service with a persistent disk. Render keeps the office running and
+reachable; you bring a domain and authorize people inside Bureau.
+
 ## Keep It Running
 
 For Linux hosts, create a systemd user service that rebuilds the UI on start,
@@ -86,6 +90,40 @@ bun install
 
 Use Tailscale, a reverse proxy, or a firewall rule so only intended users can
 reach port `4000`. Claim the office locally before enabling external access.
+
+## Deploy On Render
+
+[Render](https://render.com) can run Bureau as one Docker web service on a paid
+compute plan with a persistent disk. The root `render.yaml` declares the
+service and disk; Render reads it when you create a Blueprint.
+
+You need a domain you control. Apps that agents build get their own subdomains
+under the office address, and Render's `onrender.com` addresses cannot provide
+those. Pick the office address before you start, for example
+`office.example.com`.
+
+1. In the Render dashboard, open [New > Blueprint](https://dashboard.render.com/blueprints),
+   paste `https://github.com/smeltery/bureau` into the **Public Git Repository**
+   field, and keep the `master` branch. Name the Blueprint after the office,
+   for example `bureau-office`. Render lists one web service with a 20 GB disk
+   and asks for one value, `BUREAU_PUBLIC_URL`: enter `https://` followed by
+   your office address. Apply, and wait until the new web service shows Live.
+2. From the Dashboard, open the web service the Blueprint created, then
+   Settings > Custom Domains, and add both `office.example.com` and
+   `*.office.example.com`. The wildcard serves generated apps on subdomains.
+   Render shows the DNS records to create at your registrar; copy them exactly
+   and wait until the primary domain shows Certificate Issued. The wildcard
+   certificate can take longer and is only needed once you open an app.
+3. Open the service's Environment tab and copy `BUREAU_SETUP_KEY`, which Render
+   generated for you. Open your office address in a browser, enter the key and
+   your name, and Bureau creates the first owner. The key stops working after
+   that; add other people through User Settings -> Access.
+
+Only the disk mounted at `/var/data` survives a deploy. Bureau stores office
+state, provider profiles, app credentials, local logs, generated projects, and
+checked-out repositories there. Files outside the disk are ephemeral.
+
+The Render adapter is documented in [`deploy/render/README.md`](../../deploy/render/README.md).
 
 ## Health Check
 
