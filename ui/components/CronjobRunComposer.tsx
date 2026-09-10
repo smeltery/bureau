@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 import type { CronjobRunStatus } from "../../shared/types.ts";
+import { StatusShape } from "../icons/StatusShape.tsx";
 
 export function CronjobRunComposer({
   canResume,
@@ -111,7 +112,7 @@ export function CronjobRunComposer({
             }}
             title="Send"
           >
-            ▲
+            <StatusShape kind="triangle" rotate={-90} />
           </button>
         )}
       </div>

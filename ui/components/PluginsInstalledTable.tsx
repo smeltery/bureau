@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CCInstalledPlugin, CCPluginsState } from "../../shared/types.ts";
+import { StatusShape } from "../icons/StatusShape.tsx";
 import { ACTION_BTN, NameCell, SESSION_NOTE, tdStyle, thStyle } from "./PluginsViewShared.tsx";
 
 export function InstalledTable({
@@ -53,7 +54,11 @@ export function InstalledTable({
               </td>
               {!isMobile && <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", color: "var(--text-dim)" }}>{p.version || "—"}</td>}
               {!isMobile && <td style={{ ...td, color: "var(--text-dim)" }}>{p.scope}</td>}
-              <td style={{ ...td, color: p.enabled ? "var(--green)" : "var(--text-muted)", whiteSpace: "nowrap" }}>{p.enabled ? "● enabled" : "○ disabled"}</td>
+              <td style={{ ...td, color: p.enabled ? "var(--green)" : "var(--text-muted)", whiteSpace: "nowrap" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <StatusShape kind="dot" hollow={!p.enabled} /> {p.enabled ? "enabled" : "disabled"}
+                </span>
+              </td>
               <td style={{ ...td, textAlign: "right" }}>
                 <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   <button

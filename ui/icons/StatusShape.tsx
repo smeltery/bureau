@@ -1,5 +1,5 @@
 // Draw status marks so mobile browsers cannot replace them with color emoji.
-export function StatusShape({ kind, rotate = 0 }: { kind: "triangle" | "dot" | "check"; rotate?: number }) {
+export function StatusShape({ kind, rotate = 0, hollow = false }: { kind: "triangle" | "dot" | "check"; rotate?: number; hollow?: boolean }) {
   if (kind === "dot") {
     return (
       <span
@@ -10,7 +10,8 @@ export function StatusShape({ kind, rotate = 0 }: { kind: "triangle" | "dot" | "
           height: 8,
           borderRadius: "50%",
           flexShrink: 0,
-          background: "currentColor",
+          background: hollow ? "transparent" : "currentColor",
+          border: hollow ? "1px solid currentColor" : "none",
         }}
       />
     );

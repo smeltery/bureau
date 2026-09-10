@@ -1,4 +1,5 @@
 import { sendAbortDebounced } from "../utils/abort.ts";
+import { StatusShape } from "../icons/StatusShape.tsx";
 
 export function MobileInputAction({
   agentId,
@@ -69,7 +70,7 @@ export function MobileInputAction({
       }}
       title="Send"
     >
-      ▲
+      <StatusShape kind="triangle" rotate={-90} />
     </button>
   );
 }

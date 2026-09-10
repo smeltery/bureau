@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { CCAvailablePlugin, CCPluginScope, CCPluginsState } from "../../shared/types.ts";
+import { StatusShape } from "../icons/StatusShape.tsx";
 import { NameCell, SESSION_NOTE } from "./PluginsViewShared.tsx";
 
 export function DiscoverList({
@@ -94,7 +95,9 @@ export function DiscoverList({
                   <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{p.installCount.toLocaleString()} installs</span>
                 )}
                 {p.installed ? (
-                  <span style={{ fontSize: 11, color: "var(--green)", whiteSpace: "nowrap" }}>✓ installed</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--green)", whiteSpace: "nowrap" }}>
+                    <StatusShape kind="check" /> installed
+                  </span>
                 ) : (
                   <button
                     onClick={() => onAction(`install:${p.id}`, () => postPlugins("/plugins/install", { plugin: p.id, scope }), `Installed ${p.name}. ${SESSION_NOTE}`)}
