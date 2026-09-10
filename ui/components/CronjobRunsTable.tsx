@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { CronjobRun, CronjobRunStatus } from "../../shared/types.ts";
+import { StatusShape } from "../icons/StatusShape.tsx";
 
-const STATUS_ICON: Record<CronjobRunStatus, string> = {
-  running: "●",
-  completed: "✓",
+const STATUS_ICON: Record<CronjobRunStatus, ReactNode> = {
+  running: <StatusShape kind="dot" />,
+  completed: <StatusShape kind="check" />,
   failed: "✗",
   timed_out: "⏱",
   skipped: "⊘",
@@ -84,7 +85,7 @@ export function RunsTable({
                 {STATUS_ICON[r.status]}
               </td>
               <td style={{ padding: cellPad, color: "var(--text-muted)", fontSize: 12, textAlign: "center" }} title={r.trigger === "manual" && r.triggeredBy ? `manual · ${r.triggeredBy}` : r.trigger}>
-                {r.trigger === "manual" ? "▶" : "⏲"}
+                {r.trigger === "manual" ? <StatusShape kind="triangle" /> : "⏲"}
               </td>
               <td style={{ padding: cellPad, fontSize: 12, fontWeight: 600 }}>
                 {r.cronjobName}

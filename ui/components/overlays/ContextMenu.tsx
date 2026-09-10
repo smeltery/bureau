@@ -1,7 +1,8 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, type ReactNode } from "react";
 import type { AgentInfo, SessionInfo } from "../../../shared/types.ts";
 import { useAppState, useFeatures } from "../../store.tsx";
 import { send } from "../../ws.ts";
+import { StatusShape } from "../../icons/StatusShape.tsx";
 
 interface ContextMenuProps {
   x: number;
@@ -102,7 +103,13 @@ export function ContextMenu({ x, y, agent, onClose, onEdit }: ContextMenuProps) 
             const rawLabel = s.topic || s.sessionId.slice(0, 8) + "...";
             const label = s.forked ? `↳ ${rawLabel}` : rawLabel;
             const branchedSuffix = s.branched ? " (branched)" : "";
-            const displayLabel = isCurrent ? `● ${label}  ${formatTime(s.lastModified)}  (current)` : `${label}  ${formatTime(s.lastModified)}${branchedSuffix}`;
+            const displayLabel = isCurrent ? (
+              <>
+                <StatusShape kind="dot" /> {label} {formatTime(s.lastModified)} (current)
+              </>
+            ) : (
+              `${label}  ${formatTime(s.lastModified)}${branchedSuffix}`
+            );
             return <MenuItem key={s.sessionId} label={displayLabel} small disabled={isCurrent} dimmed={s.branched} onClick={() => !isCurrent && handleAction("resume", s.sessionId)} />;
           })}
         </>
@@ -114,7 +121,7 @@ export function ContextMenu({ x, y, agent, onClose, onEdit }: ContextMenuProps) 
   );
 }
 
-function MenuItem({ label, danger, small, disabled, dimmed, onClick }: { label: string; danger?: boolean; small?: boolean; disabled?: boolean; dimmed?: boolean; onClick: () => void }) {
+function MenuItem({ label, danger, small, disabled, dimmed, onClick }: { label: ReactNode; danger?: boolean; small?: boolean; disabled?: boolean; dimmed?: boolean; onClick: () => void }) {
   return (
     <button
       onClick={disabled ? undefined : onClick}

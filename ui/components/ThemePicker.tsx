@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTheme } from "../store.tsx";
 import { THEMES, type Theme } from "../themes/index.ts";
+import { StatusShape } from "../icons/StatusShape.tsx";
 
 interface Props {
   open: boolean;
@@ -144,7 +145,7 @@ function ThemeRow({ theme, selected, onSelect }: { theme: Theme; selected: boole
       <span style={{ flex: 1 }}>{theme.displayName}</span>
       {selected && (
         <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>
-          ✓
+          <StatusShape kind="check" />
         </span>
       )}
     </button>

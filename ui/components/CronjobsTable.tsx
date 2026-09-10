@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { humanizeSchedule, type Cronjob, type CronjobRun } from "../../shared/types.ts";
+import { StatusShape } from "../icons/StatusShape.tsx";
 
 function timeAgo(ts: number | null): string {
   if (!ts) return "—";
@@ -144,7 +145,7 @@ export function CronjobsTable({
                         verticalAlign: "middle",
                       }}
                     >
-                      ● running{inFlight > 1 ? ` ×${inFlight}` : ""}
+                      <StatusShape kind="dot" /> running{inFlight > 1 ? ` ×${inFlight}` : ""}
                     </span>
                   );
                 })()}

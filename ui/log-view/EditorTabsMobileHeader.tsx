@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 import { basename, type Tab } from "./editor-model.ts";
+import { StatusShape } from "../icons/StatusShape.tsx";
 
 export function EditorTabsMobileHeader({
   tabs,
@@ -91,7 +92,8 @@ export function EditorTabsMobileHeader({
               flexShrink: 0,
             }}
           >
-            {tabs.length > 1 ? `▼ ${tabs.length}` : "▼"}
+            <StatusShape kind="triangle" rotate={90} />
+            {tabs.length > 1 ? ` ${tabs.length}` : ""}
           </span>
         </button>
       )}
