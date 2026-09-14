@@ -2,6 +2,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: "en", label: "English", englishName: "English", speechLocale: "en-US" },
   { code: "es", label: "Espanol", englishName: "Spanish", speechLocale: "es-ES" },
   { code: "ca", label: "Català", englishName: "Catalan", speechLocale: "ca-ES" },
+  { code: "zh", label: "简体中文", englishName: "Simplified Chinese", speechLocale: "zh-CN" },
 ] as const;
 
 export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"];

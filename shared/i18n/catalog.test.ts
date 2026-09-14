@@ -48,7 +48,7 @@ describe("placeholders", () => {
 describe("the catalogs", () => {
   it("cover every offered language and are non-empty", () => {
     expect(ENGLISH_KEYS.length).toBeGreaterThan(200);
-    expect(OTHER_LANGUAGES).toEqual(["es", "ca"]);
+    expect(OTHER_LANGUAGES).toEqual(["es", "ca", "zh"]);
     for (const code of SUPPORTED_LANGUAGES.map((l) => l.code)) expect(CATALOGS[code]).toBeDefined();
   });
 

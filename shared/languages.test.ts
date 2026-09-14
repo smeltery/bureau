@@ -6,10 +6,12 @@ describe("language helpers", () => {
     expect(isSupportedLanguage(DEFAULT_LANGUAGE)).toBe(true);
   });
 
-  test("offers English, Spanish, and Catalan", () => {
-    expect(SUPPORTED_LANGUAGES.map((language) => language.code)).toEqual(["en", "es", "ca"]);
+  test("offers English, Spanish, Catalan, and Simplified Chinese", () => {
+    expect(SUPPORTED_LANGUAGES.map((language) => language.code)).toEqual(["en", "es", "ca", "zh"]);
     expect(languageOption("ca")?.englishName).toBe("Catalan");
     expect(languageOption("ca")?.speechLocale).toBe("ca-ES");
+    expect(languageOption("zh")?.englishName).toBe("Simplified Chinese");
+    expect(languageOption("zh")?.speechLocale).toBe("zh-CN");
   });
 
   test("detects supported browser primary subtags", () => {
