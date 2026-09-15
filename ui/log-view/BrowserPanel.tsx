@@ -56,7 +56,17 @@ export function BrowserPanel({ agentId, onClose }: { agentId: string; onClose: (
   }
 
   return (
-    <div style={{ borderBottom: "1px solid var(--border-medium)", background: "var(--bg-elevated, var(--btn-surface))", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+    <div
+      style={{
+        borderBottom: "1px solid var(--border-medium)",
+        background: "var(--bg-elevated, var(--btn-surface))",
+        padding: "10px 14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        flexShrink: 0,
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>
           Agent browser <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(experimental)</span>
@@ -66,13 +76,7 @@ export function BrowserPanel({ agentId, onClose }: { agentId: string; onClose: (
         </button>
       </div>
       <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-        {status == null
-          ? "…"
-          : status.enabled
-            ? status.active
-              ? `Open: ${status.url}`
-              : "No page open — agents (or you) can goto a local/allowlisted URL."
-            : "Disabled in Office Settings."}
+        {status == null ? "…" : status.enabled ? (status.active ? `Open: ${status.url}` : "No page open — agents (or you) can goto a local/allowlisted URL.") : "Disabled in Office Settings."}
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <input

@@ -4,12 +4,7 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import { JSON_HEADERS, jsonError, readJsonBody, requireUserAgentAccess } from "./agent-route-helpers.ts";
 
 /** Cookie-session GET/POST for `/api/agents/:id/browser` (agents use bearer). */
-export async function handleAgentBrowserSessionRoute(
-  req: Request,
-  parts: string[],
-  agentId: string,
-  auth: AuthResult | undefined,
-): Promise<Response | null> {
+export async function handleAgentBrowserSessionRoute(req: Request, parts: string[], agentId: string, auth: AuthResult | undefined): Promise<Response | null> {
   if (parts.length !== 3 || parts[2] !== "browser" || readBearerToken(req)) return null;
   const denied = requireUserAgentAccess(auth, agentId);
   if (denied) return denied;
