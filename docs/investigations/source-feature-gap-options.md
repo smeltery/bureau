@@ -48,6 +48,18 @@ implementation stays in Bureau naming and architecture.
 - Desk-agent task room ACL. Agents see and mutate tasks in rooms their manager
   can access; omit `roomId` on create files in the agent's current room, and
   `roomId:""` files a global.
+- Chat task-id chips and expandable task descriptions. Eight-hex task ids in
+  chat open the task board on that task when the viewer can see it; Room
+  settings descriptions expand to a near-fullscreen editor.
+- Member-language agent templates. Spawn-template labels, descriptions, and
+  instruction wrappers follow the signed-in member's UI language.
+- Per-room looks. Rooms persist a skin (`office` | `hospital`); the scene
+  overrides floor/wall CSS variables and optional prop layers without changing
+  desks, characters, or pets.
+- Humans-only team chat. Cookie sessions post and read an office-wide chat at
+  `/team-chat`, persisted as monthly JSONL under `~/.bureau/members-chat/`;
+  agents and API tokens cannot participate. Full lobby SVG / receptionist stays
+  out of scope.
 
 ## Rejected
 
