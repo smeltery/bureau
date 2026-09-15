@@ -43,7 +43,7 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/rooms\/[^/]+\/settings$/, "Bureau API: room settings"],
 ];
 
-const fieldOrder = ["path", "url", "name", "command", "text", "steer", "title", "status", "assignee", "room"];
+const fieldOrder = ["path", "url", "action", "name", "command", "text", "steer", "title", "status", "assignee", "room"];
 const displayFilterCommands = new Set(["jq", "grep", "rg", "sed", "sort", "uniq", "head", "tail", "cut", "tr", "wc", "column"]);
 
 export function summarizeBureauCurl(command: string): string | null {

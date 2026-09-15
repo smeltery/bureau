@@ -2,9 +2,8 @@ import { storageReadObject, storageSetItem } from "./browser-storage.ts";
 
 export type SidePanel = "terminal" | "editor" | "browser" | null;
 
-// "browser" is reserved for the experimental agent-browser panel (office
-// setting experimental.browserPanel). MVP screenshots reuse chat file-view
-// cards; a live frame panel is deferred.
+// "browser" is the experimental agent-browser status/drive strip
+// (office setting experimental.browserPanel). Live screencast frames are deferred.
 
 const SIDE_PANEL_KEY = "bureau:side-panels";
 
