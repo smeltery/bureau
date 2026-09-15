@@ -3,7 +3,8 @@ import { effectiveRoomSkin, type RoomSkin } from "../../../shared/types.ts";
 import { useAppState, useTheme } from "../../store.tsx";
 import type { ThemeMode } from "../../themes/index.ts";
 import { hospitalSceneVars } from "./hospital/palette.ts";
-import { HospitalProps, HospitalWalls } from "./hospital/props.tsx";
+import { HospitalProps } from "./hospital/props.tsx";
+import { HospitalWalls } from "./hospital/walls.tsx";
 
 // A room skin is a LOOK: theme variable overrides plus optional wall/floor
 // layers. Desks, characters, pets, and status lights stay the same under every

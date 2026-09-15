@@ -18,8 +18,8 @@
       "reason": "provider-accounts.ts serves Connections REST; idempotency.ts is the shared Idempotency-Key cache for API-token send/drain."
     },
     "shared": {
-      "limit": 42,
-      "reason": "provider-accounts.ts owns Connections wire shapes (status + key-update request/response) without secrets so UI and HTTP share one contract."
+      "limit": 46,
+      "reason": "room-skins (+ test) persist Look ids; agent-template-catalog holds localized spawn-template copy beside agent-template-copy helpers."
     },
     "server/http/__tests__": {
       "limit": 41,
