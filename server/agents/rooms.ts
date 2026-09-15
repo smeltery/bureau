@@ -10,9 +10,7 @@ export function getRooms(): RoomWire[] {
 }
 
 /** Content hash over the office settings PUT surface (prompt + envFile + experimental). */
-export function officeSettingsVersion(
-  settings?: { prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings },
-): string {
+export function officeSettingsVersion(settings?: { prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings }): string {
   const s = settings ?? {
     prompt: officeConfig.prompt,
     envFile: officeConfig.envFile,
@@ -22,11 +20,7 @@ export function officeSettingsVersion(
 }
 
 // Update office settings. Caller is responsible for validating envFile (see validateEnvPath).
-export function setOfficeSettings(
-  prompt: string | null,
-  envFile: string | null,
-  experimental?: ExperimentalSettings,
-) {
+export function setOfficeSettings(prompt: string | null, envFile: string | null, experimental?: ExperimentalSettings) {
   const normalizedPrompt = prompt && prompt.trim() ? prompt.trim() : null;
   const nextConfig = {
     ...officeConfig,

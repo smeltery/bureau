@@ -8,16 +8,7 @@ import type { Browser, BrowserContext, Page } from "playwright-core";
 import { assertAllowedHost, BROWSER_CANDIDATES, findBrowser as defaultFindBrowser } from "../preview-capture.ts";
 import { describeShot, fail, parseBrowserParams, type BrowserFailure, type BrowserResult, type BrowserSuccess, type ParsedParams } from "./params.ts";
 
-export {
-  BROWSER_ACTIONS,
-  describeShot,
-  parseBrowserParams,
-  type BrowserAction,
-  type BrowserErrorCode,
-  type BrowserFailure,
-  type BrowserResult,
-  type BrowserSuccess,
-} from "./params.ts";
+export { BROWSER_ACTIONS, describeShot, parseBrowserParams, type BrowserAction, type BrowserErrorCode, type BrowserFailure, type BrowserResult, type BrowserSuccess } from "./params.ts";
 
 export const BROWSER_IDLE_MS = 5 * 60 * 1000;
 export const BROWSER_ACTION_DEADLINE_MS = 30_000;
@@ -161,11 +152,7 @@ export class BrowserPool {
     if (!this.launching) {
       const executable = this.findBrowser();
       if (!executable) {
-        return fail(
-          500,
-          "no_browser",
-          `no Chrome-family browser found (tried ${BROWSER_CANDIDATES.join(", ")}); install one or set BUREAU_PREVIEW_BROWSER`,
-        );
+        return fail(500, "no_browser", `no Chrome-family browser found (tried ${BROWSER_CANDIDATES.join(", ")}); install one or set BUREAU_PREVIEW_BROWSER`);
       }
       this.launching = this.launch(executable).finally(() => {
         this.launching = null;

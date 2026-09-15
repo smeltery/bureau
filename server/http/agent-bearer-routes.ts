@@ -124,7 +124,9 @@ function isAgentBearerRoute(method: string, parts: string[]): boolean {
   if (method === "GET" && parts[2] === "context") return true;
   if (method === "GET" && parts[2] === "instructions") return true;
   if (method !== "POST") return false;
-  return parts[2] === "diff" || parts[2] === "edit-file" || parts[2] === "read-file" || parts[2] === "preview-url" || parts[2] === "browser" || parts[2] === "terminal-command" || parts[2] === "message";
+  return (
+    parts[2] === "diff" || parts[2] === "edit-file" || parts[2] === "read-file" || parts[2] === "preview-url" || parts[2] === "browser" || parts[2] === "terminal-command" || parts[2] === "message"
+  );
 }
 
 async function readOptionalJson(req: Request): Promise<Record<string, unknown> | null> {

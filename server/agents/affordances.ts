@@ -120,10 +120,7 @@ export async function emitAgentPreviewUrl(agentId: string, body: unknown): Promi
   return { ok: true };
 }
 
-export async function emitAgentBrowser(
-  agentId: string,
-  body: unknown,
-): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; status: number; error: string; code?: string }> {
+export async function emitAgentBrowser(agentId: string, body: unknown): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; status: number; error: string; code?: string }> {
   const managed = agents.get(agentId);
   if (!managed) return { ok: false, status: 404, error: "agent not found" };
   if (!officeConfig.experimental.browserPanel) {
