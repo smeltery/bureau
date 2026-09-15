@@ -34,18 +34,26 @@ const TASKS_ICON = (
   </svg>
 );
 
+const CHAT_ICON = (
+  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" style={{ display: "block" }}>
+    <path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 13 11.5H7l-3 2v-2H3A1.5 1.5 0 0 1 1.5 10V5A1.5 1.5 0 0 1 3 3.5z" />
+  </svg>
+);
+
 export function MobileHeaderMenu({
   onOpenTasks,
   onEditUsername,
   onOpenDeviceSettings,
   onEditOfficePrompt,
   onEditRoomSettings,
+  onOpenTeamChat,
 }: {
   onOpenTasks: () => void;
   onEditUsername?: () => void;
   onOpenDeviceSettings?: () => void;
   onEditOfficePrompt: () => void;
   onEditRoomSettings?: () => void;
+  onOpenTeamChat?: () => void;
 }) {
   const { mode } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -98,6 +106,7 @@ export function MobileHeaderMenu({
           >
             {[
               { icon: TASKS_ICON, label: "Tasks", action: onOpenTasks },
+              ...(onOpenTeamChat ? [{ icon: CHAT_ICON, label: "Team chat", action: onOpenTeamChat }] : []),
               ...(onEditUsername ? [{ icon: BUILDING_ICON, label: "User settings", action: onEditUsername }] : []),
               ...(onOpenDeviceSettings ? [{ icon: DEVICE_ICON, label: "Device settings", action: onOpenDeviceSettings }] : []),
               { icon: BUILDING_ICON, label: "Office settings", action: onEditOfficePrompt },

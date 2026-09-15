@@ -19,6 +19,7 @@ export function OfficeTopHud({
   onOpenCronjobs,
   onOpenApps,
   onOpenPlugins,
+  onOpenTeamChat,
   onOpenUpdate,
 }: {
   counts: RoomCounts;
@@ -34,6 +35,7 @@ export function OfficeTopHud({
   onOpenCronjobs?: () => void;
   onOpenApps?: () => void;
   onOpenPlugins?: () => void;
+  onOpenTeamChat?: () => void;
   onOpenUpdate: () => void;
 }) {
   const dispatch = useDispatch();
@@ -54,6 +56,7 @@ export function OfficeTopHud({
           onOpenDeviceSettings={onOpenDeviceSettings}
           onEditOfficePrompt={onEditOfficePrompt}
           onEditRoomSettings={onEditRoomSettings}
+          onOpenTeamChat={onOpenTeamChat}
           updateAvailable={updateAvailable}
           onOpenUpdate={onOpenUpdate}
         />
@@ -67,6 +70,7 @@ export function OfficeTopHud({
           onOpenCronjobs={onOpenCronjobs}
           onOpenApps={onOpenApps}
           onOpenPlugins={onOpenPlugins}
+          onOpenTeamChat={onOpenTeamChat}
           onEditUsername={onEditUsername}
           onOpenDeviceSettings={onOpenDeviceSettings}
           onEditOfficePrompt={onEditOfficePrompt}

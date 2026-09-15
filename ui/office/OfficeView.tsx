@@ -45,6 +45,7 @@ export function OfficeView({
   onOpenCronjobs,
   onOpenApps,
   onOpenPlugins,
+  onOpenTeamChat,
   onOpenUpdate,
   onSwipeLeft,
   onSwipeRight,
@@ -62,6 +63,7 @@ export function OfficeView({
   onOpenCronjobs?: () => void;
   onOpenApps?: () => void;
   onOpenPlugins?: () => void;
+  onOpenTeamChat?: () => void;
   onOpenUpdate: () => void;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
@@ -152,6 +154,7 @@ export function OfficeView({
         onOpenCronjobs={onOpenCronjobs}
         onOpenApps={onOpenApps}
         onOpenPlugins={onOpenPlugins}
+        onOpenTeamChat={onOpenTeamChat}
         onOpenUpdate={onOpenUpdate}
       />
 

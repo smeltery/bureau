@@ -76,6 +76,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Agent templates** — start from Blank or choose one of 12 editable profiles like Side Project Builder, Money Planner, Health Navigator, Code Reviewer, and Trip Planner; each fills the name, instructions, outfit, model, and effort before you spawn, using the member's UI language for the seeded name and instructions
 - **Real-time sync** — WebSocket keeps every connected device in lockstep
 - **Live presence** — other users and devices appear in the office with customizable ghosts, so shared rooms show who is around; User Settings also shows online state and owner-visible session recency in the user roster
+- **Team chat** — office-wide humans-only chat at `/team-chat` (header button); cookie sessions only; persists as monthly JSONL under `~/.bureau/members-chat/`
 - **Room pet customisation** — each room can pick a sleepy office companion (cat, dog, rabbit, or tortoise) and coat from Room settings
 - **Room looks** — each room can draw as the classic office or a hospital ward (floor, walls, and props) from Room settings
 - **Per-agent message queue** — typing while an agent is busy queues messages as chips above the input; they survive Bureau restarts, flush automatically when the agent idles, can be cancelled before they send, and can be forced through immediately with Send now or Ctrl/Cmd+Enter
@@ -100,6 +101,7 @@ Then open **http://localhost:4000** and click an empty desk.
 ### 🤝 Collaboration & tasks
 
 - **Shared task board** — humans and agents create, assign to rooms, and close tasks (with a Backlog status for deferred work); search by id, title, or description. Task ids mentioned in chat become chips that open the matching task; the description field expands fullscreen like memory and prompts.
+- **Team chat** — humans-only office chat at `/team-chat` (header button / mobile menu). Persisted as monthly JSONL under `~/.bureau/members-chat/`; live updates over WebSocket. Agents do not post here.
 - **Inter-agent discovery & messaging** — agents can search/re-read visible conversation history via `GET /api/agents/:id/logs` and send messages directly via `POST /api/agents/:id/messages`; the receiver sees them in the same queue as human-typed input, prefixed so they can tell agent senders from human bosses. Acks report whether a message was delivered now or queued behind the receiver's turn, and senders can pass `steer:true` to interrupt a busy peer — rate-limited and declined mid multi-step flows, with the ack saying honestly which happened
 - **Privileged operator agents** — owners can grant selected agents a privileged server-side token that the office-management routes actually accept: rooms (create, rename, close, settings, desk swaps), agent lifecycle (spawn, kill, edit, move, topic), and conversation steering (resume, new conversation, send-now, dequeue). Authority is always scoped to the rooms and agents the agent's **manager** can see, never wider. Deliberately refused everywhere it could widen itself or reach a human's account: office settings and external access, invites, browser sessions, user records, view preferences, the terminal, and the privilege flag itself — no agent can make itself or a peer privileged
 - **Conversation branching** — fork any past message, preserve the original
@@ -124,7 +126,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **UI languages** — office chrome localizes to English, Spanish, or Catalan from the same language preference (with browser fallback)
 - **6 color themes** — Dark, Light, Nord, Dracula, Solarized Dark, Solarized Light; pick from the theme picker in the header. First load follows your OS `prefers-color-scheme` (and live-updates if you flip it system-wide) until you make an explicit choice. The wall moon/sun cycles through every theme from lightest to darkest
 - **Wall affordances & shortcuts** — corkboard opens Tasks, clock opens Schedules, vent opens Settings, apps plaque opens Apps; press `t`, `a`, or `s` to toggle Tasks, toggle Apps, or open Settings when not typing
-- **Bookmarkable panels** — Tasks, Schedules, Apps, Plugins, and Settings live at `/tasks`, `/schedules`, `/apps`, `/plugins`, and `/settings` (refresh and share keep the panel; agent chats stay on `/`)
+- **Bookmarkable panels** — Tasks, Schedules, Apps, Plugins, Team chat, and Settings live at `/tasks`, `/schedules`, `/apps`, `/plugins`, `/team-chat`, and `/settings` (refresh and share keep the panel; agent chats stay on `/`)
 - **Seasonal office decorations** — string lights in late December, a jack-o'-lantern the week before Halloween, and a chocolate box on Valentine's Day; add `?officeDate=YYYY-MM-DD` (or `all`) to preview out of season
 - **Log secret redaction** — provider tokens and common `api_key` / `secret` / `token` / `password` assignments are masked on write before conversation logs hit disk or the live UI
 

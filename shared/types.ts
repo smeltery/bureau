@@ -46,6 +46,8 @@ export { cronjobRunStreamId, humanizeSchedule, parseStreamId } from "./cronjobs.
 export type { Cronjob, CronjobPermissionMode, CronjobRun, CronjobRunStatus, CronjobRunTrigger, Schedule } from "./cronjobs.ts";
 export type { CCAvailablePlugin, CCInstalledPlugin, CCMarketplace, CCPluginScope, CCPluginsState } from "./cc-plugin-types.ts";
 export type { Attachment, ChoicePromptChoice, ChoicePromptPayload, DiffFileSummary, DiffPayload, FilePayload, LogEntry, SubagentOrigin, TerminalCommandPayload } from "./log-types.ts";
+export type { MembersChatMessage, MembersChatReply } from "./members-chat.ts";
+export { MEMBERS_CHAT_MAX_CHARS, membersChatExcerpt, recentMembersChatPins } from "./members-chat.ts";
 export type { ProviderAccountProvider, ProviderAccountStatus, ProviderAccountWire, ProviderAccountsWire, ProviderAuthVia, ProviderKeysUpdateReq, ProviderKeysUpdateRes } from "./provider-accounts.ts";
 export type { EnsureSlideReq, EnsureSlideRes, SlideDeck, SlideDeckRes, SlideFailureReason, SlideRecord } from "./slides.ts";
 export { generateHexId, generateTaskId, isValidPriority, isValidStatus } from "./tasks.ts";

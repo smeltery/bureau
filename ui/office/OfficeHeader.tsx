@@ -18,6 +18,7 @@ export function DesktopOfficeHeader({
   onOpenCronjobs,
   onOpenApps,
   onOpenPlugins,
+  onOpenTeamChat,
   onEditUsername,
   onOpenDeviceSettings,
   onEditOfficePrompt,
@@ -33,6 +34,7 @@ export function DesktopOfficeHeader({
   onOpenCronjobs?: () => void;
   onOpenApps?: () => void;
   onOpenPlugins?: () => void;
+  onOpenTeamChat?: () => void;
   onEditUsername: () => void;
   onOpenDeviceSettings: () => void;
   onEditOfficePrompt: () => void;
@@ -123,6 +125,7 @@ export function DesktopOfficeHeader({
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifySelf: "end" }}>
         <HeaderButton icon={<TasksIcon />} label={t("common.tasks")} onClick={onOpenTasks} />
+        {onOpenTeamChat && <HeaderButton icon={<ChatIcon />} label={t("common.teamChat")} title={t("common.teamChat")} onClick={onOpenTeamChat} />}
         {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label={t("common.schedules")} title={t("common.schedules")} onClick={onOpenCronjobs} />}
         {onOpenApps && <HeaderButton icon={<AppsIcon />} label={t("common.apps")} title={t("office.header.appsTitle")} onClick={onOpenApps} />}
         {onOpenPlugins && <HeaderButton icon={<PlugIcon />} label={t("common.plugins")} title={t("office.header.pluginsTitle")} onClick={onOpenPlugins} />}
@@ -164,6 +167,14 @@ function TasksIcon() {
       <path d="M3 4.5l1.3 1.3L6.8 3.3" />
       <path d="M3 8.5l1.3 1.3L6.8 7.3" />
       <path d="M9 4.5h4.5M9 8.5h4.5M3 12.5h10.5" />
+    </svg>
+  );
+}
+
+function ChatIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 13 11.5H7l-3 2v-2H3A1.5 1.5 0 0 1 1.5 10V5A1.5 1.5 0 0 1 3 3.5z" />
     </svg>
   );
 }

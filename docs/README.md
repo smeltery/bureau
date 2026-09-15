@@ -32,6 +32,7 @@ Detailed subsystem documentation.
 | [Conversation Branching](features/conversation-branching-design.md) | Edit past messages to fork conversations                                     |
 | [Cronjob System](features/cronjob-system-design.md)                 | Scheduled SDK sessions; per-run transcripts; Cronjobs page                   |
 | [Full Feature List](features/full-feature-list.md)                  | Consolidated operator-facing feature inventory                               |
+| [Members Team Chat](features/members-chat.md)                       | Humans-only office chat (REST + WebSocket + `/team-chat` panel)              |
 | [Multi-Office Isolation](features/multi-office-design.md)           | Multiple isolated workspaces                                                 |
 | [Per-Agent MCP Access](features/per-agent-mcp-access.md)            | Controlling MCP integration access per agent                                 |
 | [Plugin Management](features/plugin-management-design.md)           | Plugin UI and lifecycle                                                      |
@@ -40,6 +41,7 @@ Detailed subsystem documentation.
 | [Slide Mode](features/slide-mode.md)                                | Conversations as a per-turn deck of model-designed slides                    |
 | [Task System](features/task-system-design.md)                       | Shared task board for humans and agents                                      |
 | [Named Rooms](features/prompt-named-rooms.md)                       | Custom room names                                                            |
+| [Members Chat](features/members-chat.md)                            | Office-wide humans-only team chat (`/team-chat`)                             |
 
 ## Investigations & Research
 

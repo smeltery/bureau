@@ -1,8 +1,8 @@
 // Full-page panel URLs for the office UI. Pure and DOM-free so the table can
 // be unit-tested without rendering App. Agent chats stay on "/" — only the
-// four panel pages (plus plugins) get their own path.
+// panel pages (plus plugins) get their own path.
 
-export type Page = "tasks" | "schedules" | "apps" | "plugins" | "settings";
+export type Page = "tasks" | "schedules" | "apps" | "plugins" | "settings" | "team-chat";
 
 /**
  * The page a pathname names, or null for the office.
@@ -24,6 +24,9 @@ export function pageForPath(pathname: string): Page | null {
     case "/settings":
     case "/users":
       return "settings";
+    case "/team-chat":
+    case "/chat":
+      return "team-chat";
     default:
       return null;
   }

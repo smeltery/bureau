@@ -6,30 +6,11 @@ import { getDevice } from "./device-settings.ts";
 import { shouldHostCloseOnEscape } from "./components/modals/expandedEditorState.ts";
 import type { ViewportControls } from "./office/OfficeView.tsx";
 import { pageForPath, pathForPage, type Page } from "./routes.ts";
+import { cycleAgent, pageFromFlags } from "./navigation-helpers.ts";
 
-function pageFromFlags(flags: { tasksOpen: boolean; cronjobsOpen: boolean; appsOpen: boolean; pluginsOpen: boolean; settingsOpen: boolean }): Page | null {
-  if (flags.settingsOpen) return "settings";
-  if (flags.tasksOpen) return "tasks";
-  if (flags.cronjobsOpen) return "schedules";
-  if (flags.appsOpen) return "apps";
-  if (flags.pluginsOpen) return "plugins";
-  return null;
-}
+export { cycleAgent } from "./navigation-helpers.ts";
 
 type ViewMode = "office" | "log" | "away";
-
-/** Cycle to the next/previous agent in the current room, matching Tab/Shift+Tab logic. */
-export function cycleAgent(agents: AgentInfo[], drafts: Map<string, string>, currentRoom: number, focusedAgentId: string | null, direction: "next" | "prev"): string | null {
-  const roomAgents = agents.filter((agent) => agent.room === currentRoom);
-  const sorted = [...roomAgents].sort((a, b) => a.desk - b.desk);
-  const nonIdle = sorted.filter((agent) => (agent.state !== "idle" && agent.state !== "stopped") || (drafts.get(agent.id) ?? "").length > 0);
-  const pool = nonIdle.length > 0 ? nonIdle : sorted;
-  if (pool.length === 0) return null;
-  const idx = pool.findIndex((agent) => agent.id === focusedAgentId);
-  if (idx !== -1 && pool.length <= 1) return null;
-  const next = idx === -1 ? (direction === "prev" ? pool[pool.length - 1] : pool[0]) : direction === "prev" ? pool[(idx - 1 + pool.length) % pool.length] : pool[(idx + 1) % pool.length];
-  return next.id;
-}
 
 function sendClaim(username: string) {
   send({ type: "claim_user", username });
@@ -50,11 +31,13 @@ export function useAppNavigation({
   cronjobsOpen,
   appsOpen,
   pluginsOpen,
+  teamChatOpen,
   anyModalOpen,
   setTasksOpen,
   setCronjobsOpen,
   setAppsOpen,
   setPluginsOpen,
+  setTeamChatOpen,
   setSpawnDesk,
   setCtxMenu,
   setEditAgent,
@@ -77,11 +60,13 @@ export function useAppNavigation({
   cronjobsOpen: boolean;
   appsOpen: boolean;
   pluginsOpen: boolean;
+  teamChatOpen: boolean;
   anyModalOpen: boolean;
   setTasksOpen: Dispatch<SetStateAction<boolean>>;
   setCronjobsOpen: Dispatch<SetStateAction<boolean>>;
   setAppsOpen: Dispatch<SetStateAction<boolean>>;
   setPluginsOpen: Dispatch<SetStateAction<boolean>>;
+  setTeamChatOpen: Dispatch<SetStateAction<boolean>>;
   setSpawnDesk: Dispatch<SetStateAction<number | null>>;
   setCtxMenu: Dispatch<SetStateAction<{ x: number; y: number; agent: AgentInfo } | null>>;
   setEditAgent: Dispatch<SetStateAction<AgentInfo | null>>;
@@ -102,7 +87,7 @@ export function useAppNavigation({
     if (username && connected) sendClaim(username);
   }, [username, connected]);
 
-  const viewMode: ViewMode = tasksOpen || cronjobsOpen || appsOpen || pluginsOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
+  const viewMode: ViewMode = tasksOpen || cronjobsOpen || appsOpen || pluginsOpen || teamChatOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
   const presenceRoom = focusedAgent?.room ?? currentRoom;
   const presenceRoomId = focusedAgent?.roomId ?? rooms[presenceRoom]?.id ?? null;
   useEffect(() => {
@@ -136,10 +121,11 @@ export function useAppNavigation({
       setCronjobsOpen(page === "schedules");
       setAppsOpen(page === "apps");
       setPluginsOpen(page === "plugins");
+      setTeamChatOpen(page === "team-chat");
       if (page === "settings") openSettings();
       else closeSettings();
     },
-    [closeSettings, openSettings, setAppsOpen, setCronjobsOpen, setPluginsOpen, setTasksOpen],
+    [closeSettings, openSettings, setAppsOpen, setCronjobsOpen, setPluginsOpen, setTasksOpen, setTeamChatOpen],
   );
 
   const goHome = useCallback(() => {
@@ -214,11 +200,12 @@ export function useAppNavigation({
       // "a": toggle Apps from office or agent chat, unless Settings is open.
       if (!isInput && e.key === "a" && !settingsOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
-        if (appsOpen && !tasksOpen && !cronjobsOpen && !pluginsOpen) goHome();
+        if (appsOpen && !tasksOpen && !cronjobsOpen && !pluginsOpen && !teamChatOpen) goHome();
         else {
           setTasksOpen(false);
           setCronjobsOpen(false);
           setPluginsOpen(false);
+          setTeamChatOpen(false);
           setAppsOpen(true);
         }
       }
@@ -263,14 +250,16 @@ export function useAppNavigation({
     setPluginsOpen,
     setSpawnDesk,
     setTasksOpen,
+    setTeamChatOpen,
     tasksOpen,
+    teamChatOpen,
     settingsOpen,
     openSettings,
   ]);
 
   // Agent chats are not routes — they share "/" with the office. Panels get
   // real paths so refresh/share keep working.
-  const page = pageFromFlags({ tasksOpen, cronjobsOpen, appsOpen, pluginsOpen, settingsOpen });
+  const page = pageFromFlags({ tasksOpen, cronjobsOpen, appsOpen, pluginsOpen, settingsOpen, teamChatOpen });
   const isDeep = page !== null || focusedAgentId !== null;
   useEffect(() => {
     const entry = { bureau: true, page };

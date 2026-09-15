@@ -17,6 +17,7 @@ export function AgentListView({
   onEditRoomSettings,
   onOpenTasks,
   onOpenCronjobs,
+  onOpenTeamChat,
   onOpenUpdate,
   onToggleView,
   onSwipeLeft,
@@ -32,6 +33,7 @@ export function AgentListView({
   onEditRoomSettings?: () => void;
   onOpenTasks: () => void;
   onOpenCronjobs?: () => void;
+  onOpenTeamChat?: () => void;
   onOpenUpdate: () => void;
   onToggleView: () => void;
   onSwipeLeft?: () => void;
@@ -61,6 +63,7 @@ export function AgentListView({
         onOpenDeviceSettings={onOpenDeviceSettings}
         onEditOfficePrompt={onEditOfficePrompt}
         onEditRoomSettings={onEditRoomSettings}
+        onOpenTeamChat={onOpenTeamChat}
         updateAvailable={updateStatus.updateAvailable}
         onOpenUpdate={onOpenUpdate}
       />

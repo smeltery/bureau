@@ -14,6 +14,7 @@ import { TaskView } from "./task-view/TaskView.tsx";
 import { CronjobsView } from "./components/CronjobsView.tsx";
 import { AppsView } from "./apps-view/AppsView.tsx";
 import { PluginsView } from "./components/PluginsView.tsx";
+import { TeamChatView } from "./team-chat/TeamChatView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
 import { ConnectionBanner } from "./components/ConnectionBanner.tsx";
 import { CSS } from "./styles.ts";
@@ -49,11 +50,12 @@ export function App() {
   const [cronjobsOpen, setCronjobsOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
+  const [teamChatOpen, setTeamChatOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
 
-  // Deep-link boot: /tasks, /schedules, /apps, /plugins, /settings open the
-  // matching panel. Runs once on mount; saved-view restore below skips when a
-  // path already named a panel.
+  // Deep-link boot: /tasks, /schedules, /apps, /plugins, /settings, /team-chat
+  // open the matching panel. Runs once on mount; saved-view restore below skips
+  // when a path already named a panel.
   const [bootedPage] = useState(() => pageForPath(window.location.pathname));
   useEffect(() => {
     if (!bootedPage) return;
@@ -61,6 +63,7 @@ export function App() {
     else if (bootedPage === "schedules") setCronjobsOpen(true);
     else if (bootedPage === "apps") setAppsOpen(true);
     else if (bootedPage === "plugins") setPluginsOpen(true);
+    else if (bootedPage === "team-chat") setTeamChatOpen(true);
     else if (bootedPage === "settings") {
       setEditingUserId(null);
       setEditingAccountSection(null);
@@ -125,26 +128,27 @@ export function App() {
     else if (saved.panel === "cronjobs") setCronjobsOpen(true);
     else if (saved.panel === "apps") setAppsOpen(true);
     else if (saved.panel === "plugins") setPluginsOpen(true);
+    else if (saved.panel === "team-chat") setTeamChatOpen(true);
   }, [agents, bootedPage, dispatch, draftUser, hasReceivedInitialState, rooms]);
 
   useEffect(() => {
     if (!draftUser || !hasRestoredViewRef.current) return;
     const focused = focusedAgentId ? (agents.find((agent) => agent.id === focusedAgentId) ?? null) : null;
     const roomId = focused?.roomId ?? rooms[currentRoom]?.id ?? null;
-    const panel = tasksOpen ? "tasks" : cronjobsOpen ? "cronjobs" : appsOpen ? "apps" : pluginsOpen ? "plugins" : null;
+    const panel = tasksOpen ? "tasks" : cronjobsOpen ? "cronjobs" : appsOpen ? "apps" : pluginsOpen ? "plugins" : teamChatOpen ? "team-chat" : null;
     writeSavedView(draftUser, { roomId, agentId: focusedAgentId, panel });
-  }, [agents, appsOpen, cronjobsOpen, currentRoom, draftUser, focusedAgentId, pluginsOpen, rooms, tasksOpen]);
+  }, [agents, appsOpen, cronjobsOpen, currentRoom, draftUser, focusedAgentId, pluginsOpen, rooms, tasksOpen, teamChatOpen]);
 
   const focusedAgentName = focusedAgent?.name ?? null;
   const focusedAgentState = focusedAgent?.state ?? null;
   const currentRoomName = rooms[currentRoom]?.name ?? null;
   useEffect(() => {
     if (!connected) return;
-    const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Schedules" : appsOpen ? "Apps" : pluginsOpen ? "Plugins" : null;
+    const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Schedules" : appsOpen ? "Apps" : pluginsOpen ? "Plugins" : teamChatOpen ? "Team chat" : null;
     const focusedAgentTitle = focusedAgentName && focusedAgentState ? agentTabLabel(focusedAgentName, focusedAgentState) : null;
     const label = panelTitle ?? focusedAgentTitle ?? currentRoomName ?? null;
     document.title = label ? `${label} | Bureau` : "Bureau";
-  }, [appsOpen, connected, cronjobsOpen, currentRoomName, focusedAgentName, focusedAgentState, pluginsOpen, tasksOpen]);
+  }, [appsOpen, connected, cronjobsOpen, currentRoomName, focusedAgentName, focusedAgentState, pluginsOpen, tasksOpen, teamChatOpen]);
 
   const { goHome, closeTasks, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
     agents,
@@ -161,11 +165,13 @@ export function App() {
     cronjobsOpen,
     appsOpen,
     pluginsOpen,
+    teamChatOpen,
     anyModalOpen,
     setTasksOpen,
     setCronjobsOpen,
     setAppsOpen,
     setPluginsOpen,
+    setTeamChatOpen,
     setSpawnDesk,
     setCtxMenu,
     setEditAgent,
@@ -190,6 +196,8 @@ export function App() {
       {username === null && <UserManagementModal currentUsername={null} forceCreate onSwitchUser={setUsername} />}
       {editingUsername && username !== null ? (
         <UserSettingsView currentUsername={username} initialUserId={editingUserId} initialSection={editingAccountSection} onSwitchUser={setUsername} onClose={goHome} />
+      ) : teamChatOpen ? (
+        <TeamChatView onClose={goHome} />
       ) : pluginsOpen ? (
         <PluginsView onClose={goHome} />
       ) : cronjobsOpen ? (
@@ -241,6 +249,7 @@ export function App() {
           }}
           onOpenTasks={() => setTasksOpen(true)}
           onOpenCronjobs={() => setCronjobsOpen(true)}
+          onOpenTeamChat={() => setTeamChatOpen(true)}
           onOpenUpdate={() => setUpdateOpen(true)}
           onToggleView={() => dispatch({ type: "toggle_mobile_view" })}
           onSwipeLeft={swipeRoomNext}
@@ -266,6 +275,7 @@ export function App() {
           onOpenCronjobs={() => setCronjobsOpen(true)}
           onOpenApps={() => setAppsOpen(true)}
           onOpenPlugins={() => setPluginsOpen(true)}
+          onOpenTeamChat={() => setTeamChatOpen(true)}
           onOpenUpdate={() => setUpdateOpen(true)}
           onSwipeLeft={swipeRoomNext}
           onSwipeRight={swipeRoomPrev}
