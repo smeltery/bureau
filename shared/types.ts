@@ -66,6 +66,7 @@ export type {
   RabbitCoat,
   RoomPet,
   RoomPetCoat,
+  RoomSkin,
   RoomWire,
   SessionContext,
   SessionWire,
@@ -76,16 +77,22 @@ export type {
 export {
   CAT_COATS,
   DEFAULT_ROOM_PET,
+  DEFAULT_ROOM_SKIN,
   DOG_COATS,
   PET_COATS,
   PET_PALETTES,
   PET_SPECIES,
   RABBIT_COATS,
   ROOM_PET_COATS,
+  ROOM_SKIN_IDS,
+  SELECTABLE_ROOM_SKIN_IDS,
   TORTOISE_COATS,
+  effectiveRoomSkin,
   isPetSpecies,
+  isRoomSkin,
   normalizeRoomPet,
   paletteForPet,
+  parseRoomSkin,
 } from "./user-types.ts";
 export type { AgentSaveResponse, ClientCommand, CwdValidationResponse, ServerMessage, SettingsSaveResponse, SettingsValidationResponse } from "./wire-types.ts";
 

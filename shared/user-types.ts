@@ -5,6 +5,10 @@ import type { CatCoat, DogCoat, PetPalette, PetSpecies, RabbitCoat, RoomPet, Roo
 export type { CatCoat, DogCoat, PetPalette, PetSpecies, RabbitCoat, RoomPet, RoomPetCoat, TortoiseCoat };
 export { CAT_COATS, DEFAULT_ROOM_PET, DOG_COATS, PET_COATS, PET_PALETTES, PET_SPECIES, RABBIT_COATS, ROOM_PET_COATS, TORTOISE_COATS, isPetSpecies, normalizeRoomPet, paletteForPet } from "./pets.ts";
 
+export type { RoomSkin } from "./room-skins.ts";
+export { DEFAULT_ROOM_SKIN, SELECTABLE_ROOM_SKIN_IDS, ROOM_SKIN_IDS, effectiveRoomSkin, isRoomSkin, parseRoomSkin } from "./room-skins.ts";
+import type { RoomSkin } from "./room-skins.ts";
+
 // Office-level settings (prompt + optional env file path)
 export interface OfficeSettings {
   prompt: string | null;
@@ -137,4 +141,6 @@ export interface RoomWire {
   prompt: string | null;
   envFile: string | null;
   pet?: RoomPet | null;
+  /** Look for the room scene. Absent/null draws the office. */
+  skin?: RoomSkin | null;
 }

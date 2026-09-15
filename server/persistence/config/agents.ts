@@ -1,8 +1,8 @@
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import type { AgentCapabilities, AgentInfo, ClaudeModel, KilledAgentSummary, QueuedMessage } from "../../../shared/types.ts";
-import { familyFromLegacyModel, generateRoomId, normalizeRoomPet } from "../../../shared/types.ts";
-import type { RoomPet } from "../../../shared/types.ts";
+import { familyFromLegacyModel, generateRoomId, normalizeRoomPet, parseRoomSkin } from "../../../shared/types.ts";
+import type { RoomPet, RoomSkin } from "../../../shared/types.ts";
 import { AGENTS_FILE, atomicWriteFileSync, LOGS_DIR, MANIFEST_FILE } from "../paths.ts";
 
 // Persisted agent config (subset of AgentInfo + session tracking)
@@ -43,6 +43,7 @@ export interface Room {
   prompt: string | null; // room-level prompt
   envFile: string | null; // absolute path to dotenv file
   pet?: RoomPet | null;
+  skin?: RoomSkin | null;
   agents: PersistedAgent[];
 }
 
@@ -86,6 +87,8 @@ export function loadAgents(): Room[] {
     if (typeof room.prompt !== "string") room.prompt = null;
     if (typeof room.envFile !== "string") room.envFile = null;
     room.pet = normalizeRoomPet(room.pet);
+    const skinParsed = parseRoomSkin(room.skin);
+    room.skin = skinParsed.ok ? skinParsed.skin : null;
     for (const agent of room.agents as PersistedAgent[]) migratePersistedAgent(agent);
   }
   return rooms as Room[];

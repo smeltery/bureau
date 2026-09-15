@@ -69,6 +69,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Click the **moon/sun** through the window to flip between the user's last-picked dark and light themes (or open the theme picker in the header to choose among all 6)
 - Click the **neon sign** to visit
 - Click **doors** to switch between rooms
+- Per-room **Look** (Room settings): classic Office or Hospital ward painting
 - **Opus** agents have a book on their desk; **Haiku** agents have crayons
 - The entire SVG scene (~1,600 lines of raw coordinates and bezier curves) was drawn by Claude Opus — no libraries, assets, or tools
 

@@ -1,5 +1,6 @@
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
+import { parseRoomSkin } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { getUserById, getWsUser } from "../users.ts";
 
@@ -84,6 +85,10 @@ export function handleSettingsCommand(cmd: ClientCommand, ws: ServerWebSocket<un
       }
       const ok = AgentManager.setRoomSettings(cmd.roomId, cmd.prompt, envFile);
       if (ok && "pet" in cmd) AgentManager.setRoomPet(cmd.roomId, cmd.pet ?? null);
+      if (ok && "skin" in cmd) {
+        const parsed = parseRoomSkin((cmd as { skin?: unknown }).skin);
+        if (parsed.ok) AgentManager.setRoomSkin(cmd.roomId, parsed.skin);
+      }
       if (!ok) {
         ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: false, error: "Room not found" } as ServerMessage));
       } else {

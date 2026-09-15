@@ -11,6 +11,7 @@ export function createRoomInList(rooms: RoomWire[], name?: string): { room: Room
     prompt: null,
     envFile: null,
     pet: null,
+    skin: null,
   };
   return {
     room,

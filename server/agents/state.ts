@@ -30,7 +30,14 @@ export function setRooms(next: InternalRoom[]) {
 // ---------------------------------------------------------------------------
 
 export function roomsWire(): RoomWire[] {
-  return rooms.map((r) => ({ id: r.id, name: r.name, prompt: r.prompt, envFile: r.envFile, pet: normalizeRoomPet(r.pet) }));
+  return rooms.map((r) => ({
+    id: r.id,
+    name: r.name,
+    prompt: r.prompt,
+    envFile: r.envFile,
+    pet: normalizeRoomPet(r.pet),
+    skin: r.skin ?? null,
+  }));
 }
 
 export function findRoomIndex(roomId: string): number {

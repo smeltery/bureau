@@ -1,7 +1,8 @@
 import type { ReactElement } from "react";
 import { SCENE_W, SCENE_H, VB_X, VB_Y } from "../grid.ts";
 import { useAppState } from "../../store.tsx";
-import { DEFAULT_ROOM_PET, paletteForPet, type PetPalette, type PetSpecies, type RoomPet } from "../../../shared/types.ts";
+import { DEFAULT_ROOM_PET, effectiveRoomSkin, paletteForPet, type PetPalette, type PetSpecies, type RoomPet } from "../../../shared/types.ts";
+import { SkinProps } from "../skins/index.tsx";
 
 function Cat({ p }: { p: PetPalette }) {
   return (
@@ -271,8 +272,10 @@ function PetCorner({ pet }: { pet: RoomPet | null }) {
 export function RoomProps() {
   const { currentRoom, rooms } = useAppState();
   const pet = rooms[currentRoom]?.pet ?? null;
+  const skin = effectiveRoomSkin(rooms[currentRoom]);
   return (
     <svg style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }} width={SCENE_W} height={SCENE_H} viewBox={`${VB_X} ${VB_Y} ${SCENE_W} ${SCENE_H}`} overflow="visible">
+      <SkinProps skin={skin} />
       {/* Potted plant — west corner of office */}
       <g transform="translate(-245, 212) scale(1.5)">
         <rect x="-8" y="0" width="16" height="20" rx="3" fill="#5a4a35" />

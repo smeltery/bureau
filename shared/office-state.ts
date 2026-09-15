@@ -219,6 +219,14 @@ export class OfficeState {
     return [{ type: "room_pet_updated", roomId, pet: normalizedPet }];
   }
 
+  setRoomSkin(roomId: string, skin: import("./room-skins.ts").RoomSkin | null): OfficeEvent[] {
+    const idx = this._rooms.findIndex((r) => r.id === roomId);
+    if (idx < 0) return [];
+    const next = skin ?? null;
+    this._rooms[idx] = { ...this._rooms[idx], skin: next };
+    return [{ type: "room_skin_updated", roomId, skin: next }];
+  }
+
   setTopic(agentId: string, topic: string): OfficeEvent[] {
     const agent = this.agents.get(agentId);
     if (!agent) return [];

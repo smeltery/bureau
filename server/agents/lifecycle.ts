@@ -189,7 +189,16 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
   } catch {}
 
   const loaded = loadAgents();
-  setRooms(loaded.map((r) => ({ id: r.id, name: r.name, prompt: r.prompt, envFile: r.envFile })));
+  setRooms(
+    loaded.map((r) => ({
+      id: r.id,
+      name: r.name,
+      prompt: r.prompt,
+      envFile: r.envFile,
+      pet: r.pet ?? null,
+      skin: r.skin ?? null,
+    })),
+  );
   migrateLegacyManagedEnv();
 
   for (let roomIdx = 0; roomIdx < loaded.length; roomIdx++) {

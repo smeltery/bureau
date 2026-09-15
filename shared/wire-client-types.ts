@@ -3,7 +3,7 @@ import type { CodexSandboxMode, EffortLevel } from "./agent-models.ts";
 import type { Cronjob, CronjobPermissionMode, Schedule } from "./cronjobs.ts";
 import type { Attachment } from "./log-types.ts";
 import type { TaskItem, TaskPriority } from "./tasks.ts";
-import type { RoomPet, UserRecord, UserRole } from "./user-types.ts";
+import type { RoomPet, RoomSkin, UserRecord, UserRole } from "./user-types.ts";
 
 // Browser -> Server commands
 export type ClientCommand =
@@ -71,7 +71,7 @@ export type ClientCommand =
   | { type: "editor_save"; agentId: string; path: string; content: string; expectedMtime: number; expectedRev?: number; force?: boolean }
   | { type: "editor_close"; agentId: string; path: string }
   | { type: "update_office_settings"; requestId: string; prompt: string | null; envFile: string | null; version: string }
-  | { type: "update_room_settings"; requestId: string; roomId: string; prompt: string | null; envFile: string | null; pet?: RoomPet | null; version: string }
+  | { type: "update_room_settings"; requestId: string; roomId: string; prompt: string | null; envFile: string | null; pet?: RoomPet | null; skin?: RoomSkin | null; version: string }
   | { type: "request_settings_validation"; requestId: string; scope: "office" | "room" | "user"; roomId?: string; userId?: string; envFile?: string | null }
   | { type: "request_cwd_validation"; requestId: string; cwd: string }
   | { type: "add_task"; title: string; description?: string; priority?: TaskPriority; assignee?: string; roomId?: string; username: string }

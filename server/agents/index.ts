@@ -12,6 +12,7 @@ export {
   setOfficeSettings,
   setRoomSettings,
   setRoomPet,
+  setRoomSkin,
   validateEnvPath,
   swapDesks,
   createRoom,

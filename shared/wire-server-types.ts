@@ -111,6 +111,7 @@ export type ServerMessage =
   | { type: "room_renamed"; roomId: string; name: string }
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "room_pet_updated"; roomId: string; pet: RoomPet | null }
+  | { type: "room_skin_updated"; roomId: string; skin: import("./types.ts").RoomSkin | null }
   | { type: "rooms_reordered"; order: string[] }
   | SettingsSaveResponse
   | SettingsValidationResponse

@@ -17,6 +17,7 @@ import { RoomDoorDropZones } from "./RoomDoorDropZones.tsx";
 import { OfficeTopHud } from "./OfficeTopHud.tsx";
 import { OfficePeopleLayer } from "./OfficePeopleLayer.tsx";
 import { useOfficeDoorFeedback } from "./hooks/useOfficeDoorFeedback.ts";
+import { useRoomSkinVars } from "./skins/index.tsx";
 
 // Pixel coords (scene-container space) where ghosts park when sliding
 // to/from a door on a room switch. Roughly centered horizontally on the
@@ -73,6 +74,7 @@ export function OfficeView({
   const dispatch = useDispatch();
   const { cycleTheme } = useTheme();
   const { embed } = useFeatures();
+  const skinVars = useRoomSkinVars();
   const mobileScale = isMobile ? screen.width / (SCENE_W - 200) : 1;
   // layoutKey changes whenever the centered-scene static transform changes,
   // so useViewport re-measures pan-clamp bounds (ResizeObserver alone won't
@@ -182,6 +184,7 @@ export function OfficeView({
               transformOrigin: "center center",
               width: SCENE_W,
               height: SCENE_H,
+              ...skinVars,
             }}
           >
             <Walls

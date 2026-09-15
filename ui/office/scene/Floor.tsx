@@ -3,6 +3,7 @@ import { SCENE_W, SCENE_H, VB_X, VB_Y } from "../grid.ts";
 import { WallDoor, type DoorProps } from "./WallDoor.tsx";
 import { Corkboard, OfficePromptSign } from "./WallDecor.tsx";
 import { WallWindow } from "./WallWindow.tsx";
+import { SkinWalls } from "../skins/index.tsx";
 
 const SVG_STYLE: React.CSSProperties = {
   position: "absolute",
@@ -130,6 +131,8 @@ export function Walls({
       <path d="M-355 277.5 L-355 37.5 L120 -200 L120 40 Z" fill="var(--wall-left)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
       {/* Right wall (2:1 iso ratio) */}
       <path d="M120 -200 L120 40 L595 277.5 L595 37.5 Z" fill="var(--wall-right)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
+
+      <SkinWalls />
 
       {/* Window on left wall */}
       <WallWindow now={now} onToggleTheme={onToggleTheme} />

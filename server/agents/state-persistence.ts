@@ -69,6 +69,8 @@ export function saveLiveAgents(agents: Iterable<ManagedAgent>, rooms: InternalRo
     name: r.name,
     prompt: r.prompt,
     envFile: r.envFile,
+    pet: r.pet ?? null,
+    skin: r.skin ?? null,
     agents: [] as PersistedAgent[],
   }));
   for (const a of agents) {
