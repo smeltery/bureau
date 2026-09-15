@@ -10,6 +10,7 @@ export function useLogViewPanels(agentId: string) {
   const sidePanel = sidePanels.get(agentId) ?? null;
   const terminalOpen = sidePanel === "terminal";
   const editorOpen = sidePanel === "editor";
+  const browserOpen = sidePanel === "browser";
   const [editorInitialPath, setEditorInitialPath] = useState<string | null>(null);
   const { terminalWidth, editorWidth, terminalContainerRef, editorContainerRef, commitTerminalWidth, commitEditorWidth, getTerminalMax, getEditorMax } = useSidePanelLayout();
 
@@ -27,6 +28,15 @@ export function useLogViewPanels(agentId: string) {
       const prev = sidePanels.get(agentId) === "editor";
       const next = typeof value === "function" ? value(prev) : value;
       dispatch({ type: "set_side_panel", agentId, panel: next ? "editor" : null });
+    },
+    [dispatch, agentId, sidePanels],
+  );
+
+  const setBrowserOpen = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      const prev = sidePanels.get(agentId) === "browser";
+      const next = typeof value === "function" ? value(prev) : value;
+      dispatch({ type: "set_side_panel", agentId, panel: next ? "browser" : null });
     },
     [dispatch, agentId, sidePanels],
   );
@@ -59,8 +69,10 @@ export function useLogViewPanels(agentId: string) {
   return {
     terminalOpen,
     editorOpen,
+    browserOpen,
     setTerminalOpen,
     setEditorOpen,
+    setBrowserOpen,
     editorInitialPath,
     clearEditorInitialPath: () => setEditorInitialPath(null),
     openInEditor,

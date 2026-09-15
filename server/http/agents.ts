@@ -40,6 +40,7 @@ import { readAgentLogsIsolated } from "../agents/log-search-runner.ts";
  *   POST /api/agents/:id/read-file        — copy a file into the agent's files dir and
  *                                           emit a `file-view` card (body: { path }).
  *   POST /api/agents/:id/terminal-command — emit a [Copy to terminal] card (body: { command }).
+ *   GET/POST /api/agents/:id/browser     — experimental agent browser (session or bearer).
  *   POST /api/agents/:id/message          — queue an agent-to-agent message into the
  *                                           receiver's chat (body: { text, senderAgentId }).
  *   POST /api/agents/:id/messages         — send a user or bearer agent message.
@@ -255,6 +256,34 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       if (denied) return denied;
       void AgentManager.sendNow(agentId);
       return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+
+    // Human session path for the experimental agent browser (agents use bearer).
+    if (parts.length === 3 && parts[2] === "browser" && !readBearerToken(req)) {
+      const denied = requireUserAgentAccess(auth, agentId);
+      if (denied) return denied;
+      if (req.method === "GET") {
+        const { browserPool } = await import("../browser/session.ts");
+        const peek = browserPool.peek(agentId);
+        return new Response(
+          JSON.stringify({
+            enabled: AgentManager.getOfficeSettings().experimental.browserPanel,
+            ...peek,
+          }),
+          { headers: JSON_HEADERS },
+        );
+      }
+      if (req.method === "POST") {
+        const body = await readJsonBody(req);
+        if (!body) return jsonError(400, "invalid JSON body");
+        const result = await AgentManager.emitAgentBrowser(agentId, body);
+        if (!result.ok) {
+          const payload: Record<string, unknown> = { error: result.error };
+          if (result.code) payload.code = result.code;
+          return new Response(JSON.stringify(payload), { status: result.status, headers: JSON_HEADERS });
+        }
+        return new Response(JSON.stringify(result.result), { headers: JSON_HEADERS });
+      }
     }
   }
 

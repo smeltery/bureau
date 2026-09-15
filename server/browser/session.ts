@@ -109,6 +109,15 @@ export class BrowserPool {
     return [...this.sessions.keys()];
   }
 
+  /** Sync peek for UI status — empty when the agent has no open page. */
+  peek(agentId: string): { active: true; url: string } | { active: false } {
+    const session = this.sessions.get(agentId);
+    if (!session || session.page.isClosed() || !session.opened) return { active: false };
+    const url = session.page.url();
+    if (!url || url === "about:blank") return { active: false };
+    return { active: true, url };
+  }
+
   private serialize<T>(agentId: string, work: () => Promise<T>): Promise<T> {
     const prev = this.queues.get(agentId) ?? Promise.resolve();
     const result = prev.then(work, work);
