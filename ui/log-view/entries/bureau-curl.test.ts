@@ -14,7 +14,7 @@ describe("summarizeBureauCurl", () => {
 
   test("summarizes interactive browser actions", () => {
     expect(summarizeBureauCurl(`curl -s -X POST localhost:4000/api/agents/desk-1/browser -d '{"action":"goto","url":"http://127.0.0.1:3000/"}'`)).toBe(
-      "Bureau API: interactive browser - action=goto url=http://127.0.0.1:3000/",
+      "Bureau API: interactive browser - action=goto, url=http://127.0.0.1:3000/",
     );
   });
 
