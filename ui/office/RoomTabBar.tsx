@@ -9,7 +9,7 @@ import { RoomTabItem } from "./RoomTabItem.tsx";
 import { useRoomTabInteractions } from "./useRoomTabInteractions.ts";
 
 export function RoomTabBar() {
-  const { agents, currentRoom, rooms, needsAttention, presences, totalOnlineUsers, sessionContext } = useAppState();
+  const { agents, currentRoom, rooms, needsAttention, presences, totalOnlineUsers, sessionContext, lobbyOpen } = useAppState();
   const roomCount = rooms.length;
   const roomNames = rooms.map((r) => r.name);
   const dispatch = useDispatch();
@@ -70,8 +70,28 @@ export function RoomTabBar() {
         zIndex: 500,
       }}
     >
+      <button
+        type="button"
+        data-lobby-tab
+        onClick={() => dispatch({ type: "set_lobby_open", open: true })}
+        style={{
+          flexShrink: 0,
+          border: lobbyOpen ? "1px solid var(--accent)" : "1px solid transparent",
+          background: lobbyOpen ? "var(--accent-bg)" : "transparent",
+          color: lobbyOpen ? "var(--accent)" : "var(--text-dim)",
+          borderRadius: 6,
+          padding: "2px 10px",
+          fontSize: 12,
+          fontWeight: 600,
+          fontFamily: "'DM Sans', sans-serif",
+          cursor: "pointer",
+          height: 24,
+        }}
+      >
+        Lobby
+      </button>
       {Array.from({ length: roomCount }, (_, i) => {
-        const isActive = i === currentRoom;
+        const isActive = !lobbyOpen && i === currentRoom;
         const roomAgents = agents.filter((a) => a.room === i);
         const hasAttention = roomAgents.some((a) => needsAttention.has(a.id));
         const displayName = roomNames[i] ?? `Room ${i + 1}`;

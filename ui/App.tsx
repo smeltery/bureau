@@ -29,7 +29,7 @@ import { OPEN_ACCOUNT_SECTION_EVENT, type OpenAccountSectionDetail } from "./com
 import type { AccountSection } from "./components/UserSettingsSections.ts";
 
 export function App() {
-  const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext, hasReceivedInitialState } = useAppState();
+  const { agents, logs, focusedAgentId, isMobile, mobileViewMode, drafts, currentRoom, rooms, connected, sessionContext, hasReceivedInitialState, lobbyOpen } = useAppState();
   const dispatch = useDispatch();
   const restoredDraftUserRef = useRef<string | null>(null);
   const restoredViewUserRef = useRef<string | null>(null);
@@ -160,6 +160,7 @@ export function App() {
     focusedAgentId,
     sessionContext,
     rooms,
+    lobbyOpen,
     username,
     tasksOpen,
     cronjobsOpen,

@@ -12,6 +12,12 @@
     "ui/components/UserSettingsView.tsx": 360,
     "shared/agent-template-copy.ts": 370,
     "shared/i18n/es.ts": 300,
-    "shared/i18n/ca.ts": 300
+    "shared/i18n/ca.ts": 300,
+    "ui/office/lobby/LobbyScene.tsx": 661,
+    "ui/office/lobby/layouts.ts": 451,
+    "ui/office/lobby/props.tsx": 418,
+    "ui/office/lobby/props-decor.tsx": 846,
+    "ui/office/lobby/props-furniture.tsx": 850,
+    "ui/office/lobby/props-seating.tsx": 406
   }
 }

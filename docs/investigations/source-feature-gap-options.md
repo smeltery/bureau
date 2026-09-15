@@ -58,8 +58,10 @@ implementation stays in Bureau naming and architecture.
   desks, characters, or pets.
 - Humans-only team chat. Cookie sessions post and read an office-wide chat at
   `/team-chat`, persisted as monthly JSONL under `~/.bureau/members-chat/`;
-  agents and API tokens cannot participate. Full lobby SVG / receptionist stays
-  out of scope.
+  agents and API tokens cannot participate.
+- Lobby scene. Client `lobbyOpen` draws a Bureau-native isometric lobby (not a
+  desk `RoomWire`); receptionist click opens Team chat; presence may use
+  sentinel id `lobby`.
 
 ## Rejected
 
@@ -94,8 +96,8 @@ implementation stays in Bureau naming and architecture.
   screencast / binary frames into a side panel, persistent per-manager storage
   profiles, and public-origin browsing (explicitly rejected — Bureau keeps the
   tighter preview-url allowlist). A thin chat status strip ships with the MVP.
-- Full lobby room scene (SVG + receptionist). Team chat covers the members
-  messaging need without a second isometric room type.
+- Lobby follow-ons: seated lobby_move spots, employee-of-the-minute plaque,
+  live receptionist agent, lobby layout editor.
 - OpenCode follow-ons beyond the Bureau-native MVP: authority-broker / FFI peer
   auth, full credential-scan suite, live certification harness, darwin-only
   packaging polish beyond PATH detection, and a V2 client.

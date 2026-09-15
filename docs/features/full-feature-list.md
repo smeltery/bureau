@@ -63,6 +63,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Live user/device presence in the office.
 - Office-wide **Team chat** (`/team-chat`) for signed-in humans — monthly JSONL
   under `~/.bureau/members-chat/`, cookie session only (no agents / API tokens).
+- **Lobby** isometric scene (tab + Room 1 left door): warm wood lobby; click the
+  receptionist chip to open Team chat. Presence uses sentinel room id `lobby`.
 - Full-page user settings for profiles, access, self-service device links,
   personal API tokens, provider Connections (Claude/Codex status + API keys),
   ghost appearance, saved language preference (English / Spanish / Catalan /

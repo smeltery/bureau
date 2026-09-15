@@ -6,8 +6,8 @@
       "reason": "task-links (+ test) turn chat task ids into chips; markdown/math/katex already live beside Mermaid."
     },
     "ui": {
-      "limit": 45,
-      "reason": "navigation-helpers.ts holds pageFromFlags/cycleAgent extracted from useAppNavigation; i18n/routes stay beside store/bootstrap."
+      "limit": 46,
+      "reason": "store-lobby.test.ts covers lobbyOpen; navigation-helpers, i18n, and routes stay beside store/bootstrap."
     },
     "server": {
       "limit": 44,
@@ -18,8 +18,8 @@
       "reason": "members-chat.ts and agent-browser-route.ts are session surfaces; provider-accounts + idempotency already share this directory."
     },
     "shared": {
-      "limit": 47,
-      "reason": "members-chat.ts owns team-chat wire types/helpers; room-skins, agent-template catalog, and experimental settings already live here."
+      "limit": 48,
+      "reason": "members-chat, room-skins, agent-template catalog, experimental settings, and lobby sentinel id."
     },
     "server/http/__tests__": {
       "limit": 42,
@@ -27,7 +27,11 @@
     },
     "server/backends/opencode": {
       "limit": 12,
-      "reason": "OpenCode MVP backend: runtime resolve, supervisor, parse, transport(+events), session, adapter(+test), config, index — PATH-based, no authority-broker."
+      "reason": "OpenCode MVP backend: runtime resolve, supervisor, parse, transport(+events), session, adapter(+test), config, index \u2014 PATH-based, no authority-broker."
+    },
+    "ui/office/lobby": {
+      "limit": 16,
+      "reason": "Isometric lobby scene: geometry/palette/iso kit, layout registry, prop modules (seating/furniture/decor/plaque), LobbyScene + LobbyGhosts, employee helper, barrel, smoke test."
     }
   }
 }

@@ -68,7 +68,8 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Click the **framed sign** to edit the office-wide system prompt (injected into all agents)
 - Click the **moon/sun** through the window to flip between the user's last-picked dark and light themes (or open the theme picker in the header to choose among all 6)
 - Click the **neon sign** to visit
-- Click **doors** to switch between rooms
+- Click **doors** to switch between rooms (Room 1's left door opens the Lobby)
+- **Lobby** tab — isometric welcome scene; click the receptionist to open Team chat
 - Per-room **Look** (Room settings): classic Office or Hospital ward painting
 - **Opus** agents have a book on their desk; **Haiku** agents have crayons
 - The entire SVG scene (~1,600 lines of raw coordinates and bezier curves) was drawn by Claude Opus — no libraries, assets, or tools
@@ -163,7 +164,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Agents can message each other directly, choosing between queueing behind the receiver's current turn and steering (interrupting it — rate-limited, with the ack reporting honestly whether the message was delivered, queued, or steered)
 - You can ask one agent "What do you think of Agent X's approach?" and it just works — it reads the other agent's conversation and gives feedback
 - Shared task board: humans and agents can create, assign, claim, and close tasks — full interop via UI and HTTP API. Agents see tasks in rooms their manager can access; cron runs are limited to global tasks via their bearer token.
-- Team chat: humans-only office chat at /team-chat (REST /api/members-chat, WebSocket live updates, monthly JSONL under ~/.bureau/members-chat/). Agents do not post there.
+- Team chat: humans-only office chat at /team-chat (REST /api/members-chat, WebSocket live updates, monthly JSONL under ~/.bureau/members-chat/). Agents do not post there. The Lobby tab's receptionist opens the same panel.
 - Owners can mark selected agents with a privileged operator token from the agent settings dialog. A privileged token is accepted on the office-management routes — rooms (create, rename, close, settings, desk swaps), agent lifecycle (spawn, kill, edit, move, topic), and conversation steering (resume, new conversation, send-now, dequeue) — always scoped to the rooms and agents that agent's manager can see. It is deliberately refused on office settings and external access, invites, browser sessions, user records, view preferences, the terminal, and the privilege toggle itself, so no agent can ever make itself or another agent privileged. Normal agents get none of this authority.
 
 ### Persistence & Lifecycle

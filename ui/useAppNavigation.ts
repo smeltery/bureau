@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import type { AgentInfo, RoomWire, SessionContext } from "../shared/types.ts";
+import { LOBBY_ROOM_ID } from "../shared/lobby.ts";
 import type { Action } from "./store.tsx";
 import { send } from "./ws.ts";
 import { getDevice } from "./device-settings.ts";
@@ -26,6 +27,7 @@ export function useAppNavigation({
   focusedAgentId,
   sessionContext,
   rooms,
+  lobbyOpen,
   username,
   tasksOpen,
   cronjobsOpen,
@@ -55,6 +57,7 @@ export function useAppNavigation({
   focusedAgentId: string | null;
   sessionContext: SessionContext | null;
   rooms: RoomWire[];
+  lobbyOpen: boolean;
   username: string | null;
   tasksOpen: boolean;
   cronjobsOpen: boolean;
@@ -88,22 +91,36 @@ export function useAppNavigation({
   }, [username, connected]);
 
   const viewMode: ViewMode = tasksOpen || cronjobsOpen || appsOpen || pluginsOpen || teamChatOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
-  const presenceRoom = focusedAgent?.room ?? currentRoom;
-  const presenceRoomId = focusedAgent?.roomId ?? rooms[presenceRoom]?.id ?? null;
+  const presenceRoom = lobbyOpen ? null : (focusedAgent?.room ?? currentRoom);
+  const presenceRoomId = lobbyOpen ? LOBBY_ROOM_ID : (focusedAgent?.roomId ?? rooms[presenceRoom ?? 0]?.id ?? null);
   useEffect(() => {
     if (!sessionContext) return;
-    send({ type: "presence_update", currentRoom: presenceRoom, currentRoomId: presenceRoomId, focusedAgentId, viewMode, device: getDevice() });
-  }, [sessionContext, presenceRoom, presenceRoomId, focusedAgentId, viewMode]);
+    send({ type: "presence_update", currentRoom: presenceRoom, currentRoomId: presenceRoomId, focusedAgentId: lobbyOpen ? null : focusedAgentId, viewMode, device: getDevice() });
+  }, [sessionContext, presenceRoom, presenceRoomId, focusedAgentId, viewMode, lobbyOpen]);
 
   const swipeRoomNext = useCallback(() => {
-    if (roomCount <= 1) return;
-    dispatch({ type: "set_current_room", room: (currentRoom + 1) % roomCount });
-  }, [dispatch, currentRoom, roomCount]);
+    if (lobbyOpen) {
+      if (roomCount > 0) dispatch({ type: "set_current_room", room: 0 });
+      return;
+    }
+    if (currentRoom >= roomCount - 1) {
+      dispatch({ type: "set_lobby_open", open: true });
+      return;
+    }
+    dispatch({ type: "set_current_room", room: currentRoom + 1 });
+  }, [dispatch, currentRoom, roomCount, lobbyOpen]);
 
   const swipeRoomPrev = useCallback(() => {
-    if (roomCount <= 1) return;
-    dispatch({ type: "set_current_room", room: (currentRoom - 1 + roomCount) % roomCount });
-  }, [dispatch, currentRoom, roomCount]);
+    if (lobbyOpen) {
+      if (roomCount > 0) dispatch({ type: "set_current_room", room: roomCount - 1 });
+      return;
+    }
+    if (currentRoom <= 0) {
+      dispatch({ type: "set_lobby_open", open: true });
+      return;
+    }
+    dispatch({ type: "set_current_room", room: currentRoom - 1 });
+  }, [dispatch, currentRoom, roomCount, lobbyOpen]);
 
   const swipeAgentNext = useCallback(() => {
     const nextId = cycleAgent(agents, drafts, currentRoom, focusedAgentId, "next");

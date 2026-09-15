@@ -76,6 +76,7 @@ Then open **http://localhost:4000** and click an empty desk.
 - **Agent templates** — start from Blank or choose one of 12 editable profiles like Side Project Builder, Money Planner, Health Navigator, Code Reviewer, and Trip Planner; each fills the name, instructions, outfit, model, and effort before you spawn, using the member's UI language for the seeded name and instructions
 - **Real-time sync** — WebSocket keeps every connected device in lockstep
 - **Live presence** — other users and devices appear in the office with customizable ghosts, so shared rooms show who is around; User Settings also shows online state and owner-visible session recency in the user roster
+- **Lobby** — isometric lobby tab (warm wood scene); click the receptionist nametag to open Team chat; left door from Room 1 returns to Lobby
 - **Team chat** — office-wide humans-only chat at `/team-chat` (header button); cookie sessions only; persists as monthly JSONL under `~/.bureau/members-chat/`
 - **Room pet customisation** — each room can pick a sleepy office companion (cat, dog, rabbit, or tortoise) and coat from Room settings
 - **Room looks** — each room can draw as the classic office or a hospital ward (floor, walls, and props) from Room settings

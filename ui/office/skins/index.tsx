@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { effectiveRoomSkin, type RoomSkin } from "../../../shared/types.ts";
+import { DEFAULT_ROOM_SKIN, effectiveRoomSkin, type RoomSkin } from "../../../shared/types.ts";
 import { useAppState, useTheme } from "../../store.tsx";
 import type { ThemeMode } from "../../themes/index.ts";
 import { hospitalSceneVars } from "./hospital/palette.ts";
@@ -25,7 +25,8 @@ export const ROOM_SKIN_MODULES: Record<RoomSkin, RoomSkinModule> = {
 };
 
 export function useCurrentRoomSkin(): RoomSkin {
-  const { currentRoom, rooms } = useAppState();
+  const { currentRoom, rooms, lobbyOpen } = useAppState();
+  if (lobbyOpen) return DEFAULT_ROOM_SKIN;
   return effectiveRoomSkin(rooms[currentRoom]);
 }
 

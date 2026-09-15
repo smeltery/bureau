@@ -18,6 +18,8 @@ import { OfficeTopHud } from "./OfficeTopHud.tsx";
 import { OfficePeopleLayer } from "./OfficePeopleLayer.tsx";
 import { useOfficeDoorFeedback } from "./hooks/useOfficeDoorFeedback.ts";
 import { useRoomSkinVars } from "./skins/index.tsx";
+import { LobbyScene } from "./lobby/index.ts";
+import { LobbyReceptionist } from "./LobbyReceptionist.tsx";
 
 // Pixel coords (scene-container space) where ghosts park when sliding
 // to/from a door on a room switch. Roughly centered horizontally on the
@@ -69,12 +71,12 @@ export function OfficeView({
   onSwipeRight?: () => void;
   viewportControlsRef?: React.RefObject<ViewportControls | null>;
 }) {
-  const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateStatus, presences, sessionContext } = useAppState();
+  const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateStatus, presences, sessionContext, lobbyOpen } = useAppState();
   const roomCount = rooms.length;
   const roomNames = rooms.map((r) => r.name);
   const officePrompt = office.prompt;
   const dispatch = useDispatch();
-  const { cycleTheme } = useTheme();
+  const { cycleTheme, mode } = useTheme();
   const { embed } = useFeatures();
   const skinVars = useRoomSkinVars();
   const mobileScale = isMobile ? screen.width / (SCENE_W - 200) : 1;
@@ -187,66 +189,97 @@ export function OfficeView({
               transformOrigin: "center center",
               width: SCENE_W,
               height: SCENE_H,
-              ...skinVars,
+              ...(lobbyOpen ? {} : skinVars),
             }}
           >
-            <Walls
-              onToggleTheme={cycleTheme}
-              onWallPanelClick={(x, y) => setWallMenu({ x, y })}
-              hasOfficePrompt={!!officePrompt}
-              onOpenTasks={onOpenTasks}
-              onOpenCronjobs={embed ? undefined : onOpenCronjobs}
-              onOpenSettings={embed ? undefined : onEditUsername}
-              onOpenApps={embed ? undefined : onOpenApps}
-              taskCount={tasks.filter((t) => t.status !== "done" && t.status !== "backlog").length}
-              leftDoor={
-                currentRoom > 0
-                  ? {
-                      label: roomNames[currentRoom - 1] ?? `Room ${currentRoom}`,
-                      onClick: () => dispatch({ type: "set_current_room", room: currentRoom - 1 }),
-                      dragOver: doorFeedback.leftDoorDragOver,
-                      reject: doorFeedback.leftDoorReject,
-                    }
-                  : null
-              }
-              rightDoor={
-                currentRoom < roomCount - 1
-                  ? {
-                      label: roomNames[currentRoom + 1] ?? `Room ${currentRoom + 2}`,
-                      onClick: () => dispatch({ type: "set_current_room", room: currentRoom + 1 }),
-                      dragOver: doorFeedback.rightDoorDragOver,
-                      reject: doorFeedback.rightDoorReject,
-                    }
-                  : null
-              }
-            />
-            <Floor />
-            <RoomProps />
-            <Seasonal />
-            <RoomDoorDropZones
-              agents={agents}
-              currentRoom={currentRoom}
-              roomAgents={roomAgents}
-              rooms={rooms}
-              roomCount={roomCount}
-              onSetRoom={setCurrentRoom}
-              onLeftDragOverChange={doorFeedback.setLeftDoorDragOver}
-              onRightDragOverChange={doorFeedback.setRightDoorDragOver}
-              onLeftReject={doorFeedback.rejectLeftDoor}
-              onRightReject={doorFeedback.rejectRightDoor}
-            />
-            <OfficePeopleLayer
-              roomAgents={roomAgents}
-              rooms={rooms}
-              currentRoom={currentRoom}
-              needsAttention={needsAttention}
-              stateChangedAt={stateChangedAt}
-              ghostPlacements={ghostPlacements}
-              onSpawn={onSpawn}
-              onFocusAgent={(agentId) => dispatch({ type: "focus", agentId })}
-              onContextMenu={onContextMenu}
-              onOpenUserSettingsForUser={onOpenUserSettingsForUser}
-            />
+            {lobbyOpen ? (
+              <LobbyScene
+                rooms={rooms.map((r) => ({ id: r.id, name: r.name }))}
+                officeName={null}
+                mode={mode}
+                layout="fireside"
+                presences={presences}
+                ownConnectionId={sessionContext?.connectionId ?? null}
+                onOpenUser={onOpenUserSettingsForUser}
+                receptionist={<LobbyReceptionist onOpenTeamChat={onOpenTeamChat} />}
+                rightDoor={
+                  rooms[0]
+                    ? {
+                        label: rooms[0].name,
+                        onClick: () => dispatch({ type: "set_current_room", room: 0 }),
+                      }
+                    : null
+                }
+                onToggleTheme={cycleTheme}
+                onOpenApps={embed ? undefined : onOpenApps}
+                onOpenCronjobs={embed ? undefined : onOpenCronjobs}
+              />
+            ) : (
+              <>
+                <Walls
+                  onToggleTheme={cycleTheme}
+                  onWallPanelClick={(x, y) => setWallMenu({ x, y })}
+                  hasOfficePrompt={!!officePrompt}
+                  onOpenTasks={onOpenTasks}
+                  onOpenCronjobs={embed ? undefined : onOpenCronjobs}
+                  onOpenSettings={embed ? undefined : onEditUsername}
+                  onOpenApps={embed ? undefined : onOpenApps}
+                  taskCount={tasks.filter((t) => t.status !== "done" && t.status !== "backlog").length}
+                  leftDoor={
+                    currentRoom > 0
+                      ? {
+                          label: roomNames[currentRoom - 1] ?? `Room ${currentRoom}`,
+                          onClick: () => dispatch({ type: "set_current_room", room: currentRoom - 1 }),
+                          dragOver: doorFeedback.leftDoorDragOver,
+                          reject: doorFeedback.leftDoorReject,
+                        }
+                      : {
+                          label: "Lobby",
+                          onClick: () => dispatch({ type: "set_lobby_open", open: true }),
+                          dragOver: doorFeedback.leftDoorDragOver,
+                          reject: doorFeedback.leftDoorReject,
+                        }
+                  }
+                  rightDoor={
+                    currentRoom < roomCount - 1
+                      ? {
+                          label: roomNames[currentRoom + 1] ?? `Room ${currentRoom + 2}`,
+                          onClick: () => dispatch({ type: "set_current_room", room: currentRoom + 1 }),
+                          dragOver: doorFeedback.rightDoorDragOver,
+                          reject: doorFeedback.rightDoorReject,
+                        }
+                      : null
+                  }
+                />
+                <Floor />
+                <RoomProps />
+                <Seasonal />
+                <RoomDoorDropZones
+                  agents={agents}
+                  currentRoom={currentRoom}
+                  roomAgents={roomAgents}
+                  rooms={rooms}
+                  roomCount={roomCount}
+                  onSetRoom={setCurrentRoom}
+                  onLeftDragOverChange={doorFeedback.setLeftDoorDragOver}
+                  onRightDragOverChange={doorFeedback.setRightDoorDragOver}
+                  onLeftReject={doorFeedback.rejectLeftDoor}
+                  onRightReject={doorFeedback.rejectRightDoor}
+                />
+                <OfficePeopleLayer
+                  roomAgents={roomAgents}
+                  rooms={rooms}
+                  currentRoom={currentRoom}
+                  needsAttention={needsAttention}
+                  stateChangedAt={stateChangedAt}
+                  ghostPlacements={ghostPlacements}
+                  onSpawn={onSpawn}
+                  onFocusAgent={(agentId) => dispatch({ type: "focus", agentId })}
+                  onContextMenu={onContextMenu}
+                  onOpenUserSettingsForUser={onOpenUserSettingsForUser}
+                />
+              </>
+            )}
           </div>
         </div>
 

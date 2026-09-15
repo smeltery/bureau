@@ -1,5 +1,6 @@
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand } from "../../shared/types.ts";
+import { LOBBY_ROOM_ID } from "../../shared/lobby.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { evictSessionsForUserId } from "../auth/auth.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
@@ -61,6 +62,8 @@ export async function handleUserCommand(cmd: ClientCommand, ws: ServerWebSocket<
       const rooms = AgentManager.getRooms();
       const visibleRooms = user.role === "owner" ? rooms : rooms.filter((r) => user.allowedRooms.includes(r.id));
       const visibleRoomIds = new Set(visibleRooms.map((r) => r.id));
+      // Lobby is a client scene, not a desk RoomWire — every signed-in member may stand there.
+      visibleRoomIds.add(LOBBY_ROOM_ID);
       const roomId =
         cmd.currentRoomId && visibleRoomIds.has(cmd.currentRoomId)
           ? cmd.currentRoomId

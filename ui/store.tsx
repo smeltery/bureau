@@ -87,6 +87,8 @@ export interface AppState {
   // enough — the race is a GET against a DELTA.
   appsRevision: number;
   currentRoom: number; // 0-based room index (view selection only)
+  /** When true, OfficeView draws the lobby scene instead of the current desk room. */
+  lobbyOpen: boolean;
   cronjobs: Cronjob[];
   cronjobsLoaded: boolean;
   cronjobsPrompt: string | null;
@@ -147,6 +149,7 @@ export type Action =
   | { type: "app_updated"; app: AppListWire }
   | { type: "app_removed"; name: string }
   | { type: "set_current_room"; room: number }
+  | { type: "set_lobby_open"; open: boolean }
   | { type: "room_created"; room: RoomWire }
   | { type: "room_closed"; roomId: string }
   | { type: "room_renamed"; roomId: string; name: string }

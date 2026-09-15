@@ -196,7 +196,9 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, apps: state.apps.filter((a) => a.name !== action.name), appsRevision: state.appsRevision + 1 };
     }
     case "set_current_room":
-      return { ...state, currentRoom: action.room };
+      return { ...state, currentRoom: action.room, lobbyOpen: false };
+    case "set_lobby_open":
+      return { ...state, lobbyOpen: action.open };
     case "room_created":
       return { ...state, rooms: [...state.rooms, action.room] };
     case "update_status":

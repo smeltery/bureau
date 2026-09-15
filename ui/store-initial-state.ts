@@ -36,6 +36,7 @@ export const initialState: AppState = {
   appsLoaded: false,
   appsRevision: 0,
   currentRoom: 0,
+  lobbyOpen: false,
   cronjobs: [],
   cronjobsLoaded: false,
   cronjobsPrompt: null,

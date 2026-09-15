@@ -52,6 +52,7 @@ export type { ProviderAccountProvider, ProviderAccountStatus, ProviderAccountWir
 export type { EnsureSlideReq, EnsureSlideRes, SlideDeck, SlideDeckRes, SlideFailureReason, SlideRecord } from "./slides.ts";
 export { generateHexId, generateTaskId, isValidPriority, isValidStatus } from "./tasks.ts";
 export type { TaskItem, TaskPriority, TaskStatus } from "./tasks.ts";
+export { LOBBY_ROOM_ID } from "./lobby.ts";
 export type {
   ApiTokenInboxDrainRes,
   ApiTokenInboxMessage,
