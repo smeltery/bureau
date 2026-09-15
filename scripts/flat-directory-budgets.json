@@ -6,24 +6,24 @@
       "reason": "task-links (+ test) turn chat task ids into chips; markdown/math/katex already live beside Mermaid."
     },
     "ui": {
-      "limit": 44,
-      "reason": "i18n.tsx (+ test) hosts LanguageProvider/useI18n beside store/bootstrap; routes.ts (+ test) owns bookmarkable panel paths."
+      "limit": 45,
+      "reason": "navigation-helpers.ts holds pageFromFlags/cycleAgent extracted from useAppNavigation; i18n/routes stay beside store/bootstrap."
     },
     "server": {
       "limit": 44,
       "reason": "oom-stamp.ts (+ test) biases descendant oom_score_adj; process-name.ts (+ test) renames the office to `bureau` so name-based protectors can shield it without shielding agent bun builds. Both stay flat boot-time modules beside backup.ts / update-checker.ts."
     },
     "server/http": {
-      "limit": 42,
-      "reason": "provider-accounts.ts serves Connections REST; idempotency.ts is the shared Idempotency-Key cache for API-token send/drain."
+      "limit": 44,
+      "reason": "members-chat.ts and agent-browser-route.ts are session surfaces; provider-accounts + idempotency already share this directory."
     },
     "shared": {
       "limit": 47,
       "reason": "members-chat.ts owns team-chat wire types/helpers; room-skins, agent-template catalog, and experimental settings already live here."
     },
     "server/http/__tests__": {
-      "limit": 41,
-      "reason": "provider-accounts.test.ts covers Connections status listing and key-update secret hygiene."
+      "limit": 42,
+      "reason": "members-chat.test.ts covers cookie-session ACL (refuse API tokens / loopback) plus pin/delete ownership."
     },
     "server/backends/opencode": {
       "limit": 12,
