@@ -8,7 +8,7 @@ import { AgentWorkingDirectoryField } from "./AgentWorkingDirectoryField.tsx";
 import { dialogInput, dialogLabel } from "./dialog-styles.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 import { useEditAgentDialogController } from "./useEditAgentDialogController.ts";
-import { AGENT_TEMPLATES, type AgentTemplate } from "../../agent-templates.ts";
+import { AGENT_TEMPLATES, templateDescription, templateLabel, type AgentTemplate } from "../../agent-templates.ts";
 import { ENGINE_ACCENT, ENGINE_OPTIONS } from "./engine-options.ts";
 import { useAppState } from "../../store.tsx";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
@@ -238,6 +238,7 @@ function ReviveAgentSection({ deskIndex, roomId, killedAgents, onRevived }: { de
 }
 
 function AgentTemplatePicker({ selectedKey, onPick }: { selectedKey: string | null; onPick: (template: AgentTemplate | null) => void }) {
+  const { language } = useI18n();
   return (
     <div style={{ marginBottom: 14 }}>
       <label style={labelStyle}>Template</label>
@@ -246,8 +247,8 @@ function AgentTemplatePicker({ selectedKey, onPick }: { selectedKey: string | nu
           Blank
         </button>
         {AGENT_TEMPLATES.map((template) => (
-          <button key={template.key} onClick={() => onPick(template)} title={template.description} style={templateButtonStyle(selectedKey === template.key)} type="button">
-            {template.label}
+          <button key={template.key} onClick={() => onPick(template)} title={templateDescription(template, language)} style={templateButtonStyle(selectedKey === template.key)} type="button">
+            {templateLabel(template, language)}
           </button>
         ))}
       </div>

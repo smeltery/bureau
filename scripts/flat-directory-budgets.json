@@ -1,6 +1,10 @@
 {
   "default_files": 40,
   "directories": {
+    "ui/log-view": {
+      "limit": 44,
+      "reason": "task-links (+ test) turn chat task ids into chips; markdown/math/katex already live beside Mermaid."
+    },
     "ui": {
       "limit": 44,
       "reason": "i18n.tsx (+ test) hosts LanguageProvider/useI18n beside store/bootstrap; routes.ts (+ test) owns bookmarkable panel paths."

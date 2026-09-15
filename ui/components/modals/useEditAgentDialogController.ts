@@ -54,7 +54,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const [agentType, setAgentType] = useState<AgentBackendType>(initialAgentType);
 
   const { recentCwds: allRecentCwds, isMobile, agents, rooms, sessionContext } = useAppState();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const roomCount = rooms.length;
   const [name, setName] = useState(agent?.name ?? "");
   const [cwd, setCwd] = useState(agent?.cwd ?? props.defaultCwd ?? "~");
@@ -281,7 +281,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       setOutfit(makeRandomOutfit());
       return;
     }
-    const values = templateFormValues(template, agentType, { modelFamily, effort, permissionMode });
+    const values = templateFormValues(template, agentType, { modelFamily, effort, permissionMode }, language);
     setSelectedTemplateKey(template.key);
     setName(values.name);
     setCustomInstructions(values.customInstructions);
