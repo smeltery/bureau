@@ -139,7 +139,7 @@ marked.use({
         return { type: "taskId", raw: match[0], id: match[0] };
       },
       renderer(token) {
-        const id = (token as { id: string }).id;
+        const id = (token as unknown as { id: string }).id;
         return `<span data-task-id="${id}">${id}</span>`;
       },
     },
