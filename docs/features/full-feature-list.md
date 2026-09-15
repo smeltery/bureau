@@ -61,6 +61,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Invite-link authentication with owner and member roles.
 - Active session revocation and one-time invite management.
 - Live user/device presence in the office.
+- Office-wide **Team chat** (`/team-chat`) for signed-in humans — monthly JSONL
+  under `~/.bureau/members-chat/`, cookie session only (no agents / API tokens).
 - Full-page user settings for profiles, access, self-service device links,
   personal API tokens, provider Connections (Claude/Codex status + API keys),
   ghost appearance, saved language preference (English / Spanish / Catalan /
@@ -89,8 +91,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Keyboard shortcuts `t` (toggle Tasks), `a` (toggle Apps), and `s` (open
   Settings) when not typing.
 - Bookmarkable full-page URLs for Tasks (`/tasks`), Schedules (`/schedules`),
-  Apps (`/apps`), Plugins (`/plugins`), and Settings (`/settings`); agent chats
-  stay on `/`. Legacy `/cronjobs` and `/users` still open Schedules / Settings.
+  Apps (`/apps`), Plugins (`/plugins`), Team chat (`/team-chat`, alias `/chat`),
+  and Settings (`/settings`); agent chats stay on `/`. Legacy `/cronjobs` and
+  `/users` still open Schedules / Settings.
 - Topic labels so long-running agents remain recognizable at a glance.
 - Mobile agent list view for smaller screens.
 

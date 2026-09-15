@@ -31,6 +31,7 @@ import { handleFilesRequest } from "./files.ts";
 import { handleInvitesRequest } from "./invites.ts";
 import { handleLiveReloadRequest } from "./live-reload.ts";
 import { handleMemoryRequest } from "./memory.ts";
+import { handleMembersChatRequest } from "./members-chat.ts";
 import { handleEnvSettingsRequest, handleOfficeSettingsRequest } from "./office-settings.ts";
 import { handleProviderAccountsRequest } from "./provider-accounts.ts";
 import { handlePluginsRequest } from "./plugins.ts";
@@ -249,6 +250,9 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
   const memoryResp = await handleMemoryRequest(req, url, httpAuth);
   if (memoryResp) return memoryResp;
+
+  const membersChatResp = await handleMembersChatRequest(req, url, httpAuth);
+  if (membersChatResp) return membersChatResp;
 
   // The office half of the app sign-in handshake: mint a single-use code for
   // an app the caller may reach. On the OFFICE host (this is not an app host —

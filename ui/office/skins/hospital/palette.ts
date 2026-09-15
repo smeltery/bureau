@@ -20,11 +20,9 @@ import type { ThemeMode } from "../../../themes/index.ts";
 const DAY: Record<string, string> = {
   "--floor-light": "#e7efea",
   "--floor-dark": "#dbe6e0",
-  "--floor-edge-light-left":
-    "color-mix(in srgb, var(--floor-light) 92%, black)",
+  "--floor-edge-light-left": "color-mix(in srgb, var(--floor-light) 92%, black)",
   "--floor-edge-dark-left": "color-mix(in srgb, var(--floor-dark) 92%, black)",
-  "--floor-edge-light-right":
-    "color-mix(in srgb, var(--floor-light) 84%, black)",
+  "--floor-edge-light-right": "color-mix(in srgb, var(--floor-light) 84%, black)",
   "--floor-edge-dark-right": "color-mix(in srgb, var(--floor-dark) 84%, black)",
   "--floor-stroke": "rgba(24,64,54,0.07)",
   "--wall-left": "#d7e5e0",
@@ -43,11 +41,9 @@ const DAY: Record<string, string> = {
 const NIGHT: Record<string, string> = {
   "--floor-light": "#1c2b29",
   "--floor-dark": "#182523",
-  "--floor-edge-light-left":
-    "color-mix(in srgb, var(--floor-light) 86%, white)",
+  "--floor-edge-light-left": "color-mix(in srgb, var(--floor-light) 86%, white)",
   "--floor-edge-dark-left": "color-mix(in srgb, var(--floor-dark) 90%, white)",
-  "--floor-edge-light-right":
-    "color-mix(in srgb, var(--floor-light) 90%, white)",
+  "--floor-edge-light-right": "color-mix(in srgb, var(--floor-light) 90%, white)",
   "--floor-edge-dark-right": "color-mix(in srgb, var(--floor-dark) 94%, white)",
   "--floor-stroke": "rgba(255,255,255,0.02)",
   "--wall-left": "#16231f",

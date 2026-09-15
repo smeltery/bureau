@@ -41,12 +41,17 @@ export const CRONJOBS_FILE = join(CRONJOBS_DIR, "cronjobs.json");
 export const CRONJOB_HISTORY_FILE = join(CRONJOBS_DIR, "cronjob-history.json");
 export const CRONJOBS_PROMPT_FILE = join(CRONJOBS_DIR, "cronjobs-prompt.md");
 
+// Office-wide humans-only team chat. Monthly JSONL under this directory —
+// see server/members-chat/ and docs/features/members-chat.md.
+export const MEMBERS_CHAT_DIR = join(BUREAU_DIR, "members-chat");
+
 // Ensure directories exist
 try {
   mkdirSync(BUREAU_DIR, { recursive: true });
   mkdirSync(LOGS_DIR, { recursive: true });
   mkdirSync(CRONJOBS_DIR, { recursive: true });
   mkdirSync(API_TOKEN_LOGS_DIR, { recursive: true });
+  mkdirSync(MEMBERS_CHAT_DIR, { recursive: true });
 } catch {}
 
 // Atomic file write: write to a sibling .tmp file then rename. Renames are

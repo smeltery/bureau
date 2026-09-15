@@ -2,7 +2,7 @@ import { getBrowserStorage, storageGetItem, storageSetItem, type BrowserStorage 
 
 const VIEW_KEY = "bureau:view";
 
-export type SavedPanel = "tasks" | "cronjobs" | "apps" | "plugins";
+export type SavedPanel = "tasks" | "cronjobs" | "apps" | "plugins" | "team-chat";
 
 export interface SavedView {
   user: string;
@@ -28,7 +28,7 @@ function readId(value: unknown): string | null | undefined {
 
 function readPanel(value: unknown): SavedPanel | null | undefined {
   if (value === null || value === undefined) return null;
-  return value === "tasks" || value === "cronjobs" || value === "apps" || value === "plugins" ? value : undefined;
+  return value === "tasks" || value === "cronjobs" || value === "apps" || value === "plugins" || value === "team-chat" ? value : undefined;
 }
 
 export function parseSavedView(raw: string | null): SavedView | null {

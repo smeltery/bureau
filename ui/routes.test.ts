@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { pageForPath, pathForPage, type Page } from "./routes.ts";
 
-const PAGES: Page[] = ["tasks", "schedules", "apps", "plugins", "settings"];
+const PAGES: Page[] = ["tasks", "schedules", "apps", "plugins", "settings", "team-chat"];
 
 describe("pageForPath", () => {
   test("maps each canonical panel path", () => {
@@ -16,13 +16,16 @@ describe("pageForPath", () => {
   test("forgives trailing slashes", () => {
     expect(pageForPath("/tasks/")).toBe("tasks");
     expect(pageForPath("/settings//")).toBe("settings");
+    expect(pageForPath("/team-chat/")).toBe("team-chat");
   });
 
   test("accepts legacy aliases without producing them", () => {
     expect(pageForPath("/cronjobs")).toBe("schedules");
     expect(pageForPath("/users")).toBe("settings");
+    expect(pageForPath("/chat")).toBe("team-chat");
     expect(pathForPage("schedules")).toBe("/schedules");
     expect(pathForPage("settings")).toBe("/settings");
+    expect(pathForPage("team-chat")).toBe("/team-chat");
   });
 
   test("rejects case variants and non-routes", () => {

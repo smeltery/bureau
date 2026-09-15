@@ -42,6 +42,7 @@ export function MobileHeader({
   onOpenDeviceSettings,
   onEditOfficePrompt,
   onEditRoomSettings,
+  onOpenTeamChat,
   updateAvailable,
   onOpenUpdate,
 }: {
@@ -53,6 +54,7 @@ export function MobileHeader({
   onOpenDeviceSettings?: () => void;
   onEditOfficePrompt: () => void;
   onEditRoomSettings?: () => void;
+  onOpenTeamChat?: () => void;
   updateAvailable?: boolean;
   onOpenUpdate?: () => void;
 }) {
@@ -145,6 +147,7 @@ export function MobileHeader({
           onOpenDeviceSettings={onOpenDeviceSettings}
           onEditOfficePrompt={onEditOfficePrompt}
           onEditRoomSettings={onEditRoomSettings}
+          onOpenTeamChat={onOpenTeamChat}
         />
       </div>
     </div>

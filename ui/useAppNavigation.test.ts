@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentInfo } from "../shared/types.ts";
-import { cycleAgent } from "./useAppNavigation.ts";
+import { cycleAgent } from "./navigation-helpers.ts";
 
 const agents = [agent("idle-a", 0, "idle"), agent("thinking-b", 1, "thinking"), agent("idle-c", 2, "idle"), agent("stopped-d", 3, "stopped"), { ...agent("other-room", 0, "thinking"), room: 1 }];
 

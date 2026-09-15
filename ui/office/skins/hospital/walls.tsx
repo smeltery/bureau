@@ -32,20 +32,8 @@ function CrossSign({ c }: { c: HospitalColors }) {
   const reach = 19;
   return (
     <g transform="translate(190, -10) skewY(27)">
-      <rect
-        x={-reach - 5}
-        y={-reach - 5}
-        width={(reach + 5) * 2}
-        height={(reach + 5) * 2}
-        rx="3"
-        fill={c.crossPlate}
-        stroke={c.crossPlateEdge}
-        strokeWidth="1.2"
-      />
-      <path
-        d={`M${-arm} ${-reach} H${arm} V${-arm} H${reach} V${arm} H${arm} V${reach} H${-arm} V${arm} H${-reach} V${-arm} H${-arm} Z`}
-        fill={c.cross}
-      />
+      <rect x={-reach - 5} y={-reach - 5} width={(reach + 5) * 2} height={(reach + 5) * 2} rx="3" fill={c.crossPlate} stroke={c.crossPlateEdge} strokeWidth="1.2" />
+      <path d={`M${-arm} ${-reach} H${arm} V${-arm} H${reach} V${arm} H${arm} V${reach} H${-arm} V${arm} H${-reach} V${-arm} H${-arm} Z`} fill={c.cross} />
     </g>
   );
 }

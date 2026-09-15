@@ -3,6 +3,7 @@ import type { AppListWire } from "./apps.ts";
 import type { CCPluginsState } from "./cc-plugin-types.ts";
 import type { Cronjob, CronjobRun } from "./cronjobs.ts";
 import type { LogEntry } from "./log-types.ts";
+import type { MembersChatMessage } from "./members-chat.ts";
 import type { SlideFailureReason, SlideRecord } from "./slides.ts";
 import type { TaskItem } from "./tasks.ts";
 import type { InviteWire, OfficeSettings, PresenceInfo, RoomPet, RoomWire, SessionContext, SessionWire, UserRecord } from "./user-types.ts";
@@ -103,6 +104,10 @@ export type ServerMessage =
   | { type: "editor_open_error"; agentId: string; path: string; reason: "not_found" | "not_file" | "binary" | "too_large" | "io_error" | "bad_path"; message?: string; size?: number }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
   | { type: "tasks"; tasks: TaskItem[] }
+  // Office-wide humans-only team chat. `updateOnly` replaces an already-held
+  // message (pin/unpin) without appending.
+  | { type: "members_chat_message"; message: MembersChatMessage; updateOnly?: boolean }
+  | { type: "members_chat_deleted"; id: string }
   // App registry changes. `app_updated` carries the recipient's list projection.
   | { type: "app_updated"; app: AppListWire }
   | { type: "app_removed"; name: string }
