@@ -10,7 +10,7 @@
     "server/apps/supervisor.ts": 1172,
     "server/http/__tests__/apps.test.ts": 454,
     "ui/components/UserSettingsView.tsx": 360,
-    "shared/i18n/en.ts": 300,
+    "shared/agent-template-copy.ts": 370,
     "shared/i18n/es.ts": 300,
     "shared/i18n/ca.ts": 300
   }

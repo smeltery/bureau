@@ -9,7 +9,7 @@ function fullState() {
     type: "full_state" as const,
     agents: [],
     recentCwds: [],
-    office: { prompt: null, envFile: null, previewAllowHosts: [] },
+    office: { prompt: null, envFile: null, previewAllowHosts: [], experimental: { browserPanel: false } },
     rooms: [],
     killedAgents: [],
   };

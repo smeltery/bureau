@@ -112,6 +112,7 @@ export async function handleAccessSettingsCommand(
           networkBind: prevCfg.networkBind,
           officeName: nextOfficeName,
           previewAllowHosts,
+          experimental: prevCfg.experimental,
         });
       } catch (err) {
         ws.send(

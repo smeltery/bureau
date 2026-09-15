@@ -16,6 +16,7 @@ import { useLogViewPanels } from "./hooks/useLogViewPanels.ts";
 import { useLogViewInput } from "./hooks/useLogViewInput.ts";
 import { useLogViewCite } from "./hooks/useLogViewCite.ts";
 import { storageGetItem, storageSetItem } from "../browser-storage.ts";
+import { BrowserPanel } from "./BrowserPanel.tsx";
 import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 import { LogMessagesPane } from "./LogMessagesPane.tsx";
 import { LogViewPanelHost } from "./side-panels/LogViewPanelHost.tsx";
@@ -48,10 +49,11 @@ export function LogView({
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
 }) {
-  const { drafts, slashCommands, stateChangedAt, isMobile, connected, tasks } = useAppState();
+  const { drafts, slashCommands, stateChangedAt, isMobile, connected, tasks, office } = useAppState();
   const dispatch = useDispatch();
   const features = useFeatures();
   const panels = useLogViewPanels(agent.id);
+  const browserEnabled = office.experimental?.browserPanel === true;
   const slideMode = useSlideMode(agent.id);
   const speechLocale = useSpeechLocale();
   const taskMap = useMemo<TaskMap>(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
@@ -241,11 +243,16 @@ export function LogView({
           setTerminalOpen={panels.setTerminalOpen}
           editorOpen={panels.editorOpen}
           setEditorOpen={panels.setEditorOpen}
+          browserOpen={panels.browserOpen}
+          setBrowserOpen={panels.setBrowserOpen}
+          browserEnabled={browserEnabled}
           slideModeEnabled={slideMode.enabled}
           slideView={slideMode.active}
           setSlideView={slideMode.setActive}
           getConversationText={getConversationText}
         />
+
+        {browserEnabled && panels.browserOpen && <BrowserPanel agentId={agent.id} onClose={() => panels.setBrowserOpen(false)} />}
 
         {pinnedMessage && <PinnedUserMessageBanner pinnedMessage={pinnedMessage} isMobile={isMobile} onClick={scrollToPinnedMessage} />}
 

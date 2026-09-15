@@ -13,6 +13,9 @@ export function HeaderActions({
   setTerminalOpen,
   editorOpen,
   setEditorOpen,
+  browserOpen,
+  setBrowserOpen,
+  browserEnabled,
   slideModeEnabled,
   slideView,
   setSlideView,
@@ -26,6 +29,9 @@ export function HeaderActions({
   setTerminalOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
   editorOpen: boolean;
   setEditorOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
+  browserOpen?: boolean;
+  setBrowserOpen?: (v: boolean | ((prev: boolean) => boolean)) => void;
+  browserEnabled?: boolean;
   slideModeEnabled?: boolean;
   slideView?: boolean;
   setSlideView?: (active: boolean) => void;
@@ -111,6 +117,27 @@ export function HeaderActions({
         {mode === "dark" ? <MoonIcon /> : <SunIcon />}
       </button>
       <ThemePicker open={themePickerOpen} onClose={() => setThemePickerOpen(false)} />
+      {browserEnabled && setBrowserOpen && (
+        <button
+          onClick={() => setBrowserOpen((prev) => !prev)}
+          title={browserOpen ? "Close agent browser" : "Open agent browser (experimental)"}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "4px 10px",
+            borderRadius: 6,
+            border: `1px solid ${browserOpen ? "var(--green-border)" : "var(--border-medium)"}`,
+            background: browserOpen ? "var(--green-bg)" : "var(--btn-surface)",
+            color: browserOpen ? "var(--green)" : "var(--text-dim)",
+            fontSize: 12,
+            cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+        >
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>Br</span>
+        </button>
+      )}
       {features.editor && (
         <button
           onClick={() => setEditorOpen((prev) => !prev)}

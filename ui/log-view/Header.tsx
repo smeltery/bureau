@@ -22,6 +22,9 @@ export function Header({
   setTerminalOpen,
   editorOpen,
   setEditorOpen,
+  browserOpen,
+  setBrowserOpen,
+  browserEnabled,
   slideModeEnabled,
   slideView,
   setSlideView,
@@ -38,6 +41,9 @@ export function Header({
   setTerminalOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
   editorOpen: boolean;
   setEditorOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
+  browserOpen?: boolean;
+  setBrowserOpen?: (v: boolean | ((prev: boolean) => boolean)) => void;
+  browserEnabled?: boolean;
   slideModeEnabled?: boolean;
   slideView?: boolean;
   setSlideView?: (active: boolean) => void;
@@ -155,6 +161,9 @@ export function Header({
         setTerminalOpen={setTerminalOpen}
         editorOpen={editorOpen}
         setEditorOpen={setEditorOpen}
+        browserOpen={browserOpen}
+        setBrowserOpen={setBrowserOpen}
+        browserEnabled={browserEnabled}
         slideModeEnabled={slideModeEnabled}
         slideView={slideView}
         setSlideView={setSlideView}

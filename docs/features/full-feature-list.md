@@ -146,6 +146,11 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Copy-to-terminal cards for commands an agent wants to hand to the user.
 - File-view cards for agent-exposed files.
 - Browser preview cards for local/private development URLs.
+- Experimental interactive agent browser (opt-in `experimental.browserPanel` in
+  Office Settings, off by default): `POST /api/agents/:id/browser` for
+  goto/snapshot/click/fill/press/screenshot/close against the same local/private
+  + allowlist URL policy. Uses host Chrome via Playwright (Chromium not bundled).
+  Thin status/drive strip in chat when enabled; live side-panel frames deferred.
 - Local `curl` calls to Bureau affordance endpoints render as readable
   tool-call summaries with key payload fields.
 

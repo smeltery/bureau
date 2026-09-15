@@ -17,7 +17,17 @@ import { queueDedupeFromPersist } from "./conversation/queue-dedupe.ts";
 import { getAgentContextUsage as getAgentContextUsageForManaged, type AgentContextUsageResponse } from "./context-usage.ts";
 import { migrateLegacyManagedEnv } from "./session/managed-env-boot.ts";
 
-export { emitAgentDiff, emitAgentEditFile, emitAgentPreviewUrl, emitAgentReadFile, emitAgentTerminalCommand, openEditorFile, resolveEditorPathForAgent, saveEditorFile } from "./affordances.ts";
+export {
+  emitAgentDiff,
+  emitAgentEditFile,
+  emitAgentBrowser,
+  emitAgentPreviewUrl,
+  emitAgentReadFile,
+  emitAgentTerminalCommand,
+  openEditorFile,
+  resolveEditorPathForAgent,
+  saveEditorFile,
+} from "./affordances.ts";
 export { kill } from "./lifecycle-kill.ts";
 export { getKilledAgentSummaries, getKilledAgentSummariesForManager, killedAgentManagerUserId, revive } from "./revive.ts";
 

@@ -10,6 +10,7 @@ type JsonObject = Record<string, unknown>;
 const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/agents\/[^/]+\/read-file$/, "Bureau API: show file to boss"],
   [/^\/api\/agents\/[^/]+\/preview-url$/, "Bureau API: browser preview"],
+  [/^\/api\/agents\/[^/]+\/browser$/, "Bureau API: interactive browser"],
   [/^\/api\/agents\/[^/]+\/terminal-command$/, "Bureau API: terminal card"],
   [/^\/api\/agents\/[^/]+\/diff$/, "Bureau API: diff card"],
   [/^\/api\/agents\/[^/]+\/edit-file$/, "Bureau API: open file in editor"],
@@ -43,7 +44,7 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/rooms\/[^/]+\/settings$/, "Bureau API: room settings"],
 ];
 
-const fieldOrder = ["path", "url", "name", "command", "text", "steer", "title", "status", "assignee", "room"];
+const fieldOrder = ["action", "path", "url", "name", "command", "text", "steer", "title", "status", "assignee", "room"];
 const displayFilterCommands = new Set(["jq", "grep", "rg", "sed", "sort", "uniq", "head", "tail", "cut", "tr", "wc", "column"]);
 
 export function summarizeBureauCurl(command: string): string | null {

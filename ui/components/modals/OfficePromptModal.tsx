@@ -12,6 +12,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const { office, sessionContext } = useAppState();
   const [text, setText] = useState(office.prompt ?? "");
   const [envFile, setEnvFile] = useState(office.envFile ?? "");
+  const [browserPanel, setBrowserPanel] = useState(office.experimental?.browserPanel === true);
   const [settingsVersion, setSettingsVersion] = useState<string | null>(null);
   const [name, setName] = useState(username);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
@@ -28,12 +29,18 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
     fetch("/api/office/settings", { credentials: "same-origin" })
       .then(async (res) => {
         if (!res.ok) throw new Error("could not load office settings");
-        return (await res.json()) as { prompt: string | null; envFile: string | null; version: string };
+        return (await res.json()) as {
+          prompt: string | null;
+          envFile: string | null;
+          version: string;
+          experimental?: { browserPanel?: boolean };
+        };
       })
       .then((data) => {
         if (cancelled) return;
         setText(data.prompt ?? "");
         setEnvFile(data.envFile ?? "");
+        setBrowserPanel(data.experimental?.browserPanel === true);
         setSettingsVersion(data.version);
       })
       .catch(() => {
@@ -109,6 +116,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
       requestId: reqId,
       prompt: text.trim() ? text : null,
       envFile: envFile.trim() || null,
+      experimental: { browserPanel },
       version: settingsVersion,
     });
   }
@@ -157,6 +165,26 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         style={{ ...inputStyle, resize: "vertical" }}
       />
       <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>
+
+      <label
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+          marginTop: 16,
+          fontSize: 12,
+          color: "var(--text-primary)",
+          cursor: "pointer",
+        }}
+      >
+        <input type="checkbox" checked={browserPanel} onChange={(e) => setBrowserPanel(e.target.checked)} style={{ marginTop: 2 }} />
+        <span>
+          <span style={{ fontWeight: 600 }}>Experimental: agent browser</span>
+          <span style={{ display: "block", fontSize: 10, color: "var(--text-ghost)", marginTop: 2, fontWeight: 400 }}>
+            Lets agents drive a headless Chrome page (goto / snapshot / click / fill) for local and allowlisted URLs. Off by default; uses the host browser, not a bundled Chromium.
+          </span>
+        </span>
+      </label>
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         Memory{" "}

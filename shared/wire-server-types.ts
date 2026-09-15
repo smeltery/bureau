@@ -6,7 +6,7 @@ import type { LogEntry } from "./log-types.ts";
 import type { MembersChatMessage } from "./members-chat.ts";
 import type { SlideFailureReason, SlideRecord } from "./slides.ts";
 import type { TaskItem } from "./tasks.ts";
-import type { InviteWire, OfficeSettings, PresenceInfo, RoomPet, RoomWire, SessionContext, SessionWire, UserRecord } from "./user-types.ts";
+import type { InviteWire, OfficeSettings, PresenceInfo, RoomPet, RoomWire, SessionContext, SessionWire, UserRecord, ExperimentalSettings } from "./user-types.ts";
 import type { AgentSaveResponse, CwdValidationResponse, SettingsSaveResponse, SettingsValidationResponse } from "./wire-response-types.ts";
 import type { UpdateStatusWire } from "./update-types.ts";
 
@@ -102,7 +102,7 @@ export type ServerMessage =
   | { type: "editor_external_change"; agentId: string; path: string; mtime: number }
   | { type: "editor_file_deleted"; agentId: string; path: string }
   | { type: "editor_open_error"; agentId: string; path: string; reason: "not_found" | "not_file" | "binary" | "too_large" | "io_error" | "bad_path"; message?: string; size?: number }
-  | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
+  | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings }
   | { type: "tasks"; tasks: TaskItem[] }
   // Office-wide humans-only team chat. `updateOnly` replaces an already-held
   // message (pin/unpin) without appending.

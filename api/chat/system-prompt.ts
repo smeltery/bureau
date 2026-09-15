@@ -102,6 +102,8 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Resizable side panels — drag the splitter to size the terminal or editor; widths persist
 - Per-agent message queue — typing while the agent is busy queues messages as chips above the input; they flush together when the agent next idles, and you can cancel any of them before they send
 - Agent-driven cards in chat — agents can offer [Open in editor] and [Copy to terminal] cards via POST /api/agents/:id/edit-file and /api/agents/:id/terminal-command; clicking opens the file or prefills the command at the prompt without executing. Agents can also surface a file inline (images render in-chat, others as a clickable chip) via POST /api/agents/:id/read-file
+- Browser preview cards — agents can screenshot local/private (or allowlisted) URLs via POST /api/agents/:id/preview-url
+- Experimental interactive agent browser — opt-in via Office Settings (experimental.browserPanel, off by default). Agents drive host Chrome via POST /api/agents/:id/browser (goto/snapshot/click/fill/press/screenshot/close) under the same URL policy; Chromium is not bundled; live screencast frames are not shipped yet
 - Session-swap indicator — chat shows a brief "Restarting session..." hint during /resume, /model, or fork-from-edit so the drain → install gap isn't silent
 - Conversation branching — edit a past message to fork the conversation from that point, preserving the original
 - Right-click context menu — resume past sessions, edit agent, kill

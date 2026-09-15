@@ -79,6 +79,46 @@ describe("handleOfficeSettingsRequest", () => {
     expect(typeof body.envFile === "string" || body.envFile === null).toBe(true);
     expect(typeof body.version).toBe("string");
     expect(body.version).toMatch(/^[0-9a-f]{12}$/);
+    expect(body.experimental).toEqual({ browserPanel: expect.any(Boolean) });
+  });
+
+  test("persists experimental.browserPanel through PUT", async () => {
+    const currentReq = request("/api/office/settings");
+    const current = await handleOfficeSettingsRequest(currentReq, new URL(currentReq.url), ownerAuth);
+    const body = (await current!.json()) as { version: string; prompt: string | null; envFile: string | null; experimental: { browserPanel: boolean } };
+
+    const put = await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          prompt: body.prompt,
+          envFile: body.envFile,
+          version: body.version,
+          experimental: { browserPanel: !body.experimental.browserPanel },
+        }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
+    expect(put?.status).toBe(204);
+    expect(AgentManager.getOfficeSettings().experimental.browserPanel).toBe(!body.experimental.browserPanel);
+
+    // Restore prior value so other tests stay isolated.
+    const again = await handleOfficeSettingsRequest(request("/api/office/settings"), new URL("http://local.test/api/office/settings"), ownerAuth);
+    const restoredVersion = ((await again!.json()) as { version: string }).version;
+    await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          prompt: body.prompt,
+          envFile: body.envFile,
+          version: restoredVersion,
+          experimental: body.experimental,
+        }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
   });
 
   test("rejects invalid JSON before saving settings", async () => {

@@ -36,6 +36,7 @@ export {
   getCurrentSessionId,
   emitAgentDiff,
   emitAgentEditFile,
+  emitAgentBrowser,
   emitAgentPreviewUrl,
   emitAgentReadFile,
   emitAgentTerminalCommand,

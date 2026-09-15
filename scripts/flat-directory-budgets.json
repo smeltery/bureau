@@ -14,12 +14,12 @@
       "reason": "oom-stamp.ts (+ test) biases descendant oom_score_adj; process-name.ts (+ test) renames the office to `bureau` so name-based protectors can shield it without shielding agent bun builds. Both stay flat boot-time modules beside backup.ts / update-checker.ts."
     },
     "server/http": {
-      "limit": 43,
-      "reason": "members-chat.ts is the humans-only team chat REST surface; provider-accounts + idempotency already share this directory."
+      "limit": 44,
+      "reason": "members-chat.ts and agent-browser-route.ts are session surfaces; provider-accounts + idempotency already share this directory."
     },
     "shared": {
       "limit": 47,
-      "reason": "members-chat.ts owns team-chat wire types/helpers; room-skins and agent-template catalog already live here."
+      "reason": "members-chat.ts owns team-chat wire types/helpers; room-skins, agent-template catalog, and experimental settings already live here."
     },
     "server/http/__tests__": {
       "limit": 42,

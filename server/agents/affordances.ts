@@ -5,6 +5,7 @@ import { computeBureauDiff, resolveDiffCwd } from "../bureau-diff.ts";
 import { saveFile as savePersistedFile } from "../persistence.ts";
 import { mimeTypeForFilename } from "../mime-types.ts";
 import { capturePreview } from "../preview-capture.ts";
+import { browserPool } from "../browser/session.ts";
 import { openFile as openFileImpl, resolveEditorPath, saveFile as saveFileImpl, type OpenFileResult, type SaveFileResult } from "../file-editor.ts";
 import { addLogEntry, agents, emitEphemeralLog, officeConfig } from "./state.ts";
 
@@ -117,6 +118,24 @@ export async function emitAgentPreviewUrl(agentId: string, body: unknown): Promi
   if (!att) return { ok: false, status: 500, error: "failed to save preview image" };
   addLogEntry(agentId, "file-view", result.caption, undefined, [att]);
   return { ok: true };
+}
+
+export async function emitAgentBrowser(agentId: string, body: unknown): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; status: number; error: string; code?: string }> {
+  const managed = agents.get(agentId);
+  if (!managed) return { ok: false, status: 404, error: "agent not found" };
+  if (!officeConfig.experimental.browserPanel) {
+    return { ok: false, status: 404, error: "experimental agent browser is disabled" };
+  }
+  browserPool.setPublicHostAllowlist(officeConfig.previewAllowHosts);
+  const result = await browserPool.run(agentId, body);
+  if (!result.ok) return { ok: false, status: result.status, error: result.error, code: result.code };
+  if (result.png && result.filename) {
+    const att = savePersistedFile(agentId, result.png, "image/png", result.filename);
+    if (!att) return { ok: false, status: 500, error: "failed to save browser screenshot" };
+    addLogEntry(agentId, "file-view", result.caption || result.filename, undefined, [att]);
+  }
+  const { png: _png, ...wire } = result;
+  return { ok: true, result: wire };
 }
 
 export function emitAgentDiff(agentId: string, dir?: string, commit?: string): { ok: true } | { ok: false; status: number; error: string } {

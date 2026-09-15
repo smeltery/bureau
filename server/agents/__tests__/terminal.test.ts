@@ -14,7 +14,7 @@ afterEach(() => {
   mock.restore();
   agents.clear();
   setRooms([{ id: "room-default", name: "Room 1", prompt: null, envFile: null, pet: null }]);
-  setOfficeConfig({ prompt: null, envFile: null, publicOrigin: null, externalAccess: null, networkBind: "auto", officeName: null, previewAllowHosts: [] });
+  setOfficeConfig({ prompt: null, envFile: null, publicOrigin: null, externalAccess: null, networkBind: "auto", officeName: null, previewAllowHosts: [], experimental: { browserPanel: false } });
   if (tempDir) rmSync(tempDir, { recursive: true, force: true });
   tempDir = null;
 });
@@ -68,7 +68,16 @@ describe("terminal environment", () => {
   test("inherits configured env files and keeps shell overlay values", () => {
     const officeEnv = envFile("TERMINAL_SCOPE=office\nTERM=managed\n");
     const roomEnv = envFile("TERMINAL_SCOPE=room\nPATH=/managed/path\n");
-    setOfficeConfig({ prompt: null, envFile: officeEnv, publicOrigin: null, externalAccess: null, networkBind: "auto", officeName: null, previewAllowHosts: [] });
+    setOfficeConfig({
+      prompt: null,
+      envFile: officeEnv,
+      publicOrigin: null,
+      externalAccess: null,
+      networkBind: "auto",
+      officeName: null,
+      previewAllowHosts: [],
+      experimental: { browserPanel: false },
+    });
     installAgent(roomEnv);
     const f = mockSpawn();
 
