@@ -7,9 +7,9 @@ import {
   advanceDictationSession,
   applySpokenPunctuation,
   dictationText,
+  isSpokenSubmit,
   joinSpoken,
   reconcileDictationEdit,
-  spokenPunctuationApplies,
   startDictation,
   startDictationSession,
   type Dictation,
@@ -152,23 +152,39 @@ describe("dictation sessions", () => {
   });
 });
 
-describe("locale gating", () => {
-  it("applies to every English variant", () => {
-    for (const locale of ["en", "en-US", "en-GB", "en_AU", "EN-us"]) {
-      expect(spokenPunctuationApplies(locale)).toBe(true);
-    }
+describe("locale command data", () => {
+  it("uses the recognizer locale primary subtag without an English fallback", () => {
+    expect(applySpokenPunctuation("hola coma", "es-419")).toBe("hola,");
+    expect(applySpokenPunctuation("hello comma world", "en-GB")).toBe("hello, world");
+    expect(applySpokenPunctuation("bonjour comma monde", "fr-FR")).toBe("bonjour comma monde");
   });
 
-  it("does not apply to other languages", () => {
-    for (const locale of ["es-ES", "fr-FR", "de", "enx", "zh-CN"]) {
-      expect(spokenPunctuationApplies(locale)).toBe(false);
-    }
+  it("gates collision-prone Spanish comma on the fragment end", () => {
+    expect(applySpokenPunctuation("quiero que coma algo", "es-ES")).toBe("quiero que coma algo");
+    expect(applySpokenPunctuation("hola coma", "es-ES")).toBe("hola,");
   });
 
-  it("dictates verbatim in another language, still joining fragments", () => {
-    // "coma" is Spanish for comma, and the English list must not eat it — nor
-    // any other word that merely sounds like a command.
-    const d = addFinalized(startDictation("", "es-ES"), "espera coma luego vamos");
-    expect(dictationText(d, "")).toBe("espera coma luego vamos");
+  it("matches accented phrases at Unicode word edges", () => {
+    expect(applySpokenPunctuation("signo de interrogación hola", "es-ES")).toBe("? hola");
+    expect(applySpokenPunctuation("hola signo de interrogación", "es-ES")).toBe("hola?");
+    expect(applySpokenPunctuation("obre parèntesi text", "ca-ES")).toBe("(text");
+    expect(applySpokenPunctuation("text tanca parèntesi", "ca-ES")).toBe("text)");
+  });
+
+  it("converts unspaced Chinese commands and hugs fullwidth marks", () => {
+    expect(applySpokenPunctuation("你好逗号世界", "zh-CN")).toBe("你好，世界");
+    expect(applySpokenPunctuation("左括号内容右括号", "zh-CN")).toBe("（内容）");
+    expect(joinSpoken("你好", "，世界")).toBe("你好，世界");
+    expect(joinSpoken("（", "内容")).toBe("（内容");
+  });
+
+  it("recognizes submit only as a whole fragment in the selected locale", () => {
+    expect(isSpokenSubmit("  SUBMIT  ", "en-US")).toBe(true);
+    expect(isSpokenSubmit("submit the form", "en-US")).toBe(false);
+    expect(isSpokenSubmit("Submit.", "en-US")).toBe(false);
+    expect(isSpokenSubmit("enviar", "es-ES")).toBe(true);
+    expect(isSpokenSubmit("enviar", "ca-ES")).toBe(true);
+    expect(isSpokenSubmit("提交", "zh-CN")).toBe(true);
+    expect(isSpokenSubmit("submit", "fr-FR")).toBe(false);
   });
 });

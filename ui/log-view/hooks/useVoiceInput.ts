@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { advanceDictationSession, reconcileDictationEdit, startDictationSession, type DictationSession } from "./spoken-punctuation.ts";
+import { advanceDictationSession, isSpokenSubmit, reconcileDictationEdit, startDictationSession, type DictationSession } from "./spoken-punctuation.ts";
 import { voiceInputErrorMessage } from "./voice-input-error.ts";
 
 /**
@@ -62,6 +62,11 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
+          if (isSpokenSubmit(t, locale)) {
+            recognition.stop();
+            window.dispatchEvent(new CustomEvent("bureau:voice-submit"));
+            return;
+          }
           finalized.push(t);
         } else {
           interimText += t;

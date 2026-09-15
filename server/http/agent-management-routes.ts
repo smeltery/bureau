@@ -5,6 +5,7 @@ import { refreshSubscriptionUsage } from "../backends/subscription-usage.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import type { AgentInfo } from "../../shared/types.ts";
+import { resolveInteractiveModelSelection } from "../agent-validators.ts";
 import {
   JSON_HEADERS,
   jsonError,
@@ -43,6 +44,11 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
       }
       saveRecentCwd(cwd);
     }
+    const current = AgentManager.getAgent(agentId);
+    if (!current) return jsonError(404, "agent not found");
+    const agentType = body.agentType === "claude" || body.agentType === "codex" || body.agentType === "opencode" ? body.agentType : current.agentType;
+    const modelSelection = resolveInteractiveModelSelection(agentType, typeof body.modelFamily === "string" ? body.modelFamily : undefined, typeof body.model === "string" ? body.model : undefined);
+    if (modelSelection.error) return jsonError(422, modelSelection.error);
     try {
       await AgentManager.editAgent(agentId, {
         name: typeof body.name === "string" ? body.name : undefined,
@@ -50,7 +56,8 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
         outfit: typeof body.outfit === "object" && body.outfit !== null && !Array.isArray(body.outfit) ? (body.outfit as AgentInfo["outfit"]) : undefined,
         customInstructions: typeof body.customInstructions === "string" ? body.customInstructions : undefined,
         customInstructionsVersion: typeof body.customInstructionsVersion === "string" ? body.customInstructionsVersion : undefined,
-        modelFamily: typeof body.modelFamily === "string" ? body.modelFamily : undefined,
+        agentType: body.agentType === "claude" || body.agentType === "codex" || body.agentType === "opencode" ? body.agentType : undefined,
+        modelFamily: modelSelection.modelFamily,
         permissionMode: typeof body.permissionMode === "string" ? (body.permissionMode as AgentInfo["permissionMode"]) : undefined,
         codexSandbox: typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
         effort: typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,

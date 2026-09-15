@@ -128,6 +128,14 @@ export function InputBar({
     onSent();
   }
 
+  useEffect(() => {
+    function handleVoiceSubmit() {
+      handleSend();
+    }
+    window.addEventListener("bureau:voice-submit", handleVoiceSubmit);
+    return () => window.removeEventListener("bureau:voice-submit", handleVoiceSubmit);
+  });
+
   return (
     <div
       style={{

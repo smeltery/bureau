@@ -8,6 +8,7 @@ import { handleAgentConversationCommand } from "./agent-conversation-commands.ts
 import { handleAgentTerminalCommand } from "./agent-terminal-commands.ts";
 import { handleEditorCommand } from "./editor-commands.ts";
 import { canUseRoom } from "./user-commands.ts";
+import { resolveInteractiveModelSelection } from "../agent-validators.ts";
 
 function canUseAgent(ws: ServerWebSocket<unknown>, agentId: string): boolean {
   const agent = AgentManager.getAllAgents().find((a) => a.id === agentId);
@@ -42,6 +43,14 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
         return true;
       }
       saveRecentCwd(cmd.cwd);
+      const agentType = cmd.agentType ?? "claude";
+      const modelSelection = resolveInteractiveModelSelection(agentType, cmd.modelFamily, undefined);
+      if (modelSelection.error) {
+        if (cmd.requestId) {
+          ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: modelSelection.error } as ServerMessage));
+        }
+        return true;
+      }
       const agent = await AgentManager.spawn(
         cmd.name,
         cmd.cwd,
@@ -50,8 +59,8 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
         cmd.customInstructions,
         cmd.roomId,
         cmd.outfit,
-        cmd.modelFamily,
-        cmd.agentType ?? "claude",
+        modelSelection.modelFamily,
+        agentType,
         cmd.codexSandbox,
         cmd.effort,
         getWsUser(ws)?.id ?? null,
@@ -108,6 +117,21 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
         saveRecentCwd(cmd.cwd);
       }
       try {
+        const current = AgentManager.getAgent(cmd.agentId);
+        if (!current) {
+          if (cmd.requestId) {
+            ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: "agent not found" } as ServerMessage));
+          }
+          return true;
+        }
+        const agentType = cmd.agentType ?? current.agentType;
+        const modelSelection = resolveInteractiveModelSelection(agentType, cmd.modelFamily, undefined);
+        if (modelSelection.error) {
+          if (cmd.requestId) {
+            ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: modelSelection.error } as ServerMessage));
+          }
+          return true;
+        }
         await AgentManager.editAgent(cmd.agentId, {
           name: cmd.name,
           cwd: cmd.cwd,
@@ -115,7 +139,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
           customInstructions: cmd.customInstructions,
           customInstructionsVersion: cmd.customInstructionsVersion,
           agentType: cmd.agentType,
-          modelFamily: cmd.modelFamily,
+          modelFamily: modelSelection.modelFamily,
           permissionMode: cmd.permissionMode,
           codexSandbox: cmd.codexSandbox,
           effort: cmd.effort,

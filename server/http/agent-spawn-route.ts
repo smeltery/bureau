@@ -4,6 +4,7 @@ import { saveRecentCwd } from "../persistence.ts";
 import type { AgentBackendType, AgentInfo } from "../../shared/types.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { JSON_HEADERS, jsonError, privilegedAgentIdentity, readJsonBody, requireRoomAccessAllowingPrivileged, requireUserSession } from "./agent-route-helpers.ts";
+import { resolveInteractiveModelSelection } from "../agent-validators.ts";
 
 export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): Promise<Response> {
   // A privileged agent may hire a coworker on its boss's behalf: the new agent
@@ -35,6 +36,8 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
   }
   saveRecentCwd(cwd);
   const agentType = parseAgentType(body.agentType) ?? "claude";
+  const modelSelection = resolveInteractiveModelSelection(agentType, typeof body.modelFamily === "string" ? body.modelFamily : undefined, typeof body.model === "string" ? body.model : undefined);
+  if (modelSelection.error) return jsonError(422, modelSelection.error);
   const agent = await AgentManager.spawn(
     name,
     cwd,
@@ -43,7 +46,7 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
     typeof body.customInstructions === "string" ? body.customInstructions : undefined,
     roomId,
     typeof body.outfit === "object" && body.outfit !== null && !Array.isArray(body.outfit) ? (body.outfit as AgentInfo["outfit"]) : undefined,
-    typeof body.modelFamily === "string" ? body.modelFamily : undefined,
+    modelSelection.modelFamily,
     agentType,
     typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
     typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
@@ -54,5 +57,5 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
 }
 
 function parseAgentType(value: unknown): AgentBackendType | null {
-  return value === "claude" || value === "codex" ? value : null;
+  return value === "claude" || value === "codex" || value === "opencode" ? value : null;
 }

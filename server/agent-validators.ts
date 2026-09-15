@@ -13,6 +13,8 @@ import {
   CODEX_MODELS,
   DEFAULT_EFFORT,
   EFFORT_LEVELS,
+  FAMILY_TO_MODEL,
+  MODEL_FAMILIES,
   isClaudeFamily,
   OPENCODE_MODELS,
   type AgentBackendType,
@@ -21,6 +23,8 @@ import {
   type CronjobPermissionMode,
   type EffortLevel,
 } from "../shared/types.ts";
+
+const OPENCODE_TRACER_MODEL = "opencode/fake";
 
 export function validatePermissionMode(agentType: AgentBackendType, raw: AgentPermissionMode | undefined): AgentPermissionMode {
   if (agentType === "codex") {
@@ -56,6 +60,54 @@ export function validateModelFamily(agentType: AgentBackendType, raw: string | u
   }
   if (raw && isClaudeFamily(raw)) return raw;
   return "opus";
+}
+
+export function modelFamilyMismatchError(agentType: AgentBackendType, raw: string | undefined): string | null {
+  if (agentType === "opencode") {
+    if (raw === undefined || raw === "") return "OpenCode requires a connected provider/model selection.";
+    if (raw === OPENCODE_TRACER_MODEL) return "The OpenCode tracer model is not available for production agents. Select a connected model.";
+    if (!raw.includes("/")) return `"${raw}" is not an OpenCode provider/model ID (expected provider/model).`;
+    return null;
+  }
+  if (raw === undefined || raw === "") return null;
+  if (agentType === "codex") {
+    if (isClaudeFamily(raw)) return `"${raw}" is not a Codex model.`;
+    const lower = raw.toLowerCase();
+    const claudeShaped = lower.startsWith("claude-") || MODEL_FAMILIES.some(({ family }) => lower === family || lower.startsWith(`${family}-`));
+    if (claudeShaped) return `"${raw}" is not a Codex model.`;
+    return null;
+  }
+  if (isClaudeFamily(raw)) return null;
+  const families = MODEL_FAMILIES.map((m) => m.family).join(", ");
+  return `"${raw}" is not a Claude model family (valid: ${families}). For a Codex model, set agentType to "codex".`;
+}
+
+export function resolveInteractiveModelSelection(agentType: AgentBackendType, modelFamily: string | undefined, model: string | undefined): { modelFamily: string | undefined; error: string | null } {
+  let resolvedFamily = modelFamily;
+  if (resolvedFamily === undefined && model === undefined && agentType !== "opencode") {
+    resolvedFamily = validateModelFamily(agentType, undefined);
+  }
+  if (resolvedFamily === undefined && model !== undefined) {
+    if (agentType === "claude") {
+      resolvedFamily = MODEL_FAMILIES.find(({ family }) => FAMILY_TO_MODEL[family] === model)?.family;
+      if (resolvedFamily === undefined) {
+        return {
+          modelFamily: undefined,
+          error: `"${model}" is not a mapped Claude model. Pass modelFamily instead (valid: ${MODEL_FAMILIES.map(({ family }) => family).join(", ")}).`,
+        };
+      }
+    } else {
+      resolvedFamily = model;
+    }
+  }
+  const familyError = modelFamilyMismatchError(agentType, resolvedFamily);
+  if (familyError) return { modelFamily: resolvedFamily, error: familyError };
+  if (model === undefined || resolvedFamily === undefined || resolvedFamily === "") return { modelFamily: resolvedFamily, error: null };
+  const expected = agentType === "claude" && isClaudeFamily(resolvedFamily) ? FAMILY_TO_MODEL[resolvedFamily] : resolvedFamily;
+  return {
+    modelFamily: resolvedFamily,
+    error: model === expected ? null : `modelFamily "${resolvedFamily}" resolves to model "${expected}", not "${model}".`,
+  };
 }
 
 export function validateCodexSandbox(raw: CodexSandboxMode | undefined): CodexSandboxMode | undefined {
