@@ -84,7 +84,9 @@ export type NormalizedEvent =
       cost?: number;
       error?: string;
       causedByAuth?: boolean;
+      causedByProviderCapacity?: boolean;
     }
+  | { kind: "provider_capacity_retry"; attempt: number; maxAttempts: number; delayMs: number }
   | { kind: "usage_update"; tokenUsage: TokenUsage }
   | { kind: "compacted"; summary?: string }
   | { kind: "error"; message: string; code?: string }

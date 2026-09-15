@@ -28,7 +28,16 @@ export interface CodexNotificationDeps {
   enqueue(event: NormalizedEvent): void;
   enqueueAuthAwareSystemText(text: string): void;
   attachmentFromPath(rawPath: unknown): AttachmentSpec | null;
+  capacityErrorThisAttempt?(): string | null;
+  completedItemsThisAttempt?(): number;
+  capacityRetryCount?(): number;
+  retryCapacityTurn?(delayMs: number): void;
+  noteCompletedItemForCapacity?(): void;
+  noteCapacityError?(message: string): void;
+  clearCapacityRetry?(): void;
 }
+
+export const CODEX_CAPACITY_RETRY_DELAYS_MS = [5_000, 15_000, 30_000] as const;
 
 function subagentLabel(text: string): string {
   return text.replace(/\s+/g, " ").trim().slice(0, 200);
@@ -77,8 +86,15 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
         | undefined;
       const rawStatus = mapTurnStatus(turn?.status);
       const rawError = turn?.error?.message ?? undefined;
+      const capacityError = deps.capacityErrorThisAttempt?.() ?? null;
+      const canRetryCapacity =
+        rawStatus === "failed" && capacityError !== null && (deps.completedItemsThisAttempt?.() ?? 0) === 0 && (deps.capacityRetryCount?.() ?? 0) < CODEX_CAPACITY_RETRY_DELAYS_MS.length;
       const wasSelfInterruptForAuth = deps.selfInterruptedForAuth;
       deps.setActiveTurnId(null);
+      if (canRetryCapacity) {
+        deps.retryCapacityTurn?.(CODEX_CAPACITY_RETRY_DELAYS_MS[deps.capacityRetryCount?.() ?? 0]);
+        break;
+      }
       deps.clearTurnInFlight();
       deps.armLateToolResultNotice();
       // "Model not supported" safety net. The spawn / edit dialog now
@@ -112,7 +128,7 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
       deps.enqueue({
         kind: "turn_completed",
         status,
-        error,
+        error: capacityError ?? error,
         // Signal causedByAuth so agent-manager keeps the agent in
         // waiting_for_response (auth issue → user needs to sign in)
         // instead of "error" (which would imply something crashed).
@@ -120,7 +136,9 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
         // summary above, so the orchestrator's auth-detect regex
         // wouldn't catch it.
         ...(causedByAuth ? { causedByAuth: true } : {}),
+        ...(capacityError ? { causedByProviderCapacity: true } : {}),
       });
+      deps.clearCapacityRetry?.();
       break;
     }
 
@@ -180,6 +198,7 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
     case "item/completed": {
       const item = params?.item;
       if (item) {
+        if (deps.turnInFlight || deps.turnStarting) deps.noteCompletedItemForCapacity?.();
         for (const ev of translateCompletedItem(item, (rawPath) => deps.attachmentFromPath(rawPath), {
           registerChildThread: (threadId, origin) => registerChildThread(deps, threadId, origin),
         })) {
@@ -232,6 +251,10 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
     case "error": {
       const notification = params as ErrorNotification | null | undefined;
       const message = notification?.error.message;
+      if (message && notification.willRetry === false && notification.error.codexErrorInfo === "serverOverloaded") {
+        deps.noteCapacityError?.(message);
+        break;
+      }
       if (message) {
         deps.enqueue(notification.willRetry === true ? { kind: "system_text", text: message } : { kind: "error", message });
       }

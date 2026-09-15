@@ -1,26 +1,4 @@
 // Codex backend session.
-//
-// Implements the Backend / BackendSession contracts (server/backends/types.ts)
-// against the Codex App Server's JSON-RPC lite protocol via the
-// JsonRpcLiteClient in ./client.ts. One CodexSession owns one threadId and
-// one subprocess for v1 — symmetric with Claude. The client layer is built so
-// a future shared-subprocess deployment can swap in without touching this
-// adapter (subscribers filter by threadId from day one).
-//
-// Critical invariants this code maintains (per the Codex Expert's review):
-//
-//   1. Exactly one turn_completed NormalizedEvent per send(). Codex emits one
-//      turn/completed per turn (Completed or Failed); turn/interrupted maps
-//      to status:"interrupted". Subprocess death mid-turn synthesizes a
-//      failed turn_completed so the orchestrator's pendingTurn unblocks.
-//
-//   2. Per-thread filtering. Every codex notification with a threadId is
-//      filtered against this session's threadId. Sub-agent / review-mode
-//      child threads have their own ids and must never resolve our turn.
-//
-//   3. experimentalApi: true at initialize. We generated schemas with
-//      --experimental, so missing this flag would silently strip experimental
-//      fields on the wire.
 
 import { errMessage } from "../../../shared/errors.ts";
 import { BackendNotConfiguredError } from "../../internal-types.ts";
@@ -34,15 +12,15 @@ import { CodexRateLimitTracker } from "./session-rate-limits.ts";
 import { CodexUsageTracker } from "./session-usage.ts";
 import { CodexAuthSignalGate } from "./session-auth-gate.ts";
 import { rejectPendingApprovalsOnClose, resolvePendingApprovalsOnAbort } from "./session-approval-cleanup.ts";
-import { attachmentFromPath } from "./session-attachments.ts";
 import { bootstrapCodexThread, type CodexSessionInitOpts } from "./session-bootstrap.ts";
 import { CodexSessionEventBuffer } from "./session-event-buffer.ts";
-import { handleCodexNotification } from "./session-notifications.ts";
 import { codexSubprocessExitEvent, handleCodexSessionStderr } from "./session-process-events.ts";
 import { handleCodexServerRequest, type PendingApproval } from "./session-requests.ts";
 import { SessionPrefixRules } from "./prefix-rules.ts";
 import { answerPendingApproval } from "./session-answer-approval.ts";
 import { startCodexTurn } from "./session-turn-start.ts";
+import { CodexCapacityRetry } from "./session/capacity-retry.ts";
+import { routeCodexNotification } from "./session/notification-router.ts";
 
 export class CodexSession implements BackendSession {
   private client: JsonRpcLiteClient;
@@ -70,6 +48,10 @@ export class CodexSession implements BackendSession {
   private prefixRules = new SessionPrefixRules();
   private usage = new CodexUsageTracker();
   private rateLimits = new CodexRateLimitTracker();
+  private capacityRetry = new CodexCapacityRetry(
+    (delayMs, run) => this.scheduleCapacityRetry(delayMs, run),
+    (event) => this.enqueue(event),
+  );
   // Child threads spawned by this Codex thread. Known child-thread tool items
   // are surfaced as subagent tool activity; their turn lifecycle and prose are
   // still filtered out so parent bookkeeping stays isolated.
@@ -87,11 +69,6 @@ export class CodexSession implements BackendSession {
   private bootstrapError: Error | null = null;
 
   constructor(private readonly opts: CodexSessionInitOpts) {
-    // JsonRpcLiteClient.start() applies the bureau CODEX_HOME default so
-    // every codex subprocess (session bootstrap + listModels + oneShot +
-    // fork + read) spawns under the same effective env. Per-user envFile
-    // CODEX_HOME (see docs/features/room-env-prompt-design.md) is honored
-    // verbatim by withBureauCodexHome.
     const clientOpts: JsonRpcLiteClientOptions = {
       cwd: opts.cwd,
       env: opts.env,
@@ -165,6 +142,7 @@ export class CodexSession implements BackendSession {
     }
 
     const input = buildCodexUserInput(text, attachments, this.opts.agentId);
+    this.capacityRetry.resetTurn();
     // Only flip turnInFlight after turn/start succeeds. If the request throws
     // (e.g. wire error) we don't want handleSubprocessExit to later synthesize
     // a phantom failed turn_completed for a turn that never actually started
@@ -188,6 +166,43 @@ export class CodexSession implements BackendSession {
     this.lateToolResultNoticeArmed = false;
   }
 
+  private scheduleCapacityRetry(delayMs: number, run: () => void): () => void {
+    if (this.opts.scheduleRetry) return this.opts.scheduleRetry(delayMs, run);
+    const timer = setTimeout(run, delayMs);
+    return () => clearTimeout(timer);
+  }
+
+  private finishCapacityBackoff(status: "interrupted" | "failed", error: string): boolean {
+    if (!this.capacityRetry.finishBackoff(status, error)) return false;
+    this.turnInFlight = false;
+    this.turnStarting = false;
+    this.activeTurnId = null;
+    return true;
+  }
+
+  private retryCapacityTurn(delayMs: number): void {
+    this.capacityRetry.retryAsync(
+      delayMs,
+      () => {
+        if (!this.threadId) return Promise.resolve();
+        this.turnStarting = true;
+        return this.client.request("turn/start", { threadId: this.threadId, input: [] });
+      },
+      () => {
+        if (this.closed || !this.threadId) return;
+        this.turnStarting = false;
+        this.turnInFlight = true;
+        this.lateToolResultNoticeEmitted = false;
+        this.lateToolResultNoticeArmed = false;
+      },
+      (err) => {
+        this.turnStarting = false;
+        this.turnInFlight = false;
+        this.enqueue({ kind: "turn_completed", status: "failed", error: errMessage(err) });
+      },
+    );
+  }
+
   async approve(approvalId: string, decision: ApprovalDecision): Promise<void> {
     await this.bootstrapPromise;
     answerPendingApproval({
@@ -200,11 +215,10 @@ export class CodexSession implements BackendSession {
   }
 
   async abort(): Promise<void> {
+    if (this.finishCapacityBackoff("interrupted", "Provider-capacity retry interrupted.")) return;
     await this.bootstrapPromise;
     if (this.closed) return;
     if (!this.threadId || !this.activeTurnId) {
-      // Nothing to interrupt — no in-flight turn (either bootstrap failed
-      // or no send happened yet).
       return;
     }
     try {
@@ -222,14 +236,14 @@ export class CodexSession implements BackendSession {
   }
 
   canAbortInPlace(): boolean {
-    return !this.closed && this.threadId !== null && this.activeTurnId !== null;
+    return !this.closed && this.threadId !== null && (this.activeTurnId !== null || this.capacityRetry.hasPendingRetry);
   }
 
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.finishCapacityBackoff("failed", "Codex session closed during provider-capacity backoff.");
     rejectPendingApprovalsOnClose(this.client, this.pendingApprovals);
-    // Fire-and-forget close on the client; subprocess exit handler tidies up.
     void this.client.close();
     this.markEnded();
   }
@@ -238,12 +252,11 @@ export class CodexSession implements BackendSession {
     return this.usage.getContextUsage(this.opts.modelFamily);
   }
 
-  // Plan allowance for the signed-in ChatGPT account. Served from the pushed
-  // rate-limit cache; the read below only covers the pre-push gap.
   async getSubscriptionUsage(): Promise<SubscriptionUsageResult> {
     return this.rateLimits.read(async () => {
       await this.bootstrapPromise;
-      if (this.closed || this.bootstrapError) return null;
+      if (this.closed || !this.threadId) return null;
+      if (this.bootstrapError) return null;
       return this.client.request<GetAccountRateLimitsResponse>("account/rateLimits/read");
     });
   }
@@ -274,36 +287,7 @@ export class CodexSession implements BackendSession {
   // -------------------------------------------------------------------------
 
   private handleNotification(n: JsonRpcNotification): void {
-    handleCodexNotification(n, {
-      threadId: this.threadId,
-      childThreads: this.childThreads,
-      turnInFlight: this.turnInFlight,
-      turnStarting: this.turnStarting,
-      lateToolResultNoticeArmed: this.lateToolResultNoticeArmed,
-      lateToolResultNoticeEmitted: this.lateToolResultNoticeEmitted,
-      selfInterruptedForAuth: this.authGate.selfInterruptedForAuth,
-      authSignalEmittedThisTurn: this.authGate.authSignalEmittedThisTurn,
-      usage: this.usage,
-      rateLimits: this.rateLimits,
-      setActiveTurnId: (turnId) => {
-        this.activeTurnId = turnId;
-      },
-      clearTurnInFlight: () => {
-        this.turnInFlight = false;
-      },
-      armLateToolResultNotice: () => {
-        this.lateToolResultNoticeArmed = true;
-      },
-      markLateToolResultNoticeEmitted: () => {
-        this.lateToolResultNoticeEmitted = true;
-      },
-      resetAuthTurnState: () => {
-        this.authGate.resetTurn();
-      },
-      enqueue: (event) => this.enqueue(event),
-      enqueueAuthAwareSystemText: (text) => this.enqueueAuthAwareSystemText(text),
-      attachmentFromPath: (rawPath) => attachmentFromPath(this.opts.agentId, rawPath),
-    });
+    routeCodexNotification(this, n);
   }
 
   // -------------------------------------------------------------------------
@@ -329,6 +313,9 @@ export class CodexSession implements BackendSession {
 
   private handleSubprocessExit(code: number | null, signal: NodeJS.Signals | null): void {
     if (this.closed) return;
+    if (this.finishCapacityBackoff("failed", `codex subprocess exited${code != null ? ` (code ${code})` : ""}${signal ? ` (signal ${signal})` : ""} during provider-capacity backoff`)) {
+      return;
+    }
     // The per-turn auth-coalescing gate must close on subprocess death so an
     // unlikely-but-possible later stderr (e.g. drained late) doesn't sneak
     // through with a stale-open gate.

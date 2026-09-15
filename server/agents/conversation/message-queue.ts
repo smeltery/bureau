@@ -3,6 +3,7 @@ import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, persistAll
 import { SessionSwappedError, createSession, installSession } from "../session/runtime.ts";
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
+import { ProviderCapacityError } from "../../internal-types.ts";
 import { flushPrefix } from "./queue-prefix.ts";
 import { lookupQueueDedupe, recordQueueDedupe } from "./queue-dedupe.ts";
 // Circular with control.ts (which imports flushQueue from here); safe because
@@ -294,6 +295,10 @@ export async function flushQueue(agentId: string): Promise<void> {
       });
     } catch (err: any) {
       if (err instanceof SessionSwappedError) return;
+      if (err instanceof ProviderCapacityError) {
+        updateState(agentId, "waiting_for_response");
+        return;
+      }
       addLogEntry(agentId, "error", `Error flushing queue: ${err.message}`);
       updateState(agentId, "error");
     }

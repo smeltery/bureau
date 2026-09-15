@@ -4,6 +4,7 @@ import { addLogEntry, agents, emit, emitEphemeralLog, isAgentBusy, logCache, per
 import { SessionSwappedError, createSession, installSession, replaceSession } from "../session/runtime.ts";
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
+import { ProviderCapacityError } from "../../internal-types.ts";
 import { generateTopic, persistCurrentSessionTopic, shouldAutoRegenerateTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
 import { handleSlashCommand } from "./slash-commands.ts";
 import { enqueueUserMessage, QUEUE_MAX } from "./message-queue.ts";
@@ -216,6 +217,10 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     // if session.send threw before await turn ran). The per-call-site catch
     // remains responsible for the distinct error semantics each path needs.
     if (err instanceof SessionSwappedError) return;
+    if (err instanceof ProviderCapacityError) {
+      updateState(agentId, "waiting_for_response");
+      return;
+    }
     console.error(`Agent ${agentId} send error:`, err.message);
     addLogEntry(agentId, "error", `Error: ${err.message}`);
     updateState(agentId, "error");

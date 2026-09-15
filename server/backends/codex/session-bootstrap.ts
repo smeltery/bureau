@@ -14,6 +14,7 @@ export interface CodexSessionInitOpts {
   env?: { [key: string]: string | undefined };
   resumeThreadId?: string;
   ephemeral?: boolean;
+  scheduleRetry?: (delayMs: number, run: () => void) => () => void;
 }
 
 export async function bootstrapCodexThread(client: JsonRpcLiteClient, opts: CodexSessionInitOpts): Promise<string> {
@@ -34,6 +35,7 @@ export async function bootstrapCodexThread(client: JsonRpcLiteClient, opts: Code
   if (opts.resumeThreadId) {
     const resumeResp = await client.request<{ thread: { id: string } }>("thread/resume", {
       threadId: opts.resumeThreadId,
+      excludeTurns: true,
       approvalPolicy: opts.permissionMode,
       sandbox: opts.sandbox ?? DEFAULT_SANDBOX_MODE,
       model: opts.modelFamily,

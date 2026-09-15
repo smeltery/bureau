@@ -1,6 +1,7 @@
 import type { AgentState } from "../../../shared/types.ts";
 import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, ensureSessionClaudeConfigDir, ensureSessionCwd, loadLogWithAncestors } from "../../persistence.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
+import { ProviderCapacityError } from "../../internal-types.ts";
 import { autocompleteCommands } from "../commands.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
 import { addLogEntry, agents, clearLiveTurn, emit, emitEphemeralLog, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
@@ -121,6 +122,9 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
     case "task_lifecycle":
       addLogEntry(agentId, "system", ev.label, { taskEvent: { phase: ev.phase, taskId: ev.taskId } });
       break;
+    case "provider_capacity_retry":
+      addLogEntry(agentId, "system", `Provider is at capacity. Retrying in ${ev.delayMs / 1_000}s (${ev.attempt + 1}/${ev.maxAttempts}).`);
+      break;
     case "permission_denied":
       addLogEntry(agentId, "system", ev.decisionReason || ev.message || `${ev.toolName} denied.`, {
         permissionDenied: {
@@ -176,19 +180,25 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         const isInterrupted = managed.aborting && ev.status === "interrupted";
         if (!isInterrupted) {
           const raw = ev.error ?? `Agent stopped: ${ev.status}.`;
-          const failure = humanizeBackendFailure(raw);
-          const errorText = failure.text;
-          addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
-          const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, raw);
-          if (ev.causedByAuth !== true && auth) emitLoginInstructionsImpl(agentId, managed);
-          updateState(agentId, auth ? "waiting_for_response" : "error");
+          if (ev.causedByProviderCapacity === true) {
+            addLogEntry(agentId, "error", "The provider is still at capacity after retries. Try again in a bit.", { backendFailureRaw: raw });
+            updateState(agentId, "waiting_for_response");
+          } else {
+            const failure = humanizeBackendFailure(raw);
+            const errorText = failure.text;
+            addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
+            const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, raw);
+            if (ev.causedByAuth !== true && auth) emitLoginInstructionsImpl(agentId, managed);
+            updateState(agentId, auth ? "waiting_for_response" : "error");
+          }
         }
       }
       const turn = managed?.pendingTurn;
       if (managed) clearLiveTurn(managed);
       if (managed && turn) {
         managed.pendingTurn = null;
-        turn.resolve();
+        if (ev.causedByProviderCapacity === true) turn.reject(new ProviderCapacityError(ev.error ?? "Provider capacity"));
+        else turn.resolve();
       }
       if (managed && ev.status === "completed") void refreshContextUsage(agentId, managed).then(() => maybeNudgeForContextUsage(agentId, managed));
       break;
