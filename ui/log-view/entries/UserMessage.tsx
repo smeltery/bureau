@@ -4,6 +4,7 @@ import { isApiTokenDevice } from "../../../shared/identity.ts";
 import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { EditIcon } from "../../components/controls/Icons.tsx";
 import { AttachmentDisplay, MessageTimestamp } from "./shared.tsx";
+import { PlainTaskText, type TaskMap } from "../task-links.tsx";
 
 export function UserMessage({
   content,
@@ -20,6 +21,8 @@ export function UserMessage({
   canEdit,
   onEdit,
   timestamp,
+  tasks,
+  onOpenTask,
 }: {
   content: string;
   isMobile?: boolean;
@@ -35,6 +38,8 @@ export function UserMessage({
   canEdit?: boolean;
   onEdit?: () => void;
   timestamp?: number;
+  tasks?: TaskMap;
+  onOpenTask?: (id: string) => void;
 }) {
   const getText = useCallback(() => content, [content]);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -70,7 +75,7 @@ export function UserMessage({
             wordBreak: "break-word",
           }}
         >
-          {content}
+          {tasks && onOpenTask ? <PlainTaskText content={content} tasks={tasks} onOpen={onOpenTask} /> : content}
         </div>
       )}
       {attachments && attachments.length > 0 && agentId && (

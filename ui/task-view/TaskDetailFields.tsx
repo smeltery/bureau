@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { TaskItem, TaskPriority, TaskStatus } from "../../shared/types.ts";
 import { dialogInput, dialogLabel } from "../components/modals/dialog-styles.ts";
+import { ExpandableTextarea } from "../components/modals/ExpandableTextarea.tsx";
 import { timeAgo } from "../utils/time.ts";
 
 export function TaskDetailFields({
@@ -80,9 +81,9 @@ export function TaskDetailFields({
         />
       </div>
 
-      <div>
+      <div onKeyDown={(e) => e.stopPropagation()}>
         <label style={labelStyle}>Description</label>
-        <textarea value={description} onChange={(e) => onDescriptionChange(e.target.value)} rows={3} style={{ ...inputStyle, resize: "vertical" }} onKeyDown={(e) => e.stopPropagation()} />
+        <ExpandableTextarea value={description} onChange={onDescriptionChange} title="Description" rows={3} style={{ ...inputStyle, resize: "vertical" }} />
       </div>
 
       <div style={{ display: "flex", gap: 10 }}>

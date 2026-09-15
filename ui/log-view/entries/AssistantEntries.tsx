@@ -5,6 +5,7 @@ import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { SpeakButton } from "../../components/controls/SpeakButton.tsx";
 import { DurationLabel, MessageTimestamp, TurnCopyButton } from "./shared.tsx";
 import { serializeEntries } from "./serialize.ts";
+import type { TaskMap } from "../task-links.tsx";
 
 const COLLAPSED_TEXT_CHARS = 2400;
 const COLLAPSED_TEXT_LINES = 36;
@@ -20,12 +21,16 @@ export function AssistantText({
   turnEntries,
   isMobile,
   timestamp,
+  tasks,
+  onOpenTask,
 }: {
   content: string;
   isLastInTurn?: boolean;
   turnEntries?: LogEntry[];
   isMobile?: boolean;
   timestamp?: number;
+  tasks?: TaskMap;
+  onOpenTask?: (id: string) => void;
 }) {
   const getText = useCallback(() => content, [content]);
   const canCollapse = shouldCollapseAssistantText(content);
@@ -43,7 +48,7 @@ export function AssistantText({
             : undefined
         }
       >
-        <Markdown content={content} />
+        <Markdown content={content} tasks={tasks} onOpenTask={onOpenTask} />
         {canCollapse && !expanded && (
           <div
             aria-hidden

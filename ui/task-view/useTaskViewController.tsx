@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { shouldHostCloseOnEscape } from "../components/modals/expandedEditorState.ts";
 import { useAppState } from "../store.tsx";
 import { type SortDir, type SortField } from "./constants.ts";
 import { filterAndSortTasks, type TaskRoomScope, type TaskStatusFilter } from "./taskFilters.ts";
 
-export function useTaskViewController({ onClose, onFocusAgent }: { onClose: () => void; onFocusAgent?: (agentId: string) => void }) {
+export function useTaskViewController({
+  onClose,
+  onFocusAgent,
+  openTaskId,
+}: {
+  onClose: () => void;
+  onFocusAgent?: (agentId: string) => void;
+  /** When set (e.g. from a chat task chip), select that task once tasks are loaded. */
+  openTaskId?: string | null;
+}) {
   const { tasks, tasksLoaded, agents, isMobile, rooms, currentRoom } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<TaskStatusFilter>("active");
@@ -40,14 +50,20 @@ export function useTaskViewController({ onClose, onFocusAgent }: { onClose: () =
   }, []);
 
   useEffect(() => {
+    if (!openTaskId || !tasksLoaded) return;
+    if (!tasks.some((task) => task.id === openTaskId)) return;
+    setCreating(false);
+    setSelectedId(openTaskId);
+  }, [openTaskId, tasks, tasksLoaded]);
+
+  useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        if (panelOpen) {
-          tryClosePanel();
-        } else {
-          onClose();
-        }
+      if (!shouldHostCloseOnEscape(e)) return;
+      e.stopPropagation();
+      if (panelOpen) {
+        tryClosePanel();
+      } else {
+        onClose();
       }
     }
     window.addEventListener("keydown", handleKey, true);

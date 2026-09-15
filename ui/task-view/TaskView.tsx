@@ -3,7 +3,7 @@ import { TaskViewHeader } from "./TaskViewHeader.tsx";
 import { TaskTable } from "./TaskTable.tsx";
 import { useTaskViewController } from "./useTaskViewController.tsx";
 
-export function TaskView({ username, onClose, onFocusAgent }: { username: string; onClose: () => void; onFocusAgent?: (agentId: string) => void }) {
+export function TaskView({ username, onClose, onFocusAgent, openTaskId }: { username: string; onClose: () => void; onFocusAgent?: (agentId: string) => void; openTaskId?: string | null }) {
   const {
     agents,
     cellPad,
@@ -39,7 +39,7 @@ export function TaskView({ username, onClose, onFocusAgent }: { username: string
     tasksLoaded,
     thStyle,
     tryClosePanel,
-  } = useTaskViewController({ onClose, onFocusAgent });
+  } = useTaskViewController({ onClose, onFocusAgent, openTaskId });
 
   return (
     <div

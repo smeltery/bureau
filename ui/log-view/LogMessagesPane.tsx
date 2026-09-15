@@ -6,6 +6,7 @@ import { ActivityIndicator, SessionSwapIndicator } from "./StateIndicators.tsx";
 import { isFoldedToolResult, LogEntryCard } from "./entries/index.tsx";
 import { styleForModel } from "../model-styles.ts";
 import { canEditMessage } from "./hooks/canEditMessage.ts";
+import type { TaskMap } from "./task-links.tsx";
 
 export function LogMessagesPane({
   agent,
@@ -24,6 +25,8 @@ export function LogMessagesPane({
   onCopyToTerminal,
   onOpenConnections,
   stateChangedAt,
+  tasks,
+  onOpenTask,
 }: {
   agent: AgentInfo;
   logs: LogEntry[];
@@ -41,6 +44,8 @@ export function LogMessagesPane({
   onCopyToTerminal?: (command: string) => void;
   onOpenConnections?: () => void;
   stateChangedAt?: number;
+  tasks?: TaskMap;
+  onOpenTask?: (id: string) => void;
 }) {
   const turnData = useLogTurnData(logs);
   const modelStyle = styleForModel(agent.modelFamily);
@@ -107,6 +112,8 @@ export function LogMessagesPane({
             onOpenInEditor={onOpenInEditor}
             onCopyToTerminal={onCopyToTerminal}
             onOpenConnections={onOpenConnections}
+            tasks={tasks}
+            onOpenTask={onOpenTask}
             onChoicePick={(kind, position) => {
               if (agent.pendingPrompt !== kind) return;
               send({ type: "send_message", agentId: agent.id, text: String(position), username });

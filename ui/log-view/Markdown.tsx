@@ -20,6 +20,7 @@ import { renderMermaidBlocks } from "./markdown/mermaid.ts";
 import { mathBlockExtensions, mathInlineDisplayExtension, mathInlineExtensions } from "./markdown/math.ts";
 import { renderKatexBlocks } from "./markdown/katex.ts";
 import { sanitizeSvg } from "./markdown/svg-sanitize.ts";
+import { taskChipLabel, type TaskMap } from "./task-links.tsx";
 import { copyText } from "../utils/clipboard.ts";
 
 hljs.registerLanguage("javascript", javascript);
@@ -123,6 +124,28 @@ marked.use({
   ],
 });
 
+marked.use({
+  extensions: [
+    {
+      name: "taskId",
+      level: "inline",
+      start(src: string) {
+        return src.search(/\b[0-9a-f]{8}\b/);
+      },
+      tokenizer(src: string) {
+        if (this.lexer.state.inLink) return;
+        const match = /^\b[0-9a-f]{8}\b/.exec(src);
+        if (!match) return;
+        return { type: "taskId", raw: match[0], id: match[0] };
+      },
+      renderer(token) {
+        const id = (token as { id: string }).id;
+        return `<span data-task-id="${id}">${id}</span>`;
+      },
+    },
+  ],
+});
+
 marked.use({ extensions: mathBlockExtensions });
 marked.use({ extensions: mathInlineExtensions });
 marked.use({ extensions: [mathInlineDisplayExtension] });
@@ -137,7 +160,9 @@ export function renderMarkdown(content: string): string {
   return withCode.replace(/<table>/g, `<div class="table-wrapper"><table>`).replace(/<\/table>/g, `</table></div>`);
 }
 
-export function Markdown({ content }: { content: string }) {
+const EMPTY_TASKS: TaskMap = new Map();
+
+export function Markdown({ content, tasks = EMPTY_TASKS, onOpenTask }: { content: string; tasks?: TaskMap; onOpenTask?: (id: string) => void }) {
   const html = useMemo(() => {
     try {
       return renderMarkdown(content);
@@ -146,62 +171,69 @@ export function Markdown({ content }: { content: string }) {
     }
   }, [content]);
 
-  // Handle copy button clicks via event delegation
-  const onClick = useCallback(async (e: React.MouseEvent) => {
-    const btn = (e.target as HTMLElement).closest(".code-copy-btn");
-    if (!btn) return;
-    e.stopPropagation();
-    const wrapper = btn.closest(".code-block-wrapper");
-    const pre = wrapper?.querySelector("pre");
-    if (!pre) return;
-    const code = pre.querySelector("code");
-    const text = code ? (code.textContent ?? "") : (pre.textContent ?? "");
-    const ok = await copyText(text);
-    if (!ok) return;
-    btn.innerHTML = CHECK_SVG;
-    (btn as HTMLElement).style.color = "var(--green)";
-    (btn as HTMLElement).style.background = "var(--green-bg)";
-    setTimeout(() => {
-      btn.innerHTML = COPY_SVG;
-      (btn as HTMLElement).style.color = "";
-      (btn as HTMLElement).style.background = "";
-    }, 1500);
-  }, []);
+  const onClick = useCallback(
+    async (e: React.MouseEvent) => {
+      const taskChip = (e.target as HTMLElement).closest<HTMLElement>(".task-id-chip[data-task-id]");
+      if (taskChip?.dataset.taskId && onOpenTask) {
+        e.preventDefault();
+        e.stopPropagation();
+        onOpenTask(taskChip.dataset.taskId);
+        return;
+      }
+      const btn = (e.target as HTMLElement).closest(".code-copy-btn");
+      if (!btn) return;
+      e.stopPropagation();
+      const wrapper = btn.closest(".code-block-wrapper");
+      const pre = wrapper?.querySelector("pre");
+      if (!pre) return;
+      const code = pre.querySelector("code");
+      const text = code ? (code.textContent ?? "") : (pre.textContent ?? "");
+      const ok = await copyText(text);
+      if (!ok) return;
+      btn.innerHTML = CHECK_SVG;
+      (btn as HTMLElement).style.color = "var(--green)";
+      (btn as HTMLElement).style.background = "var(--green-bg)";
+      setTimeout(() => {
+        btn.innerHTML = COPY_SVG;
+        (btn as HTMLElement).style.color = "";
+        (btn as HTMLElement).style.background = "";
+      }, 1500);
+    },
+    [onOpenTask],
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // We manage innerHTML manually (in a layout effect keyed on html) rather
-  // than via React's dangerouslySetInnerHTML. Observed bug with the latter:
-  // when a chat re-render happened that didn't change this message's
-  // markdown source (e.g. a new message landed and isLastInTurn/turnEntries
-  // shifted on prior cards), the SVG that mermaid had rendered into
-  // a .mermaid div was wiped back to the wrapper's original empty state.
-  // The mermaid effect below also keys on [html] so it never re-fired to
-  // repair the wipe. Driving innerHTML from a layout effect keyed on the
-  // memoized html string makes the DOM write a no-op for re-renders that
-  // don't change the markdown source — and a clean reset for ones that do
-  // (e.g. streaming chunks).
   useLayoutEffect(() => {
     const root = containerRef.current;
     if (!root) return;
     root.innerHTML = html;
   }, [html]);
 
-  // After every html change, find any unprocessed mermaid blocks and hand
-  // them to the lazy-loaded mermaid library one at a time. We use
-  // mermaid.render() (not run()) so we pass the source explicitly from each
-  // node's data-mermaid-source attribute — no reliance on textContent, so
-  // we never accidentally feed a "Rendering…" placeholder back to mermaid
-  // if this effect ever re-fires while sources are mid-mutation.
-  //
-  // Three observable end states per node:
-  //   - SVG inside .mermaid → success
-  //   - .mermaid-wrapper[data-mermaid-error="true"] with "Mermaid error: …"
-  //     → mermaid loaded but the diagram source didn't parse
-  //   - same wrapper with "Failed to load mermaid: …" → the dynamic import
-  //     rejected (network, CSP, syntax-on-old-Safari etc.)
-  // Until any of those terminal states is reached, .mermaid is empty and
-  // CSS shows a "Rendering diagram…" placeholder via ::before.
+  useLayoutEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    for (const current of root.querySelectorAll<HTMLElement>("[data-task-id]")) {
+      const id = current.dataset.taskId;
+      const task = id ? tasks.get(id) : undefined;
+      if (!task || !onOpenTask) {
+        if (current.tagName === "SPAN") continue;
+        const plain = document.createElement("span");
+        plain.dataset.taskId = id ?? "";
+        plain.textContent = id ?? current.textContent;
+        current.replaceWith(plain);
+        continue;
+      }
+      const chip = current.tagName === "BUTTON" ? (current as HTMLButtonElement) : document.createElement("button");
+      chip.type = "button";
+      chip.className = "task-id-chip";
+      chip.dataset.taskId = id;
+      chip.title = task.title;
+      chip.textContent = taskChipLabel(task);
+      if (chip !== current) current.replaceWith(chip);
+    }
+  }, [html, tasks, onOpenTask]);
+
   useEffect(() => {
     const root = containerRef.current;
     if (!root) return;

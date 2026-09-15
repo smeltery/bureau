@@ -8,6 +8,7 @@ import { EditRequestCard } from "../EditRequestCard.tsx";
 import { FileViewCard } from "../FileViewCard.tsx";
 import { TerminalCommandCard } from "../TerminalCommandCard.tsx";
 import { isApiTokenDevice } from "../../../shared/identity.ts";
+import type { TaskMap } from "../task-links.tsx";
 
 export { serializeEntries } from "./serialize.ts";
 export { isFoldedToolResult } from "./ToolEntries.tsx";
@@ -33,6 +34,8 @@ export function LogEntryCard({
   onCopyToTerminal,
   onChoicePick,
   onOpenConnections,
+  tasks,
+  onOpenTask,
 }: {
   entry: LogEntry;
   isLastInTurn?: boolean;
@@ -47,6 +50,8 @@ export function LogEntryCard({
   onCopyToTerminal?: (command: string) => void;
   onChoicePick?: (kind: ChoicePromptPayload["kind"], position: number) => void;
   onOpenConnections?: () => void;
+  tasks?: TaskMap;
+  onOpenTask?: (id: string) => void;
 }) {
   switch (entry.kind) {
     case "user_message": {
@@ -75,6 +80,8 @@ export function LogEntryCard({
           canEdit={canEdit && !agentName && !cronjobName && !isProgrammaticUser}
           onEdit={onStartEdit ? () => onStartEdit(entry.id) : undefined}
           timestamp={entry.timestamp}
+          tasks={tasks}
+          onOpenTask={onOpenTask}
         />
       );
     }
@@ -90,11 +97,13 @@ export function LogEntryCard({
           agentId={entry.agentId}
           canEdit={false}
           timestamp={entry.timestamp}
+          tasks={tasks}
+          onOpenTask={onOpenTask}
         />
       );
     }
     case "text":
-      return <AssistantText content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
+      return <AssistantText content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} tasks={tasks} onOpenTask={onOpenTask} />;
     case "thinking": {
       const durationMs = entry.metadata?.duration_ms as number | undefined;
       return <ThinkingBlock content={entry.content} durationMs={durationMs} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;

@@ -106,6 +106,25 @@ ${emitThemesCss()}
   }
   .md-content th { background: var(--bg-subtle); color: var(--text-primary); font-weight: 600; }
 
+  .task-id-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    margin: 0 2px;
+    padding: 1px 7px;
+    border: 1px solid var(--border-medium);
+    border-radius: 999px;
+    background: var(--bg-subtle);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.92em;
+    font-weight: 600;
+    line-height: 1.5;
+    cursor: pointer;
+    vertical-align: baseline;
+  }
+  .task-id-chip:hover { background: var(--accent-muted, rgba(88,166,255,0.15)); border-color: var(--accent); }
+
   /* Mermaid diagrams: the wrapper is the responsive boundary AND a horizontal
      scroller. body has overflow-x:hidden, so without a local scroll context
      any diagram wider than the column would be clipped to invisibility.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefCallback } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefCallback } from "react";
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
 import { useAppState, useDispatch, useFeatures } from "../store.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
@@ -25,6 +25,7 @@ import { DeckView } from "./deck/DeckView.tsx";
 import { useSlideMode } from "../hooks/useSlideMode.ts";
 import { useSpeechLocale } from "../hooks/useSpeechLocale.ts";
 import { requestOpenAccountSection } from "../components/account-navigation.ts";
+import type { TaskMap } from "./task-links.tsx";
 
 export function LogView({
   agent,
@@ -33,6 +34,7 @@ export function LogView({
   onEditAgent,
   username,
   onOpenTasks,
+  onOpenTask,
   onSwipeLeft,
   onSwipeRight,
 }: {
@@ -42,15 +44,17 @@ export function LogView({
   onEditAgent: () => void;
   username: string;
   onOpenTasks?: () => void;
+  onOpenTask?: (id: string) => void;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
 }) {
-  const { drafts, slashCommands, stateChangedAt, isMobile, connected } = useAppState();
+  const { drafts, slashCommands, stateChangedAt, isMobile, connected, tasks } = useAppState();
   const dispatch = useDispatch();
   const features = useFeatures();
   const panels = useLogViewPanels(agent.id);
   const slideMode = useSlideMode(agent.id);
   const speechLocale = useSpeechLocale();
+  const taskMap = useMemo<TaskMap>(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
 
   // Input draft + textarea ref
   const input = drafts.get(agent.id) ?? "";
@@ -266,6 +270,8 @@ export function LogView({
               onCopyToTerminal={features.terminal ? panels.copyToTerminal : undefined}
               onOpenConnections={() => requestOpenAccountSection("connections")}
               stateChangedAt={stateChangedAt.get(agent.id)}
+              tasks={taskMap}
+              onOpenTask={onOpenTask}
             />
 
             {!autoScroll && (

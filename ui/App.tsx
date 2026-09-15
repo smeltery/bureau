@@ -45,6 +45,7 @@ export function App() {
   const [editingOfficePrompt, setEditingOfficePrompt] = useState(false);
   const [editingRoomSettings, setEditingRoomSettings] = useState<string | null>(null);
   const [tasksOpen, setTasksOpen] = useState(false);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [cronjobsOpen, setCronjobsOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
@@ -198,8 +199,13 @@ export function App() {
       ) : tasksOpen ? (
         <TaskView
           username={username ?? ""}
-          onClose={closeTasks}
+          openTaskId={openTaskId}
+          onClose={() => {
+            setOpenTaskId(null);
+            closeTasks();
+          }}
           onFocusAgent={(agentId) => {
+            setOpenTaskId(null);
             setTasksOpen(false);
             dispatch({ type: "focus", agentId });
           }}
@@ -213,6 +219,10 @@ export function App() {
           onEditAgent={() => setEditAgent(focusedAgent)}
           username={username ?? ""}
           onOpenTasks={() => setTasksOpen(true)}
+          onOpenTask={(id) => {
+            setOpenTaskId(id);
+            setTasksOpen(true);
+          }}
           onSwipeLeft={swipeAgentNext}
           onSwipeRight={swipeAgentPrev}
         />
