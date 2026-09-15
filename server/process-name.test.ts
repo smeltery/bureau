@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
-import { OFFICE_PROCESS_NAME } from "./process-name.ts";
+import { OFFICE_PROCESS_NAME, setProcessName } from "./process-name.ts";
 
 const MODULE = `${import.meta.dir}/process-name.ts`;
 
@@ -27,7 +27,7 @@ async function inSubprocess(code: string): Promise<string> {
 const READ_STAT_NAME = `readFileSync("/proc/self/stat","utf8").split(" ")[1]`;
 
 describe("setProcessName", () => {
-  test("renames the running process as the kernel reports it", async () => {
+  test.skipIf(process.platform !== "linux")("renames the running process as the kernel reports it", async () => {
     const out = await inSubprocess(`
       const { readFileSync } = require("fs");
       const { setProcessName } = await import("${MODULE}");
@@ -45,7 +45,7 @@ describe("setProcessName", () => {
     expect(got.stat).toBe(`(${OFFICE_PROCESS_NAME})`);
   });
 
-  test("a bun child of a renamed server is still named bun", async () => {
+  test.skipIf(process.platform !== "linux")("a bun child of a renamed server is still named bun", async () => {
     const out = await inSubprocess(`
       const { setProcessName } = await import("${MODULE}");
       setProcessName();
@@ -63,7 +63,7 @@ describe("setProcessName", () => {
     expect(out).toBe("bun");
   });
 
-  test("truncates to the 15 characters the kernel stores", async () => {
+  test.skipIf(process.platform !== "linux")("truncates to the 15 characters the kernel stores", async () => {
     const out = await inSubprocess(`
       const { readFileSync } = require("fs");
       const { setProcessName } = await import("${MODULE}");
@@ -71,6 +71,10 @@ describe("setProcessName", () => {
       console.log(readFileSync("/proc/self/comm", "utf8").trim());
     `);
     expect(out).toBe("a".repeat(15));
+  });
+
+  test.skipIf(process.platform === "linux")("is a no-op off Linux", () => {
+    expect(setProcessName()).toBe(false);
   });
 
   test("OFFICE_PROCESS_NAME is bureau (not bun)", () => {
