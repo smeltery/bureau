@@ -7,13 +7,7 @@
 
 import { expect, test } from "bun:test";
 import { ROOM_SKIN_MODULES } from "./index.tsx";
-import {
-  DEFAULT_ROOM_SKIN,
-  ROOM_SKIN_IDS,
-  effectiveRoomSkin,
-  parseRoomSkin,
-  type RoomSkin,
-} from "../../../shared/room-skins.ts";
+import { DEFAULT_ROOM_SKIN, ROOM_SKIN_IDS, effectiveRoomSkin, parseRoomSkin, type RoomSkin } from "../../../shared/room-skins.ts";
 import { THEMES } from "../../themes/index.ts";
 
 const MODES = ["light", "dark"] as const;
@@ -22,9 +16,7 @@ test("every skin id has a module", () => {
   for (const id of ROOM_SKIN_IDS) {
     expect(ROOM_SKIN_MODULES[id]).toBeDefined();
   }
-  expect(Object.keys(ROOM_SKIN_MODULES).sort()).toEqual(
-    [...ROOM_SKIN_IDS].sort(),
-  );
+  expect(Object.keys(ROOM_SKIN_MODULES).sort()).toEqual([...ROOM_SKIN_IDS].sort());
 });
 
 // The office is the drawing every room has had since before skins existed, so
@@ -58,9 +50,7 @@ test("a skin only overrides variables the themes define", () => {
 // showing through at night.
 test("a skin repaints the same variables in both modes", () => {
   for (const id of ROOM_SKIN_IDS) {
-    expect(Object.keys(ROOM_SKIN_MODULES[id].vars("light")).sort()).toEqual(
-      Object.keys(ROOM_SKIN_MODULES[id].vars("dark")).sort(),
-    );
+    expect(Object.keys(ROOM_SKIN_MODULES[id].vars("light")).sort()).toEqual(Object.keys(ROOM_SKIN_MODULES[id].vars("dark")).sort());
   }
 });
 
@@ -97,10 +87,6 @@ test("an unknown or absent skin draws the office", () => {
   expect(effectiveRoomSkin(undefined)).toBe(DEFAULT_ROOM_SKIN);
   expect(effectiveRoomSkin({})).toBe(DEFAULT_ROOM_SKIN);
   expect(effectiveRoomSkin({ skin: null })).toBe(DEFAULT_ROOM_SKIN);
-  expect(effectiveRoomSkin({ skin: "clinic" as RoomSkin })).toBe(
-    DEFAULT_ROOM_SKIN,
-  );
-  expect(
-    ROOM_SKIN_MODULES[effectiveRoomSkin({ skin: "clinic" as RoomSkin })],
-  ).toBeDefined();
+  expect(effectiveRoomSkin({ skin: "clinic" as RoomSkin })).toBe(DEFAULT_ROOM_SKIN);
+  expect(ROOM_SKIN_MODULES[effectiveRoomSkin({ skin: "clinic" as RoomSkin })]).toBeDefined();
 });

@@ -154,11 +154,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
             {id === "office" ? "Office" : id === "hospital" ? "Hospital" : id}
           </option>
         ))}
-        {!SELECTABLE_ROOM_SKIN_IDS.includes(skin) && (
-          <option value={skin}>
-            {skin} (stored)
-          </option>
-        )}
+        {!SELECTABLE_ROOM_SKIN_IDS.includes(skin) && <option value={skin}>{skin} (stored)</option>}
       </select>
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Room Pet</label>

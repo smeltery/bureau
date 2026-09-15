@@ -91,7 +91,7 @@ describe("handleRoomsRequest", () => {
 
     expect(res?.status).toBe(200);
     const body = await res?.json();
-    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, pet: null, version: body.version });
+    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, pet: null, skin: null, version: body.version });
     expect(typeof body.version).toBe("string");
     AgentManager.setRoomSettings(room.id, null, null);
   });
