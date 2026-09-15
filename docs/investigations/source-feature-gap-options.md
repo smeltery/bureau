@@ -92,9 +92,10 @@ implementation stays in Bureau naming and architecture.
   browser to avoid increasing package size and install complexity.
 - Interactive agent browser follow-ons beyond the experimental MVP: live CDP
   screencast / binary frames into a side panel, persistent per-manager storage
-  profiles, a dedicated browser panel UI beyond chat screenshot cards, and
-  public-origin browsing (explicitly rejected — Bureau keeps the tighter
-  preview-url allowlist).
+  profiles, and public-origin browsing (explicitly rejected — Bureau keeps the
+  tighter preview-url allowlist). A thin chat status strip ships with the MVP.
+- Full lobby room scene (SVG + receptionist). Team chat covers the members
+  messaging need without a second isometric room type.
 - OpenCode follow-ons beyond the Bureau-native MVP: authority-broker / FFI peer
   auth, full credential-scan suite, live certification harness, darwin-only
   packaging polish beyond PATH detection, and a V2 client.
