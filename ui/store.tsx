@@ -139,7 +139,7 @@ export type Action =
   | { type: "log_replay_complete" }
   | { type: "set_mobile"; isMobile: boolean }
   | { type: "toggle_mobile_view" }
-  | { type: "office_settings_updated"; prompt: string | null; envFile: string | null }
+  | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: { browserPanel: boolean } }
   | { type: "tasks"; tasks: TaskItem[] }
   // The Apps tab's list GET result (apps_loaded, local) and the server's app
   // deltas (app_updated / app_removed, straight off the wire).

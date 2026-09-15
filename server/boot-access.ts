@@ -45,6 +45,7 @@ export function initializeAccessConfig(): void {
         networkBind: cfg.networkBind,
         officeName: cfg.officeName,
         previewAllowHosts: cfg.previewAllowHosts,
+        experimental: cfg.experimental,
       });
     } catch (err) {
       console.error(`[auth] failed to backfill office-config.json (${(err as Error).message}); will re-attempt next boot`);

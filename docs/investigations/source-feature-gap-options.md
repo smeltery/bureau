@@ -13,6 +13,9 @@ implementation stays in Bureau naming and architecture.
   outbox.
 - Browser preview cards. Agents can request a screenshot of a local/private
   development URL and surface it as an image card in chat.
+- Experimental interactive agent browser (opt-in `experimental.browserPanel`).
+  Agents drive a shared host Chrome via `POST /api/agents/:id/browser` with the
+  same local/private + allowlist URL policy as preview-url. Off by default.
 - Codex drift reduction. Bureau should keep the bundled Codex launcher and
   offered Codex model list current enough for the embedded Codex backend.
 - Instant self-handoff REST endpoint. `POST /api/agents/:id/handoff` resets an
@@ -75,6 +78,11 @@ implementation stays in Bureau naming and architecture.
   subresources.
 - A bundled browser dependency. Bureau uses an installed Chrome-compatible
   browser to avoid increasing package size and install complexity.
+- Interactive agent browser follow-ons beyond the experimental MVP: live CDP
+  screencast / binary frames into a side panel, persistent per-manager storage
+  profiles, a dedicated browser panel UI beyond chat screenshot cards, and
+  public-origin browsing (explicitly rejected — Bureau keeps the tighter
+  preview-url allowlist).
 - OpenCode follow-ons beyond the Bureau-native MVP: authority-broker / FFI peer
   auth, full credential-scan suite, live certification harness, darwin-only
   packaging polish beyond PATH detection, and a V2 client.

@@ -9,11 +9,20 @@ export type { RoomSkin } from "./room-skins.ts";
 export { DEFAULT_ROOM_SKIN, SELECTABLE_ROOM_SKIN_IDS, ROOM_SKIN_IDS, effectiveRoomSkin, isRoomSkin, parseRoomSkin } from "./room-skins.ts";
 import type { RoomSkin } from "./room-skins.ts";
 
+/** Opt-in experimental office features. Defaults are off. */
+export interface ExperimentalSettings {
+  /** Interactive agent browser (`POST /api/agents/:id/browser`). Off by default. */
+  browserPanel: boolean;
+}
+
+export const DEFAULT_EXPERIMENTAL: ExperimentalSettings = { browserPanel: false };
+
 // Office-level settings (prompt + optional env file path)
 export interface OfficeSettings {
   prompt: string | null;
   envFile: string | null;
   previewAllowHosts: string[];
+  experimental: ExperimentalSettings;
 }
 
 export type UserRole = "owner" | "member";

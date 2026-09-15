@@ -156,7 +156,15 @@ export function reducer(state: AppState, action: Action): AppState {
       return { ...state, mobileViewMode: next };
     }
     case "office_settings_updated":
-      return { ...state, office: { ...state.office, prompt: action.prompt, envFile: action.envFile } };
+      return {
+        ...state,
+        office: {
+          ...state.office,
+          prompt: action.prompt,
+          envFile: action.envFile,
+          ...(action.experimental ? { experimental: action.experimental } : {}),
+        },
+      };
     case "tasks":
       return { ...state, tasks: action.tasks, tasksLoaded: true };
     // The Apps tab's list GET landing. It REPLACES the slice — a merge would

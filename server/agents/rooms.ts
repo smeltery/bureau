@@ -1,4 +1,4 @@
-import type { RoomPet, RoomSkin, RoomWire } from "../../shared/types.ts";
+import type { ExperimentalSettings, RoomPet, RoomSkin, RoomWire } from "../../shared/types.ts";
 import { generateRoomId, normalizeRoomPet, parseRoomSkin } from "../../shared/types.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { versionOf } from "../memory-store.ts";
@@ -9,21 +9,41 @@ export function getRooms(): RoomWire[] {
   return roomsWire();
 }
 
-/** Content hash over the office settings PUT surface (prompt + envFile). */
-export function officeSettingsVersion(settings?: { prompt: string | null; envFile: string | null }): string {
-  const s = settings ?? { prompt: officeConfig.prompt, envFile: officeConfig.envFile };
-  return versionOf(JSON.stringify([s.prompt ?? null, s.envFile ?? null]));
+/** Content hash over the office settings PUT surface (prompt + envFile + experimental). */
+export function officeSettingsVersion(
+  settings?: { prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings },
+): string {
+  const s = settings ?? {
+    prompt: officeConfig.prompt,
+    envFile: officeConfig.envFile,
+    experimental: officeConfig.experimental,
+  };
+  return versionOf(JSON.stringify([s.prompt ?? null, s.envFile ?? null, s.experimental ?? officeConfig.experimental]));
 }
 
 // Update office settings. Caller is responsible for validating envFile (see validateEnvPath).
-export function setOfficeSettings(prompt: string | null, envFile: string | null) {
+export function setOfficeSettings(
+  prompt: string | null,
+  envFile: string | null,
+  experimental?: ExperimentalSettings,
+) {
   const normalizedPrompt = prompt && prompt.trim() ? prompt.trim() : null;
-  const nextConfig = { ...officeConfig, prompt: normalizedPrompt, envFile: envFile || null };
+  const nextConfig = {
+    ...officeConfig,
+    prompt: normalizedPrompt,
+    envFile: envFile || null,
+    experimental: experimental ?? officeConfig.experimental,
+  };
   setOfficeConfig(nextConfig);
   saveOfficeConfig(nextConfig);
   // System prompt is rebuilt at every createSession from current office/room/agent
   // config, so the new office prompt automatically lands on the next conversation.
-  emit({ type: "office_settings_updated", prompt: nextConfig.prompt, envFile: nextConfig.envFile });
+  emit({
+    type: "office_settings_updated",
+    prompt: nextConfig.prompt,
+    envFile: nextConfig.envFile,
+    experimental: nextConfig.experimental,
+  });
 }
 
 export function setRoomSettings(roomId: string, prompt: string | null, envFile: string | null): boolean {

@@ -58,6 +58,7 @@ export type {
   ApiTokenWire,
   CatCoat,
   DogCoat,
+  ExperimentalSettings,
   InviteWire,
   OfficeSettings,
   PetPalette,
@@ -76,6 +77,7 @@ export type {
 } from "./user-types.ts";
 export {
   CAT_COATS,
+  DEFAULT_EXPERIMENTAL,
   DEFAULT_ROOM_PET,
   DEFAULT_ROOM_SKIN,
   DOG_COATS,

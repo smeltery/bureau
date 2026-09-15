@@ -7,6 +7,8 @@
 // process lifetime, so it's effectively a constant. This matters when a
 // second bureau office runs on a non-default port; agents in that office
 // need to POST to their own server, not 4000.
+import { officeConfig } from "../state.ts";
+
 const PORT = process.env.PORT || "4000";
 
 export function buildSystemPrompt(
@@ -61,7 +63,17 @@ How to show a styled code diff to the boss (uncommitted changes, a commit, or a 
 
 How to show the boss a browser preview of a local/private dev URL: call POST localhost:${PORT}/api/agents/${agentId}/preview-url with your bearer token and body {"url":"http://127.0.0.1:3000"}. Optional viewport is {"width":1280,"height":800}; optional wait is milliseconds in 0..10000. The target receives a preflight request before the browser loads it, and public internet hosts are rejected.
   curl -s -X POST localhost:${PORT}/api/agents/${agentId}/preview-url -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"url":"http://127.0.0.1:3000","viewport":{"width":1280,"height":800},"wait":1000}'
+`;
 
+  if (officeConfig.experimental.browserPanel) {
+    systemPrompt += `
+How to use a web page yourself (read it, click it, fill a form) — experimental, off unless the office enables experimental.browserPanel: call POST localhost:${PORT}/api/agents/${agentId}/browser with your bearer token and {"action":"..."}. The office keeps one headless browser and gives you your own page. Actions: "goto" with "url" (same local/private + allowlist policy as preview-url); "snapshot" returns the ARIA tree (also as "text"); "click"/"fill" take a Playwright selector, and "fill" also takes "text"; "press" takes "key" and optional "selector"; "screenshot" puts the image in chat as a card; "close" ends your page. Every action answers with url and title. Only http(s), no URL credentials. Downloads are refused. Errors include code (invalid_request, no_page, action_failed, action_timeout, no_browser).
+  curl -s -X POST localhost:${PORT}/api/agents/${agentId}/browser -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"action":"goto","url":"http://127.0.0.1:3000/"}'
+  curl -s -X POST localhost:${PORT}/api/agents/${agentId}/browser -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"action":"snapshot"}'
+`;
+  }
+
+  systemPrompt += `
 How to run a web app for the boss (only when they ask for one): register it with Bureau instead of choosing a port yourself. Bureau allocates the port, passes it to the app as \$PORT, and, when present, passes the bind address as \$BUREAU_APP_HOST. Bind to \$BUREAU_APP_HOST || "0.0.0.0" so app-hostname deployments stay loopback-only behind Bureau's proxy while local/tailnet deployments remain directly reachable. Bureau runs the app as a service that outlives your session, Bureau restarts, and reboots. App names are 1-59 lowercase letters, digits, or hyphens, and must begin and end with a letter or digit. Names and ports are permanent for an app's whole life: fix a bad command with PATCH rather than deleting and re-registering, because deleting retires the app's address for good. Apps are for something the boss will keep using; for a scratch server you only want them to look at, use preview-url above.
   curl -s -X POST localhost:${PORT}/api/apps -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"name":"habits","command":"bun run start","cwd":"~/habits","description":"Habit tracker"}'   # the response carries the port and the data dir
   curl -s localhost:${PORT}/api/apps -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                                                          # list; add /<name> for one

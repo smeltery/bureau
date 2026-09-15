@@ -11,6 +11,7 @@ import {
   writeManagedOfficeEnv,
   writeManagedUserEnv,
 } from "../persistence/managed-env.ts";
+import { normalizeExperimental } from "../persistence/config/office-config.ts";
 
 const jsonHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 const noContentHeaders = { "Access-Control-Allow-Origin": "*" };
@@ -61,7 +62,13 @@ export async function handleOfficeSettingsRequest(req: Request, url: URL, auth: 
         return error(422, err instanceof Error ? err.message : "invalid env file");
       }
     }
-    AgentManager.setOfficeSettings(prompt, envFile);
+    let experimental = current.experimental;
+    if (body.experimental !== undefined) {
+      const parsed = normalizeExperimental(body.experimental);
+      if (!parsed) return error(400, "experimental must be { browserPanel: boolean }");
+      experimental = parsed;
+    }
+    AgentManager.setOfficeSettings(prompt, envFile, experimental);
     return new Response(null, { status: 204, headers: noContentHeaders });
   }
 

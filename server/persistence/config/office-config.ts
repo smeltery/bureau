@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from "fs";
+import { DEFAULT_EXPERIMENTAL, type ExperimentalSettings } from "../../../shared/user-types.ts";
 import { atomicWriteFileSync, OFFICE_CONFIG_FILE, OFFICE_PROMPT_FILE } from "../paths.ts";
 
 // Office-level settings (prompt + env file path) stored in office-config.json.
@@ -28,6 +29,8 @@ export interface OfficeConfig {
   // affordance. Preview capture stays private-network-only unless a hostname
   // is explicitly listed here.
   previewAllowHosts: string[];
+  /** Opt-in experimental features. Missing on disk → all false. */
+  experimental: ExperimentalSettings;
 }
 
 // A single entry in office-config.json's `enabledPlugins` array.
@@ -58,6 +61,7 @@ export function loadOfficeConfig(): OfficeConfig {
         networkBind: parseNetworkBind(parsed.networkBind),
         officeName: typeof parsed.officeName === "string" && parsed.officeName.trim() ? parsed.officeName.trim().slice(0, 64) : null,
         previewAllowHosts: parsePreviewAllowHosts(parsed.previewAllowHosts),
+        experimental: parseExperimental(parsed.experimental),
       };
     }
   } catch (err) {
@@ -71,7 +75,16 @@ export function loadOfficeConfig(): OfficeConfig {
       if (raw.trim()) legacyPrompt = raw;
     }
   } catch {}
-  const config: OfficeConfig = { prompt: legacyPrompt, envFile: null, publicOrigin: null, externalAccess: null, networkBind: "auto", officeName: null, previewAllowHosts: [] };
+  const config: OfficeConfig = {
+    prompt: legacyPrompt,
+    envFile: null,
+    publicOrigin: null,
+    externalAccess: null,
+    networkBind: "auto",
+    officeName: null,
+    previewAllowHosts: [],
+    experimental: { ...DEFAULT_EXPERIMENTAL },
+  };
   // Only persist if the legacy prompt actually had content — otherwise a fresh
   // install touches a new file for no reason, and the next save/set will write
   // it anyway once there's real data.
@@ -123,6 +136,19 @@ function parseNetworkBind(value: unknown): "auto" | "loopback" | "all" {
   if (value === "auto" || value === "loopback" || value === "all") return value;
   console.error('[office-config] networkBind in office-config.json must be "auto", "loopback", or "all"; using auto');
   return "auto";
+}
+
+export function parseExperimental(value: unknown): ExperimentalSettings {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { ...DEFAULT_EXPERIMENTAL };
+  const raw = value as { browserPanel?: unknown };
+  return { browserPanel: raw.browserPanel === true };
+}
+
+export function normalizeExperimental(value: unknown): ExperimentalSettings | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as { browserPanel?: unknown };
+  if (typeof raw.browserPanel !== "boolean") return null;
+  return { browserPanel: raw.browserPanel };
 }
 
 // Raw read of office-config.json — returns the parsed object verbatim without

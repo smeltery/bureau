@@ -145,7 +145,7 @@ function addressAllowed(address: string): boolean {
   return false;
 }
 
-async function assertAllowedHost(url: URL, deps: Pick<PreviewCaptureDeps, "lookupFn" | "publicHostAllowlist">): Promise<PreviewResult | null> {
+export async function assertAllowedHost(url: URL, deps: Pick<PreviewCaptureDeps, "lookupFn" | "publicHostAllowlist"> = {}): Promise<PreviewResult | null> {
   const hostname = url.hostname.toLowerCase().replace(/\.$/u, "");
   if (deps.publicHostAllowlist?.map((host) => host.toLowerCase()).includes(hostname)) return null;
   if (addressAllowed(url.hostname)) return null;

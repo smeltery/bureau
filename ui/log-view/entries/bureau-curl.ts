@@ -10,6 +10,7 @@ type JsonObject = Record<string, unknown>;
 const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/agents\/[^/]+\/read-file$/, "Bureau API: show file to boss"],
   [/^\/api\/agents\/[^/]+\/preview-url$/, "Bureau API: browser preview"],
+  [/^\/api\/agents\/[^/]+\/browser$/, "Bureau API: interactive browser"],
   [/^\/api\/agents\/[^/]+\/terminal-command$/, "Bureau API: terminal card"],
   [/^\/api\/agents\/[^/]+\/diff$/, "Bureau API: diff card"],
   [/^\/api\/agents\/[^/]+\/edit-file$/, "Bureau API: open file in editor"],

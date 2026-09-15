@@ -65,6 +65,19 @@ export async function handleAgentBearerPost(req: Request, parts: string[]): Prom
     if (!result.ok) return jsonError(result.status, result.error);
     return jsonOk();
   }
+  if (parts.length === 3 && parts[2] === "browser") {
+    const agentId = parts[1]!;
+    if (identity.agentId !== agentId) return tokenMismatch();
+    const body = await readOptionalJson(req);
+    if (!body) return jsonError(400, "invalid JSON body");
+    const result = await AgentManager.emitAgentBrowser(agentId, body);
+    if (!result.ok) {
+      const payload: Record<string, unknown> = { error: result.error };
+      if (result.code) payload.code = result.code;
+      return new Response(JSON.stringify(payload), { status: result.status, headers: JSON_HEADERS });
+    }
+    return new Response(JSON.stringify(result.result), { headers: JSON_HEADERS });
+  }
   if (parts.length === 3 && parts[2] === "terminal-command") {
     const agentId = parts[1]!;
     if (identity.agentId !== agentId) return tokenMismatch();
@@ -111,7 +124,7 @@ function isAgentBearerRoute(method: string, parts: string[]): boolean {
   if (method === "GET" && parts[2] === "context") return true;
   if (method === "GET" && parts[2] === "instructions") return true;
   if (method !== "POST") return false;
-  return parts[2] === "diff" || parts[2] === "edit-file" || parts[2] === "read-file" || parts[2] === "preview-url" || parts[2] === "terminal-command" || parts[2] === "message";
+  return parts[2] === "diff" || parts[2] === "edit-file" || parts[2] === "read-file" || parts[2] === "preview-url" || parts[2] === "browser" || parts[2] === "terminal-command" || parts[2] === "message";
 }
 
 async function readOptionalJson(req: Request): Promise<Record<string, unknown> | null> {

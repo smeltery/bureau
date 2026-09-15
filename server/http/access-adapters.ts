@@ -61,6 +61,7 @@ export async function saveAccessSettingsForApi(actorUserId: string, input: { ext
       networkBind: prevCfg.networkBind,
       officeName: prevCfg.officeName,
       previewAllowHosts,
+      experimental: prevCfg.experimental,
     });
   } catch (err) {
     return { ok: false, status: 500, error: err instanceof Error ? err.message : "failed to save access settings" };
