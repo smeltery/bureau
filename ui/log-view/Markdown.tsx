@@ -17,6 +17,8 @@ import yaml from "highlight.js/lib/languages/yaml";
 import markdown from "highlight.js/lib/languages/markdown";
 import plaintext from "highlight.js/lib/languages/plaintext";
 import { renderMermaidBlocks } from "./markdown/mermaid.ts";
+import { mathBlockExtensions, mathInlineDisplayExtension, mathInlineExtensions } from "./markdown/math.ts";
+import { renderKatexBlocks } from "./markdown/katex.ts";
 import { sanitizeSvg } from "./markdown/svg-sanitize.ts";
 import { copyText } from "../utils/clipboard.ts";
 
@@ -121,6 +123,10 @@ marked.use({
   ],
 });
 
+marked.use({ extensions: mathBlockExtensions });
+marked.use({ extensions: mathInlineExtensions });
+marked.use({ extensions: [mathInlineDisplayExtension] });
+
 const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5a1.5 1.5 0 0 0-1.5-1.5H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>`;
 const CHECK_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></svg>`;
 const COPY_BTN_HTML = `<button class="copy-btn code-copy-btn" title="Copy">${COPY_SVG}</button>`;
@@ -200,6 +206,12 @@ export function Markdown({ content }: { content: string }) {
     const root = containerRef.current;
     if (!root) return;
     return renderMermaidBlocks(root);
+  }, [html]);
+
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    return renderKatexBlocks(root);
   }, [html]);
 
   return <div ref={containerRef} className="md-content" onClick={(e) => void onClick(e)} />;

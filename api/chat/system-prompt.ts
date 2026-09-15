@@ -87,7 +87,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 
 ### Conversation View
 - Input drafts preserved when switching between agents
-- Markdown rendering for agent output, including mermaid diagrams (\`\`\`mermaid fenced blocks render as inline SVG, lazy-loaded and theme-aware; parse failures show the offending source in-place)
+- Markdown rendering for agent output, including mermaid diagrams (\`\`\`mermaid fenced blocks render as inline SVG, lazy-loaded and theme-aware; parse failures show the offending source in-place) and LaTeX math (\`$...$\`, \`$$...$$\`, \`\\(...\\)\`, \`\\[...\\]\` via KaTeX; currency-like dollars stay literal). User and assistant bubbles show the server time next to copy.
 - Collapsible thinking and tool-call cards with timing for each step; calls a subagent made are marked with a dim "subagent · type" pill and indented behind a left rule, so they are distinguishable from the agent's own work
 - Subscription-usage pill beside the context battery — how much of the signed-in account's Claude or Codex plan allowance is burned, tracking the most-constrained window, with a popover listing every window and its reset time. Account-wide rather than per-conversation, so it survives /clear and fork; shows "?" when the account has no plan limits to report (API key, Bedrock, Vertex)
 - Reconnecting never blanks the conversation: the transcript keeps rendering while the server's replay buffers, then swaps in atomically

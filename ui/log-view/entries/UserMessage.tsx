@@ -3,7 +3,7 @@ import type { Attachment } from "../../../shared/types.ts";
 import { isApiTokenDevice } from "../../../shared/identity.ts";
 import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { EditIcon } from "../../components/controls/Icons.tsx";
-import { AttachmentDisplay } from "./shared.tsx";
+import { AttachmentDisplay, MessageTimestamp } from "./shared.tsx";
 
 export function UserMessage({
   content,
@@ -19,6 +19,7 @@ export function UserMessage({
   agentId,
   canEdit,
   onEdit,
+  timestamp,
 }: {
   content: string;
   isMobile?: boolean;
@@ -33,6 +34,7 @@ export function UserMessage({
   agentId?: string;
   canEdit?: boolean;
   onEdit?: () => void;
+  timestamp?: number;
 }) {
   const getText = useCallback(() => content, [content]);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -74,30 +76,33 @@ export function UserMessage({
       {attachments && attachments.length > 0 && agentId && (
         <AttachmentDisplay attachments={attachments} agentId={agentId} isMobile={isMobile} lightboxSrc={lightboxSrc} setLightboxSrc={setLightboxSrc} hasContent={!!content} />
       )}
-      <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
-        {canEdit && onEdit && (
-          <button
-            onClick={onEdit}
-            title="Edit & branch"
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--text-ghost)",
-              padding: 2,
-              borderRadius: 4,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "color 0.15s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-ghost)")}
-          >
-            <EditIcon />
-          </button>
-        )}
-        <CopyButton getText={getText} />
+      <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 8 }}>
+        <MessageTimestamp timestamp={timestamp} />
+        <div style={{ display: "flex", gap: 4 }}>
+          {canEdit && onEdit && (
+            <button
+              onClick={onEdit}
+              title="Edit & branch"
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--text-ghost)",
+                padding: 2,
+                borderRadius: 4,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-ghost)")}
+            >
+              <EditIcon />
+            </button>
+          )}
+          <CopyButton getText={getText} />
+        </div>
       </div>
     </div>
   );

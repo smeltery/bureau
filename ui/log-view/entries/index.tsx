@@ -74,6 +74,7 @@ export function LogEntryCard({
           agentId={entry.agentId}
           canEdit={canEdit && !agentName && !cronjobName && !isProgrammaticUser}
           onEdit={onStartEdit ? () => onStartEdit(entry.id) : undefined}
+          timestamp={entry.timestamp}
         />
       );
     }
@@ -88,14 +89,15 @@ export function LogEntryCard({
           outgoing
           agentId={entry.agentId}
           canEdit={false}
+          timestamp={entry.timestamp}
         />
       );
     }
     case "text":
-      return <AssistantText content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
+      return <AssistantText content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
     case "thinking": {
       const durationMs = entry.metadata?.duration_ms as number | undefined;
-      return <ThinkingBlock content={entry.content} durationMs={durationMs} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
+      return <ThinkingBlock content={entry.content} durationMs={durationMs} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
     }
     case "tool_call": {
       const matchingResult = findMatchingToolResult(entry, turnEntries);
@@ -121,7 +123,7 @@ export function LogEntryCard({
       return <ToolResult entry={entry} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     }
     case "error":
-      return <ErrorBlock content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
+      return <ErrorBlock content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
     case "system":
       if (entry.metadata?.permissionDenied && typeof entry.metadata.permissionDenied === "object") {
         return <PermissionDeniedCard denial={entry.metadata.permissionDenied as { toolName?: string; message?: string; decisionReason?: string }} isMobile={isMobile} />;

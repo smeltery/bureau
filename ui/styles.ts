@@ -138,6 +138,7 @@ ${emitThemesCss()}
      (not on .mermaid itself) so they don't inherit into the rendered SVG's
      text labels. */
   .md-content .mermaid { display: block; }
+  .md-content .katex-math[data-katex-display="true"] { display: block; overflow-x: auto; overflow-y: hidden; }
   .md-content .mermaid:empty::before {
     content: "Rendering diagram…";
     font-family: 'JetBrains Mono', monospace;

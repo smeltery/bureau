@@ -131,12 +131,38 @@ export function DurationLabel({ ms, isMobile }: { ms: number; isMobile?: boolean
   );
 }
 
-export function TurnCopyButton({ turnEntries }: { turnEntries?: LogEntry[] }) {
-  const getText = useCallback(() => (turnEntries ? serializeEntries(turnEntries) : ""), [turnEntries]);
-  if (!turnEntries) return null;
+export function formatMessageTimestamp(timestamp: number): string {
+  return new Date(timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+export function MessageTimestamp({ timestamp }: { timestamp?: number }) {
+  if (timestamp == null) return null;
   return (
-    <div style={{ position: "absolute", top: 8, right: 8 }}>
-      <CopyButton getText={getText} />
+    <time
+      dateTime={new Date(timestamp).toISOString()}
+      title={new Date(timestamp).toISOString()}
+      data-message-timestamp=""
+      style={{
+        color: "var(--text-ghost)",
+        fontSize: 10,
+        fontWeight: 400,
+        letterSpacing: "normal",
+        textTransform: "none",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {formatMessageTimestamp(timestamp)}
+    </time>
+  );
+}
+
+export function TurnCopyButton({ turnEntries, timestamp }: { turnEntries?: LogEntry[]; timestamp?: number }) {
+  const getText = useCallback(() => (turnEntries ? serializeEntries(turnEntries) : ""), [turnEntries]);
+  if (!turnEntries && timestamp == null) return null;
+  return (
+    <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 8 }}>
+      <MessageTimestamp timestamp={timestamp} />
+      {turnEntries && <CopyButton getText={getText} />}
     </div>
   );
 }

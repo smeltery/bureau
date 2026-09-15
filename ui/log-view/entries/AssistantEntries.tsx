@@ -3,7 +3,7 @@ import type { ChoicePromptPayload, LogEntry } from "../../../shared/types.ts";
 import { Markdown } from "../Markdown.tsx";
 import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { SpeakButton } from "../../components/controls/SpeakButton.tsx";
-import { DurationLabel, TurnCopyButton } from "./shared.tsx";
+import { DurationLabel, MessageTimestamp, TurnCopyButton } from "./shared.tsx";
 import { serializeEntries } from "./serialize.ts";
 
 const COLLAPSED_TEXT_CHARS = 2400;
@@ -14,7 +14,19 @@ export function shouldCollapseAssistantText(content: string): boolean {
   return content.length > COLLAPSED_TEXT_CHARS || content.split("\n").length > COLLAPSED_TEXT_LINES;
 }
 
-export function AssistantText({ content, isLastInTurn, turnEntries, isMobile }: { content: string; isLastInTurn?: boolean; turnEntries?: LogEntry[]; isMobile?: boolean }) {
+export function AssistantText({
+  content,
+  isLastInTurn,
+  turnEntries,
+  isMobile,
+  timestamp,
+}: {
+  content: string;
+  isLastInTurn?: boolean;
+  turnEntries?: LogEntry[];
+  isMobile?: boolean;
+  timestamp?: number;
+}) {
   const getText = useCallback(() => content, [content]);
   const canCollapse = shouldCollapseAssistantText(content);
   const [expanded, setExpanded] = useState(false);
@@ -68,9 +80,12 @@ export function AssistantText({ content, isLastInTurn, turnEntries, isMobile }: 
           {expanded ? "Show less" : "Show more"}
         </button>
       )}
-      <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
-        <SpeakButton getText={getText} />
-        {isLastInTurn && turnEntries && <CopyButton getText={() => serializeEntries(turnEntries)} />}
+      <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 8 }}>
+        <MessageTimestamp timestamp={timestamp} />
+        <div style={{ display: "flex", gap: 4 }}>
+          <SpeakButton getText={getText} />
+          {isLastInTurn && turnEntries && <CopyButton getText={() => serializeEntries(turnEntries)} />}
+        </div>
       </div>
     </div>
   );
@@ -82,12 +97,14 @@ export function ThinkingBlock({
   isLastInTurn,
   turnEntries,
   isMobile,
+  timestamp,
 }: {
   content: string;
   durationMs?: number;
   isLastInTurn?: boolean;
   turnEntries?: LogEntry[];
   isMobile?: boolean;
+  timestamp?: number;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -134,12 +151,12 @@ export function ThinkingBlock({
           {content}
         </div>
       )}
-      {isLastInTurn && <TurnCopyButton turnEntries={turnEntries} />}
+      <TurnCopyButton turnEntries={isLastInTurn ? turnEntries : undefined} timestamp={timestamp} />
     </div>
   );
 }
 
-export function ErrorBlock({ content, isLastInTurn, turnEntries, isMobile }: { content: string; isLastInTurn?: boolean; turnEntries?: LogEntry[]; isMobile?: boolean }) {
+export function ErrorBlock({ content, isLastInTurn, turnEntries, isMobile, timestamp }: { content: string; isLastInTurn?: boolean; turnEntries?: LogEntry[]; isMobile?: boolean; timestamp?: number }) {
   return (
     <div
       style={{
@@ -159,7 +176,7 @@ export function ErrorBlock({ content, isLastInTurn, turnEntries, isMobile }: { c
       }}
     >
       {content}
-      {isLastInTurn && <TurnCopyButton turnEntries={turnEntries} />}
+      <TurnCopyButton turnEntries={isLastInTurn ? turnEntries : undefined} timestamp={timestamp} />
     </div>
   );
 }

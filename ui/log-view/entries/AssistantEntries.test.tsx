@@ -7,10 +7,12 @@ describe("AssistantText", () => {
   test("leaves short messages fully expanded", () => {
     expect(shouldCollapseAssistantText("Short answer.")).toBe(false);
 
-    const html = renderToStaticMarkup(createElement(AssistantText, { content: "Short answer." }));
+    const html = renderToStaticMarkup(createElement(AssistantText, { content: "Short answer.", timestamp: Date.UTC(2026, 8, 12, 12, 0) }));
 
     expect(html).not.toContain("Show more");
     expect(html).not.toContain("max-height");
+    expect(html).toContain("data-message-timestamp");
+    expect(html).toContain("2026-09-12T12:00:00.000Z");
   });
 
   test("collapses long messages behind an explicit control", () => {
