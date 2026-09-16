@@ -52,7 +52,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   instructions use the same optimistic-concurrency rail.
 - Bundled collaboration skills and Bureau slash commands, including peer
   review, pair programming, soft handoff, subagent review, and guided Bureau bug
-  reports.
+  reports. `/help` opens a compact chat card with a read-only modal (docs +
+  short tips; Bureau Skills / User Skills).
 - Composer skills browser with filterable commands and skills, plus per-user
   most-used counts for quick access to go-to workflows across devices.
 
@@ -76,7 +77,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 ## Office UI
 
 - Isometric rooms with desks, character sprites, status lights, and animated
-  state.
+  state. Mid-turn desks show screen scroll lines and vessel steam; working
+  characters get a face light.
 - Desk drinkware signals backend: Claude desks show a mug, Codex desks a teacup on a saucer, OpenCode desks a small flask.
 - Room tabs, room settings, drag/move flows, and desk swapping.
 - Usage and Storage panes in User Settings (Usage for all signed-in users; Storage prune for owners). Nested Office Settings links removed.
@@ -87,7 +89,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Per-room office pets: choose a cat, dog, rabbit, or tortoise and a coat in
   Room settings; legacy coat-only configs migrate to the cat.
 - Per-room looks: Office (default) or Hospital — floor, walls, and props change;
-  desks, characters, pets, and status lights stay the same.
+  desks, characters, pets, and status lights stay the same. Hospital beds sit
+  clear of the desk paint grid.
 - Clickable wall affordances: corkboard → Tasks, clock → Schedules, vent →
   Settings, apps plaque → Apps (moon/sun still toggles theme).
 - Keyboard shortcuts `t` (toggle Tasks), `a` (toggle Apps), and `s` (open
