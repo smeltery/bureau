@@ -13,6 +13,8 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily, agentType }
   const vs = visualDeskState(state);
   const glow = { working: "#50B86C", waiting_for_response: "#9B59B6", error: "#E85D75", idle: "#223" }[vs];
   const on = vs !== "idle";
+  // Mid-turn activity (scroll + steam) — not merely lit (waiting/error still light the screen).
+  const working = vs === "working";
   const hasPlant = !DESKS_WITHOUT_PLANT.has(deskIndex);
   const vessel = vesselForAgentType(agentType);
   const leaves = PLANT_VARIANTS[deskIndex % PLANT_VARIANTS.length];
@@ -109,10 +111,19 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily, agentType }
             <animate attributeName="opacity" values="0.1;0.2;0.1" dur="3s" repeatCount="indefinite" />
           </path>
         )}
-        {on && (
+        {on && !working && (
           <path d="M66 30 L108 48" stroke={glow} strokeWidth="0.8" opacity="0.3">
             <animate attributeName="d" values="M66 18 L108 37;M66 41 L108 60;M66 18 L108 37" dur="4s" repeatCount="indefinite" />
           </path>
+        )}
+        {working && (
+          <g data-screen-scroll clipPath={`url(#${screenClipId})`}>
+            {[0, 1, 2].map((i) => (
+              <path key={i} d="M66 18 L108 37" stroke={glow} strokeWidth="0.7" opacity="0.26">
+                <animate attributeName="d" values="M66 15 L108 34;M66 44 L108 63" dur="2.4s" begin={`-${i * 0.8}s`} repeatCount="indefinite" />
+              </path>
+            ))}
+          </g>
         )}
         {/* CWD text on monitor */}
         {shortCwd && (
@@ -145,8 +156,8 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily, agentType }
           <ellipse cx="140" cy="55" rx="6" ry="3" fill={mugRim} />
           <ellipse cx="140" cy="55.5" rx="4.5" ry="2" fill={mugLiquid} />
           <path d="M146 57 Q152 57 152 60 Q152 63 146 62" fill="none" stroke={mugSide} strokeWidth="1.5" strokeLinecap="round" />
-          {on && (
-            <path d="M138 53 Q136 47 140 43" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8">
+          {working && (
+            <path data-steam d="M138 53 Q136 47 140 43" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8">
               <animate attributeName="d" values="M138 53 Q136 47 140 43;M138 53 Q140 45 137 40;M138 53 Q136 47 140 43" dur="2.5s" repeatCount="indefinite" />
             </path>
           )}
@@ -164,8 +175,8 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily, agentType }
           <ellipse cx="140" cy="57.2" rx="5.5" ry="2.5" fill={mugRim} />
           <ellipse cx="140" cy="57.5" rx="4.2" ry="1.8" fill={cupLiquid} />
           <path d="M145.4 58.4 Q149.2 58.4 149.2 60.1 Q149.2 61.6 145.6 61.2" fill="none" stroke={mugSide} strokeWidth="1.2" strokeLinecap="round" />
-          {on && (
-            <path d="M138.6 55.2 Q136.6 49.4 140.4 45.6" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8">
+          {working && (
+            <path data-steam d="M138.6 55.2 Q136.6 49.4 140.4 45.6" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8">
               <animate attributeName="d" values="M138.6 55.2 Q136.6 49.4 140.4 45.6;M138.6 55.2 Q140.6 47.6 137.8 42.8;M138.6 55.2 Q136.6 49.4 140.4 45.6" dur="2.5s" repeatCount="indefinite" />
             </path>
           )}
@@ -183,8 +194,8 @@ export function DeskSprite({ state, deskIndex = 0, cwd, modelFamily, agentType }
           <ellipse cx="140" cy="54" rx="2.5" ry="1.1" fill={mugRim} />
           <rect x="138.2" y="51.2" width="3.6" height="2.8" rx="0.6" fill={mugSide} />
           <ellipse cx="140" cy="59.5" rx="3.2" ry="1.4" fill={flaskLiquid} opacity="0.85" />
-          {on && (
-            <path d="M139 51 Q137.5 46 140 43" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.7">
+          {working && (
+            <path data-steam d="M139 51 Q137.5 46 140 43" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.7">
               <animate attributeName="d" values="M139 51 Q137.5 46 140 43;M139 51 Q141 45 138.5 41;M139 51 Q137.5 46 140 43" dur="2.5s" repeatCount="indefinite" />
             </path>
           )}

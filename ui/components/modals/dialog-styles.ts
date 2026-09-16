@@ -35,6 +35,19 @@ export const dialogCancelBtn: Readonly<CSSProperties> = Object.freeze({
   cursor: "pointer",
 });
 
+// Accent-tinted action on a transcript card (Show help). dialogCancelBtn is
+// transparent over the card surface and reads as a faint hairline.
+export const cardActionBtn: Readonly<CSSProperties> = Object.freeze({
+  padding: "7px 16px",
+  borderRadius: 8,
+  border: "1px solid var(--accent)",
+  background: "var(--accent-bg)",
+  color: "var(--accent)",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+});
+
 export const dialogSaveBtn: Readonly<CSSProperties> = Object.freeze({
   padding: "7px 16px",
   borderRadius: 8,

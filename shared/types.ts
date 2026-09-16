@@ -16,6 +16,7 @@ export {
   familyFromLegacyModel,
   isClaudeFamily,
   isOpenCodeModel,
+  knownModelFamiliesFor,
   modelVersionLabel,
 } from "./agent-models.ts";
 export type {

@@ -82,6 +82,20 @@ export function modelFamilyMismatchError(agentType: AgentBackendType, raw: strin
   return `"${raw}" is not a Claude model family (valid: ${families}). For a Codex model, set agentType to "codex".`;
 }
 
+export class InvalidModelFamilyError extends Error {
+  readonly code = "invalid_model_family" as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidModelFamilyError";
+  }
+}
+
+/** Refuse a family that cannot belong to agentType. Used by cron create/update before persist. */
+export function assertModelFamilyForAgentType(agentType: AgentBackendType, raw: string | undefined): void {
+  const err = modelFamilyMismatchError(agentType, raw);
+  if (err) throw new InvalidModelFamilyError(err);
+}
+
 export function resolveInteractiveModelSelection(agentType: AgentBackendType, modelFamily: string | undefined, model: string | undefined): { modelFamily: string | undefined; error: string | null } {
   let resolvedFamily = modelFamily;
   if (resolvedFamily === undefined && model === undefined && agentType !== "opencode") {

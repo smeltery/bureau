@@ -189,6 +189,55 @@ describe("handleCronjobsRequest", () => {
     CronjobManager.deleteCronjob(cronjob.id);
   });
 
+  test("rejects Claude-shaped Codex cron models with 422 before persist", async () => {
+    const cronjob = CronjobManager.addCronjob({
+      name: "Codex shape",
+      schedule: { type: "daily", hour: 9, minute: 0 },
+      prompt: "Check",
+      cwd: process.cwd(),
+      agentType: "codex",
+      modelFamily: "gpt-7-x",
+      effort: "medium",
+      permissionMode: "never",
+      username: "Owner",
+      userId: "owner-1",
+    });
+    const req = new Request(`http://local.test/api/cronjobs/${cronjob.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ modelFamily: "fable-5" }),
+    });
+
+    const res = await handleCronjobsRequest(req, new URL(req.url), ownerAuth);
+
+    expect(res?.status).toBe(422);
+    expect(await res?.json()).toEqual({ error: '"fable-5" is not a Codex model.' });
+    expect(CronjobManager.listCronjobs().find((j) => j.id === cronjob.id)?.modelFamily).toBe("gpt-7-x");
+
+    CronjobManager.deleteCronjob(cronjob.id);
+  });
+
+  test("rejects create with a Claude family on Codex with 422", async () => {
+    const createReq = new Request("http://local.test/api/cronjobs", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Bad Codex",
+        schedule: { type: "daily", hour: 9, minute: 0 },
+        prompt: "Check the queue",
+        cwd: process.cwd(),
+        agentType: "codex",
+        modelFamily: "opus",
+        effort: "medium",
+        permissionMode: "never",
+      }),
+    });
+
+    const res = await handleCronjobsRequest(createReq, new URL(createReq.url), ownerAuth);
+
+    expect(res?.status).toBe(422);
+    expect(await res?.json()).toEqual({ error: '"opus" is not a Codex model.' });
+    expect(CronjobManager.listCronjobs().some((j) => j.name === "Bad Codex")).toBe(false);
+  });
+
   test("requires owner or creator access for cronjob mutations", async () => {
     const cronjob = CronjobManager.addCronjob({
       name: "Member owned",

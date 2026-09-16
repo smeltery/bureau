@@ -79,4 +79,38 @@ describe("handleCronjobCommand", () => {
       error: "schedule must be daily, weekly, or interval with finite numeric fields",
     });
   });
+
+  test("rejects Claude-shaped Codex models over websocket", () => {
+    const cronjob = CronjobManager.addCronjob({
+      name: "WS Codex",
+      schedule: { type: "daily", hour: 9, minute: 0 },
+      prompt: "Check",
+      cwd: process.cwd(),
+      agentType: "codex",
+      modelFamily: "gpt-7-x",
+      effort: "medium",
+      permissionMode: "never",
+      username: "Owner",
+      userId: "owner-1",
+    });
+    const sent: string[] = [];
+
+    handleCronjobCommand(
+      {
+        type: "update_cronjob",
+        requestId: "req-model",
+        id: cronjob.id,
+        changes: { modelFamily: "fable-5" },
+      } as never,
+      wsSink(sent),
+    );
+
+    expect(CronjobManager.listCronjobs()[0]?.modelFamily).toBe("gpt-7-x");
+    expect(JSON.parse(sent[0]!)).toEqual({
+      type: "agent_save_response",
+      requestId: "req-model",
+      ok: false,
+      error: '"fable-5" is not a Codex model.',
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { modelFamilyMismatchError, resolveInteractiveModelSelection, validateCronjobPermissionMode } from "../agent-validators.ts";
+import { assertModelFamilyForAgentType, InvalidModelFamilyError, modelFamilyMismatchError, resolveInteractiveModelSelection, validateCronjobPermissionMode } from "../agent-validators.ts";
+import { CODEX_MODELS, knownModelFamiliesFor, MODEL_FAMILIES } from "../../shared/types.ts";
 
 describe("validateCronjobPermissionMode", () => {
   test("keeps the unattended cron mode", () => {
@@ -64,5 +65,36 @@ describe("interactive model selection validation", () => {
     expect(resolveInteractiveModelSelection("claude", undefined, undefined)).toEqual({ modelFamily: "opus", error: null });
     expect(resolveInteractiveModelSelection("codex", undefined, undefined)).toEqual({ modelFamily: "gpt-5.6-sol", error: null });
     expect(resolveInteractiveModelSelection("opencode", undefined, undefined).error).toContain("requires");
+  });
+
+  test("uses a short Codex refuse tone for Claude-shaped names", () => {
+    expect(modelFamilyMismatchError("codex", "opus")).toBe('"opus" is not a Codex model.');
+    expect(modelFamilyMismatchError("codex", "fable-5")).toBe('"fable-5" is not a Codex model.');
+  });
+});
+
+describe("knownModelFamiliesFor", () => {
+  test("lists Claude families and Codex slugs, and leaves OpenCode to discovery", () => {
+    expect(knownModelFamiliesFor("claude")).toEqual(MODEL_FAMILIES.map((m) => m.family));
+    expect(knownModelFamiliesFor("codex")).toEqual(CODEX_MODELS.map((m) => m.value));
+    expect(knownModelFamiliesFor("opencode")).toBeNull();
+  });
+});
+
+describe("assertModelFamilyForAgentType", () => {
+  test("throws InvalidModelFamilyError for a Claude family on Codex", () => {
+    expect(() => assertModelFamilyForAgentType("codex", "opus")).toThrow(InvalidModelFamilyError);
+    try {
+      assertModelFamilyForAgentType("codex", "opus");
+    } catch (err) {
+      expect(err).toBeInstanceOf(InvalidModelFamilyError);
+      expect((err as InvalidModelFamilyError).message).toBe('"opus" is not a Codex model.');
+      expect((err as InvalidModelFamilyError).code).toBe("invalid_model_family");
+    }
+  });
+
+  test("allows a well-formed OpenCode provider/model and refuses missing ones", () => {
+    expect(() => assertModelFamilyForAgentType("opencode", "provider/model")).not.toThrow();
+    expect(() => assertModelFamilyForAgentType("opencode", undefined)).toThrow(InvalidModelFamilyError);
   });
 });

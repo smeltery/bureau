@@ -1,15 +1,21 @@
-import { EFFORT_LEVELS, MODEL_FAMILIES, effortDisplayLabel, familyDisplayLabel } from "../../../shared/types.ts";
+import { EFFORT_LEVELS, effortDisplayLabel, familyDisplayLabel, knownModelFamiliesFor } from "../../../shared/types.ts";
 import { emitEphemeralLog, updateState, type ManagedAgent } from "../state.ts";
 
 export async function handleModelCommand(agentId: string, managed: ManagedAgent, _args: string[], rawText: string, username?: string): Promise<boolean> {
   const userMeta = username ? { username } : undefined;
   emitEphemeralLog(agentId, "user_message", rawText, userMeta);
+  if (managed.info.agentType === "opencode") {
+    emitEphemeralLog(agentId, "system", "Open agent settings to select a connected OpenCode model.");
+    updateState(agentId, "waiting_for_response");
+    return true;
+  }
+  const models = knownModelFamiliesFor(managed.info.agentType) ?? [];
   const currentLabel = familyDisplayLabel(managed.info.modelFamily);
   const lines: string[] = [`Switch model (current: **${currentLabel}**):\n`];
-  const choices = MODEL_FAMILIES.map((model) => ({
-    value: model.family,
-    label: familyDisplayLabel(model.family),
-    current: model.family === managed.info.modelFamily,
+  const choices = models.map((modelFamily) => ({
+    value: modelFamily,
+    label: familyDisplayLabel(modelFamily),
+    current: modelFamily === managed.info.modelFamily,
   }));
   lines.push(...choices.map((choice, index) => `  ${index + 1}. ${choice.label}${choice.current ? " (current)" : ""}`));
   const instruction = "\nReply with a number to switch, or anything else to cancel.";

@@ -7,6 +7,7 @@ import { DiffCard } from "../DiffCard.tsx";
 import { EditRequestCard } from "../EditRequestCard.tsx";
 import { FileViewCard } from "../FileViewCard.tsx";
 import { TerminalCommandCard } from "../TerminalCommandCard.tsx";
+import { HelpCard } from "./HelpCard.tsx";
 import { isApiTokenDevice } from "../../../shared/identity.ts";
 import type { TaskMap } from "../task-links.tsx";
 
@@ -134,6 +135,9 @@ export function LogEntryCard({
     case "error":
       return <ErrorBlock content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
     case "system":
+      if (typeof entry.metadata?.helpContent === "string") {
+        return <HelpCard header={entry.content} helpContent={entry.metadata.helpContent} />;
+      }
       if (entry.metadata?.permissionDenied && typeof entry.metadata.permissionDenied === "object") {
         return <PermissionDeniedCard denial={entry.metadata.permissionDenied as { toolName?: string; message?: string; decisionReason?: string }} isMobile={isMobile} />;
       }

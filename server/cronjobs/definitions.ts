@@ -1,7 +1,7 @@
 import { generateCronjobId, type Cronjob, type CronjobPermissionMode, type Schedule } from "../../shared/types.ts";
 import { loadCronjobHistory, saveCronjobHistory, saveCronjobs } from "../persistence.ts";
 import { resolveCwd } from "../agents/session/paths.ts";
-import { validateCodexSandbox, validateCronjobPermissionMode, validateEffort, validateModelFamily } from "../agent-validators.ts";
+import { assertModelFamilyForAgentType, validateCodexSandbox, validateCronjobPermissionMode, validateEffort, validateModelFamily } from "../agent-validators.ts";
 import { getUserByName } from "../users.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 
@@ -26,6 +26,8 @@ export function addCronjobDefinition(cronjobs: Cronjob[], input: AddCronjobInput
   const schedule = clampSchedule(input.schedule);
   const now = Date.now();
   const agentType = input.agentType ?? "claude";
+  // Refuse mismatched families before any persist (same boundary as interactive agents).
+  assertModelFamilyForAgentType(agentType, input.modelFamily);
   const modelFamily = validateModelFamily(agentType, input.modelFamily);
   const effort = validateEffort(agentType, modelFamily, input.effort);
   const codexSandbox = agentType === "codex" ? validateCodexSandbox(input.codexSandbox) : undefined;
@@ -66,6 +68,12 @@ export function updateCronjobDefinition(cronjobs: Cronjob[], id: string, changes
   if (changes.prompt !== undefined) next.prompt = changes.prompt;
   if (changes.cwd !== undefined) next.cwd = resolveCwd(changes.cwd);
   if (engineChanged || changes.modelFamily !== undefined || changes.effort !== undefined || changes.permissionMode !== undefined) {
+    // Match interactive refuse: when engine or modelFamily is in the patch,
+    // validate the provided family (undefined on engine-only switch → OpenCode
+    // refuses; Claude/Codex may still default via validateModelFamily).
+    if (engineChanged || changes.modelFamily !== undefined) {
+      assertModelFamilyForAgentType(agentType, changes.modelFamily);
+    }
     next.modelFamily = validateModelFamily(agentType, changes.modelFamily ?? (engineChanged ? undefined : prev.modelFamily));
     next.effort = validateEffort(agentType, next.modelFamily, changes.effort ?? (engineChanged ? undefined : prev.effort));
     next.permissionMode = validateCronjobPermissionMode(agentType, changes.permissionMode ?? (engineChanged ? undefined : prev.permissionMode));

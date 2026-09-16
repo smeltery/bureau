@@ -1,39 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildSystemPrompt, memorySection } from "../session/system-prompt.ts";
-import { freezeBootState, setHasOwnerProvider, setPublicOriginFallback } from "../../auth/http-env.ts";
 import { autocompleteCommands, commands, unsupportedMessage } from "../commands.ts";
-import { handleHelpCommand } from "../conversation/slash-help.ts";
-import { agents, logCache } from "../state.ts";
-import type { ManagedAgent } from "../state.ts";
-
-function resetPublicOriginState(hasOwner = false): void {
-  setHasOwnerProvider(() => hasOwner);
-  setPublicOriginFallback(null);
-  freezeBootState({ externalAccess: false });
-}
-
-async function renderHelpForPublicOrigin(opts: { hasOwner: boolean; externalAccess: boolean; origin?: string }): Promise<string> {
-  agents.clear();
-  logCache.clear();
-  setHasOwnerProvider(() => opts.hasOwner);
-  setPublicOriginFallback(opts.origin ?? null);
-  freezeBootState({ externalAccess: opts.externalAccess });
-
-  const managed = {
-    info: { id: "agent-1", state: "waiting_for_response", queue: [] },
-    slashCommands: [{ name: "help", description: "List available commands" }],
-    skills: [],
-  } as unknown as ManagedAgent;
-  agents.set("agent-1", managed);
-
-  await handleHelpCommand("agent-1", managed, "/help", "Boss");
-  const entry = (logCache.get("agent-1") ?? [])
-    .filter((e) => e.kind === "system")
-    .map((e) => e.content)
-    .find((content) => content.includes("**Tips:**"));
-  if (!entry) throw new Error("missing help output");
-  return entry;
-}
 
 describe("buildSystemPrompt memory affordance", () => {
   test("documents all durable memory scopes without filesystem paths", () => {
@@ -214,6 +181,7 @@ describe("buildSystemPrompt memory affordance", () => {
 
     expect(prompt).toContain("## Privileged Operator Context");
     expect(prompt).toContain("Schedules your manager owns");
+    expect(prompt).toContain("this replaces the Schedules-page instruction above");
     expect(prompt).toContain("/api/cron-prompt");
     expect(prompt).toContain("Use it ONLY when a boss explicitly asks you to");
     expect(prompt).toContain("limited to the rooms and agents your manager can see");
@@ -307,34 +275,6 @@ describe("command auto-run metadata", () => {
       } else {
         expect("autoRun" in command).toBe(false);
       }
-    }
-  });
-});
-
-describe("help public-origin tips", () => {
-  test("keeps VPN and Funnel guidance on localhost-bound boots", async () => {
-    try {
-      const help = await renderHelpForPublicOrigin({ hasOwner: true, externalAccess: false, origin: "https://bureau.example" });
-
-      expect(help).toContain("connect it to the same VPN");
-      expect(help).toContain("Tailscale Funnel");
-      expect(help).toContain("mint one-time invite URLs");
-      expect(help).not.toContain("https://bureau.example");
-    } finally {
-      resetPublicOriginState();
-    }
-  });
-
-  test("shows the configured public URL when external access is active", async () => {
-    try {
-      const help = await renderHelpForPublicOrigin({ hasOwner: true, externalAccess: true, origin: "https://bureau.example" });
-
-      expect(help).toContain("Bureau works on your phone: open https://bureau.example.");
-      expect(help).toContain("mint one-time invite URLs");
-      expect(help).not.toContain("connect it to the same VPN");
-      expect(help).not.toContain("Tailscale Funnel");
-    } finally {
-      resetPublicOriginState();
     }
   });
 });

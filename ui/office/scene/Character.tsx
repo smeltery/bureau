@@ -1,7 +1,31 @@
+import { useId } from "react";
 import type { AgentState, AgentOutfit } from "../../../shared/types.ts";
 import { costumeOf } from "../../../shared/outfit-options.ts";
 import { Accessory, Beard, Hair, Hat } from "./CharacterParts.tsx";
 import { COSTUME_COLORS, CostumeBody, CostumeHead } from "./Costume.tsx";
+
+// Cool screen light added per channel to the face's own skin (not mixed toward a fixed blue).
+const FACE_LIGHT = [16, 25, 38] as const;
+
+function channels(hex: string): [number, number, number] | null {
+  const short = hex.trim().replace(/^#/, "");
+  const full = short.length === 3 ? short.replace(/./g, (c) => c + c) : short;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
+  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16)) as [number, number, number];
+}
+
+/** Skin colour where screen light is strongest: skin + FACE_LIGHT, clamped at white. */
+export function faceLitColor(skin: string): string {
+  const base = channels(skin);
+  if (!base) return skin;
+  return `#${base
+    .map((v, i) =>
+      Math.min(255, v + FACE_LIGHT[i])
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
 
 // Map our states to visual poses
 function visualState(state: AgentState): "working" | "waiting_for_response" | "error" | "idle" {
@@ -26,6 +50,9 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
   const hairStyle = outfit.hairStyle ?? "short";
   const beard = outfit.beard ?? "none";
   const vs = visualState(state);
+  const uid = useId();
+  const faceLightId = `face-light-${uid}`;
+  const faceClipId = `face-clip-${uid}`;
 
   const wrap = (children: React.ReactNode, anim?: React.CSSProperties) => (
     <svg width="52" height="68" viewBox="0 0 52 68" overflow="visible" style={{ filter: "drop-shadow(0 3px 4px rgba(0,0,0,0.35))", ...anim }}>
@@ -142,6 +169,16 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
     hCy = 25;
   return wrap(
     <>
+      <defs>
+        <linearGradient id={faceLightId} x1="0.18" y1="1" x2="0.6" y2="0.1" gradientUnits="objectBoundingBox">
+          <stop offset="0%" stopColor={faceLitColor(skin)} stopOpacity="1" />
+          <stop offset="45%" stopColor={faceLitColor(skin)} stopOpacity="0.5" />
+          <stop offset="100%" stopColor={faceLitColor(skin)} stopOpacity="0" />
+        </linearGradient>
+        <clipPath id={faceClipId}>
+          <ellipse cx={hCx} cy={hCy} rx={10} ry={10} />
+        </clipPath>
+      </defs>
       <rect x={16} y={36} width={20} height={16} fill={bc} rx={3} />
       <CostumeBody costume={costume} seated={false} />
       <g>
@@ -153,6 +190,7 @@ export function Character({ state, outfit }: { state: AgentState; outfit: AgentO
         </rect>
       </g>
       <ellipse cx={hCx} cy={hCy} rx={10} ry={10} fill={skin} />
+      <ellipse data-face-light cx={hCx} cy={hCy} rx={10} ry={10} fill={`url(#${faceLightId})`} clipPath={`url(#${faceClipId})`} />
       <Hair style={hairStyle} color={hair} headCx={hCx} headCy={hCy} />
       <Hat type={outfit.hat} color={bc} headCx={hCx} headCy={hCy} />
       <CostumeHead costume={costume} headCx={hCx} headCy={hCy} />

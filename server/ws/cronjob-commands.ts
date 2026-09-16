@@ -1,5 +1,6 @@
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
+import { InvalidModelFamilyError } from "../agent-validators.ts";
 import * as AgentManager from "../agent-manager.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import { parseCronjobChanges, parseCronjobCreate } from "../http/cronjob-route-helpers.ts";
@@ -25,12 +26,22 @@ export function handleCronjobCommand(cmd: ClientCommand, ws: ServerWebSocket<unk
         return true;
       }
       saveRecentCwd(parsed.draft.cwd);
-      CronjobManager.addCronjob({
-        ...parsed.draft,
-        username: cmd.username,
-        userId: getWsUser(ws)?.id ?? null,
-        device: cmd.device,
-      });
+      try {
+        CronjobManager.addCronjob({
+          ...parsed.draft,
+          username: cmd.username,
+          userId: getWsUser(ws)?.id ?? null,
+          device: cmd.device,
+        });
+      } catch (err) {
+        if (err instanceof InvalidModelFamilyError) {
+          if (cmd.requestId) {
+            ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: err.message } as ServerMessage));
+          }
+          return true;
+        }
+        throw err;
+      }
       if (cmd.requestId) {
         ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
       }
@@ -55,7 +66,17 @@ export function handleCronjobCommand(cmd: ClientCommand, ws: ServerWebSocket<unk
         }
         return true;
       }
-      CronjobManager.updateCronjob(cmd.id, parsed.changes);
+      try {
+        CronjobManager.updateCronjob(cmd.id, parsed.changes);
+      } catch (err) {
+        if (err instanceof InvalidModelFamilyError) {
+          if (cmd.requestId) {
+            ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: err.message } as ServerMessage));
+          }
+          return true;
+        }
+        throw err;
+      }
       if (cmd.requestId) {
         ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
       }

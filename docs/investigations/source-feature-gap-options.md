@@ -62,6 +62,15 @@ implementation stays in Bureau naming and architecture.
 - Lobby scene. Client `lobbyOpen` draws a Bureau-native isometric lobby (not a
   desk `RoomWire`); receptionist click opens Team chat; presence may use
   sentinel id `lobby`.
+- `/help` as a compact chat card with a read-only modal body (docs + short tips
+  lead; Bureau Skills / User Skills; phone/device sprawl left to docs).
+- `/model` and cronjob create/update refuse model families that cannot work for
+  the agent backend (Codex/OpenCode lists; 422 before persist).
+- Hospital ward beds placed clear of the desk paint grid, with a layout test.
+- Working-desk activity cues (screen scroll lines + vessel steam) when an agent
+  is mid-turn.
+- Privileged agent system prompt clarifies that schedule CRUD replaces the
+  ordinary “ask the boss / Schedules page” line.
 
 ## Rejected
 

@@ -1,4 +1,5 @@
 import type { AuthResult } from "../auth/auth-middleware.ts";
+import { InvalidModelFamilyError } from "../agent-validators.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import { handleCronjobRunAffordanceRequest } from "./cronjob-run-affordances.ts";
@@ -65,12 +66,17 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
     const cwdError = validateCwdForRequest(parsed.draft.cwd);
     if (cwdError) return jsonError(400, cwdError);
     saveRecentCwd(parsed.draft.cwd);
-    const cronjob = CronjobManager.addCronjob({
-      ...parsed.draft,
-      username: caller.session.username,
-      userId: caller.session.userId,
-    });
-    return new Response(JSON.stringify(cronjob), { status: 201, headers: cronjobCorsHeaders });
+    try {
+      const cronjob = CronjobManager.addCronjob({
+        ...parsed.draft,
+        username: caller.session.username,
+        userId: caller.session.userId,
+      });
+      return new Response(JSON.stringify(cronjob), { status: 201, headers: cronjobCorsHeaders });
+    } catch (err) {
+      if (err instanceof InvalidModelFamilyError) return jsonError(422, err.message);
+      throw err;
+    }
   }
 
   const cronjob = cronjobs.find((c) => c.id === jobId);
@@ -94,8 +100,13 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
     }
     const parsed = parseCronjobChanges(body);
     if (!parsed.ok) return jsonError(400, parsed.error);
-    const updated = CronjobManager.updateCronjob(jobId, parsed.changes);
-    return updated ? new Response(JSON.stringify(updated), { headers: cronjobCorsHeaders }) : jsonError(404, "not found");
+    try {
+      const updated = CronjobManager.updateCronjob(jobId, parsed.changes);
+      return updated ? new Response(JSON.stringify(updated), { headers: cronjobCorsHeaders }) : jsonError(404, "not found");
+    } catch (err) {
+      if (err instanceof InvalidModelFamilyError) return jsonError(422, err.message);
+      throw err;
+    }
   }
   // DELETE /cronjobs/:id
   if (req.method === "DELETE" && parts.length === 2) {

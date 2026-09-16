@@ -67,8 +67,9 @@ describe("editMessage ephemeral slash rewrite", () => {
     const text = contents("agent-1");
     expect(text.some((c) => c.includes("/hepl"))).toBe(false);
     expect(text.some((c) => c.includes("Unknown command"))).toBe(false);
-    // Real /help landed via sendMessage.
-    expect(text.some((c) => c.includes("**Tips:**") || c.includes("/help"))).toBe(true);
+    // Real /help landed via sendMessage as a compact card (body in metadata).
+    expect(text.some((c) => c === "**Help**" || c.includes("/help"))).toBe(true);
+    expect((logCache.get("agent-1") ?? []).some((e) => typeof e.metadata?.helpContent === "string")).toBe(true);
   });
 
   test("works without a sessionId (first-message slash typo)", async () => {

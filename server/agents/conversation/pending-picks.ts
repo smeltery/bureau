@@ -1,4 +1,5 @@
-import { EFFORT_LEVELS, MODEL_FAMILIES, effortDisplayLabel, familyDisplayLabel } from "../../../shared/types.ts";
+import { EFFORT_LEVELS, effortDisplayLabel, familyDisplayLabel, knownModelFamiliesFor } from "../../../shared/types.ts";
+import { modelFamilyMismatchError } from "../../agent-validators.ts";
 import { addLogEntry, emit, emitEphemeralLog, persistAll } from "../state.ts";
 import type { ManagedAgent } from "../state-types.ts";
 import { createSession, replaceSession } from "../session/runtime.ts";
@@ -8,19 +9,25 @@ export async function handlePendingModelPick(agentId: string, managed: ManagedAg
   managed.pendingModelPick = false;
   const trimmed = text.trim();
   const num = parseInt(trimmed, 10);
-  if (!isNaN(num) && num >= 1 && num <= MODEL_FAMILIES.length) {
+  const models = knownModelFamiliesFor(managed.info.agentType) ?? [];
+  if (!isNaN(num) && num >= 1 && num <= models.length) {
     const userMeta = username ? { username } : undefined;
     emitEphemeralLog(agentId, "user_message", text, userMeta);
-    const picked = MODEL_FAMILIES[num - 1];
-    const label = familyDisplayLabel(picked.family);
-    if (picked.family === managed.info.modelFamily) {
+    const picked = models[num - 1]!;
+    const mismatch = modelFamilyMismatchError(managed.info.agentType, picked);
+    if (mismatch) {
+      emitEphemeralLog(agentId, "system", mismatch);
+      return true;
+    }
+    const label = familyDisplayLabel(picked);
+    if (picked === managed.info.modelFamily) {
       emitEphemeralLog(agentId, "system", `Already using ${label}.`);
     } else {
-      managed.info.modelFamily = picked.family;
+      managed.info.modelFamily = picked;
       const sessionId = managed.sessionId;
       const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
       await replaceSession(agentId, managed, newSession);
-      emit({ type: "agent_updated", agentId, changes: { modelFamily: picked.family } });
+      emit({ type: "agent_updated", agentId, changes: { modelFamily: picked } });
       persistAll();
       addLogEntry(agentId, "system", `Model switched to ${label}. The agent's context may still say they are a different model — the correct model is shown in the top bar.`);
     }

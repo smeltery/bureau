@@ -6,20 +6,36 @@ import { hospitalColors, type HospitalColors } from "./palette.ts";
 // Half-length from the middle of a bed to its foot, and half-width to its side,
 // both on the floor axes: the head is up-right against the back-right wall and
 // the foot points down-left into the room.
-const BED_U = { x: -52, y: 26 };
-const BED_V = { x: 24, y: 12 };
-// How high the mattress stands off the floor.
-const BED_H = 26;
+export const BED_U = { x: -40, y: 20 };
+export const BED_V = { x: 18, y: 9 };
+export const BED_H = 20;
+export const HEAD_RAIL = 24;
+const FOOT_RAIL = 16;
 
-// Where each prop stands, as its contact point on the floor. Collected here
-// because placement is the part that gets nudged against a screenshot, and
-// nudging it should not mean reading the drawing.
-const PLACEMENT = {
-  bedFar: { x: 430, y: 320 },
-  bedNear: { x: 300, y: 400 },
-  ivStand: { x: 215, y: 455 },
-  curtain: { x: 500, y: 292 },
+// Contact points on the floor, listed back to front (paint order). Beds stand
+// clear of all eight desk footprints along the front-right floor edge —
+// desks draw after this layer, so overlap paints over the bed. layout.test.ts
+// holds the numbers.
+export const PLACEMENT = {
+  curtain: { x: 384, y: 362 },
+  bedFar: { x: 300, y: 400 },
+  ivStand: { x: 246, y: 432 },
+  bedNear: { x: 180, y: 460 },
 } as const;
+
+export const BED_SPOTS = ["bedFar", "bedNear"] as const;
+
+/** Floor rectangle of a bed, widened to the frame and raised to the head rail. */
+export function bedBox(at: { x: number; y: number }) {
+  const halfX = -BED_U.x + BED_V.x;
+  const halfY = BED_U.y + BED_V.y;
+  return {
+    minX: at.x - halfX,
+    maxX: at.x + halfX,
+    minY: at.y - halfY - BED_H - HEAD_RAIL,
+    maxY: at.y + halfY,
+  };
+}
 
 function point(c: { x: number; y: number }, u: number, v: number) {
   return {
@@ -44,7 +60,7 @@ function Bed({ at, c }: { at: { x: number; y: number }; c: HospitalColors }) {
   return (
     <g aria-hidden="true">
       {/* Contact shadow */}
-      <ellipse cx={at.x} cy={at.y + 4} rx="62" ry="31" fill={c.shadow} filter="url(#hospital-soft)" />
+      <ellipse cx={at.x} cy={at.y + 4} rx="48" ry="24" fill={c.shadow} filter="url(#hospital-soft)" />
       {/* The two faces of the frame that face the viewer */}
       <path d={`M${nearFoot.x} ${nearFoot.y} L${nearHead.x} ${nearHead.y} L${nearHead.x} ${nearHead.y - BED_H} L${nearFoot.x} ${nearFoot.y - BED_H} Z`} fill={c.frameShade} />
       <path d={`M${nearFoot.x} ${nearFoot.y} L${farFoot.x} ${farFoot.y} L${farFoot.x} ${farFoot.y - BED_H} L${nearFoot.x} ${nearFoot.y - BED_H} Z`} fill={c.frame} />
@@ -63,8 +79,8 @@ function Bed({ at, c }: { at: { x: number; y: number }; c: HospitalColors }) {
       <path d={poly([point(at, -0.5, 0.62), point(at, -0.5, -0.62), point(at, -0.86, -0.62), point(at, -0.86, 0.62)], BED_H + 3)} fill={c.linenShade} opacity="0.5" />
       {/* Head and foot rails: two posts and three bars each */}
       {[
-        { end: head, h: 34, u: -1 },
-        { end: foot, h: 24, u: 1 },
+        { end: head, h: HEAD_RAIL, u: -1 },
+        { end: foot, h: FOOT_RAIL, u: 1 },
       ].map(({ end, h, u }) => {
         const a = point(at, u, 1);
         const b = point(at, u, -1);

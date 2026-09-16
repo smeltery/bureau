@@ -48,6 +48,16 @@ export const MODEL_FAMILIES: { family: ModelFamily; label: string }[] = [
   { family: "fable", label: "Fable" },
 ];
 
+// Static model-family IDs Bureau can validate without asking a provider. This
+// is also the source for the in-chat /model picker. OpenCode's connected model
+// list is runtime-only, so request paths must keep accepting a well-formed
+// provider/model ID when that list is not loaded.
+export function knownModelFamiliesFor(agentType: "claude" | "codex" | "opencode"): readonly string[] | null {
+  if (agentType === "claude") return MODEL_FAMILIES.map((m) => m.family);
+  if (agentType === "codex") return CODEX_MODELS.map((m) => m.value);
+  return null;
+}
+
 // Extract "4.8" from "claude-opus-4-8" or "5.1" from
 // "claude-fable-5-1" for display. Single-number slugs fall back to the
 // trailing number.
