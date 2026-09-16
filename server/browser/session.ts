@@ -128,7 +128,7 @@ export class BrowserPool {
     const session = this.sessions.get(agentId);
     if (!session || !session.screencast || session.page.isClosed()) return false;
     this.touch(agentId, session);
-    await this.live.humanInput(session.screencast, input);
+    await this.live.humanInput(agentId, session, input, () => this.sessions.get(agentId));
     return true;
   }
 

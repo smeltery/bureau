@@ -143,7 +143,7 @@ describe("BrowserPool live screencast", () => {
         clickCount: 0,
       }),
     ).toBe(true);
-    expect(calls.cdp.at(-1)).toEqual({
+    expect(calls.cdp).toContainEqual({
       method: "Input.dispatchMouseEvent",
       params: { type: "mouseMoved", x: 12, y: 18, button: "left", clickCount: 0 },
     });
@@ -175,6 +175,31 @@ describe("BrowserPool live screencast", () => {
     expect(frames).toEqual([{ data: "seed", width: 1280, height: 800 }]);
     stop();
     await pool.shutdown();
+  });
+
+  test("captures a still after human input so quiet pages do not stay stale", async () => {
+    const calls = freshCalls();
+    const { pool } = poolWith(calls, {}, { screenshot: async () => ({ data: "after-input" }) });
+    const frames: unknown[] = [];
+    const stop = pool.watch("a", (frame) => {
+      if (frame) frames.push(frame);
+    });
+    try {
+      await opened(pool, "a");
+      await pool.humanInput("a", {
+        kind: "mouse",
+        event: "mousePressed",
+        x: 42,
+        y: 24,
+        button: "left",
+        clickCount: 1,
+      });
+      expect(calls.cdp.some((c) => c.method === "Page.captureScreenshot" && !!c.params)).toBe(true);
+      expect(frames.at(-1)).toEqual({ data: "after-input", width: 1280, height: 800 });
+    } finally {
+      stop();
+      await pool.shutdown();
+    }
   });
 
   test("reads only the active selection, caps it, and does not open a missing page", async () => {

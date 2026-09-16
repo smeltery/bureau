@@ -1,7 +1,7 @@
 import type { BrowserHumanInput } from "../../shared/wire-client-types.ts";
-import type { CDPSession, Page } from "playwright-core";
+import type { Page } from "playwright-core";
 import { MAX_TEXT_CHARS } from "./params.ts";
-import { type BrowserFrame, type BrowserFrameListener, type ScreencastFields, startScreencast, stopScreencast } from "./screencast.ts";
+import { captureStill, type BrowserFrame, type BrowserFrameListener, type ScreencastFields, startScreencast, stopScreencast } from "./screencast.ts";
 
 export type { BrowserFrame, BrowserFrameListener };
 
@@ -78,7 +78,9 @@ export class LiveViews {
     );
   }
 
-  async humanInput(cdp: CDPSession, input: Exclude<BrowserHumanInput, { kind: "selection" }>): Promise<void> {
+  async humanInput(agentId: string, session: LiveSession, input: Exclude<BrowserHumanInput, { kind: "selection" }>, getSession: () => LiveSession | undefined): Promise<void> {
+    const cdp = session.screencast;
+    if (!cdp) return;
     if (input.kind === "mouse") {
       await cdp.send("Input.dispatchMouseEvent", {
         type: input.event,
@@ -99,6 +101,11 @@ export class LiveViews {
         ...(input.modifiers === undefined ? {} : { modifiers: input.modifiers }),
       });
     }
+    await captureStill(session, {
+      bounds: this.boundsFor(agentId, session.page),
+      stillCurrent: () => getSession() === session,
+      onFrame: (frame) => this.notify(agentId, frame),
+    });
   }
 
   private boundsFor(agentId: string, page: Page) {

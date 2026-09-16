@@ -44,6 +44,34 @@ export async function stopScreencast(session: ScreencastFields): Promise<void> {
   await cdp.detach().catch(() => {});
 }
 
+export async function captureStill(
+  session: ScreencastFields,
+  opts: {
+    bounds: { maxWidth: number; maxHeight: number; quality: number };
+    stillCurrent: () => boolean;
+    onFrame: (frame: BrowserFrame | null) => void;
+  },
+): Promise<void> {
+  const cdp = session.screencast;
+  if (!cdp || session.page.isClosed() || !opts.stillCurrent()) return;
+  const viewport = session.page.viewportSize() ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+  const shot = await cdp
+    .send("Page.captureScreenshot", {
+      format: "jpeg",
+      quality: opts.bounds.quality,
+      clip: {
+        x: 0,
+        y: 0,
+        ...viewport,
+        scale: Math.min(opts.bounds.maxWidth / viewport.width, opts.bounds.maxHeight / viewport.height),
+      },
+    })
+    .catch(() => null);
+  if (shot?.data && session.screencast === cdp && opts.stillCurrent()) {
+    publishFrame(session, { data: shot.data, ...viewport }, opts.onFrame);
+  }
+}
+
 export async function startScreencast(
   session: ScreencastFields,
   opts: {
@@ -111,22 +139,7 @@ async function startScreencastNow(
     await cdp.send("Page.startScreencast", { format: "jpeg", everyNthFrame: 2, ...bounds });
     // Static tabs may emit nothing with everyNthFrame > 1 — seed once.
     if (!receivedFrame) {
-      const viewport = session.page.viewportSize() ?? { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
-      const shot = await cdp
-        .send("Page.captureScreenshot", {
-          format: "jpeg",
-          quality: bounds.quality,
-          clip: {
-            x: 0,
-            y: 0,
-            ...viewport,
-            scale: Math.min(bounds.maxWidth / viewport.width, bounds.maxHeight / viewport.height),
-          },
-        })
-        .catch(() => null);
-      if (shot?.data && !receivedFrame && session.screencast === cdp && opts.stillCurrent()) {
-        publishFrame(session, { data: shot.data, ...viewport }, opts.onFrame);
-      }
+      await captureStill(session, { bounds, stillCurrent: () => !receivedFrame && opts.stillCurrent(), onFrame: opts.onFrame });
     }
   } catch {
     if (session.screencast) await stopScreencast(session);
