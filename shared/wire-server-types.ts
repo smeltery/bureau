@@ -102,7 +102,7 @@ export type ServerMessage =
   | { type: "editor_external_change"; agentId: string; path: string; mtime: number }
   | { type: "editor_file_deleted"; agentId: string; path: string }
   | { type: "editor_open_error"; agentId: string; path: string; reason: "not_found" | "not_file" | "binary" | "too_large" | "io_error" | "bad_path"; message?: string; size?: number }
-  | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings }
+  | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings; receptionistAgentId?: string | null }
   | { type: "tasks"; tasks: TaskItem[] }
   // Office-wide humans-only team chat. `updateOnly` replaces an already-held
   // message (pin/unpin) without appending.
@@ -132,4 +132,7 @@ export type ServerMessage =
   | { type: "cronjob_runs_complete" }
   | { type: "cronjob_run_updated"; run: CronjobRun }
   | { type: "cc_plugins_state"; plugins: CCPluginsState }
-  | { type: "pong" };
+  | { type: "pong" }
+  | { type: "browser_frame"; agentId: string; data: string; width: number; height: number }
+  | { type: "browser_status"; agentId: string; available: boolean; url: string; title: string; busy?: boolean; error?: string }
+  | { type: "browser_selection"; agentId: string; requestId: number; text: string; truncated: boolean; error?: string };

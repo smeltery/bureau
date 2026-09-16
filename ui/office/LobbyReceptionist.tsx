@@ -1,7 +1,8 @@
 import type { AgentOutfit } from "../../shared/types.ts";
 import { Character } from "./scene/Character.tsx";
 
-// Decorative lobby host. Click opens team chat — not a live agent desk.
+// Lobby host. Click opens a living receptionist agent's chat when configured
+// and visible; otherwise Team chat (current default).
 const HOST_OUTFIT: AgentOutfit = {
   hat: "none",
   color: "#3d5a80",
@@ -16,13 +17,25 @@ const SCALE = 1.2;
 const FEET_Y = 64;
 const HALF_W = 26;
 
-export function LobbyReceptionist({ onOpenTeamChat }: { onOpenTeamChat?: () => void }) {
+export function LobbyReceptionist({
+  onOpenTeamChat,
+  onOpenAgent,
+  agent,
+}: {
+  onOpenTeamChat?: () => void;
+  onOpenAgent?: (agentId: string) => void;
+  /** Living agent the viewer can access; when set, click opens their chat. */
+  agent?: { id: string; name: string; outfit: AgentOutfit } | null;
+}) {
+  const label = agent ? agent.name : "Team chat";
+  const outfit = agent?.outfit ?? HOST_OUTFIT;
+  const onClick = agent && onOpenAgent ? () => onOpenAgent(agent.id) : onOpenTeamChat;
   return (
-    <g data-receptionist="lobby-host" data-no-pan="" style={{ pointerEvents: "all", cursor: onOpenTeamChat ? "pointer" : "default" }} onClick={onOpenTeamChat}>
-      <title>Team chat</title>
+    <g data-receptionist="lobby-host" data-no-pan="" style={{ pointerEvents: "all", cursor: onClick ? "pointer" : "default" }} onClick={onClick}>
+      <title>{label}</title>
       <rect x={-HALF_W * SCALE - 4} y={-FEET_Y * SCALE - 12} width={HALF_W * 2 * SCALE + 8} height={FEET_Y * SCALE + 14} fill="transparent" />
       <g transform={`translate(${-HALF_W * SCALE} ${-FEET_Y * SCALE}) scale(${SCALE})`}>
-        <Character state="idle" outfit={HOST_OUTFIT} />
+        <Character state="idle" outfit={outfit} />
       </g>
       <foreignObject x={-200} y={-FEET_Y * SCALE - 28} width={400} height={40} style={{ pointerEvents: "none" }}>
         <div style={{ height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -39,7 +52,7 @@ export function LobbyReceptionist({ onOpenTeamChat }: { onOpenTeamChat?: () => v
               whiteSpace: "nowrap",
             }}
           >
-            Team chat
+            {label}
           </div>
         </div>
       </foreignObject>

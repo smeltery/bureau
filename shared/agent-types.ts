@@ -4,7 +4,7 @@ import type { Attachment } from "./log-types.ts";
 // Agent states derived from SDK stream events
 export type AgentState = "idle" | "thinking" | "tool_executing" | "waiting_for_response" | "error" | "stopped";
 
-export type PendingPromptKind = "permission" | "resume" | "model" | "effort";
+export type PendingPromptKind = "permission" | "resume" | "model" | "effort" | "cronjob";
 
 // Deterministic outfit from name hash
 export interface AgentOutfit {

@@ -297,12 +297,12 @@ export const LOBBY_LAYOUTS: Record<LobbyLayoutId, LayoutSpec> = {
     // in front of it paints over it.
     receptionist: { a: 3.8, b: 1.2 },
     ghostSpots: [
-      { a: 2.6, b: 4.6 }, // standing at the end of the chesterfield
-      { a: 5.6, b: 4.4 }, // by the coffee table, facing the fire
-      { a: 7.2, b: 5.6 }, // beside the club armchair
-      { a: 4.4, b: 7.4 }, // out on the open floor, front of the rug
-      { a: 7.8, b: 2.6 }, // warming by the hearth
-      { a: 1.7, b: 6.4 }, // near the bookcase end of the room
+      { id: "fireside-chesterfield-end", a: 2.6, b: 4.6, what: "end of the chesterfield" },
+      { id: "fireside-coffee", a: 5.6, b: 4.4, what: "by the coffee table" },
+      { id: "fireside-club-chair", a: 7.2, b: 5.6, what: "beside the club armchair" },
+      { id: "fireside-rug-front", a: 4.4, b: 7.4, what: "front of the rug" },
+      { id: "fireside-hearth", a: 7.8, b: 2.6, what: "warming by the hearth" },
+      { id: "fireside-bookcase", a: 1.7, b: 6.4, what: "near the bookcase" },
     ],
     placements: [
       {

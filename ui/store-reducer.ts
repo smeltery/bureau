@@ -163,6 +163,7 @@ export function reducer(state: AppState, action: Action): AppState {
           prompt: action.prompt,
           envFile: action.envFile,
           ...(action.experimental ? { experimental: action.experimental } : {}),
+          ...(action.receptionistAgentId !== undefined ? { receptionistAgentId: action.receptionistAgentId } : {}),
         },
       };
     case "tasks":

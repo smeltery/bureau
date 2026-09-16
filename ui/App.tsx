@@ -277,6 +277,7 @@ export function App() {
           onOpenApps={() => setAppsOpen(true)}
           onOpenPlugins={() => setPluginsOpen(true)}
           onOpenTeamChat={() => setTeamChatOpen(true)}
+          onFocusAgent={(agentId) => dispatch({ type: "focus", agentId })}
           onOpenUpdate={() => setUpdateOpen(true)}
           onSwipeLeft={swipeRoomNext}
           onSwipeRight={swipeRoomPrev}

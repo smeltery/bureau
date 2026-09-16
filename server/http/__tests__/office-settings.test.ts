@@ -121,6 +121,53 @@ describe("handleOfficeSettingsRequest", () => {
     );
   });
 
+  test("persists receptionistAgentId through PUT", async () => {
+    const currentReq = request("/api/office/settings");
+    const current = await handleOfficeSettingsRequest(currentReq, new URL(currentReq.url), ownerAuth);
+    const body = (await current!.json()) as {
+      version: string;
+      prompt: string | null;
+      envFile: string | null;
+      experimental: { browserPanel: boolean };
+      receptionistAgentId: string | null;
+    };
+
+    const put = await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          prompt: body.prompt,
+          envFile: body.envFile,
+          version: body.version,
+          experimental: body.experimental,
+          receptionistAgentId: "agent-recep-1",
+        }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
+    expect(put?.status).toBe(204);
+    expect(AgentManager.getOfficeSettings().receptionistAgentId).toBe("agent-recep-1");
+
+    const again = await handleOfficeSettingsRequest(request("/api/office/settings"), new URL("http://local.test/api/office/settings"), ownerAuth);
+    const restoredVersion = ((await again!.json()) as { version: string }).version;
+    await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          prompt: body.prompt,
+          envFile: body.envFile,
+          version: restoredVersion,
+          experimental: body.experimental,
+          receptionistAgentId: null,
+        }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
+    expect(AgentManager.getOfficeSettings().receptionistAgentId).toBeNull();
+  });
+
   test("rejects invalid JSON before saving settings", async () => {
     const req = request("/api/office/settings", {
       method: "PUT",

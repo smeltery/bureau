@@ -8,7 +8,7 @@ import { ProviderCapacityError } from "../../internal-types.ts";
 import { generateTopic, persistCurrentSessionTopic, shouldAutoRegenerateTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
 import { handleSlashCommand } from "./slash-commands.ts";
 import { enqueueUserMessage, QUEUE_MAX } from "./message-queue.ts";
-import { handlePendingEffortPick, handlePendingModelPick } from "./pending-picks.ts";
+import { handlePendingCronjobPick, handlePendingEffortPick, handlePendingModelPick } from "./pending-picks.ts";
 import { resolvePermissionReply } from "./permission-reply.ts";
 
 export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[], userId?: string | null) {
@@ -17,7 +17,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   // Queue the message if the agent is busy. Multi-step prompts (pendingResume
   // / model pick / permission) bypass the queue: the boss expects their input
   // to flow into the prompt immediately.
-  if (isAgentBusy(managed.info.state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick && !managed.pendingEffortPick) {
+  if (isAgentBusy(managed.info.state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick && !managed.pendingEffortPick && !managed.pendingCronjobPick) {
     const queued = enqueueUserMessage(agentId, managed, text, username, attachments);
     if (!queued) {
       addLogEntry(agentId, "error", `Message queue is full (limit ${QUEUE_MAX}). Try again after the agent finishes.`);
@@ -179,6 +179,8 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   if (await handlePendingModelPick(agentId, managed, text, username)) return;
 
   if (await handlePendingEffortPick(agentId, managed, text, username)) return;
+
+  if (await handlePendingCronjobPick(agentId, managed, text, username)) return;
 
   // Intercept slash commands that are handled locally, not by the LLM
   if (isSlash) {

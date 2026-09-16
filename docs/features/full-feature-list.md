@@ -11,7 +11,12 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   bundled `@openai/codex` launcher and isolated `CODEX_HOME`.
 - Account → Connections shows Claude/Codex connection status for the signed-in
   user, accepts API keys into personal managed env (no secret echo), and points
-  at host CLI login. Auth-failure chat notices deep-link to Connections.
+  at host CLI login. Status probes are time-bounded so the pane never sticks on
+  "Checking…"; a timed-out check stays offerable for CLI guidance and is not
+  status-cached. A process-local per-provider "sign-in in progress" slot lets
+  another member see who is following host CLI login (holder name + start time;
+  sentence composed client-side). Full browser/device OAuth login remains
+  deferred. Auth-failure chat notices deep-link to Connections.
 - OpenCode uses the host `opencode` binary on PATH (or `OPENCODE_BINARY`) plus
   `OPENCODE_API_KEY` / host `opencode auth login` — the CLI is not bundled.
 
@@ -155,7 +160,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   Office Settings, off by default): `POST /api/agents/:id/browser` for
   goto/snapshot/click/fill/press/screenshot/close against the same local/private
   + allowlist URL policy. Uses host Chrome via Playwright (Chromium not bundled).
-  Thin status/drive strip in chat when enabled; live side-panel frames deferred.
+  Side panel streams live CDP JPEG frames; managers can drag-select and copy selection.
 - Local `curl` calls to Bureau affordance endpoints render as readable
   tool-call summaries with key payload fields.
 

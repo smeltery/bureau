@@ -148,6 +148,12 @@ export function listUsers(rooms: RoomWire[]): UserRecord[] {
   return [...users.values()].map((u) => ensureUserRooms(u, allRoomIds)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** First remaining office owner, optionally excluding a user about to be deleted. */
+export function firstOfficeOwner(excludingUserId?: string): UserRecord | null {
+  const owners = [...users.values()].filter((u) => u.role === "owner" && u.id !== excludingUserId).sort((a, b) => a.name.localeCompare(b.name));
+  return owners[0] ?? null;
+}
+
 export function updateUser(actor: UserRecord | null, userId: string, changes: UserRecordChanges, rooms: RoomWire[]): UserRecord | null {
   if (!actor) return null;
   const target = [...users.values()].find((u) => u.id === userId);

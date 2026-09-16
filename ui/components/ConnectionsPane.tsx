@@ -1,24 +1,44 @@
 import { useEffect, useState } from "react";
-import type { ProviderAccountWire, ProviderAccountsWire, ProviderKeysUpdateRes } from "../../shared/provider-accounts.ts";
+import type { ProviderAccountWire, ProviderAccountsWire, ProviderKeysUpdateRes, ProviderLoginQueueWire, ProviderSignInSlotRes } from "../../shared/provider-accounts.ts";
 import { sectionHeader } from "./AccessPane.tsx";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { useI18n } from "../i18n.tsx";
+import { useAppState } from "../store.tsx";
 
-class ApiError extends Error {}
+class ApiError extends Error {
+  code?: string;
+  detail?: Record<string, unknown>;
+  constructor(message: string, code?: string, detail?: Record<string, unknown>) {
+    super(message);
+    this.code = code;
+    this.detail = detail;
+  }
+}
+
+function sharedLoginQueueMessage(t: ReturnType<typeof useI18n>["t"], tn: ReturnType<typeof useI18n>["tn"], provider: string, queue: ProviderLoginQueueWire, now = Date.now()): string {
+  const minutes = Math.floor(Math.max(0, now - queue.startedAt) / 60_000);
+  return minutes < 1 ? t("connections.queueHeldUnderMinute", { name: queue.holderName, provider }) : tn("connections.queueHeldMinutes", minutes, { name: queue.holderName, provider });
+}
 
 export function ConnectionsPane({ username }: { username: string }) {
   const { t } = useI18n();
+  const { sessionContext } = useAppState();
   const [accounts, setAccounts] = useState<ProviderAccountWire[]>([]);
+  const [accountLoadState, setAccountLoadState] = useState<"loading" | "loaded" | "failed">("loading");
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const canCancelSharedLogin = sessionContext?.role === "owner";
 
   async function load(refresh = false) {
     setRefreshing(refresh);
+    setAccountLoadState("loading");
     setError(null);
     try {
       const result = await apiFetch<ProviderAccountsWire>(refresh ? "POST" : "GET", refresh ? "/api/me/provider-accounts/refresh" : "/api/me/provider-accounts");
       setAccounts(result.accounts);
+      setAccountLoadState("loaded");
     } catch (caught) {
+      setAccountLoadState("failed");
       setError(caught instanceof ApiError ? caught.message : t("connections.checkFailed"));
     } finally {
       setRefreshing(false);
@@ -44,10 +64,17 @@ export function ConnectionsPane({ username }: { username: string }) {
           {error}
         </p>
       )}
+      {accountLoadState === "loading" && accounts.length === 0 && !error && <p style={dialogHint}>{t("connections.statusChecking")}</p>}
       {accounts.map((account) => (
-        <ProviderConnectionCard key={account.provider} account={account} onUpdated={setAccounts} />
+        <ProviderConnectionCard
+          key={account.provider}
+          account={account}
+          loaded={accountLoadState !== "loading"}
+          canCancelSharedLogin={canCancelSharedLogin}
+          selfName={username}
+          onUpdated={setAccounts}
+        />
       ))}
-      {accounts.length === 0 && !error && <p style={dialogHint}>{t("common.loading")}</p>}
       <BedrockHint />
     </div>
   );
@@ -66,17 +93,34 @@ function BedrockHint() {
   );
 }
 
-function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccountWire; onUpdated: (accounts: ProviderAccountWire[]) => void }) {
-  const { t } = useI18n();
+function ProviderConnectionCard({
+  account,
+  loaded,
+  canCancelSharedLogin,
+  selfName,
+  onUpdated,
+}: {
+  account: ProviderAccountWire;
+  loaded: boolean;
+  canCancelSharedLogin: boolean;
+  selfName: string;
+  onUpdated: (accounts: ProviderAccountWire[]) => void;
+}) {
+  const { t, tn } = useI18n();
   const title = account.provider === "claude" ? t("dialogs.agent.engine.claude") : t("dialogs.agent.engine.codex");
   const keyName = account.provider === "claude" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
   const [keyValue, setKeyValue] = useState("");
   const [pending, setPending] = useState(false);
+  const [slotPending, setSlotPending] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [savedNote, setSavedNote] = useState<string | null>(null);
 
-  const status =
-    account.accountStatus === "connected"
+  const queueMessage = account.loginQueue ? sharedLoginQueueMessage(t, tn, title, account.loginQueue) : null;
+  const holdsSlot = account.loginQueue?.holderName === selfName;
+
+  const status = !loaded
+    ? t("connections.statusChecking")
+    : account.accountStatus === "connected"
       ? account.accountLabel
         ? t("connections.statusConnectedLabeled", { label: account.accountLabel })
         : t("connections.statusConnected")
@@ -119,6 +163,38 @@ function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccou
     }
   }
 
+  async function markSigningIn() {
+    setSlotPending(true);
+    setLocalError(null);
+    try {
+      const result = await apiFetch<ProviderSignInSlotRes>("POST", `/api/me/provider-accounts/${account.provider}/sign-in`);
+      onUpdated(result.accounts);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "shared_login_in_progress" && typeof caught.detail?.holderName === "string" && typeof caught.detail.startedAt === "number") {
+        setLocalError(sharedLoginQueueMessage(t, tn, title, { holderName: caught.detail.holderName, startedAt: caught.detail.startedAt }));
+      } else {
+        setLocalError(caught instanceof ApiError ? caught.message : t("connections.signInStartFailed", { provider: title }));
+      }
+    } finally {
+      setSlotPending(false);
+    }
+  }
+
+  async function releaseSigningIn() {
+    setSlotPending(true);
+    setLocalError(null);
+    try {
+      const result = await apiFetch<ProviderAccountsWire>("DELETE", `/api/me/provider-accounts/${account.provider}/sign-in`);
+      onUpdated(result.accounts);
+    } catch (caught) {
+      setLocalError(caught instanceof ApiError ? caught.message : t("connections.signInCancelFailed"));
+    } finally {
+      setSlotPending(false);
+    }
+  }
+
+  const showSignInGuidance = account.canOfferSignIn !== false && account.accountStatus !== "connected";
+
   return (
     <section
       style={{
@@ -137,6 +213,17 @@ function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccou
         <p role="alert" style={{ color: "var(--red)", fontSize: 12 }}>
           {account.error}
         </p>
+      )}
+
+      {queueMessage && (
+        <div data-provider-login-queue style={{ margin: "8px 0 12px" }}>
+          <p style={{ ...dialogHint, margin: "0 0 8px" }}>{queueMessage}</p>
+          {(holdsSlot || canCancelSharedLogin) && (
+            <button type="button" style={dialogCancelBtn} disabled={slotPending} onClick={() => void releaseSigningIn()}>
+              {holdsSlot ? t("connections.signInDone") : t("connections.signInCancelShared")}
+            </button>
+          )}
+        </div>
       )}
 
       <label style={dialogLabel}>
@@ -167,19 +254,28 @@ function ProviderConnectionCard({ account, onUpdated }: { account: ProviderAccou
       )}
       {savedNote && <p style={{ ...dialogHint, marginTop: 8 }}>{savedNote}</p>}
 
-      <p style={{ ...dialogHint, marginTop: 12 }}>{account.provider === "claude" ? t("connections.cliSignInClaude") : t("connections.cliSignInCodex")}</p>
-      <ul style={{ ...dialogHint, margin: "4px 0 0", paddingLeft: 18 }}>
-        {account.hostHints.map((hint) => (
-          <li key={hint} style={{ marginBottom: 4 }}>
-            <code style={{ fontSize: 11 }}>{hint}</code>
-          </li>
-        ))}
-      </ul>
+      {showSignInGuidance && (
+        <>
+          <p style={{ ...dialogHint, marginTop: 12 }}>{account.provider === "claude" ? t("connections.cliSignInClaude") : t("connections.cliSignInCodex")}</p>
+          <ul style={{ ...dialogHint, margin: "4px 0 0", paddingLeft: 18 }}>
+            {account.hostHints.map((hint) => (
+              <li key={hint} style={{ marginBottom: 4 }}>
+                <code style={{ fontSize: 11 }}>{hint}</code>
+              </li>
+            ))}
+          </ul>
+          {!account.loginQueue && (
+            <button type="button" style={{ ...dialogCancelBtn, marginTop: 8 }} disabled={slotPending} onClick={() => void markSigningIn()}>
+              {t("connections.signInMark")}
+            </button>
+          )}
+        </>
+      )}
     </section>
   );
 }
 
-async function apiFetch<T>(method: "GET" | "POST" | "PUT", path: string, body?: unknown): Promise<T> {
+async function apiFetch<T>(method: "GET" | "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
     credentials: "same-origin",
@@ -188,7 +284,11 @@ async function apiFetch<T>(method: "GET" | "POST" | "PUT", path: string, body?: 
   });
   if (!res.ok) {
     const parsed = await res.json().catch(() => null);
-    throw new ApiError(parsed?.error || `Request failed (${res.status})`);
+    throw new ApiError(
+      parsed?.error || `Request failed (${res.status})`,
+      typeof parsed?.code === "string" ? parsed.code : undefined,
+      parsed?.detail && typeof parsed.detail === "object" ? parsed.detail : undefined,
+    );
   }
   return (await res.json()) as T;
 }

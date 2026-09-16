@@ -56,7 +56,7 @@ export interface ChoicePromptChoice {
 }
 
 export interface ChoicePromptPayload {
-  kind: "resume" | "model" | "effort";
+  kind: "resume" | "model" | "effort" | "cronjob";
   title: string;
   instruction: string;
   choices: ChoicePromptChoice[];

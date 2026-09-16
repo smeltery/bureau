@@ -26,6 +26,7 @@ function snapshot(overrides: Partial<EditAgentFormSnapshot> = {}): EditAgentForm
     codexSandbox: "workspace-write",
     effort: "xhigh",
     privileged: false,
+    managerUserId: "user-1",
     ...overrides,
   };
 }
@@ -47,6 +48,7 @@ describe("isFormDirty", () => {
       { codexSandbox: "danger-full-access" },
       { effort: "high" },
       { privileged: true },
+      { managerUserId: "user-2" },
     ];
     for (const change of fields) {
       expect(isFormDirty(snapshot(), snapshot(change))).toBe(true);

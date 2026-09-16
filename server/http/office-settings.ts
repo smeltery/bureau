@@ -11,7 +11,7 @@ import {
   writeManagedOfficeEnv,
   writeManagedUserEnv,
 } from "../persistence/managed-env.ts";
-import { normalizeExperimental } from "../persistence/config/office-config.ts";
+import { normalizeExperimental, normalizeReceptionistAgentId } from "../persistence/config/office-config.ts";
 
 const jsonHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 const noContentHeaders = { "Access-Control-Allow-Origin": "*" };
@@ -68,7 +68,14 @@ export async function handleOfficeSettingsRequest(req: Request, url: URL, auth: 
       if (!parsed) return error(400, "experimental must be { browserPanel: boolean }");
       experimental = parsed;
     }
-    AgentManager.setOfficeSettings(prompt, envFile, experimental);
+    let receptionistAgentId = current.receptionistAgentId;
+    if (body.receptionistAgentId !== undefined) {
+      if (body.receptionistAgentId !== null && typeof body.receptionistAgentId !== "string") {
+        return error(400, "receptionistAgentId must be a string or null");
+      }
+      receptionistAgentId = normalizeReceptionistAgentId(body.receptionistAgentId) ?? null;
+    }
+    AgentManager.setOfficeSettings(prompt, envFile, experimental, receptionistAgentId);
     return new Response(null, { status: 204, headers: noContentHeaders });
   }
 

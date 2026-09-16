@@ -113,6 +113,7 @@ export async function handleAccessSettingsCommand(
           officeName: nextOfficeName,
           previewAllowHosts,
           experimental: prevCfg.experimental,
+          receptionistAgentId: prevCfg.receptionistAgentId,
         });
       } catch (err) {
         ws.send(

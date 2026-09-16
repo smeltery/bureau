@@ -9,13 +9,16 @@ import { resolveInteractiveModelSelection } from "../agent-validators.ts";
 import {
   JSON_HEADERS,
   jsonError,
+  privilegedAgentIdentity,
   readJsonBody,
   requireAgentAccessAllowingPrivileged,
   requireAgentManagerAccess,
   requireRoomAccessAllowingPrivileged,
   requireUserAgentAccess,
   requireUserRoomAccess,
+  sessionUser,
 } from "./agent-route-helpers.ts";
+import { canSeeRoom, getUserById } from "../users.ts";
 
 export async function handleAgentManagementRequest(req: Request, parts: string[], agentId: string, auth?: AuthResult): Promise<Response | null> {
   // Agent lifecycle — kill / edit / move / topic — is what a privileged agent's
@@ -46,6 +49,21 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
     }
     const current = AgentManager.getAgent(agentId);
     if (!current) return jsonError(404, "agent not found");
+    let nextUserId: string | undefined;
+    if (body.userId !== undefined) {
+      const actor = sessionUser(auth);
+      const asPrivileged = privilegedAgentIdentity(req);
+      if (!(actor?.role === "owner" || asPrivileged)) {
+        return jsonError(403, "owner access required to change manager");
+      }
+      if (typeof body.userId !== "string" || !body.userId) return jsonError(422, "userId must be a non-empty string");
+      const next = getUserById(body.userId);
+      if (!next) return jsonError(422, "manager not found");
+      const roomId = current.roomId ?? AgentManager.getRooms()[current.room]?.id;
+      if (!roomId) return jsonError(422, "agent room not found");
+      if (!canSeeRoom(next, roomId)) return jsonError(422, "new manager cannot access the agent's room");
+      nextUserId = body.userId;
+    }
     const agentType = body.agentType === "claude" || body.agentType === "codex" || body.agentType === "opencode" ? body.agentType : current.agentType;
     const modelSelection = resolveInteractiveModelSelection(agentType, typeof body.modelFamily === "string" ? body.modelFamily : undefined, typeof body.model === "string" ? body.model : undefined);
     if (modelSelection.error) return jsonError(422, modelSelection.error);
@@ -61,6 +79,7 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
         permissionMode: typeof body.permissionMode === "string" ? (body.permissionMode as AgentInfo["permissionMode"]) : undefined,
         codexSandbox: typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
         effort: typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
+        userId: nextUserId,
       });
     } catch (err) {
       if (err instanceof AgentEditConflictError) return jsonError(err.status, err.message);

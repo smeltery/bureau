@@ -6,7 +6,7 @@ import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payl
 import { refreshPresenceForUser } from "../presence.ts";
 import { loadOfficeConfig, normalizePreviewAllowHosts, saveOfficeConfig } from "../persistence.ts";
 import { evictSessionsForUserId, isOutsideReachabilityBlocked, mintInvite, setOfficeName } from "../auth/auth.ts";
-import { deleteUserById, getUserById, getUserByName, listAccessibleRooms, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
+import { deleteUserById, firstOfficeOwner, getUserById, getUserByName, listAccessibleRooms, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { pushInvitesListToEachWs } from "../access-broadcasts.ts";
 import type { AccessSettingsWire, SetAccessResult } from "./access.ts";
 import type { UserDeleteResult, UserMutationResult, UserRecordChanges } from "./users.ts";
@@ -62,6 +62,7 @@ export async function saveAccessSettingsForApi(actorUserId: string, input: { ext
       officeName: prevCfg.officeName,
       previewAllowHosts,
       experimental: prevCfg.experimental,
+      receptionistAgentId: prevCfg.receptionistAgentId,
     });
   } catch (err) {
     return { ok: false, status: 500, error: err instanceof Error ? err.message : "failed to save access settings" };
@@ -153,6 +154,8 @@ export async function deleteUserForApi(actorUserId: string, actorRole: "owner" |
   if (actorRole !== "owner" && actorUserId !== target.id) return { ok: false, status: 403, error: "forbidden" };
   if (actorRole === "owner" && actorUserId === target.id) return { ok: false, status: 409, error: "owners cannot delete their own user record" };
   if (wouldDeleteLeaveNoOwner(target.id)) return { ok: false, status: 409, error: "would leave office without an owner" };
+  const successor = firstOfficeOwner(target.id);
+  if (successor) await AgentManager.reassignAgentsOwnedBy(target.id, successor.id);
   if (!deleteUserById(target.id)) return { ok: false, status: 404, error: "user not found" };
   for (const browser of browsers) sendInitialPayload(browser);
   await evictSessionsForUserId(target.id);

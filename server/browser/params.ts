@@ -27,8 +27,11 @@ export type BrowserResult = BrowserSuccess | BrowserFailure;
 const MAX_URL_LEN = 2048;
 const MAX_SELECTOR_LEN = 500;
 const MAX_FILL_LEN = 10_000;
-const MIN_DIM = 320;
-const MAX_DIM = 2560;
+export const BROWSER_MIN_DIM = 320;
+export const BROWSER_MAX_DIM = 2560;
+export const MAX_TEXT_CHARS = 20_000;
+const MIN_DIM = BROWSER_MIN_DIM;
+const MAX_DIM = BROWSER_MAX_DIM;
 const DEFAULT_WIDTH = 1280;
 const DEFAULT_HEIGHT = 800;
 

@@ -1,6 +1,7 @@
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../shared/types.ts";
 import { getBackend } from "../backends/index.ts";
 import { versionOf } from "../memory-store.ts";
+import { loadAgentHistory, saveAgentHistory } from "../persistence/config/agent-history.ts";
 import { persistSessionCwd } from "../persistence.ts";
 import { moveClaudeSessionFile, resolveCwd } from "./session/paths.ts";
 import { buildSessionEnv, createSession, replaceSession } from "./session/runtime.ts";
@@ -28,12 +29,21 @@ export async function editAgent(
     permissionMode?: AgentInfo["permissionMode"];
     codexSandbox?: AgentInfo["codexSandbox"];
     effort?: AgentInfo["effort"];
+    userId?: string | null;
   },
 ) {
   const managed = agents.get(agentId);
   if (!managed) return;
 
   const updated: Partial<AgentInfo> = {};
+  let managerChanging = false;
+  const previousUserId = managed.info.userId ?? null;
+
+  if (changes.userId !== undefined && changes.userId !== previousUserId) {
+    managed.info.userId = changes.userId;
+    updated.userId = changes.userId;
+    managerChanging = true;
+  }
 
   if (changes.name && changes.name !== managed.info.name) {
     // Reject duplicate names.
@@ -116,12 +126,18 @@ export async function editAgent(
   // System prompt is passed into every createSession, so name/customInstructions
   // changes automatically apply to the next conversation.
 
+  if (managerChanging) {
+    mintAgentToken(agentId, managed.info.userId ?? null, managed.info.privileged ?? false);
+  }
+
   const isClaude = managed.info.agentType === "claude";
   const settingsReplace = !!(updated.agentType || updated.modelFamily || updated.permissionMode || updated.codexSandbox || updated.effort);
   // A cwd change retargets the active session — the live backend process's cwd
   // is fixed at spawn, so it must be replaced. Settings changes (model /
   // permission / sandbox / effort) replace regardless so they take effect now.
-  const needReplace = settingsReplace || cwdChanging;
+  // Manager reassignment also replaces so the process picks up the new member's
+  // env / system prompt / bearer identity.
+  const needReplace = settingsReplace || cwdChanging || managerChanging;
 
   if (needReplace) {
     const codexCwdChange = cwdChanging && !isClaude;
@@ -137,6 +153,11 @@ export async function editAgent(
       if (!moved.ok) {
         managed.info.cwd = oldCwd;
         delete updated.cwd;
+        if (managerChanging) {
+          managed.info.userId = previousUserId;
+          delete updated.userId;
+          mintAgentToken(agentId, previousUserId, managed.info.privileged ?? false);
+        }
         let reversed = true;
         if (moved.moved) reversed = moveClaudeSessionFile(managed.sessionId, target, oldCwd, cwdMoveEnv).ok;
         throw new Error(
@@ -165,8 +186,17 @@ export async function editAgent(
     }
 
     const resumeId = managed.sessionId;
-    const newSession = resumeId ? createSession(managed, resumeId) : createSession(managed);
-    await replaceSession(agentId, managed, newSession);
+    try {
+      const newSession = resumeId ? createSession(managed, resumeId) : createSession(managed);
+      await replaceSession(agentId, managed, newSession);
+    } catch (err) {
+      if (managerChanging) {
+        managed.info.userId = previousUserId;
+        delete updated.userId;
+        mintAgentToken(agentId, previousUserId, managed.info.privileged ?? false);
+      }
+      throw err;
+    }
 
     // Stamp the active Claude session's new cwd as source of truth. Fresh
     // sessions (the Codex cwd change, or a from-scratch session) get stamped by
@@ -204,4 +234,26 @@ export async function setAgentPrivileged(agentId: string, privileged: boolean): 
   persistAll();
   emit({ type: "agent_updated", agentId, changes: { privileged } });
   return managed.info;
+}
+
+/** Reassign every live agent (and killed-history snapshot) owned by
+ *  `fromUserId` to `toUserId`. Used when a member is deleted so their agents
+ *  pass to a remaining office owner instead of becoming orphaned. */
+export async function reassignAgentsOwnedBy(fromUserId: string, toUserId: string): Promise<number> {
+  let count = 0;
+  for (const managed of agents.values()) {
+    if (managed.info.userId !== fromUserId) continue;
+    await editAgent(managed.info.id, { userId: toUserId });
+    count++;
+  }
+  const history = loadAgentHistory();
+  let historyChanged = false;
+  for (const entry of Object.values(history)) {
+    if (entry.userId === fromUserId) {
+      entry.userId = toUserId;
+      historyChanged = true;
+    }
+  }
+  if (historyChanged) saveAgentHistory(history);
+  return count;
 }

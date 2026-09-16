@@ -53,6 +53,8 @@ export type ClientCommand =
       permissionMode?: AgentInfo["permissionMode"];
       codexSandbox?: CodexSandboxMode;
       effort?: EffortLevel;
+      /** Owner-only: reassign the agent's manager to another living member. */
+      userId?: string;
     }
   | {
       type: "set_agent_privileged";
@@ -70,7 +72,7 @@ export type ClientCommand =
   | { type: "editor_open"; agentId: string; path: string }
   | { type: "editor_save"; agentId: string; path: string; content: string; expectedMtime: number; expectedRev?: number; force?: boolean }
   | { type: "editor_close"; agentId: string; path: string }
-  | { type: "update_office_settings"; requestId: string; prompt: string | null; envFile: string | null; version: string; experimental?: ExperimentalSettings }
+  | { type: "update_office_settings"; requestId: string; prompt: string | null; envFile: string | null; version: string; experimental?: ExperimentalSettings; receptionistAgentId?: string | null }
   | { type: "update_room_settings"; requestId: string; roomId: string; prompt: string | null; envFile: string | null; pet?: RoomPet | null; skin?: RoomSkin | null; version: string }
   | { type: "request_settings_validation"; requestId: string; scope: "office" | "room" | "user"; roomId?: string; userId?: string; envFile?: string | null }
   | { type: "request_cwd_validation"; requestId: string; cwd: string }
@@ -150,4 +152,30 @@ export type ClientCommand =
       previewAllowHosts?: string[];
     }
   | { type: "presence_update"; currentRoom: number | null; currentRoomId?: string | null; focusedAgentId: string | null; viewMode: "office" | "log" | "away"; device?: string | null }
-  | { type: "ping" };
+  | { type: "lobby_move"; spotId: string }
+  | { type: "ping" }
+  // Experimental agent browser (office setting experimental.browserPanel).
+  | { type: "browser_watch"; agentId: string; watching: boolean; maxWidth?: number; maxHeight?: number }
+  | { type: "browser_input"; agentId: string; input: BrowserHumanInput };
+
+export type BrowserHumanInput =
+  | { kind: "selection"; requestId: number }
+  | {
+      kind: "mouse";
+      event: "mousePressed" | "mouseReleased" | "mouseMoved" | "mouseWheel";
+      x: number;
+      y: number;
+      button?: "none" | "left" | "middle" | "right";
+      clickCount?: number;
+      deltaX?: number;
+      deltaY?: number;
+      modifiers?: number;
+    }
+  | {
+      kind: "key";
+      event: "keyDown" | "keyUp" | "rawKeyDown" | "char";
+      key: string;
+      code?: string;
+      text?: string;
+      modifiers?: number;
+    };

@@ -60,8 +60,11 @@ implementation stays in Bureau naming and architecture.
   `/team-chat`, persisted as monthly JSONL under `~/.bureau/members-chat/`;
   agents and API tokens cannot participate.
 - Lobby scene. Client `lobbyOpen` draws a Bureau-native isometric lobby (not a
-  desk `RoomWire`); receptionist click opens Team chat; presence may use
-  sentinel id `lobby`.
+  desk `RoomWire`); receptionist click opens Team chat by default, or a living
+  agent when `receptionistAgentId` is set and visible to the viewer; presence
+  may use sentinel id `lobby`. Owners pick the receptionist in Office Settings.
+  Dev layout editor: `?lobbyEdit=1` mounts a client-only prop placer that
+  exports a TypeScript snippet for `layouts.ts`.
 - `/help` as a compact chat card with a read-only modal body (docs + short tips
   lead; Bureau Skills / User Skills; phone/device sprawl left to docs).
 - `/model` and cronjob create/update refuse model families that cannot work for
@@ -71,6 +74,19 @@ implementation stays in Bureau naming and architecture.
   is mid-turn.
 - Privileged agent system prompt clarifies that schedule CRUD replaces the
   ordinary “ask the boss / Schedules page” line.
+- Lobby follow-ons: Employee-of-the-Minute plaque (crown-held), seated
+  `lobby_move` ghost spots, optional `receptionistAgentId` (else Team chat),
+  and `?lobbyEdit=1` client-only layout editor that exports `layouts.ts` snippets.
+- Experimental browser live view: CDP JPEG screencast into the Browser panel,
+  held-button mouse for drag-select, manager Copy selection (fixed evaluate).
+- Connections: time-bounded provider probes; process-local per-provider sign-in
+  queue line when another member holds the slot (OAuth/device login still out).
+- OpenCode: `systemPrompt` constructor-bound and byte-stable across turns
+  (regression test); no authority-broker (still deferred).
+- Owner-editable agent manager (`userId`); deleting a member reassigns their
+  agents to an office owner.
+- `/bureau-cronjob-system-prompt` picker (pendingPrompt `cronjob`) + prompt
+  inspect card/modal.
 
 ## Rejected
 
@@ -84,12 +100,9 @@ implementation stays in Bureau naming and architecture.
 - Hosted control plane, billing, VPS unattended installer, and in-UI one-click
   update apply. Bureau is self-hosted product software, not the upstream hosted
   SaaS or its deploy automation.
-- Interactive lounge/scene editor (drag-handle prop placer with per-object
-  inspector). Screenshots of such a tool were reviewed during the 2026-09-08
-  pass, but no matching shipped product surface exists in published
-  `nmamano/isomux` `main` (no editor routes, asset catalog ids, or UI copy).
-  Treat as upstream-local art tooling or an unreleased concept unless product
-  owners explicitly request a Bureau-native room decorator.
+- Wholesale upstream lobby layout editor as a hosted app. Bureau ships a
+  client-only `?lobbyEdit=1` prop placer that exports TypeScript for
+  `layouts.ts` instead of registering a separate lobby-editor server.
 
 ## Deferred
 
@@ -101,15 +114,16 @@ implementation stays in Bureau naming and architecture.
   subresources.
 - A bundled browser dependency. Bureau uses an installed Chrome-compatible
   browser to avoid increasing package size and install complexity.
-- Interactive agent browser follow-ons beyond the experimental MVP: live CDP
-  screencast / binary frames into a side panel, persistent per-manager storage
-  profiles, and public-origin browsing (explicitly rejected — Bureau keeps the
-  tighter preview-url allowlist). A thin chat status strip ships with the MVP.
-- Lobby follow-ons: seated lobby_move spots, employee-of-the-minute plaque,
-  live receptionist agent, lobby layout editor.
+- Interactive agent browser follow-ons beyond the live-frame MVP: binary JPEG
+  frame transport / stream-pressure, persistent per-manager storage profiles,
+  and public-origin browsing (explicitly rejected — Bureau keeps the tighter
+  preview-url allowlist).
 - OpenCode follow-ons beyond the Bureau-native MVP: authority-broker / FFI peer
   auth, full credential-scan suite, live certification harness, darwin-only
   packaging polish beyond PATH detection, and a V2 client.
+- Provider Connections browser/device OAuth login (shared login clients, external
+  waiting UI). Connections today is API-key paste + host CLI guidance plus the
+  process-local sign-in-in-progress mutex.
 
 ## Implemented since the prior note (2026-07-14)
 

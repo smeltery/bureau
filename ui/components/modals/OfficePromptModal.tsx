@@ -9,10 +9,11 @@ import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
 export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClose: () => void; username: string; onSaveUsername: (name: string) => void }) {
-  const { office, sessionContext } = useAppState();
+  const { office, sessionContext, agents } = useAppState();
   const [text, setText] = useState(office.prompt ?? "");
   const [envFile, setEnvFile] = useState(office.envFile ?? "");
   const [browserPanel, setBrowserPanel] = useState(office.experimental?.browserPanel === true);
+  const [receptionistAgentId, setReceptionistAgentId] = useState<string>(office.receptionistAgentId ?? "");
   const [settingsVersion, setSettingsVersion] = useState<string | null>(null);
   const [name, setName] = useState(username);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
@@ -21,6 +22,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const requestIdRef = useRef<string>("");
   const officeMemory = useMemoryEditor("office", null);
   const bossMemory = useMemoryEditor("boss", sessionContext?.userId ?? null, !!sessionContext?.userId);
+  const isOwner = sessionContext?.role === "owner";
 
   // Pin the optimistic-concurrency version from a GET on open (same rail as room
   // settings / memory). Store may lag a concurrent tab's save until WS lands.
@@ -34,6 +36,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
           envFile: string | null;
           version: string;
           experimental?: { browserPanel?: boolean };
+          receptionistAgentId?: string | null;
         };
       })
       .then((data) => {
@@ -41,6 +44,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         setText(data.prompt ?? "");
         setEnvFile(data.envFile ?? "");
         setBrowserPanel(data.experimental?.browserPanel === true);
+        setReceptionistAgentId(data.receptionistAgentId ?? "");
         setSettingsVersion(data.version);
       })
       .catch(() => {
@@ -117,6 +121,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
       prompt: text.trim() ? text : null,
       envFile: envFile.trim() || null,
       experimental: { browserPanel },
+      receptionistAgentId: receptionistAgentId || null,
       version: settingsVersion,
     });
   }
@@ -181,10 +186,28 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         <span>
           <span style={{ fontWeight: 600 }}>Experimental: agent browser</span>
           <span style={{ display: "block", fontSize: 10, color: "var(--text-ghost)", marginTop: 2, fontWeight: 400 }}>
-            Lets agents drive a headless Chrome page (goto / snapshot / click / fill) for local and allowlisted URLs. Off by default; uses the host browser, not a bundled Chromium.
+            Lets agents drive a headless Chrome page (goto / snapshot / click / fill) for local and allowlisted URLs. Off by default; uses the host browser, not a bundled Chromium. Managers get a live
+            side-panel view with drag-select and copy.
           </span>
         </span>
       </label>
+
+      {isOwner && (
+        <>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
+            Lobby receptionist <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
+          </label>
+          <select value={receptionistAgentId} onChange={(e) => setReceptionistAgentId(e.target.value)} style={inputStyle}>
+            <option value="">None (Team chat)</option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Clicking the lobby host opens this agent's chat when the viewer can see them; otherwise Team chat.</p>
+        </>
+      )}
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
         Memory{" "}

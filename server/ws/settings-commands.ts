@@ -2,7 +2,7 @@ import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import { parseRoomSkin } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
-import { normalizeExperimental } from "../persistence/config/office-config.ts";
+import { normalizeExperimental, normalizeReceptionistAgentId } from "../persistence/config/office-config.ts";
 import { getUserById, getWsUser } from "../users.ts";
 
 export function handleSettingsCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>, canUseRoom: (roomId: string) => boolean): boolean {
@@ -41,7 +41,8 @@ export function handleSettingsCommand(cmd: ClientCommand, ws: ServerWebSocket<un
           return true;
         }
       }
-      let experimental = AgentManager.getOfficeSettings().experimental;
+      const current = AgentManager.getOfficeSettings();
+      let experimental = current.experimental;
       if (cmd.experimental !== undefined) {
         const parsed = normalizeExperimental(cmd.experimental);
         if (!parsed) {
@@ -50,7 +51,11 @@ export function handleSettingsCommand(cmd: ClientCommand, ws: ServerWebSocket<un
         }
         experimental = parsed;
       }
-      AgentManager.setOfficeSettings(cmd.prompt, envFile, experimental);
+      let receptionistAgentId = current.receptionistAgentId;
+      if (cmd.receptionistAgentId !== undefined) {
+        receptionistAgentId = normalizeReceptionistAgentId(cmd.receptionistAgentId) ?? null;
+      }
+      AgentManager.setOfficeSettings(cmd.prompt, envFile, experimental, receptionistAgentId);
       ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
       return true;
     }

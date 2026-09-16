@@ -14,7 +14,17 @@ afterEach(() => {
   mock.restore();
   agents.clear();
   setRooms([{ id: "room-default", name: "Room 1", prompt: null, envFile: null, pet: null }]);
-  setOfficeConfig({ prompt: null, envFile: null, publicOrigin: null, externalAccess: null, networkBind: "auto", officeName: null, previewAllowHosts: [], experimental: { browserPanel: false } });
+  setOfficeConfig({
+    prompt: null,
+    envFile: null,
+    publicOrigin: null,
+    externalAccess: null,
+    networkBind: "auto",
+    officeName: null,
+    previewAllowHosts: [],
+    experimental: { browserPanel: false },
+    receptionistAgentId: null,
+  });
   if (tempDir) rmSync(tempDir, { recursive: true, force: true });
   tempDir = null;
 });
@@ -77,6 +87,7 @@ describe("terminal environment", () => {
       officeName: null,
       previewAllowHosts: [],
       experimental: { browserPanel: false },
+      receptionistAgentId: null,
     });
     installAgent(roomEnv);
     const f = mockSpawn();

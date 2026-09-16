@@ -75,6 +75,8 @@ export interface ManagedAgent {
   pendingModelPick: boolean;
   // /effort two-step state
   pendingEffortPick: boolean;
+  // /bureau-cronjob-system-prompt two-step state
+  pendingCronjobPick: boolean;
   // Auto-mode permission prompt two-step state. Carries the approvalId for
   // routing plus enough to interpret the reply; the backend holds the
   // SDK-side resolver and the rules themselves, applied when session.approve()
@@ -192,7 +194,7 @@ export type AgentEvent =
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "room_pet_updated"; roomId: string; pet: RoomPet | null }
   | { type: "room_skin_updated"; roomId: string; skin: import("../../shared/types.ts").RoomSkin | null }
-  | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings }
+  | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings; receptionistAgentId?: string | null }
   | { type: "rooms_reordered"; order: string[] }
   | { type: "clear_logs"; agentId: string }
   | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }

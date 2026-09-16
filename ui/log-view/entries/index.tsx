@@ -7,7 +7,7 @@ import { DiffCard } from "../DiffCard.tsx";
 import { EditRequestCard } from "../EditRequestCard.tsx";
 import { FileViewCard } from "../FileViewCard.tsx";
 import { TerminalCommandCard } from "../TerminalCommandCard.tsx";
-import { HelpCard } from "./HelpCard.tsx";
+import { HelpCard, PromptInspectCard } from "./HelpCard.tsx";
 import { isApiTokenDevice } from "../../../shared/identity.ts";
 import type { TaskMap } from "../task-links.tsx";
 
@@ -137,6 +137,10 @@ export function LogEntryCard({
     case "system":
       if (typeof entry.metadata?.helpContent === "string") {
         return <HelpCard header={entry.content} helpContent={entry.metadata.helpContent} />;
+      }
+      if (typeof entry.metadata?.cronjobPromptContent === "string") {
+        const cronjobName = typeof entry.metadata.cronjobName === "string" ? entry.metadata.cronjobName : "Cron job prompt";
+        return <PromptInspectCard header={entry.content} content={entry.metadata.cronjobPromptContent} actionLabel="Show prompt" modalTitle={cronjobName} renderAs="plaintext" />;
       }
       if (entry.metadata?.permissionDenied && typeof entry.metadata.permissionDenied === "object") {
         return <PermissionDeniedCard denial={entry.metadata.permissionDenied as { toolName?: string; message?: string; decisionReason?: string }} isMobile={isMobile} />;

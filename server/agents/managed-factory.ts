@@ -44,6 +44,7 @@ export function createManagedAgent(input: {
     pendingResumeSessions: [],
     pendingModelPick: false,
     pendingEffortPick: false,
+    pendingCronjobPick: false,
     pendingPermission: null,
     ptySidecar: null,
     ptyBuffer: "",

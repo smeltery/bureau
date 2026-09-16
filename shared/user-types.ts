@@ -23,6 +23,8 @@ export interface OfficeSettings {
   envFile: string | null;
   previewAllowHosts: string[];
   experimental: ExperimentalSettings;
+  /** Living agent whose chat opens from the lobby receptionist; null → Team chat. */
+  receptionistAgentId: string | null;
 }
 
 export type UserRole = "owner" | "member";
@@ -76,6 +78,8 @@ export interface PresenceInfo {
   currentRoom: number | null;
   focusedAgentId: string | null;
   viewMode: "office" | "log" | "away";
+  /** Lobby seat id when standing in the lobby; null means overflow standing. */
+  lobbySpotId?: string | null;
 }
 
 export interface SessionWire {

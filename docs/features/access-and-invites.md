@@ -245,6 +245,8 @@ Model pins are optional: with none, the picker’s `opus` is Opus 5 and `sonnet`
 
 Connections shows Bedrock as connected when the variables are set; it does not check AWS model access. A user who wants their own Claude login in a Bedrock office sets `CLAUDE_CODE_USE_BEDROCK=0` in their own Env file. Vertex works the same way with `CLAUDE_CODE_USE_VERTEX`.
 
+Provider status probes on Connections are time-bounded (~15s). A timed-out check reports unavailable but still offers host CLI guidance, and is not written into the status cache. Bureau does not yet run shared browser/device OAuth login; instead a process-local per-provider "sign-in in progress" slot (Claim via **I'm signing in on the host**) surfaces the holder's name and start time to other members until they finish or an owner cancels. Slots expire after ten minutes and vanish on process restart.
+
 ## Bootstrap-window exposure
 
 Before an owner exists, the first-owner form is served only on `127.0.0.1`, so the OS bind rules out off-box clients regardless of LAN/VPN topology — Bureau is not reachable to an outside attacker.

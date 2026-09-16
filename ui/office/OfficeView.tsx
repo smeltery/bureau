@@ -18,8 +18,7 @@ import { OfficeTopHud } from "./OfficeTopHud.tsx";
 import { OfficePeopleLayer } from "./OfficePeopleLayer.tsx";
 import { useOfficeDoorFeedback } from "./hooks/useOfficeDoorFeedback.ts";
 import { useRoomSkinVars } from "./skins/index.tsx";
-import { LobbyScene } from "./lobby/index.ts";
-import { LobbyReceptionist } from "./LobbyReceptionist.tsx";
+import { OfficeLobbyLayer, lobbyEditFromUrl } from "./OfficeLobbyLayer.tsx";
 
 // Pixel coords (scene-container space) where ghosts park when sliding
 // to/from a door on a room switch. Roughly centered horizontally on the
@@ -48,6 +47,7 @@ export function OfficeView({
   onOpenApps,
   onOpenPlugins,
   onOpenTeamChat,
+  onFocusAgent,
   onOpenUpdate,
   onSwipeLeft,
   onSwipeRight,
@@ -66,24 +66,26 @@ export function OfficeView({
   onOpenApps?: () => void;
   onOpenPlugins?: () => void;
   onOpenTeamChat?: () => void;
+  onFocusAgent?: (agentId: string) => void;
   onOpenUpdate: () => void;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
   viewportControlsRef?: React.RefObject<ViewportControls | null>;
 }) {
   const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateStatus, presences, sessionContext, lobbyOpen } = useAppState();
+  const lobbyEdit = lobbyEditFromUrl();
   const roomCount = rooms.length;
   const roomNames = rooms.map((r) => r.name);
   const officePrompt = office.prompt;
   const dispatch = useDispatch();
-  const { cycleTheme, mode } = useTheme();
+  const { cycleTheme } = useTheme();
   const { embed } = useFeatures();
   const skinVars = useRoomSkinVars();
   const mobileScale = isMobile ? screen.width / (SCENE_W - 200) : 1;
   // layoutKey changes whenever the centered-scene static transform changes,
   // so useViewport re-measures pan-clamp bounds (ResizeObserver alone won't
   // catch transform-only updates).
-  const layoutKey = `${embed ? 1 : 0}|${isMobile ? 1 : 0}|${mobileScale}`;
+  const layoutKey = `${embed ? 1 : 0}|${isMobile ? 1 : 0}|${mobileScale}|${lobbyEdit ? 1 : 0}`;
   const viewport = useViewport(layoutKey, !embed);
   // Cede one-finger swipes to pan once the user zooms in (iOS-gallery pattern).
   const swipeRef = useSwipeLeftRight(onSwipeLeft ?? (() => {}), onSwipeRight ?? (() => {}), isMobile, () => !viewport.isZoomedIn());
@@ -187,32 +189,18 @@ export function OfficeView({
               top: embed ? (isMobile ? "55%" : "64%") : isMobile ? "45%" : "50%",
               transform: embed ? `translate(-50%, -50%) scale(${isMobile ? mobileScale * 0.85 : 0.9})` : isMobile ? `translate(-50%, -50%) scale(${mobileScale})` : "translate(-50%, -50%)",
               transformOrigin: "center center",
-              width: SCENE_W,
-              height: SCENE_H,
+              width: lobbyEdit ? SCENE_W + 380 : SCENE_W,
+              height: lobbyEdit ? SCENE_H + 180 : SCENE_H,
               ...(lobbyOpen ? {} : skinVars),
             }}
           >
             {lobbyOpen ? (
-              <LobbyScene
-                rooms={rooms.map((r) => ({ id: r.id, name: r.name }))}
-                officeName={null}
-                mode={mode}
-                layout="fireside"
-                presences={presences}
-                ownConnectionId={sessionContext?.connectionId ?? null}
-                onOpenUser={onOpenUserSettingsForUser}
-                receptionist={<LobbyReceptionist onOpenTeamChat={onOpenTeamChat} />}
-                rightDoor={
-                  rooms[0]
-                    ? {
-                        label: rooms[0].name,
-                        onClick: () => dispatch({ type: "set_current_room", room: 0 }),
-                      }
-                    : null
-                }
-                onToggleTheme={cycleTheme}
-                onOpenApps={embed ? undefined : onOpenApps}
-                onOpenCronjobs={embed ? undefined : onOpenCronjobs}
+              <OfficeLobbyLayer
+                onOpenTeamChat={onOpenTeamChat}
+                onFocusAgent={onFocusAgent}
+                onOpenUserSettingsForUser={onOpenUserSettingsForUser}
+                onOpenApps={onOpenApps}
+                onOpenCronjobs={onOpenCronjobs}
               />
             ) : (
               <>

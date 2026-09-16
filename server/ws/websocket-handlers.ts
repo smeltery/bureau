@@ -7,6 +7,7 @@ import { clearWsUser, claimUser, getSessionContext, setWsSessionPrefix } from ".
 import { revalidateByHash, registerSocket, unregisterSocket, type SessionLookup } from "../auth/auth.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
 import { browsers } from "./broadcast.ts";
+import { closeBrowserWatchesFor } from "./browser-commands.ts";
 import { dispatchBrowserCommand } from "./command-dispatch.ts";
 import { handleCommand } from "./commands.ts";
 import { appRelaySocketMessage, closeAppRelaySocket, isAppRelaySocket, openAppRelaySocket, type AppRelayWsData } from "../apps/host/ws-relay.ts";
@@ -101,4 +102,5 @@ function closeOfficeWebSocket(ws: ServerWebSocket<OfficeWsData>): void {
   }
   clearWsUser(ws);
   closeEditorWatchesFor(ws);
+  closeBrowserWatchesFor(ws);
 }

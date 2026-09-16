@@ -31,6 +31,8 @@ export interface OfficeConfig {
   previewAllowHosts: string[];
   /** Opt-in experimental features. Missing on disk → all false. */
   experimental: ExperimentalSettings;
+  /** Living agent id for the lobby receptionist click target; null → Team chat. */
+  receptionistAgentId: string | null;
 }
 
 // A single entry in office-config.json's `enabledPlugins` array.
@@ -62,6 +64,7 @@ export function loadOfficeConfig(): OfficeConfig {
         officeName: typeof parsed.officeName === "string" && parsed.officeName.trim() ? parsed.officeName.trim().slice(0, 64) : null,
         previewAllowHosts: parsePreviewAllowHosts(parsed.previewAllowHosts),
         experimental: parseExperimental(parsed.experimental),
+        receptionistAgentId: parseReceptionistAgentId(parsed.receptionistAgentId),
       };
     }
   } catch (err) {
@@ -84,6 +87,7 @@ export function loadOfficeConfig(): OfficeConfig {
     officeName: null,
     previewAllowHosts: [],
     experimental: { ...DEFAULT_EXPERIMENTAL },
+    receptionistAgentId: null,
   };
   // Only persist if the legacy prompt actually had content — otherwise a fresh
   // install touches a new file for no reason, and the next save/set will write
@@ -149,6 +153,21 @@ export function normalizeExperimental(value: unknown): ExperimentalSettings | nu
   const raw = value as { browserPanel?: unknown };
   if (typeof raw.browserPanel !== "boolean") return null;
   return { browserPanel: raw.browserPanel };
+}
+
+export function parseReceptionistAgentId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const id = value.trim();
+  return id || null;
+}
+
+/** Accepts string id, null, or omit-invalid → null. Empty string clears. */
+export function normalizeReceptionistAgentId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") return null;
+  const id = value.trim();
+  return id || null;
 }
 
 // Raw read of office-config.json — returns the parsed object verbatim without

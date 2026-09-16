@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { CODEX_MODELS, DEFAULT_AGENT_CAPABILITIES, knownModelFamiliesFor } from "../../../../shared/types.ts";
+import { CODEX_MODELS, DEFAULT_AGENT_CAPABILITIES, knownModelFamiliesFor, type Cronjob } from "../../../../shared/types.ts";
+import { setCronjobDefinitions } from "../../../cronjobs/cronjob-store.ts";
 import { createManagedAgent } from "../../managed-factory.ts";
 import { agents, logCache } from "../../state.ts";
-import { handlePendingModelPick } from "../pending-picks.ts";
+import { handlePendingCronjobPick, handlePendingModelPick } from "../pending-picks.ts";
 
 function managedFor(agentType: "claude" | "codex", modelFamily: string) {
   const info = {
@@ -29,9 +30,33 @@ function managedFor(agentType: "claude" | "codex", modelFamily: string) {
   return managed;
 }
 
+function stubCronjob(overrides: Partial<Cronjob> = {}): Cronjob {
+  return {
+    id: "abcd1234",
+    name: "Nightly check",
+    schedule: { type: "daily", hour: 9, minute: 0 },
+    prompt: "Check the office",
+    cwd: process.cwd(),
+    agentType: "claude",
+    modelFamily: "opus",
+    effort: "high",
+    permissionMode: "never",
+    enabled: true,
+    createdBy: "Boss",
+    userId: null,
+    username: "Boss",
+    device: null,
+    createdAt: 1,
+    lastFireAt: null,
+    nextFireAt: 2,
+    ...overrides,
+  };
+}
+
 afterEach(() => {
   agents.clear();
   logCache.clear();
+  setCronjobDefinitions([]);
 });
 
 describe("handlePendingModelPick", () => {
@@ -53,5 +78,31 @@ describe("handlePendingModelPick", () => {
     expect(handled).toBe(false);
     expect(managed.info.modelFamily).toBe(CODEX_MODELS[0]!.value);
     expect((logCache.get(managed.info.id) ?? []).some((e) => e.content === "Model selection cancelled.")).toBe(true);
+  });
+});
+
+describe("handlePendingCronjobPick", () => {
+  test("emits a prompt card for a valid index", async () => {
+    setCronjobDefinitions([stubCronjob(), stubCronjob({ id: "efgh5678", name: "Weekly digest", prompt: "Digest please" })]);
+    const managed = managedFor("claude", "opus");
+    managed.pendingModelPick = false;
+    managed.pendingCronjobPick = true;
+    const handled = await handlePendingCronjobPick(managed.info.id, managed, "2");
+    expect(handled).toBe(true);
+    expect(managed.pendingCronjobPick).toBe(false);
+    const entry = (logCache.get(managed.info.id) ?? []).find((e) => typeof e.metadata?.cronjobPromptContent === "string");
+    expect(entry?.metadata?.cronjobName).toBe("Weekly digest");
+    expect(String(entry?.metadata?.cronjobPromptContent)).toContain("Digest please");
+  });
+
+  test("cancels when the reply is not a list index", async () => {
+    setCronjobDefinitions([stubCronjob()]);
+    const managed = managedFor("claude", "opus");
+    managed.pendingModelPick = false;
+    managed.pendingCronjobPick = true;
+    const handled = await handlePendingCronjobPick(managed.info.id, managed, "nope");
+    expect(handled).toBe(false);
+    expect(managed.pendingCronjobPick).toBe(false);
+    expect((logCache.get(managed.info.id) ?? []).some((e) => e.content === "Cron job prompt selection cancelled.")).toBe(true);
   });
 });

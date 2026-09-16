@@ -39,6 +39,7 @@ describe("pendingPromptOf", () => {
     expect(pendingPromptOf(agentWith({ pendingResume: true }))).toBe("resume");
     expect(pendingPromptOf(agentWith({ pendingModelPick: true }))).toBe("model");
     expect(pendingPromptOf(agentWith({ pendingEffortPick: true }))).toBe("effort");
+    expect(pendingPromptOf(agentWith({ pendingCronjobPick: true }))).toBe("cronjob");
   });
 
   test("inMultiStepFlow mirrors pendingPromptOf", () => {

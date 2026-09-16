@@ -4,8 +4,8 @@ import { LOBBY_ROOM_ID } from "../../shared/lobby.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { evictSessionsForUserId } from "../auth/auth.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
-import { refreshPresenceForUser, setPresence } from "../presence.ts";
-import { canSeeRoom, claimUser, deleteUser, getSessionContext, getUserById, getWsUser, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
+import { moveLobbyPresence, refreshPresenceForUser, setPresence } from "../presence.ts";
+import { canSeeRoom, claimUser, deleteUser, firstOfficeOwner, getSessionContext, getWsUser, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { browsers } from "./broadcast.ts";
 
 export async function handleUserCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>): Promise<boolean> {
@@ -46,6 +46,8 @@ export async function handleUserCommand(cmd: ClientCommand, ws: ServerWebSocket<
         console.warn(`[auth] delete_user "${cmd.userId}" refused: would leave office with no owners`);
         return true;
       }
+      const successor = firstOfficeOwner(cmd.userId);
+      if (successor) await AgentManager.reassignAgentsOwnedBy(cmd.userId, successor.id);
       deleteUser(actor, cmd.userId);
       for (const browser of browsers) {
         sendInitialPayload(browser);
@@ -54,6 +56,12 @@ export async function handleUserCommand(cmd: ClientCommand, ws: ServerWebSocket<
       // get session_expired + close so they land on the login wall instead
       // of looping reconnect against a now-orphaned cookie.
       await evictSessionsForUserId(cmd.userId);
+      return true;
+    }
+    case "lobby_move": {
+      const connectionId = getSessionContext(ws)?.connectionId ?? "";
+      if (!connectionId || typeof cmd.spotId !== "string") return true;
+      if (moveLobbyPresence(connectionId, cmd.spotId)) pushPresenceListToEachWs();
       return true;
     }
     case "presence_update": {

@@ -9,24 +9,26 @@ export function getRooms(): RoomWire[] {
   return roomsWire();
 }
 
-/** Content hash over the office settings PUT surface (prompt + envFile + experimental). */
-export function officeSettingsVersion(settings?: { prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings }): string {
+/** Content hash over the office settings PUT surface (prompt + envFile + experimental + receptionist). */
+export function officeSettingsVersion(settings?: { prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings; receptionistAgentId?: string | null }): string {
   const s = settings ?? {
     prompt: officeConfig.prompt,
     envFile: officeConfig.envFile,
     experimental: officeConfig.experimental,
+    receptionistAgentId: officeConfig.receptionistAgentId ?? null,
   };
-  return versionOf(JSON.stringify([s.prompt ?? null, s.envFile ?? null, s.experimental ?? officeConfig.experimental]));
+  return versionOf(JSON.stringify([s.prompt ?? null, s.envFile ?? null, s.experimental ?? officeConfig.experimental, s.receptionistAgentId ?? officeConfig.receptionistAgentId ?? null]));
 }
 
 // Update office settings. Caller is responsible for validating envFile (see validateEnvPath).
-export function setOfficeSettings(prompt: string | null, envFile: string | null, experimental?: ExperimentalSettings) {
+export function setOfficeSettings(prompt: string | null, envFile: string | null, experimental?: ExperimentalSettings, receptionistAgentId?: string | null) {
   const normalizedPrompt = prompt && prompt.trim() ? prompt.trim() : null;
   const nextConfig = {
     ...officeConfig,
     prompt: normalizedPrompt,
     envFile: envFile || null,
     experimental: experimental ?? officeConfig.experimental,
+    receptionistAgentId: receptionistAgentId !== undefined ? receptionistAgentId : (officeConfig.receptionistAgentId ?? null),
   };
   setOfficeConfig(nextConfig);
   saveOfficeConfig(nextConfig);
@@ -37,6 +39,7 @@ export function setOfficeSettings(prompt: string | null, envFile: string | null,
     prompt: nextConfig.prompt,
     envFile: nextConfig.envFile,
     experimental: nextConfig.experimental,
+    receptionistAgentId: nextConfig.receptionistAgentId,
   });
 }
 

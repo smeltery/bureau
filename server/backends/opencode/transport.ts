@@ -1,5 +1,11 @@
 // Thin HTTP + SSE client that maps OpenCode serve events onto Bureau
 // NormalizedEvent. No authority-broker / credential-scan — deferred.
+//
+// Prompt-cache stability: `systemPrompt` is bound once in the constructor and
+// sent verbatim on every `prompt_async`. Bureau has no per-turn office/auth
+// handle to rotate into the prompt (that broker lives upstream and is out of
+// MVP scope), so the system payload is already byte-identical across turns.
+// Keep it that way — do not rebuild or interpolate the system string per turn.
 
 import { formatAttachmentLines, resolveAttachmentNotices } from "../../attachment-prompt.ts";
 import type { ApprovalDecision, AttachmentSpec, NormalizedEvent, NormalizedMessage, TokenUsage } from "../types.ts";

@@ -12,7 +12,7 @@ export type SetProviderKeysResult = { ok: true; value: ProviderKeysUpdateRes; en
  * Omitted fields are left alone; empty string clears the key.
  * Never returns secret values.
  */
-export function setProviderKeys(userId: string, body: ProviderKeysUpdateReq): SetProviderKeysResult {
+export async function setProviderKeys(userId: string, body: ProviderKeysUpdateReq): Promise<SetProviderKeysResult> {
   if (body.anthropicApiKey === undefined && body.openaiApiKey === undefined) {
     return { ok: false, status: 400, error: "provide anthropicApiKey and/or openaiApiKey" };
   }
@@ -30,7 +30,8 @@ export function setProviderKeys(userId: string, body: ProviderKeysUpdateReq): Se
 
   if (updated.length === 0) {
     invalidateProviderAccountCache(userId);
-    return { ok: true, value: { accounts: listProviderAccounts(userId, true).accounts, updated }, envPath: managedUserEnvPath(userId) };
+    const listed = await listProviderAccounts(userId, true);
+    return { ok: true, value: { accounts: listed.accounts, updated }, envPath: managedUserEnvPath(userId) };
   }
 
   try {
@@ -43,9 +44,10 @@ export function setProviderKeys(userId: string, body: ProviderKeysUpdateReq): Se
   }
 
   invalidateProviderAccountCache(userId);
+  const listed = await listProviderAccounts(userId, true);
   return {
     ok: true,
-    value: { accounts: listProviderAccounts(userId, true).accounts, updated },
+    value: { accounts: listed.accounts, updated },
     envPath: managedUserEnvPath(userId),
   };
 }

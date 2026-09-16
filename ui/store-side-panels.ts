@@ -2,8 +2,8 @@ import { storageReadObject, storageSetItem } from "./browser-storage.ts";
 
 export type SidePanel = "terminal" | "editor" | "browser" | null;
 
-// "browser" is the experimental agent-browser status/drive strip
-// (office setting experimental.browserPanel). Live screencast frames are deferred.
+// "browser" is the experimental agent-browser panel
+// (office setting experimental.browserPanel): live CDP frames + manager copy/drag.
 
 const SIDE_PANEL_KEY = "bureau:side-panels";
 

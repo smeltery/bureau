@@ -14,6 +14,7 @@ function canReleaseIdleSession(managed: ManagedAgent): boolean {
     !managed.pendingResume &&
     !managed.pendingModelPick &&
     !managed.pendingEffortPick &&
+    !managed.pendingCronjobPick &&
     !managed.pendingTurn &&
     managed.messageQueue.length === 0 &&
     (managed.info.state === "idle" || managed.info.state === "waiting_for_response")

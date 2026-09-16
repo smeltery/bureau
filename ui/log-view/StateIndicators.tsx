@@ -8,6 +8,7 @@ export const PENDING_PROMPT_BADGE: Record<PendingPromptKind, string> = {
   resume: "session",
   model: "model",
   effort: "effort",
+  cronjob: "cronjob",
 };
 
 export const PENDING_PROMPT_LABEL: Record<PendingPromptKind, string> = {
@@ -15,6 +16,7 @@ export const PENDING_PROMPT_LABEL: Record<PendingPromptKind, string> = {
   resume: "Waiting for a session pick",
   model: "Waiting for a model pick",
   effort: "Waiting for an effort pick",
+  cronjob: "Waiting for a cron job pick",
 };
 
 export const STATE_LABELS: Partial<Record<AgentState, string>> = {

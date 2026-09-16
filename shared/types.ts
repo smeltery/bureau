@@ -49,11 +49,21 @@ export type { CCAvailablePlugin, CCInstalledPlugin, CCMarketplace, CCPluginScope
 export type { Attachment, ChoicePromptChoice, ChoicePromptPayload, DiffFileSummary, DiffPayload, FilePayload, LogEntry, SubagentOrigin, TerminalCommandPayload } from "./log-types.ts";
 export type { MembersChatMessage, MembersChatReply } from "./members-chat.ts";
 export { MEMBERS_CHAT_MAX_CHARS, membersChatExcerpt, recentMembersChatPins } from "./members-chat.ts";
-export type { ProviderAccountProvider, ProviderAccountStatus, ProviderAccountWire, ProviderAccountsWire, ProviderAuthVia, ProviderKeysUpdateReq, ProviderKeysUpdateRes } from "./provider-accounts.ts";
+export type {
+  ProviderAccountProvider,
+  ProviderAccountStatus,
+  ProviderAccountWire,
+  ProviderAccountsWire,
+  ProviderAuthVia,
+  ProviderKeysUpdateReq,
+  ProviderKeysUpdateRes,
+  ProviderLoginQueueWire,
+  ProviderSignInSlotRes,
+} from "./provider-accounts.ts";
 export type { EnsureSlideReq, EnsureSlideRes, SlideDeck, SlideDeckRes, SlideFailureReason, SlideRecord } from "./slides.ts";
 export { generateHexId, generateTaskId, isValidPriority, isValidStatus } from "./tasks.ts";
 export type { TaskItem, TaskPriority, TaskStatus } from "./tasks.ts";
-export { LOBBY_ROOM_ID } from "./lobby.ts";
+export { LOBBY_ROOM_ID, LOBBY_SPOT_IDS } from "./lobby.ts";
 export type {
   ApiTokenInboxDrainRes,
   ApiTokenInboxMessage,
@@ -100,7 +110,7 @@ export {
   paletteForPet,
   parseRoomSkin,
 } from "./user-types.ts";
-export type { AgentSaveResponse, ClientCommand, CwdValidationResponse, ServerMessage, SettingsSaveResponse, SettingsValidationResponse } from "./wire-types.ts";
+export type { AgentSaveResponse, BrowserHumanInput, ClientCommand, CwdValidationResponse, ServerMessage, SettingsSaveResponse, SettingsValidationResponse } from "./wire-types.ts";
 
 export interface UsageBucketWire {
   totalIn: number;

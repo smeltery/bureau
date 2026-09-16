@@ -6,6 +6,12 @@ export type ProviderAccountStatus = "connected" | "not_connected" | "unavailable
 
 export type ProviderAuthVia = "api_key" | "cli" | "none";
 
+/** Structured queue fields — clients compose the sentence from their catalogs. */
+export interface ProviderLoginQueueWire {
+  holderName: string;
+  startedAt: number;
+}
+
 export interface ProviderAccountWire {
   provider: ProviderAccountProvider;
   accountStatus: ProviderAccountStatus;
@@ -18,6 +24,14 @@ export interface ProviderAccountWire {
   cliInstalled?: boolean;
   /** Host-side login hints (CLI commands), never secrets. */
   hostHints: string[];
+  /**
+   * True when CLI / future browser sign-in guidance is still worth offering.
+   * A timed-out probe leaves this true (the check never finished). An ordinary
+   * probe failure clears it.
+   */
+  canOfferSignIn?: boolean;
+  /** Live process-local sign-in slot held by another (or this) member. */
+  loginQueue?: ProviderLoginQueueWire;
   error?: string;
 }
 
@@ -37,4 +51,9 @@ export interface ProviderKeysUpdateRes {
   accounts: ProviderAccountWire[];
   /** Keys that were written or cleared — names only. */
   updated: string[];
+}
+
+export interface ProviderSignInSlotRes {
+  accounts: ProviderAccountWire[];
+  queue: ProviderLoginQueueWire;
 }

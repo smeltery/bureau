@@ -16,8 +16,6 @@ export interface GhostPlacement {
   tagTop?: number;
 }
 
-type LobbyPresence = PresenceInfo & { lobbySpotId?: string };
-
 const GHOST_LOBBY_BASE_X = 600;
 const GHOST_LOBBY_BASE_Y = 590;
 const GHOST_LOBBY_GAP = 52;
@@ -30,7 +28,7 @@ const BODY_HEIGHT = Math.round(SIZE * SVG_HEIGHT_RATIO);
 
 export function lobbyGhostPlacements(presences: PresenceInfo[], spots: LayoutSpec["ghostSpots"]): GhostPlacement[] {
   let overflow = 0;
-  const visible = (presences as LobbyPresence[]).filter((p) => p.currentRoomId === LOBBY_ROOM_ID).sort((a, b) => a.connectionId.localeCompare(b.connectionId));
+  const visible = [...presences].filter((p) => p.currentRoomId === LOBBY_ROOM_ID).sort((a, b) => a.connectionId.localeCompare(b.connectionId));
   const columns = Math.max(1, Math.floor((SCENE_W - LOBBY_OVERFLOW_RIGHT_MARGIN - GHOST_LOBBY_BASE_X - SIZE) / GHOST_LOBBY_GAP) + 1);
   // Wrap upward once. Later overflow stacks on that row, so an arrival does
   // not change the spacing of existing ghosts or put bodies below the viewport.
@@ -74,7 +72,7 @@ export function LobbyGhosts({
 }) {
   const natural = naturalPlacements ?? lobbyGhostPlacements(presences, spots);
   const placements = animatedPlacements ?? natural;
-  const occupied = new Set((natural as Array<GhostPlacement & { presence: LobbyPresence }>).map((p) => p.presence.lobbySpotId));
+  const occupied = new Set(natural.map((p) => p.presence.lobbySpotId));
   return (
     <>
       <style>{`.lobby-ghost-spot { border: 1px dashed transparent; } .lobby-ghost-spot:hover, .lobby-ghost-spot:focus-visible { border-color: var(--text-dim); }`}</style>

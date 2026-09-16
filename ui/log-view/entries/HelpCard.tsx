@@ -5,6 +5,22 @@ import { copyText } from "../../utils/clipboard.ts";
 import { Markdown } from "../Markdown.tsx";
 
 export function HelpCard({ header, helpContent }: { header: string; helpContent: string }) {
+  return <PromptInspectCard header={header} content={helpContent} actionLabel="Show help" modalTitle="Help" renderAs="markdown" />;
+}
+
+export function PromptInspectCard({
+  header,
+  content,
+  actionLabel,
+  modalTitle,
+  renderAs = "markdown",
+}: {
+  header: string;
+  content: string;
+  actionLabel: string;
+  modalTitle: string;
+  renderAs?: "markdown" | "plaintext";
+}) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -27,15 +43,17 @@ export function HelpCard({ header, helpContent }: { header: string; helpContent:
       >
         <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{header.replace(/^\*\*|\*\*$/g, "")}</span>
         <button type="button" onClick={() => setOpen(true)} style={cardActionBtn}>
-          Show help
+          {actionLabel}
         </button>
       </div>
       {open && (
-        <HelpModal
-          content={helpContent}
+        <PromptInspectModal
+          title={modalTitle}
+          content={content}
+          renderAs={renderAs}
           copied={copied}
           onCopy={async () => {
-            if (!(await copyText(helpContent))) return;
+            if (!(await copyText(content))) return;
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
@@ -46,7 +64,21 @@ export function HelpCard({ header, helpContent }: { header: string; helpContent:
   );
 }
 
-function HelpModal({ content, copied, onCopy, onClose }: { content: string; copied: boolean; onCopy: () => void; onClose: () => void }) {
+function PromptInspectModal({
+  title,
+  content,
+  renderAs,
+  copied,
+  onCopy,
+  onClose,
+}: {
+  title: string;
+  content: string;
+  renderAs: "markdown" | "plaintext";
+  copied: boolean;
+  onCopy: () => void;
+  onClose: () => void;
+}) {
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
@@ -78,7 +110,7 @@ function HelpModal({ content, copied, onCopy, onClose }: { content: string; copi
         <section
           role="dialog"
           aria-modal="true"
-          aria-label="Help"
+          aria-label={title}
           style={{
             width: "min(900px, 100%)",
             maxHeight: "min(760px, calc(100dvh - 40px))",
@@ -92,8 +124,7 @@ function HelpModal({ content, copied, onCopy, onClose }: { content: string; copi
             boxShadow: "0 20px 60px var(--shadow-heavy)",
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 17, color: "var(--text-primary)" }}>Help</h3>
-          {/* Prose body — not a code block — so it reads as the dialog itself. */}
+          <h3 style={{ margin: 0, fontSize: 17, color: "var(--text-primary)" }}>{title}</h3>
           <div
             aria-readonly="true"
             style={{
@@ -105,7 +136,11 @@ function HelpModal({ content, copied, onCopy, onClose }: { content: string; copi
               lineHeight: 1.5,
             }}
           >
-            <Markdown content={content} />
+            {renderAs === "plaintext" ? (
+              <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>{content}</pre>
+            ) : (
+              <Markdown content={content} />
+            )}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <button type="button" onClick={onCopy} style={dialogSaveBtn}>

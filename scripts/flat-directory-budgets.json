@@ -30,8 +30,8 @@
       "reason": "OpenCode MVP backend: runtime resolve, supervisor, parse, transport(+events), session, adapter(+test), config, index \u2014 PATH-based, no authority-broker."
     },
     "ui/office/lobby": {
-      "limit": 16,
-      "reason": "Isometric lobby scene: geometry/palette/iso kit, layout registry, prop modules (seating/furniture/decor/plaque), LobbyScene + LobbyGhosts, employee helper, barrel, smoke test."
+      "limit": 19,
+      "reason": "Isometric lobby scene plus client-only layout editor (LobbyEditor + panel + util) for ?lobbyEdit=1; geometry/palette/iso kit, layout registry, prop modules, LobbyScene + LobbyGhosts, employee helper, barrel, smoke test."
     }
   }
 }

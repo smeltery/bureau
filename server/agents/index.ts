@@ -51,7 +51,7 @@ export {
   killedAgentManagerUserId,
   restoreAgents,
 } from "./lifecycle.ts";
-export { editAgent, setAgentPrivileged } from "./settings.ts";
+export { editAgent, setAgentPrivileged, reassignAgentsOwnedBy } from "./settings.ts";
 export { sendMessage } from "./conversation/send.ts";
 export { dequeueMessage, enqueueMessage, flushQueue } from "./conversation/message-queue.ts";
 export { abort, sendNow, newConversation, handoff, resume } from "./conversation/control.ts";

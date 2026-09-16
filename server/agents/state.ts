@@ -50,6 +50,7 @@ export function getOfficeSettings(): OfficeSettings {
     envFile: officeConfig.envFile,
     previewAllowHosts: officeConfig.previewAllowHosts,
     experimental: officeConfig.experimental,
+    receptionistAgentId: officeConfig.receptionistAgentId ?? null,
   };
 }
 

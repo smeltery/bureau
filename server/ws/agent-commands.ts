@@ -3,7 +3,7 @@ import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { pushPresenceListToEachWs } from "../ws-initial-payload.ts";
 import { saveRecentCwd } from "../persistence.ts";
-import { getWsUser } from "../users.ts";
+import { canSeeRoom, getWsUser, getUserById } from "../users.ts";
 import { handleAgentConversationCommand } from "./agent-conversation-commands.ts";
 import { handleAgentTerminalCommand } from "./agent-terminal-commands.ts";
 import { handleEditorCommand } from "./editor-commands.ts";
@@ -25,6 +25,18 @@ function canManageAgent(ws: ServerWebSocket<unknown>, agentId: string): boolean 
   const user = getWsUser(ws);
   const agent = AgentManager.getAllAgents().find((a) => a.id === agentId);
   return !!user && !!agent && (user.role === "owner" || agent.userId === user.id);
+}
+
+/** Validate a manager reassignment: target must exist and be able to see the agent's room. */
+function validateManagerReassignment(agentId: string, nextUserId: string): string | null {
+  const agent = AgentManager.getAgent(agentId);
+  if (!agent) return "agent not found";
+  const next = getUserById(nextUserId);
+  if (!next) return "manager not found";
+  const roomId = agent.roomId ?? AgentManager.getRooms()[agent.room]?.id;
+  if (!roomId) return "agent room not found";
+  if (!canSeeRoom(next, roomId)) return "new manager cannot access the agent's room";
+  return null;
 }
 
 export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>): Promise<boolean> {
@@ -105,6 +117,23 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
       return true;
     case "edit_agent": {
       if (!canUseAgent(ws, cmd.agentId)) return true;
+      if (cmd.userId !== undefined) {
+        // Manager reassignment is owner-only (UI: owners). Privileged agents
+        // never establish a WS identity, so this gate is session-owner only.
+        if (!isOwner(ws)) {
+          if (cmd.requestId) {
+            ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: "owner access required to change manager" } as ServerMessage));
+          }
+          return true;
+        }
+        const err = validateManagerReassignment(cmd.agentId, cmd.userId);
+        if (err) {
+          if (cmd.requestId) {
+            ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error: err } as ServerMessage));
+          }
+          return true;
+        }
+      }
       if (cmd.cwd) {
         try {
           AgentManager.validateCwd(cmd.cwd);
@@ -143,6 +172,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
           permissionMode: cmd.permissionMode,
           codexSandbox: cmd.codexSandbox,
           effort: cmd.effort,
+          userId: cmd.userId,
         });
         if (cmd.requestId) {
           ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));

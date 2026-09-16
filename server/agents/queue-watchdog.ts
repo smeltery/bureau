@@ -22,7 +22,7 @@ export function turnIsLive(managed: ManagedAgent): boolean {
 }
 
 function inMultiStepFlow(managed: ManagedAgent): boolean {
-  return !!managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick;
+  return !!managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick || managed.pendingCronjobPick;
 }
 
 function lastRecoveryAt(agentId: string): number {

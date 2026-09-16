@@ -1,9 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { claimUserByName } from "../../users.ts";
 import { readManagedUserEnv } from "../../persistence/managed-env.ts";
-import { invalidateProviderAccountCache } from "../../provider-accounts/index.ts";
+import { invalidateProviderAccountCache, resetSignInSlotsForTests } from "../../provider-accounts/index.ts";
 import { handleProviderAccountsRequest } from "../provider-accounts.ts";
+
+afterEach(() => {
+  resetSignInSlotsForTests();
+});
 
 function authFor(userId: string, username: string, role: "owner" | "member" = "owner"): AuthResult {
   return {
@@ -98,5 +102,24 @@ describe("handleProviderAccountsRequest", () => {
     const res = await handleProviderAccountsRequest(req, new URL(req.url), authFor(user.id, user.name));
     expect(res?.status).toBe(400);
     expect(await res?.json()).toEqual({ error: "provide anthropicApiKey and/or openaiApiKey" });
+  });
+
+  test("sign-in slot claim returns queue fields; second member gets 409 detail", async () => {
+    const first = claimUserByName(`Conn Slot A ${crypto.randomUUID()}`);
+    const second = claimUserByName(`Conn Slot B ${crypto.randomUUID()}`);
+    const claim = request("/api/me/provider-accounts/claude/sign-in", { method: "POST" });
+    const claimed = await handleProviderAccountsRequest(claim, new URL(claim.url), authFor(first.id, first.name));
+    expect(claimed?.status).toBe(200);
+    const body = await claimed!.json();
+    expect(body.queue.holderName).toBe(first.name);
+    expect(typeof body.queue.startedAt).toBe("number");
+    expect(body.accounts.find((a: { provider: string }) => a.provider === "claude").loginQueue.holderName).toBe(first.name);
+
+    const conflict = request("/api/me/provider-accounts/claude/sign-in", { method: "POST" });
+    const blocked = await handleProviderAccountsRequest(conflict, new URL(conflict.url), authFor(second.id, second.name, "member"));
+    expect(blocked?.status).toBe(409);
+    const detail = await blocked!.json();
+    expect(detail.code).toBe("shared_login_in_progress");
+    expect(detail.detail).toEqual({ holderName: first.name, startedAt: body.queue.startedAt });
   });
 });

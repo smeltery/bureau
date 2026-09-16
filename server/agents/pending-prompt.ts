@@ -6,6 +6,7 @@ export function pendingPromptOf(managed: ManagedAgent): PendingPromptKind | null
   if (managed.pendingResume) return "resume";
   if (managed.pendingModelPick) return "model";
   if (managed.pendingEffortPick) return "effort";
+  if (managed.pendingCronjobPick) return "cronjob";
   return null;
 }
 

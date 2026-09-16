@@ -2,18 +2,33 @@
 //
 // One shared Chrome for the office, one BrowserContext per agent, idle teardown.
 // Chrome keeps its sandbox (`--no-sandbox` is never passed). Downloads refused.
-// URL policy matches preview-url (local/private + allowlist).
+// URL policy matches preview-url (local/private + allowlist). Live JPEG via CDP.
 
 import type { Browser, BrowserContext, Page } from "playwright-core";
+import type { BrowserHumanInput } from "../../shared/wire-client-types.ts";
 import { assertAllowedHost, BROWSER_CANDIDATES, findBrowser as defaultFindBrowser } from "../preview-capture.ts";
-import { describeShot, fail, parseBrowserParams, type BrowserFailure, type BrowserResult, type BrowserSuccess, type ParsedParams } from "./params.ts";
+import { fail, parseBrowserParams, type BrowserFailure, type BrowserResult, type BrowserSuccess, type ParsedParams } from "./params.ts";
+import { DeadlineError, LiveViews, stopScreencast, withDeadline, type BrowserFrameListener, type LiveSession } from "./live.ts";
+import { NoPageError, performBrowserAction } from "./perform.ts";
 
-export { BROWSER_ACTIONS, describeShot, parseBrowserParams, type BrowserAction, type BrowserErrorCode, type BrowserFailure, type BrowserResult, type BrowserSuccess } from "./params.ts";
+export {
+  BROWSER_ACTIONS,
+  BROWSER_MAX_DIM,
+  BROWSER_MIN_DIM,
+  describeShot,
+  MAX_TEXT_CHARS,
+  parseBrowserParams,
+  type BrowserAction,
+  type BrowserErrorCode,
+  type BrowserFailure,
+  type BrowserResult,
+  type BrowserSuccess,
+} from "./params.ts";
+export type { BrowserFrame, BrowserFrameListener } from "./live.ts";
 
 export const BROWSER_IDLE_MS = 5 * 60 * 1000;
 export const BROWSER_ACTION_DEADLINE_MS = 30_000;
 const BACKSTOP_MARGIN_MS = 5_000;
-export const MAX_SNAPSHOT_CHARS = 20_000;
 
 export interface BrowserSessionDeps {
   findBrowser?: () => string | null;
@@ -45,36 +60,9 @@ async function defaultLaunch(executablePath: string): Promise<Browser> {
   return chromium.launch(launchOptions(executablePath));
 }
 
-interface AgentSession {
+interface AgentSession extends LiveSession {
   context: BrowserContext;
-  page: Page;
-  opened: boolean;
   timer: ReturnType<typeof setTimeout> | null;
-}
-
-class NoPageError extends Error {
-  constructor() {
-    super("no page is open; call the goto action first");
-  }
-}
-
-class DeadlineError extends Error {}
-
-async function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new DeadlineError()), ms);
-    timer.unref?.();
-  });
-  try {
-    return await Promise.race([work, deadline]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-function cap(value: string, max: number): string {
-  return value.length <= max ? value : `${value.slice(0, max)}\n[truncated at ${max} characters]`;
 }
 
 export class BrowserPool {
@@ -90,6 +78,7 @@ export class BrowserPool {
   private readonly backstopMs: number;
   private publicHostAllowlist: string[];
   private readonly lookupFn?: BrowserSessionDeps["lookupFn"];
+  private readonly live = new LiveViews();
 
   constructor(deps: BrowserSessionDeps = {}) {
     this.findBrowser = deps.findBrowser ?? defaultFindBrowser;
@@ -109,13 +98,38 @@ export class BrowserPool {
     return [...this.sessions.keys()];
   }
 
-  /** Sync peek for UI status — empty when the agent has no open page. */
   peek(agentId: string): { active: true; url: string } | { active: false } {
     const session = this.sessions.get(agentId);
     if (!session || session.page.isClosed() || !session.opened) return { active: false };
     const url = session.page.url();
     if (!url || url === "about:blank") return { active: false };
     return { active: true, url };
+  }
+
+  status(agentId: string): { available: boolean; url: string; title: string } {
+    const session = this.sessions.get(agentId);
+    if (!session || session.page.isClosed() || !session.opened) return { available: false, url: "", title: "" };
+    return { available: true, url: session.page.url(), title: session.title };
+  }
+
+  watch(agentId: string, listener: BrowserFrameListener, bounds: { maxWidth?: number; maxHeight?: number } = {}): () => void {
+    return this.live.watch(agentId, listener, bounds, () => this.sessions.get(agentId));
+  }
+
+  async selection(agentId: string): Promise<{ text: string; truncated: boolean }> {
+    return this.serialize(agentId, async () => {
+      const session = this.sessions.get(agentId);
+      if (!session || session.page.isClosed() || !session.opened) throw new NoPageError();
+      return this.live.selection(session.page, this.backstopMs);
+    });
+  }
+
+  async humanInput(agentId: string, input: Exclude<BrowserHumanInput, { kind: "selection" }>): Promise<boolean> {
+    const session = this.sessions.get(agentId);
+    if (!session || !session.screencast || session.page.isClosed()) return false;
+    this.touch(agentId, session);
+    await this.live.humanInput(session.screencast, input);
+    return true;
   }
 
   private serialize<T>(agentId: string, work: () => Promise<T>): Promise<T> {
@@ -176,8 +190,10 @@ export class BrowserPool {
   }
 
   private dropAllSessions(): void {
-    for (const [, session] of this.sessions) {
+    for (const [agentId, session] of this.sessions) {
       if (session.timer) clearTimeout(session.timer);
+      void stopScreencast(session);
+      this.live.notify(agentId, null);
     }
     this.sessions.clear();
     this.browser = null;
@@ -201,12 +217,24 @@ export class BrowserPool {
       return existing;
     }
     if (existing) {
+      await stopScreencast(existing);
       this.sessions.delete(agentId);
+      this.live.notify(agentId, null);
       await existing.context.close().catch(() => {});
     }
     const context = await browser.newContext({ viewport, acceptDownloads: false });
     const page = await context.newPage();
-    const session: AgentSession = { context, page, opened: false, timer: null };
+    const session: AgentSession = {
+      context,
+      page,
+      opened: false,
+      timer: null,
+      screencast: null,
+      screencastStarting: null,
+      captureSize: null,
+      lastFrame: null,
+      title: "",
+    };
     this.sessions.set(agentId, session);
     context.on("page", (fresh: Page) => {
       void this.serialize(agentId, async () => {
@@ -214,12 +242,15 @@ export class BrowserPool {
         if (!current || current.context !== context) return;
         if (fresh === current.page || fresh.isClosed()) return;
         const previous = current.page;
+        await stopScreencast(current);
         current.page = fresh;
         current.opened = true;
         await previous.close().catch(() => {});
+        void this.live.ensureScreencast(agentId, current, () => this.sessions.get(agentId));
       });
     });
     this.touch(agentId, session);
+    void this.live.ensureScreencast(agentId, session, () => this.sessions.get(agentId));
     return session;
   }
 
@@ -236,6 +267,8 @@ export class BrowserPool {
       this.sessions.delete(agentId);
       return this.sessions.size === 0 ? this.detachBrowser() : null;
     });
+    await stopScreencast(session);
+    this.live.notify(agentId, null);
     await session.context.close().catch(() => {});
     if (orphan) await orphan.close().catch(() => {});
   }
@@ -264,18 +297,21 @@ export class BrowserPool {
       await this.closeNow(agentId);
       return { ok: true, url: "", title: "", closed: true };
     }
-
     const session = await this.ensureSession(agentId, params.viewport);
     if ("ok" in session) return session;
-
     if (params.action !== "goto" && !session.opened) {
       return fail(400, "no_page", "no page is open; call the goto action first");
     }
-
     let work: Promise<BrowserSuccess> | undefined;
     try {
-      work = this.perform(session, params);
-      return await withDeadline(work, this.backstopMs);
+      work = performBrowserAction(session.page, params, this.actionMs, () => {
+        session.opened = true;
+      });
+      const result = await withDeadline(work, this.backstopMs);
+      session.title = result.title;
+      if (this.live.hasViewers(agentId)) void this.live.ensureScreencast(agentId, session, () => this.sessions.get(agentId));
+      this.live.notify(agentId, null);
+      return result;
     } catch (err) {
       if (err instanceof DeadlineError) {
         await this.closeNow(agentId);
@@ -286,45 +322,6 @@ export class BrowserPool {
       return fail(500, "action_failed", err instanceof Error ? err.message.split("\n")[0]! : String(err));
     }
   }
-
-  private async perform(session: AgentSession, params: ParsedParams): Promise<BrowserSuccess> {
-    const timeout = this.actionMs;
-    switch (params.action) {
-      case "goto":
-        await session.page.goto(params.url!.toString(), { waitUntil: "load", timeout });
-        session.opened = true;
-        break;
-      case "click":
-        await session.page.click(params.selector!, { timeout });
-        break;
-      case "fill":
-        await session.page.fill(params.selector!, params.text!, { timeout });
-        break;
-      case "press":
-        if (params.selector) await session.page.press(params.selector, params.key!, { timeout });
-        else await session.page.keyboard.press(params.key!);
-        break;
-      case "snapshot":
-      case "screenshot":
-        break;
-    }
-
-    const page = session.page;
-    if (page.url() === "about:blank") throw new NoPageError();
-
-    const base: BrowserSuccess = { ok: true, url: page.url(), title: await page.title() };
-    if (params.action === "snapshot") {
-      base.snapshot = cap(await page.locator("body").ariaSnapshot({ timeout }), MAX_SNAPSHOT_CHARS);
-      base.text = base.snapshot;
-    } else if (params.action === "screenshot") {
-      base.png = await page.screenshot({ fullPage: params.fullPage === true, timeout });
-      const shot = describeShot(page.url());
-      base.filename = shot.filename;
-      base.caption = shot.caption;
-    }
-    return base;
-  }
 }
 
-/** Office-wide pool. One browser, one context per agent. */
 export const browserPool = new BrowserPool();

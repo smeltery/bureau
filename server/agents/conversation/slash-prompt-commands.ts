@@ -1,4 +1,5 @@
-import { addLogEntry, officeConfig, rooms, updateState, type ManagedAgent } from "../state.ts";
+import type { Cronjob } from "../../../shared/types.ts";
+import { addLogEntry, emitEphemeralLog, officeConfig, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
 import { managerNameForAgent, buildMemoryPromptForAgent } from "../session/runtime.ts";
 import { buildCronjobMemoryPrompt, buildCronjobSystemPrompt, listCronjobs } from "../../cronjobs/index.ts";
@@ -24,7 +25,7 @@ export async function handleBureauSystemPromptCommand(agentId: string, managed: 
   return true;
 }
 
-export async function handleBureauCronjobSystemPromptCommand(agentId: string, _managed: ManagedAgent, args: string[], rawText: string, username?: string): Promise<boolean> {
+export async function handleBureauCronjobSystemPromptCommand(agentId: string, managed: ManagedAgent, args: string[], rawText: string, username?: string): Promise<boolean> {
   const userMeta = username ? { username } : undefined;
   addLogEntry(agentId, "user_message", rawText, userMeta);
 
@@ -32,14 +33,23 @@ export async function handleBureauCronjobSystemPromptCommand(agentId: string, _m
   const all = listCronjobs();
 
   if (!query) {
-    const lines = ["Usage: `/bureau-cronjob-system-prompt <name-or-id>`"];
     if (all.length === 0) {
-      lines.push("\nNo cron jobs are configured.");
-    } else {
-      lines.push("\nKnown cron jobs:");
-      for (const c of all) lines.push(`  \`${c.id}\`  ${c.name}`);
+      addLogEntry(agentId, "system", "No cron jobs are configured.");
+      updateState(agentId, "waiting_for_response");
+      return true;
     }
-    addLogEntry(agentId, "system", lines.join("\n"));
+    const instruction = "\nReply with a number to inspect, or anything else to cancel.";
+    const choices = all.map((cronjob) => ({ value: cronjob.id, label: cronjob.name }));
+    const lines = ["Inspect cron job system prompt:\n", ...choices.map((choice, index) => `  ${index + 1}. ${choice.label}`), instruction];
+    emitEphemeralLog(agentId, "system", lines.join("\n"), {
+      choicePrompt: {
+        kind: "cronjob",
+        title: "Inspect cron job prompt",
+        instruction: instruction.trim(),
+        choices,
+      },
+    });
+    managed.pendingCronjobPick = true;
     updateState(agentId, "waiting_for_response");
     return true;
   }
@@ -60,14 +70,18 @@ export async function handleBureauCronjobSystemPromptCommand(agentId: string, _m
     return true;
   }
 
-  // The cronjob receives the system prompt + the configured prompt as its
-  // first user message, so display both — that's the full initial input.
-  const systemPrompt = buildCronjobSystemPrompt(target, target.id, "", buildCronjobMemoryPrompt());
-  const combined = `${systemPrompt}\n\n----\nFirst user message:\n\n${target.prompt}`;
-  const header = `**System prompt + first user message for cron job "${target.name}"** *(reflects current settings; takes effect on next run)*`;
-  addLogEntry(agentId, "system", fencedPrompt(header, combined));
+  emitCronjobPromptCard(agentId, target);
   updateState(agentId, "waiting_for_response");
   return true;
+}
+
+export function emitCronjobPromptCard(agentId: string, target: Cronjob): void {
+  const systemPrompt = buildCronjobSystemPrompt(target, target.id, "", buildCronjobMemoryPrompt());
+  const combined = `${systemPrompt}\n\n----\nFirst user message:\n\n${target.prompt}`;
+  addLogEntry(agentId, "system", `**System prompt for "${target.name}"**`, {
+    cronjobPromptContent: combined,
+    cronjobName: target.name,
+  });
 }
 
 function fencedPrompt(header: string, content: string): string {

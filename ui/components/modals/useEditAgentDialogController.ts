@@ -9,42 +9,9 @@ import { makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
 import type { EditAgentDialogProps } from "./EditAgentDialog.tsx";
 import { useI18n } from "../../i18n.tsx";
 import { applySpawnEngineDefaults } from "./spawn-engine-defaults.ts";
+import { canToggleAgentPrivilege, isFormDirty, type EditAgentFormSnapshot } from "./edit-agent-form.ts";
 
-export function canToggleAgentPrivilege(isSpawn: boolean, sessionContext: { role: "owner" | "member"; userId: string } | null, agent: Pick<AgentInfo, "userId"> | undefined): boolean {
-  return !isSpawn && (sessionContext?.role === "owner" || (sessionContext?.userId != null && agent?.userId === sessionContext.userId));
-}
-
-// Everything the form can edit, flattened to comparable primitives (outfit as
-// JSON). Dirtiness is measured against the RENDERED opening state — the random
-// spawn outfit and the auto-corrected permission mode count as the baseline,
-// not the persisted agent — so only the user's own edits make the form dirty.
-export type EditAgentFormSnapshot = {
-  name: string;
-  cwd: string;
-  outfit: string;
-  customInstructions: string;
-  modelFamily: string;
-  agentType: AgentBackendType;
-  permissionMode: string;
-  codexSandbox: CodexSandboxMode;
-  effort: EffortLevel;
-  privileged: boolean;
-};
-
-export function isFormDirty(baseline: EditAgentFormSnapshot, current: EditAgentFormSnapshot): boolean {
-  return (
-    baseline.name !== current.name ||
-    baseline.cwd !== current.cwd ||
-    baseline.outfit !== current.outfit ||
-    baseline.customInstructions !== current.customInstructions ||
-    baseline.modelFamily !== current.modelFamily ||
-    baseline.agentType !== current.agentType ||
-    baseline.permissionMode !== current.permissionMode ||
-    baseline.codexSandbox !== current.codexSandbox ||
-    baseline.effort !== current.effort ||
-    baseline.privileged !== current.privileged
-  );
-}
+export { canToggleAgentPrivilege, isFormDirty, type EditAgentFormSnapshot } from "./edit-agent-form.ts";
 
 export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const { onClose } = props;
@@ -53,7 +20,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const initialAgentType = agent?.agentType ?? props.agentType ?? "claude";
   const [agentType, setAgentType] = useState<AgentBackendType>(initialAgentType);
 
-  const { recentCwds: allRecentCwds, isMobile, agents, rooms, sessionContext } = useAppState();
+  const { recentCwds: allRecentCwds, isMobile, agents, rooms, sessionContext, users } = useAppState();
   const { t, language } = useI18n();
   const roomCount = rooms.length;
   const [name, setName] = useState(agent?.name ?? "");
@@ -85,6 +52,10 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string | null>(null);
   const [privileged, setPrivileged] = useState(agent?.privileged ?? false);
   const canTogglePrivileged = canToggleAgentPrivilege(isSpawn, sessionContext, agent);
+  const canEditManager = !isSpawn && sessionContext?.role === "owner";
+  const [managerUserId, setManagerUserId] = useState(agent?.userId ?? "");
+  const agentRoomId = agent?.roomId ?? (agent ? rooms[agent.room]?.id : undefined);
+  const managerOptions = [...users.values()].filter((u) => u.role === "owner" || (agentRoomId ? u.allowedRooms.includes(agentRoomId) : false)).sort((a, b) => a.name.localeCompare(b.name));
   const [saving, setSaving] = useState(false);
   const [cwdError, setCwdError] = useState<string | null>(null);
   const pendingListener = useRef<((data: string) => void) | null>(null);
@@ -107,6 +78,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     codexSandbox,
     effort,
     privileged,
+    managerUserId,
   };
   const baselineRef = useRef(currentSnapshot);
   const isDirty = isFormDirty(baselineRef.current, currentSnapshot) || agentMemory.dirty;
@@ -229,14 +201,28 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       if (effort !== (agent!.effort ?? DEFAULT_EFFORT)) cmd.effort = effort;
       if (permissionMode !== agent!.permissionMode) cmd.permissionMode = permissionMode;
       if (agentType === "codex" && codexSandbox !== (agent!.codexSandbox ?? "danger-full-access")) cmd.codexSandbox = codexSandbox;
+      if (canEditManager && managerUserId && managerUserId !== (agent!.userId ?? "")) cmd.userId = managerUserId;
       const privilegedChanged = canTogglePrivileged && privileged !== (agent!.privileged ?? false);
-      const hasAgentChanges = !!(cmd.name || cmd.cwd || cmd.outfit || cmd.customInstructions !== undefined || cmd.modelFamily || cmd.agentType || cmd.effort || cmd.permissionMode || cmd.codexSandbox);
+      const hasAgentChanges = !!(
+        cmd.name ||
+        cmd.cwd ||
+        cmd.outfit ||
+        cmd.customInstructions !== undefined ||
+        cmd.modelFamily ||
+        cmd.agentType ||
+        cmd.effort ||
+        cmd.permissionMode ||
+        cmd.codexSandbox ||
+        cmd.userId
+      );
       if (!hasAgentChanges && !privilegedChanged) {
         onClose();
         return;
       }
       setCwdError(null);
-      if (privilegedChanged) {
+      if (privilegedChanged || cmd.userId || cmd.cwd) {
+        // Round-trip when cwd validation, manager reassignment, or privilege
+        // toggle needs a server ack before closing.
         setSaving(true);
         addRawListener(listener);
         pendingListener.current = listener;
@@ -248,15 +234,6 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
           savePhase.current = "privileged";
           send({ type: "set_agent_privileged", requestId: reqId, agentId: agent!.id, privileged });
         }
-      } else if (cmd.cwd) {
-        // Only round-trip through the server when we need cwd validation; other
-        // edits have no failure mode worth blocking the dialog on.
-        cmd.requestId = reqId;
-        setSaving(true);
-        savePhase.current = "edit";
-        addRawListener(listener);
-        pendingListener.current = listener;
-        send(cmd);
       } else {
         send(cmd);
         onClose();
@@ -298,6 +275,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     applyTemplate,
     agents,
     canTogglePrivileged,
+    canEditManager,
     codexSandbox,
     confirmDiscard,
     customInstructions,
@@ -310,6 +288,8 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     effort,
     modelFamily,
     modelOptions,
+    managerOptions,
+    managerUserId,
     name,
     outfit,
     permissionMode,
@@ -322,6 +302,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     setCwdError,
     setCodexSandbox,
     setAgentType,
+    setManagerUserId,
     setModelFamily,
     setEffort,
     setName,

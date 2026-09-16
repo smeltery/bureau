@@ -7,6 +7,7 @@ import { AgentMoveRoomSection } from "./AgentMoveRoomSection.tsx";
 import { AgentWorkingDirectoryField } from "./AgentWorkingDirectoryField.tsx";
 import { dialogInput, dialogLabel } from "./dialog-styles.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
+import { EditAgentManagerField } from "./EditAgentManagerField.tsx";
 import { useEditAgentDialogController } from "./useEditAgentDialogController.ts";
 import { AGENT_TEMPLATES, templateDescription, templateLabel, type AgentTemplate } from "../../agent-templates.ts";
 import { ENGINE_ACCENT, ENGINE_OPTIONS } from "./engine-options.ts";
@@ -30,6 +31,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     applyTemplate,
     agents,
     canTogglePrivileged,
+    canEditManager,
     codexSandbox,
     confirmDiscard,
     customInstructions,
@@ -42,6 +44,8 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     effort,
     modelFamily,
     modelOptions,
+    managerOptions,
+    managerUserId,
     name,
     outfit,
     permissionMode,
@@ -54,6 +58,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     setCwd,
     setCwdError,
     setCodexSandbox,
+    setManagerUserId,
     setModelFamily,
     setEffort,
     setName,
@@ -128,6 +133,8 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
 
       <label style={{ ...labelStyle, marginTop: 14 }}>{t("dialogs.agent.appearance")}</label>
       <AgentAppearanceEditor outfit={outfit} onChange={setOutfit} selectStyle={selectStyle} />
+
+      {!isSpawn && <EditAgentManagerField canEditManager={canEditManager} managerUserId={managerUserId} managerOptions={managerOptions} setManagerUserId={setManagerUserId} />}
 
       <label style={{ ...labelStyle, marginTop: 14 }}>
         {t("dialogs.agent.customInstructions")} <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>{t("common.optional")}</span>

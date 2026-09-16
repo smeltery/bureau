@@ -117,7 +117,7 @@ describe("reducer: apps", () => {
       type: "full_state",
       agents: [],
       recentCwds: [],
-      office: { prompt: null, envFile: null, previewAllowHosts: [], experimental: { browserPanel: false } },
+      office: { prompt: null, envFile: null, previewAllowHosts: [], experimental: { browserPanel: false }, receptionistAgentId: null },
       rooms: [],
       killedAgents: [],
     });

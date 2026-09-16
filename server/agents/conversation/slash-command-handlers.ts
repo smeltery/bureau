@@ -36,6 +36,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.pendingResumeSessions = [];
     managed.pendingModelPick = false;
     managed.pendingEffortPick = false;
+    managed.pendingCronjobPick = false;
     if (managed.messageQueue.length > 0) {
       managed.messageQueue = [];
       emit({ type: "agent_updated", agentId, changes: { queue: [] } });
@@ -127,6 +128,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.pendingResumeSessions = [];
     managed.pendingModelPick = false;
     managed.pendingEffortPick = false;
+    managed.pendingCronjobPick = false;
     if (managed.messageQueue.length > 0) {
       managed.messageQueue = [];
       emit({ type: "agent_updated", agentId, changes: { queue: [] } });
