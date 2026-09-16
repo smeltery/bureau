@@ -95,13 +95,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
       </div>
 
       <label style={labelStyle}>{t("common.name")}</label>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder={isSpawn ? t("dialogs.agent.namePlaceholder", { number: props.deskIndex! + 1 }) : undefined}
-        autoFocus={isSpawn}
-        style={inputStyle}
-      />
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={isSpawn ? t("dialogs.agent.namePlaceholder", { number: props.deskIndex! + 1 }) : undefined} style={inputStyle} />
 
       <AgentWorkingDirectoryField
         cwd={cwd}
@@ -243,7 +237,7 @@ function AgentTemplatePicker({ selectedKey, onPick }: { selectedKey: string | nu
     <div style={{ marginBottom: 14 }}>
       <label style={labelStyle}>Template</label>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-        <button onClick={() => onPick(null)} style={templateButtonStyle(selectedKey === null)} type="button">
+        <button autoFocus data-spawn-initial-focus="template" onClick={() => onPick(null)} style={templateButtonStyle(selectedKey === null)} type="button">
           Blank
         </button>
         {AGENT_TEMPLATES.map((template) => (
