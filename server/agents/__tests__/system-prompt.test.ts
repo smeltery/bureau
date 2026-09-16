@@ -84,6 +84,8 @@ describe("buildSystemPrompt memory affordance", () => {
 
     expect(prompt).toContain("For waits that may outlast an idle session");
     expect(prompt).toContain("scheduled messages live on the server and still fire");
+    expect(prompt).toContain("Only a human or a privileged agent can create, edit, delete, or trigger schedules");
+    expect(prompt).toContain("only its own scheduled-message outbox");
     expect(prompt).toContain("For long-lived local processes such as dev servers");
     // A process that must outlive the session is an APP now, not a hand-rolled
     // background job or a service the agent installs itself.
@@ -111,6 +113,8 @@ describe("buildSystemPrompt memory affordance", () => {
 
     expect(prompt).toContain("clientMessageId");
     expect(prompt).toContain("retries safe for 5 minutes");
+    expect(prompt).toContain("whose turn is still running");
+    expect(prompt).toContain("only what is already on disk");
   });
 
   test("tells agents to hand long-running web apps to Bureau rather than picking a port", () => {
@@ -119,7 +123,6 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("How to run a web app for the boss");
     expect(prompt).toContain("Bureau allocates the port");
     expect(prompt).toContain("$BUREAU_APP_HOST");
-    // The address is permanent: a bad command is a PATCH, not a re-register.
     expect(prompt).toContain("fix a bad command with PATCH");
     expect(prompt).toContain("$BUREAU_APP_DATA_DIR");
     // Never a localhost link — in the boss's browser that is their own device.
