@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { LOBBY_SPOT_IDS } from "../shared/lobby.ts";
-import { assignLobbySpot, pickLobbySpot } from "./lobby-presence.ts";
+import { LOBBY_SPOT_IDS } from "../../shared/lobby.ts";
+import { assignLobbySpot, pickLobbySpot } from "../presence.ts";
 
 const row = (connectionId: string, lobbySpotId: string | null) => ({ connectionId, lobbySpotId });
 
