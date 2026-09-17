@@ -1,5 +1,9 @@
 import { useCallback, type RefObject } from "react";
 
+export function citationBlock(text: string, title = "Cited text"): string {
+  return `${title}:\n"""\n${text.replace(/\$/g, "\\$")}\n"""\n`;
+}
+
 export function useCiteInsertion({
   inputRef,
   textareaRef,
@@ -17,7 +21,7 @@ export function useCiteInsertion({
     (text: string, title = "Cited text") => {
       const ta = textareaRef.current;
       const current = inputRef.current;
-      const block = `${title}:\n"""\n${text}\n"""\n`;
+      const block = citationBlock(text, title);
 
       let newDraft: string;
       let caretPos: number;

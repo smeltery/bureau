@@ -25,7 +25,7 @@ import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import { agents, rooms } from "../../agents/state.ts";
 import { createManagedAgent } from "../../agents/managed-factory.ts";
 import { canSeeRoom, claimUserByName, deleteUserById, getUserByName } from "../../users.ts";
-import { privilegedAgentIdentity, requireAgentAccessAllowingPrivileged, requireRoomAccessAllowingPrivileged, requireUserAgentAccess } from "../agent-route-helpers.ts";
+import { privilegedAgentIdentity, requireAgentAccessAllowingPrivileged, requireLiveAgentReadAccess, requireRoomAccessAllowingPrivileged, requireUserAgentAccess } from "../agent-route-helpers.ts";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
 
 const AGENT_ID = "agent-privileged-test";
@@ -184,6 +184,28 @@ describe("requireAgentAccessAllowingPrivileged", () => {
 
     expect(requireAgentAccessAllowingPrivileged(bearer(token), undefined, AGENT_ID)?.status).toBe(401);
     expect(requireRoomAccessAllowingPrivileged(bearer(token), undefined, homeRoomId())?.status).toBe(401);
+  });
+});
+
+describe("requireLiveAgentReadAccess", () => {
+  test("an agent token can read sessions for a manager-visible peer", () => {
+    installAgent(AGENT_ID);
+    installAgent("peer-agent");
+    const user = manager([homeRoomId()]);
+    const token = mintAgentToken(AGENT_ID, user.id);
+
+    expect(requireLiveAgentReadAccess(bearer(token), undefined, "peer-agent")).toBeNull();
+  });
+
+  test("an unmanaged agent token stays scoped to itself", async () => {
+    installAgent(AGENT_ID);
+    installAgent("peer-agent");
+    const token = mintAgentToken(AGENT_ID, null);
+
+    const denied = requireLiveAgentReadAccess(bearer(token), undefined, "peer-agent");
+
+    expect(denied?.status).toBe(403);
+    expect(await denied?.json()).toEqual({ error: "forbidden" });
   });
 });
 

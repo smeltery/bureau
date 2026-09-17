@@ -19,7 +19,7 @@ const READ_ONLY_COMMANDS = ["cat", "ls", "head", "tail", "less", "grep", "rg", "
 const COPY_COMMANDS = ["cp", "rsync", "scp", "install"];
 
 // Commands that can modify files — if these target ~/.bureau/, block them
-const WRITE_COMMANDS = ["cp", "mv", "rm", "mkdir", "rmdir", "touch", "chmod", "chown", "tee", "dd", "install", "rsync", "scp", "ln", "sed", "awk", "perl", "python", "python3", "ruby", "node", "bun"];
+const WRITE_COMMANDS = ["cp", "mv", "rm", "mkdir", "rmdir", "touch", "chmod", "chown", "tee", "install", "rsync", "scp", "ln", "sed", "awk", "perl", "python", "python3", "ruby", "node", "bun"];
 
 // Silence unused-warning for the READ_ONLY list (documentational allowlist).
 void READ_ONLY_COMMANDS;
@@ -53,8 +53,16 @@ function collectWriteTargets(stage: string): string[] {
   // Split pipes inside the stage so `cat x | tee dest` is checked.
   for (const sub of stage.split(/\|+/).map((s) => s.trim())) {
     const firstToken = sub.split(/\s+/)[0]?.replace(/^.*\//, "") ?? "";
-    if (!WRITE_COMMANDS.includes(firstToken)) continue;
     const args = sub.split(/\s+/).slice(1);
+
+    if (firstToken === "dd") {
+      for (const arg of args) {
+        if (arg.startsWith("of=") && arg.length > 3) targets.push(arg.slice(3));
+      }
+      continue;
+    }
+
+    if (!WRITE_COMMANDS.includes(firstToken)) continue;
 
     if (COPY_COMMANDS.includes(firstToken)) {
       const positional = args.filter((a) => !a.startsWith("-"));

@@ -58,6 +58,15 @@ describe("commandWritesToBureau — write commands", () => {
     expect(commandWritesToBureau("rm .bureau/agents.json", homedir())).toBe(true);
     expect(commandWritesToBureau(`rm ${basename(BUREAU_DIR)}/agents.json`, dirname(BUREAU_DIR))).toBe(true);
   });
+
+  test("checks dd output operands without treating input operands as writes", () => {
+    expect(commandWritesToBureau(`dd if=${BUREAU_DIR}/agents.json of=/tmp/agents.json`, "/tmp")).toBe(false);
+    expect(commandWritesToBureau(`dd if=/tmp/input of=${BUREAU_DIR}/copy`, "/tmp")).toBe(true);
+  });
+
+  test("checks dd output operands after cd", () => {
+    expect(commandWritesToBureau("cd ~/.bureau && dd if=/tmp/input of=copy", "/tmp")).toBe(true);
+  });
 });
 
 describe("commandWritesToBureau — copy commands (only block destination writes)", () => {

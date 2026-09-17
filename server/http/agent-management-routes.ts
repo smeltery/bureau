@@ -13,6 +13,7 @@ import {
   readJsonBody,
   requireAgentAccessAllowingPrivileged,
   requireAgentManagerAccess,
+  requireLiveAgentReadAccess,
   requireRoomAccessAllowingPrivileged,
   requireUserAgentAccess,
   requireUserRoomAccess,
@@ -178,7 +179,7 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
   }
 
   if (req.method === "GET" && parts.length === 3 && parts[2] === "sessions") {
-    const denied = requireUserAgentAccess(auth, agentId);
+    const denied = requireLiveAgentReadAccess(req, auth, agentId);
     if (denied) return denied;
     return new Response(
       JSON.stringify({

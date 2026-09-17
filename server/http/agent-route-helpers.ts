@@ -86,6 +86,21 @@ export function requireUserAgentAccess(auth: AuthResult | undefined, agentId: st
   return null;
 }
 
+export function requireLiveAgentReadAccess(req: Request, auth: AuthResult | undefined, agentId: string): Response | null {
+  const rawBearer = readBearerToken(req);
+  const bearer = resolveAgentToken(rawBearer);
+  if (rawBearer && !bearer) return jsonError(401, "missing or invalid bearer token");
+  const agent = AgentManager.getAgent(agentId);
+  if (!agent) return jsonError(404, "agent not found");
+  if (!bearer) return requireUserAgentAccess(auth, agentId);
+  if (bearer.agentId === agentId) return null;
+  if (!bearer.userId) return jsonError(403, "forbidden");
+  const user = getUserById(bearer.userId);
+  const roomId = AgentManager.getRooms()[agent.room]?.id;
+  if (!user || !roomId || !canSeeRoom(user, roomId)) return jsonError(403, "forbidden");
+  return null;
+}
+
 export interface PrivilegedAgentIdentity {
   agentId: string;
   /** The user who spawned the agent. A privileged agent borrows this person's office visibility and never more. */
