@@ -87,7 +87,13 @@ export class OpenCodeTransport {
       this.activeTurn = true;
       this.abortRequested = false;
       this.abortController = new AbortController();
-      await this.consumeEvents(sessionId, sink, this.abortController.signal);
+      try {
+        await this.consumeEvents(sessionId, sink, this.abortController.signal);
+      } catch (error) {
+        if (this.abortController.signal.aborted || this.closed) throw error;
+        await this.lease!.recoverBeforePrompt();
+        await this.consumeEvents(sessionId, sink, this.abortController.signal);
+      }
       const [providerID, modelID] = splitModel(this.model);
       const parts = buildPromptParts(text, attachments, agentId);
       await this.request(`/session/${encodeURIComponent(sessionId)}/prompt_async`, {

@@ -26,6 +26,7 @@ export interface OpenCodeLease {
   pid: number;
   release(): void;
   beginTurn(): Promise<void>;
+  recoverBeforePrompt(): Promise<void>;
   endTurn(): void;
 }
 
@@ -84,11 +85,15 @@ export class OpenCodeSupervisor {
       },
       beginTurn: async () => {
         if (released || turnActive) return;
-        await this.ensureServer();
+        await this.validateServerForTurn(this.activeTurns > 0);
         turnActive = true;
         this.activeTurns++;
         if (this.idleTimer) clearTimeout(this.idleTimer);
         this.idleTimer = null;
+      },
+      recoverBeforePrompt: async () => {
+        if (released || !turnActive) return;
+        await this.validateServerForTurn(this.activeTurns > 1);
       },
       endTurn: () => {
         if (!turnActive) return;
@@ -134,6 +139,13 @@ export class OpenCodeSupervisor {
       this.starting = null;
     });
     await this.starting;
+  }
+
+  private async validateServerForTurn(otherTurnActive: boolean): Promise<void> {
+    if (!this.record || !(await this.healthy(this.record))) {
+      if (otherTurnActive) throw new Error("OpenCode server health check failed during an active turn.");
+      await this.ensureServer();
+    }
   }
 
   private async startServer(): Promise<void> {

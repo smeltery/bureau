@@ -56,6 +56,7 @@ function mockSupervisor(handlers: { onProvider?: () => unknown; onSession?: () =
     pid: 1,
     release() {},
     async beginTurn() {},
+    async recoverBeforePrompt() {},
     endTurn() {},
   };
   return {
