@@ -268,6 +268,8 @@ export const es = {
   "signOut.hint": "Terminar la sesión de este dispositivo",
   "signOut.title": "Cerrar sesión",
   "storage.loadFailed": "No se pudo cargar el almacenamiento.",
+  "storage.leave": "Salir",
+  "storage.leaveConfirm": "Una limpieza sigue en curso. Si sales ahora pierdes el único informe de lo eliminado. ¿Salir de todos modos?",
   "storage.target.attachments": "Adjuntos huérfanos",
   "storage.target.transcripts": "Conversaciones",
   "storage.title": "Almacenamiento de la oficina",

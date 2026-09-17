@@ -35,6 +35,9 @@ How to search and re-read conversation history: call GET localhost:${PORT}/api/a
   curl -s "localhost:${PORT}/api/agents/${agentId}/logs?q=previous+decision" -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
   curl -s "localhost:${PORT}/api/agents/${agentId}/logs?session=<id>" -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 
+How to list an agent's past sessions and its current session id: GET localhost:${PORT}/api/agents/<id>/sessions with your bearer token. You can read your own id, or any agent in a room your manager can access (same reach as /logs).
+  curl -s localhost:${PORT}/api/agents/${agentId}/sessions -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
+
 How to read this room's current settings before proposing changes: call GET localhost:${PORT}/api/rooms/<roomId>/settings with your bearer token. Find your room id in the agent manifest. If the boss asks you to update room settings, include the returned version in the PUT body so you do not overwrite a newer change.
   curl -s localhost:${PORT}/api/rooms/<roomId>/settings -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 

@@ -33,6 +33,7 @@ export function buildAccountSections(isOwner: boolean, hasSession: boolean): { s
     ...(isOwner && hasSession ? [{ section: "sessions" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS.sessions }] : []),
     ...(hasSession ? [{ section: "devices" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS.devices }] : []),
     ...(hasSession ? [{ section: "api-tokens" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS["api-tokens"] }] : []),
-    ...(hasSession ? [{ section: "signout" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS.signout }] : []),
+    // Sign out stays visible with no session (disabled in SignOutPane).
+    { section: "signout" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS.signout },
   ];
 }

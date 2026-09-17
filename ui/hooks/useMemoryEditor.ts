@@ -11,6 +11,7 @@ export interface MemoryEditor {
   size: number;
   cap: number | null;
   save: () => Promise<MemorySaveResult>;
+  reset: () => void;
 }
 
 type ErrorEnvelope = { error?: { code?: string; message?: string } };
@@ -94,5 +95,5 @@ export function useMemoryEditor(scope: MemoryScope, scopeId: string | null, enab
     return { ok: true };
   }
 
-  return { memory, setMemory, loaded, dirty, size: injectedMemorySize(memory), cap, save };
+  return { memory, setMemory, loaded, dirty, size: injectedMemorySize(memory), cap, save, reset: () => setMemory(baseline) };
 }

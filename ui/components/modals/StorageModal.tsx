@@ -31,7 +31,7 @@ async function apiFetch<T>(method: "GET" | "POST", path: string, body?: unknown)
   return (await res.json()) as T;
 }
 
-export function StorageModal({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
+export function StorageModal({ onBack, embedded = false, onDeletingChange }: { onBack?: () => void; embedded?: boolean; onDeletingChange?: (deleting: boolean) => void }) {
   const { t } = useI18n();
   const [usage, setUsage] = useState<StorageUsageWire | null>(null);
   const [backup, setBackup] = useState<BackupStatusWire | "unavailable" | null>(null);
@@ -71,6 +71,11 @@ export function StorageModal({ onBack, embedded = false }: { onBack?: () => void
   const busy = phase.kind === "previewing" || phase.kind === "applying";
   const deleting = phase.kind === "applying";
   const plan = phase.kind === "previewed" || phase.kind === "confirming" || phase.kind === "applying" ? phase.plan : null;
+
+  useEffect(() => {
+    onDeletingChange?.(deleting);
+    return () => onDeletingChange?.(false);
+  }, [deleting, onDeletingChange]);
 
   async function runPreview() {
     const body = previewRequest(form);

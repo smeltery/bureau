@@ -6,8 +6,17 @@ import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts"
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 import { DEFAULT_ROOM_PET, PET_COATS, PET_SPECIES, SELECTABLE_ROOM_SKIN_IDS, effectiveRoomSkin, type PetSpecies, type RoomPet, type RoomSkin } from "../../../shared/types.ts";
+import { UnsavedChangesPrompt, useUnsavedChangesPrompt } from "./UnsavedChangesPrompt.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
+
+type RoomBaseline = {
+  prompt: string;
+  envFile: string;
+  petSpecies: PetSpecies;
+  petCoat: string;
+  skin: RoomSkin;
+};
 
 function defaultCoatFor(species: PetSpecies): string {
   return PET_COATS[species][0]!;
@@ -22,11 +31,26 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
   const [petSpecies, setPetSpecies] = useState<PetSpecies>(initialPet.species);
   const [petCoat, setPetCoat] = useState<string>(initialPet.coat);
   const [skin, setSkin] = useState<RoomSkin>(effectiveRoomSkin(room));
+  const [baseline, setBaseline] = useState<RoomBaseline | null>(null);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
   const [settingsVersion, setSettingsVersion] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const roomMemory = useMemoryEditor("room", roomId, !!room);
+
+  const dirty =
+    !!baseline && (prompt !== baseline.prompt || envFile !== baseline.envFile || petSpecies !== baseline.petSpecies || petCoat !== baseline.petCoat || skin !== baseline.skin || roomMemory.dirty);
+
+  const discardPrompt = useUnsavedChangesPrompt(dirty, undefined, () => {
+    if (!baseline) return;
+    setPrompt(baseline.prompt);
+    setEnvFile(baseline.envFile);
+    setPetSpecies(baseline.petSpecies);
+    setPetCoat(baseline.petCoat);
+    setSkin(baseline.skin);
+    roomMemory.reset();
+    setStatus({ kind: "idle" });
+  });
 
   // Pin the optimistic-concurrency version from a GET on open (same rail as office settings).
   useEffect(() => {
@@ -38,12 +62,20 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       })
       .then((data) => {
         if (cancelled) return;
-        setPrompt(data.prompt ?? "");
-        setEnvFile(data.envFile ?? "");
         const pet = data.pet ?? DEFAULT_ROOM_PET;
-        setPetSpecies(pet.species);
-        setPetCoat(pet.coat);
-        setSkin(effectiveRoomSkin({ skin: data.skin }));
+        const next: RoomBaseline = {
+          prompt: data.prompt ?? "",
+          envFile: data.envFile ?? "",
+          petSpecies: pet.species,
+          petCoat: pet.coat,
+          skin: effectiveRoomSkin({ skin: data.skin }),
+        };
+        setPrompt(next.prompt);
+        setEnvFile(next.envFile);
+        setPetSpecies(next.petSpecies);
+        setPetCoat(next.petCoat);
+        setSkin(next.skin);
+        setBaseline(next);
         setSettingsVersion(data.version);
       })
       .catch(() => {
@@ -129,8 +161,10 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
 
   if (!room) return null;
 
+  const requestClose = () => discardPrompt.requestLeave(onClose);
+
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={requestClose}>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{room.name} · Settings</h3>
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>
@@ -215,8 +249,10 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
         disabled={!roomMemory.loaded}
       />
 
+      {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
+
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-        <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>
+        <button onClick={requestClose} style={cancelBtnStyle} disabled={saving}>
           Cancel
         </button>
         <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>

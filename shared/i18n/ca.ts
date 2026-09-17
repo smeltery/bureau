@@ -268,6 +268,8 @@ export const ca = {
   "signOut.hint": "Acaba la sessió d’aquest dispositiu",
   "signOut.title": "Tanca la sessió",
   "storage.loadFailed": "No s’ha pogut carregar l’emmagatzematge.",
+  "storage.leave": "Surt",
+  "storage.leaveConfirm": "Encara s’està executant una neteja. Si surts ara perds l’únic informe del que s’ha eliminat. Vols sortir igualment?",
   "storage.target.attachments": "Adjunts orfes",
   "storage.target.transcripts": "Converses",
   "storage.title": "Emmagatzematge de l’oficina",

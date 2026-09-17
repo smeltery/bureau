@@ -169,6 +169,11 @@ function commandName(token: string | undefined): string {
   return stripOuterQuotes(token).replace(/^.*\//, "");
 }
 
+// Keywords / wrappers that stand in front of the command that actually runs.
+// Without these, `builtin cd ~ && …` and `if cd ~/.bureau; then …` keep a
+// stale cwd for later write checks.
+const CD_WRAPPERS = new Set(["builtin", "command", "exec", "env", "time", "nohup", "if", "while", "until", "do", "then", "else", "elif", "!"]);
+
 function isDynamicCdTarget(raw: string | undefined): boolean {
   if (!raw) return true;
   const target = stripOuterQuotes(raw);
@@ -195,6 +200,7 @@ function cdDestination(stageText: string): "none" | "unknown" | string {
   const tokens = tokenizeStage(head);
   let i = 0;
   while (i < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i]!)) i++;
+  while (i < tokens.length && CD_WRAPPERS.has(commandName(tokens[i]))) i++;
   const name = commandName(tokens[i]);
   if (name === "pushd" || name === "popd") return "unknown";
   if (name !== "cd") return "none";

@@ -5,8 +5,16 @@ import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
+import { UnsavedChangesPrompt, useUnsavedChangesPrompt } from "./UnsavedChangesPrompt.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
+
+type OfficeBaseline = {
+  text: string;
+  envFile: string;
+  browserPanel: boolean;
+  receptionistAgentId: string;
+};
 
 export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClose: () => void; username: string; onSaveUsername: (name: string) => void }) {
   const { office, sessionContext, agents } = useAppState();
@@ -15,6 +23,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const [browserPanel, setBrowserPanel] = useState(office.experimental?.browserPanel === true);
   const [receptionistAgentId, setReceptionistAgentId] = useState<string>(office.receptionistAgentId ?? "");
   const [settingsVersion, setSettingsVersion] = useState<string | null>(null);
+  const [baseline, setBaseline] = useState<OfficeBaseline | null>(null);
   const [name, setName] = useState(username);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
@@ -23,6 +32,28 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const officeMemory = useMemoryEditor("office", null);
   const bossMemory = useMemoryEditor("boss", sessionContext?.userId ?? null, !!sessionContext?.userId);
   const isOwner = sessionContext?.role === "owner";
+
+  const dirty =
+    !!baseline &&
+    (name.trim() !== username ||
+      text !== baseline.text ||
+      envFile !== baseline.envFile ||
+      browserPanel !== baseline.browserPanel ||
+      receptionistAgentId !== baseline.receptionistAgentId ||
+      officeMemory.dirty ||
+      bossMemory.dirty);
+
+  const discardPrompt = useUnsavedChangesPrompt(dirty, undefined, () => {
+    if (!baseline) return;
+    setName(username);
+    setText(baseline.text);
+    setEnvFile(baseline.envFile);
+    setBrowserPanel(baseline.browserPanel);
+    setReceptionistAgentId(baseline.receptionistAgentId);
+    officeMemory.reset();
+    bossMemory.reset();
+    setStatus({ kind: "idle" });
+  });
 
   // Pin the optimistic-concurrency version from a GET on open (same rail as room
   // settings / memory). Store may lag a concurrent tab's save until WS lands.
@@ -41,10 +72,17 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
       })
       .then((data) => {
         if (cancelled) return;
-        setText(data.prompt ?? "");
-        setEnvFile(data.envFile ?? "");
-        setBrowserPanel(data.experimental?.browserPanel === true);
-        setReceptionistAgentId(data.receptionistAgentId ?? "");
+        const next: OfficeBaseline = {
+          text: data.prompt ?? "",
+          envFile: data.envFile ?? "",
+          browserPanel: data.experimental?.browserPanel === true,
+          receptionistAgentId: data.receptionistAgentId ?? "",
+        };
+        setText(next.text);
+        setEnvFile(next.envFile);
+        setBrowserPanel(next.browserPanel);
+        setReceptionistAgentId(next.receptionistAgentId);
+        setBaseline(next);
         setSettingsVersion(data.version);
       })
       .catch(() => {
@@ -135,8 +173,10 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
     }
   }, []);
 
+  const requestClose = () => discardPrompt.requestLeave(onClose);
+
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={requestClose}>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Settings</h3>
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>Boss Title</label>
@@ -170,27 +210,6 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         style={{ ...inputStyle, resize: "vertical" }}
       />
       <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>
-
-      <label
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 10,
-          marginTop: 16,
-          fontSize: 12,
-          color: "var(--text-primary)",
-          cursor: "pointer",
-        }}
-      >
-        <input type="checkbox" checked={browserPanel} onChange={(e) => setBrowserPanel(e.target.checked)} style={{ marginTop: 2 }} />
-        <span>
-          <span style={{ fontWeight: 600 }}>Experimental: agent browser</span>
-          <span style={{ display: "block", fontSize: 10, color: "var(--text-ghost)", marginTop: 2, fontWeight: 400 }}>
-            Lets agents drive a headless Chrome page (goto / snapshot / click / fill) for local and allowlisted URLs. Off by default; uses the host browser, not a bundled Chromium. Managers get a live
-            side-panel view with drag-select and copy.
-          </span>
-        </span>
-      </label>
 
       {isOwner && (
         <>
@@ -241,8 +260,32 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         disabled={!bossMemory.loaded}
       />
 
+      <h4 style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Experimental</h4>
+      <label
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+          marginTop: 4,
+          fontSize: 12,
+          color: "var(--text-primary)",
+          cursor: "pointer",
+        }}
+      >
+        <input type="checkbox" checked={browserPanel} onChange={(e) => setBrowserPanel(e.target.checked)} style={{ marginTop: 2 }} />
+        <span>
+          <span style={{ fontWeight: 600 }}>Agent browser</span>
+          <span style={{ display: "block", fontSize: 10, color: "var(--text-ghost)", marginTop: 2, fontWeight: 400 }}>
+            Lets agents drive a headless Chrome page (goto / snapshot / click / fill) for local and allowlisted URLs. Off by default; uses the host browser, not a bundled Chromium. Managers get a live
+            side-panel view with drag-select and copy.
+          </span>
+        </span>
+      </label>
+
+      {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
+
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-        <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>
+        <button onClick={requestClose} style={cancelBtnStyle} disabled={saving}>
           Cancel
         </button>
         <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>

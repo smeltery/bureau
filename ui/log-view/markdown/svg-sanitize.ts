@@ -181,8 +181,12 @@ function sanitizeAttrs(source: string): string {
   return out;
 }
 
+// Accepts plain values ("#333", "red", "none"), a bare var(--name), safe color
+// functions, and same-document url(#id) references. Rejects every other var()
+// form (fallbacks, nesting, prefixes) and any backslash escape.
 function safeCssValue(value: string): boolean {
   if (value.includes("\\")) return false;
+  if (/^var\(--[A-Za-z0-9_-]+\)$/.test(value.trim())) return true;
   for (const match of value.matchAll(/([a-zA-Z-]*)\(/g)) {
     const fn = match[1].toLowerCase();
     if (SAFE_CSS_FUNCS.has(fn)) continue;

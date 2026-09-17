@@ -67,6 +67,17 @@ describe("commandWritesToBureau — write commands", () => {
   test("checks dd output operands after cd", () => {
     expect(commandWritesToBureau("cd ~/.bureau && dd if=/tmp/input of=copy", "/tmp")).toBe(true);
   });
+
+  test("checks truncate file operands and skips -r/-s values", () => {
+    expect(commandWritesToBureau(`truncate -s 0 ${BUREAU_DIR}/agents.json`, "/tmp")).toBe(true);
+    expect(commandWritesToBureau(`truncate -r ${BUREAU_DIR}/agents.json /tmp/out`, "/tmp")).toBe(false);
+    expect(commandWritesToBureau("cd ~/.bureau && truncate -s 0 copy", "/tmp")).toBe(true);
+  });
+
+  test("tracks cd behind builtin/if wrappers", () => {
+    expect(commandWritesToBureau("builtin cd ~/.bureau && cat > agents/x", "/tmp")).toBe(true);
+    expect(commandWritesToBureau("if cd ~/.bureau; then cat > agents/x; fi", "/tmp")).toBe(true);
+  });
 });
 
 describe("commandWritesToBureau — copy commands (only block destination writes)", () => {

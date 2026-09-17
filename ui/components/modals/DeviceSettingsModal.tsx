@@ -2,9 +2,14 @@ import { useState } from "react";
 import { getDevice, setDevice } from "../../device-settings.ts";
 import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
+import { UnsavedChangesPrompt, useUnsavedChangesPrompt } from "./UnsavedChangesPrompt.tsx";
 
 export function DeviceSettingsModal({ onClose }: { onClose: () => void }) {
-  const [label, setLabel] = useState(() => getDevice() ?? "");
+  const [baseline] = useState(() => getDevice() ?? "");
+  const [label, setLabel] = useState(baseline);
+  const dirty = label !== baseline;
+  const discardPrompt = useUnsavedChangesPrompt(dirty, undefined, () => setLabel(baseline));
+  const requestClose = () => discardPrompt.requestLeave(onClose);
 
   function save() {
     setDevice(label.trim() || null);
@@ -12,7 +17,7 @@ export function DeviceSettingsModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal onClose={onClose} width={420}>
+    <Modal onClose={requestClose} width={420}>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Device Settings</h3>
       <p style={{ fontSize: 11, color: "var(--text-ghost)", margin: "6px 0 0", lineHeight: 1.4 }}>Stored locally in this browser. Used to distinguish this device from your other sessions.</p>
 
@@ -31,8 +36,10 @@ export function DeviceSettingsModal({ onClose }: { onClose: () => void }) {
         style={dialogInput}
       />
 
+      {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
+
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-        <button onClick={onClose} style={dialogCancelBtn}>
+        <button onClick={requestClose} style={dialogCancelBtn}>
           Cancel
         </button>
         <button onClick={save} style={dialogSaveBtn}>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { storageSetItem } from "../browser-storage.ts";
 import { useAppState } from "../store.tsx";
 import { send } from "../ws.ts";
@@ -19,6 +19,7 @@ import { SignOutPane } from "./SignOutPane.tsx";
 import { StorageModal } from "./modals/StorageModal.tsx";
 import { UsageModal } from "./modals/UsageModal.tsx";
 import { UserEditPanel } from "./modals/UserEditPanel.tsx";
+import { UnsavedChangesPrompt, settingsLeaveKind, useUnsavedChangesPrompt } from "./modals/UnsavedChangesPrompt.tsx";
 import { useI18n } from "../i18n.tsx";
 type Selection = { kind: "user"; id: string } | { kind: "section"; section: AccountSection };
 export function UserSettingsView({
@@ -46,7 +47,10 @@ export function UserSettingsView({
     if (!isMobile && sessionContext?.userId) return { kind: "user", id: sessionContext.userId };
     return null;
   });
-  const editIsDirtyRef = useRef(false);
+  const [detailDirty, setDetailDirty] = useState(false);
+  const [storageDeleting, setStorageDeleting] = useState(false);
+  const leaveKind = settingsLeaveKind(detailDirty, storageDeleting);
+  const discardPrompt = useUnsavedChangesPrompt(leaveKind !== "none", undefined, () => setDetailDirty(false));
   const selectedUser = selection?.kind === "user" ? userList.find((user) => user.id === selection.id) : null;
   const accountSections = buildAccountSections(isOwner, !!sessionContext);
   useEffect(() => {
@@ -72,19 +76,16 @@ export function UserSettingsView({
   useEffect(() => {
     if (isOwner && !activeSessionsLoaded) send({ type: "list_active_sessions" });
   }, [isOwner, activeSessionsLoaded]);
-  function guardDirty(): boolean {
-    return !editIsDirtyRef.current || window.confirm(t("common.discardPrompt"));
-  }
 
   function select(next: Selection | null) {
-    if (!guardDirty()) return;
-    editIsDirtyRef.current = false;
-    setSelection(next);
+    discardPrompt.requestLeave(() => {
+      setDetailDirty(false);
+      setSelection(next);
+    });
   }
 
   function requestClose() {
-    if (!guardDirty()) return;
-    onClose();
+    discardPrompt.requestLeave(onClose);
   }
 
   function switchUser(name: string) {
@@ -101,8 +102,8 @@ export function UserSettingsView({
     setNewName("");
   }
 
-  const setDetailDirty = useCallback((dirty: boolean) => {
-    editIsDirtyRef.current = dirty;
+  const setDetailDirtyCb = useCallback((dirty: boolean) => {
+    setDetailDirty(dirty);
   }, []);
 
   const showSidebar = !isMobile || selection === null;
@@ -213,15 +214,15 @@ export function UserSettingsView({
                   rooms={editorRooms}
                   canEditAccess={isOwner}
                   onClose={() => {
-                    editIsDirtyRef.current = false;
+                    setDetailDirty(false);
                     if (isMobile) setSelection(null);
                   }}
-                  onDirtyChange={(dirty) => (editIsDirtyRef.current = dirty)}
+                  onDirtyChange={setDetailDirtyCb}
                 />
                 {isOwner && <MemberVariableNames username={selectedUser.name} />}
               </section>
             ) : selection?.kind === "section" && selection.section === "access" ? (
-              <AccessPane onDirtyChange={setDetailDirty} />
+              <AccessPane onDirtyChange={setDetailDirtyCb} />
             ) : selection?.kind === "section" && selection.section === "connections" && sessionContext ? (
               <ConnectionsPane username={sessionContext.username} />
             ) : selection?.kind === "section" && selection.section === "office-env" ? (
@@ -231,7 +232,7 @@ export function UserSettingsView({
             ) : selection?.kind === "section" && selection.section === "usage" ? (
               <UsageModal embedded />
             ) : selection?.kind === "section" && selection.section === "storage" && isOwner ? (
-              <StorageModal embedded />
+              <StorageModal embedded onDeletingChange={setStorageDeleting} />
             ) : selection?.kind === "section" && selection.section === "invites" ? (
               <InvitesPane />
             ) : selection?.kind === "section" && selection.section === "sessions" ? (
@@ -244,6 +245,14 @@ export function UserSettingsView({
               <SignOutPane />
             ) : (
               <div style={{ color: "var(--text-ghost)", fontSize: 13 }}>{t("settings.selectHint")}</div>
+            )}
+            {discardPrompt.open && (
+              <UnsavedChangesPrompt
+                message={leaveKind === "storage-leave" ? t("storage.leaveConfirm") : undefined}
+                confirmLabel={leaveKind === "storage-leave" ? t("storage.leave") : undefined}
+                onDiscard={discardPrompt.discard}
+                onCancel={discardPrompt.cancel}
+              />
             )}
           </main>
         )}

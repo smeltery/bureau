@@ -30,6 +30,14 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("var(--accent)");
   });
 
+  test("documents listing own and peer sessions", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room");
+
+    expect(prompt).toContain("/api/agents/<id>/sessions");
+    expect(prompt).toContain("/api/agents/agent-1/sessions");
+    expect(prompt).toContain("past sessions and its current session id");
+  });
+
   test("documents server attribution and task rooms when creating tasks", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room");
 

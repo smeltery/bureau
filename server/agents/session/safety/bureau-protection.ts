@@ -62,6 +62,11 @@ function collectWriteTargets(stage: string): string[] {
       continue;
     }
 
+    if (firstToken === "truncate") {
+      targets.push(...truncateFileOperands(args));
+      continue;
+    }
+
     if (!WRITE_COMMANDS.includes(firstToken)) continue;
 
     if (COPY_COMMANDS.includes(firstToken)) {
@@ -77,6 +82,26 @@ function collectWriteTargets(stage: string): string[] {
   }
 
   return targets;
+}
+
+/** Output operands of truncate, excluding -r/--reference and -s/--size values. */
+function truncateFileOperands(args: string[]): string[] {
+  const operands: string[] = [];
+  let endOfOptions = false;
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!;
+    if (!endOfOptions && arg === "--") {
+      endOfOptions = true;
+      continue;
+    }
+    if (!endOfOptions && ["-r", "--reference", "-s", "--size"].includes(arg)) {
+      i++;
+      continue;
+    }
+    if (!endOfOptions && arg.startsWith("-")) continue;
+    operands.push(arg);
+  }
+  return operands;
 }
 
 /**

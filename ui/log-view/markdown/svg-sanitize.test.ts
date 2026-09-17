@@ -40,6 +40,18 @@ describe("sanitizeSvg", () => {
     expect(out).not.toContain("https://example.com");
   });
 
+  test("keeps a bare theme var() and drops every other var form", () => {
+    const out = sanitizeSvg(
+      `<svg><rect fill="var(--accent)"/><rect fill="var(--accent, red)"/><rect fill="prefix var(--accent)"/><rect fill="var(--accent) suffix"/><rect fill="var(--x\\))" /></svg>`,
+    );
+
+    expect(out).toContain(`fill="var(--accent)"`);
+    expect(out).not.toContain("var(--accent, red)");
+    expect(out).not.toContain("prefix var(--accent)");
+    expect(out).not.toContain("var(--accent) suffix");
+    expect(out).not.toContain("var(--x");
+  });
+
   test("escapes text and attribute values", () => {
     const out = sanitizeSvg(`<svg><text font-family='He said "hi"'>a < b & c > d</text></svg>`);
 

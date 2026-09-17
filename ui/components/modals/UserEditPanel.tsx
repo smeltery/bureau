@@ -7,6 +7,7 @@ import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./dial
 import { ManagedEnvEditor } from "./ManagedEnvEditor.tsx";
 import { UserAvatarPicker } from "./UserAvatarPicker.tsx";
 import { UserRoomPreferences } from "./UserRoomPreferences.tsx";
+import { UnsavedChangesPrompt, useUnsavedChangesPrompt } from "./UnsavedChangesPrompt.tsx";
 import { useI18n } from "../../i18n.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
@@ -63,6 +64,22 @@ export function UserEditPanel({
     return () => onDirtyChange?.(false);
   }, [isDirty, onDirtyChange]);
 
+  const discardPrompt = useUnsavedChangesPrompt(isDirty, undefined, () => {
+    setName(user.name);
+    setRole(user.role);
+    setAllowedRooms(new Set(user.allowedRooms));
+    setHiddenRooms(new Set(user.hidden ?? []));
+    setDefaultRoomId(user.defaultRoomId ?? user.allowedRooms[0] ?? rooms[0]?.id ?? null);
+    setNotifRooms(new Set(user.notifRooms ?? []));
+    setEnvFile(user.envFile ?? "");
+    setMemberPrompt(user.memberPrompt ?? "");
+    setLanguage(user.language ?? "");
+    setSlideMode(user.slideMode === true);
+    setAvatarColor(user.avatarColor);
+    setAvatarVariant(user.avatarVariant);
+    setEnvStatus({ kind: "idle" });
+  });
+
   function save() {
     const shownRooms = [...allowedRooms].filter((id) => !hiddenRooms.has(id));
     const notif = [...notifRooms].filter((id) => shownRooms.includes(id));
@@ -89,8 +106,7 @@ export function UserEditPanel({
   }
 
   function cancel() {
-    if (isDirty && !window.confirm(t("common.discardPrompt"))) return;
-    onClose();
+    discardPrompt.requestLeave(onClose);
   }
 
   function validateEnv() {
@@ -187,6 +203,7 @@ export function UserEditPanel({
           {t("common.save")}
         </button>
       </div>
+      {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
     </div>
   );
 }

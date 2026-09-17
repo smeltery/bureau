@@ -13,7 +13,7 @@ export type SafetyMatch = {
 };
 
 const SHELL_COMMANDS = new Set(["bash", "sh", "zsh"]);
-const COMMAND_WRAPPERS = new Set(["command", "exec", "nohup", "setsid", "time"]);
+const COMMAND_WRAPPERS = new Set(["command", "exec", "nohup", "setsid", "time", "builtin", "if", "while", "until", "do", "then", "else", "elif", "!"]);
 const PACKAGE_RUNNERS = new Set(["npx", "bunx", "pnpm", "yarn"]);
 const PATTERN_KILL_COMMANDS = new Set(["pkill", "killall", "killall5"]);
 const NAME_LOOKUP_COMMANDS = new Set(["pgrep", "pidof"]);
