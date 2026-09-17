@@ -17,6 +17,7 @@ export {
   BROWSER_MIN_DIM,
   describeShot,
   MAX_TEXT_CHARS,
+  normalizeBrowserDpr,
   parseBrowserParams,
   type BrowserAction,
   type BrowserErrorCode,
@@ -112,7 +113,7 @@ export class BrowserPool {
     return { available: true, url: session.page.url(), title: session.title };
   }
 
-  watch(agentId: string, listener: BrowserFrameListener, bounds: { maxWidth?: number; maxHeight?: number } = {}): () => void {
+  watch(agentId: string, listener: BrowserFrameListener, bounds: { maxWidth?: number; maxHeight?: number; deviceScaleFactor?: number } = {}): () => void {
     return this.live.watch(agentId, listener, bounds, () => this.sessions.get(agentId));
   }
 
@@ -234,6 +235,8 @@ export class BrowserPool {
       captureSize: null,
       lastFrame: null,
       title: "",
+      dprOverride: false,
+      stillInFlight: false,
     };
     this.sessions.set(agentId, session);
     context.on("page", (fresh: Page) => {

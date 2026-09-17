@@ -257,4 +257,39 @@ describe("BrowserPool live screencast", () => {
       await pool.shutdown();
     }
   });
+
+  test("raises page DPR and publishes stills when a watcher asks for sharp captures", async () => {
+    const calls = freshCalls();
+    const { pool, stub } = poolWith(calls, {}, { screenshot: async () => ({ data: "hi-dpr" }) });
+    const frames: unknown[] = [];
+    const stop = pool.watch(
+      "a",
+      (frame) => {
+        if (frame) frames.push(frame);
+      },
+      { maxWidth: 2560, maxHeight: 1600, deviceScaleFactor: 2 },
+    );
+    try {
+      await opened(pool, "a");
+      expect(calls.cdp).toContainEqual({
+        method: "Emulation.setDeviceMetricsOverride",
+        params: { width: 1280, height: 800, deviceScaleFactor: 2, mobile: false },
+      });
+      const cast = calls.cdp.find((c) => c.method === "Page.startScreencast");
+      expect(cast?.params).toMatchObject({ maxWidth: 1280, maxHeight: 800, everyNthFrame: 1 });
+      stub.cdpSessions[0]!.emit("Page.screencastFrame", {
+        data: "trigger",
+        sessionId: 3,
+        metadata: { deviceWidth: 1280, deviceHeight: 800 },
+      } as never);
+      await Bun.sleep(0);
+      expect(calls.cdp.some((c) => c.method === "Page.captureScreenshot")).toBe(true);
+      expect(frames.at(-1)).toEqual({ data: "hi-dpr", width: 1280, height: 800 });
+      const shot = calls.cdp.find((c) => c.method === "Page.captureScreenshot");
+      expect((shot?.params as { clip?: { scale?: number } } | undefined)?.clip?.scale).toBe(1);
+    } finally {
+      stop();
+      await pool.shutdown();
+    }
+  });
 });

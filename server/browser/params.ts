@@ -30,6 +30,11 @@ const MAX_FILL_LEN = 10_000;
 export const BROWSER_MIN_DIM = 320;
 export const BROWSER_MAX_DIM = 2560;
 export const MAX_TEXT_CHARS = 20_000;
+
+/** Watcher-reported device pixel ratio; server clamps to [1, 4]. */
+export function normalizeBrowserDpr(value: number | undefined): number {
+  return Number.isFinite(value) ? Math.max(1, Math.min(4, value!)) : 1;
+}
 const MIN_DIM = BROWSER_MIN_DIM;
 const MAX_DIM = BROWSER_MAX_DIM;
 const DEFAULT_WIDTH = 1280;

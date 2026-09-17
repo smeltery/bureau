@@ -1,11 +1,9 @@
 import type { BrowserHumanInput } from "../../shared/wire-client-types.ts";
 import type { Page } from "playwright-core";
 import { MAX_TEXT_CHARS } from "./params.ts";
-import { captureStill, type BrowserFrame, type BrowserFrameListener, type ScreencastFields, startScreencast, stopScreencast } from "./screencast.ts";
+import { captureBounds, captureStill, type BrowserFrame, type BrowserFrameListener, type ScreencastFields, type ViewerBounds, startScreencast, stopScreencast } from "./screencast.ts";
 
 export type { BrowserFrame, BrowserFrameListener };
-
-type ViewerMeta = { maxWidth?: number; maxHeight?: number };
 
 export interface LiveSession extends ScreencastFields {
   opened: boolean;
@@ -14,9 +12,9 @@ export interface LiveSession extends ScreencastFields {
 /** Per-agent frame viewers + CDP input. Owned by BrowserPool. */
 export class LiveViews {
   private readonly frameListeners = new Map<string, Set<BrowserFrameListener>>();
-  private readonly viewerBounds = new Map<BrowserFrameListener, ViewerMeta>();
+  private readonly viewerBounds = new Map<BrowserFrameListener, ViewerBounds>();
 
-  watch(agentId: string, listener: BrowserFrameListener, bounds: ViewerMeta, getSession: () => LiveSession | undefined): () => void {
+  watch(agentId: string, listener: BrowserFrameListener, bounds: ViewerBounds, getSession: () => LiveSession | undefined): () => void {
     this.viewerBounds.set(listener, bounds);
     let listeners = this.frameListeners.get(agentId);
     if (!listeners) {
@@ -28,7 +26,7 @@ export class LiveViews {
     listener(null);
     if (session) {
       const b = this.boundsFor(agentId, session.page);
-      if (session.lastFrame && session.captureSize === `${b.maxWidth}x${b.maxHeight}@${b.quality}`) listener(session.lastFrame);
+      if (session.lastFrame && session.captureSize === `${b.maxWidth}x${b.maxHeight}@${b.quality}/${b.deviceScaleFactor}`) listener(session.lastFrame);
       void this.ensureScreencast(agentId, session, getSession);
     }
     return () => {
@@ -109,13 +107,8 @@ export class LiveViews {
   }
 
   private boundsFor(agentId: string, page: Page) {
-    const viewport = page.viewportSize() ?? { width: 1280, height: 800 };
     const viewers = [...(this.frameListeners.get(agentId) ?? [])].map((l) => this.viewerBounds.get(l) ?? {});
-    return {
-      quality: 60,
-      maxWidth: Math.min(viewport.width, Math.max(1, ...viewers.map((b) => b.maxWidth ?? viewport.width))),
-      maxHeight: Math.min(viewport.height, Math.max(1, ...viewers.map((b) => b.maxHeight ?? viewport.height))),
-    };
+    return captureBounds(page, viewers);
   }
 }
 

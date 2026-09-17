@@ -89,7 +89,11 @@ export function useBrowserLive(agentId: string) {
       };
       image.src = `data:image/jpeg;base64,${frame.data}`;
     };
-    const captureBounds = { maxWidth: undefined as number | undefined, maxHeight: undefined as number | undefined };
+    const captureBounds = {
+      maxWidth: undefined as number | undefined,
+      maxHeight: undefined as number | undefined,
+      deviceScaleFactor: undefined as number | undefined,
+    };
     const subscribe = () => {
       generation++;
       pending = null;
@@ -104,9 +108,12 @@ export function useBrowserLive(agentId: string) {
             if (!rect || rect.width <= 0 || rect.height <= 0) return;
             if (resizeTimer) clearTimeout(resizeTimer);
             resizeTimer = setTimeout(() => {
-              const bound = (value: number) => Math.max(BROWSER_MIN_DIM, Math.min(BROWSER_MAX_DIM, Math.ceil((value * window.devicePixelRatio) / 16) * 16));
-              const next = { maxWidth: bound(rect.width), maxHeight: bound(rect.height) };
-              if (next.maxWidth === captureBounds.maxWidth && next.maxHeight === captureBounds.maxHeight) return;
+              const dpr = Math.max(1, Math.min(4, window.devicePixelRatio || 1));
+              const bound = (value: number) => Math.max(BROWSER_MIN_DIM, Math.min(BROWSER_MAX_DIM, Math.ceil((value * dpr) / 16) * 16));
+              const next = { maxWidth: bound(rect.width), maxHeight: bound(rect.height), deviceScaleFactor: dpr };
+              if (next.maxWidth === captureBounds.maxWidth && next.maxHeight === captureBounds.maxHeight && next.deviceScaleFactor === captureBounds.deviceScaleFactor) {
+                return;
+              }
               Object.assign(captureBounds, next);
               subscribe();
             }, 150);

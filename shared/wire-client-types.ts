@@ -155,7 +155,7 @@ export type ClientCommand =
   | { type: "lobby_move"; spotId: string }
   | { type: "ping" }
   // Experimental agent browser (office setting experimental.browserPanel).
-  | { type: "browser_watch"; agentId: string; watching: boolean; maxWidth?: number; maxHeight?: number }
+  | { type: "browser_watch"; agentId: string; watching: boolean; maxWidth?: number; maxHeight?: number; deviceScaleFactor?: number }
   | { type: "browser_input"; agentId: string; input: BrowserHumanInput };
 
 export type BrowserHumanInput =

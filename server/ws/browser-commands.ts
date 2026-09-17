@@ -2,7 +2,7 @@ import type { ServerWebSocket } from "bun";
 import type { BrowserHumanInput, ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { officeConfig } from "../agents/state.ts";
-import { BROWSER_MAX_DIM, BROWSER_MIN_DIM, browserPool } from "../browser/session.ts";
+import { BROWSER_MAX_DIM, BROWSER_MIN_DIM, browserPool, normalizeBrowserDpr } from "../browser/session.ts";
 import { getWsUser } from "../users.ts";
 import { canUseRoom } from "./user-commands.ts";
 
@@ -59,6 +59,7 @@ export async function handleBrowserCommand(cmd: BrowserCommand, ws: ServerWebSoc
     stopWatch(ws, cmd.agentId);
     if (!cmd.watching) return true;
     if ((cmd.maxWidth !== undefined && !validBound(cmd.maxWidth)) || (cmd.maxHeight !== undefined && !validBound(cmd.maxHeight))) return true;
+    if (cmd.deviceScaleFactor !== undefined && (typeof cmd.deviceScaleFactor !== "number" || !Number.isFinite(cmd.deviceScaleFactor))) return true;
     browserPool.setPublicHostAllowlist(officeConfig.previewAllowHosts);
     let previous = "";
     const stop = browserPool.watch(
@@ -74,7 +75,11 @@ export async function handleBrowserCommand(cmd: BrowserCommand, ws: ServerWebSoc
           ws.send(JSON.stringify({ type: "browser_frame", agentId: cmd.agentId, ...frame } satisfies ServerMessage));
         }
       },
-      { maxWidth: cmd.maxWidth, maxHeight: cmd.maxHeight },
+      {
+        maxWidth: cmd.maxWidth,
+        maxHeight: cmd.maxHeight,
+        deviceScaleFactor: normalizeBrowserDpr(cmd.deviceScaleFactor),
+      },
     );
     let map = watches.get(ws);
     if (!map) {
