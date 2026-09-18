@@ -1,10 +1,11 @@
 import type { NormalizedEvent } from "../types.ts";
+import { filterMissingToolOutputRepeats } from "../../../shared/log-types.ts";
 
-export function handleCodexSessionStderr(chunk: string, enqueueAuthAwareSystemText: (text: string) => void): void {
+export function handleCodexSessionStderr(chunk: string, seenMissingToolOutputs: Set<string>, enqueueAuthAwareSystemText: (text: string) => void): void {
   // Codex stderr is opaque process output. Route to the agent log as
   // system_text so the boss has visibility. Trim trailing newlines and
   // skip pure whitespace.
-  const text = chunk.trimEnd();
+  const text = filterMissingToolOutputRepeats(chunk.trimEnd(), seenMissingToolOutputs);
   if (!text) return;
   // Drop known-benign startup notices. Codex logs these at ERROR level
   // but they're informational: the bubblewrap line is a "here's how our

@@ -37,6 +37,7 @@ export class CodexSession implements BackendSession {
   private lateToolResultNoticeEmitted = false;
   private lateToolResultNoticeArmed = false;
   private authGate = new CodexAuthSignalGate();
+  private readonly missingToolOutputNotices = new Set<string>();
   // jsonRpcId-keyed map of in-flight server-initiated approval requests. The
   // orchestrator references these by approvalId == jsonRpcId.
   private pendingApprovals = new Map<string, PendingApproval>();
@@ -308,7 +309,7 @@ export class CodexSession implements BackendSession {
   // -------------------------------------------------------------------------
 
   private handleStderr(chunk: string): void {
-    handleCodexSessionStderr(chunk, (text) => this.enqueueAuthAwareSystemText(text));
+    handleCodexSessionStderr(chunk, this.missingToolOutputNotices, (text) => this.enqueueAuthAwareSystemText(text));
   }
 
   private handleSubprocessExit(code: number | null, signal: NodeJS.Signals | null): void {

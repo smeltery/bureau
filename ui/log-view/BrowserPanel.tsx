@@ -132,9 +132,26 @@ export function BrowserPanel({ agentId, onClose }: { agentId: string; onClose: (
           onPointerCancel={live.releaseHeld}
           onLostPointerCapture={live.releaseHeld}
           onWheel={live.onWheel}
+          onKeyDown={live.onKeyDown}
+          onKeyUp={live.onKeyUp}
           style={{ display: live.size ? "block" : "none", width: "100%", height: "100%", objectFit: "contain", touchAction: "none", outline: "none" }}
         />
-        {!live.size && <div style={{ color: "var(--text-ghost)", fontSize: 12 }}>{busy ? "Loading…" : "Waiting for live frame…"}</div>}
+        {!live.size && (
+          <div style={{ color: "var(--text-ghost)", fontSize: 12, textAlign: "center" }}>
+            {live.idleClosed ? (
+              <>
+                <div>Browser closed after 15 minutes of inactivity.</div>
+                <button type="button" disabled={busy || !enabled} onClick={() => void run({ action: "goto", url: urlInput.trim() })} style={{ ...btnStyle, marginTop: 8 }}>
+                  Reopen
+                </button>
+              </>
+            ) : busy ? (
+              "Loading..."
+            ) : (
+              "Waiting for live frame..."
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -27,10 +27,11 @@ import { useSlideMode } from "../hooks/useSlideMode.ts";
 import { useSpeechLocale } from "../hooks/useSpeechLocale.ts";
 import { requestOpenAccountSection } from "../components/account-navigation.ts";
 import type { TaskMap } from "./task-links.tsx";
+import { coalesceCodexDiagnostics } from "../../shared/log-types.ts";
 
 export function LogView({
   agent,
-  logs,
+  logs: rawLogs,
   onBack,
   onEditAgent,
   username,
@@ -49,6 +50,7 @@ export function LogView({
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
 }) {
+  const logs = useMemo(() => coalesceCodexDiagnostics(rawLogs), [rawLogs]);
   const { drafts, slashCommands, stateChangedAt, isMobile, connected, tasks, office } = useAppState();
   const dispatch = useDispatch();
   const features = useFeatures();

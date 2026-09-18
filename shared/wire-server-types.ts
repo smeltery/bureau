@@ -134,5 +134,5 @@ export type ServerMessage =
   | { type: "cc_plugins_state"; plugins: CCPluginsState }
   | { type: "pong" }
   | { type: "browser_frame"; agentId: string; data: string; width: number; height: number }
-  | { type: "browser_status"; agentId: string; available: boolean; url: string; title: string; busy?: boolean; error?: string }
+  | { type: "browser_status"; agentId: string; available: boolean; url: string; title: string; busy?: boolean; error?: string; idleClosed?: boolean }
   | { type: "browser_selection"; agentId: string; requestId: number; text: string; truncated: boolean; error?: string };

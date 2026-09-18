@@ -14,6 +14,7 @@ export function useBrowserLive(agentId: string) {
   const [copyNote, setCopyNote] = useState("");
   const [copying, setCopying] = useState(false);
   const [liveError, setLiveError] = useState("");
+  const [idleClosed, setIdleClosed] = useState(false);
   const [urlFromServer, setUrlFromServer] = useState<string | null>(null);
   const surfaceRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -138,6 +139,7 @@ export function useBrowserLive(agentId: string) {
       } else if (msg.type === "browser_status") {
         acceptsFrames = msg.available;
         setAvailable(msg.available);
+        setIdleClosed(msg.idleClosed === true);
         if (msg.url !== undefined) {
           if (msg.url !== lastServerUrl.current) setCopyNote("");
           lastServerUrl.current = msg.url;
@@ -261,6 +263,28 @@ export function useBrowserLive(agentId: string) {
     input({ kind: "mouse", event: "mouseWheel", ...position, deltaX: e.deltaX, deltaY: e.deltaY });
   };
 
+  const onKeyDown = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (e.key.toLowerCase() === "c" && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+      void copySelection();
+      return;
+    }
+    input({
+      kind: "key",
+      event: "keyDown",
+      key: e.key,
+      code: e.code,
+      text: e.key.length === 1 ? e.key : undefined,
+      modifiers: (e.altKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.metaKey ? 4 : 0) | (e.shiftKey ? 8 : 0),
+    });
+  };
+
+  const onKeyUp = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+    e.stopPropagation();
+    input({ kind: "key", event: "keyUp", key: e.key, code: e.code });
+  };
+
   return {
     size,
     available,
@@ -268,12 +292,15 @@ export function useBrowserLive(agentId: string) {
     copyNote,
     copying,
     liveError,
+    idleClosed,
     urlFromServer,
     surfaceRef,
     viewportRef,
     copySelection,
     point,
     onWheel,
+    onKeyDown,
+    onKeyUp,
     releaseHeld,
     coordinates,
     clearLiveError: () => setLiveError(""),

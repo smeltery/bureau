@@ -231,6 +231,24 @@ describe("BrowserPool live screencast", () => {
     }
   });
 
+  test("reports idle-closed state until the browser is reopened or explicitly closed", async () => {
+    const calls = freshCalls();
+    const { pool } = poolWith(calls);
+    try {
+      await opened(pool, "a");
+      await pool.close("a", "idle");
+      expect(pool.status("a")).toEqual({ available: false, url: "", title: "", idleClosed: true });
+      await opened(pool, "a");
+      const reopened = pool.status("a");
+      expect(reopened.available).toBe(true);
+      expect(reopened.idleClosed).toBeUndefined();
+      await pool.close("a");
+      expect(pool.status("a")).toEqual({ available: false, url: "", title: "", idleClosed: undefined });
+    } finally {
+      await pool.shutdown();
+    }
+  });
+
   test("drops mismatched frame metadata without caching it", async () => {
     const calls = freshCalls();
     const { pool, stub } = poolWith(calls);
