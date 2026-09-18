@@ -160,7 +160,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   Office Settings, off by default): `POST /api/agents/:id/browser` for
   goto/snapshot/click/fill/press/screenshot/close against the same local/private
   + allowlist URL policy. Uses host Chrome via Playwright (Chromium not bundled).
-  Side panel streams live CDP JPEG frames; managers can drag-select and copy selection.
+  Side panel streams live CDP JPEG frames; managers can type, drag-select, and copy selection.
+  The page closes after 15 idle minutes unless someone is watching, and can be reopened.
 - Local `curl` calls to Bureau affordance endpoints render as readable
   tool-call summaries with key payload fields.
 

@@ -110,6 +110,22 @@ export class LiveViews {
     const viewers = [...(this.frameListeners.get(agentId) ?? [])].map((l) => this.viewerBounds.get(l) ?? {});
     return captureBounds(page, viewers);
   }
+
+  private readonly idlePages = new Map<string, { url: string; title: string }>();
+
+  closedStatus(agentId: string): { available: false; url: string; title: string; idleClosed?: boolean } {
+    const idle = this.idlePages.get(agentId);
+    return idle ? { available: false, ...idle, idleClosed: true } : { available: false, url: "", title: "" };
+  }
+
+  rememberIdle(agentId: string, url: string, title: string): void {
+    if (/^https?:\/\//.test(url)) this.idlePages.set(agentId, { url, title });
+    else this.idlePages.delete(agentId);
+  }
+
+  forgetIdle(agentId: string): void {
+    this.idlePages.delete(agentId);
+  }
 }
 
 class DeadlineError extends Error {}

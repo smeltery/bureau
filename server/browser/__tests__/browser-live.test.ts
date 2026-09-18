@@ -89,7 +89,7 @@ function stubBrowser(calls: StubCalls, page: Record<string, unknown> = {}, optio
   return { cdpSessions, makeBrowser };
 }
 
-function poolWith(calls: StubCalls, page?: Record<string, unknown>, options: { screenshot?: () => Promise<{ data: string }> } = {}) {
+function poolWith(calls: StubCalls, page?: Record<string, unknown>, options: { screenshot?: () => Promise<{ data: string }>; idleMs?: number } = {}) {
   const stub = stubBrowser(calls, page, options);
   const pool = new BrowserPool({
     findBrowser: () => "/fake/chrome",
@@ -97,7 +97,7 @@ function poolWith(calls: StubCalls, page?: Record<string, unknown>, options: { s
       calls.launches++;
       return stub.makeBrowser() as never;
     },
-    idleMs: 60_000,
+    idleMs: options.idleMs ?? 60_000,
     publicHostAllowlist: [],
     lookupFn: async () => [{ address: "127.0.0.1", family: 4 }],
   });
@@ -237,7 +237,7 @@ describe("BrowserPool live screencast", () => {
     try {
       await opened(pool, "a");
       await pool.close("a", "idle");
-      expect(pool.status("a")).toEqual({ available: false, url: "", title: "", idleClosed: true });
+      expect(pool.status("a")).toEqual({ available: false, url: "http://127.0.0.1:3000/", title: "Example", idleClosed: true });
       await opened(pool, "a");
       const reopened = pool.status("a");
       expect(reopened.available).toBe(true);
@@ -245,6 +245,21 @@ describe("BrowserPool live screencast", () => {
       await pool.close("a");
       expect(pool.status("a")).toEqual({ available: false, url: "", title: "", idleClosed: undefined });
     } finally {
+      await pool.shutdown();
+    }
+  });
+
+  test("does not idle-close while a viewer is attached", async () => {
+    const calls = freshCalls();
+    const { pool } = poolWith(calls, {}, { idleMs: 30 });
+    const stop = pool.watch("a", () => {});
+    try {
+      await opened(pool, "a");
+      await Bun.sleep(50);
+      expect(calls.closedContexts).toBe(0);
+      expect(pool.status("a").available).toBe(true);
+    } finally {
+      stop();
       await pool.shutdown();
     }
   });

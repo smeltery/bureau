@@ -70,7 +70,6 @@ export class BrowserPool {
   private browser: Browser | null = null;
   private launching: Promise<Browser> | null = null;
   private readonly sessions = new Map<string, AgentSession>();
-  private readonly idleClosedAgents = new Set<string>();
   private readonly queues = new Map<string, Promise<unknown>>();
   private lifecycleChain: Promise<unknown> = Promise.resolve();
   private readonly findBrowser: () => string | null;
@@ -110,7 +109,7 @@ export class BrowserPool {
 
   status(agentId: string): { available: boolean; url: string; title: string; idleClosed?: boolean } {
     const session = this.sessions.get(agentId);
-    if (!session || session.page.isClosed() || !session.opened) return { available: false, url: "", title: "", idleClosed: this.idleClosedAgents.has(agentId) || undefined };
+    if (!session || session.page.isClosed() || !session.opened) return this.live.closedStatus(agentId);
     return { available: true, url: session.page.url(), title: session.title };
   }
 
@@ -166,6 +165,10 @@ export class BrowserPool {
   private touch(agentId: string, session: AgentSession): void {
     if (session.timer) clearTimeout(session.timer);
     session.timer = setTimeout(() => {
+      if (this.sessions.get(agentId) === session && this.live.hasViewers(agentId)) {
+        this.touch(agentId, session);
+        return;
+      }
       void this.close(agentId, "idle");
     }, this.idleMs);
     session.timer.unref?.();
@@ -204,7 +207,7 @@ export class BrowserPool {
   private async ensureSession(agentId: string, viewport: { width: number; height: number }): Promise<AgentSession | BrowserFailure> {
     const live = this.sessions.get(agentId);
     if (live && !live.page.isClosed() && this.browser?.isConnected()) {
-      this.idleClosedAgents.delete(agentId);
+      this.live.forgetIdle(agentId);
       this.touch(agentId, live);
       return live;
     }
@@ -214,7 +217,7 @@ export class BrowserPool {
   private async createSession(agentId: string, viewport: { width: number; height: number }): Promise<AgentSession | BrowserFailure> {
     const browser = await this.ensureBrowser();
     if ("ok" in browser) return browser;
-    this.idleClosedAgents.delete(agentId);
+    this.live.forgetIdle(agentId);
     const existing = this.sessions.get(agentId);
     if (existing && !existing.page.isClosed()) {
       this.touch(agentId, existing);
@@ -267,8 +270,8 @@ export class BrowserPool {
   private async closeNow(agentId: string, reason: "idle" | "explicit" = "explicit"): Promise<void> {
     const session = this.sessions.get(agentId);
     if (!session) return;
-    if (reason === "idle" && session.opened) this.idleClosedAgents.add(agentId);
-    else this.idleClosedAgents.delete(agentId);
+    if (reason === "idle" && session.opened) this.live.rememberIdle(agentId, session.page.url(), session.title);
+    else this.live.forgetIdle(agentId);
     if (session.timer) clearTimeout(session.timer);
     const orphan = await this.lifecycle(async () => {
       if (this.sessions.get(agentId) !== session) return null;
