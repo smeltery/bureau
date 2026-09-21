@@ -4,7 +4,7 @@ export function InputAutocomplete({
   commandDescriptions,
   selectedIdx,
   setSelectedIdx,
-  setInput,
+  completeCommand,
   textareaRef,
 }: {
   filteredCommands: string[];
@@ -12,7 +12,7 @@ export function InputAutocomplete({
   commandDescriptions: Map<string, string>;
   selectedIdx: number;
   setSelectedIdx: (v: number | ((prev: number) => number)) => void;
-  setInput: (text: string) => void;
+  completeCommand: (name: string) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   return (
@@ -41,7 +41,7 @@ export function InputAutocomplete({
             ref={i === selectedIdx ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}
             onMouseDown={(e) => {
               e.preventDefault();
-              setInput(`/${cmd} `);
+              completeCommand(cmd);
               textareaRef.current?.focus();
             }}
             onMouseEnter={() => setSelectedIdx(i)}

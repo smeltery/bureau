@@ -6,6 +6,14 @@ export function isSendNowShortcut(event: { key: string; ctrlKey: boolean; metaKe
   return !isMobile && event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.shiftKey;
 }
 
+export function completedSlashCommandDraft(input: string, name: string): { text: string; caret: number } {
+  const command = `/${name}`;
+  const tokenEnd = input.search(/\s/);
+  const suffix = tokenEnd < 0 ? "" : input.slice(tokenEnd);
+  const text = command + (suffix || " ");
+  return { text, caret: command.length + (suffix ? 0 : 1) };
+}
+
 export function InputComposerField({
   agentId,
   autoResize,
@@ -43,6 +51,18 @@ export function InputComposerField({
   skillOrigins: Map<string, string>;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 }) {
+  function completeCommand(name: string) {
+    const completed = completedSlashCommandDraft(input, name);
+    setInput(completed.text);
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      textarea.focus({ preventScroll: true });
+      textarea.setSelectionRange(completed.caret, completed.caret);
+      autoResize(textarea);
+    });
+  }
+
   return (
     <div style={{ flex: 1, position: "relative", top: -2 }}>
       {showAutocomplete && filteredCommands.length > 0 && (
@@ -52,7 +72,7 @@ export function InputComposerField({
           commandDescriptions={commandDescriptions}
           selectedIdx={selectedIdx}
           setSelectedIdx={setSelectedIdx}
-          setInput={setInput}
+          completeCommand={completeCommand}
           textareaRef={textareaRef}
         />
       )}
@@ -83,7 +103,7 @@ export function InputComposerField({
               e.preventDefault();
               const selected = filteredCommands[selectedIdx];
               if (selected) {
-                setInput(`/${selected} `);
+                completeCommand(selected);
               }
               return;
             }
@@ -93,7 +113,7 @@ export function InputComposerField({
                 // Exact match: fall through to send.
               } else if (selected) {
                 e.preventDefault();
-                setInput(`/${selected} `);
+                completeCommand(selected);
                 return;
               }
             }

@@ -45,8 +45,10 @@ export function useSlashAutocomplete(input: string, agentCmds: AgentCmds) {
     return { allCommands: cmds.sort(), skillOrigins: origins, commandDescriptions: descs };
   }, [agentCmds]);
 
-  const showAutocomplete = input.startsWith("/") && !input.includes(" ") && input.length > 0;
-  const partial = input.slice(1).toLowerCase();
+  const tokenEnd = input.search(/\s/);
+  const leadingToken = tokenEnd < 0 ? input : input.slice(0, tokenEnd);
+  const showAutocomplete = leadingToken.startsWith("/") && leadingToken.length > 0;
+  const partial = leadingToken.slice(1).toLowerCase();
   const filteredCommands = useMemo(() => {
     if (!showAutocomplete) return [];
     if (partial === "") return allCommands;
