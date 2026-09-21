@@ -29,6 +29,19 @@ describe("parseBrowserParams", () => {
       error: "URLs with embedded credentials are not allowed",
     });
   });
+
+  test("accepts bounded frame paths only for element actions with selectors", () => {
+    expect(parseBrowserParams({ action: "click", selector: "button", framePath: [0, 1] })).toMatchObject({ ok: true, framePath: [0, 1] });
+    expect(parseBrowserParams({ action: "fill", selector: "input", text: "hello", framePath: [] })).toMatchObject({ ok: true, framePath: [] });
+    expect(parseBrowserParams({ action: "press", selector: "input", key: "Enter", framePath: [0] })).toMatchObject({ ok: true, framePath: [0] });
+
+    for (const framePath of [null, "iframe", [-1], [0.5], [Infinity], [Number.MAX_SAFE_INTEGER + 1], Array(9).fill(0), ["0"]]) {
+      expect(parseBrowserParams({ action: "click", selector: "button", framePath })).toMatchObject({ ok: false, code: "invalid_request" });
+    }
+    for (const action of ["snapshot", "goto", "close", "screenshot", "press"]) {
+      expect(parseBrowserParams({ action, framePath: [] })).toMatchObject({ ok: false, code: "invalid_request" });
+    }
+  });
 });
 
 describe("launchOptions", () => {

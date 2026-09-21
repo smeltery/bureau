@@ -27,6 +27,7 @@ export type BrowserResult = BrowserSuccess | BrowserFailure;
 const MAX_URL_LEN = 2048;
 const MAX_SELECTOR_LEN = 500;
 const MAX_FILL_LEN = 10_000;
+export const MAX_FRAME_DEPTH = 8;
 export const BROWSER_MIN_DIM = 320;
 export const BROWSER_MAX_DIM = 2560;
 export const MAX_TEXT_CHARS = 20_000;
@@ -69,6 +70,7 @@ export interface ParsedParams {
   ok: true;
   action: BrowserAction;
   url?: URL;
+  framePath?: number[];
   selector?: string;
   text?: string;
   key?: string;
@@ -95,6 +97,19 @@ export function parseBrowserParams(body: unknown): ParsedParams | BrowserFailure
       return invalid(`viewport width/height must be integers in ${MIN_DIM}..${MAX_DIM}`);
     }
     params.viewport = { width: w, height: h };
+  }
+
+  if (body.framePath !== undefined) {
+    if (
+      !["click", "fill", "press"].includes(action) ||
+      !Array.isArray(body.framePath) ||
+      body.framePath.length > MAX_FRAME_DEPTH ||
+      body.framePath.some((index) => !Number.isSafeInteger(index) || index < 0) ||
+      (action === "press" && typeof body.selector !== "string")
+    ) {
+      return invalid("framePath must be an array of up to 8 non-negative safe integers on an element action with a selector");
+    }
+    params.framePath = body.framePath;
   }
 
   if (action === "goto") {

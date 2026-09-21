@@ -1,5 +1,6 @@
 import type { Page } from "playwright-core";
 import { describeShot, type BrowserSuccess, type ParsedParams } from "./params.ts";
+import { readBrowserSnapshot, resolveBrowserFrame } from "./frames.ts";
 
 export const MAX_SNAPSHOT_CHARS = 20_000;
 
@@ -14,19 +15,20 @@ function cap(value: string, max: number): string {
 }
 
 export async function performBrowserAction(page: Page, params: ParsedParams, timeout: number, markOpened: () => void): Promise<BrowserSuccess> {
+  const target = params.framePath ? resolveBrowserFrame(page.mainFrame(), params.framePath) : page;
   switch (params.action) {
     case "goto":
       await page.goto(params.url!.toString(), { waitUntil: "load", timeout });
       markOpened();
       break;
     case "click":
-      await page.click(params.selector!, { timeout });
+      await target.click(params.selector!, { timeout });
       break;
     case "fill":
-      await page.fill(params.selector!, params.text!, { timeout });
+      await target.fill(params.selector!, params.text!, { timeout });
       break;
     case "press":
-      if (params.selector) await page.press(params.selector, params.key!, { timeout });
+      if (params.selector) await target.press(params.selector, params.key!, { timeout });
       else await page.keyboard.press(params.key!);
       break;
     case "snapshot":
@@ -36,7 +38,7 @@ export async function performBrowserAction(page: Page, params: ParsedParams, tim
   if (page.url() === "about:blank") throw new NoPageError();
   const base: BrowserSuccess = { ok: true, url: page.url(), title: await page.title() };
   if (params.action === "snapshot") {
-    base.snapshot = cap(await page.locator("body").ariaSnapshot({ timeout }), MAX_SNAPSHOT_CHARS);
+    base.snapshot = cap(await readBrowserSnapshot(page.mainFrame(), MAX_SNAPSHOT_CHARS, timeout), MAX_SNAPSHOT_CHARS);
     base.text = base.snapshot;
   } else if (params.action === "screenshot") {
     base.png = await page.screenshot({ fullPage: params.fullPage === true, timeout });
