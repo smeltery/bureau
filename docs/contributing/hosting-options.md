@@ -6,18 +6,32 @@ setup that matches who needs access.
 
 ## Choose A Path
 
-| Need                                    | Recommended path                  |
-| --------------------------------------- | --------------------------------- |
-| Try Bureau on this computer only        | Local development from the README |
-| Reach Bureau from your own devices      | Private Tailscale                 |
-| Share a public HTTPS office without DNS | Tailscale Funnel                  |
-| Use your own domain and app subdomains  | Caddy with wildcard DNS           |
-| Avoid managing a server                 | Render Blueprint                  |
+| Need                                    | Recommended path                         |
+| --------------------------------------- | ---------------------------------------- |
+| Try Bureau on this computer only        | [Local](hosting/local.md)                |
+| Reach Bureau from your own devices      | [Private Tailscale](hosting/private.md)  |
+| Share a public HTTPS office without DNS | [Tailscale Funnel](hosting/funnel.md)    |
+| Use your own domain and app subdomains  | [Own domain](hosting/domain.md)          |
+| Start from a fresh public server        | [Fresh VPS](hosting/vps.md)              |
+| Avoid managing a server                 | [Render Blueprint](hosting/render.md)    |
 
 All remote paths should start the same way: claim the office locally first,
 then enable external access in `User Settings -> Access`, set the public URL,
 save, and restart the Bureau service. Before the first owner exists, Bureau
 binds to `127.0.0.1` only.
+
+## Complete Guides
+
+The route-specific guides include prerequisites, first-owner claim, external
+access, provider connection, invites, app-address notes, and operations:
+
+- [Local](hosting/local.md)
+- [Private Tailscale](hosting/private.md)
+- [Tailscale Funnel](hosting/funnel.md)
+- [Own domain](hosting/domain.md)
+- [Fresh VPS](hosting/vps.md)
+- [Render](hosting/render.md)
+- [Hosting reference](hosting/reference.md)
 
 ## Private Tailscale
 

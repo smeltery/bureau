@@ -30,7 +30,7 @@ Bureau has been built by Claude Code agents running inside Bureau since 3 hours 
 
 ## Hosting and Setup
 Bureau can stay local, run privately over Tailscale, use Tailscale Funnel for a public HTTPS URL without DNS, sit behind Caddy at your own domain, or deploy on Render.
-The setup decision guide is \`docs/contributing/hosting-options.md\`; the operational guide is \`docs/contributing/self-hosted.md\`.
+The setup decision guide is \`docs/contributing/hosting-options.md\`. Complete route guides live under \`docs/contributing/hosting/\`: local, private Tailscale, Funnel, own domain, fresh VPS, Render, and reference. The older operational overview is \`docs/contributing/self-hosted.md\`.
 For remote hosting, claim the office locally first, then open \`User Settings -> Access\`, enable external access, set the public URL, save, and restart Bureau.
 Use the custom-domain path when agent-built apps need public subdomains. Tailscale and Funnel expose the office but keep apps on host-and-port links.
 
