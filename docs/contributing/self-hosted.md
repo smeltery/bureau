@@ -9,6 +9,9 @@ For a hosted cloud path, the [Render deployment](#deploy-on-render) creates one
 Docker web service with a persistent disk. Render keeps the office running and
 reachable; you bring a domain and authorize people inside Bureau.
 
+If you are choosing between local-only, Tailscale, Tailscale Funnel, a custom
+domain, and Render, start with [Hosting Options](hosting-options.md).
+
 ## Keep It Running
 
 For Linux hosts, create a systemd user service that rebuilds the UI on start,
@@ -174,6 +177,7 @@ remote devices should not be able to connect until ownership exists and
 external access is enabled.
 
 The recommended paths are documented in
+[Hosting Options](hosting-options.md) and
 [Access & Invites](../features/access-and-invites.md):
 
 - **Tailscale Funnel** for a public HTTPS URL without router port forwarding.

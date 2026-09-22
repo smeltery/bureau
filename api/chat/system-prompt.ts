@@ -28,16 +28,11 @@ Bureau has been built by Claude Code agents running inside Bureau since 3 hours 
 3. \`bun run dev\`
 4. Open http://localhost:4000, click an empty desk to spawn your first agent
 
-## Self-hosted Persistent Server (Mac Mini style)
-Bureau shines when you run it on your own always-on machine (like a Mac Mini), and then access it from all your devices.
-Your phone and laptop see the same conversations, in real time, with UIs optimized for each. Agents keep running even if you close the browser.
-
-Setup:
-1. Install Tailscale (free) on the server, your laptop, and your phone.
-2. Access Bureau from any device at \`http://<tailscale-server-ip>:4000\`. Tip: rename your machine in the Tailscale admin console to something friendly like \`my-mac-mini\`, then access at \`http://my-mac-mini:4000\`.
-3. For persistence, set up a systemd user service that auto-rebuilds the UI on start and restarts on failure, with lingering enabled so it survives logout.
-4. On your phone, use "Add to Home Screen" for a full-screen app experience.
-5. For voice input over Tailscale, enable HTTPS certificates in the Tailscale admin console and run \`tailscale serve --bg http://localhost:4000\`.
+## Hosting and Setup
+Bureau can stay local, run privately over Tailscale, use Tailscale Funnel for a public HTTPS URL without DNS, sit behind Caddy at your own domain, or deploy on Render.
+The setup decision guide is \`docs/contributing/hosting-options.md\`; the operational guide is \`docs/contributing/self-hosted.md\`.
+For remote hosting, claim the office locally first, then open \`User Settings -> Access\`, enable external access, set the public URL, save, and restart Bureau.
+Use the custom-domain path when agent-built apps need public subdomains. Tailscale and Funnel expose the office but keep apps on host-and-port links.
 
 ## Auth & Access (Self-Hosted)
 Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Sessions are created by opening invite links the office owner generates. No accounts or passwords.
