@@ -1,6 +1,6 @@
 import type { Page } from "playwright-core";
 import { describeShot, type BrowserSuccess, type ParsedParams } from "./params.ts";
-import { readBrowserSnapshot, resolveBrowserFrame } from "./frames.ts";
+import { readBrowserSnapshot, readBrowserText, resolveBrowserFrame } from "./frames.ts";
 
 export const MAX_SNAPSHOT_CHARS = 20_000;
 
@@ -32,6 +32,7 @@ export async function performBrowserAction(page: Page, params: ParsedParams, tim
       else await page.keyboard.press(params.key!);
       break;
     case "snapshot":
+    case "text":
     case "screenshot":
       break;
   }
@@ -40,6 +41,8 @@ export async function performBrowserAction(page: Page, params: ParsedParams, tim
   if (params.action === "snapshot") {
     base.snapshot = cap(await readBrowserSnapshot(page.mainFrame(), MAX_SNAPSHOT_CHARS, timeout, { selector: params.selector, framePath: params.framePath }), MAX_SNAPSHOT_CHARS);
     base.text = base.snapshot;
+  } else if (params.action === "text") {
+    base.text = cap(await readBrowserText(page.mainFrame(), MAX_SNAPSHOT_CHARS, timeout, { selector: params.selector, framePath: params.framePath }), MAX_SNAPSHOT_CHARS);
   } else if (params.action === "screenshot") {
     base.png = await page.screenshot({ fullPage: params.fullPage === true, timeout });
     const shot = describeShot(page.url());

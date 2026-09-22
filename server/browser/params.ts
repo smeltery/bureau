@@ -1,4 +1,4 @@
-export const BROWSER_ACTIONS = ["goto", "snapshot", "click", "fill", "press", "screenshot", "close"] as const;
+export const BROWSER_ACTIONS = ["goto", "snapshot", "text", "click", "fill", "press", "screenshot", "close"] as const;
 export type BrowserAction = (typeof BROWSER_ACTIONS)[number];
 
 export type BrowserErrorCode = "invalid_request" | "no_browser" | "launch_failed" | "no_page" | "action_failed" | "action_timeout";
@@ -101,7 +101,7 @@ export function parseBrowserParams(body: unknown): ParsedParams | BrowserFailure
 
   if (body.framePath !== undefined) {
     if (
-      !["click", "fill", "press", "snapshot"].includes(action) ||
+      !["click", "fill", "press", "snapshot", "text"].includes(action) ||
       !Array.isArray(body.framePath) ||
       body.framePath.length > MAX_FRAME_DEPTH ||
       body.framePath.some((index) => !Number.isSafeInteger(index) || index < 0) ||
@@ -141,7 +141,7 @@ export function parseBrowserParams(body: unknown): ParsedParams | BrowserFailure
     params.text = text;
   }
 
-  if (action === "snapshot" && body.selector !== undefined) {
+  if ((action === "snapshot" || action === "text") && body.selector !== undefined) {
     if (typeof body.selector !== "string" || body.selector.length === 0) return invalid("selector must be a non-empty string");
     if (body.selector.length > MAX_SELECTOR_LEN) return invalid(`selector too long (max ${MAX_SELECTOR_LEN} chars)`);
     params.selector = body.selector;

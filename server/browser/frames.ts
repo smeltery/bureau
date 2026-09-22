@@ -63,6 +63,14 @@ export async function readBrowserSnapshot(root: Frame, limit: number, timeout: n
   return output;
 }
 
+export async function readBrowserText(root: Frame, limit: number, timeout: number, scope?: { selector?: string; framePath?: number[] }): Promise<string> {
+  const frame = resolveBrowserFrame(root, scope?.framePath ?? []);
+  return frame
+    .locator(scope?.selector ?? "body")
+    .innerText({ timeout })
+    .then((text) => (text.length <= limit ? text : `${text.slice(0, limit)}\n[truncated at ${limit} characters]`));
+}
+
 // Playwright omits contenteditable textbox children from the ARIA tree. Add
 // only rendered values from visible, accessibility-present textboxes in scope.
 async function snapshotWithEditableText(frame: Frame, scope: Locator, timeout: number, limit: number): Promise<string> {

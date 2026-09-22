@@ -36,6 +36,7 @@ describe("parseBrowserParams", () => {
     expect(parseBrowserParams({ action: "fill", selector: "input", text: "hello", framePath: [] })).toMatchObject({ ok: true, framePath: [] });
     expect(parseBrowserParams({ action: "press", selector: "input", key: "Enter", framePath: [0] })).toMatchObject({ ok: true, framePath: [0] });
     expect(parseBrowserParams({ action: "snapshot", framePath: [0], selector: "main" })).toMatchObject({ ok: true, framePath: [0], selector: "main" });
+    expect(parseBrowserParams({ action: "text", selector: "article >> nth=2" })).toMatchObject({ ok: true, selector: "article >> nth=2" });
 
     for (const framePath of [null, "iframe", [-1], [0.5], [Infinity], [Number.MAX_SAFE_INTEGER + 1], Array(9).fill(0), ["0"]]) {
       expect(parseBrowserParams({ action: "click", selector: "button", framePath })).toMatchObject({ ok: false, code: "invalid_request" });
@@ -45,9 +46,10 @@ describe("parseBrowserParams", () => {
     }
   });
 
-  test("accepts an optional snapshot selector", () => {
+  test("accepts optional read selectors", () => {
     expect(parseBrowserParams({ action: "snapshot", selector: "role=main" })).toMatchObject({ ok: true, selector: "role=main" });
     expect(parseBrowserParams({ action: "snapshot", selector: "" })).toMatchObject({ ok: false, error: "selector must be a non-empty string" });
+    expect(parseBrowserParams({ action: "text", selector: "x".repeat(501) })).toMatchObject({ ok: false, code: "invalid_request" });
   });
 });
 
