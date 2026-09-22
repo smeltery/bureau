@@ -5,6 +5,7 @@ import { join } from "path";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { createAppRegistry } from "../../apps/registry.ts";
 import { UNKNOWN_RUNTIME, type AppRuntime } from "../../apps/supervisor.ts";
+import { resolveAppsIdentity } from "../app-route-helpers.ts";
 import { handleAppsRequest } from "../apps.ts";
 import type { AppsDeps } from "../apps-seam.ts";
 import type { AppRecord } from "../../../shared/apps.ts";
@@ -446,5 +447,8 @@ describe("apps routes: visibility and auth", () => {
     const res = await handleAppsRequest(request, new URL(request.url), ownerAuth, deps);
 
     expect(res?.status).toBe(401);
+    const apiAuth: AuthResult = { kind: "api", token: { userId: "user-1", username: "Ada", role: "owner", tokenId: "tok-1", tokenName: "Owner token" } };
+    const apiReq = new Request("http://local.test/api/apps", { headers: { Authorization: "Bearer bureau_pat_owner" } });
+    expect(resolveAppsIdentity(apiReq, apiAuth)).toMatchObject({ scope: "user", userId: "user-1" });
   });
 });

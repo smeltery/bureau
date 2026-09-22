@@ -79,9 +79,11 @@ export function resolveAppsIdentity(req: Request, auth?: AuthResult): AppsIdenti
   const rawBearer = readBearerToken(req);
   const bearer = resolveAgentToken(rawBearer);
   // A malformed bearer token is refused rather than falling back to whatever
-  // session cookie rode along with it.
-  if (rawBearer && !bearer) return jsonError(401, "unauthenticated", "missing or invalid bearer token");
+  // session cookie rode along with it. Personal API tokens are resolved by the
+  // auth middleware and carry the user's own app visibility.
+  if (rawBearer && !bearer && auth?.kind !== "api") return jsonError(401, "unauthenticated", "missing or invalid bearer token");
   if (bearer) return { scope: "agent", agentId: bearer.agentId, userId: bearer.userId };
+  if (auth?.kind === "api") return { scope: "user", userId: auth.token.userId, username: auth.token.username, role: auth.token.role };
   if (auth?.kind === "ok") return { scope: "user", userId: auth.session.userId, username: auth.session.username, role: auth.session.role };
   if (auth?.kind === "loopback") return { scope: "loopback" };
   return jsonError(401, "unauthenticated", "authentication required");
