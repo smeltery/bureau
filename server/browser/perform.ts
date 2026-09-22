@@ -38,7 +38,7 @@ export async function performBrowserAction(page: Page, params: ParsedParams, tim
   if (page.url() === "about:blank") throw new NoPageError();
   const base: BrowserSuccess = { ok: true, url: page.url(), title: await page.title() };
   if (params.action === "snapshot") {
-    base.snapshot = cap(await readBrowserSnapshot(page.mainFrame(), MAX_SNAPSHOT_CHARS, timeout), MAX_SNAPSHOT_CHARS);
+    base.snapshot = cap(await readBrowserSnapshot(page.mainFrame(), MAX_SNAPSHOT_CHARS, timeout, { selector: params.selector, framePath: params.framePath }), MAX_SNAPSHOT_CHARS);
     base.text = base.snapshot;
   } else if (params.action === "screenshot") {
     base.png = await page.screenshot({ fullPage: params.fullPage === true, timeout });

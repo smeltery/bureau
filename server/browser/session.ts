@@ -10,6 +10,7 @@ import { assertAllowedHost, BROWSER_CANDIDATES, findBrowser as defaultFindBrowse
 import { fail, parseBrowserParams, type BrowserFailure, type BrowserResult, type BrowserSuccess, type ParsedParams } from "./params.ts";
 import { DeadlineError, LiveViews, stopScreencast, withDeadline, type BrowserFrameListener, type LiveSession } from "./live.ts";
 import { NoPageError, performBrowserAction } from "./perform.ts";
+import { selectorSyntaxFailure } from "./selector-errors.ts";
 
 export {
   BROWSER_ACTIONS,
@@ -330,7 +331,7 @@ export class BrowserPool {
         return fail(500, "action_timeout", `the browser did not finish ${params.action} in ${this.backstopMs}ms`);
       }
       if (err instanceof NoPageError) return fail(400, "no_page", err.message);
-      return fail(500, "action_failed", err instanceof Error ? err.message.split("\n")[0]! : String(err));
+      return selectorSyntaxFailure(err) ?? fail(500, "action_failed", err instanceof Error ? err.message.split("\n")[0]! : String(err));
     }
   }
 }

@@ -6,6 +6,7 @@ import { agents, officeConfig, setOfficeConfig } from "../../agents/state.ts";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import { handleAgentBearerPost } from "../../http/agent-bearer-routes.ts";
 import { BrowserPool, launchOptions, parseBrowserParams } from "../session.ts";
+import { selectorSyntaxFailure } from "../selector-errors.ts";
 
 describe("parseBrowserParams", () => {
   test("requires a known action", () => {
@@ -30,17 +31,44 @@ describe("parseBrowserParams", () => {
     });
   });
 
-  test("accepts bounded frame paths only for element actions with selectors", () => {
+  test("accepts bounded frame paths for reads and element actions with selectors", () => {
     expect(parseBrowserParams({ action: "click", selector: "button", framePath: [0, 1] })).toMatchObject({ ok: true, framePath: [0, 1] });
     expect(parseBrowserParams({ action: "fill", selector: "input", text: "hello", framePath: [] })).toMatchObject({ ok: true, framePath: [] });
     expect(parseBrowserParams({ action: "press", selector: "input", key: "Enter", framePath: [0] })).toMatchObject({ ok: true, framePath: [0] });
+    expect(parseBrowserParams({ action: "snapshot", framePath: [0], selector: "main" })).toMatchObject({ ok: true, framePath: [0], selector: "main" });
 
     for (const framePath of [null, "iframe", [-1], [0.5], [Infinity], [Number.MAX_SAFE_INTEGER + 1], Array(9).fill(0), ["0"]]) {
       expect(parseBrowserParams({ action: "click", selector: "button", framePath })).toMatchObject({ ok: false, code: "invalid_request" });
     }
-    for (const action of ["snapshot", "goto", "close", "screenshot", "press"]) {
+    for (const action of ["goto", "close", "screenshot", "press"]) {
       expect(parseBrowserParams({ action, framePath: [] })).toMatchObject({ ok: false, code: "invalid_request" });
     }
+  });
+
+  test("accepts an optional snapshot selector", () => {
+    expect(parseBrowserParams({ action: "snapshot", selector: "role=main" })).toMatchObject({ ok: true, selector: "role=main" });
+    expect(parseBrowserParams({ action: "snapshot", selector: "" })).toMatchObject({ ok: false, error: "selector must be a non-empty string" });
+  });
+});
+
+describe("selectorSyntaxFailure", () => {
+  test("returns safe hints for known selector parser errors", () => {
+    const result = selectorSyntaxFailure(new Error('locator.click: Error: Unknown attribute "exact", must be one of selected, checked'));
+    const error = result?.error ?? "";
+    expect(result).toMatchObject({
+      ok: false,
+      status: 400,
+      code: "invalid_request",
+      error: expect.stringContaining("role=button"),
+    });
+    expect(error.includes("selected")).toBe(false);
+  });
+
+  test("ignores timeouts and unrelated errors", () => {
+    const timeout = new Error("locator.click: Timeout 30000ms exceeded");
+    timeout.name = "TimeoutError";
+    expect(selectorSyntaxFailure(timeout)).toBeUndefined();
+    expect(selectorSyntaxFailure(new Error("page crashed"))).toBeUndefined();
   });
 });
 

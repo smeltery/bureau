@@ -7,9 +7,11 @@ import { HospitalProps } from "./hospital/props.tsx";
 import { HospitalWalls } from "./hospital/walls.tsx";
 
 // A room skin is a LOOK: theme variable overrides plus optional wall/floor
-// layers. Desks, characters, pets, and status lights stay the same under every
-// skin — no branches in Floor.tsx.
+// layers. Desks, characters, and status lights stay the same under every skin.
+// Skins can hide office-only decorations that do not fit the room.
 export interface RoomSkinModule {
+  hidePet?: boolean;
+  hideOfficeProps?: boolean;
   vars(mode: ThemeMode): Record<string, string>;
   Walls?: () => ReactElement;
   Props?: () => ReactElement;
@@ -18,6 +20,8 @@ export interface RoomSkinModule {
 export const ROOM_SKIN_MODULES: Record<RoomSkin, RoomSkinModule> = {
   office: { vars: () => ({}) },
   hospital: {
+    hidePet: true,
+    hideOfficeProps: true,
     vars: hospitalSceneVars,
     Walls: HospitalWalls,
     Props: HospitalProps,

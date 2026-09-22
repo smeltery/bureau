@@ -1,5 +1,7 @@
+import type { ReactElement } from "react";
 import { useTheme } from "../../../store.tsx";
 import { hospitalColors, type HospitalColors } from "./palette.ts";
+import { BedsideCabinet } from "./decorations.tsx";
 
 // --- Floor props -----------------------------------------------------------
 
@@ -17,7 +19,7 @@ const FOOT_RAIL = 16;
 // desks draw after this layer, so overlap paints over the bed. layout.test.ts
 // holds the numbers.
 export const PLACEMENT = {
-  curtain: { x: 384, y: 362 },
+  cabinet: { x: 384, y: 362 },
   bedFar: { x: 300, y: 400 },
   ivStand: { x: 246, y: 432 },
   bedNear: { x: 180, y: 460 },
@@ -61,6 +63,9 @@ function Bed({ at, c }: { at: { x: number; y: number }; c: HospitalColors }) {
     <g aria-hidden="true">
       {/* Contact shadow */}
       <ellipse cx={at.x} cy={at.y + 4} rx="48" ry="24" fill={c.shadow} filter="url(#hospital-soft)" />
+      {/* The rear head castor and post are behind the mattress and pillow. */}
+      <ellipse cx={farHead.x} cy={farHead.y - 2} rx="3" ry="1.8" fill={c.metalShade} />
+      <rect x={farHead.x - 1.8} y={farHead.y - BED_H - HEAD_RAIL} width="3.6" height={HEAD_RAIL + BED_H} rx="1.4" fill={c.metalShade} />
       {/* The two faces of the frame that face the viewer */}
       <path d={`M${nearFoot.x} ${nearFoot.y} L${nearHead.x} ${nearHead.y} L${nearHead.x} ${nearHead.y - BED_H} L${nearFoot.x} ${nearFoot.y - BED_H} Z`} fill={c.frameShade} />
       <path d={`M${nearFoot.x} ${nearFoot.y} L${farFoot.x} ${farFoot.y} L${farFoot.x} ${farFoot.y - BED_H} L${nearFoot.x} ${nearFoot.y - BED_H} Z`} fill={c.frame} />
@@ -87,7 +92,7 @@ function Bed({ at, c }: { at: { x: number; y: number }; c: HospitalColors }) {
         return (
           <g key={u}>
             <rect x={a.x - 2} y={a.y - BED_H - h} width="4" height={h + BED_H} rx="1.6" fill={c.metal} />
-            <rect x={b.x - 2} y={b.y - BED_H - h} width="4" height={h + BED_H} rx="1.6" fill={c.metalShade} />
+            {u === 1 && <rect x={b.x - 2} y={b.y - BED_H - h} width="4" height={h + BED_H} rx="1.6" fill={c.metalShade} />}
             {[0, 0.42, 0.84].map((t) => (
               <path key={t} d={`M${a.x} ${a.y - BED_H - h + t * h} L${b.x} ${b.y - BED_H - h + t * h}`} stroke={c.metal} strokeWidth="2.6" strokeLinecap="round" fill="none" />
             ))}
@@ -97,7 +102,7 @@ function Bed({ at, c }: { at: { x: number; y: number }; c: HospitalColors }) {
         );
       })}
       {/* Castors */}
-      {[nearFoot, farFoot, nearHead, farHead].map((p, i) => (
+      {[nearFoot, farFoot, nearHead].map((p, i) => (
         <ellipse key={i} cx={p.x} cy={p.y - 2} rx="3.4" ry="2" fill={c.metalShade} />
       ))}
     </g>
@@ -168,6 +173,15 @@ function Curtain({ at, c }: { at: { x: number; y: number }; c: HospitalColors })
   );
 }
 
+/** What stands at each place in PLACEMENT. The object order is the draw order. */
+export const FURNITURE: Record<keyof typeof PLACEMENT | "curtain", (props: { at: { x: number; y: number }; c: HospitalColors }) => ReactElement> = {
+  curtain: Curtain,
+  cabinet: BedsideCabinet,
+  bedFar: Bed,
+  ivStand: IvStand,
+  bedNear: Bed,
+};
+
 export function HospitalProps() {
   const { mode } = useTheme();
   const c = hospitalColors(mode);
@@ -178,12 +192,10 @@ export function HospitalProps() {
           <feGaussianBlur stdDeviation="3.2" />
         </filter>
       </defs>
-      {/* Drawn back to front: the far bed and its furniture first, then the
-          bed nearer the viewer. */}
-      <Curtain at={PLACEMENT.curtain} c={c} />
-      <Bed at={PLACEMENT.bedFar} c={c} />
-      <IvStand at={PLACEMENT.ivStand} c={c} />
-      <Bed at={PLACEMENT.bedNear} c={c} />
+      {Object.entries(PLACEMENT).map(([spot, at]) => {
+        const Piece = FURNITURE[spot as keyof typeof PLACEMENT];
+        return <Piece key={spot} at={at} c={c} />;
+      })}
     </g>
   );
 }
