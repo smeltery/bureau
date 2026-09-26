@@ -98,7 +98,14 @@ export type NormalizedEvent =
   // quote a command or a rule the user typed, and a quoted `401` is not a
   // sign-in problem. Set it ONLY for text Bureau composed — never for
   // anything relayed from a backend.
-  | { kind: "system_text"; text: string; bureauAuthored?: true }
+  | {
+      kind: "system_text";
+      text: string;
+      bureauAuthored?: true;
+      // Claude SDK assistant error `oauth_org_not_allowed`: a signed-in
+      // account exists, but Claude Code access is unavailable for it.
+      claudeAccessDenied?: true;
+    }
   | {
       kind: "task_lifecycle";
       phase: "started" | "completed" | "failed" | "stopped";

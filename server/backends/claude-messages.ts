@@ -51,9 +51,18 @@ export function normalizeClaudeMessage(msg: SDKMessage, agentId: string): Normal
       const content = message?.content;
       if (!Array.isArray(content)) return [];
       const isSynthetic = message?.model === "<synthetic>";
+      const claudeAccessDenied = isSynthetic && (msg as any).error === "oauth_org_not_allowed";
       const subagent = subagentOriginOf(msg as any);
       return content.flatMap((block: any): NormalizedEvent[] => {
-        if (block.type === "text" && block.text) return [{ kind: isSynthetic ? "system_text" : "assistant_text", text: block.text }];
+        if (block.type === "text" && block.text) {
+          return [
+            {
+              kind: isSynthetic ? "system_text" : "assistant_text",
+              text: block.text,
+              ...(claudeAccessDenied ? { claudeAccessDenied: true as const } : {}),
+            },
+          ];
+        }
         if (block.type === "tool_use") return [{ kind: "tool_call", toolUseId: block.id, name: block.name, input: block.input ?? {}, ...(subagent ? { subagent } : {}) }];
         if (block.type === "thinking" && block.thinking) return [{ kind: "thinking", text: block.thinking }];
         return [];

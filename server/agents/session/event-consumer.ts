@@ -149,6 +149,13 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       // Bureau-authored breadcrumbs skip the auth sniff: they quote commands
       // and rules (a command containing `401` is not a sign-in problem), and
       // being ours they can never BE a provider auth notice.
+      if (ev.claudeAccessDenied && managed?.info.agentType === "claude") {
+        emitEphemeralLog(agentId, "system", "Claude Code access is not available for this account. Check its subscription, or sign in with another account.", {
+          providerLogin: "claude",
+          openConnections: true,
+        });
+        break;
+      }
       if (!ev.bureauAuthored && isAuthErrorForAgent(managed, ev.text)) {
         emitLoginInstructionsImpl(agentId, managed);
         break;

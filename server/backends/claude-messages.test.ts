@@ -227,4 +227,26 @@ describe("TaskBreadcrumbTracker", () => {
       },
     ]);
   });
+
+  test("marks Claude Code account access denials from synthetic assistant errors", () => {
+    expect(
+      normalizeClaudeMessage(
+        {
+          type: "assistant",
+          error: "oauth_org_not_allowed",
+          message: {
+            model: "<synthetic>",
+            content: [{ type: "text", text: "Your organization has disabled Claude subscription access." }],
+          },
+        } as any,
+        "agent-1",
+      ),
+    ).toEqual([
+      {
+        kind: "system_text",
+        text: "Your organization has disabled Claude subscription access.",
+        claudeAccessDenied: true,
+      },
+    ]);
+  });
 });

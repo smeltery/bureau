@@ -98,6 +98,24 @@ describe("runConsumer", () => {
     expect(logCache.get(agentId)?.map((entry) => entry.content)).toEqual([text]);
   });
 
+  test("shows Claude login card for typed account access denials", async () => {
+    const agentId = `event-consumer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const rawDeniedText = "Your organization has disabled Claude subscription access.";
+    const session = eventSession([{ kind: "system_text", text: rawDeniedText, claudeAccessDenied: true }]);
+    const managed = createManagedAgent({ info: agentInfo(agentId, "claude"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+    managed.session = session;
+    agents.set(agentId, managed);
+
+    await runConsumer(agentId, managed, session);
+
+    const entries = logCache.get(agentId) ?? [];
+    expect(entries.some((entry) => entry.content === rawDeniedText)).toBe(false);
+    const system = entries.find((entry) => entry.kind === "system");
+    expect(system?.content).toContain("Claude Code access is not available");
+    expect(system?.metadata?.providerLogin).toBe("claude");
+    expect(system?.metadata?.openConnections).toBe(true);
+  });
+
   test("does not let late activity restore a busy state after a turn ends", async () => {
     const agentId = `event-consumer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const session = eventSession([
