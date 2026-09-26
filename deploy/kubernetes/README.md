@@ -1,7 +1,7 @@
 # Bureau on Kubernetes
 
 Setup steps live in the docs:
-[Set up Bureau on Kubernetes (EKS)](../..docs/contributing/hosting/kubernetes.md.md). This
+[Set up Bureau on Kubernetes (EKS)](../../docs/contributing/hosting/kubernetes.md). This
 directory is the reference Kustomize base that guide uses. The design is in
 [internal-docs/kubernetes-design.md](../../internal-docs/kubernetes-design.md).
 
