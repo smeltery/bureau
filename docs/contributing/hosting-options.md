@@ -1,19 +1,20 @@
 # Hosting Options
 
 Bureau can run on the machine in front of you, on a private tailnet, behind a
-public Tailscale Funnel URL, at your own domain, or on Render. Pick the smallest
-setup that matches who needs access.
+public Tailscale Funnel URL, at your own domain, on Render, or on Kubernetes.
+Pick the smallest setup that matches who needs access.
 
 ## Choose A Path
 
-| Need                                    | Recommended path                         |
-| --------------------------------------- | ---------------------------------------- |
-| Try Bureau on this computer only        | [Local](hosting/local.md)                |
-| Reach Bureau from your own devices      | [Private Tailscale](hosting/private.md)  |
-| Share a public HTTPS office without DNS | [Tailscale Funnel](hosting/funnel.md)    |
-| Use your own domain and app subdomains  | [Own domain](hosting/domain.md)          |
-| Start from a fresh public server        | [Fresh VPS](hosting/vps.md)              |
-| Avoid managing a server                 | [Render Blueprint](hosting/render.md)    |
+| Need                                    | Recommended path                        |
+| --------------------------------------- | --------------------------------------- |
+| Try Bureau on this computer only        | [Local](hosting/local.md)               |
+| Reach Bureau from your own devices      | [Private Tailscale](hosting/private.md) |
+| Share a public HTTPS office without DNS | [Tailscale Funnel](hosting/funnel.md)   |
+| Use your own domain and app subdomains  | [Own domain](hosting/domain.md)         |
+| Start from a fresh public server        | [Fresh VPS](hosting/vps.md)             |
+| Avoid managing a server                 | [Render Blueprint](hosting/render.md)   |
+| Run a release image on EKS              | [Kubernetes](hosting/kubernetes.md)     |
 
 All remote paths should start the same way: claim the office locally first,
 then enable external access in `User Settings -> Access`, set the public URL,
@@ -31,6 +32,7 @@ access, provider connection, invites, app-address notes, and operations:
 - [Own domain](hosting/domain.md)
 - [Fresh VPS](hosting/vps.md)
 - [Render](hosting/render.md)
+- [Kubernetes](hosting/kubernetes.md)
 - [Hosting reference](hosting/reference.md)
 
 ## Private Tailscale

@@ -2,6 +2,9 @@
   "default_lines": 340,
   "files": {
     "articles/punching-in-building-an-office-for-ai-agents.md": 600,
+    "deploy/container/seccomp/chromium.json": 790,
+    "deploy/container/seccomp/docker-default.json": 930,
+    "deploy/kubernetes/seccomp/bureau-chromium-v1.json": 585,
     "docs/features/multi-office-design.md": 360,
     "server/apps/__tests__/registry.test.ts": 1236,
     "server/apps/__tests__/supervisor.test.ts": 1225,

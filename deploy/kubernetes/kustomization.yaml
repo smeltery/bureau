@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Reference base for a Bureau office on EKS. Use it from an overlay that sets
+# the office host, certificate and image digest:
+# https://github.com/dotbrains/bureau/blob/master/docs/contributing/hosting/kubernetes.md
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - storageclass.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+  # Remove if node user data installs the seccomp profile instead.
+  - seccomp-installer.yaml
+configMapGenerator:
+  - name: bureau-config
+    namespace: bureau
+    literals:
+      - BUREAU_PUBLIC_URL=https://office.example.com
+  - name: bureau-seccomp
+    namespace: bureau-node-setup
+    files:
+      - seccomp/bureau-chromium-v1.json
+images:
+  - name: ghcr.io/dotbrains/bureau
+    digest: sha256:REPLACE_WITH_IMAGE_DIGEST
