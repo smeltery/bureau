@@ -8,12 +8,21 @@ import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
 import { inMultiStepFlow } from "../pending-prompt.ts";
 import { sendMessage } from "./send.ts";
-import { entriesBefore, findForkSourceSession, findOwnerSessionHint, findSdkUserMessageIndex, prefixedUserContent, topicMessageCount, userMessageOccurrenceIndex } from "./edit-helpers.ts";
+import {
+  entriesBefore,
+  findForkSourceSession,
+  findOwnerSessionHint,
+  findSdkUserMessageIndex,
+  prefixedUserContent,
+  topicMessageCount,
+  userMessageMissingBecauseTurnWasStopped,
+  userMessageOccurrenceIndex,
+} from "./edit-helpers.ts";
 
 export async function editMessage(agentId: string, logEntryId: string, newText: string, username?: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
-  if (managed.info.state !== "waiting_for_response") {
+  if (managed.info.state !== "waiting_for_response" && managed.info.state !== "stopped") {
     addLogEntry(agentId, "error", "Cannot edit while agent is busy.");
     return;
   }
@@ -114,7 +123,8 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // exclude the original message — the edited text replaces it.
     const targetIdx = findSdkUserMessageIndex(sdkMessages, prefixedContent, occurrenceIndex);
 
-    if (targetIdx === -1) {
+    const stoppedBeforeBackendRecordedMessage = targetIdx === -1 && userMessageMissingBecauseTurnWasStopped(sdkMessages, oldLogCache, logEntryId);
+    if (targetIdx === -1 && !stoppedBeforeBackendRecordedMessage) {
       // Walk the agent's on-disk sessions to find which one owns the entry,
       // so the error tells the user where the message actually lives. The
       // chat can show entries from a session that isn't the current backend
@@ -131,12 +141,12 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     //    conversation with different text, but preserving the original as branched).
     let newSessionId: string;
     let isFirstMessage = false;
-    if (targetIdx === 0) {
+    if (targetIdx === 0 || (stoppedBeforeBackendRecordedMessage && sdkMessages.length === 0)) {
       isFirstMessage = true;
       // No fork needed — we'll create a fresh session below (step 5)
       newSessionId = ""; // placeholder, set after createSession
     } else {
-      const predecessorUuid = sdkMessages[targetIdx - 1].uuid;
+      const predecessorUuid = stoppedBeforeBackendRecordedMessage ? sdkMessages[sdkMessages.length - 1]!.uuid : sdkMessages[targetIdx - 1]!.uuid;
       const forkResult = await backend.forkSessionBeforeMessage(oldSessionId, predecessorUuid, access);
       if (forkResult.kind === "fresh") {
         isFirstMessage = true;

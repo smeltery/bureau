@@ -17,6 +17,6 @@ import type { AgentInfo } from "../../../shared/types.ts";
 // which is what makes that default safe rather than optimistic.
 export function canEditMessage(agent: Pick<AgentInfo, "state" | "capabilities">, opts: { isUserMessage: boolean; alreadyEditing: boolean }): boolean {
   if (!opts.isUserMessage || opts.alreadyEditing) return false;
-  if (agent.state !== "waiting_for_response") return false;
+  if (agent.state !== "waiting_for_response" && agent.state !== "stopped") return false;
   return agent.capabilities?.fork !== false;
 }

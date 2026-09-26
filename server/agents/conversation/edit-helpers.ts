@@ -1,5 +1,6 @@
 import type { LogEntry } from "../../../shared/types.ts";
 import { stripAttachmentNotices } from "../../attachment-prompt.ts";
+import type { NormalizedMessage } from "../../backends/types.ts";
 import { listAgentSessions, loadLog, loadSessionsMap } from "../../persistence.ts";
 import { stripPluginPrefix } from "../../plugins/run-agent-turn.ts";
 
@@ -20,20 +21,49 @@ export function userMessageOccurrenceIndex(entries: LogEntry[], logEntryId: stri
   return occurrenceIndex;
 }
 
-export function findSdkUserMessageIndex(sdkMessages: any[], prefixedContent: string, occurrenceIndex: number): number {
+export function normalizedUserText(message: NormalizedMessage): string {
+  return stripAttachmentNotices(stripPluginPrefix(message.text));
+}
+
+export function findSdkUserMessageIndex(sdkMessages: NormalizedMessage[], prefixedContent: string, occurrenceIndex: number): number {
   let matchCount = 0;
   for (let i = 0; i < sdkMessages.length; i++) {
     const message = sdkMessages[i];
-    if (message.type !== "user") continue;
+    if (message.role !== "user") continue;
     // stripPluginPrefix recovers sdkText from beforeTurn/context envelopes;
     // stripAttachmentNotices recovers it from trailing attachment notice
     // blocks that backends flatten onto user text with no separator.
-    if (stripAttachmentNotices(stripPluginPrefix(sdkTextContent(message.message))) === prefixedContent) {
+    if (normalizedUserText(message) === prefixedContent) {
       if (matchCount === occurrenceIndex) return i;
       matchCount++;
     }
   }
   return -1;
+}
+
+export function userMessageMissingBecauseTurnWasStopped(sdkMessages: NormalizedMessage[], entries: LogEntry[], logEntryId: string): boolean {
+  const logUsers = entries.filter((entry) => entry.kind === "user_message" && !entry.ephemeral).map((entry) => ({ id: entry.id, text: prefixedUserContent(entry) }));
+  const targetLogIndex = logUsers.findIndex((entry) => entry.id === logEntryId);
+  if (targetLogIndex === -1 || targetLogIndex !== logUsers.length - 1) return false;
+
+  const backendUsers = sdkMessages.filter((message) => message.role === "user").map((message) => normalizedUserText(message));
+  if (targetLogIndex === 0) {
+    return backendUsers.every((text) => text.trim() === "");
+  }
+  const predecessorText = logUsers[targetLogIndex - 1]!.text;
+  let predecessorBackendIndex = -1;
+  let seenPredecessors = 0;
+  const wantedPredecessorOccurrence = logUsers.slice(0, targetLogIndex).filter((entry) => entry.text === predecessorText).length - 1;
+  for (let i = 0; i < backendUsers.length; i++) {
+    if (backendUsers[i] !== predecessorText) continue;
+    if (seenPredecessors === wantedPredecessorOccurrence) {
+      predecessorBackendIndex = i;
+      break;
+    }
+    seenPredecessors++;
+  }
+  if (predecessorBackendIndex === -1) return false;
+  return backendUsers.slice(predecessorBackendIndex + 1).every((text) => text.trim() === "");
 }
 
 export function entriesBefore(entries: LogEntry[], logEntryId: string): LogEntry[] {
@@ -80,12 +110,4 @@ export function findOwnerSessionHint(agentId: string, oldSessionId: string, logE
     }
   } catch {}
   return "";
-}
-
-function sdkTextContent(message: any): string {
-  const contentBlocks = Array.isArray(message?.content) ? message.content : Array.isArray(message) ? message : typeof message === "string" ? [{ type: "text", text: message }] : [];
-  return contentBlocks
-    .filter((block: any) => block.type === "text")
-    .map((block: any) => block.text)
-    .join("");
 }

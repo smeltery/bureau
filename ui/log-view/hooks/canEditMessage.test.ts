@@ -16,6 +16,10 @@ describe("canEditMessage", () => {
     expect(canEditMessage(agent(), opts)).toBe(true);
   });
 
+  test("a stopped forking agent can edit the interrupted message", () => {
+    expect(canEditMessage(agent({ state: "stopped" }), opts)).toBe(true);
+  });
+
   test("a backend that declares it cannot fork gets no edit affordance", () => {
     // The Codex backend declares fork: false, because editing is implemented as
     // a Claude SDK forkSession — offering it there is an affordance that cannot

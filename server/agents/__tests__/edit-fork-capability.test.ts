@@ -18,7 +18,7 @@ afterEach(() => {
   persistAll();
 });
 
-function install(id: string, fork: boolean): void {
+function install(id: string, fork: boolean, state: AgentInfo["state"] = "waiting_for_response"): void {
   const info: AgentInfo = {
     id,
     name: "Fork Test",
@@ -30,7 +30,7 @@ function install(id: string, fork: boolean): void {
     modelFamily: "sonnet",
     agentType: fork ? "claude" : "codex",
     capabilities: { ...DEFAULT_AGENT_CAPABILITIES, fork },
-    state: "waiting_for_response",
+    state,
     topic: null,
     topicStale: false,
     customInstructions: null,
@@ -91,5 +91,14 @@ describe("editMessage fork capability", () => {
     // It fails later (there is no real SDK session here), but never with the
     // capability refusal — which is what this test pins.
     expect(errors("agent-claude").some((e) => e.includes("does not support forking"))).toBe(false);
+  });
+
+  test("a stopped forking backend is allowed into the edit path", async () => {
+    install("agent-stopped", true, "stopped");
+    seedDurableUser("agent-stopped");
+
+    await editMessage("agent-stopped", "entry-1", "revised text");
+
+    expect(errors("agent-stopped").some((e) => e.includes("Cannot edit while agent is busy"))).toBe(false);
   });
 });
