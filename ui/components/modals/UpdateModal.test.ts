@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentInfo } from "../../../shared/types.ts";
 import type { CommitNotice } from "../../../shared/update-notice.ts";
-import { buildPlainText, countBusyAgents } from "./UpdateModal.tsx";
+import { buildPlainText, buildReleasePlainText, countBusyAgents } from "./UpdateModal.tsx";
 
 function agent(state: AgentInfo["state"]): Pick<AgentInfo, "state"> {
   return { state };
@@ -36,5 +36,27 @@ describe("UpdateModal helpers", () => {
 
     expect(text).toContain("systemctl --user restart bureau");
     expect(text).toContain("sudo systemctl restart bureau");
+  });
+
+  test("copies image deployment update guidance without host restart steps", () => {
+    const text = buildReleasePlainText({
+      mode: "release",
+      updateAvailable: true,
+      current: {
+        release: null,
+        version: "abc1234abc1234abc1234abc1234abc1234abc12",
+      },
+      latest: {
+        tag: "v2026.9.26",
+        publishedAt: null,
+        url: null,
+      },
+      apply: { kind: "image", guide: "kubernetes" },
+    });
+
+    expect(text).toContain("commit abc1234");
+    expect(text).toContain("deploy the v2026.9.26 release image");
+    expect(text).toContain("docs/contributing/hosting/kubernetes.md");
+    expect(text).not.toContain("systemctl");
   });
 });

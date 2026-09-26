@@ -15,4 +15,14 @@ export interface CommitUpdateStatus {
   mainAhead: number;
 }
 
-export type UpdateStatusWire = CommitUpdateStatus;
+export type UpdateApply = { kind: "host" } | { kind: "image"; guide: "kubernetes" | "render" | "container" };
+
+export interface ReleaseUpdateStatus {
+  mode: "release";
+  updateAvailable: boolean;
+  current: { release: string | null; version: string | null };
+  latest: LatestRelease | null;
+  apply: UpdateApply;
+}
+
+export type UpdateStatusWire = CommitUpdateStatus | ReleaseUpdateStatus;

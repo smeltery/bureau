@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveReachableRelease, resolveVersionInfo, type GitRunner } from "../version.ts";
+import { resolveReachableRelease, resolveVersion, resolveVersionInfo, type GitRunner } from "../version.ts";
 
 function fakeGit(outputs: Record<string, string | Error>): GitRunner {
   return (args) => {
@@ -40,7 +40,7 @@ describe("resolveVersionInfo", () => {
     expect(info.release).toBeNull();
   });
 
-  test("falls back to unknown when git metadata is unavailable", () => {
+  test("returns null identity when git metadata is unavailable", () => {
     const missing = new Error("git unavailable");
     const info = resolveVersionInfo(
       fakeGit({
@@ -51,9 +51,31 @@ describe("resolveVersionInfo", () => {
     );
 
     expect(info).toEqual({
-      version: "unknown",
-      commit: "unknown",
+      version: null,
+      commit: null,
       release: null,
+    });
+  });
+
+  test("uses Render commit metadata when git metadata is unavailable", () => {
+    const missing = new Error("git unavailable");
+    const commit = "abc1234abc1234abc1234abc1234abc1234abc12";
+    const version = resolveVersion(
+      fakeGit({
+        "describe --tags --always --dirty --match v*": missing,
+        "rev-parse HEAD": missing,
+        "tag --points-at HEAD": missing,
+      }),
+      { RENDER: "true", RENDER_GIT_COMMIT: commit },
+    );
+
+    expect(version).toEqual({
+      info: {
+        version: commit,
+        commit,
+        release: null,
+      },
+      source: "image",
     });
   });
 

@@ -1,7 +1,21 @@
 import { describe, expect, test } from "bun:test";
-import { compareCalver, computeCommitStatus, latestCommitUrl, latestReleaseUrl, parseCompare, pickCompareBase, pickRelease, statusChanged } from "./update-checker.ts";
+import {
+  compareCalver,
+  computeCommitStatus,
+  computeImageLineageStatus,
+  latestCommitUrl,
+  latestReleaseUrl,
+  lineageUrl,
+  parseCompare,
+  parseLineage,
+  pickCheckerMode,
+  pickCompareBase,
+  pickRelease,
+  statusChanged,
+} from "./update-checker.ts";
 
 describe("update checker", () => {
+  const fullSha = "abc1234abc1234abc1234abc1234abc1234abc12";
   test("checks Bureau's default branch for the latest commit", () => {
     expect(latestCommitUrl()).toBe("https://api.github.com/repos/smeltery/bureau/commits/master");
   });
@@ -12,6 +26,10 @@ describe("update checker", () => {
 
   test("checks Bureau's latest release endpoint", () => {
     expect(latestReleaseUrl()).toBe("https://api.github.com/repos/smeltery/bureau/releases/latest");
+  });
+
+  test("builds tag-to-commit compare URLs for image lineage checks", () => {
+    expect(lineageUrl("owner/repo", "v2026.9.26", fullSha)).toBe(`https://api.github.com/repos/owner/repo/compare/v2026.9.26...${fullSha}?per_page=1`);
   });
 });
 
@@ -54,6 +72,31 @@ describe("release-aware update decisions", () => {
   test("malformed compare responses are transient, not no-drift", () => {
     expect(parseCompare({ ahead_by: 1, behind_by: 0 })).toEqual({ aheadBy: 1, behindBy: 0 });
     expect(parseCompare({ ahead_by: "1", behind_by: 0 })).toBeNull();
+  });
+
+  test("maps GitHub compare statuses for image deployments", () => {
+    expect(parseLineage({ status: "behind" })).toBe("behind");
+    expect(parseLineage({ status: "identical" })).toBe("contained");
+    expect(parseLineage({ status: "ahead" })).toBe("contained");
+    expect(parseLineage({ status: "diverged" })).toBe("unrelated");
+    expect(parseLineage({ status: "unexpected" })).toBeNull();
+  });
+
+  test("uses image release status only when an image is behind upstream", () => {
+    const latest = { tag: "v2026.7.24", publishedAt: null, url: null };
+    const current = { release: null, version: sha };
+    const apply = { kind: "image", guide: "kubernetes" } as const;
+
+    expect(computeImageLineageStatus(current, latest, "behind", apply).updateAvailable).toBe(true);
+    expect(computeImageLineageStatus(current, latest, "contained", apply).updateAvailable).toBe(false);
+    expect(computeImageLineageStatus(current, latest, "unrelated", apply).updateAvailable).toBe(false);
+  });
+
+  test("picks image update guides from the deployment environment", () => {
+    expect(pickCheckerMode("git", {})).toEqual({ kind: "commit" });
+    expect(pickCheckerMode("image", { KUBERNETES_SERVICE_HOST: "10.0.0.1" })).toEqual({ kind: "image", apply: { kind: "image", guide: "kubernetes" } });
+    expect(pickCheckerMode("image", { RENDER: "true" })).toEqual({ kind: "image", apply: { kind: "image", guide: "render" } });
+    expect(pickCheckerMode("image", {})).toEqual({ kind: "image", apply: { kind: "image", guide: "container" } });
   });
 
   test("rebroadcasts any material payload change", () => {

@@ -1,11 +1,14 @@
-import type { LatestRelease, UpdateStatusWire } from "../shared/update-types.ts";
-import { CALVER_TAG, getReachableRelease, getVersionInfo } from "./version.ts";
+import type { CommitUpdateStatus, LatestRelease, UpdateApply, UpdateStatusWire } from "../shared/update-types.ts";
+import { CALVER_TAG, getReachableRelease, getVersionInfo, getVersionSource, type VersionSource } from "./version.ts";
 
 const REPO = "smeltery/bureau";
 const DEFAULT_BRANCH = "master";
 const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
+const HOST_APPLY: UpdateApply = { kind: "host" };
 
 type CompareResult = { aheadBy: number; behindBy: number } | "unknown";
+export type Lineage = "behind" | "contained" | "unrelated";
+export type CheckerMode = { kind: "commit" } | { kind: "image"; apply: UpdateApply };
 
 let status: UpdateStatusWire = {
   mode: "commit",
@@ -28,6 +31,10 @@ export function latestReleaseUrl(repo = REPO): string {
 
 export function compareUrl(repo = REPO, base: string, branch = DEFAULT_BRANCH): string {
   return `https://api.github.com/repos/${repo}/compare/${encodeURIComponent(base)}...heads/${branch}?per_page=1`;
+}
+
+export function lineageUrl(repo = REPO, tag: string, sha: string): string {
+  return `https://api.github.com/repos/${repo}/compare/${encodeURIComponent(tag)}...${encodeURIComponent(sha)}?per_page=1`;
 }
 
 export function compareCalver(a: string, b: string): number {
@@ -65,6 +72,15 @@ export function parseCompare(data: unknown): { aheadBy: number; behindBy: number
   return { aheadBy: body.ahead_by, behindBy: body.behind_by };
 }
 
+export function parseLineage(data: unknown): Lineage | null {
+  if (typeof data !== "object" || data === null) return null;
+  const status = (data as { status?: unknown }).status;
+  if (status === "behind") return "behind";
+  if (status === "identical" || status === "ahead") return "contained";
+  if (status === "diverged") return "unrelated";
+  return null;
+}
+
 export function pickCompareBase(tagAtHead: string | null, latestTag: string | null, sha: string): string {
   if (!tagAtHead) return sha;
   if (latestTag && compareCalver(latestTag, tagAtHead) > 0) return latestTag;
@@ -76,8 +92,8 @@ export function computeCommitStatus(
   reachable: string | null,
   latest: { tag: string; url: string | null } | null,
   compare: CompareResult,
-): UpdateStatusWire {
-  let releaseStanding: UpdateStatusWire["releaseStanding"] = "unknown";
+): CommitUpdateStatus {
+  let releaseStanding: CommitUpdateStatus["releaseStanding"] = "unknown";
   if (latest) {
     const anchor = current.release ?? reachable;
     if (current.release && compareCalver(current.release, latest.tag) === 0) {
@@ -97,6 +113,31 @@ export function computeCommitStatus(
     latest,
     releaseStanding,
     mainAhead,
+  };
+}
+
+export function computeReleaseStatus(current: { release: string | null; version: string | null }, latest: LatestRelease | null, apply: UpdateApply = HOST_APPLY): UpdateStatusWire {
+  return {
+    mode: "release",
+    updateAvailable: latest !== null && current.release !== latest.tag,
+    current,
+    latest,
+    apply,
+  };
+}
+
+export function computeImageLineageStatus(
+  current: { release: string | null; version: string | null },
+  latest: LatestRelease | null,
+  latestLineage: Lineage | null,
+  apply: UpdateApply,
+): UpdateStatusWire {
+  return {
+    mode: "release",
+    updateAvailable: latest !== null && latestLineage === "behind",
+    current,
+    latest,
+    apply,
   };
 }
 
@@ -132,6 +173,20 @@ async function fetchCompare(base: string): Promise<CompareResult | null> {
   }
 }
 
+async function fetchLineage(tag: string, sha: string): Promise<Lineage | null> {
+  try {
+    const res = await fetch(lineageUrl(REPO, tag, sha), {
+      headers: { Accept: "application/vnd.github.v3+json" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 404) return "unrelated";
+    if (!res.ok) return null;
+    return parseLineage(await res.json());
+  } catch {
+    return null;
+  }
+}
+
 function publish(next: UpdateStatusWire): void {
   const changed = statusChanged(status, next);
   status = next;
@@ -149,6 +204,27 @@ async function check() {
   publish(computeCommitStatus({ release: current.release, sha: current.commit }, getReachableRelease(), latest, compare));
 }
 
+async function checkImage(apply: UpdateApply) {
+  const current = getVersionInfo();
+  const fetched = await fetchLatestRelease();
+  if (fetched === null) return;
+  const latest = fetched === "none" ? null : fetched;
+  if (current.release) {
+    publish(computeReleaseStatus({ release: current.release, version: current.version }, latest, apply));
+    return;
+  }
+  if (!current.commit) return;
+  const lineage = latest ? await fetchLineage(latest.tag, current.commit) : null;
+  if (latest && lineage === null) return;
+  publish(computeImageLineageStatus({ release: current.release, version: current.version }, latest, lineage, apply));
+}
+
+export function pickCheckerMode(source: VersionSource, env: Record<string, string | undefined>): CheckerMode {
+  if (source !== "image") return { kind: "commit" };
+  const guide = env.KUBERNETES_SERVICE_HOST ? "kubernetes" : env.RENDER === "true" ? "render" : "container";
+  return { kind: "image", apply: { kind: "image", guide } };
+}
+
 export function getUpdateStatus(): UpdateStatusWire {
   return status;
 }
@@ -158,6 +234,14 @@ export function onUpdateChange(cb: (s: UpdateStatusWire) => void) {
 }
 
 export function startUpdateChecker() {
-  setTimeout(() => check(), 5000);
-  setInterval(() => check(), CHECK_INTERVAL);
+  const mode = pickCheckerMode(getVersionSource(), process.env);
+  let run = () => void check();
+  if (mode.kind === "image") {
+    const current = getVersionInfo();
+    const apply = mode.apply;
+    status = computeReleaseStatus({ release: current.release, version: current.version }, null, apply);
+    run = () => void checkImage(apply);
+  }
+  setTimeout(run, 5000);
+  setInterval(run, CHECK_INTERVAL);
 }
