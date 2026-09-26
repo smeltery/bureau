@@ -69,6 +69,6 @@ describe("slideModelFamily", () => {
   });
 
   it("pins OpenCode agents to a cheap provider/model", () => {
-    expect(slideModelFamily("opencode")).toBe("opencode/gpt-5-nano");
+    expect(slideModelFamily("opencode")).toBe("opencode/nemotron-3-ultra-free");
   });
 });

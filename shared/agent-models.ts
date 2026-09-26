@@ -121,6 +121,7 @@ export const CODEX_MODELS: { value: string; label: string }[] = [
 // OpenCode model identifiers (provider/model). Live /provider discovery can
 // replace this list when the local `opencode` serve is reachable.
 export const OPENCODE_MODELS: { value: string; label: string }[] = [
+  { value: "opencode/nemotron-3-ultra-free", label: "Nemotron 3 Ultra (free)" },
   { value: "opencode/gpt-5-nano", label: "GPT-5 Nano (OpenCode)" },
   { value: "opencode/claude-sonnet-4", label: "Claude Sonnet 4 (OpenCode)" },
   { value: "opencode/gemini-2.5-flash", label: "Gemini 2.5 Flash (OpenCode)" },

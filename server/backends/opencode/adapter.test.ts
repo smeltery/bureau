@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { getBackend } from "../index.ts";
 import type { CreateSessionOptions, NormalizedEvent } from "../types.ts";
 import { createOpenCodeBackend } from "./adapter.ts";
-import { OPENCODE_AUTH_FAILURE, CAPABILITIES, MODEL_OPTIONS, permissionAgent } from "./config.ts";
+import { OPENCODE_AUTH_FAILURE, CAPABILITIES, DEFAULT_OPENCODE_MODEL, MODEL_OPTIONS, permissionAgent } from "./config.ts";
 import type { OpenCodeLease, OpenCodeSupervisor } from "./supervisor.ts";
 
 const cleanup: Array<() => void | Promise<void>> = [];
@@ -14,7 +14,7 @@ const opts: CreateSessionOptions = {
   agentId: "agent-opencode-test",
   cwd: "/tmp",
   systemPrompt: "test",
-  modelFamily: "opencode/gpt-5-nano",
+  modelFamily: DEFAULT_OPENCODE_MODEL,
   effort: "high",
   permissionMode: "default",
 };
@@ -130,6 +130,8 @@ describe("createOpenCodeBackend", () => {
     });
     const models = await backend.listModels({ cwd: "/tmp" });
     expect(models.map((m) => m.id)).toEqual(MODEL_OPTIONS.map((m) => m.value));
+    expect(models[0].id).toBe(DEFAULT_OPENCODE_MODEL);
+    expect(models[0].label).toContain("free");
   });
 
   it("createSession emits system_init with the OpenCode session id", async () => {
@@ -141,7 +143,7 @@ describe("createOpenCodeBackend", () => {
     const initPromise = takeInit(session.stream());
     await session.send("hi");
     const init = await initPromise;
-    expect(init).toMatchObject({ kind: "system_init", sessionId: "sess-mock-1", model: "opencode/gpt-5-nano" });
+    expect(init).toMatchObject({ kind: "system_init", sessionId: "sess-mock-1", model: DEFAULT_OPENCODE_MODEL });
     session.close();
   });
 });

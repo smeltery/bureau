@@ -15,7 +15,7 @@ import { slideContentDigest, type DeckTurn } from "../../shared/slide-turns.ts";
 // terra. Same rule as topic generation, which also lets the backend map the
 // family to an exact model (FAMILY_TO_MODEL for Claude).
 export const SLIDE_CODEX_MODEL_FAMILY = "gpt-5.6-terra";
-export const SLIDE_OPENCODE_MODEL = "opencode/gpt-5-nano";
+export const SLIDE_OPENCODE_MODEL = "opencode/nemotron-3-ultra-free";
 
 export function slideModelFamily(agentType: AgentBackendType): string {
   if (agentType === "claude") return "sonnet";
