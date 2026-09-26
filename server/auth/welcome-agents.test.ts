@@ -14,4 +14,16 @@ describe("seedWelcomeAgents", () => {
     expect(agents.size).toBe(1);
     expect(agents.has("existing")).toBe(true);
   });
+
+  test("seeds Claude, Codex, and free OpenCode welcome agents", async () => {
+    await seedWelcomeAgents("Boss");
+
+    const seeded = [...agents.values()].map((agent) => agent.info);
+    expect(seeded.map((agent) => agent.name).sort()).toEqual(["Claude Welcome Agent", "Codex Welcome Agent", "Free Welcome Agent"]);
+    expect(seeded.find((agent) => agent.name === "Free Welcome Agent")).toMatchObject({
+      agentType: "opencode",
+      modelFamily: "opencode/nemotron-3-ultra-free",
+      permissionMode: "bypassPermissions",
+    });
+  });
 });
