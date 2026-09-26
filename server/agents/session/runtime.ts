@@ -167,8 +167,9 @@ export async function replaceSession(agentId: string, managed: ManagedAgent, new
 export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   // Drop any pending permission prompt from a prior (now-closed) session so the
   // next user message isn't swallowed by a dead request.
-  if (managed.pendingPermission) {
+  if (managed.pendingPermission || (managed.queuedPermissions?.length ?? 0) > 0) {
     managed.pendingPermission = null;
+    managed.queuedPermissions = [];
     syncPendingPrompt(managed.info.id, managed);
   }
   armMemoryNotice(managed);

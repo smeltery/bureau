@@ -11,6 +11,7 @@ function canReleaseIdleSession(managed: ManagedAgent): boolean {
     !managed.abortPromise &&
     !managed.flushInProgress &&
     !managed.pendingPermission &&
+    (managed.queuedPermissions?.length ?? 0) === 0 &&
     !managed.pendingResume &&
     !managed.pendingModelPick &&
     !managed.pendingEffortPick &&

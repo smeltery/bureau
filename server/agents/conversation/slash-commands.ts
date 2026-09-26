@@ -81,7 +81,14 @@ async function executeSkill(agentId: string, managed: ManagedAgent, skillPrompt:
   // /bureau-diff, but wrong for skills that actually run the model.
   // Multi-step pending flows still take the immediate path: the user's
   // reply during /resume etc. is a pick, not a skill.
-  const inMultiStep = !!(managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick || managed.pendingCronjobPick);
+  const inMultiStep = !!(
+    managed.pendingPermission ||
+    (managed.queuedPermissions?.length ?? 0) > 0 ||
+    managed.pendingResume ||
+    managed.pendingModelPick ||
+    managed.pendingEffortPick ||
+    managed.pendingCronjobPick
+  );
   if (isAgentBusy(managed.info.state) && !inMultiStep) {
     const result = enqueueMessage(agentId, {
       sender: { kind: "user", username },

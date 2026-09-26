@@ -4,7 +4,7 @@ import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/type
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { createManagedAgent } from "../managed-factory.ts";
 import { agents, logCache } from "../state.ts";
-import { runConsumer } from "./event-consumer.ts";
+import { runConsumer, showNextPermissionPrompt } from "./event-consumer.ts";
 
 afterEach(() => {
   agents.clear();
@@ -116,5 +116,27 @@ describe("runConsumer", () => {
     expect(managed.turnStartedAt).toBe(0);
     expect(managed.info.state).toBe("waiting_for_response");
     expect(logCache.get(agentId)?.map((entry) => entry.kind)).toEqual(["tool_call", "text"]);
+  });
+
+  test("queues concurrent approval prompts and opens them FIFO", async () => {
+    const agentId = `event-consumer-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const session = eventSession([
+      { kind: "approval_request", approvalId: "approval-1", toolName: "Bash", input: { command: "date" } },
+      { kind: "approval_request", approvalId: "approval-2", toolName: "Bash", input: { command: "pwd" } },
+    ]);
+    const managed = createManagedAgent({ info: agentInfo(agentId), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+    managed.session = session;
+    agents.set(agentId, managed);
+
+    await runConsumer(agentId, managed, session);
+
+    expect(managed.pendingPermission?.approvalId).toBe("approval-1");
+    expect(managed.queuedPermissions.map((queued) => queued.event.approvalId)).toEqual(["approval-2"]);
+
+    managed.pendingPermission = null;
+    showNextPermissionPrompt(agentId, managed);
+
+    expect((managed.pendingPermission as { approvalId: string } | null)?.approvalId).toBe("approval-2");
+    expect(managed.queuedPermissions).toEqual([]);
   });
 });

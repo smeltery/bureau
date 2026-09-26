@@ -45,6 +45,7 @@ export async function kill(agentId: string) {
   if (managed.pendingPermission) {
     managed.pendingPermission = null;
   }
+  managed.queuedPermissions = [];
   const turn = managed.pendingTurn;
   managed.pendingTurn = null;
   if (turn) {

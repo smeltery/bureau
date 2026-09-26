@@ -55,6 +55,10 @@ function steerRateLimited(managed: ManagedAgent): boolean {
   return managed.recentSteers.length >= STEER_RATE_LIMIT;
 }
 
+function hasPendingFlow(managed: ManagedAgent): boolean {
+  return !!(managed.pendingPermission || (managed.queuedPermissions?.length ?? 0) > 0 || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick || managed.pendingCronjobPick);
+}
+
 export function enqueueMessage(
   receiverId: string,
   msg: { sender: QueuedSender; text: string; clientMessageId?: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean; handoff?: boolean },
@@ -85,8 +89,7 @@ export function enqueueMessage(
     return { ok: false, error: `queue full (limit ${QUEUE_MAX})`, status: 429 };
   }
   const id = generateQueuedId(managed.messageQueue);
-  const canFlushNow =
-    state !== "error" && !isAgentBusy(state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick && !managed.pendingEffortPick && !managed.pendingCronjobPick;
+  const canFlushNow = state !== "error" && !isAgentBusy(state) && !hasPendingFlow(managed);
   managed.messageQueue.push({
     id,
     sender: msg.sender,
@@ -129,7 +132,7 @@ export function enqueueMessage(
     // is told which one fired) rather than failing the send. Multi-step first:
     // aborting an agent that is answering a pick would end its turn and still
     // not deliver, since flushQueue declines to run there.
-    if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick || managed.pendingCronjobPick) {
+    if (hasPendingFlow(managed)) {
       return { ok: true, queued: true, messageId: id, steered: false, steerDeclined: "multi_step_flow" };
     }
     if (steerRateLimited(managed)) {
@@ -199,7 +202,7 @@ export async function flushQueue(agentId: string): Promise<void> {
   if (managed.messageQueue.length === 0) return;
   if (managed.info.state === "error" || managed.info.state === "stopped") return;
   if (isAgentBusy(managed.info.state)) return;
-  if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick || managed.pendingCronjobPick) return;
+  if (hasPendingFlow(managed)) return;
   if (managed.abortPromise) {
     try {
       await managed.abortPromise;
@@ -217,7 +220,7 @@ export async function flushQueue(agentId: string): Promise<void> {
       if (!agents.has(agentId)) return;
       if (managed.messageQueue.length === 0) return;
       if (isAgentBusy(managed.info.state)) return;
-      if (managed.pendingPermission || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick || managed.pendingCronjobPick) return;
+      if (hasPendingFlow(managed)) return;
     }
     if (!managed.session) {
       const tail = (logCache.get(agentId) ?? []).at(-1);
@@ -306,17 +309,7 @@ export async function flushQueue(agentId: string): Promise<void> {
   } finally {
     managed.flushInProgress = false;
     const stateAfterFlush = managed.info.state as AgentState;
-    if (
-      managed.messageQueue.length > 0 &&
-      stateAfterFlush !== "error" &&
-      stateAfterFlush !== "stopped" &&
-      !isAgentBusy(stateAfterFlush) &&
-      !managed.pendingPermission &&
-      !managed.pendingResume &&
-      !managed.pendingModelPick &&
-      !managed.pendingEffortPick &&
-      !managed.pendingCronjobPick
-    ) {
+    if (managed.messageQueue.length > 0 && stateAfterFlush !== "error" && stateAfterFlush !== "stopped" && !isAgentBusy(stateAfterFlush) && !hasPendingFlow(managed)) {
       flushQueue(agentId).catch((err: any) => {
         console.error(`flushQueue (post-flush retry) failed for ${agentId}:`, err.message);
       });

@@ -36,6 +36,7 @@ describe("pendingPromptOf", () => {
 
   test("maps pending flags to prompt kinds in priority order", () => {
     expect(pendingPromptOf(agentWith({ pendingPermission: { approvalId: "a", toolName: "Bash" } }))).toBe("permission");
+    expect(pendingPromptOf(agentWith({ queuedPermissions: [{ event: { kind: "approval_request", approvalId: "b", toolName: "Bash", input: {} }, session: null }] }))).toBe("permission");
     expect(pendingPromptOf(agentWith({ pendingResume: true }))).toBe("resume");
     expect(pendingPromptOf(agentWith({ pendingModelPick: true }))).toBe("model");
     expect(pendingPromptOf(agentWith({ pendingEffortPick: true }))).toBe("effort");

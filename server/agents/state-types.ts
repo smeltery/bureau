@@ -1,5 +1,5 @@
 import type { AgentInfo, AgentSubscriptionUsage, ExperimentalSettings, KilledAgentSummary, LogEntry, RoomPet, RoomWire, SkillInfo, SlideFailureReason, SlideRecord } from "../../shared/types.ts";
-import type { BackendSession } from "../backends/types.ts";
+import type { BackendSession, NormalizedEvent } from "../backends/types.ts";
 
 // Internal agent state
 export interface ManagedAgent {
@@ -91,6 +91,10 @@ export interface ManagedAgent {
     // treated as any other unrecognized text (deny with that as the reason).
     allowPrefixLabel?: string;
   } | null;
+  queuedPermissions: {
+    event: Extract<NormalizedEvent, { kind: "approval_request" }>;
+    session: BackendSession | null;
+  }[];
   // Terminal PTY sidecar (spawned on demand via Node.js)
   ptySidecar: import("bun").Subprocess | null;
   ptyBuffer: string; // buffered output for reconnecting browsers

@@ -10,6 +10,7 @@ import { handleSlashCommand } from "./slash-commands.ts";
 import { enqueueUserMessage, QUEUE_MAX } from "./message-queue.ts";
 import { handlePendingCronjobPick, handlePendingEffortPick, handlePendingModelPick } from "./pending-picks.ts";
 import { resolvePermissionReply } from "./permission-reply.ts";
+import { showNextPermissionPrompt } from "../session/event-consumer.ts";
 
 export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[], userId?: string | null) {
   const managed = agents.get(agentId);
@@ -17,7 +18,15 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   // Queue the message if the agent is busy. Multi-step prompts (pendingResume
   // / model pick / permission) bypass the queue: the boss expects their input
   // to flow into the prompt immediately.
-  if (isAgentBusy(managed.info.state) && !managed.pendingPermission && !managed.pendingResume && !managed.pendingModelPick && !managed.pendingEffortPick && !managed.pendingCronjobPick) {
+  if (
+    isAgentBusy(managed.info.state) &&
+    !managed.pendingPermission &&
+    (managed.queuedPermissions?.length ?? 0) === 0 &&
+    !managed.pendingResume &&
+    !managed.pendingModelPick &&
+    !managed.pendingEffortPick &&
+    !managed.pendingCronjobPick
+  ) {
     const queued = enqueueUserMessage(agentId, managed, text, username, attachments);
     if (!queued) {
       addLogEntry(agentId, "error", `Message queue is full (limit ${QUEUE_MAX}). Try again after the agent finishes.`);
@@ -106,6 +115,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       emitEphemeralLog(agentId, "error", `Failed to resolve permission: ${err?.message ?? String(err)}`);
       updateState(agentId, "error");
     }
+    showNextPermissionPrompt(agentId, managed);
     return;
   }
 

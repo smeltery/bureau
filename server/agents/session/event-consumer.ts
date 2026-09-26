@@ -4,7 +4,7 @@ import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { ProviderCapacityError } from "../../internal-types.ts";
 import { autocompleteCommands } from "../commands.ts";
 import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
-import { addLogEntry, agents, clearLiveTurn, emit, emitEphemeralLog, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
+import { addLogEntry, agents, clearLiveTurn, emit, emitEphemeralLog, logCache, persistAll, syncPendingPrompt, updateState, type ManagedAgent } from "../state.ts";
 import { diagnoseProcessExit, emitLoginInstructions as emitLoginInstructionsImpl, emitLoginInstructionsIfAuth, isAuthErrorForAgent } from "./diagnostics.ts";
 import { backendFailureMeta, humanizeBackendFailure } from "./backend-failure-text.ts";
 import { maybeNudgeForContextUsage, refreshContextUsage } from "../context-usage.ts";
@@ -54,6 +54,43 @@ function deriveStateFromEvent(ev: NormalizedEvent): AgentState | null {
       return ev.status === "completed" ? "waiting_for_response" : null;
     default:
       return null;
+  }
+}
+
+type ApprovalRequestEvent = Extract<NormalizedEvent, { kind: "approval_request" }>;
+
+function approvalPromptLines(ev: ApprovalRequestEvent): string[] {
+  const lines = [`**${ev.title ?? `Wants to use ${ev.toolName}`}**`];
+  if (ev.description) lines.push(ev.description);
+  lines.push("", "Reply:", "  1. Allow \u2014 and don't ask again for similar calls this session", "  2. Allow \u2014 just this time", "  3. Deny");
+  if (ev.allowPrefixLabel) {
+    lines.push(`  4. Allow \u2014 and don't ask again this session for any command starting with \`${ev.allowPrefixLabel}\``);
+    if (ev.allowPrefixExample) {
+      lines.push(`     Reply \`4 <prefix>\` to choose how much to allow, e.g. \`4 ${ev.allowPrefixExample}\`.`);
+    }
+  }
+  lines.push("", "Or type any other message to deny with that as the reason.");
+  return lines;
+}
+
+export function showPermissionPrompt(agentId: string, managed: ManagedAgent, ev: ApprovalRequestEvent) {
+  emitEphemeralLog(agentId, "system", approvalPromptLines(ev).join("\n"));
+  managed.pendingPermission = { approvalId: ev.approvalId, toolName: ev.toolName, ...(ev.allowPrefixLabel ? { allowPrefixLabel: ev.allowPrefixLabel } : {}) };
+  updateState(agentId, "waiting_for_response");
+}
+
+export function showNextPermissionPrompt(agentId: string, managed: ManagedAgent) {
+  if (managed.pendingPermission) return;
+  for (;;) {
+    const next = managed.queuedPermissions.shift();
+    if (!next) {
+      syncPendingPrompt(agentId, managed);
+      return;
+    }
+    if (next.session === managed.session) {
+      showPermissionPrompt(agentId, managed, next.event);
+      return;
+    }
   }
 }
 
@@ -239,34 +276,12 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
     case "approval_request": {
       const managed = agents.get(agentId);
       if (!managed) break;
-      const lines = [`**${ev.title ?? `Wants to use ${ev.toolName}`}**`];
-      if (ev.description) lines.push(ev.description);
-      lines.push("", "Reply:", "  1. Allow \u2014 and don't ask again for similar calls this session", "  2. Allow \u2014 just this time", "  3. Deny");
-      // Offered only when the backend proposed a broader rule than "this exact
-      // call" (Codex attaches one to most command approvals). Last in the list
-      // on purpose: 1/2/3 have meant the same three things since the prompt
-      // shipped, and a habitual "3" must never turn into an allow.
-      //
-      // The follow-up line matters more than it looks: codex proposes the WHOLE
-      // command as its rule, so plain "4" mostly covers re-runs with extra
-      // arguments. Typing a shorter prefix is what actually ends the "approve
-      // `rg --files <dir>` again and again" loop.
-      if (ev.allowPrefixLabel) {
-        // "any command starting with", not "this command again": the rule
-        // really does cover every later command whose first tokens match, and a
-        // suggestion can be broad on its own (`sudo`, `env`, `sh -c`). The
-        // wording has to let the user see that before they accept it.
-        lines.push(`  4. Allow \u2014 and don't ask again this session for any command starting with \`${ev.allowPrefixLabel}\``);
-        // The example comes ready-made from the backend; re-splitting the label
-        // here would be this layer guessing at command tokens.
-        if (ev.allowPrefixExample) {
-          lines.push(`     Reply \`4 <prefix>\` to choose how much to allow, e.g. \`4 ${ev.allowPrefixExample}\`.`);
-        }
+      if (managed.pendingPermission || (managed.queuedPermissions?.length ?? 0) > 0) {
+        managed.queuedPermissions.push({ event: ev, session: managed.session });
+        syncPendingPrompt(agentId, managed);
+        break;
       }
-      lines.push("", "Or type any other message to deny with that as the reason.");
-      emitEphemeralLog(agentId, "system", lines.join("\n"));
-      managed.pendingPermission = { approvalId: ev.approvalId, toolName: ev.toolName, ...(ev.allowPrefixLabel ? { allowPrefixLabel: ev.allowPrefixLabel } : {}) };
-      updateState(agentId, "waiting_for_response");
+      showPermissionPrompt(agentId, managed, ev);
       break;
     }
   }
