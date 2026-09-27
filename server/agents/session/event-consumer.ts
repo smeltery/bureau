@@ -8,6 +8,7 @@ import { addLogEntry, agents, clearLiveTurn, emit, emitEphemeralLog, logCache, p
 import { diagnoseProcessExit, emitLoginInstructions as emitLoginInstructionsImpl, emitLoginInstructionsIfAuth, isAuthErrorForAgent } from "./diagnostics.ts";
 import { backendFailureMeta, humanizeBackendFailure } from "./backend-failure-text.ts";
 import { maybeNudgeForContextUsage, refreshContextUsage } from "../context-usage.ts";
+import { drainToolBoundaryClaim } from "../conversation/boundary-delivery.ts";
 
 // Persistent consumer. Runs for the session's lifetime, iterating `stream()`
 // in a loop so events that arrive between turns (notably `task_notification`
@@ -216,6 +217,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
     }
     case "turn_completed": {
       const managed = agents.get(agentId);
+      if (managed && ev.status === "completed") drainToolBoundaryClaim(agentId, managed);
       if (managed?.sessionId && ev.usage) {
         const cumulative = accumulateSessionUsage(agentId, managed.sessionId, ev.usage, ev.cost ?? 0);
         if (managed.lastWrittenEntryId) appendSessionUsageSnapshot(agentId, managed.sessionId, managed.lastWrittenEntryId, cumulative);

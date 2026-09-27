@@ -4,6 +4,7 @@ import type { BackendSession } from "../../backends/types.ts";
 import { createManagedAgent } from "../../agents/managed-factory.ts";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import { agents, persistAll } from "../../agents/state.ts";
+import { takeToolBoundaryMessage } from "../../agents/conversation/boundary-delivery.ts";
 import { handleAgentsRequest } from "../agents.ts";
 
 afterEach(() => {
@@ -204,7 +205,7 @@ describe("agent message validation", () => {
     expect(body.steerDeclined).toBeUndefined();
   });
 
-  test("steered bearer sends interrupt the busy receiver and say so", async () => {
+  test("steered bearer sends to a busy Claude receiver wait for a tool boundary", async () => {
     const sent: string[] = [];
     const receiver = installBusyAgent("receiver-1", sent);
     installIdleAgent("sender-1");
@@ -218,9 +219,12 @@ describe("agent message validation", () => {
     expect(res?.status).toBe(200);
     expect(body.queued).toBe(false);
     expect(body.steered).toBe(true);
-    expect(receiver.messageQueue).toEqual([]);
-    expect(sent).toHaveLength(1);
-    expect(sent[0]).toContain("drop everything");
+    expect(receiver.messageQueue).toHaveLength(1);
+    expect(receiver.messageQueue[0]?.steer).toBe(true);
+    expect(sent).toHaveLength(0);
+
+    const boundaryText = takeToolBoundaryMessage("receiver-1", receiver.session);
+    expect(boundaryText).toContain("drop everything");
   });
 
   test("dedupes repeated bearer messages with the same client message id", async () => {

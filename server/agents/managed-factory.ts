@@ -54,6 +54,7 @@ export function createManagedAgent(input: {
     autoResumeInProgress: false,
     flushInProgress: false,
     recentSteers: [],
+    boundaryClaim: null,
     lastWrittenEntryId: null,
     contextNudgesSent: new Set(),
     firedUiThresholds: new Set(),

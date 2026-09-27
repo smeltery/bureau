@@ -4,6 +4,7 @@ import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/type
 import type { BackendSession } from "../../backends/types.ts";
 import { createManagedAgent } from "../managed-factory.ts";
 import { agents, logCache, persistAll, type ManagedAgent } from "../state.ts";
+import { takeToolBoundaryMessage } from "./boundary-delivery.ts";
 import { enqueueMessage, flushQueue } from "./message-queue.ts";
 
 afterEach(() => {
@@ -16,7 +17,7 @@ afterEach(() => {
   persistAll();
 });
 
-function makeAgent(id: string, session: BackendSession): ManagedAgent {
+function makeAgent(id: string, session: BackendSession, agentType: AgentInfo["agentType"] = "claude"): ManagedAgent {
   const info: AgentInfo = {
     id,
     name: "Queue Test",
@@ -34,7 +35,7 @@ function makeAgent(id: string, session: BackendSession): ManagedAgent {
     },
     permissionMode: "default",
     modelFamily: "sonnet",
-    agentType: "claude",
+    agentType,
     capabilities: DEFAULT_AGENT_CAPABILITIES,
     state: "waiting_for_response",
     topic: null,
@@ -174,6 +175,7 @@ describe("enqueueMessage steering", () => {
     const managed = makeAgent(
       "agent-1",
       fakeSession(() => {}),
+      "opencode",
     );
     managed.info.state = "error";
     managed.sessionId = null;
@@ -232,7 +234,33 @@ describe("enqueueMessage steering", () => {
     expect(sent).toHaveLength(1);
   });
 
-  test("steer interrupts a busy receiver and records the interruption", async () => {
+  test("Claude steer waits for a tool boundary without interrupting the turn", () => {
+    const managed = makeAgent(
+      "agent-1",
+      fakeSession(() => {}),
+    );
+    managed.info.state = "thinking";
+
+    const result = enqueueMessage("agent-1", { sender: peerSender, text: "urgent" }, { steer: true });
+
+    expect(result).toEqual({ ok: true, queued: false, messageId: expect.any(String), steered: true });
+    expect(managed.recentSteers).toEqual([]);
+    expect(managed.messageQueue).toHaveLength(1);
+    expect(managed.messageQueue[0]?.steer).toBe(true);
+
+    const boundaryText = takeToolBoundaryMessage("agent-1", managed.session);
+    expect(boundaryText).toContain("delivered between your tool calls");
+    expect(boundaryText).toContain("urgent");
+    expect(managed.messageQueue).toHaveLength(1);
+    expect(
+      logCache
+        .get("agent-1")
+        ?.filter((entry) => entry.kind === "user_message")
+        .map((entry) => entry.content),
+    ).toEqual(["urgent"]);
+  });
+
+  test("non-boundary steer interrupts a busy receiver and records the interruption", async () => {
     const sent: string[] = [];
     const managed = makeAgent(
       "agent-1",
@@ -240,6 +268,7 @@ describe("enqueueMessage steering", () => {
         sent.push(text);
         settleTurn(managed);
       }),
+      "opencode",
     );
     managed.info.state = "thinking";
 
@@ -257,6 +286,7 @@ describe("enqueueMessage steering", () => {
     const managed = makeAgent(
       "agent-1",
       fakeSession(() => {}),
+      "opencode",
     );
     managed.info.state = "thinking";
     managed.pendingPermission = { approvalId: "appr-1", toolName: "Bash" };
@@ -272,6 +302,7 @@ describe("enqueueMessage steering", () => {
     const managed = makeAgent(
       "agent-1",
       fakeSession(() => {}),
+      "opencode",
     );
     managed.info.state = "thinking";
     managed.recentSteers = [Date.now(), Date.now(), Date.now()];
@@ -291,6 +322,7 @@ describe("enqueueMessage steering", () => {
         sent.push(text);
         settleTurn(managed);
       }),
+      "opencode",
     );
     managed.info.state = "thinking";
     const stale = Date.now() - 61_000;

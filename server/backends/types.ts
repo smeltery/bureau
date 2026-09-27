@@ -61,6 +61,7 @@ export interface CreateSessionOptions {
   // the backend's default ("workspace-write" for Codex).
   sandbox?: string;
   env?: { [key: string]: string | undefined };
+  takeToolBoundaryMessage?: () => string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +133,7 @@ export type ForkSessionBeforeMessageResult = { kind: "fork"; sessionId: string; 
 
 export interface Backend {
   readonly capabilities: BackendCapabilities;
+  readonly toolBoundaryDelivery?: boolean;
 
   getModelOptions(): ModelOption[];
   getPermissionModes(): PermissionModeOption[];

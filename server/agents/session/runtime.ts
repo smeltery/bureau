@@ -11,6 +11,7 @@ import { buildSessionEnv } from "./session-env.ts";
 import { runConsumer } from "./event-consumer.ts";
 import { drainOnSettle } from "../../slides/generate.ts";
 import { slideMode } from "../slides.ts";
+import { takeToolBoundaryMessage } from "../conversation/boundary-delivery.ts";
 export { CLAUDE_NATIVE_BIN } from "./claude-native.ts";
 export { buildSessionEnv } from "./session-env.ts";
 
@@ -229,6 +230,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     sandbox: managed.info.codexSandbox,
     systemPrompt,
     cwd: managed.info.cwd,
+    takeToolBoundaryMessage: managed.info.agentType === "claude" ? () => takeToolBoundaryMessage(managed.info.id, managed.session) : undefined,
   };
   if (env) (opts as any).env = env;
   if (resumeSessionId) {

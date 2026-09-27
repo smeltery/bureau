@@ -4,20 +4,16 @@ import { SessionSwappedError, createSession, installSession } from "../session/r
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { ProviderCapacityError } from "../../internal-types.ts";
+import { getBackend } from "../../backends/index.ts";
 import { flushPrefix } from "./queue-prefix.ts";
 import { lookupQueueDedupe, recordQueueDedupe } from "./queue-dedupe.ts";
+import { boundaryEligible, unclaimedQueue } from "./boundary-delivery.ts";
 // Circular with control.ts (which imports flushQueue from here); safe because
 // both modules only call across the cycle at request time, never at load time.
 import { resume, sendNow } from "./control.ts";
 
 export const QUEUE_MAX = 50;
 
-// Agent-initiated steering: how many times other agents may interrupt one
-// receiver's turns within a rolling window before further steers degrade to a
-// plain queue. Three per minute leaves room for a correction and a follow-up
-// while stopping a pair of agents from steering each other in a loop, where
-// every abort throws away in-flight work. The message is still accepted either
-// way, so the limit only ever delays it to the receiver's next turn boundary.
 const STEER_RATE_LIMIT = 3;
 const STEER_RATE_WINDOW_MS = 60_000;
 
@@ -90,6 +86,14 @@ export function enqueueMessage(
   }
   const id = generateQueuedId(managed.messageQueue);
   const canFlushNow = state !== "error" && !isAgentBusy(state) && !hasPendingFlow(managed);
+  const steerRequested = opts?.steer === true;
+  const queuedDuringBusyTurn = !canFlushNow;
+  const boundarySteer =
+    steerRequested &&
+    queuedDuringBusyTurn &&
+    !hasPendingFlow(managed) &&
+    getBackend(managed.info.agentType).toolBoundaryDelivery === true &&
+    boundaryEligible({ sender: msg.sender, sdkText: msg.sdkText, handoff: msg.handoff, attachments: msg.attachments });
   managed.messageQueue.push({
     id,
     sender: msg.sender,
@@ -100,13 +104,13 @@ export function enqueueMessage(
     ...(msg.scheduledFor ? { scheduledFor: msg.scheduledFor } : {}),
     ...(msg.scheduledSenderGone ? { scheduledSenderGone: true } : {}),
     ...(msg.handoff ? { handoff: true } : {}),
+    ...(boundarySteer ? { steer: true } : {}),
     attachments: msg.attachments,
     queuedAt: Date.now(),
   });
   if (msg.clientMessageId) recordQueueDedupe(managed, msg.clientMessageId, id);
   emitQueueUpdate(receiverId, managed);
   persistAll();
-  const steerRequested = opts?.steer === true;
   if (state === "error") {
     if (!managed.autoResumeInProgress) {
       managed.autoResumeInProgress = true;
@@ -134,6 +138,9 @@ export function enqueueMessage(
     // not deliver, since flushQueue declines to run there.
     if (hasPendingFlow(managed)) {
       return { ok: true, queued: true, messageId: id, steered: false, steerDeclined: "multi_step_flow" };
+    }
+    if (boundarySteer) {
+      return { ok: true, queued: false, messageId: id, steered: true };
     }
     if (steerRateLimited(managed)) {
       return { ok: true, queued: true, messageId: id, steered: false, steerDeclined: "rate_limited" };
@@ -241,7 +248,8 @@ export async function flushQueue(agentId: string): Promise<void> {
         return;
       }
     }
-    const items = managed.messageQueue.slice();
+    const items = unclaimedQueue(managed);
+    if (items.length === 0) return;
     const promptParts: string[] = [];
     const unprefixedParts: string[] = [];
     const allAttachments: Attachment[] = [];
@@ -279,6 +287,7 @@ export async function flushQueue(agentId: string): Promise<void> {
         onSendAccepted: () => {
           const sentIds = new Set(items.map((m) => m.id));
           managed.messageQueue = managed.messageQueue.filter((m) => !sentIds.has(m.id));
+          if (managed.boundaryClaim && [...managed.boundaryClaim.items].every((item) => sentIds.has(item.id))) managed.boundaryClaim = null;
           emitQueueUpdate(agentId, managed);
           persistAll();
           for (const m of items) {

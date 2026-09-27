@@ -4,6 +4,8 @@ import {
   type CanUseTool,
   type ForkSessionOptions,
   type GetSessionMessagesOptions,
+  type HookCallbackMatcher,
+  type HookEvent,
   type Options,
   type PermissionResult,
   type PermissionUpdate,
@@ -82,6 +84,34 @@ const PERMISSION_MODES: PermissionModeOption[] = [
   { value: "auto", label: "Ask in Bureau" },
 ];
 
+export const TOOL_BOUNDARY_HOOK_TIMEOUT_S = 60;
+
+export function toolBoundaryHooks(take: () => string | null): HookCallbackMatcher[] {
+  return [
+    {
+      timeout: TOOL_BOUNDARY_HOOK_TIMEOUT_S,
+      hooks: [
+        async (input) => {
+          if (input.hook_event_name !== "PostToolBatch" || input.agent_id) return {};
+          let text: string | null;
+          try {
+            text = take();
+          } catch {
+            return {};
+          }
+          if (!text) return {};
+          return {
+            hookSpecificOutput: {
+              hookEventName: "PostToolBatch",
+              additionalContext: text,
+            },
+          };
+        },
+      ],
+    },
+  ];
+}
+
 export const CLAUDE_MEMORY_OFF_SETTINGS: Extract<Options["settings"], object> = {
   autoMemoryEnabled: false,
 };
@@ -115,7 +145,12 @@ class ClaudeBackendSession implements BackendSession {
       pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
       systemPrompt: { type: "preset", preset: "claude_code", append: opts.systemPrompt },
       cwd: opts.cwd,
-      hooks: createSafetyHooks(),
+      hooks: opts.takeToolBoundaryMessage
+        ? ({
+            ...createSafetyHooks(),
+            PostToolBatch: toolBoundaryHooks(opts.takeToolBoundaryMessage),
+          } as Partial<Record<HookEvent, HookCallbackMatcher[]>>)
+        : createSafetyHooks(),
       settings: CLAUDE_LAUNCH_SETTINGS,
       canUseTool: ((toolName, input, callbackOpts) => this.requestPermission(toolName, input, callbackOpts)) as CanUseTool,
       ...(opts.env ? { env: opts.env } : {}),
@@ -203,6 +238,7 @@ class ClaudeBackendSession implements BackendSession {
 
 export const claudeBackend: Backend = {
   capabilities: CAPABILITIES,
+  toolBoundaryDelivery: true,
   getModelOptions(): ModelOption[] {
     return MODEL_FAMILIES.map((m) => ({ value: m.family, label: m.label }));
   },

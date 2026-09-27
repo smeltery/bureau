@@ -118,6 +118,7 @@ export interface ManagedAgent {
   // In-memory only; a restart starting a fresh window is correct (no turn
   // survives it to be interrupted). Human "Send now" is not counted or limited.
   recentSteers: number[];
+  boundaryClaim: { session: BackendSession | null; items: Set<import("../../shared/types.ts").QueuedMessage> } | null;
   // /usage tracking. The SDK's `result` reports session-cumulative totals,
   // which are written to sessions.json on every turn (`usage` field) along
   // with a per-turn snapshot (`usageSnapshots`). /usage reads those entries
