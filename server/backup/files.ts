@@ -30,12 +30,17 @@ export interface BackupDeps {
   now(): number;
   spawn(argv: string[]): Subprocess;
   availableBytes(dir: string): number;
+  tarFlavor?(): Promise<TarFlavor>;
 }
 
 interface Subprocess {
   exited: Promise<number>;
+  stdout: ReadableStream<Uint8Array>;
   stderr: ReadableStream<Uint8Array>;
 }
+
+// GNU tar on Linux; bsdtar (libarchive) is the macOS system tar.
+export type TarFlavor = "gnu" | "bsd";
 
 interface VerifiedBackup {
   file: string;
@@ -80,7 +85,7 @@ function readVerifiedBackup(dir: string, file: string): VerifiedBackup | null {
   try {
     const stat = statSync(path);
     const marker = JSON.parse(readFileSync(markerPath(path), "utf8")) as VerificationMarker;
-    if (marker.size !== stat.size || marker.mtimeMs !== stat.mtimeMs) {
+    if (stat.size === 0 || marker.size !== stat.size || marker.mtimeMs !== stat.mtimeMs) {
       return null;
     }
     return { file, path, size: stat.size, mtimeMs: stat.mtimeMs };
@@ -146,10 +151,29 @@ export async function runTar(
 ): Promise<{
   exitCode: number;
   stderr: string;
+  firstLine: string;
 }> {
   const proc = deps.spawn(argv);
-  const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
-  return { exitCode, stderr: stderr.trim().slice(0, 500) };
+  const [exitCode, stderr, firstLine] = await Promise.all([proc.exited, new Response(proc.stderr).text(), readFirstLine(proc.stdout)]);
+  return { exitCode, stderr: stderr.trim().slice(0, 500), firstLine };
+}
+
+// Drain the whole stream so a long listing cannot block tar on a full pipe,
+// while retaining only the archive root entry needed for verification.
+async function readFirstLine(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const decoder = new TextDecoder();
+  let head = "";
+  let complete = false;
+  for await (const chunk of stream) {
+    if (complete) continue;
+    head += decoder.decode(chunk, { stream: true });
+    const end = head.indexOf("\n");
+    if (end >= 0) {
+      head = head.slice(0, end);
+      complete = true;
+    }
+  }
+  return head;
 }
 
 export function writeMarker(archivePath: string): void {
@@ -189,10 +213,14 @@ function writeInvalidMarker(archivePath: string): void {
   writeFileSync(invalidMarkerPath(archivePath), `${JSON.stringify({ size: stat.size, mtimeMs: stat.mtimeMs })}\n`, { mode: 0o600 });
 }
 
-export async function verifyArchive(path: string, deps: BackupDeps): Promise<void> {
+export async function verifyArchive(path: string, stateRootName: string, deps: BackupDeps): Promise<void> {
   const checked = await runTar(["tar", "-tzf", path], deps);
   if (checked.exitCode !== 0) {
     throw new Error(`archive verification exit ${checked.exitCode}: ${checked.stderr || "no error text"}`);
+  }
+  // bsdtar lists a 0-byte file as an empty archive and exits 0.
+  if (checked.firstLine !== `${stateRootName}/`) {
+    throw new Error(`archive verification: first entry is ${JSON.stringify(checked.firstLine)}, expected "${stateRootName}/"`);
   }
 }
 
@@ -206,7 +234,7 @@ export async function certifyUnmarkedArchives(config: BackupConfig, deps: Backup
     .sort((a, b) => statSync(b.path).mtimeMs - statSync(a.path).mtimeMs);
   for (const candidate of candidates) {
     try {
-      await verifyArchive(candidate.path, deps);
+      await verifyArchive(candidate.path, config.stateRootName, deps);
       writeMarker(candidate.path);
     } catch (err) {
       writeInvalidMarker(candidate.path);

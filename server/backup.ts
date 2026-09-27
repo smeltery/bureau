@@ -33,6 +33,7 @@ import {
   type BackupConfig,
   type BackupDeps,
   type BackupStatus,
+  type TarFlavor,
 } from "./backup/files.ts";
 import { removeBackupStaging, stageBackupRoot } from "./backup/exclusions.ts";
 
@@ -64,12 +65,32 @@ const DEFAULT_CONFIG: BackupConfig = {
 
 const DEFAULT_DEPS: BackupDeps = {
   now: () => Date.now(),
-  spawn: (argv) => Bun.spawn(argv, { stdout: "ignore", stderr: "pipe" }),
+  spawn: (argv) => Bun.spawn(argv, { stdout: "pipe", stderr: "pipe" }),
   availableBytes: (dir) => {
     const fs = statfsSync(dir);
-    return Number(fs.bavail) * Number(fs.bsize);
+    // Bun 1.3.11 on Intel macOS can return statfs with bsize 0. df gives the
+    // same number portably and keeps the backup scheduler honest.
+    if (Number(fs.bsize) > 0) return Number(fs.bavail) * Number(fs.bsize);
+    return dfAvailableBytes(dir);
   },
 };
+
+export function dfAvailableBytes(dir: string): number {
+  const df = Bun.spawnSync(["df", "-Pk", dir], { stderr: "pipe" });
+  const kib = Number(df.stdout.toString().trim().split("\n").at(-1)?.split(/\s+/)[3]);
+  if (df.exitCode !== 0 || !Number.isFinite(kib)) {
+    throw new Error(`could not read free space: df exit ${df.exitCode}: ${df.stderr.toString().trim()}`);
+  }
+  return kib * 1024;
+}
+
+async function detectTarFlavor(): Promise<TarFlavor> {
+  const tar = Bun.spawn(["tar", "--version"], { stdout: "pipe", stderr: "ignore" });
+  const [version] = await Promise.all([new Response(tar.stdout).text(), tar.exited]);
+  if (/bsdtar|libarchive/.test(version)) return "bsd";
+  if (/GNU tar/.test(version)) return "gnu";
+  throw new Error(`unsupported tar: ${version.split("\n")[0] || "no version output"}`);
+}
 
 export function getBackupStatus(): BackupStatus {
   return statusFromDisk(DEFAULT_CONFIG, Date.now(), lastAttemptAt, lastAttemptError, running);
@@ -100,17 +121,20 @@ async function runBackup(config: BackupConfig = DEFAULT_CONFIG, deps: BackupDeps
   const now = deps.now();
   const partial = partialPath(config.backupDir, now);
   const final = allocateFinalPath(config.backupDir, now);
+  const flavor = await (deps.tarFlavor ?? detectTarFlavor)();
   let backupStaging: string | null = null;
   try {
     backupStaging = stageBackupRoot(config);
     const created = await runTar(["tar", "-czf", partial, "-C", backupStaging, config.stateRootName], deps);
-    if (created.exitCode >= 2) {
+    // GNU tar exits 1 when a file changed while read. bsdtar uses 1 for every
+    // error, so any non-zero bsdtar exit is a failure.
+    if (created.exitCode >= 2 || (flavor === "bsd" && created.exitCode !== 0)) {
       throw new Error(`tar exit ${created.exitCode}: ${created.stderr || "no error text"}`);
     }
     if (created.exitCode === 1) {
       console.warn("[backup] tar exit 1 (file changed during archive; verifying before publication)");
     }
-    await verifyArchive(partial, deps);
+    await verifyArchive(partial, config.stateRootName, deps);
     renameSync(partial, final);
     writeMarker(final);
     pruneVerified(config);

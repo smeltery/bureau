@@ -23,16 +23,18 @@ function fixture() {
 interface Step {
   exitCode: number;
   stderr?: string;
+  stdout?: string;
   writeArchive?: boolean;
 }
 
-function deps(steps: Step[], availableBytes = 10_000) {
+function deps(steps: Step[], availableBytes = 10_000, tarFlavor: "gnu" | "bsd" = "gnu") {
   const calls: string[][] = [];
   return {
     calls,
     impl: {
       now: () => Date.UTC(2026, 7, 13, 12),
       availableBytes: () => availableBytes,
+      tarFlavor: () => Promise.resolve(tarFlavor),
       spawn(argv: string[]) {
         calls.push(argv);
         const step = steps.shift();
@@ -43,6 +45,7 @@ function deps(steps: Step[], availableBytes = 10_000) {
         }
         return {
           exited: Promise.resolve(step.exitCode),
+          stdout: new Blob([step.stdout ?? ".bureau/\n"]).stream(),
           stderr: new Blob([step.stderr ?? ""]).stream(),
         };
       },
@@ -71,7 +74,8 @@ function finals(dir: string): string[] {
 const realDeps = {
   now: () => Date.UTC(2026, 7, 13, 12),
   availableBytes: () => 10_000_000,
-  spawn: (argv: string[]) => Bun.spawn(argv, { stdout: "ignore", stderr: "pipe" }),
+  tarFlavor: () => Promise.resolve("gnu" as const),
+  spawn: (argv: string[]) => Bun.spawn(argv, { stdout: "pipe", stderr: "pipe" }),
 };
 
 function write(root: string, relativePath: string, contents: string, mode = 0o600) {
@@ -207,6 +211,38 @@ describe("verified backup publication", () => {
     expect(runBackupOnceForTest(config(f), d.impl)).rejects.toThrow(/archive verification exit 2.*unexpected end of file/);
     expect(finals(f.backupDir)).toEqual([]);
     expect(fs.readdirSync(f.backupDir).some(isBackupPartialForTest)).toBe(false);
+  });
+
+  test("verification rejects an archive whose root entry is missing", async () => {
+    const f = fixture();
+    const d = deps([
+      { exitCode: 0, writeArchive: true },
+      { exitCode: 0, stdout: "" },
+    ]);
+    expect(runBackupOnceForTest(config(f), d.impl)).rejects.toThrow(/first entry is ""/);
+    expect(finals(f.backupDir)).toEqual([]);
+  });
+
+  test("zero-byte archives are not trusted even with a matching marker", () => {
+    const f = fixture();
+    fs.mkdirSync(f.backupDir);
+    const archive = path.join(f.backupDir, "bureau-2026-08-13.tar.gz");
+    fs.writeFileSync(archive, "");
+    const stat = fs.statSync(archive);
+    fs.writeFileSync(`${archive}.verified.json`, `${JSON.stringify({ size: stat.size, mtimeMs: stat.mtimeMs })}\n`);
+
+    const status = backupStatusForTest(config(f), stat.mtimeMs + 1);
+
+    expect(status.lastBackupFile).toBeNull();
+    expect(status.lastBackupOk).toBeNull();
+  });
+
+  test("bsdtar exit 1 is a creation failure", async () => {
+    const f = fixture();
+    const d = deps([{ exitCode: 1, stderr: "bsdtar failed", writeArchive: true }], 10_000, "bsd");
+
+    expect(runBackupOnceForTest(config(f), d.impl)).rejects.toThrow(/tar exit 1.*bsdtar failed/);
+    expect(finals(f.backupDir)).toEqual([]);
   });
 
   test("low space refuses before tar and deletes no verified backup", async () => {
