@@ -55,18 +55,9 @@ const {
   O_CLOEXEC,
 } = DARWIN_ABI;
 
-export function parseProcBsdInfo(
-  buffer: Uint8Array,
-  written: number,
-  pid: number,
-): DarwinProcessHop | null {
-  if (written !== PROC_BSDINFO_SIZE || buffer.byteLength < PROC_BSDINFO_SIZE)
-    return null;
-  const view = new DataView(
-    buffer.buffer,
-    buffer.byteOffset,
-    buffer.byteLength,
-  );
+export function parseProcBsdInfo(buffer: Uint8Array, written: number, pid: number): DarwinProcessHop | null {
+  if (written !== PROC_BSDINFO_SIZE || buffer.byteLength < PROC_BSDINFO_SIZE) return null;
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   if (view.getUint32(PBI_PID, true) !== pid) return null;
   if (view.getUint32(PBI_STATUS, true) === SZOMB) return null;
   const parentPid = view.getUint32(PBI_PPID, true);
@@ -80,30 +71,16 @@ export function parseProcBsdInfo(
   };
 }
 
-export function parseXucredUid(
-  buffer: Uint8Array,
-  length: number,
-): number | null {
+export function parseXucredUid(buffer: Uint8Array, length: number): number | null {
   if (length !== XUCRED_SIZE || buffer.byteLength < XUCRED_SIZE) return null;
-  const view = new DataView(
-    buffer.buffer,
-    buffer.byteOffset,
-    buffer.byteLength,
-  );
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   if (view.getUint32(0, true) !== XUCRED_VERSION) return null;
   return view.getUint32(XUCRED_CR_UID, true);
 }
 
-export function parsePeerPid(
-  buffer: Uint8Array,
-  length: number,
-): number | null {
+export function parsePeerPid(buffer: Uint8Array, length: number): number | null {
   if (length !== PID_SIZE || buffer.byteLength < PID_SIZE) return null;
-  const pid = new DataView(
-    buffer.buffer,
-    buffer.byteOffset,
-    buffer.byteLength,
-  ).getInt32(0, true);
+  const pid = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength).getInt32(0, true);
   return pid > 0 ? pid : null;
 }
 
@@ -127,9 +104,7 @@ function loadLibSystem(): ReturnType<typeof openLibSystem> | null {
   try {
     libSystem = openLibSystem();
   } catch {
-    console.error(
-      "[opencode] libSystem is unavailable; OpenCode office calls will be refused.",
-    );
+    console.error("[opencode] libSystem is unavailable; OpenCode office calls will be refused.");
   }
   return libSystem;
 }
@@ -139,22 +114,14 @@ export function readDarwinProcessHop(pid: number): DarwinProcessHop | null {
   if (!loaded || !Number.isSafeInteger(pid) || pid <= 0) return null;
   const buffer = new Uint8Array(PROC_BSDINFO_SIZE);
   try {
-    const written = loaded.symbols.proc_pidinfo(
-      pid,
-      PROC_PIDTBSDINFO,
-      0,
-      ptr(buffer),
-      PROC_BSDINFO_SIZE,
-    );
+    const written = loaded.symbols.proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, ptr(buffer), PROC_BSDINFO_SIZE);
     return parseProcBsdInfo(buffer, written, pid);
   } catch {
     return null;
   }
 }
 
-export function readDarwinPeerCredentials(
-  fd: number,
-): { pid: number; uid: number } | null {
+export function readDarwinPeerCredentials(fd: number): { pid: number; uid: number } | null {
   const loaded = loadLibSystem();
   if (!loaded) return null;
   const credential = new Uint8Array(XUCRED_SIZE);
@@ -163,20 +130,8 @@ export function readDarwinPeerCredentials(
   const peerPidLength = new Uint32Array([PID_SIZE]);
   try {
     if (
-      loaded.symbols.getsockopt(
-        fd,
-        SOL_LOCAL,
-        LOCAL_PEERCRED,
-        ptr(credential),
-        ptr(credentialLength),
-      ) !== 0 ||
-      loaded.symbols.getsockopt(
-        fd,
-        SOL_LOCAL,
-        LOCAL_PEERPID,
-        ptr(peerPid),
-        ptr(peerPidLength),
-      ) !== 0
+      loaded.symbols.getsockopt(fd, SOL_LOCAL, LOCAL_PEERCRED, ptr(credential), ptr(credentialLength)) !== 0 ||
+      loaded.symbols.getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, ptr(peerPid), ptr(peerPidLength)) !== 0
     )
       return null;
   } catch {
@@ -194,11 +149,7 @@ export function lockDarwinFileUntilExit(path: string): boolean {
   const loaded = loadLibSystem();
   if (!loaded) return false;
   try {
-    const fd = openSync(
-      path,
-      constants.O_RDWR | constants.O_CREAT | O_CLOEXEC,
-      0o600,
-    );
+    const fd = openSync(path, constants.O_RDWR | constants.O_CREAT | O_CLOEXEC, 0o600);
     return loaded.symbols.flock(fd, LOCK_EX) === 0;
   } catch {
     return false;

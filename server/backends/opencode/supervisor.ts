@@ -1,5 +1,5 @@
 // Local OpenCode `serve` supervisor. One shared process under ~/.bureau/opencode,
-// leased by transports. Idle-reaped. No authority-broker / FFI — MVP only.
+// leased by transports and idle-reaped between turns.
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";

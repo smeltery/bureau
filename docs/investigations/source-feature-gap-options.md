@@ -82,7 +82,8 @@ implementation stays in Bureau naming and architecture.
 - Connections: time-bounded provider probes; process-local per-provider sign-in
   queue line when another member holds the slot (OAuth/device login still out).
 - OpenCode: `systemPrompt` constructor-bound and byte-stable across turns
-  (regression test); no authority-broker (still deferred).
+  (regression test), plus the local authority broker for Bureau office-route
+  calls from OpenCode tool processes.
 - Owner-editable agent manager (`userId`); deleting a member reassigns their
   agents to an office owner.
 - `/bureau-cronjob-system-prompt` picker (pendingPrompt `cronjob`) + prompt
@@ -118,9 +119,9 @@ implementation stays in Bureau naming and architecture.
   frame transport / stream-pressure, persistent per-manager storage profiles,
   and public-origin browsing (explicitly rejected — Bureau keeps the tighter
   preview-url allowlist).
-- OpenCode follow-ons beyond the Bureau-native MVP: authority-broker / FFI peer
-  auth, full credential-scan suite, live certification harness, darwin-only
-  packaging polish beyond PATH detection, and a V2 client.
+- OpenCode follow-ons beyond the Bureau-native MVP: full credential-scan suite,
+  live certification harness, darwin-only packaging polish beyond PATH
+  detection, and a V2 client.
 - Provider Connections browser/device OAuth login (shared login clients, external
   waiting UI). Connections today is API-key paste + host CLI guidance plus the
   process-local sign-in-in-progress mutex.

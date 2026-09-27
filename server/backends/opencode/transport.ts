@@ -56,9 +56,7 @@ export class OpenCodeTransport {
     if (options.agentId && options.agentToken) {
       this.authorityBinding = this.authorityBroker.bind(options.agentId, options.agentToken);
     }
-    this.systemPrompt = this.authorityBinding
-      ? options.systemPrompt?.replaceAll(OPENCODE_TURN_HANDLE_PLACEHOLDER, this.authorityBinding.handle)
-      : options.systemPrompt;
+    this.systemPrompt = this.authorityBinding ? options.systemPrompt?.replaceAll(OPENCODE_TURN_HANDLE_PLACEHOLDER, this.authorityBinding.handle) : options.systemPrompt;
     this.agent = options.agent;
     this.autoApprove = options.autoApprove ?? !!options.agent;
     this.resumedSessionId = options.sessionId;

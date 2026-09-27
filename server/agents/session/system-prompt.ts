@@ -180,8 +180,7 @@ export function rewriteOpenCodeOfficeCommands(prompt: string): string {
   const rewritten = prompt
     .split("\n")
     .map((line) => {
-      if (line.includes("curl ") && line.includes("BUREAU_APP_TOKEN"))
-        return "  The APP uses its server-side BUREAU_APP_TOKEN for this route; do not send it through the OpenCode office proxy.";
+      if (line.includes("curl ") && line.includes("BUREAU_APP_TOKEN")) return "  The APP uses its server-side BUREAU_APP_TOKEN for this route; do not send it through the OpenCode office proxy.";
       if (!line.includes("curl ")) return line.replace(/\$BUREAU_AGENT_TOKEN/g, "the OpenCode office proxy");
       return line
         .replace(/\s+-H "Authorization: Bearer \$BUREAU_AGENT_TOKEN"/g, "")

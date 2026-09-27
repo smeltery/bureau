@@ -119,8 +119,7 @@ export class OpenCodeAuthorityBroker {
       activate: (serverPid) => {
         if (active) this.turns.delete(handle);
         const identity = this.readers.readProcessHop(serverPid);
-        if (!identity)
-          throw new Error("OpenCode server process identity is unreadable.");
+        if (!identity) throw new Error("OpenCode server process identity is unreadable.");
         this.turns.set(handle, {
           owner,
           agentId,
@@ -138,8 +137,7 @@ export class OpenCodeAuthorityBroker {
         active = false;
       },
       unbind: () => {
-        if (active && this.turns.get(handle)?.owner === owner)
-          this.turns.delete(handle);
+        if (active && this.turns.get(handle)?.owner === owner) this.turns.delete(handle);
         active = false;
       },
     };
@@ -176,15 +174,10 @@ export class OpenCodeAuthorityBroker {
         },
         data: (socket, chunk) => {
           if (socket.data.handled) return;
-          socket.data.buffer = Buffer.concat([
-            socket.data.buffer,
-            Buffer.from(chunk),
-          ]);
+          socket.data.buffer = Buffer.concat([socket.data.buffer, Buffer.from(chunk)]);
           if (socket.data.buffer.length > MAX_REQUEST_BYTES) {
             socket.data.handled = true;
-            socket.end(
-              httpResponse(413, "OpenCode office request is too large."),
-            );
+            socket.end(httpResponse(413, "OpenCode office request is too large."));
             return;
           }
           let request: ParsedRequest | null;
@@ -199,8 +192,7 @@ export class OpenCodeAuthorityBroker {
           socket.data.handled = true;
           void this.proxy(request, socket.data.peer).then(
             (response) => socket.end(response),
-            () =>
-              socket.end(httpResponse(502, "OpenCode office request failed.")),
+            () => socket.end(httpResponse(502, "OpenCode office request failed.")),
           );
         },
       },
@@ -214,52 +206,24 @@ export class OpenCodeAuthorityBroker {
     return hop ? { ...credentials, startTicks: hop.startTicks } : null;
   }
 
-  private async proxy(
-    request: ParsedRequest,
-    peer: PeerIdentity | null,
-  ): Promise<Buffer> {
+  private async proxy(request: ParsedRequest, peer: PeerIdentity | null): Promise<Buffer> {
     const handle = request.headers.get("x-bureau-turn") ?? "";
     const turn = this.turns.get(handle);
-    const ancestry = peer
-      ? readVerifiedAncestry(peer, (pid) => this.readers.readProcessHop(pid))
-      : null;
-    const ancestryText =
-      ancestry?.map((hop) => `${hop.pid}:${hop.startTicks}`).join(",") ??
-      "refused";
-    console.info(
-      `[opencode-office-proxy] agent=${turn?.agentId ?? "unknown"} peer=${peer?.pid ?? "unknown"} ancestry=${ancestryText} method=${request.method} path=${request.url.pathname}`,
-    );
-    if (peer?.uid !== this.expectedUid || !turn || !ancestry)
-      return httpResponse(403, ancestryFailureMessage(ancestry));
+    const ancestry = peer ? readVerifiedAncestry(peer, (pid) => this.readers.readProcessHop(pid)) : null;
+    const ancestryText = ancestry?.map((hop) => `${hop.pid}:${hop.startTicks}`).join(",") ?? "refused";
+    console.info(`[opencode-office-proxy] agent=${turn?.agentId ?? "unknown"} peer=${peer?.pid ?? "unknown"} ancestry=${ancestryText} method=${request.method} path=${request.url.pathname}`);
+    if (peer?.uid !== this.expectedUid || !turn || !ancestry) return httpResponse(403, ancestryFailureMessage(ancestry));
     const serverHop = ancestry.find((hop) => hop.pid === turn.serverPid);
-    if (!serverHop || serverHop.startTicks !== turn.serverStartTicks)
-      return httpResponse(403, ancestryFailureMessage(ancestry));
-    if (turn.calls >= MAX_CALLS_PER_TURN)
-      return httpResponse(
-        429,
-        "OpenCode office call limit reached for this turn.",
-      );
-    if (
-      !ROUTES.some(
-        (route) =>
-          route.method === request.method &&
-          route.path.test(request.url.pathname),
-      )
-    )
-      return httpResponse(
-        403,
-        "This Bureau API route is not available through OpenCode.",
-      );
+    if (!serverHop || serverHop.startTicks !== turn.serverStartTicks) return httpResponse(403, ancestryFailureMessage(ancestry));
+    if (turn.calls >= MAX_CALLS_PER_TURN) return httpResponse(429, "OpenCode office call limit reached for this turn.");
+    if (!ROUTES.some((route) => route.method === request.method && route.path.test(request.url.pathname))) return httpResponse(403, "This Bureau API route is not available through OpenCode.");
     turn.calls += 1;
     const upstream = new URL(request.url.pathname, this.upstreamOrigin);
-    for (const [name, value] of request.url.searchParams)
-      upstream.searchParams.append(name, value);
+    for (const [name, value] of request.url.searchParams) upstream.searchParams.append(name, value);
     let upstreamBody: string | undefined;
     if (request.body.length) {
       try {
-        upstreamBody = JSON.stringify(
-          JSON.parse(request.body.toString("utf8")),
-        );
+        upstreamBody = JSON.stringify(JSON.parse(request.body.toString("utf8")));
       } catch {
         return httpResponse(400, "OpenCode office request body must be JSON.");
       }
@@ -274,28 +238,13 @@ export class OpenCodeAuthorityBroker {
       signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
     });
     const contentLength = response.headers.get("content-length");
-    if (
-      contentLength &&
-      /^\d+$/.test(contentLength) &&
-      Number(contentLength) > MAX_RESPONSE_BYTES
-    ) {
+    if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_RESPONSE_BYTES) {
       await response.body?.cancel();
-      return httpResponse(
-        502,
-        "OpenCode office response exceeded the size limit.",
-      );
+      return httpResponse(502, "OpenCode office response exceeded the size limit.");
     }
     const body = await readCappedResponse(response);
-    if (!body)
-      return httpResponse(
-        502,
-        "OpenCode office response exceeded the size limit.",
-      );
-    return httpResponse(
-      response.status,
-      scrubToken(body, turn.token),
-      response.headers.get("content-type") ?? undefined,
-    );
+    if (!body) return httpResponse(502, "OpenCode office response exceeded the size limit.");
+    return httpResponse(response.status, scrubToken(body, turn.token), response.headers.get("content-type") ?? undefined);
   }
 }
 
@@ -310,11 +259,8 @@ function parseHttpRequest(buffer: Buffer): ParsedRequest | null {
   const headerEnd = buffer.indexOf("\r\n\r\n");
   if (headerEnd < 0) return null;
   const lines = buffer.subarray(0, headerEnd).toString("utf8").split("\r\n");
-  const match = /^(GET|POST|PATCH|PUT|DELETE) ([^ ]+) HTTP\/1\.[01]$/.exec(
-    lines.shift() ?? "",
-  );
-  if (!match || /[\r\n]/.test(match[2]))
-    throw new Error("Invalid proxy request.");
+  const match = /^(GET|POST|PATCH|PUT|DELETE) ([^ ]+) HTTP\/1\.[01]$/.exec(lines.shift() ?? "");
+  if (!match || /[\r\n]/.test(match[2])) throw new Error("Invalid proxy request.");
   const headers = new Headers();
   for (const line of lines) {
     const colon = line.indexOf(":");
@@ -337,16 +283,10 @@ function parseHttpRequest(buffer: Buffer): ParsedRequest | null {
   };
 }
 
-function httpResponse(
-  status: number,
-  body: string | Buffer,
-  contentType = "text/plain; charset=utf-8",
-): Buffer {
+function httpResponse(status: number, body: string | Buffer, contentType = "text/plain; charset=utf-8"): Buffer {
   const safeBody = Buffer.isBuffer(body) ? body : Buffer.from(body);
   return Buffer.concat([
-    Buffer.from(
-      `HTTP/1.1 ${status} ${statusText(status)}\r\nContent-Type: ${contentType ?? "application/octet-stream"}\r\nContent-Length: ${safeBody.length}\r\nConnection: close\r\n\r\n`,
-    ),
+    Buffer.from(`HTTP/1.1 ${status} ${statusText(status)}\r\nContent-Type: ${contentType ?? "application/octet-stream"}\r\nContent-Length: ${safeBody.length}\r\nConnection: close\r\n\r\n`),
     safeBody,
   ]);
 }
@@ -386,10 +326,7 @@ function ancestryFailureMessage(ancestry: ProcessHop[] | null): string {
     : "OpenCode office call refused because its process ancestry was lost. Run the call in the foreground, not through nohup, disown, or a background daemon.";
 }
 
-function readVerifiedAncestry(
-  peer: PeerIdentity,
-  readHop: (pid: number) => ProcessHop | null,
-): ProcessHop[] | null {
+function readVerifiedAncestry(peer: PeerIdentity, readHop: (pid: number) => ProcessHop | null): ProcessHop[] | null {
   const hops: ProcessHop[] = [];
   let current = peer.pid;
   for (let depth = 0; depth < MAX_ANCESTRY_DEPTH && current > 1; depth++) {
@@ -430,12 +367,7 @@ let libcLoadFailureLogged = false;
 function loadLibc(): LibcLibrary | null {
   if (libcLoadAttempted) return libc;
   libcLoadAttempted = true;
-  const candidates = [
-    "libc.so.6",
-    process.arch === "arm64"
-      ? "libc.musl-aarch64.so.1"
-      : "libc.musl-x86_64.so.1",
-  ];
+  const candidates = ["libc.so.6", process.arch === "arm64" ? "libc.musl-aarch64.so.1" : "libc.musl-x86_64.so.1"];
   for (const candidate of candidates) {
     try {
       libc = openLibc(candidate);
@@ -444,16 +376,12 @@ function loadLibc(): LibcLibrary | null {
   }
   if (!libcLoadFailureLogged) {
     libcLoadFailureLogged = true;
-    console.error(
-      "[opencode-office-proxy] SO_PEERCRED is unavailable; OpenCode office calls will be refused.",
-    );
+    console.error("[opencode-office-proxy] SO_PEERCRED is unavailable; OpenCode office calls will be refused.");
   }
   return null;
 }
 
-function socketFileDescriptor(
-  socket: Bun.Socket<ConnectionData>,
-): number | null {
+function socketFileDescriptor(socket: Bun.Socket<ConnectionData>): number | null {
   // Bun's Socket type omits fd; the runtime exposes a number, verified
   // 2026-08-29. Read it as unknown and fail closed if that shape changes.
   const fd: unknown = Reflect.get(socket, "fd");
