@@ -1,17 +1,18 @@
 // Thin HTTP + SSE client that maps OpenCode serve events onto Bureau
-// NormalizedEvent. No authority-broker / credential-scan — deferred.
+// NormalizedEvent.
 //
 // Prompt-cache stability: `systemPrompt` is bound once in the constructor and
-// sent verbatim on every `prompt_async`. Bureau has no per-turn office/auth
-// handle to rotate into the prompt (that broker lives upstream and is out of
-// MVP scope), so the system payload is already byte-identical across turns.
-// Keep it that way — do not rebuild or interpolate the system string per turn.
+// sent verbatim on every `prompt_async`. The authority broker uses one stable
+// handle per session and activates it only for the live turn, so the system
+// payload remains byte-identical across turns.
 
 import { formatAttachmentLines, resolveAttachmentNotices } from "../../attachment-prompt.ts";
 import type { ApprovalDecision, AttachmentSpec, NormalizedEvent, NormalizedMessage, TokenUsage } from "../types.ts";
 import { allowMessages, allowSession, parseAllowedEvent, splitModel, type OpenCodeContextBreakdown } from "./parse.ts";
 import type { OpenCodeLease, OpenCodeSupervisor } from "./supervisor.ts";
 import { applyOpenCodeEvent, type TrackedTool } from "./transport-events.ts";
+import { openCodeAuthorityBroker, type OpenCodeAuthorityBinding, type OpenCodeAuthorityBroker } from "./authority-broker.ts";
+import { OPENCODE_TURN_HANDLE_PLACEHOLDER } from "./office-proxy-shared.ts";
 
 type EventSink = (event: NormalizedEvent) => void;
 
@@ -23,6 +24,9 @@ export interface OpenCodeTransportOptions {
   supervisor: OpenCodeSupervisor;
   sessionId?: string;
   autoApprove?: boolean;
+  agentId?: string;
+  agentToken?: string;
+  authorityBroker?: OpenCodeAuthorityBroker;
 }
 
 export class OpenCodeTransport {
@@ -32,6 +36,7 @@ export class OpenCodeTransport {
   private readonly systemPrompt: string | undefined;
   private readonly agent: string | undefined;
   private readonly autoApprove: boolean;
+  private readonly authorityBroker: OpenCodeAuthorityBroker;
   private readonly resumedSessionId?: string;
   private lease: OpenCodeLease | null = null;
   private sessionId: string | null = null;
@@ -41,12 +46,19 @@ export class OpenCodeTransport {
   private pendingPermission: { id: string; sessionId: string } | null = null;
   private closed = false;
   private latestContext: OpenCodeContextBreakdown | null = null;
+  private authorityBinding: OpenCodeAuthorityBinding | null = null;
 
   constructor(options: OpenCodeTransportOptions) {
     this.supervisor = options.supervisor;
     this.cwd = options.cwd;
     this.model = options.model;
-    this.systemPrompt = options.systemPrompt;
+    this.authorityBroker = options.authorityBroker ?? openCodeAuthorityBroker;
+    if (options.agentId && options.agentToken) {
+      this.authorityBinding = this.authorityBroker.bind(options.agentId, options.agentToken);
+    }
+    this.systemPrompt = this.authorityBinding
+      ? options.systemPrompt?.replaceAll(OPENCODE_TURN_HANDLE_PLACEHOLDER, this.authorityBinding.handle)
+      : options.systemPrompt;
     this.agent = options.agent;
     this.autoApprove = options.autoApprove ?? !!options.agent;
     this.resumedSessionId = options.sessionId;
@@ -81,9 +93,14 @@ export class OpenCodeTransport {
       sink({ kind: "turn_completed", status: "failed", error: "OpenCode cannot send a turn without a system prompt." });
       return;
     }
+    if (this.systemPrompt.includes(OPENCODE_TURN_HANDLE_PLACEHOLDER)) {
+      sink({ kind: "turn_completed", status: "failed", error: "OpenCode cannot send Bureau instructions without an authority binding." });
+      return;
+    }
     const sessionId = await this.initialize(sink);
     await this.lease!.beginTurn();
     try {
+      this.authorityBinding?.activate(this.lease!.pid);
       this.activeTurn = true;
       this.abortRequested = false;
       this.abortController = new AbortController();
@@ -92,6 +109,7 @@ export class OpenCodeTransport {
       } catch (error) {
         if (this.abortController.signal.aborted || this.closed) throw error;
         await this.lease!.recoverBeforePrompt();
+        this.authorityBinding?.activate(this.lease!.pid);
         await this.consumeEvents(sessionId, sink, this.abortController.signal);
       }
       const [providerID, modelID] = splitModel(this.model);
@@ -108,6 +126,7 @@ export class OpenCodeTransport {
     } catch (error) {
       this.abortController?.abort();
       this.activeTurn = false;
+      this.authorityBinding?.deactivate();
       this.lease!.endTurn();
       sink({
         kind: "turn_completed",
@@ -158,6 +177,9 @@ export class OpenCodeTransport {
     this.closed = true;
     if (this.activeTurn) void this.rejectPendingPermission().then(() => this.abort());
     this.abortController?.abort();
+    this.authorityBinding?.deactivate();
+    this.authorityBinding?.unbind();
+    this.authorityBinding = null;
     this.lease?.endTurn();
     this.lease?.release();
   }
@@ -179,6 +201,7 @@ export class OpenCodeTransport {
       settled = true;
       this.activeTurn = false;
       this.pendingPermission = null;
+      this.authorityBinding?.deactivate();
       this.lease?.endTurn();
       sink(event);
       this.abortController?.abort();

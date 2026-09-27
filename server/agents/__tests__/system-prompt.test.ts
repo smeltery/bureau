@@ -136,6 +136,15 @@ describe("buildSystemPrompt memory affordance", () => {
     expect(prompt).toContain("customInstructions");
   });
 
+  test("rewrites Bureau curl examples through the OpenCode office proxy", () => {
+    const prompt = buildSystemPrompt("A", "agent-1", "Room", null, null, null, null, null, null, false, null, "opencode");
+
+    expect(prompt).toContain("curl --unix-socket");
+    expect(prompt).toContain("X-Bureau-Turn: __BUREAU_OPENCODE_TURN__");
+    expect(prompt).toContain("http://bureau/api/agents");
+    expect(prompt).not.toContain("Authorization: Bearer $BUREAU_AGENT_TOKEN");
+  });
+
   test("documents the agent manager before configurable instructions", () => {
     const prompt = buildSystemPrompt("A", "agent-1", "Room", "OFFICE-MARK", "ROOM-MARK", "AGENT-MARK", "MEMORY-MARK", "Boss One");
 

@@ -217,6 +217,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     owner?.memberPrompt ?? null,
     managed.info.privileged ?? false,
     owner?.language ?? null,
+    managed.info.agentType,
   );
   // V2 SDKSessionOptions still doesn't expose systemPrompt / extraArgs, so we
   // inject --append-system-prompt via executableArgs. When

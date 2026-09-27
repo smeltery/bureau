@@ -1,4 +1,5 @@
 import type { ApprovalDecision, AttachmentSpec, BackendSession, ContextUsage, CreateSessionOptions, NormalizedEvent, SubscriptionUsageResult } from "../types.ts";
+import { getAgentToken } from "../../agents/tokens.ts";
 import { permissionAgent } from "./config.ts";
 import type { OpenCodeSupervisor } from "./supervisor.ts";
 import { OpenCodeTransport } from "./transport.ts";
@@ -26,6 +27,8 @@ export class OpenCodeBackendSession implements BackendSession {
       autoApprove: opts.permissionMode === "bypassPermissions",
       supervisor,
       sessionId,
+      agentId: opts.agentId,
+      agentToken: getAgentToken(opts.agentId) ?? undefined,
     });
   }
 
