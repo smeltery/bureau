@@ -13,3 +13,11 @@ test("the k3d owner overlay is the guide's overlay", () => {
   expect(expected).not.toBe(block);
   expect(readFileSync(new URL("./owner/kustomization.yaml", import.meta.url), "utf8")).toBe(expected);
 });
+
+test("the k3d verifier can deploy a local image override", () => {
+  const run = readFileSync(new URL("./run.sh", import.meta.url), "utf8");
+  expect(run).toContain("IMAGE=${BUREAU_VERIFY_IMAGE:-$RELEASED}");
+  expect(run).toContain('docker pull --quiet "$IMAGE"');
+  expect(run).toContain('k3d image import --cluster "$CLUSTER" "$IMAGE"');
+  expect(run).toContain('kubectl kustomize "$here" | sed "s|$RELEASED|$IMAGE|g" | kubectl apply -f -');
+});
