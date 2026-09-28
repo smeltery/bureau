@@ -26,3 +26,5 @@ package-lock.json
 # Existing infrastructure files we don't want to reformat
 articles
 demo
+deploy/kubernetes/seccomp/amd64/bureau-chromium-v1.json
+deploy/kubernetes/seccomp/arm64/bureau-chromium-v1.json

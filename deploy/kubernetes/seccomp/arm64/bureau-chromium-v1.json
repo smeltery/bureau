@@ -2,9 +2,8 @@
   "defaultAction": "SCMP_ACT_ERRNO",
   "defaultErrnoRet": 1,
   "architectures": [
-    "SCMP_ARCH_X86_64",
-    "SCMP_ARCH_X86",
-    "SCMP_ARCH_X32"
+    "SCMP_ARCH_AARCH64",
+    "SCMP_ARCH_ARM"
   ],
   "syscalls": [
     {
@@ -539,13 +538,12 @@
     },
     {
       "names": [
-        "arch_prctl"
-      ],
-      "action": "SCMP_ACT_ALLOW"
-    },
-    {
-      "names": [
-        "modify_ldt"
+        "arm_fadvise64_64",
+        "arm_sync_file_range",
+        "sync_file_range2",
+        "breakpoint",
+        "cacheflush",
+        "set_tls"
       ],
       "action": "SCMP_ACT_ALLOW"
     },
@@ -568,6 +566,12 @@
       ],
       "action": "SCMP_ACT_ERRNO",
       "errnoRet": 38
+    },
+    {
+      "names": [
+        "chroot"
+      ],
+      "action": "SCMP_ACT_ALLOW"
     },
     {
       "names": [

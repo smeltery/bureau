@@ -11,8 +11,9 @@ The office is one pod with one persistent disk. It runs one replica only.
 You need:
 
 - An EKS cluster on Kubernetes 1.29 or later, with IPv4 addressing.
-- A node group of **Amazon Linux 2023, x86_64** nodes, each with at least
-  **2 CPUs and 8 GiB of memory**. The image is for amd64 only.
+- A node group of **Amazon Linux 2023, x86_64 or arm64** nodes, each with at
+  least **2 CPUs and 8 GiB of memory**. The image is published for amd64 and
+  arm64.
   - Add the Kubernetes label `bureau.com/office-node=true` to these nodes.
     The office and its seccomp installer run only on labeled nodes.
   - In the launch template (or Karpenter `EC2NodeClass`), set instance

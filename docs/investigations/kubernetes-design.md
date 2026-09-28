@@ -58,9 +58,10 @@ CSI driver whose sidecars support RWOP (csi-provisioner 3.0+, csi-attacher
   The entrypoint already has a non-root branch; with `fsGroup` the volume root
   is group-writable, so it creates `home` and `workspaces` itself. This passes
   the Pod Security Standard `restricted`.
-- Placement: `nodeSelector` `kubernetes.io/arch: amd64` (the image is amd64
-  only) and `bureau.com/office-node: "true"`, a label the operator puts on the
-  office node group. Resources match Compose: requests `cpu: 1`,
+- Placement: `nodeSelector` `kubernetes.io/os: linux` plus node affinity for
+  `kubernetes.io/arch` in `amd64, arm64`, and
+  `bureau.com/office-node: "true"`, a label the operator puts on the office
+  node group. Resources match Compose: requests `cpu: 1`,
   `memory: 4Gi`; limits `cpu: 2`, `memory: 4Gi`.
   `terminationGracePeriodSeconds: 30`.
 - Fargate is out: Fargate has no EBS volumes and no Localhost seccomp profiles.
@@ -80,20 +81,21 @@ with `CAP_SYS_ADMIN`. `clone` without namespace flags stays allowed.
   `pidfd_getfd`, `process_madvise`) would become unconditional.
   So we ship a resolved OCI profile, not the Docker file.
 - Derivation. A script (`deploy/kubernetes/seccomp/resolve.py`) resolves the
-  pinned Docker basis the way Moby does, for amd64, with no capabilities, and
-  kernel 4.8 or later (EKS nodes run 6.x): keep a rule when every include
-  holds and no exclude holds, and drop the conditions. It sets
-  `architectures: [SCMP_ARCH_X86_64, SCMP_ARCH_X86, SCMP_ARCH_X32]` from
-  `archMap`, and adds the one Chromium rule (`clone`, `setns`, `unshare`
-  allow). Output: `deploy/kubernetes/seccomp/bureau-chromium-v1.json`,
-  committed. Version in the filename: a change is a new file, never an edit
-  in place on nodes.
+  pinned Docker basis the way Moby does, for amd64 or arm64, with Chromium's
+  chroot allowance, and kernel 4.8 or later (EKS nodes run 6.x): keep a rule
+  when every include holds and no exclude holds, and drop the conditions. It
+  sets `architectures` from `archMap`, and adds the one Chromium rule
+  (`clone`, `setns`, `unshare` allow). Outputs:
+  `deploy/kubernetes/seccomp/amd64/bureau-chromium-v1.json` and
+  `deploy/kubernetes/seccomp/arm64/bureau-chromium-v1.json`, committed.
+  Version in the filename: a change is a new file, never an edit in place on
+  nodes.
 - Test (bun, no cluster): the committed file equals the script output; it
   has only OCI fields; no `includes`, `excludes`, `archMap` or `comment`;
-  rules gated only on capabilities the pod lacks add no allowed names
-  (outside the three Chromium calls); no rule from another architecture; `clone3` keeps its
+  rules gated only on capabilities other than Chromium's chroot allowance add
+  no allowed names; no rule from another architecture; `clone3` keeps its
   ENOSYS rule; the allowed names equal the basis's unconditional rules plus
-  its amd64 rules plus its `minKernel: 4.8` rule (`ptrace`,
+  the target architecture's rules plus its `minKernel: 4.8` rule (`ptrace`,
   `process_vm_readv`, `process_vm_writev`, which Docker also allows on these
   kernels) plus the three calls.
 - Localhost path: kubelet reads `/var/lib/kubelet/seccomp/<localhostProfile>`.
@@ -106,9 +108,9 @@ bureau/bureau-chromium-v1.json}`.
   `allowPrivilegeEscalation: false`. Its only `hostPath` is
   `/var/lib/kubelet/seccomp/bureau` (`DirectoryOrCreate`). It writes a temp
   file in that directory and renames it, then sleeps; a readiness probe
-  checks the file's SHA-256. It has the same `nodeSelector` as the office,
-  so it writes only to office nodes. A new node gets the file when its
-  DaemonSet pod starts; until then the office pod reports
+  checks the architecture-specific profile selected by `uname -m`. It has the
+  same placement rules as the office, so it writes only to office nodes. A new
+  node gets the file when its DaemonSet pod starts; until then the office pod reports
   `CreateContainerError` on that node and kubelet retries. Alternative for
   clusters that forbid `hostPath`: the same file from node user data (launch
   template or Karpenter `EC2NodeClass`). Security Profiles Operator also
@@ -223,8 +225,8 @@ Proposal - **needs a PM decision (wire shape, overlaps a80d8bbb)**:
 `HOSTING_GUIDES` after AWS (label "Kubernetes (EKS)", detail "A cluster in your
 AWS account"), and as a leaf in the decision diagram next to Render/AWS/VPS.
 A notice at the top, as on Render, until the EKS run passes. Steps: prerequisites
-(EBS CSI driver, AWS Load Balancer Controller, AL2023 amd64 nodes, IMDS hop
-limit 1, ACM cert, Route 53), seccomp profile, Secret, edit and apply, DNS,
+(EBS CSI driver, AWS Load Balancer Controller, AL2023 amd64 or arm64 nodes,
+IMDS hop limit 1, ACM cert, Route 53), seccomp profile, Secret, edit and apply, DNS,
 claim, provider, update, backups, logs. Copy goes to Nil for approval.
 The container reference links to it.
 

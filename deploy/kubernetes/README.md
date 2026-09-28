@@ -11,18 +11,21 @@ fails at image pull.
 
 ## Seccomp profile
 
-`seccomp/bureau-chromium-v1.json` is an OCI profile for containerd. It is
-generated from the Docker-format profile the Compose setup uses,
+`seccomp/amd64/bureau-chromium-v1.json` and
+`seccomp/arm64/bureau-chromium-v1.json` are OCI profiles for containerd. They
+are generated from the Docker-format profile the Compose setup uses,
 [deploy/container/seccomp/chromium.json](../container/seccomp/chromium.json):
 
 ```sh
-python3 deploy/kubernetes/seccomp/resolve.py > deploy/kubernetes/seccomp/bureau-chromium-v1.json
+python3 deploy/kubernetes/seccomp/resolve.py amd64 > deploy/kubernetes/seccomp/amd64/bureau-chromium-v1.json
+python3 deploy/kubernetes/seccomp/resolve.py arm64 > deploy/kubernetes/seccomp/arm64/bureau-chromium-v1.json
 ```
 
 containerd reads a Localhost profile as OCI `LinuxSeccomp`, which has no
 `archMap` and no per-rule `includes`/`excludes`. The script resolves those
-conditions for amd64, no capabilities and kernel 4.8 or later. A profile change
-gets a new versioned filename; do not change a published file in place.
+conditions for the node architecture, Chromium's chroot allowance and kernel
+4.8 or later. A profile change gets a new versioned filename; do not change a
+published file in place.
 
 ## Tests
 
