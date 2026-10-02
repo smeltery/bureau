@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CODEX_MODELS, DEFAULT_EFFORT, EFFORT_LEVELS, effortLevelsFor, familyAllowsAutoPermission } from "../agent-models.ts";
+import { CODEX_MODELS, DEFAULT_EFFORT, EFFORT_LEVELS, FAMILY_TO_MODEL, effortLevelsFor, familyAllowsAutoPermission } from "../agent-models.ts";
 import { validateEffort } from "../../server/agent-validators.ts";
 
 describe("Codex model currency", () => {
@@ -21,6 +21,7 @@ describe("Codex model currency", () => {
   });
 
   test("does not offer effort levels for Haiku", () => {
+    expect(FAMILY_TO_MODEL.sonnet).toBe("claude-sonnet-5-5");
     expect(effortLevelsFor("claude", "haiku")).toEqual([]);
     expect(effortLevelsFor("claude", "sonnet").length).toBeGreaterThan(0);
   });
