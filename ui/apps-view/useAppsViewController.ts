@@ -4,19 +4,23 @@
 import { useEffect, useRef, useState } from "react";
 import type { AppListWire } from "../../shared/apps.ts";
 import { useAppState, useDispatch } from "../store.tsx";
-import { getAppPreviews, pruneAppPreviewOpens, setAppPreviews } from "../device-settings.ts";
+import { getAppFilter, getAppPreviews, pruneAppPreviewOpens, setAppFilter, setAppPreviews, type AppFilter } from "../device-settings.ts";
 import { controlApp, deleteApp, listApps, readAppLog } from "./appsApi.ts";
 import { nextPollDelay, shouldCommit } from "./appsPolling.ts";
-import { sortApps, type AppVerb } from "./appVerbs.ts";
+import { filterApps, sortApps, type AppVerb } from "./appVerbs.ts";
 import { errMessage } from "../../shared/errors.ts";
 
 export function useAppsViewController() {
-  const { apps, appsLoaded, appsRevision, isMobile, hydrationEpoch } = useAppState();
+  const { apps, appsLoaded, appsRevision, isMobile, hydrationEpoch, sessionContext } = useAppState();
   const dispatch = useDispatch();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AppListWire | null>(null);
   const [previewsEnabled, setPreviewsEnabled] = useState(getAppPreviews);
+  const [filters, setFilters] = useState<Record<AppFilter, boolean>>(() => ({
+    hideStopped: getAppFilter("hideStopped"),
+    onlyMine: getAppFilter("onlyMine"),
+  }));
   const [openLogs, setOpenLogs] = useState<string | null>(null);
   // Moves when the USER changes what the log pane is showing — opening a row,
   // closing one, deleting the open one — so a request in flight can tell that it
@@ -176,6 +180,14 @@ export function useAppsViewController() {
     return () => window.removeEventListener("keydown", handleKey, true);
   }, [confirmDelete]);
 
+  const setFilter = (filter: AppFilter, on: boolean) => {
+    setFilters((prev) => ({ ...prev, [filter]: on }));
+    setAppFilter(filter, on);
+  };
+  const sorted = sortApps(apps);
+  const selfUserId = sessionContext?.userId ?? null;
+  const shown = filterApps(sorted, filters, selfUserId);
+
   return {
     act,
     appsLoaded,
@@ -183,6 +195,7 @@ export function useAppsViewController() {
     confirmDelete,
     doDelete,
     error,
+    filters,
     isMobile,
     logError,
     logLines,
@@ -193,7 +206,10 @@ export function useAppsViewController() {
       setAppPreviews(enabled);
     },
     setConfirmDelete,
-    sorted: sortApps(apps),
+    setFilter,
+    selfUserId,
+    shown,
+    sorted,
     toggleLogs,
   };
 }

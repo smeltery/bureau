@@ -104,14 +104,18 @@ export function AgentModelPermissionFields({
         ))}
       </select>
 
-      <label style={{ ...labelStyle, marginTop: 12 }}>Effort</label>
-      <select value={effort} onChange={(e) => setEffort(e.target.value as EffortLevel)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-        {effortOptions.map((option) => (
-          <option key={option.level} value={option.level}>
-            {effortDisplayLabel(option.level)}
-          </option>
-        ))}
-      </select>
+      {effortOptions.length > 0 && (
+        <>
+          <label style={{ ...labelStyle, marginTop: 12 }}>Effort</label>
+          <select value={effort} onChange={(e) => setEffort(e.target.value as EffortLevel)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+            {effortOptions.map((option) => (
+              <option key={option.level} value={option.level}>
+                {effortDisplayLabel(option.level)}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
     </>
   );
 }

@@ -3,9 +3,9 @@ import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import {
   CODEX_MODELS,
   DEFAULT_EFFORT,
-  EFFORT_LEVELS,
   MODEL_FAMILIES,
   OPENCODE_MODELS,
+  effortLevelsFor,
   type AgentBackendType,
   type CodexSandboxMode,
   type Cronjob,
@@ -45,12 +45,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
   const [effort, setEffort] = useState<EffortLevel>(cronjob?.effort ?? DEFAULT_EFFORT);
   const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(cronjob?.codexSandbox ?? DEFAULT_CODEX_CRONJOB_SANDBOX);
   const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(cronjob?.permissionMode ?? "bypassPermissions");
-  const effortOptions =
-    agentType === "codex"
-      ? EFFORT_LEVELS
-      : agentType === "opencode"
-        ? EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && e.level !== "max")
-        : EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && (e.level !== "max" || modelFamily === "opus" || modelFamily === "fable"));
+  const effortOptions = effortLevelsFor(agentType, modelFamily);
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +150,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
 
   function selectModelFamily(next: string) {
     setModelFamily(next);
-    if (effort === "max" && next !== "opus" && next !== "fable") setEffort(DEFAULT_EFFORT);
+    if (!effortLevelsFor(agentType, next).some((option) => option.level === effort)) setEffort(DEFAULT_EFFORT);
   }
 
   return {

@@ -11,10 +11,35 @@ import { AppDeleteDialog } from "./AppDeleteDialog.tsx";
 import { useAppsViewController } from "./useAppsViewController.ts";
 import { useFeatures } from "../store.tsx";
 import { useI18n } from "../i18n.tsx";
+import type { AppFilter } from "../device-settings.ts";
+
+const FILTER_LABELS: Record<AppFilter, "apps.filter.hideStopped" | "apps.filter.onlyMine"> = {
+  hideStopped: "apps.filter.hideStopped",
+  onlyMine: "apps.filter.onlyMine",
+};
 
 export function AppsView({ onClose }: { onClose: () => void }) {
-  const { act, appsLoaded, busy, confirmDelete, doDelete, error, isMobile, logError, logLines, openLogs, previewsEnabled, setConfirmDelete, setPreviewsEnabled, sorted, toggleLogs } =
-    useAppsViewController();
+  const {
+    act,
+    appsLoaded,
+    busy,
+    confirmDelete,
+    doDelete,
+    error,
+    filters,
+    isMobile,
+    logError,
+    logLines,
+    openLogs,
+    previewsEnabled,
+    selfUserId,
+    setConfirmDelete,
+    setFilter,
+    setPreviewsEnabled,
+    shown,
+    sorted,
+    toggleLogs,
+  } = useAppsViewController();
   const features = useFeatures();
   const { t } = useI18n();
 
@@ -58,17 +83,50 @@ export function AppsView({ onClose }: { onClose: () => void }) {
         >
           {previewsEnabled ? t("apps.previewsOn") : t("apps.previewsOff")}
         </button>
-        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{appsLoaded ? `${sorted.length}` : ""}</div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{!appsLoaded ? "" : shown.length < sorted.length ? `${shown.length}/${sorted.length}` : `${sorted.length}`}</div>
       </div>
 
       {error && <div style={{ padding: "8px 16px", background: "var(--bg-subtle)", borderBottom: "1px solid var(--border-subtle)", color: "var(--red)", fontSize: 12, flexShrink: 0 }}>{error}</div>}
 
+      {appsLoaded && sorted.length > 0 && (
+        <div
+          data-app-filters=""
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "6px 16px",
+            padding: isMobile ? "8px 12px" : "8px 20px",
+            borderBottom: "1px solid var(--border-subtle)",
+            fontSize: 12,
+            color: "var(--text-secondary)",
+            flexShrink: 0,
+          }}
+        >
+          {(["hideStopped", "onlyMine"] as const)
+            .filter((filter) => filter !== "onlyMine" || selfUserId !== null)
+            .map((filter) => (
+              <label key={filter} style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  data-app-filter={filter}
+                  checked={filters[filter]}
+                  onChange={(e) => setFilter(filter, e.currentTarget.checked)}
+                  style={{ margin: 0, accentColor: "var(--accent)" }}
+                />
+                {t(FILTER_LABELS[filter])}
+              </label>
+            ))}
+        </div>
+      )}
+
       <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? 12 : 20 }}>
         {!appsLoaded ? null : sorted.length === 0 ? (
           <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "24px 4px" }}>{t("apps.empty")}</div>
+        ) : shown.length === 0 ? (
+          <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "24px 4px" }}>{t("apps.filter.noMatch")}</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {sorted.map((app) => (
+            {shown.map((app) => (
               <AppCard
                 key={app.name}
                 app={app}

@@ -144,14 +144,18 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
             ))}
           </select>
 
-          <label style={{ ...labelStyle, marginTop: 14 }}>Effort</label>
-          <select value={effort} onChange={(e) => setEffort(e.target.value as EffortLevel)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-            {effortOptions.map((e) => (
-              <option key={e.level} value={e.level}>
-                {e.label}
-              </option>
-            ))}
-          </select>
+          {effortOptions.length > 0 && (
+            <>
+              <label style={{ ...labelStyle, marginTop: 14 }}>Effort</label>
+              <select value={effort} onChange={(e) => setEffort(e.target.value as EffortLevel)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+                {effortOptions.map((e) => (
+                  <option key={e.level} value={e.level}>
+                    {e.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
 
           {agentType === "codex" && (
             <>

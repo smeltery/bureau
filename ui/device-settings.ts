@@ -2,6 +2,7 @@ import { storageGetItem, storageReadObject, storageRemoveItem, storageSetItem } 
 
 const KEY_DEVICE = "bureau-device";
 const KEY_APP_PREVIEWS = "bureau-app-previews";
+const KEY_APP_FILTER_PREFIX = "bureau-app-filter:";
 const KEY_APP_PREVIEW_OPENS = "bureau-app-preview-opens";
 const KEY_SLIDE_VIEW = "bureau-slide-view";
 const KEY_SLIDE_POS = "bureau-slide-pos";
@@ -47,6 +48,16 @@ export function getAppPreviews(): boolean {
 
 export function setAppPreviews(enabled: boolean): void {
   storageSetItem(KEY_APP_PREVIEWS, enabled ? "on" : "off");
+}
+
+export type AppFilter = "hideStopped" | "onlyMine";
+
+export function getAppFilter(filter: AppFilter): boolean {
+  return storageGetItem(`${KEY_APP_FILTER_PREFIX}${filter}`) === "on";
+}
+
+export function setAppFilter(filter: AppFilter, enabled: boolean): void {
+  storageSetItem(`${KEY_APP_FILTER_PREFIX}${filter}`, enabled ? "on" : "off");
 }
 
 function readAppPreviewOpens(): Record<string, number> {

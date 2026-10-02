@@ -101,7 +101,12 @@ export function effortLevelsFor(agentType: "claude" | "codex" | "opencode", mode
   if (agentType === "opencode") {
     return EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && e.level !== "max");
   }
+  if (!claudeFamilySupportsEffort(modelFamily)) return [];
   return EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && (e.level !== "max" || familyAllowsAutoPermission(modelFamily)));
+}
+
+export function claudeFamilySupportsEffort(family: string): boolean {
+  return family === "opus" || family === "fable" || family === "sonnet";
 }
 
 // Codex model identifiers and UI labels. Verified against `codex debug models`
@@ -139,7 +144,7 @@ export function isOpenCodeModel(s: string): boolean {
 // The classifier-backed "auto" permission mode is only offered for the
 // higher-capability families that drive the safe-action classifier well.
 export function familyAllowsAutoPermission(family: string | undefined): boolean {
-  return family === "opus" || family === "fable";
+  return family === "opus" || family === "fable" || family === "sonnet";
 }
 
 export function familyDisplayLabel(family: string): string {

@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from "bun:test";
 import type { AppState as AppRunState, AppWire } from "../../shared/apps.ts";
-import { APP_VERBS, STATE_COLOR, VERB_TITLES, sortApps, stateIsHollow, verbInert } from "./appVerbs.ts";
+import { APP_VERBS, STATE_COLOR, VERB_TITLES, filterApps, sortApps, stateIsHollow, verbInert } from "./appVerbs.ts";
 
 function enabledVerbs(state: AppRunState): string[] {
   return APP_VERBS.filter((verb) => !verbInert(verb, state));
@@ -77,5 +77,22 @@ describe("sortApps", () => {
     const apps = [appWire("gamma"), appWire("alpha"), appWire("beta")];
     expect(sortApps(apps).map((a) => a.name)).toEqual(["alpha", "beta", "gamma"]);
     expect(apps.map((a) => a.name)).toEqual(["gamma", "alpha", "beta"]);
+  });
+});
+
+describe("filterApps", () => {
+  test("hides only stopped apps", () => {
+    const apps = [appWire("run", { state: "running" }), appWire("stop", { state: "stopped" }), appWire("fail", { state: "failed" }), appWire("unknown", { state: "unknown" })];
+    expect(filterApps(apps, { hideStopped: true, onlyMine: false }, "u-alice").map((app) => app.name)).toEqual(["run", "fail", "unknown"]);
+  });
+
+  test("keeps only the signed-in member's apps when requested", () => {
+    const apps = [appWire("mine", { userId: "u-alice" }), appWire("theirs", { userId: "u-bob" })];
+    expect(filterApps(apps, { hideStopped: false, onlyMine: true }, "u-alice").map((app) => app.name)).toEqual(["mine"]);
+  });
+
+  test("onlyMine is inert without a signed-in member id", () => {
+    const apps = [appWire("mine", { userId: "u-alice" }), appWire("theirs", { userId: "u-bob" })];
+    expect(filterApps(apps, { hideStopped: false, onlyMine: true }, null).map((app) => app.name)).toEqual(["mine", "theirs"]);
   });
 });

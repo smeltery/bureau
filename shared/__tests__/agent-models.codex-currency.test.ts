@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CODEX_MODELS, DEFAULT_EFFORT, EFFORT_LEVELS, effortLevelsFor } from "../agent-models.ts";
+import { CODEX_MODELS, DEFAULT_EFFORT, EFFORT_LEVELS, effortLevelsFor, familyAllowsAutoPermission } from "../agent-models.ts";
 import { validateEffort } from "../../server/agent-validators.ts";
 
 describe("Codex model currency", () => {
@@ -18,5 +18,15 @@ describe("Codex model currency", () => {
   test("rejects Codex-only ultra effort on Claude agents", () => {
     expect(validateEffort("claude", "opus", "ultra")).toBe(DEFAULT_EFFORT);
     expect(validateEffort("codex", "gpt-6-astra", "ultra")).toBe("ultra");
+  });
+
+  test("does not offer effort levels for Haiku", () => {
+    expect(effortLevelsFor("claude", "haiku")).toEqual([]);
+    expect(effortLevelsFor("claude", "sonnet").length).toBeGreaterThan(0);
+  });
+
+  test("allows Sonnet auto permissions and max effort", () => {
+    expect(familyAllowsAutoPermission("sonnet")).toBe(true);
+    expect(effortLevelsFor("claude", "sonnet").some((effort) => effort.level === "max")).toBe(true);
   });
 });

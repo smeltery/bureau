@@ -4,6 +4,7 @@
 // can be covered without a React render harness.
 
 import type { AppListWire, AppState as AppRunState } from "../../shared/apps.ts";
+import type { AppFilter } from "../device-settings.ts";
 
 export const APP_VERBS = ["start", "stop", "restart"] as const;
 export type AppVerb = (typeof APP_VERBS)[number];
@@ -54,4 +55,12 @@ export function stateIsHollow(state: AppRunState): boolean {
 /** By name, which is the app's identity and the only stable order a list has. */
 export function sortApps(apps: readonly AppListWire[]): AppListWire[] {
   return [...apps].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * "Stopped" means that one state: failed and unknown apps still need human
+ * attention. "Mine" is based on app owner, not the agent that registered it.
+ */
+export function filterApps<T extends Pick<AppListWire, "state"> & { userId?: string | null }>(apps: readonly T[], filters: Record<AppFilter, boolean>, selfUserId: string | null): T[] {
+  return apps.filter((app) => !(filters.hideStopped && app.state === "stopped") && !(filters.onlyMine && selfUserId !== null && app.userId !== selfUserId));
 }
