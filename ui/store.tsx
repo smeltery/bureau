@@ -156,6 +156,7 @@ export type Action =
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "room_pet_updated"; roomId: string; pet: RoomPet | null }
   | { type: "room_skin_updated"; roomId: string; skin: import("../shared/types.ts").RoomSkin | null }
+  | { type: "room_decor_updated"; roomId: string; decor: import("../shared/types.ts").RoomDecor | null }
   | { type: "rooms_reordered"; order: string[] }
   | { type: "cc_plugins_state"; plugins: CCPluginsState }
   | { type: "cronjobs_state"; cronjobs: Cronjob[]; cronjobsPrompt: string | null }

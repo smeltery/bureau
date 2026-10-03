@@ -2,7 +2,7 @@ import type { AgentInfo, AgentOutfit, TaskItem, TaskPriority, RoomWire, OfficeSe
 import type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 import type { RoomPet } from "./user-types.ts";
 import { normalizeRoomPet } from "./user-types.ts";
-import { generateRoomId } from "./types.ts";
+import { generateRoomId, parseRoomDecor } from "./types.ts";
 import { createAgentInfo, firstOpenDesk, hasDuplicateAgentName, roomIndexById } from "./office-agents.ts";
 import { closeRoomInList, createRoomInList, moveAgentToRoom, renameRoomInList } from "./office-rooms.ts";
 import { addTaskToList, deleteTaskFromList, updateTaskInList } from "./office-tasks.ts";
@@ -11,7 +11,7 @@ export type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 
 export class OfficeState {
   private agents = new Map<string, AgentInfo>();
-  private _rooms: RoomWire[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null }];
+  private _rooms: RoomWire[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, decor: null }];
   private _office: OfficeSettings = { prompt: null, envFile: null, previewAllowHosts: [], experimental: { browserPanel: false }, receptionistAgentId: null };
   private _tasks: TaskItem[] = [];
   private _recentCwds: string[] = [];
@@ -54,7 +54,13 @@ export class OfficeState {
   }
 
   setRooms(rooms: RoomWire[]) {
-    this._rooms = rooms.length > 0 ? rooms.map((room) => ({ ...room, pet: normalizeRoomPet(room.pet) })) : [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null }];
+    this._rooms =
+      rooms.length > 0
+        ? rooms.map((room) => {
+            const parsedDecor = parseRoomDecor(room.decor);
+            return { ...room, pet: normalizeRoomPet(room.pet), decor: parsedDecor.ok ? parsedDecor.decor : null };
+          })
+        : [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, decor: null }];
   }
 
   setOfficeDirect(office: OfficeSettings) {
@@ -233,6 +239,14 @@ export class OfficeState {
     const next = skin ?? null;
     this._rooms[idx] = { ...this._rooms[idx], skin: next };
     return [{ type: "room_skin_updated", roomId, skin: next }];
+  }
+
+  setRoomDecor(roomId: string, decor: import("./room-skins.ts").RoomDecor | null): OfficeEvent[] {
+    const idx = this._rooms.findIndex((r) => r.id === roomId);
+    if (idx < 0) return [];
+    const next = decor ?? null;
+    this._rooms[idx] = { ...this._rooms[idx], decor: next };
+    return [{ type: "room_decor_updated", roomId, decor: next }];
   }
 
   setTopic(agentId: string, topic: string): OfficeEvent[] {

@@ -5,9 +5,21 @@ import type { CatCoat, DogCoat, PetPalette, PetSpecies, RabbitCoat, RoomPet, Roo
 export type { CatCoat, DogCoat, PetPalette, PetSpecies, RabbitCoat, RoomPet, RoomPetCoat, TortoiseCoat };
 export { CAT_COATS, DEFAULT_ROOM_PET, DOG_COATS, PET_COATS, PET_PALETTES, PET_SPECIES, RABBIT_COATS, ROOM_PET_COATS, TORTOISE_COATS, isPetSpecies, normalizeRoomPet, paletteForPet } from "./pets.ts";
 
-export type { RoomSkin } from "./room-skins.ts";
-export { DEFAULT_ROOM_SKIN, SELECTABLE_ROOM_SKIN_IDS, ROOM_SKIN_IDS, effectiveRoomSkin, isRoomSkin, parseRoomSkin } from "./room-skins.ts";
-import type { RoomSkin } from "./room-skins.ts";
+export type { RoomDecor, RoomSkin } from "./room-skins.ts";
+export {
+  DEFAULT_ROOM_DECOR,
+  DEFAULT_ROOM_SKIN,
+  ROOM_DECOR_IDS,
+  ROOM_SKIN_IDS,
+  SELECTABLE_ROOM_SKIN_IDS,
+  effectiveRoomDecor,
+  effectiveRoomSkin,
+  isRoomDecor,
+  isRoomSkin,
+  parseRoomDecor,
+  parseRoomSkin,
+} from "./room-skins.ts";
+import type { RoomDecor, RoomSkin } from "./room-skins.ts";
 
 /** Opt-in experimental office features. Defaults are off. */
 export interface ExperimentalSettings {
@@ -156,4 +168,6 @@ export interface RoomWire {
   pet?: RoomPet | null;
   /** Look for the room scene. Absent/null draws the office. */
   skin?: RoomSkin | null;
+  /** Optional decorative density for the room scene. Absent/null uses standard. */
+  decor?: RoomDecor | null;
 }

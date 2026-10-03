@@ -10,7 +10,7 @@ import { WallPanelMenu, type WallPanelMenuItem } from "../components/overlays/Wa
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
 import { useViewport } from "./useViewport.ts";
 import { ZoomControls } from "./ZoomControls.tsx";
-import type { AgentInfo } from "../../shared/types.ts";
+import { effectiveRoomDecor, type AgentInfo } from "../../shared/types.ts";
 import { BuildingIcon, DoorIcon } from "./OfficeHeader.tsx";
 import { OfficeHints } from "./OfficeHints.tsx";
 import { RoomDoorDropZones } from "./RoomDoorDropZones.tsx";
@@ -132,6 +132,7 @@ export function OfficeView({
   ];
 
   const counts = getRoomCounts(roomAgents);
+  const roomDecor = effectiveRoomDecor(rooms[currentRoom]);
 
   return (
     <div
@@ -205,6 +206,7 @@ export function OfficeView({
             ) : (
               <>
                 <Walls
+                  decor={roomDecor}
                   onToggleTheme={cycleTheme}
                   onWallPanelClick={(x, y) => setWallMenu({ x, y })}
                   hasOfficePrompt={!!officePrompt}
@@ -240,8 +242,8 @@ export function OfficeView({
                   }
                 />
                 <Floor />
-                <RoomProps />
-                <Seasonal />
+                {roomDecor !== "minimal" && <RoomProps />}
+                {roomDecor !== "minimal" && <Seasonal />}
                 <RoomDoorDropZones
                   agents={agents}
                   currentRoom={currentRoom}

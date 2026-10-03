@@ -12,6 +12,7 @@ export type OfficeEvent =
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "room_pet_updated"; roomId: string; pet: RoomPet | null }
   | { type: "room_skin_updated"; roomId: string; skin: import("./room-skins.ts").RoomSkin | null }
+  | { type: "room_decor_updated"; roomId: string; decor: import("./room-skins.ts").RoomDecor | null }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings; receptionistAgentId?: string | null }
   | { type: "tasks_changed"; tasks: TaskItem[] };
 

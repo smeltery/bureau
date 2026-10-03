@@ -1,6 +1,6 @@
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
-import { parseRoomSkin } from "../../shared/types.ts";
+import { parseRoomDecor, parseRoomSkin } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { normalizeExperimental, normalizeReceptionistAgentId } from "../persistence/config/office-config.ts";
 import { getUserById, getWsUser } from "../users.ts";
@@ -103,6 +103,10 @@ export function handleSettingsCommand(cmd: ClientCommand, ws: ServerWebSocket<un
       if (ok && "skin" in cmd) {
         const parsed = parseRoomSkin((cmd as { skin?: unknown }).skin);
         if (parsed.ok) AgentManager.setRoomSkin(cmd.roomId, parsed.skin);
+      }
+      if (ok && "decor" in cmd) {
+        const parsed = parseRoomDecor((cmd as { decor?: unknown }).decor);
+        if (parsed.ok) AgentManager.setRoomDecor(cmd.roomId, parsed.decor);
       }
       if (!ok) {
         ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: false, error: "Room not found" } as ServerMessage));

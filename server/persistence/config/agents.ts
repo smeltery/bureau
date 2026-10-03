@@ -1,8 +1,8 @@
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import type { AgentCapabilities, AgentInfo, ClaudeModel, KilledAgentSummary, QueuedMessage } from "../../../shared/types.ts";
-import { familyFromLegacyModel, generateRoomId, normalizeRoomPet, parseRoomSkin } from "../../../shared/types.ts";
-import type { RoomPet, RoomSkin } from "../../../shared/types.ts";
+import { familyFromLegacyModel, generateRoomId, normalizeRoomPet, parseRoomDecor, parseRoomSkin } from "../../../shared/types.ts";
+import type { RoomDecor, RoomPet, RoomSkin } from "../../../shared/types.ts";
 import { AGENTS_FILE, atomicWriteFileSync, LOGS_DIR, MANIFEST_FILE } from "../paths.ts";
 
 // Persisted agent config (subset of AgentInfo + session tracking)
@@ -44,11 +44,12 @@ export interface Room {
   envFile: string | null; // absolute path to dotenv file
   pet?: RoomPet | null;
   skin?: RoomSkin | null;
+  decor?: RoomDecor | null;
   agents: PersistedAgent[];
 }
 
 export function loadAgents(): Room[] {
-  const defaultRoom = (): Room => ({ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, agents: [] });
+  const defaultRoom = (): Room => ({ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, decor: null, agents: [] });
   let rooms: any[];
   try {
     if (!existsSync(AGENTS_FILE)) return [defaultRoom()];
@@ -67,10 +68,11 @@ export function loadAgents(): Room[] {
         prompt: null,
         envFile: null,
         pet: null,
+        decor: null,
         agents,
       }));
     } else {
-      rooms = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, agents: parsed as PersistedAgent[] }];
+      rooms = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, decor: null, agents: parsed as PersistedAgent[] }];
     }
   } catch {
     return [defaultRoom()];
@@ -89,6 +91,8 @@ export function loadAgents(): Room[] {
     room.pet = normalizeRoomPet(room.pet);
     const skinParsed = parseRoomSkin(room.skin);
     room.skin = skinParsed.ok ? skinParsed.skin : null;
+    const decorParsed = parseRoomDecor(room.decor);
+    room.decor = decorParsed.ok ? decorParsed.decor : null;
     for (const agent of room.agents as PersistedAgent[]) migratePersistedAgent(agent);
   }
   return rooms as Room[];

@@ -91,7 +91,7 @@ describe("handleRoomsRequest", () => {
 
     expect(res?.status).toBe(200);
     const body = await res?.json();
-    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, pet: null, skin: null, version: body.version });
+    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, pet: null, skin: null, decor: null, version: body.version });
     expect(typeof body.version).toBe("string");
     AgentManager.setRoomSettings(room.id, null, null);
   });
@@ -114,6 +114,33 @@ describe("handleRoomsRequest", () => {
     expect(saved?.status).toBe(204);
     expect(AgentManager.getRoomSettings(room.id)?.pet).toEqual({ species: "cat", coat: "silver" });
     AgentManager.setRoomPet(room.id, null);
+  });
+
+  test("saves room decor choices with versioned room settings", async () => {
+    const room = AgentManager.getRooms()[0]!;
+    const current = await handleRoomsRequest(request(`/api/rooms/${room.id}/settings`), new URL(`http://local.test/api/rooms/${room.id}/settings`), ownerAuth);
+    expect(current).not.toBeNull();
+    const version = ((await current!.json()) as { version: string }).version;
+
+    const saved = await handleRoomsRequest(
+      request(`/api/rooms/${room.id}/settings`, {
+        method: "PUT",
+        body: JSON.stringify({ prompt: null, envFile: null, decor: "minimal", version }),
+      }),
+      new URL(`http://local.test/api/rooms/${room.id}/settings`),
+      ownerAuth,
+    );
+
+    expect(saved?.status).toBe(204);
+    expect(AgentManager.getRoomSettings(room.id)?.decor).toBe("minimal");
+
+    const latest = await handleRoomsRequest(request(`/api/rooms/${room.id}/settings`), new URL(`http://local.test/api/rooms/${room.id}/settings`), ownerAuth);
+    expect(latest).not.toBeNull();
+    const body = (await latest!.json()) as { decor: string | null; version: string };
+    expect(body.decor).toBe("minimal");
+    expect(body.version).not.toBe(version);
+
+    AgentManager.setRoomDecor(room.id, null);
   });
 
   test("requires the current room settings version when saving", async () => {

@@ -26,3 +26,28 @@ export function parseRoomSkin(value: unknown): { ok: true; skin: RoomSkin | null
   }
   return { ok: true, skin: value };
 }
+
+// Per-room decorative density. Decor controls optional wall/scene accents
+// without changing the room skin, furniture layout, agents, desks, or pets.
+export const ROOM_DECOR_IDS = ["minimal", "standard", "lively"] as const;
+
+export type RoomDecor = (typeof ROOM_DECOR_IDS)[number];
+
+export const DEFAULT_ROOM_DECOR: RoomDecor = "standard";
+
+export function isRoomDecor(value: unknown): value is RoomDecor {
+  return typeof value === "string" && (ROOM_DECOR_IDS as readonly string[]).includes(value);
+}
+
+export function effectiveRoomDecor(room?: { decor?: RoomDecor | null }): RoomDecor {
+  const decor = room?.decor;
+  return isRoomDecor(decor) ? decor : DEFAULT_ROOM_DECOR;
+}
+
+export function parseRoomDecor(value: unknown): { ok: true; decor: RoomDecor | null } | { ok: false; reason: string } {
+  if (value === null || value === undefined) return { ok: true, decor: null };
+  if (!isRoomDecor(value)) {
+    return { ok: false, reason: `decor must be null or one of: ${ROOM_DECOR_IDS.join(", ")}` };
+  }
+  return { ok: true, decor: value };
+}

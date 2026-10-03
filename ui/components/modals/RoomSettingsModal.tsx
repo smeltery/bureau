@@ -5,7 +5,19 @@ import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts";
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
-import { DEFAULT_ROOM_PET, PET_COATS, PET_SPECIES, SELECTABLE_ROOM_SKIN_IDS, effectiveRoomSkin, type PetSpecies, type RoomPet, type RoomSkin } from "../../../shared/types.ts";
+import {
+  DEFAULT_ROOM_PET,
+  PET_COATS,
+  PET_SPECIES,
+  ROOM_DECOR_IDS,
+  SELECTABLE_ROOM_SKIN_IDS,
+  effectiveRoomDecor,
+  effectiveRoomSkin,
+  type PetSpecies,
+  type RoomDecor,
+  type RoomPet,
+  type RoomSkin,
+} from "../../../shared/types.ts";
 import { UnsavedChangesPrompt, useUnsavedChangesPrompt } from "./UnsavedChangesPrompt.tsx";
 
 type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
@@ -16,6 +28,7 @@ type RoomBaseline = {
   petSpecies: PetSpecies;
   petCoat: string;
   skin: RoomSkin;
+  decor: RoomDecor;
 };
 
 function defaultCoatFor(species: PetSpecies): string {
@@ -31,6 +44,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
   const [petSpecies, setPetSpecies] = useState<PetSpecies>(initialPet.species);
   const [petCoat, setPetCoat] = useState<string>(initialPet.coat);
   const [skin, setSkin] = useState<RoomSkin>(effectiveRoomSkin(room));
+  const [decor, setDecor] = useState<RoomDecor>(effectiveRoomDecor(room));
   const [baseline, setBaseline] = useState<RoomBaseline | null>(null);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
   const [saving, setSaving] = useState(false);
@@ -39,7 +53,14 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
   const roomMemory = useMemoryEditor("room", roomId, !!room);
 
   const dirty =
-    !!baseline && (prompt !== baseline.prompt || envFile !== baseline.envFile || petSpecies !== baseline.petSpecies || petCoat !== baseline.petCoat || skin !== baseline.skin || roomMemory.dirty);
+    !!baseline &&
+    (prompt !== baseline.prompt ||
+      envFile !== baseline.envFile ||
+      petSpecies !== baseline.petSpecies ||
+      petCoat !== baseline.petCoat ||
+      skin !== baseline.skin ||
+      decor !== baseline.decor ||
+      roomMemory.dirty);
 
   const discardPrompt = useUnsavedChangesPrompt(dirty, undefined, () => {
     if (!baseline) return;
@@ -48,6 +69,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     setPetSpecies(baseline.petSpecies);
     setPetCoat(baseline.petCoat);
     setSkin(baseline.skin);
+    setDecor(baseline.decor);
     roomMemory.reset();
     setStatus({ kind: "idle" });
   });
@@ -58,7 +80,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     fetch(`/api/rooms/${encodeURIComponent(roomId)}/settings`, { credentials: "same-origin" })
       .then(async (res) => {
         if (!res.ok) throw new Error("could not load room settings");
-        return (await res.json()) as { prompt: string | null; envFile: string | null; pet?: RoomPet | null; skin?: RoomSkin | null; version: string };
+        return (await res.json()) as { prompt: string | null; envFile: string | null; pet?: RoomPet | null; skin?: RoomSkin | null; decor?: RoomDecor | null; version: string };
       })
       .then((data) => {
         if (cancelled) return;
@@ -69,12 +91,14 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
           petSpecies: pet.species,
           petCoat: pet.coat,
           skin: effectiveRoomSkin({ skin: data.skin }),
+          decor: effectiveRoomDecor({ decor: data.decor }),
         };
         setPrompt(next.prompt);
         setEnvFile(next.envFile);
         setPetSpecies(next.petSpecies);
         setPetCoat(next.petCoat);
         setSkin(next.skin);
+        setDecor(next.decor);
         setBaseline(next);
         setSettingsVersion(data.version);
       })
@@ -147,6 +171,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       envFile: envFile.trim() || null,
       pet,
       skin,
+      decor,
       version: settingsVersion,
     });
   }
@@ -189,6 +214,15 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
           </option>
         ))}
         {!SELECTABLE_ROOM_SKIN_IDS.includes(skin) && <option value={skin}>{skin} (stored)</option>}
+      </select>
+
+      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Decor</label>
+      <select value={decor} onChange={(e) => setDecor(e.target.value as RoomDecor)} style={inputStyle}>
+        {ROOM_DECOR_IDS.map((id) => (
+          <option key={id} value={id}>
+            {decorLabel(id)}
+          </option>
+        ))}
       </select>
 
       <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Room Pet</label>
@@ -272,6 +306,12 @@ function coatLabel(coat: string): string {
     .split("-")
     .map((part) => part[0]!.toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function decorLabel(decor: RoomDecor): string {
+  if (decor === "minimal") return "Minimal";
+  if (decor === "lively") return "Lively";
+  return "Standard";
 }
 
 function ValidationLine({ status }: { status: ValidationStatus }) {

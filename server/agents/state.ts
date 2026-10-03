@@ -15,7 +15,7 @@ export const logCache = new Map<string, LogEntry[]>(); // agentId → entries
 
 let eventHandler: EventHandler = () => {};
 export let officeConfig: OfficeConfig = loadOfficeConfig();
-export let rooms: InternalRoom[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null }];
+export let rooms: InternalRoom[] = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, decor: null }];
 
 // Setters for modules that need to mutate the shared office/rooms state.
 export function setOfficeConfig(next: OfficeConfig) {
@@ -37,6 +37,7 @@ export function roomsWire(): RoomWire[] {
     envFile: r.envFile,
     pet: normalizeRoomPet(r.pet),
     skin: r.skin ?? null,
+    decor: r.decor ?? null,
   }));
 }
 

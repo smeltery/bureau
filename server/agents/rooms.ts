@@ -1,5 +1,5 @@
-import type { ExperimentalSettings, RoomPet, RoomSkin, RoomWire } from "../../shared/types.ts";
-import { generateRoomId, normalizeRoomPet, parseRoomSkin } from "../../shared/types.ts";
+import type { ExperimentalSettings, RoomDecor, RoomPet, RoomSkin, RoomWire } from "../../shared/types.ts";
+import { generateRoomId, normalizeRoomPet, parseRoomDecor, parseRoomSkin } from "../../shared/types.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { versionOf } from "../memory-store.ts";
 import { readEnvFile, saveOfficeConfig } from "../persistence.ts";
@@ -56,24 +56,26 @@ export function setRoomSettings(roomId: string, prompt: string | null, envFile: 
   return true;
 }
 
-/** Content hash over the room settings PUT surface (prompt + envFile + pet + skin). */
-export function roomSettingsVersion(settings: { prompt: string | null; envFile: string | null; pet?: unknown; skin?: unknown }): string {
+/** Content hash over the room settings PUT surface (prompt + envFile + pet + skin + decor). */
+export function roomSettingsVersion(settings: { prompt: string | null; envFile: string | null; pet?: unknown; skin?: unknown; decor?: unknown }): string {
   const skinParsed = parseRoomSkin(settings.skin);
+  const decorParsed = parseRoomDecor(settings.decor);
   return versionOf(
     JSON.stringify({
       prompt: settings.prompt ?? null,
       envFile: settings.envFile ?? null,
       pet: normalizeRoomPet(settings.pet),
       skin: skinParsed.ok ? skinParsed.skin : null,
+      decor: decorParsed.ok ? decorParsed.decor : null,
     }),
   );
 }
 
-export function getRoomSettings(roomId: string): { prompt: string | null; envFile: string | null; pet: RoomPet | null; skin: RoomSkin | null } | null {
+export function getRoomSettings(roomId: string): { prompt: string | null; envFile: string | null; pet: RoomPet | null; skin: RoomSkin | null; decor: RoomDecor | null } | null {
   const idx = findRoomIndex(roomId);
   if (idx < 0) return null;
   const room = rooms[idx];
-  return { prompt: room.prompt, envFile: room.envFile, pet: normalizeRoomPet(room.pet), skin: room.skin ?? null };
+  return { prompt: room.prompt, envFile: room.envFile, pet: normalizeRoomPet(room.pet), skin: room.skin ?? null, decor: room.decor ?? null };
 }
 
 export function setRoomPet(roomId: string, pet: RoomPet | null): boolean {
@@ -93,6 +95,16 @@ export function setRoomSkin(roomId: string, skin: RoomSkin | null): boolean {
   room.skin = skin;
   persistAll();
   emit({ type: "room_skin_updated", roomId, skin });
+  return true;
+}
+
+export function setRoomDecor(roomId: string, decor: RoomDecor | null): boolean {
+  const idx = findRoomIndex(roomId);
+  if (idx < 0) return false;
+  const room = rooms[idx];
+  room.decor = decor;
+  persistAll();
+  emit({ type: "room_decor_updated", roomId, decor });
   return true;
 }
 
@@ -126,12 +138,12 @@ export function createRoom(name?: string): string {
   const existingIds = rooms.map((r) => r.id);
   const id = generateRoomId(existingIds);
   const displayName = (name || `Room ${rooms.length + 1}`).trim().slice(0, 40);
-  const room: InternalRoom = { id, name: displayName, prompt: null, envFile: null, pet: null, skin: null };
+  const room: InternalRoom = { id, name: displayName, prompt: null, envFile: null, pet: null, skin: null, decor: null };
   rooms.push(room);
   persistAll();
   emit({
     type: "room_created",
-    room: { id: room.id, name: room.name, prompt: room.prompt, envFile: room.envFile, pet: room.pet, skin: room.skin },
+    room: { id: room.id, name: room.name, prompt: room.prompt, envFile: room.envFile, pet: room.pet, skin: room.skin, decor: room.decor },
   });
   return id;
 }

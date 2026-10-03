@@ -4,7 +4,7 @@ import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { privilegedAgentIdentity, type PrivilegedAgentIdentity } from "./agent-route-helpers.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
-import { normalizeRoomPet, parseRoomSkin } from "../../shared/types.ts";
+import { normalizeRoomPet, parseRoomDecor, parseRoomSkin } from "../../shared/types.ts";
 
 const jsonHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 const noContentHeaders = { "Access-Control-Allow-Origin": "*" };
@@ -97,6 +97,11 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
       const parsed = parseRoomSkin(body.skin);
       if (!parsed.ok) return error(422, parsed.reason);
       AgentManager.setRoomSkin(roomId, parsed.skin);
+    }
+    if ("decor" in body) {
+      const parsed = parseRoomDecor(body.decor);
+      if (!parsed.ok) return error(422, parsed.reason);
+      AgentManager.setRoomDecor(roomId, parsed.decor);
     }
     return new Response(null, { status: 204, headers: noContentHeaders });
   }

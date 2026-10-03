@@ -226,6 +226,10 @@ export function reducer(state: AppState, action: Action): AppState {
       const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, skin: action.skin } : r));
       return { ...state, rooms: newRooms };
     }
+    case "room_decor_updated": {
+      const newRooms = state.rooms.map((r) => (r.id === action.roomId ? { ...r, decor: action.decor } : r));
+      return { ...state, rooms: newRooms };
+    }
     case "cc_plugins_state":
       return { ...state, ccPlugins: action.plugins };
     case "cronjobs_state":

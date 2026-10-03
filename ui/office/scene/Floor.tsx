@@ -4,6 +4,7 @@ import { WallDoor, type DoorProps } from "./WallDoor.tsx";
 import { Corkboard, OfficePromptSign } from "./WallDecor.tsx";
 import { WallWindow } from "./WallWindow.tsx";
 import { SkinWalls } from "../skins/index.tsx";
+import type { RoomDecor } from "../../../shared/types.ts";
 
 const SVG_STYLE: React.CSSProperties = {
   position: "absolute",
@@ -88,6 +89,7 @@ export function Walls({
   taskCount = 0,
   leftDoor,
   rightDoor,
+  decor = "standard",
 }: {
   onToggleTheme?: () => void;
   onWallPanelClick?: (x: number, y: number) => void;
@@ -99,6 +101,7 @@ export function Walls({
   taskCount?: number;
   leftDoor?: DoorProps | null;
   rightDoor?: DoorProps | null;
+  decor?: RoomDecor;
 }) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -132,13 +135,13 @@ export function Walls({
       {/* Right wall (2:1 iso ratio) */}
       <path d="M120 -200 L120 40 L595 277.5 L595 37.5 Z" fill="var(--wall-right)" stroke="var(--wall-stroke)" strokeWidth="0.5" />
 
-      <SkinWalls />
+      {decor !== "minimal" && <SkinWalls />}
 
       {/* Window on left wall */}
       <WallWindow now={now} onToggleTheme={onToggleTheme} />
 
-      <Corkboard taskCount={taskCount} onOpenTasks={onOpenTasks} />
-      <OfficePromptSign hasOfficePrompt={hasOfficePrompt} onWallPanelClick={onWallPanelClick} />
+      {decor !== "minimal" && <Corkboard taskCount={taskCount} onOpenTasks={onOpenTasks} />}
+      {decor !== "minimal" && <OfficePromptSign hasOfficePrompt={hasOfficePrompt} onWallPanelClick={onWallPanelClick} />}
       {/* Clock on right wall (skewed to match 2:1 wall angle ~27°) — opens schedules */}
       <g
         data-no-pan
