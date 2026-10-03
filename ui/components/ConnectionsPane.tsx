@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ProviderAccountWire, ProviderAccountsWire, ProviderKeysUpdateRes, ProviderLoginQueueWire, ProviderSignInSlotRes } from "../../shared/provider-accounts.ts";
 import { sectionHeader } from "./AccessPane.tsx";
+import { MemberUsageCard } from "./connections/MemberUsageCard.tsx";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { useI18n } from "../i18n.tsx";
 import { useAppState } from "../store.tsx";
@@ -75,6 +76,7 @@ export function ConnectionsPane({ username }: { username: string }) {
           onUpdated={setAccounts}
         />
       ))}
+      {sessionContext?.role === "owner" && <MemberUsageCard />}
       <BedrockHint />
     </div>
   );
