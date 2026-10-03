@@ -17,6 +17,7 @@ import { handleBureauDiffCommand, handleBureauEditCommand, handleBureauMessageCo
 import { handleContextCommand } from "./slash-context.ts";
 import { handleEffortCommand, handleModelCommand } from "./slash-model-effort.ts";
 import { handleBureauCronjobSystemPromptCommand, handleBureauSystemPromptCommand } from "./slash-prompt-commands.ts";
+import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
 
 type HandlerFn = (agentId: string, managed: ManagedAgent, args: string[], rawText: string, username?: string) => Promise<boolean>;
 
@@ -102,6 +103,11 @@ export const commandHandlers: Record<string, HandlerFn> = {
       });
     } catch (err: any) {
       if (err instanceof SessionSwappedError) return true;
+      if (err instanceof UsageCapError) {
+        addLogEntry(agentId, "error", usageCapText(err));
+        updateState(agentId, "waiting_for_response");
+        return true;
+      }
       addLogEntry(agentId, "error", `Handoff error: ${err.message}`);
       updateState(agentId, "error");
     }
@@ -163,6 +169,11 @@ export const commandHandlers: Record<string, HandlerFn> = {
       });
     } catch (err: any) {
       if (err instanceof SessionSwappedError) return true;
+      if (err instanceof UsageCapError) {
+        addLogEntry(agentId, "error", usageCapText(err));
+        updateState(agentId, "waiting_for_response");
+        return true;
+      }
       addLogEntry(agentId, "error", `Handoff restart error: ${err.message}`);
       updateState(agentId, "error");
     }

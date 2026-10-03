@@ -12,6 +12,8 @@ import {
   writeManagedUserEnv,
 } from "../persistence/managed-env.ts";
 import { normalizeExperimental, normalizeReceptionistAgentId } from "../persistence/config/office-config.ts";
+import { validMemberShare } from "../../shared/member-usage/share.ts";
+import { memberUsageCap } from "../usage-cap/member-usage-cap.ts";
 
 const jsonHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 const noContentHeaders = { "Access-Control-Allow-Origin": "*" };
@@ -39,7 +41,8 @@ export async function handleOfficeSettingsRequest(req: Request, url: URL, auth: 
 
   if (req.method === "GET") {
     const settings = AgentManager.getOfficeSettings();
-    return new Response(JSON.stringify({ ...settings, version: AgentManager.officeSettingsVersion(settings) }), { headers: jsonHeaders });
+    const memberUsageStatus = settings.memberUsageCap ? await memberUsageCap().status() : undefined;
+    return new Response(JSON.stringify({ ...settings, memberUsageStatus, version: AgentManager.officeSettingsVersion(settings) }), { headers: jsonHeaders });
   }
 
   if (req.method === "PUT") {
@@ -75,7 +78,17 @@ export async function handleOfficeSettingsRequest(req: Request, url: URL, auth: 
       }
       receptionistAgentId = normalizeReceptionistAgentId(body.receptionistAgentId) ?? null;
     }
-    AgentManager.setOfficeSettings(prompt, envFile, experimental, receptionistAgentId);
+    let memberUsageCap = current.memberUsageCap ?? false;
+    if (body.memberUsageCap !== undefined) {
+      if (typeof body.memberUsageCap !== "boolean") return error(400, "memberUsageCap must be a boolean");
+      memberUsageCap = body.memberUsageCap;
+    }
+    let memberUsageShare = current.memberUsageShare;
+    if (body.memberUsageShare !== undefined) {
+      if (!validMemberShare(body.memberUsageShare)) return error(400, "memberUsageShare must be 10..100 in steps of 10");
+      memberUsageShare = body.memberUsageShare;
+    }
+    AgentManager.setOfficeSettings(prompt, envFile, experimental, receptionistAgentId, memberUsageCap, memberUsageShare);
     return new Response(null, { status: 204, headers: noContentHeaders });
   }
 

@@ -1,5 +1,6 @@
 import type { ExperimentalSettings, RoomDecor, RoomPet, RoomSkin, RoomWire } from "../../shared/types.ts";
 import { generateRoomId, normalizeRoomPet, parseRoomDecor, parseRoomSkin } from "../../shared/types.ts";
+import { validMemberShare } from "../../shared/member-usage/share.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { versionOf } from "../memory-store.ts";
 import { readEnvFile, saveOfficeConfig } from "../persistence.ts";
@@ -9,19 +10,44 @@ export function getRooms(): RoomWire[] {
   return roomsWire();
 }
 
-/** Content hash over the office settings PUT surface (prompt + envFile + experimental + receptionist). */
-export function officeSettingsVersion(settings?: { prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings; receptionistAgentId?: string | null }): string {
+/** Content hash over the office settings PUT surface. */
+export function officeSettingsVersion(settings?: {
+  prompt: string | null;
+  envFile: string | null;
+  experimental?: ExperimentalSettings;
+  receptionistAgentId?: string | null;
+  memberUsageCap?: boolean;
+  memberUsageShare?: number;
+}): string {
   const s = settings ?? {
     prompt: officeConfig.prompt,
     envFile: officeConfig.envFile,
     experimental: officeConfig.experimental,
     receptionistAgentId: officeConfig.receptionistAgentId ?? null,
+    memberUsageCap: officeConfig.memberUsageCap ?? false,
+    memberUsageShare: officeConfig.memberUsageShare,
   };
-  return versionOf(JSON.stringify([s.prompt ?? null, s.envFile ?? null, s.experimental ?? officeConfig.experimental, s.receptionistAgentId ?? officeConfig.receptionistAgentId ?? null]));
+  return versionOf(
+    JSON.stringify([
+      s.prompt ?? null,
+      s.envFile ?? null,
+      s.experimental ?? officeConfig.experimental,
+      s.receptionistAgentId ?? officeConfig.receptionistAgentId ?? null,
+      s.memberUsageCap === true,
+      validMemberShare(s.memberUsageShare) ? s.memberUsageShare : (officeConfig.memberUsageShare ?? 80),
+    ]),
+  );
 }
 
 // Update office settings. Caller is responsible for validating envFile (see validateEnvPath).
-export function setOfficeSettings(prompt: string | null, envFile: string | null, experimental?: ExperimentalSettings, receptionistAgentId?: string | null) {
+export function setOfficeSettings(
+  prompt: string | null,
+  envFile: string | null,
+  experimental?: ExperimentalSettings,
+  receptionistAgentId?: string | null,
+  memberUsageCap?: boolean,
+  memberUsageShare?: number,
+) {
   const normalizedPrompt = prompt && prompt.trim() ? prompt.trim() : null;
   const nextConfig = {
     ...officeConfig,
@@ -29,6 +55,8 @@ export function setOfficeSettings(prompt: string | null, envFile: string | null,
     envFile: envFile || null,
     experimental: experimental ?? officeConfig.experimental,
     receptionistAgentId: receptionistAgentId !== undefined ? receptionistAgentId : (officeConfig.receptionistAgentId ?? null),
+    memberUsageCap: memberUsageCap ?? officeConfig.memberUsageCap ?? false,
+    memberUsageShare: validMemberShare(memberUsageShare) ? memberUsageShare : (officeConfig.memberUsageShare ?? 80),
   };
   setOfficeConfig(nextConfig);
   saveOfficeConfig(nextConfig);

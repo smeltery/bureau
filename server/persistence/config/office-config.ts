@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from "fs";
 import { DEFAULT_EXPERIMENTAL, type ExperimentalSettings } from "../../../shared/user-types.ts";
+import { DEFAULT_MEMBER_SHARE, validMemberShare } from "../../../shared/member-usage/share.ts";
 import { atomicWriteFileSync, OFFICE_CONFIG_FILE, OFFICE_PROMPT_FILE } from "../paths.ts";
 
 // Office-level settings (prompt + env file path) stored in office-config.json.
@@ -33,6 +34,9 @@ export interface OfficeConfig {
   experimental: ExperimentalSettings;
   /** Living agent id for the lobby receptionist click target; null → Team chat. */
   receptionistAgentId: string | null;
+  /** Owner switch that paces member-backed turns against office provider limits. */
+  memberUsageCap?: boolean;
+  memberUsageShare?: number;
 }
 
 // A single entry in office-config.json's `enabledPlugins` array.
@@ -65,6 +69,8 @@ export function loadOfficeConfig(): OfficeConfig {
         previewAllowHosts: parsePreviewAllowHosts(parsed.previewAllowHosts),
         experimental: parseExperimental(parsed.experimental),
         receptionistAgentId: parseReceptionistAgentId(parsed.receptionistAgentId),
+        memberUsageCap: parsed.memberUsageCap === true,
+        memberUsageShare: validMemberShare(parsed.memberUsageShare) ? parsed.memberUsageShare : DEFAULT_MEMBER_SHARE,
       };
     }
   } catch (err) {
@@ -88,6 +94,8 @@ export function loadOfficeConfig(): OfficeConfig {
     previewAllowHosts: [],
     experimental: { ...DEFAULT_EXPERIMENTAL },
     receptionistAgentId: null,
+    memberUsageCap: false,
+    memberUsageShare: DEFAULT_MEMBER_SHARE,
   };
   // Only persist if the legacy prompt actually had content — otherwise a fresh
   // install touches a new file for no reason, and the next save/set will write

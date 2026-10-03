@@ -1,5 +1,6 @@
 import type { GhostVariant } from "./avatar.ts";
 import type { SupportedLanguageCode } from "./languages.ts";
+import type { ProviderAccountProvider } from "./provider-accounts.ts";
 
 import type { CatCoat, DogCoat, PetPalette, PetSpecies, RabbitCoat, RoomPet, RoomPetCoat, TortoiseCoat } from "./pets.ts";
 export type { CatCoat, DogCoat, PetPalette, PetSpecies, RabbitCoat, RoomPet, RoomPetCoat, TortoiseCoat };
@@ -37,7 +38,14 @@ export interface OfficeSettings {
   experimental: ExperimentalSettings;
   /** Living agent whose chat opens from the lobby receptionist; null → Team chat. */
   receptionistAgentId: string | null;
+  memberUsageCap?: boolean;
+  memberUsageShare?: number;
+  memberUsageStatus?: OfficeUsageStatusWire[];
 }
+
+export type OfficeUsageStatusWire =
+  | { provider: ProviderAccountProvider; state: "no_limit" | "failed" }
+  | { provider: ProviderAccountProvider; state: "weekly"; usedPercent: number; linePercent: number };
 
 export type UserRole = "owner" | "member";
 

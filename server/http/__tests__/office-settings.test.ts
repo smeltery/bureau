@@ -80,6 +80,46 @@ describe("handleOfficeSettingsRequest", () => {
     expect(typeof body.version).toBe("string");
     expect(body.version).toMatch(/^[0-9a-f]{12}$/);
     expect(body.experimental).toEqual({ browserPanel: expect.any(Boolean) });
+    expect(body.memberUsageCap).toEqual(expect.any(Boolean));
+    expect(body.memberUsageShare).toEqual(expect.any(Number));
+  });
+
+  test("persists member usage cap settings through PUT", async () => {
+    const current = await handleOfficeSettingsRequest(request("/api/office/settings"), new URL("http://local.test/api/office/settings"), ownerAuth);
+    const body = (await current!.json()) as {
+      version: string;
+      prompt: string | null;
+      envFile: string | null;
+      experimental: { browserPanel: boolean };
+      memberUsageCap: boolean;
+      memberUsageShare: number;
+    };
+    const put = await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({ prompt: body.prompt, envFile: body.envFile, version: body.version, experimental: body.experimental, memberUsageCap: true, memberUsageShare: 70 }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
+    expect(put?.status).toBe(204);
+    expect(AgentManager.getOfficeSettings().memberUsageCap).toBe(true);
+    expect(AgentManager.getOfficeSettings().memberUsageShare).toBe(70);
+    await handleOfficeSettingsRequest(
+      request("/api/office/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          prompt: body.prompt,
+          envFile: body.envFile,
+          version: AgentManager.officeSettingsVersion(AgentManager.getOfficeSettings()),
+          experimental: body.experimental,
+          memberUsageCap: body.memberUsageCap,
+          memberUsageShare: body.memberUsageShare,
+        }),
+      }),
+      new URL("http://local.test/api/office/settings"),
+      ownerAuth,
+    );
   });
 
   test("persists experimental.browserPanel through PUT", async () => {

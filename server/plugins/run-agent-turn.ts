@@ -45,6 +45,7 @@ import { SessionSwappedError, createTurnDeferred } from "../agents/session/runti
 import { getEnabledPlugins } from "./registry.ts";
 import { assistantTextFromEntries, runAfterTurn, runBeforeTurnHooks } from "./turn-hooks.ts";
 import { applyPluginPrefixes, formatMemoryNoticeBlock, formatWakeNoticeBlock } from "./plugin-prefix.ts";
+import { admitMemberTurn } from "../usage-cap/member-usage-cap.ts";
 export { stripPluginPrefix } from "./plugin-prefix.ts";
 
 export type TurnOrigin = "user" | "queued" | "skill" | "edit-fork";
@@ -88,6 +89,7 @@ export interface RunAgentTurnOpts {
 export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   const { managed, sdkText, originalText, visibleText, attachments, origin, humanInput, username, onSendAccepted } = opts;
   const agentId = managed.info.id;
+  await admitMemberTurn(managed, username, humanInput);
   const contextNoticeText = managed.pendingContextNotices.length > 0 ? managed.pendingContextNotices.map((notice) => `[${notice}]`).join("\n") : "";
   // Built-in outbound block (server coordination, NOT a plugin — no
   // enable/disable coupling, absent from plugin discovery + failure

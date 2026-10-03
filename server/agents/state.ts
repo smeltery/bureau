@@ -1,5 +1,6 @@
 import type { AgentState, Attachment, LogEntry, OfficeSettings, RoomWire } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES, generateRoomId, normalizeRoomPet } from "../../shared/types.ts";
+import { DEFAULT_MEMBER_SHARE } from "../../shared/member-usage/share.ts";
 import { appendLog, loadOfficeConfig, prepareLogEntry, type OfficeConfig } from "../persistence.ts";
 import { saveLiveAgentHistory, saveLiveAgents, writeAgentsManifest } from "./state-persistence.ts";
 import type { AgentEvent, EventHandler, InternalRoom, ManagedAgent } from "./state-types.ts";
@@ -52,6 +53,8 @@ export function getOfficeSettings(): OfficeSettings {
     previewAllowHosts: officeConfig.previewAllowHosts,
     experimental: officeConfig.experimental,
     receptionistAgentId: officeConfig.receptionistAgentId ?? null,
+    memberUsageCap: officeConfig.memberUsageCap ?? false,
+    memberUsageShare: officeConfig.memberUsageShare ?? DEFAULT_MEMBER_SHARE,
   };
 }
 

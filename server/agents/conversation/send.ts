@@ -11,6 +11,7 @@ import { enqueueUserMessage, QUEUE_MAX } from "./message-queue.ts";
 import { handlePendingCronjobPick, handlePendingEffortPick, handlePendingModelPick } from "./pending-picks.ts";
 import { resolvePermissionReply } from "./permission-reply.ts";
 import { showNextPermissionPrompt } from "../session/event-consumer.ts";
+import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
 
 export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[], userId?: string | null) {
   const managed = agents.get(agentId);
@@ -230,6 +231,11 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     // remains responsible for the distinct error semantics each path needs.
     if (err instanceof SessionSwappedError) return;
     if (err instanceof ProviderCapacityError) {
+      updateState(agentId, "waiting_for_response");
+      return;
+    }
+    if (err instanceof UsageCapError) {
+      addLogEntry(agentId, "error", usageCapText(err));
       updateState(agentId, "waiting_for_response");
       return;
     }

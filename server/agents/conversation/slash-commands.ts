@@ -6,6 +6,7 @@ import { SessionSwappedError } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { commandHandlers } from "./slash-command-handlers.ts";
 import { recordSkillUse } from "../../skill-usage.ts";
+import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
 
 // Startup assertion: every supported command with a handler key must have a matching handler
 for (const [name, cfg] of Object.entries(commands)) {
@@ -122,6 +123,11 @@ async function executeSkill(agentId: string, managed: ManagedAgent, skillPrompt:
     // already cleaned up the pendingTurn deferred if session.send fell
     // before await turn. Per-site error semantics remain here.
     if (err instanceof SessionSwappedError) return true;
+    if (err instanceof UsageCapError) {
+      addLogEntry(agentId, "error", usageCapText(err));
+      updateState(agentId, "waiting_for_response");
+      return true;
+    }
     addLogEntry(agentId, "error", `Skill error: ${err.message}`);
     updateState(agentId, "error");
   }

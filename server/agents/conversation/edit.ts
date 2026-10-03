@@ -4,6 +4,7 @@ import { addLogEntry, agents, emit, emitQueueUpdate, logCache, persistAll, updat
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
 import { buildSessionEnv } from "../session/session-env.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
+import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
 import { inMultiStepFlow } from "../pending-prompt.ts";
@@ -256,6 +257,12 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // installed — the fork and its partial turn are a legitimate result,
     // not a failure. Skip the rollback.
     if (err instanceof SessionSwappedError) {
+      persistAll();
+      return;
+    }
+    if (err instanceof UsageCapError) {
+      addLogEntry(agentId, "error", usageCapText(err));
+      updateState(agentId, "waiting_for_response");
       persistAll();
       return;
     }

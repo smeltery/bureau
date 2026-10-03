@@ -4,6 +4,7 @@ import { SessionSwappedError, createSession, installSession } from "../session/r
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { ProviderCapacityError } from "../../internal-types.ts";
+import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
 import { getBackend } from "../../backends/index.ts";
 import { flushPrefix } from "./queue-prefix.ts";
 import { lookupQueueDedupe, recordQueueDedupe } from "./queue-dedupe.ts";
@@ -312,6 +313,7 @@ export async function flushQueue(agentId: string): Promise<void> {
         updateState(agentId, "waiting_for_response");
         return;
       }
+      if (err instanceof UsageCapError) return void (addLogEntry(agentId, "error", usageCapText(err)), updateState(agentId, "waiting_for_response"));
       addLogEntry(agentId, "error", `Error flushing queue: ${err.message}`);
       updateState(agentId, "error");
     }
@@ -326,7 +328,6 @@ export async function flushQueue(agentId: string): Promise<void> {
   }
 }
 
-// Remove a queued message by id. Called from the dequeue_message WS command.
 export function dequeueMessage(agentId: string, queuedId: string): boolean {
   const managed = agents.get(agentId);
   if (!managed) return false;
