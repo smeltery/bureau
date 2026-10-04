@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentInfo, Attachment, SkillInfo } from "../../shared/types.ts";
-import { send } from "../ws.ts";
+import { addRawListener, removeRawListener, send } from "../ws.ts";
 import { useAppState } from "../store.tsx";
 import { AttachmentChips } from "./AttachmentChips.tsx";
 import { InputComposerField } from "./input/InputComposerField.tsx";
@@ -92,8 +92,11 @@ export function InputBar({
 }) {
   const { isMobile } = useAppState();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingSendRef = useRef<{ id: string; text: string } | null>(null);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [skillUsageCounts, setSkillUsageCounts] = useState<Record<string, number>>({});
+  const [sendPending, setSendPending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/skill-usage", { credentials: "same-origin" })
@@ -111,22 +114,49 @@ export function InputBar({
   function handleSend(opts?: { sendNow?: boolean }) {
     const text = input.trim();
     if (!text && validAttachments.length === 0) return;
-    if (hasUploading || editingLogEntryId) return;
+    if (hasUploading || editingLogEntryId || sendPending) return;
     const attachments = validAttachments.length > 0 ? validAttachments.map(({ id: _id, uploading: _u, error: _e, ...att }) => att as Attachment) : undefined;
-    send({ type: "send_message", agentId: agent.id, text, username, attachments });
+    const clientMessageId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    pendingSendRef.current = { id: clientMessageId, text };
+    setSendPending(true);
+    setSendError(null);
+    send({ type: "send_message", agentId: agent.id, text, username, attachments, clientMessageId });
     if (opts?.sendNow && isBusy) {
       send({ type: "send_now", agentId: agent.id });
-    }
-    setInput("");
-    clearAttachments();
-    stopListening({ discard: true });
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
     }
     const commandName = commandNameFromText(text);
     if (commandName) recordLocalSkillUsage(commandName);
     onSent();
   }
+
+  useEffect(() => {
+    function onRaw(data: string) {
+      let msg: unknown;
+      try {
+        msg = JSON.parse(data);
+      } catch {
+        return;
+      }
+      if (!msg || typeof msg !== "object") return;
+      const wire = msg as { type?: string; agentId?: string; clientMessageId?: string; ok?: boolean; error?: string };
+      const pending = pendingSendRef.current;
+      if (wire.type !== "user_send_acceptance" || !pending) return;
+      if (wire.agentId !== agent.id || wire.clientMessageId !== pending.id) return;
+      pendingSendRef.current = null;
+      setSendPending(false);
+      if (wire.ok) {
+        setInput("");
+        clearAttachments();
+        stopListening({ discard: true });
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
+        return;
+      }
+      setSendError(wire.error || "Message was not accepted. Try again.");
+      if (!inputRef.current.trim()) setInput(pending.text);
+    }
+    addRawListener(onRaw);
+    return () => removeRawListener(onRaw);
+  }, [agent.id, clearAttachments, setInput, stopListening, textareaRef]);
 
   useEffect(() => {
     function handleVoiceSubmit() {
@@ -164,6 +194,11 @@ export function InputBar({
           {voiceInputError}
         </div>
       )}
+      {sendError && (
+        <div role="alert" style={{ marginBottom: 8, color: "var(--red)", fontSize: isMobile ? 12 : 11 }}>
+          {sendError}
+        </div>
+      )}
       <AttachmentChips stagedAttachments={stagedAttachments} isMobile={isMobile} removeStaged={removeStaged} />
       {skillsOpen && (
         <SkillsPopover
@@ -189,17 +224,17 @@ export function InputBar({
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
         <button
           onClick={() => fileInputRef.current?.click()}
-          disabled={isBusy}
+          disabled={isBusy || sendPending}
           style={{
             background: "none",
             border: "none",
             padding: 0,
-            color: isBusy ? "var(--text-ghost)" : "var(--text-muted)",
-            cursor: isBusy ? "default" : "pointer",
+            color: isBusy || sendPending ? "var(--text-ghost)" : "var(--text-muted)",
+            cursor: isBusy || sendPending ? "default" : "pointer",
             lineHeight: "20px",
             fontSize: 16,
             flexShrink: 0,
-            opacity: isBusy ? 0.4 : 0.7,
+            opacity: isBusy || sendPending ? 0.4 : 0.7,
             transition: "opacity 0.15s",
           }}
           title="Attach files"
@@ -211,19 +246,19 @@ export function InputBar({
         <button
           data-skills-toggle
           onClick={() => setSkillsOpen((open) => !open)}
-          disabled={isBusy}
+          disabled={isBusy || sendPending}
           style={{
             background: "none",
             border: "1px solid var(--border)",
             borderRadius: 5,
             padding: "1px 5px",
-            color: isBusy ? "var(--text-ghost)" : skillsOpen ? "var(--green)" : "var(--text-muted)",
-            cursor: isBusy ? "default" : "pointer",
+            color: isBusy || sendPending ? "var(--text-ghost)" : skillsOpen ? "var(--green)" : "var(--text-muted)",
+            cursor: isBusy || sendPending ? "default" : "pointer",
             lineHeight: "16px",
             fontSize: 11,
             fontFamily: "'JetBrains Mono',monospace",
             flexShrink: 0,
-            opacity: isBusy ? 0.4 : 0.85,
+            opacity: isBusy || sendPending ? 0.4 : 0.85,
           }}
           title="Browse skills and commands"
         >
@@ -239,7 +274,7 @@ export function InputBar({
           handlePaste={handlePaste}
           handleSend={handleSend}
           input={input}
-          isBusy={isBusy}
+          isBusy={isBusy || sendPending}
           isMobile={isMobile}
           partial={partial}
           selectedIdx={selectedIdx}

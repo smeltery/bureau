@@ -43,8 +43,8 @@ const checkBashSafety: HookCallback = async (input) => {
   }
 
   // Check sensitive file reads via shell commands (cat .env, head key.pem, etc.)
-  const subCommands = normalized.split(/[|;&]+/).map((s) => s.trim());
-  for (const sub of subCommands) {
+  const readCheckSegments = normalized.split(/[|;&]+/).map((s) => s.trim());
+  for (const sub of readCheckSegments) {
     const tokens = sub.split(/\s+/);
     const cmd = tokens[0]?.replace(/^.*\//, "") ?? "";
     if (!FILE_READ_COMMANDS.includes(cmd)) continue;
@@ -62,15 +62,23 @@ const checkBashSafety: HookCallback = async (input) => {
     }
   }
 
-  // Check safe patterns first (allowlist)
-  for (const pattern of SAFE_PATTERNS) {
-    if (pattern.test(normalized)) return allow();
-  }
-
-  // Check destructive patterns (blocklist)
-  for (const [pattern, reason] of DESTRUCTIVE_PATTERNS) {
-    if (pattern.test(normalized)) {
-      return denyMessage(reason, command);
+  // Check safe/destructive patterns per shell segment. A safe first segment
+  // must not mask a destructive later one, e.g. `git clean -n; git reset --hard`.
+  const safetySegments = normalized.split(/[|;&]+/).map((s) => s.trim());
+  for (const sub of safetySegments) {
+    if (!sub) continue;
+    let segmentIsSafe = false;
+    for (const pattern of SAFE_PATTERNS) {
+      if (pattern.test(sub)) {
+        segmentIsSafe = true;
+        break;
+      }
+    }
+    if (segmentIsSafe) continue;
+    for (const [pattern, reason] of DESTRUCTIVE_PATTERNS) {
+      if (pattern.test(sub)) {
+        return denyMessage(reason, command);
+      }
     }
   }
 

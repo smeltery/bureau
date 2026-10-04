@@ -19,6 +19,16 @@ export async function handleAgentConversationCommand(cmd: AgentConversationComma
   if (!canUseAgent(cmd.agentId)) return;
   switch (cmd.type) {
     case "send_message":
+      if (cmd.clientMessageId) {
+        const result = await AgentManager.sendMessage(cmd.agentId, cmd.text, cmd.username, cmd.attachments, userId);
+        broadcast({
+          type: "user_send_acceptance",
+          agentId: cmd.agentId,
+          clientMessageId: cmd.clientMessageId,
+          ...(result.ok ? { ok: true } : { ok: false, error: result.error }),
+        } as ServerMessage);
+        return;
+      }
       // Don't await -- let it stream in the background.
       AgentManager.sendMessage(cmd.agentId, cmd.text, cmd.username, cmd.attachments, userId);
       return;

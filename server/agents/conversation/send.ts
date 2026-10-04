@@ -13,9 +13,11 @@ import { resolvePermissionReply } from "./permission-reply.ts";
 import { showNextPermissionPrompt } from "../session/event-consumer.ts";
 import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
 
-export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[], userId?: string | null) {
+export type UserSendAcceptance = { ok: true } | { ok: false; error: string };
+
+export async function sendMessage(agentId: string, text: string, username?: string, attachments?: Attachment[], userId?: string | null): Promise<UserSendAcceptance> {
   const managed = agents.get(agentId);
-  if (!managed) return;
+  if (!managed) return { ok: false, error: "agent not found" };
   // Queue the message if the agent is busy. Multi-step prompts (pendingResume
   // / model pick / permission) bypass the queue: the boss expects their input
   // to flow into the prompt immediately.
@@ -31,8 +33,9 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     const queued = enqueueUserMessage(agentId, managed, text, username, attachments);
     if (!queued) {
       addLogEntry(agentId, "error", `Message queue is full (limit ${QUEUE_MAX}). Try again after the agent finishes.`);
+      return { ok: false, error: `Message queue is full (limit ${QUEUE_MAX}). Try again after the agent finishes.` };
     }
-    return;
+    return { ok: true };
   }
   // If an abort is mid-handoff, wait for it to install the replacement session.
   // Without this, a follow-up message arriving in the gap between session.close()
@@ -79,7 +82,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       addLogEntry(agentId, "user_message", text, username ? { username } : undefined, attachments);
       addLogEntry(agentId, "error", `Cannot start session: ${err.message}\nType /clear to start fresh, or /resume to pick another session.`);
       updateState(agentId, "error");
-      return;
+      return { ok: false, error: `Cannot start session: ${err.message}` };
     }
   }
 
@@ -117,7 +120,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       updateState(agentId, "error");
     }
     showNextPermissionPrompt(agentId, managed);
-    return;
+    return { ok: true };
   }
 
   // Handle /resume two-step: if pendingResume, check if input is a number pick
@@ -179,7 +182,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         emitEphemeralLog(agentId, "error", `Failed to resume: ${err.message}`);
         updateState(agentId, "error");
       }
-      return;
+      return { ok: true };
     } else {
       // Not a valid number — cancel pendingResume, process as normal
       managed.pendingResumeSessions = [];
@@ -187,17 +190,17 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     }
   }
 
-  if (await handlePendingModelPick(agentId, managed, text, username)) return;
+  if (await handlePendingModelPick(agentId, managed, text, username)) return { ok: true };
 
-  if (await handlePendingEffortPick(agentId, managed, text, username)) return;
+  if (await handlePendingEffortPick(agentId, managed, text, username)) return { ok: true };
 
-  if (await handlePendingCronjobPick(agentId, managed, text, username)) return;
+  if (await handlePendingCronjobPick(agentId, managed, text, username)) return { ok: true };
 
   // Intercept slash commands that are handled locally, not by the LLM
   if (isSlash) {
     const [cmd, ...args] = text.slice(1).trim().split(/\s+/);
     const handled = await handleSlashCommand(agentId, managed, cmd, args, text, username, userId);
-    if (handled) return;
+    if (handled) return { ok: true };
   }
 
   addLogEntry(agentId, "user_message", text, username ? { username } : undefined, attachments);
@@ -229,18 +232,20 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     // handles the deferred-cleanup invariant (rejecting managed.pendingTurn
     // if session.send threw before await turn ran). The per-call-site catch
     // remains responsible for the distinct error semantics each path needs.
-    if (err instanceof SessionSwappedError) return;
+    if (err instanceof SessionSwappedError) return { ok: true };
     if (err instanceof ProviderCapacityError) {
       updateState(agentId, "waiting_for_response");
-      return;
+      return { ok: false, error: err.message };
     }
     if (err instanceof UsageCapError) {
       addLogEntry(agentId, "error", usageCapText(err));
       updateState(agentId, "waiting_for_response");
-      return;
+      return { ok: false, error: usageCapText(err) };
     }
     console.error(`Agent ${agentId} send error:`, err.message);
     addLogEntry(agentId, "error", `Error: ${err.message}`);
     updateState(agentId, "error");
+    return { ok: false, error: err.message ?? "Send failed" };
   }
+  return { ok: true };
 }

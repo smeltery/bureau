@@ -35,7 +35,7 @@ export type ClientCommand =
       roomId: string;
     }
   | { type: "abort"; agentId: string }
-  | { type: "send_message"; agentId: string; text: string; username?: string; attachments?: Attachment[] }
+  | { type: "send_message"; agentId: string; text: string; username?: string; attachments?: Attachment[]; clientMessageId?: string }
   | { type: "new_conversation"; agentId: string }
   | { type: "resume"; agentId: string; sessionId: string }
   | { type: "list_sessions"; agentId: string }

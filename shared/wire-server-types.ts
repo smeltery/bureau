@@ -67,6 +67,8 @@ export type ServerMessage =
   | { type: "killed_agent_added"; agent: KilledAgentSummary }
   | { type: "killed_agent_removed"; agentId: string; lastRoomId: string }
   | { type: "log_entry"; entry: LogEntry }
+  | { type: "user_send_acceptance"; agentId: string; clientMessageId: string; ok: true }
+  | { type: "user_send_acceptance"; agentId: string; clientMessageId: string; ok: false; error: string }
   // End of the transcript replay that follows full_state on every (re)connect.
   // Without it the replay is an unterminated burst of log_entry frames, and a
   // client that wants to swap the whole transcript in at once has to guess when
