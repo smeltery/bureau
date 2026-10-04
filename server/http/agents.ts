@@ -9,6 +9,7 @@ import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentBrowserSessionRoute } from "./agent-browser-route.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
+import { acceptUserSend } from "./user-send/acceptance.ts";
 import {
   agentRouteParts,
   handleApiTokenMessage,
@@ -186,11 +187,12 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       const username = sessionUser(auth)?.name;
       const userId = auth?.kind === "ok" ? auth.session.userId : null;
       const attachments = Array.isArray(body?.attachments) ? (body.attachments as Attachment[]) : undefined;
-      const send = AgentManager.sendMessage(agentId, text, username, attachments, userId);
+      const accepted = await acceptUserSend(agentId, text, username, attachments, userId, typeof body?.clientMessageId === "string" ? body.clientMessageId : undefined);
+      if (!accepted.ok) return jsonError(accepted.status, accepted.error);
       if (body?.sendNow === true) {
-        void send.then(() => AgentManager.sendNow(agentId));
+        void AgentManager.sendNow(agentId);
       }
-      return new Response(JSON.stringify({ messageId: "" }), { headers: JSON_HEADERS });
+      return new Response(JSON.stringify({ messageId: typeof body?.clientMessageId === "string" ? body.clientMessageId : "" }), { headers: JSON_HEADERS });
     }
 
     if (req.method === "POST" && parts.length === 3 && parts[2] === "resume") {

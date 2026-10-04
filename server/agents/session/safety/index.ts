@@ -21,6 +21,31 @@ import { BUREAU_DIR, commandWritesToBureau } from "./bureau-protection.ts";
 import { FILE_READ_COMMANDS, isSensitiveFile } from "./secrets.ts";
 import { checkProcessNetworkSafety } from "./process-network.ts";
 
+function shellSegments(command: string): string[] {
+  return command
+    .split(/[|;&]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function normalizeGitGlobalOptions(command: string): string {
+  const tokens = command.trim().split(/\s+/);
+  if (tokens[0] !== "git") return command;
+  const out = ["git"];
+  for (let i = 1; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree" || token === "--namespace") {
+      i++;
+      continue;
+    }
+    if (token.startsWith("--git-dir=") || token.startsWith("--work-tree=") || token.startsWith("--namespace=")) continue;
+    if (token === "--no-pager" || token === "--bare" || token === "--literal-pathspecs" || token === "--no-replace-objects") continue;
+    out.push(...tokens.slice(i));
+    return out.join(" ");
+  }
+  return command;
+}
+
 // ---------------------------------------------------------------------------
 // Hook callbacks
 // ---------------------------------------------------------------------------
@@ -43,8 +68,8 @@ const checkBashSafety: HookCallback = async (input) => {
   }
 
   // Check sensitive file reads via shell commands (cat .env, head key.pem, etc.)
-  const readCheckSegments = normalized.split(/[|;&]+/).map((s) => s.trim());
-  for (const sub of readCheckSegments) {
+  const subCommands = shellSegments(normalized);
+  for (const sub of subCommands) {
     const tokens = sub.split(/\s+/);
     const cmd = tokens[0]?.replace(/^.*\//, "") ?? "";
     if (!FILE_READ_COMMANDS.includes(cmd)) continue;
@@ -64,19 +89,11 @@ const checkBashSafety: HookCallback = async (input) => {
 
   // Check safe/destructive patterns per shell segment. A safe first segment
   // must not mask a destructive later one, e.g. `git clean -n; git reset --hard`.
-  const safetySegments = normalized.split(/[|;&]+/).map((s) => s.trim());
-  for (const sub of safetySegments) {
-    if (!sub) continue;
-    let segmentIsSafe = false;
-    for (const pattern of SAFE_PATTERNS) {
-      if (pattern.test(sub)) {
-        segmentIsSafe = true;
-        break;
-      }
-    }
-    if (segmentIsSafe) continue;
+  for (const segment of subCommands) {
+    const safetySegment = normalizeGitGlobalOptions(segment);
+    if (SAFE_PATTERNS.some((pattern) => pattern.test(safetySegment))) continue;
     for (const [pattern, reason] of DESTRUCTIVE_PATTERNS) {
-      if (pattern.test(sub)) {
+      if (pattern.test(safetySegment)) {
         return denyMessage(reason, command);
       }
     }

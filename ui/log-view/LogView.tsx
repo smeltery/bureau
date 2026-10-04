@@ -28,6 +28,8 @@ import { useSpeechLocale } from "../hooks/useSpeechLocale.ts";
 import { requestOpenAccountSection } from "../components/account-navigation.ts";
 import type { TaskMap } from "./task-links.tsx";
 import { coalesceCodexDiagnostics } from "../../shared/log-types.ts";
+import { OutboxRows } from "./outbox/OutboxRows.tsx";
+import { restoreOutbox, takeAttempt } from "./outbox/index.ts";
 
 export function LogView({
   agent,
@@ -51,7 +53,7 @@ export function LogView({
   onSwipeRight?: () => void;
 }) {
   const logs = useMemo(() => coalesceCodexDiagnostics(rawLogs), [rawLogs]);
-  const { drafts, slashCommands, stateChangedAt, isMobile, connected, tasks, office } = useAppState();
+  const { agents, drafts, slashCommands, stateChangedAt, isMobile, connected, tasks, office } = useAppState();
   const dispatch = useDispatch();
   const features = useFeatures();
   const panels = useLogViewPanels(agent.id);
@@ -135,6 +137,21 @@ export function LogView({
     [setInput, voice],
   );
   const attachments = useAttachmentUpload(agent.id);
+  const [outboxError, setOutboxError] = useState<string | null>(null);
+
+  useEffect(() => {
+    restoreOutbox(username, new Set(agents.map((liveAgent) => liveAgent.id)));
+  }, [agents, username]);
+
+  const editOutboxAttempt = useCallback(
+    (id: string) => {
+      const attempt = takeAttempt(id);
+      if (!attempt) return;
+      setInputFromUser(attempt.text);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [setInputFromUser, textareaRef],
+  );
 
   const isBusy = agent.state === "thinking" || agent.state === "tool_executing";
   // Dismiss edit textarea when agent is no longer idle (e.g. another tab sent a message)
@@ -187,6 +204,7 @@ export function LogView({
       speechApiPresent={voice.speechApiPresent}
       isSecureContext={voice.isSecureContext}
       voiceInputError={voice.voiceInputError}
+      onOutboxRejected={setOutboxError}
       showAutocomplete={autocomplete.showAutocomplete}
       filteredCommands={autocomplete.filteredCommands}
       skillOrigins={autocomplete.skillOrigins}
@@ -294,7 +312,13 @@ export function LogView({
               />
             )}
 
+            {outboxError && (
+              <div role="alert" style={{ margin: "0 11px 8px", color: "var(--red)", fontSize: isMobile ? 12 : 11 }}>
+                {outboxError}
+              </div>
+            )}
             <QueueChips queue={agent.queue ?? []} agentId={agent.id} isMobile={isMobile} />
+            <OutboxRows agentId={agent.id} isMobile={isMobile} onEdit={editOutboxAttempt} />
             {inputBar}
           </>
         )}
