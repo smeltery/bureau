@@ -3,8 +3,10 @@
 Bureau injects `PreToolUse` hooks into every SDK session to block dangerous commands before they execute. The hook system lives under `server/agents/session/safety/`, split across focused modules:
 
 - `index.ts` — `createSafetyHooks()` + the three hook callbacks (Bash / Read / Write+Edit)
-- `bash-parser.ts` — `stripQuotedStrings`, `normalizeAbsolutePaths`
+- `bash-parser.ts` — `stripQuotedStrings`, `stripHeredocBodies`, `normalizeAbsolutePaths`
+- `shell-words.ts` — `collectCommands`: the quote-aware parse of a shell line into the commands it runs
 - `patterns.ts` — `DESTRUCTIVE_PATTERNS` + `SAFE_PATTERNS` (git and rm)
+- `destructive.ts` — `destructiveReason`: applies the patterns to each parsed command
 - `bureau-protection.ts` — `BUREAU_DIR` + `commandWritesToBureau`
 - `secrets.ts` — sensitive-file detection (`.env`, keys, credentials)
 - `deny-helpers.ts` — `deny` / `allow` / `denyMessage` / `denySecretRead`
@@ -67,8 +69,8 @@ Blocks `rm -rf` on dangerous paths:
 |---------|--------|
 | `rm -rf /` or `rm -rf ~` | **BLOCKED** — extremely dangerous |
 | `rm -rf` (any path) | **BLOCKED** — requires human approval |
-| `rm -rf /tmp/` or `/var/tmp/` | **ALLOWED** — temp directories are safe |
-| `rm -rf $TMPDIR/` | **ALLOWED** — macOS temp directory |
+| `rm -rf /tmp/<entry>` or `/var/tmp/<entry>` | **ALLOWED** — only when every operand is one entry directly in a temp directory, as written |
+| `rm -rf /tmp/a/b`, `/tmp/../home`, `$TMPDIR/...` | **BLOCKED** — the policy does not stat, so a deeper path can pass through a symlink, and `$TMPDIR` is often unset for agents |
 
 Supports all flag orderings: `-rf`, `-fr`, separate flags (`-r -f`), and long options (`--recursive --force`).
 
@@ -112,11 +114,15 @@ Blocks file-reading commands targeting sensitive files: `cat`, `head`, `tail`, `
 
 ## Command Preprocessing
 
-Before pattern matching, commands are preprocessed:
+### Destructive Git and rm Checks
+
+The git and rm patterns run on parsed commands, not on raw text. `collectCommands()` splits the line on `;`, `|`, `&`, newlines and subshell parentheses, resolves quotes, escapes and `$'...'`, skips wrappers (`sudo`, `env`, `xargs`, `command`, `{`, …), and also parses `bash`/`sh`/`zsh`/`dash`/`ksh -c` payloads, `eval` arguments, and `$(...)` / backtick / `<(...)` bodies, including those inside double quotes. Heredoc bodies are removed first.
+
+Each command is matched as `name arg arg …`, anchored at the command name, so an operand cannot supply an allowlist exception. A word that holds whitespace (a commit message, an echo string) stays one opaque argument and never matches. `git` global options (`-C`, `-c`, `--git-dir`, `--work-tree`, `--config-env`, …) are dropped up to the subcommand. One destructive command denies the whole line.
 
 ### Quote Stripping
 
-`stripQuotedStrings()` removes quoted content so patterns don't match commit messages, echo arguments, etc.:
+The secrets and `~/.bureau/` checks still read a quote-stripped line. `stripQuotedStrings()` removes quoted content so patterns don't match commit messages, echo arguments, etc.:
 
 - Double-quoted strings: `"don't rm -rf this"` → `""`
 - Single-quoted strings: `'git checkout -- "message"'` → `'git checkout -- ""'`
@@ -133,7 +139,7 @@ Before pattern matching, commands are preprocessed:
 
 ### Sub-Command Splitting
 
-Commands are split on `|`, `;`, `&` to check each sub-command independently.
+For the secrets check, commands are split on `|`, `;`, `&` to check each sub-command independently.
 
 ## Deny Response Format
 

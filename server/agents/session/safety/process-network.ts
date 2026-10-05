@@ -1,161 +1,15 @@
-type ShellWord = {
-  text: string;
-  quoted: boolean;
-};
-
-type ParsedCommand = {
-  name: string;
-  args: ShellWord[];
-};
+import { collectCommands, type ParsedCommand, type ShellWord } from "./shell-words.ts";
 
 export type SafetyMatch = {
   reason: string;
 };
 
-const SHELL_COMMANDS = new Set(["bash", "sh", "zsh"]);
-const COMMAND_WRAPPERS = new Set(["command", "exec", "nohup", "setsid", "time", "builtin", "if", "while", "until", "do", "then", "else", "elif", "!"]);
 const PACKAGE_RUNNERS = new Set(["npx", "bunx", "pnpm", "yarn"]);
 const PATTERN_KILL_COMMANDS = new Set(["pkill", "killall", "killall5"]);
 const NAME_LOOKUP_COMMANDS = new Set(["pgrep", "pidof"]);
 const PID_TARGET = /^(?:\d+|%\d*|\$\$|\$!)$/;
 
-const WRAPPER_FLAGS_WITH_VALUE = new Map([
-  ["sudo", new Set(["-u", "-g", "-h", "-p", "-C", "-D"])],
-  ["env", new Set(["-u", "-S"])],
-  ["timeout", new Set(["-s", "--signal", "-k", "--kill-after"])],
-  ["xargs", new Set(["-I", "-i", "-n", "-P", "-s", "-E"])],
-]);
-
 const TUNNEL_COMMANDS = new Set(["cloudflared", "ngrok", "ssh", "tailscale"]);
-
-function splitCommandList(command: string): string[] {
-  const parts: string[] = [];
-  let current = "";
-  let quote: "'" | '"' | null = null;
-  let escaped = false;
-
-  for (const ch of command) {
-    if (escaped) {
-      current += ch;
-      escaped = false;
-      continue;
-    }
-    if (ch === "\\") {
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      current += ch;
-      if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === "'" || ch === '"') {
-      quote = ch;
-      current += ch;
-      continue;
-    }
-    if (ch === ";" || ch === "|" || ch === "&" || ch === "\n") {
-      if (current.trim()) parts.push(current.trim());
-      current = "";
-      continue;
-    }
-    current += ch;
-  }
-
-  if (current.trim()) parts.push(current.trim());
-  return parts;
-}
-
-function splitWords(command: string): ShellWord[] {
-  const words: ShellWord[] = [];
-  let text = "";
-  let quote: "'" | '"' | null = null;
-  let escaped = false;
-  let quoted = false;
-
-  function pushWord() {
-    if (!text && !quoted) return;
-    words.push({ text, quoted });
-    text = "";
-    quoted = false;
-  }
-
-  for (const ch of command) {
-    if (escaped) {
-      text += ch;
-      escaped = false;
-      continue;
-    }
-    if (ch === "\\") {
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      if (ch === quote) quote = null;
-      else text += ch;
-      continue;
-    }
-    if (ch === "'" || ch === '"') {
-      quote = ch;
-      quoted = true;
-      continue;
-    }
-    if (/\s/.test(ch)) {
-      pushWord();
-      continue;
-    }
-    text += ch;
-  }
-
-  pushWord();
-  return words;
-}
-
-function commandCandidates(words: ShellWord[]): ParsedCommand[] {
-  const found: ParsedCommand[] = [];
-
-  for (let i = 0; i < words.length; i++) {
-    const raw = words[i].text;
-    if (!raw || /^[A-Za-z_][A-Za-z0-9_]*=/.test(raw)) continue;
-
-    if (raw === "sudo" || raw === "env" || raw === "timeout" || raw === "xargs") {
-      const flagsWithValue = WRAPPER_FLAGS_WITH_VALUE.get(raw) ?? new Set<string>();
-      i++;
-      for (; i < words.length; i++) {
-        const arg = words[i].text;
-        if (!arg) continue;
-        if (arg === "--") continue;
-        if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(arg)) continue;
-        if (arg.startsWith("-")) {
-          if (flagsWithValue.has(arg)) i++;
-          continue;
-        }
-        i--;
-        break;
-      }
-      continue;
-    }
-
-    const name = raw.replace(/^.*\//, "");
-    if (!name) continue;
-    const command = { name, args: words.slice(i + 1) };
-    found.push(command);
-    if (COMMAND_WRAPPERS.has(name)) continue;
-    break;
-  }
-
-  return found;
-}
-
-function shellPayload(command: ParsedCommand): string | null {
-  if (!SHELL_COMMANDS.has(command.name)) return null;
-  for (let i = 0; i < command.args.length; i++) {
-    const arg = command.args[i].text;
-    if (arg === "-c") return command.args[i + 1]?.text ?? null;
-    if (arg.startsWith("-") && arg.includes("c") && arg !== "-") return command.args[i + 1]?.text ?? null;
-  }
-  return null;
-}
 
 function directPackageRunnerCommand(command: ParsedCommand): ParsedCommand {
   if (!PACKAGE_RUNNERS.has(command.name)) return command;
@@ -164,19 +18,6 @@ function directPackageRunnerCommand(command: ParsedCommand): ParsedCommand {
   if (!first) return command;
   const name = first.replace(/^@[^/]+\//, "").replace(/^.*\//, "");
   return { name, args: args.slice(1) };
-}
-
-function collectCommands(command: string, depth = 0): ParsedCommand[] {
-  if (depth > 3) return [];
-  const parsed: ParsedCommand[] = [];
-  for (const part of splitCommandList(command)) {
-    for (const candidate of commandCandidates(splitWords(part))) {
-      parsed.push(candidate);
-      const payload = shellPayload(candidate);
-      if (payload) parsed.push(...collectCommands(payload, depth + 1));
-    }
-  }
-  return parsed;
 }
 
 function firstOperandIndex(args: ShellWord[], flagsWithValue: Set<string>): number {

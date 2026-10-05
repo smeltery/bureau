@@ -39,7 +39,8 @@ export const DESTRUCTIVE_PATTERNS: [RegExp, string][] = [
   [/git\s+stash\s+clear/, "git stash clear permanently deletes ALL stashed changes."],
 ];
 
-// Patterns that are safe even if they match above (allowlist)
+// Patterns that are safe even if they match above (allowlist). The rm
+// temp-directory exception is an operand check in destructive.ts.
 export const SAFE_PATTERNS: RegExp[] = [
   /git\s+checkout\s+-b\s+/, // Creating new branch
   /git\s+checkout\s+--orphan\s+/, // Creating orphan branch
@@ -47,27 +48,4 @@ export const SAFE_PATTERNS: RegExp[] = [
   /git\s+restore\s+-S\s+(?!.*--worktree)(?!.*-W\b)/, // Unstaging short form (safe)
   /git\s+clean\s+-[a-z]*n[a-z]*/, // Dry run (-n, -fn, -nf, etc.)
   /git\s+clean\s+--dry-run/, // Dry run (long form)
-  // Allow rm -rf on temp directories (-rf/-Rf and -fr/-fR flag orderings)
-  /rm\s+-[a-zA-Z]*[rR][a-zA-Z]*f[a-zA-Z]*\s+\/tmp\//,
-  /rm\s+-[a-zA-Z]*f[a-zA-Z]*[rR][a-zA-Z]*\s+\/tmp\//,
-  /rm\s+-[a-zA-Z]*[rR][a-zA-Z]*f[a-zA-Z]*\s+\/var\/tmp\//,
-  /rm\s+-[a-zA-Z]*f[a-zA-Z]*[rR][a-zA-Z]*\s+\/var\/tmp\//,
-  /rm\s+-[a-zA-Z]*[rR][a-zA-Z]*f[a-zA-Z]*\s+\$TMPDIR\//,
-  /rm\s+-[a-zA-Z]*f[a-zA-Z]*[rR][a-zA-Z]*\s+\$TMPDIR\//,
-  /rm\s+-[a-zA-Z]*[rR][a-zA-Z]*f[a-zA-Z]*\s+\$\{TMPDIR/,
-  /rm\s+-[a-zA-Z]*f[a-zA-Z]*[rR][a-zA-Z]*\s+\$\{TMPDIR/,
-  /rm\s+-[a-zA-Z]*[rR][a-zA-Z]*f[a-zA-Z]*\s+"\$TMPDIR\//,
-  /rm\s+-[a-zA-Z]*f[a-zA-Z]*[rR][a-zA-Z]*\s+"\$TMPDIR\//,
-  /rm\s+-[a-zA-Z]*[rR][a-zA-Z]*f[a-zA-Z]*\s+"\$\{TMPDIR/,
-  /rm\s+-[a-zA-Z]*f[a-zA-Z]*[rR][a-zA-Z]*\s+"\$\{TMPDIR/,
-  // Separate flags on temp directories
-  /rm\s+(-[a-zA-Z]+\s+)*-[rR]\s+(-[a-zA-Z]+\s+)*-f\s+\/tmp\//,
-  /rm\s+(-[a-zA-Z]+\s+)*-f\s+(-[a-zA-Z]+\s+)*-[rR]\s+\/tmp\//,
-  /rm\s+(-[a-zA-Z]+\s+)*-[rR]\s+(-[a-zA-Z]+\s+)*-f\s+\/var\/tmp\//,
-  /rm\s+(-[a-zA-Z]+\s+)*-f\s+(-[a-zA-Z]+\s+)*-[rR]\s+\/var\/tmp\//,
-  // Long options on temp directories
-  /rm\s+.*--recursive.*--force\s+\/tmp\//,
-  /rm\s+.*--force.*--recursive\s+\/tmp\//,
-  /rm\s+.*--recursive.*--force\s+\/var\/tmp\//,
-  /rm\s+.*--force.*--recursive\s+\/var\/tmp\//,
 ];
