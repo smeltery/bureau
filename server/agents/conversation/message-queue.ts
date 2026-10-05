@@ -46,7 +46,7 @@ export type EnqueueResult = { ok: true; queued: boolean; messageId: string; stee
 // Steer rate limit. Prunes the receiver's window in place and reports whether
 // another interruption fits. Called only on the path that is about to
 // interrupt, so the pruning cost is bounded by the limit itself.
-function steerRateLimited(managed: ManagedAgent): boolean {
+export function steerRateLimited(managed: ManagedAgent): boolean {
   const cutoff = Date.now() - STEER_RATE_WINDOW_MS;
   managed.recentSteers = managed.recentSteers.filter((t) => t > cutoff);
   return managed.recentSteers.length >= STEER_RATE_LIMIT;

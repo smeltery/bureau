@@ -156,7 +156,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 ### Inter-agent Communication
 - Agents discover each other via a shared manifest (agents-summary.json)
 - Each agent can read every other agent's current conversation logs
-- Agents can message each other directly, choosing between queueing behind the receiver's current turn and steering (interrupting it — rate-limited, with the ack reporting honestly whether the message was delivered, queued, or steered)
+- Agents can message each other directly, choosing between queueing behind the receiver's current turn and steering (interrupting it — rate-limited, with the ack reporting honestly whether the message was delivered, queued, or steered). Any agent can also stop another agent's turn without sending a message, under the same rate limit
 - You can ask one agent "What do you think of Agent X's approach?" and it just works — it reads the other agent's conversation and gives feedback
 - Shared task board: humans and agents can create, assign, claim, and close tasks — full interop via UI and HTTP API. Agents see tasks in rooms their manager can access; cron runs are limited to global tasks via their bearer token.
 - Team chat: humans-only office chat at /team-chat (REST /api/members-chat, WebSocket live updates, monthly JSONL under ~/.bureau/members-chat/). Agents do not post there. The Lobby tab's receptionist opens the same panel.

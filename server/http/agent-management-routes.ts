@@ -6,6 +6,7 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import type { AgentInfo } from "../../shared/types.ts";
 import { resolveInteractiveModelSelection } from "../agent-validators.ts";
+import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import {
   JSON_HEADERS,
   jsonError,
@@ -24,8 +25,9 @@ import { canSeeRoom, getUserById } from "../users.ts";
 export async function handleAgentManagementRequest(req: Request, parts: string[], agentId: string, auth?: AuthResult): Promise<Response | null> {
   // Agent lifecycle — kill / edit / move / topic — is what a privileged agent's
   // "manage the office" authority means, so these four accept a privileged
-  // agent token scoped to the agents its manager can see. Everything else in
-  // this file (revive, abort, subscription usage, session listing) stays
+  // agent token scoped to the agents its manager can see. Abort also accepts
+  // any agent token, with the reach and rate limit of a steer. Everything else
+  // in this file (revive, subscription usage, session listing) stays
   // browser-session-only until there's a reason to widen it.
   if (req.method === "DELETE" && parts.length === 2) {
     const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
@@ -106,6 +108,17 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
   }
 
   if (req.method === "POST" && parts.length === 3 && parts[2] === "abort") {
+    // Any agent may stop any agent it may message (all of them); the core
+    // applies the steer rate limit and leaves the target a stop note.
+    const rawBearer = readBearerToken(req);
+    const bearer = resolveAgentToken(rawBearer);
+    if (rawBearer && !bearer && auth?.kind !== "api") return jsonError(401, "missing or invalid bearer token");
+    if (bearer) {
+      if (bearer.agentId === agentId) return jsonError(400, "cannot stop your own turn");
+      const result = await AgentManager.abortByAgent(agentId);
+      if (!result.ok) return jsonError(result.status, result.error);
+      return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
     const denied = requireUserAgentAccess(auth, agentId);
     if (denied) return denied;
     await AgentManager.abort(agentId);
