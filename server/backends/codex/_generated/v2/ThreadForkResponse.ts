@@ -16,6 +16,10 @@ export type ThreadForkResponse = {
   model: string;
   modelProvider: string;
   serviceTier: string | null;
+  /**
+   * Saved list of disabled plugin IDs. Does not yet filter plugin capabilities.
+   */
+  disabledPluginIds: Array<string>;
   cwd: AbsolutePathBuf;
   /**
    * Thread-scoped runtime workspace roots used to materialize

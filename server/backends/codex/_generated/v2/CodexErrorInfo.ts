@@ -14,9 +14,11 @@ export type CodexErrorInfo =
   | "sessionBudgetExceeded"
   | "usageLimitExceeded"
   | "rateLimitExceeded"
+  | "flexUnavailable"
   | "serverOverloaded"
   | "cyberPolicy"
   | "misalignmentPolicyViolation"
+  | "tooManyDenials"
   | { httpConnectionFailed: { httpStatusCode: number | null } }
   | { responseStreamConnectionFailed: { httpStatusCode: number | null } }
   | "internalServerError"

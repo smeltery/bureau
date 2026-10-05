@@ -21,6 +21,7 @@ import type { ExternalAgentConfigImportProgressNotification } from "./v2/Externa
 import type { FileChangeOutputDeltaNotification } from "./v2/FileChangeOutputDeltaNotification";
 import type { FileChangePatchUpdatedNotification } from "./v2/FileChangePatchUpdatedNotification";
 import type { FsChangedNotification } from "./v2/FsChangedNotification";
+import type { GatewayOAuthChangedNotification } from "./v2/GatewayOAuthChangedNotification";
 import type { GuardianWarningNotification } from "./v2/GuardianWarningNotification";
 import type { HookCompletedNotification } from "./v2/HookCompletedNotification";
 import type { HookStartedNotification } from "./v2/HookStartedNotification";
@@ -50,6 +51,7 @@ import type { SkillsChangedNotification } from "./v2/SkillsChangedNotification";
 import type { StrictReviewRequiredNotification } from "./v2/StrictReviewRequiredNotification";
 import type { TerminalInteractionNotification } from "./v2/TerminalInteractionNotification";
 import type { ThreadArchivedNotification } from "./v2/ThreadArchivedNotification";
+import type { ThreadAttachmentUpdatedNotification } from "./v2/ThreadAttachmentUpdatedNotification";
 import type { ThreadClosedNotification } from "./v2/ThreadClosedNotification";
 import type { ThreadDeletedNotification } from "./v2/ThreadDeletedNotification";
 import type { ThreadGoalClearedNotification } from "./v2/ThreadGoalClearedNotification";
@@ -97,6 +99,7 @@ export type ServerNotification =
   | { method: "thread/reverted"; params: ThreadRevertedNotification }
   | { method: "skills/changed"; params: SkillsChangedNotification }
   | { method: "thread/name/updated"; params: ThreadNameUpdatedNotification }
+  | { method: "thread/attachment/updated"; params: ThreadAttachmentUpdatedNotification }
   | { method: "thread/goal/updated"; params: ThreadGoalUpdatedNotification }
   | { method: "thread/goal/cleared"; params: ThreadGoalClearedNotification }
   | { method: "thread/queue/changed"; params: ThreadQueueChangedNotification }
@@ -134,6 +137,7 @@ export type ServerNotification =
   | { method: "mcpServer/startupStatus/updated"; params: McpServerStatusUpdatedNotification }
   | { method: "mcpServer/event/stream/notification"; params: McpServerEventStreamNotification }
   | { method: "account/updated"; params: AccountUpdatedNotification }
+  | { method: "account/gatewayOAuth/changed"; params: GatewayOAuthChangedNotification }
   | { method: "account/rateLimits/updated"; params: AccountRateLimitsUpdatedNotification }
   | { method: "app/list/updated"; params: AppListUpdatedNotification }
   | { method: "remoteControl/status/changed"; params: RemoteControlStatusChangedNotification }

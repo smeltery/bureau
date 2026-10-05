@@ -7,8 +7,7 @@ import { findTurnIndexContainingItemId, readThreadTurns } from "./thread-history
 import type { Model as CodexProtocolModel } from "./_generated/v2/Model.ts";
 import type { ModelListParams } from "./_generated/v2/ModelListParams.ts";
 import type { ModelListResponse } from "./_generated/v2/ModelListResponse.ts";
-import type { ThreadRollbackParams } from "./_generated/v2/ThreadRollbackParams.ts";
-import type { ThreadRollbackResponse } from "./_generated/v2/ThreadRollbackResponse.ts";
+import type { ThreadForkParams } from "./_generated/v2/ThreadForkParams.ts";
 
 export const CLIENT_INFO_NAME = "bureau";
 export const CLIENT_INFO_VERSION = "1.0.0";
@@ -79,22 +78,15 @@ export async function forkCodexSessionBeforeMessage(sessionId: string, targetMes
     if (targetTurnIndex === -1) {
       throw new Error("forkSessionBeforeMessage: target message not found in thread turns");
     }
-    const numTurns = turns.length - targetTurnIndex;
-    if (numTurns < 1) {
-      throw new Error("forkSessionBeforeMessage: computed numTurns < 1 (programming error)");
-    }
-
-    const forkResp = await client.request<{ thread: { id: string } }>("thread/fork", {
+    // The child ends before the turn holding the target message. Codex 0.160
+    // has no thread/rollback, so the cut is made by the fork itself.
+    const forkParams: ThreadForkParams = {
       threadId: sessionId,
+      beforeTurnId: turns[targetTurnIndex]!.id,
       excludeTurns: true,
-    });
-    const childThreadId = forkResp.thread.id;
-
-    const rollbackParams: ThreadRollbackParams = {
-      threadId: childThreadId,
-      numTurns,
     };
-    await client.request<ThreadRollbackResponse>("thread/rollback", rollbackParams);
+    const forkResp = await client.request<{ thread: { id: string } }>("thread/fork", forkParams);
+    const childThreadId = forkResp.thread.id;
 
     return {
       kind: "fork",

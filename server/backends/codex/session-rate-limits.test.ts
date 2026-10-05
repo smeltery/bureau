@@ -72,8 +72,8 @@ describe("codex window labels and reset times", () => {
 
 describe("codex plan display names", () => {
   it("maps OpenAI plan slugs to user-facing names", () => {
-    expect(codexPlanDisplayName("pro")).toBe("Pro Max");
-    expect(codexPlanDisplayName("prolite")).toBe("Pro Codex");
+    expect(codexPlanDisplayName("pro")).toBe("Pro 200");
+    expect(codexPlanDisplayName("prolite")).toBe("Pro 100");
     expect(codexPlanDisplayName("plus")).toBe("Plus");
   });
 
@@ -163,7 +163,7 @@ describe("CodexRateLimitTracker", () => {
 
   it("falls back to one read before anything was pushed, then serves the cache", async () => {
     const { tracker, fetchOnce, calls } = trackerWith(readResponse({ rateLimits: snapshot({ limitId: null, planType: "pro" }) }));
-    expect((await usageOf(tracker, fetchOnce)).plan).toBe("Pro Max");
+    expect((await usageOf(tracker, fetchOnce)).plan).toBe("Pro 200");
     await tracker.read(fetchOnce);
     expect(calls.count).toBe(1);
   });

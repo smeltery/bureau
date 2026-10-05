@@ -21,6 +21,7 @@ import type { DynamicToolCallOutputContentItem } from "./DynamicToolCallOutputCo
 import type { DynamicToolCallStatus } from "./DynamicToolCallStatus";
 import type { FileUpdateChange } from "./FileUpdateChange";
 import type { HookPromptFragment } from "./HookPromptFragment";
+import type { McpAppUi } from "./McpAppUi";
 import type { McpToolCallAppContext } from "./McpToolCallAppContext";
 import type { McpToolCallError } from "./McpToolCallError";
 import type { McpToolCallResult } from "./McpToolCallResult";
@@ -99,9 +100,13 @@ export type ThreadItem =
       arguments: JsonValue;
       appContext: McpToolCallAppContext | null;
       /**
-       * Deprecated: use `appContext.resourceUri` instead.
+       * Legacy compatibility field; prefer `mcpAppUi.resourceUri` when available.
        */
       mcpAppResourceUri?: string;
+      /**
+       * Presentation captured from the invoked descriptor; absent in older history.
+       */
+      mcpAppUi: McpAppUi | null;
       pluginId: string | null;
       readOnlyHint: boolean | null;
       result: McpToolCallResult | null;

@@ -5,6 +5,7 @@ import type { McpServerInfo } from "../McpServerInfo";
 import type { Resource } from "../Resource";
 import type { ResourceTemplate } from "../ResourceTemplate";
 import type { Tool } from "../Tool";
+import type { JsonValue } from "../serde_json/JsonValue";
 import type { McpAuthStatus } from "./McpAuthStatus";
 import type { McpServerConnectionStatus } from "./McpServerConnectionStatus";
 
@@ -15,8 +16,22 @@ export type McpServerStatus = {
    */
   runtimeStatus: McpServerConnectionStatus | null;
   pluginId: string | null;
+  /**
+   * HTTP origin of the effective configured endpoint, including plugin servers.
+   * Excludes credentials, path, query, and fragment; null for non-HTTP transports.
+   */
+  httpOrigin: string | null;
   serverInfo: McpServerInfo | null;
+  /**
+   * Capabilities advertised by the initialized MCP server; null when unavailable.
+   */
+  serverCapabilities: JsonValue | null;
   tools: { [key in string]?: Tool };
+  /**
+   * Tool discovery failed and no catalog was returned.
+   * Null when a catalog is returned, including cached or empty catalogs.
+   */
+  toolsError: string | null;
   resources: Array<Resource>;
   resourceTemplates: Array<ResourceTemplate>;
   authStatus: McpAuthStatus;

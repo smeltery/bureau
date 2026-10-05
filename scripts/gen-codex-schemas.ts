@@ -9,12 +9,17 @@
 // script must stay in sync with the runtime spawn path.
 
 import { spawnSync } from "child_process";
+import { rmSync } from "fs";
 
 import { resolveCodexLauncherPath } from "../server/backends/codex/native-bin.ts";
 
 const launcher = resolveCodexLauncherPath();
+const OUT_DIR = "server/backends/codex/_generated";
 
-const args = [launcher, "app-server", "generate-ts", "--out", "server/backends/codex/_generated", "--experimental"];
+// generate-ts only writes; clear first so types a Codex release dropped do not linger.
+rmSync(OUT_DIR, { recursive: true, force: true });
+
+const args = [launcher, "app-server", "generate-ts", "--out", OUT_DIR, "--experimental"];
 
 const result = spawnSync(process.execPath, args, {
   stdio: "inherit",

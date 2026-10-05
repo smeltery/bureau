@@ -67,6 +67,10 @@ export type ThreadResumeParams = {
   config?: { [key in string]?: JsonValue } | null;
   baseInstructions?: string | null;
   developerInstructions?: string | null;
+  /**
+   * @deprecated `friendly` and `pragmatic` no longer select a style.
+   * Changing this does not rewrite the thread's existing instructions.
+   */
   personality?: Personality | null;
   /**
    * When true, return only thread metadata and live-resume state without

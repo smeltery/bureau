@@ -10,7 +10,7 @@ export const APPS_REGISTRATION_CLAUSE = SHARED_WORKFLOW_COPY.en.appsRegistration
 export const PLAIN_LANGUAGE_CLAUSE = SHARED_WORKFLOW_COPY.en.plainLanguage;
 
 const CODEX_FRONTIER = ["gpt-5.6-sol", "gpt-6-astra", "gpt-5.6-terra", "gpt-5.5"];
-const CODEX_BALANCED = ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-6-astra", "gpt-5.4"];
+const CODEX_BALANCED = ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-6-astra", "gpt-5.5"];
 
 export type AgentTemplateGroup = "build" | "work" | "life" | "places";
 

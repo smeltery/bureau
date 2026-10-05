@@ -44,6 +44,9 @@ export type ThreadStartParams = {
   serviceName?: string | null;
   baseInstructions?: string | null;
   developerInstructions?: string | null;
+  /**
+   * @deprecated `friendly` and `pragmatic` no longer select a style.
+   */
   personality?: Personality | null;
   /**
    * @deprecated Ignored. Use Ultra reasoning effort for proactive multi-agent behavior.
@@ -64,6 +67,12 @@ export type ThreadStartParams = {
    * the assignment; ephemeral threads expose it only in live responses.
    */
   projectId?: string | null;
+  /**
+   * Initial Daybreak choice for this persistent thread. Omitted or null
+   * leaves it unset. This does not select a turn's `cyberAccessProgram`
+   * or grant access. Not supported for ephemeral threads.
+   */
+  daybreakEnabled?: boolean | null;
   /**
    * Optional sticky environments for this thread.
    *

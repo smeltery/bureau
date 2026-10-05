@@ -11,6 +11,7 @@ import type { SubscriptionUsageResult, SubscriptionUsageWindow } from "../types.
 import type { GetAccountRateLimitsResponse } from "./_generated/v2/GetAccountRateLimitsResponse.ts";
 import type { RateLimitSnapshot } from "./_generated/v2/RateLimitSnapshot.ts";
 import type { RateLimitWindow } from "./_generated/v2/RateLimitWindow.ts";
+import type { PlanType } from "./_generated/PlanType.ts";
 
 const MINUTES_PER_HOUR = 60;
 const MINUTES_PER_DAY = 60 * 24;
@@ -52,22 +53,33 @@ export const CODEX_PREFERRED_LIMIT_ID = "codex";
 // separate from the keyed buckets so the two never merge into each other.
 export const CODEX_LEGACY_LIMIT_KEY = "";
 
-// OpenAI wire slugs are not always the ChatGPT plan names users recognize.
-// Unknown slugs pass through verbatim so a new plan does not disappear.
-const CODEX_PLAN_DISPLAY_NAMES: Record<string, string> = {
+// Wire plan slugs -> the labels Codex itself shows in /status (codex-rs
+// tui/src/subscription.rs at rust-v0.160.0). Typed over the whole PlanType
+// union, so a schema regen that adds a plan fails typecheck until it has a
+// label. A slug outside the union passes through verbatim.
+const CODEX_PLAN_DISPLAY_NAMES: Record<PlanType, string> = {
   free: "Free",
   go: "Go",
   plus: "Plus",
-  prolite: "Pro Codex",
-  pro: "Pro Max",
-  team: "Team",
-  business: "Business",
+  pro: "Pro 200",
+  prolite: "Pro 100",
+  promax: "Pro 500",
+  team: "Business",
+  self_serve_business_usage_based: "Business",
+  business: "Enterprise",
+  self_serve_business_prolite: "Business Premium",
+  enterprise_cbp_automation: "Enterprise (Automation)",
+  enterprise_cbp_usage_based: "Enterprise",
   enterprise: "Enterprise",
+  ent26: "Enterprise",
   edu: "Edu",
+  edu_plus: "Edu Plus",
+  edu_pro: "Edu Pro",
+  unknown: "Unknown",
 };
 
 export function codexPlanDisplayName(planType: string | null): string | null {
-  return planType ? (CODEX_PLAN_DISPLAY_NAMES[planType] ?? planType) : null;
+  return planType ? ((CODEX_PLAN_DISPLAY_NAMES as Record<string, string>)[planType] ?? planType) : null;
 }
 
 export function codexLimitKey(snapshot: RateLimitSnapshot): string {
@@ -123,6 +135,7 @@ export function mergeRateLimitSnapshots(older: RateLimitSnapshot, newer: RateLim
   return {
     limitId: newer.limitId ?? older.limitId,
     limitName: newer.limitName ?? older.limitName,
+    normalModelSlug: newer.normalModelSlug ?? older.normalModelSlug,
     // A null window is "not in this update", not "this window is gone". An
     // account that genuinely loses a window reports it via a fresh read (or a
     // new limitId), not by omitting it from a rolling update.

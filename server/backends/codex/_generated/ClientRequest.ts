@@ -44,6 +44,7 @@ import type { FsUnwatchParams } from "./v2/FsUnwatchParams";
 import type { FsWatchParams } from "./v2/FsWatchParams";
 import type { FsWriteFileParams } from "./v2/FsWriteFileParams";
 import type { GetAccountParams } from "./v2/GetAccountParams";
+import type { GetAccountRateLimitsParams } from "./v2/GetAccountRateLimitsParams";
 import type { GetAccountTokenUsageParams } from "./v2/GetAccountTokenUsageParams";
 import type { HooksListParams } from "./v2/HooksListParams";
 import type { ListMcpServerStatusParams } from "./v2/ListMcpServerStatusParams";
@@ -56,6 +57,7 @@ import type { McpServerEventStreamStartParams } from "./v2/McpServerEventStreamS
 import type { McpServerEventStreamStopParams } from "./v2/McpServerEventStreamStopParams";
 import type { McpServerOauthLoginParams } from "./v2/McpServerOauthLoginParams";
 import type { McpServerToolCallParams } from "./v2/McpServerToolCallParams";
+import type { MemoryStatusParams } from "./v2/MemoryStatusParams";
 import type { MockExperimentalMethodParams } from "./v2/MockExperimentalMethodParams";
 import type { ModelListParams } from "./v2/ModelListParams";
 import type { ModelProviderCapabilitiesReadParams } from "./v2/ModelProviderCapabilitiesReadParams";
@@ -98,6 +100,9 @@ import type { SkillsExtraRootsSetParams } from "./v2/SkillsExtraRootsSetParams";
 import type { SkillsListParams } from "./v2/SkillsListParams";
 import type { ThreadApproveGuardianDeniedActionParams } from "./v2/ThreadApproveGuardianDeniedActionParams";
 import type { ThreadArchiveParams } from "./v2/ThreadArchiveParams";
+import type { ThreadAttachmentAddParams } from "./v2/ThreadAttachmentAddParams";
+import type { ThreadAttachmentListParams } from "./v2/ThreadAttachmentListParams";
+import type { ThreadAttachmentRemoveParams } from "./v2/ThreadAttachmentRemoveParams";
 import type { ThreadBackgroundTerminalsCleanParams } from "./v2/ThreadBackgroundTerminalsCleanParams";
 import type { ThreadBackgroundTerminalsListParams } from "./v2/ThreadBackgroundTerminalsListParams";
 import type { ThreadBackgroundTerminalsTerminateParams } from "./v2/ThreadBackgroundTerminalsTerminateParams";
@@ -130,7 +135,6 @@ import type { ThreadRealtimeStartParams } from "./v2/ThreadRealtimeStartParams";
 import type { ThreadRealtimeStopParams } from "./v2/ThreadRealtimeStopParams";
 import type { ThreadResumeParams } from "./v2/ThreadResumeParams";
 import type { ThreadRevertParams } from "./v2/ThreadRevertParams";
-import type { ThreadRollbackParams } from "./v2/ThreadRollbackParams";
 import type { ThreadSearchOccurrencesParams } from "./v2/ThreadSearchOccurrencesParams";
 import type { ThreadSearchParams } from "./v2/ThreadSearchParams";
 import type { ThreadSectionCreateParams } from "./v2/ThreadSectionCreateParams";
@@ -150,6 +154,11 @@ import type { TurnInterruptParams } from "./v2/TurnInterruptParams";
 import type { TurnSettingsUpdateParams } from "./v2/TurnSettingsUpdateParams";
 import type { TurnStartParams } from "./v2/TurnStartParams";
 import type { TurnSteerParams } from "./v2/TurnSteerParams";
+import type { UserVerificationCancelParams } from "./v2/UserVerificationCancelParams";
+import type { UserVerificationDeleteParams } from "./v2/UserVerificationDeleteParams";
+import type { UserVerificationEnrollParams } from "./v2/UserVerificationEnrollParams";
+import type { UserVerificationStatusParams } from "./v2/UserVerificationStatusParams";
+import type { UserVerificationVerifyParams } from "./v2/UserVerificationVerifyParams";
 import type { WindowsSandboxSetupStartParams } from "./v2/WindowsSandboxSetupStartParams";
 
 /**
@@ -158,6 +167,11 @@ import type { WindowsSandboxSetupStartParams } from "./v2/WindowsSandboxSetupSta
 export type ClientRequest =
   | { method: "initialize"; id: RequestId; params: InitializeParams }
   | { method: "server/diagnostics"; id: RequestId; params: ServerDiagnosticsParams }
+  | { method: "userVerification/status"; id: RequestId; params: UserVerificationStatusParams }
+  | { method: "userVerification/enroll"; id: RequestId; params: UserVerificationEnrollParams }
+  | { method: "userVerification/delete"; id: RequestId; params: UserVerificationDeleteParams }
+  | { method: "userVerification/verify"; id: RequestId; params: UserVerificationVerifyParams }
+  | { method: "userVerification/cancel"; id: RequestId; params: UserVerificationCancelParams }
   | { method: "thread/start"; id: RequestId; params: ThreadStartParams }
   | { method: "thread/resume"; id: RequestId; params: ThreadResumeParams }
   | { method: "thread/fork"; id: RequestId; params: ThreadForkParams }
@@ -177,10 +191,15 @@ export type ClientRequest =
   | { method: "thread/queue/reorder"; id: RequestId; params: ThreadQueueReorderParams }
   | { method: "thread/queue/start"; id: RequestId; params: ThreadQueueStartParams }
   | { method: "thread/metadata/update"; id: RequestId; params: ThreadMetadataUpdateParams }
+  | { method: "thread/attachment/add"; id: RequestId; params: ThreadAttachmentAddParams }
+  | { method: "thread/attachment/list"; id: RequestId; params: ThreadAttachmentListParams }
+  | { method: "thread/attachment/remove"; id: RequestId; params: ThreadAttachmentRemoveParams }
   | { method: "thread/section/move"; id: RequestId; params: ThreadSectionMoveParams }
   | { method: "thread/settings/update"; id: RequestId; params: ThreadSettingsUpdateParams }
   | { method: "thread/memoryMode/set"; id: RequestId; params: ThreadMemoryModeSetParams }
+  | { method: "memory/status"; id: RequestId; params: MemoryStatusParams }
   | { method: "memory/reset"; id: RequestId; params: undefined }
+  | { method: "rollout/compress"; id: RequestId; params: undefined }
   | { method: "thread/unarchive"; id: RequestId; params: ThreadUnarchiveParams }
   | { method: "thread/compact/start"; id: RequestId; params: ThreadCompactStartParams }
   | { method: "thread/shellCommand"; id: RequestId; params: ThreadShellCommandParams }
@@ -188,7 +207,6 @@ export type ClientRequest =
   | { method: "thread/backgroundTerminals/clean"; id: RequestId; params: ThreadBackgroundTerminalsCleanParams }
   | { method: "thread/backgroundTerminals/list"; id: RequestId; params: ThreadBackgroundTerminalsListParams }
   | { method: "thread/backgroundTerminals/terminate"; id: RequestId; params: ThreadBackgroundTerminalsTerminateParams }
-  | { method: "thread/rollback"; id: RequestId; params: ThreadRollbackParams }
   | { method: "thread/revert"; id: RequestId; params: ThreadRevertParams }
   | { method: "thread/list"; id: RequestId; params: ThreadListParams }
   | { method: "project/list"; id: RequestId; params: ProjectListParams }
@@ -254,6 +272,9 @@ export type ClientRequest =
   | { method: "thread/realtime/listVoices"; id: RequestId; params: ThreadRealtimeListVoicesParams }
   | { method: "review/start"; id: RequestId; params: ReviewStartParams }
   | { method: "model/list"; id: RequestId; params: ModelListParams }
+  | { method: "account/gatewayOAuth/read"; id: RequestId; params: undefined }
+  | { method: "account/gatewayOAuth/login"; id: RequestId; params: undefined }
+  | { method: "account/gatewayOAuth/cancel"; id: RequestId; params: undefined }
   | { method: "modelProvider/capabilities/read"; id: RequestId; params: ModelProviderCapabilitiesReadParams }
   | { method: "experimentalFeature/list"; id: RequestId; params: ExperimentalFeatureListParams }
   | { method: "permissionProfile/list"; id: RequestId; params: PermissionProfileListParams }
@@ -284,7 +305,7 @@ export type ClientRequest =
   | { method: "account/bedrock/setup"; id: RequestId; params: BedrockSetupParams }
   | { method: "account/login/cancel"; id: RequestId; params: CancelLoginAccountParams }
   | { method: "account/logout"; id: RequestId; params: undefined }
-  | { method: "account/rateLimits/read"; id: RequestId; params: undefined }
+  | { method: "account/rateLimits/read"; id: RequestId; params?: GetAccountRateLimitsParams | undefined }
   | { method: "account/rateLimitResetCredit/consume"; id: RequestId; params: ConsumeAccountRateLimitResetCreditParams }
   | { method: "account/usage/read"; id: RequestId; params?: GetAccountTokenUsageParams | undefined }
   | { method: "account/workspaceMessages/read"; id: RequestId; params: undefined }
