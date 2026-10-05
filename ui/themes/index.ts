@@ -3,11 +3,10 @@
 // that must branch on mode rather than on a specific theme (lamp glow,
 // window day/night, neon sign, diff2html palette).
 //
-// All ~73 CSS variables are defined per theme. Existing Dark and Light
-// values are byte-for-byte preserved from the original styles.ts. New
-// themes (Nord, Dracula, Solarized Dark/Light) supply the same shape;
-// office-scene props are picked to fit each palette rather than hand-tuned
-// pixel-by-pixel.
+// All ~73 CSS variables are defined per theme, and every theme supplies the
+// same shape; office-scene props are picked to fit each palette rather than
+// hand-tuned pixel-by-pixel. Text and syntax colours hold WCAG AA (4.5:1) on
+// every panel and tint, pinned by themes-contrast.test.ts.
 
 import { DARK_VARS, LIGHT_VARS, type ThemeVars } from "./theme-base-vars.ts";
 import { DRACULA_VARS, NORD_VARS, SOLARIZED_DARK_VARS, SOLARIZED_LIGHT_VARS } from "./theme-custom-vars.ts";

@@ -20,11 +20,11 @@ export const DRACULA_VARS: ThemeVars = {
 
   "--text-primary": "#f8f8f2",
   "--text-secondary": "#dcdcd6",
-  "--text-dim": "#a3a3a8",
-  "--text-muted": "#757585",
-  "--text-faint": "#6272a4",
-  "--text-ghost": "#4d5878",
-  "--text-hint": "#404a65",
+  "--text-dim": "#adadb0",
+  "--text-muted": "#a6a6b0",
+  "--text-faint": "#9ba5c5",
+  "--text-ghost": "#9ca5bf",
+  "--text-hint": "#9ca5bf",
 
   "--border": "rgba(255,255,255,0.06)",
   "--border-subtle": "rgba(255,255,255,0.03)",
@@ -91,13 +91,13 @@ export const DRACULA_VARS: ThemeVars = {
 
   "--hljs-keyword": "#ff79c6",
   "--hljs-string": "#f1fa8c",
-  "--hljs-comment": "#6272a4",
+  "--hljs-comment": "#9ba5c5",
   "--hljs-number": "#bd93f9",
   "--hljs-function": "#50fa7b",
   "--hljs-type": "#8be9fd",
   "--hljs-variable": "#ffb86c",
-  "--hljs-regexp": "#ff5555",
+  "--hljs-regexp": "#ff7e7e",
   "--hljs-symbol": "#8be9fd",
   "--hljs-meta": "#f8f8f2",
-  "--hljs-deletion": "#ff5555",
+  "--hljs-deletion": "#ff7e7e",
 };
