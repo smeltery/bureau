@@ -317,6 +317,7 @@ function projectAgentsForUser(user: UserRecord, rooms: ReturnType<typeof AgentMa
 export function agentRouteParts(pathname: string): string[] | null {
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] === "agents") return parts;
+  if (parts[0] === "api" && parts[1] === "agent-reference") return parts.slice(1);
   if (parts[0] === "api" && parts[1] === "agents") return parts.slice(1);
   return null;
 }

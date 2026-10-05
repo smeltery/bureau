@@ -9,6 +9,12 @@ interface StoredAgentToken {
   privileged: boolean;
 }
 
+export interface AgentTokenIdentity {
+  agentId: string;
+  userId: string | null;
+  privileged: boolean;
+}
+
 const byAgentId = new Map<string, StoredAgentToken>();
 const agentIdByHash = new Map<string, string>();
 
@@ -55,7 +61,7 @@ export function readBearerToken(req: Request): string | null {
   return token.length ? token : null;
 }
 
-export function resolveAgentToken(raw: string | null): { agentId: string; userId: string | null; privileged: boolean } | null {
+export function resolveAgentToken(raw: string | null): AgentTokenIdentity | null {
   if (!raw) return null;
   const hash = hashToken(raw);
   const agentId = agentIdByHash.get(hash);

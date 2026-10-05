@@ -24,6 +24,7 @@ import {
 } from "./agent-route-helpers.ts";
 import { readAgentLogs, requiresIsolatedLogSearch } from "../agents/log-reader.ts";
 import { readAgentLogsIsolated } from "../agents/log-search-runner.ts";
+import { AGENT_REFERENCE_VERSION, agentReferenceContent, agentReferenceTopics, resolveAgentReferenceBearer } from "../agents/session/agent-reference.ts";
 
 /**
  * Agent-scoped HTTP routes (spawn/list, management, logs, messaging, browser).
@@ -33,6 +34,10 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
   const parts = agentRouteParts(url.pathname);
   if (!parts) return null;
   if (isRetiredLegacyAgentAffordance(url.pathname, parts, req.method)) return null;
+
+  if (parts[0] === "agent-reference") {
+    return handleAgentReferenceRequest(req, parts);
+  }
 
   if (parts[0] === "agents" && parts.length === 1 && req.method === "POST") {
     return handleAgentSpawnRequest(req, auth);
@@ -238,6 +243,21 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
   const bearerResponse = await handleAgentBearerPost(req, parts);
   if (bearerResponse) return bearerResponse;
 
+  return null;
+}
+
+function handleAgentReferenceRequest(req: Request, parts: string[]): Response | null {
+  if (req.method !== "GET") return null;
+  const identity = resolveAgentReferenceBearer(req);
+  if (!identity) return jsonError(401, "missing or invalid bearer token");
+  if (parts.length === 1) {
+    return new Response(JSON.stringify({ version: AGENT_REFERENCE_VERSION, topics: agentReferenceTopics(identity) }), { headers: JSON_HEADERS });
+  }
+  if (parts.length === 2) {
+    const markdown = agentReferenceContent(identity, parts[1]!);
+    if (markdown === undefined) return jsonError(404, "reference not found");
+    return new Response(JSON.stringify({ version: AGENT_REFERENCE_VERSION, topic: parts[1], markdown }), { headers: JSON_HEADERS });
+  }
   return null;
 }
 

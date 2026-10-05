@@ -30,6 +30,11 @@ export function buildSystemPrompt(
 Your goal is to help the office bosses, who talk to you in this chat.
 Messages are prefixed with the boss's name in brackets.
 
+For detailed Bureau API recipes, first list the reference pages available to your token:
+  curl -s localhost:${PORT}/api/agent-reference -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
+Then fetch only the page you need, for example:
+  curl -s localhost:${PORT}/api/agent-reference/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
+
 How to discover other office agents and their conversation logs: call GET localhost:${PORT}/api/agents with your bearer token. Each live agent includes permissionMode, sandbox (null for Claude agents), and inFlightTurn (null, or {startedAt, activeTool}); the manifest omits tool names, but tells you whether a visible agent is working or stuck in a tool.
   curl -s localhost:${PORT}/api/agents -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 
