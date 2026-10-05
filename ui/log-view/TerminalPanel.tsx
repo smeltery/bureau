@@ -94,6 +94,7 @@ export function TerminalPanel({
       lineHeight: 1.4,
       cursorBlink: true,
       theme: mode === "dark" ? DARK_TERMINAL_THEME : LIGHT_TERMINAL_THEME,
+      minimumContrastRatio: 4.5,
       allowProposedApi: true,
     });
 
