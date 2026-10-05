@@ -70,21 +70,21 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
       const q = titleFilter.toLowerCase();
       filtered = filtered.filter((t) => t.title.toLowerCase().includes(q));
     }
-    return new Response(JSON.stringify(filtered), { headers: corsHeaders });
+    return new Response(JSON.stringify(filtered.map(withVersion)), { headers: corsHeaders });
   }
 
   if (req.method === "GET" && taskId && !action) {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     if (!canAccessTask(task, bearer, cronRun, auth, api)) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
-    return new Response(JSON.stringify(task), { headers: corsHeaders });
+    return new Response(JSON.stringify(withVersion(task)), { headers: corsHeaders });
   }
 
   if (req.method === "POST" && !taskId) {
     const idempotencyCacheKey = api ? taskCreateIdempotencyKey(req, bearer, cronRun, auth) : null;
     const replayedTask = idempotencyCacheKey ? tasks.find((t) => t.id === createTaskIdempotency.get(idempotencyCacheKey)) : undefined;
     if (replayedTask && canAccessTask(replayedTask, bearer, cronRun, auth, true)) {
-      return new Response(JSON.stringify(replayedTask), { status: 201, headers: corsHeaders });
+      return new Response(JSON.stringify(withVersion(replayedTask)), { status: 201, headers: corsHeaders });
     }
     let body: Record<string, unknown>;
     try {
@@ -117,7 +117,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (idempotencyCacheKey) createTaskIdempotency.set(idempotencyCacheKey, task.id);
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);
-    return new Response(JSON.stringify(task), { status: 201, headers: corsHeaders });
+    return new Response(JSON.stringify(withVersion(task)), { status: 201, headers: corsHeaders });
   }
 
   if (req.method === "PATCH" && taskId && !action) {
@@ -137,6 +137,8 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     if (body.priority !== undefined && body.priority !== null && !isValidPriority(body.priority)) {
       return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3 or null to clear" }), { status: 400, headers: corsHeaders });
     }
+    const stale = versionMismatch(task, body.version);
+    if (stale) return new Response(JSON.stringify(stale.body), { status: stale.status, headers: corsHeaders });
     if (body.title !== undefined) task.title = String(body.title);
     if (body.description !== undefined) task.description = body.description ? String(body.description) : undefined;
     if (body.status !== undefined) task.status = body.status as TaskItem["status"];
@@ -155,7 +157,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     }
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);
-    return new Response(JSON.stringify(task), { headers: corsHeaders });
+    return new Response(JSON.stringify(withVersion(task)), { headers: corsHeaders });
   }
 
   if (req.method === "POST" && taskId && action === "claim") {
@@ -169,11 +171,16 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     } catch {
       return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: corsHeaders });
     }
-    task.assignee = body.assignee ? String(body.assignee) : task.assignee;
+    const claimant = typeof body.assignee === "string" && body.assignee.length > 0 ? body.assignee : undefined;
+    if (task.assignee && task.assignee !== claimant) {
+      const error = `task held by ${task.assignee}; to reassign it, PATCH assignee with the task's version`;
+      return new Response(JSON.stringify({ error, assignee: task.assignee }), { status: 409, headers: corsHeaders });
+    }
+    if (claimant) task.assignee = claimant;
     task.status = "in_progress";
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);
-    return new Response(JSON.stringify(task), { headers: corsHeaders });
+    return new Response(JSON.stringify(withVersion(task)), { headers: corsHeaders });
   }
 
   if (req.method === "POST" && taskId && action === "done") {
@@ -187,7 +194,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
     task.status = "done";
     saveTasks(tasks);
     broadcast({ type: "tasks", tasks } as ServerMessage);
-    return new Response(JSON.stringify(task), { headers: corsHeaders });
+    return new Response(JSON.stringify(withVersion(task)), { headers: corsHeaders });
   }
 
   if (req.method === "DELETE" && taskId && !action) {
@@ -283,4 +290,33 @@ function taskRouteParts(pathname: string): { parts: string[]; api: boolean } | n
   if (parts[0] === "tasks") return { parts, api: false };
   if (parts[0] === "api" && parts[1] === "tasks") return { parts: parts.slice(1), api: true };
   return null;
+}
+
+type VersionedTask = TaskItem & { version: string };
+
+/** Content hash of a task: any field change yields a new version. */
+function taskVersion(task: TaskItem): string {
+  const fields = Object.entries(task)
+    .filter(([key, value]) => key !== "version" && value !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return Bun.hash(JSON.stringify(fields)).toString(36);
+}
+
+function withVersion(task: TaskItem): VersionedTask {
+  return { ...task, version: taskVersion(task) };
+}
+
+/**
+ * Optimistic-concurrency check for a task edit. A request without `version`
+ * is accepted as-is; a malformed one is a 400 and a stale one a 409 carrying
+ * the current task so the caller can re-apply its change.
+ */
+function versionMismatch(task: TaskItem, requested: unknown): { status: 400 | 409; body: Record<string, unknown> } | null {
+  if (requested === undefined) return null;
+  if (typeof requested !== "string" || requested.length === 0) {
+    return { status: 400, body: { error: "version must be the non-empty string from a read of the task" } };
+  }
+  const current = taskVersion(task);
+  if (requested === current) return null;
+  return { status: 409, body: { error: "version conflict: the task changed since your read; re-read and retry", version: current, task: withVersion(task) } };
 }

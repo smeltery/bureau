@@ -29,9 +29,15 @@ GET    /tasks           — list (excludes done/backlog by default), ?status=ope
 GET    /tasks/:id       — full task detail with description
 POST   /tasks           — create task
 PATCH  /tasks/:id       — update fields, including roomId (convention: agents only use when human directs)
-POST   /tasks/:id/claim — set assignee + status=in_progress
+POST   /tasks/:id/claim — set assignee + status=in_progress (409 if someone else holds it)
 POST   /tasks/:id/done  — set status=done
 ```
+
+### Concurrency
+
+Every task returned over HTTP carries a `version`: a hash of its content, computed on read rather than stored. A `PATCH` that includes `version` only applies if it still matches. A stale one returns `409` with the current task, so two agents editing the same task can't silently overwrite each other. A `PATCH` without `version` still applies unconditionally, so older scripts keep working. The browser edits over the WebSocket against live state and does not send versions.
+
+A claim takes an unheld task, or one the named assignee already holds. Claiming a task held by someone else (or claiming without a name while it's held) returns `409 task held`. Taking a task from its holder is an explicit `PATCH` of `assignee`, which can carry the version.
 
 DELETE is available to authenticated callers and the UI uses the WebSocket delete command.
 
