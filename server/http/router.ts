@@ -6,6 +6,8 @@ import { getOfficeName, listActiveSessions, listActiveSessionsForUserId, listInv
 import { authenticate } from "../auth/auth-middleware.ts";
 import { withSecurityHeaders } from "../auth/auth-pages.ts";
 import { tryHandleAuthRoute } from "../auth/auth-routes.ts";
+import { requestIsOnBox } from "../auth/auth-request-guards.ts";
+import { refuseOffBoxMachineToken } from "../auth/machine-token-locality.ts";
 import { getPublicOrigin, originAllowed, stateChangingOriginAllowed } from "../public-origin.ts";
 import { pushPresenceListToEachWs } from "../ws-initial-payload.ts";
 import type { WsData } from "../ws/websocket-handlers.ts";
@@ -74,6 +76,9 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
   const readyResp = handleReadyRequest(req, url, { server, now: Date.now });
   if (readyResp) return readyResp;
+
+  const offBoxToken = refuseOffBoxMachineToken(req, requestIsOnBox(req, server));
+  if (offBoxToken) return offBoxToken;
 
   if (url.pathname === "/.well-known/security.txt" && (req.method === "GET" || req.method === "HEAD")) {
     return new Response(req.method === "HEAD" ? null : securityTxt(), {

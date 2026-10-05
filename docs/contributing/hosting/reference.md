@@ -27,6 +27,10 @@ agent HTTP API. A request relayed by a same-host proxy such as Caddy,
 `tailscale serve` or Funnel carries `X-Forwarded-For`, so it is treated as an
 outside client and needs a session, whatever the proxy setting.
 
+Agent, cron-run and app tokens work only from this machine. One presented
+from off-box (directly or through a proxy) is refused with `401`, and the
+office logs one line naming the holder. Personal API tokens are unaffected.
+
 Set `BUREAU_TRUSTED_PROXY` so rate limits count each real client instead of
 the proxy:
 
