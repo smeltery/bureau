@@ -58,6 +58,32 @@ export function securityHeaders(opts?: { tokenInUrl?: boolean }): Record<string,
   return h;
 }
 
+const ACTIVE_FILE_TYPES = new Set(["text/html", "image/svg+xml", "text/xml", "application/xml"]);
+
+// Headers for a file an agent or member put in chat. The office serves it from
+// its own origin, so an opened HTML or SVG file would otherwise run as office
+// content with the viewer's session. `sandbox` without allow-same-origin gives
+// the page an opaque origin: its scripts still run, but the browser sends no
+// session cookie for it and the socket upgrade rejects its `null` Origin. Only
+// active types get the sandbox: Chrome's PDF viewer refuses to render in a
+// sandboxed document, and nosniff keeps every other type from turning active.
+// withSecurityHeaders keeps a header that is already set, so this policy
+// replaces the office one on these responses.
+//
+// The cache is private because access is checked per viewer, and not immutable
+// because storage pruning can free a filename for different bytes later.
+export function untrustedFileHeaders(contentType: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": contentType,
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "private, no-cache",
+  };
+  if (ACTIVE_FILE_TYPES.has(contentType)) {
+    headers["Content-Security-Policy"] = `${securityHeaders()["Content-Security-Policy"]}; sandbox allow-scripts`;
+  }
+  return headers;
+}
+
 export function withSecurityHeaders(response: Response): Response {
   const headers = securityHeaders({ tokenInUrl: false });
   for (const [name, value] of Object.entries(headers)) {
