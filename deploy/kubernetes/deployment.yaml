@@ -59,6 +59,10 @@ spec:
                 configMapKeyRef:
                   name: bureau-config
                   key: BUREAU_PUBLIC_URL
+            # Rate limits key on the client the load balancer names in
+            # X-Forwarded-For rather than on the balancer itself.
+            - name: BUREAU_TRUSTED_PROXY
+              value: load-balancer
             # Needed until the first owner exists. Delete the Secret after
             # that; the next pod start drops it from the environment.
             - name: BUREAU_SETUP_KEY

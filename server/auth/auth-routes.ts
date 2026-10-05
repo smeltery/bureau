@@ -4,7 +4,7 @@ import { acceptInvite, clearCookieHeaders, logoutBySessionHash, peekInvite, read
 import { renderAcceptPage, renderInviteError, renderInviteIdentityConflict, renderLockoutBlocked, securityHeaders } from "./auth-pages.ts";
 import { handleClaim, handleClaimForm, shouldShowClaimForm } from "./auth-claim-routes.ts";
 import { checkAuthRateLimit } from "./auth-rate-limit.ts";
-import { originValidForAuthPost } from "./auth-request-guards.ts";
+import { originValidForAuthPost, requestPeer, requestSource } from "./auth-request-guards.ts";
 
 type InviteErrorResponseDeps = {
   readSessionCookie: typeof readSessionCookie;
@@ -27,8 +27,8 @@ export function setOnOwnerCreated(cb: OwnerCreatedCb | null): void {
   onOwnerCreated = cb;
 }
 
-export function handleInvitePeek(req: Request, token: string, officeName: string | null): Response {
-  const limited = checkAuthRateLimit(req, "invite_peek");
+export function handleInvitePeek(req: Request, token: string, officeName: string | null, client: string): Response {
+  const limited = checkAuthRateLimit(client, "invite_peek");
   if (limited) return limited;
   const peek = peekInvite(token);
   if ("error" in peek) return inviteErrorResponse(req, peek.error, officeName);
@@ -43,11 +43,11 @@ export function handleInvitePeek(req: Request, token: string, officeName: string
   });
 }
 
-export async function handleAccept(req: Request, officeName: string | null): Promise<Response> {
+export async function handleAccept(req: Request, officeName: string | null, client: string): Promise<Response> {
   if (!originValidForAuthPost(req)) {
     return new Response("bad origin", { status: 403 });
   }
-  const limited = checkAuthRateLimit(req, "invite_accept");
+  const limited = checkAuthRateLimit(client, "invite_accept");
   if (limited) return limited;
   const form = await req.formData().catch(() => null);
   const tokenField = form?.get("token");
@@ -186,10 +186,10 @@ export async function tryHandleAuthRoute<T>(req: Request, url: URL, officeName: 
   if (req.method === "GET" && url.pathname.startsWith("/i/")) {
     const token = url.pathname.slice(3);
     if (!token) return renderInviteError("not_found", officeName);
-    return handleInvitePeek(req, token, officeName);
+    return handleInvitePeek(req, token, officeName, requestSource(req, requestPeer(req, server)).client);
   }
   if (url.pathname === "/auth/accept" && req.method === "POST") {
-    return handleAccept(req, officeName);
+    return handleAccept(req, officeName, requestSource(req, requestPeer(req, server)).client);
   }
   if (url.pathname === "/auth/logout" && req.method === "POST") {
     return handleLogout(req, officeName);

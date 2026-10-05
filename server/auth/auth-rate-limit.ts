@@ -11,9 +11,10 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>();
 
-export function checkAuthRateLimit(req: Request, action: AuthRateLimitAction, now = Date.now()): Response | null {
+/** `client` is the caller key from `requestSource` — never a raw forwarding header. */
+export function checkAuthRateLimit(client: string, action: AuthRateLimitAction, now = Date.now()): Response | null {
   const limit = action === "invite_peek" ? INVITE_PEEK_LIMIT : INVITE_ACCEPT_LIMIT;
-  const key = `${action}:${clientKey(req)}`;
+  const key = `${action}:${client}`;
   const existing = buckets.get(key);
   if (!existing || now - existing.windowStart >= WINDOW_MS) {
     buckets.set(key, { windowStart: now, count: 1 });
@@ -29,11 +30,6 @@ export function checkAuthRateLimit(req: Request, action: AuthRateLimitAction, no
       "Retry-After": String(retryAfterSeconds),
     },
   });
-}
-
-function clientKey(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return req.headers.get("cf-connecting-ip")?.trim() || req.headers.get("fly-client-ip")?.trim() || req.headers.get("x-real-ip")?.trim() || forwarded || "unknown";
 }
 
 export function _testResetAuthRateLimits(): void {

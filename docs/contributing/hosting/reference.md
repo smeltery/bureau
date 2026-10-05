@@ -20,6 +20,22 @@ should be trusted with shell-equivalent access to that host.
 Owners can create one-time invite links from `User Settings -> Access`.
 Members can create self-invites for their own additional devices.
 
+## Reverse Proxies
+
+Bureau trusts a local process (loopback with no forwarding header) on the
+agent HTTP API. A request relayed by a same-host proxy such as Caddy,
+`tailscale serve` or Funnel carries `X-Forwarded-For`, so it is treated as an
+outside client and needs a session, whatever the proxy setting.
+
+Set `BUREAU_TRUSTED_PROXY` so rate limits count each real client instead of
+the proxy:
+
+| Value | Use when | Rate-limit key |
+| --- | --- | --- |
+| `none` (default) | clients connect straight to Bureau's port | TCP peer |
+| `same-host` | Caddy, `tailscale serve` or Funnel on the same machine | rightmost `X-Forwarded-For` on loopback requests |
+| `load-balancer` | Render, Kubernetes, or another off-box balancer | rightmost `X-Forwarded-For` on off-box requests |
+
 ## Backups
 
 Bureau writes state under `~/.bureau` or `BUREAU_HOME`. Daily backup tarballs
