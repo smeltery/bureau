@@ -1,5 +1,5 @@
 import { lowercaseKey } from "../../shared/identity.ts";
-import { ensureLoaded, inviteStore, mutate, persistInvites } from "./store.ts";
+import { ensureLoaded, inviteStore, mutate, persistInvites, type StoredInvite } from "./store.ts";
 
 export type RevokeResult = "ok" | "not_found" | "ambiguous";
 
@@ -57,5 +57,29 @@ export async function revokeOutstandingInviteByPrefixForUsername(prefix: string,
       throw err;
     }
     return "ok";
+  });
+}
+
+// Revoke every outstanding link that would sign in this member. Called when
+// the member is deleted, so a link minted before the delete signs nobody in.
+// Legacy rows without a userId match on the name.
+export async function revokeInvitesForUser(userId: string, username: string): Promise<number> {
+  return mutate(() => {
+    ensureLoaded();
+    const name = lowercaseKey(username);
+    const removed: [string, StoredInvite][] = [];
+    for (const [k, v] of inviteStore()) {
+      if (v.consumed) continue;
+      if (v.userId ? v.userId !== userId : !v.username || lowercaseKey(v.username) !== name) continue;
+      removed.push([k, v]);
+    }
+    for (const [k] of removed) inviteStore().delete(k);
+    try {
+      persistInvites();
+    } catch (err) {
+      for (const [k, v] of removed) inviteStore().set(k, v);
+      throw err;
+    }
+    return removed.length;
   });
 }

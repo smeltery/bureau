@@ -14,6 +14,9 @@ export interface StoredInvite {
   consumedAt: number | null;
   bootstrap: boolean;
   allowedRooms?: string[];
+  // The member this link signs in. Absent only on bootstrap invites and on
+  // legacy rows minted before members were created up front.
+  userId?: string;
 }
 
 export interface StoredSession {

@@ -46,4 +46,9 @@ describe("summarizeRosterUser", () => {
 
     expect(text).toBe("Offline • No rooms");
   });
+
+  test("flags a member who has never signed in", () => {
+    expect(summarizeRosterUser(user({ pendingSignIn: true }), rooms, [], [], true)).toBe("Never signed in • All rooms");
+    expect(summarizeRosterUser(user({ pendingSignIn: true }), rooms, [{ userId: "user-1" }], [], false)).toBe("Online • All rooms");
+  });
 });

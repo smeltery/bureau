@@ -77,6 +77,8 @@ export interface UserRecord {
   avatarColor: string;
   avatarVariant: GhostVariant;
   createdAt: number;
+  // Created by an owner and no sign-in link accepted yet.
+  pendingSignIn?: true;
 }
 
 export interface SessionContext {

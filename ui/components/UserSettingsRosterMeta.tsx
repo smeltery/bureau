@@ -32,6 +32,7 @@ export function summarizeRosterUser(
 ): string {
   const roomText = summarizeRooms(user, rooms);
   const online = presences.some((presence) => presence.userId === user.id);
+  if (user.pendingSignIn && !online) return `Never signed in • ${roomText}`;
   if (!showSessionStats) return online ? `Online • ${roomText}` : roomText;
   const userSessions = sessions.filter((session) => session.userId === user.id);
   if (online) return `${userSessions.length || 1} active • ${roomText}`;

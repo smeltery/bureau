@@ -2,10 +2,10 @@ import type { ServerWebSocket } from "bun";
 import type { ClientCommand } from "../../shared/types.ts";
 import { LOBBY_ROOM_ID } from "../../shared/lobby.ts";
 import * as AgentManager from "../agent-manager.ts";
-import { evictSessionsForUserId } from "../auth/auth.ts";
+import { evictSessionsForUserId, revokeInvitesForUser } from "../auth/auth.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
 import { moveLobbyPresence, refreshPresenceForUser, setPresence } from "../presence.ts";
-import { canSeeRoom, claimUser, deleteUser, firstOfficeOwner, getSessionContext, getWsUser, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
+import { canSeeRoom, claimUser, deleteUser, firstOfficeOwner, getSessionContext, getUserById, getWsUser, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { browsers } from "./broadcast.ts";
 
 export async function handleUserCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>): Promise<boolean> {
@@ -48,7 +48,8 @@ export async function handleUserCommand(cmd: ClientCommand, ws: ServerWebSocket<
       }
       const successor = firstOfficeOwner(cmd.userId);
       if (successor) await AgentManager.reassignAgentsOwnedBy(cmd.userId, successor.id);
-      deleteUser(actor, cmd.userId);
+      const target = getUserById(cmd.userId);
+      if (deleteUser(actor, cmd.userId) && target) await revokeInvitesForUser(target.id, target.name);
       for (const browser of browsers) {
         sendInitialPayload(browser);
       }

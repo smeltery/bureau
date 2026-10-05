@@ -9,7 +9,7 @@
 
 import type { UserRole } from "../../shared/types.ts";
 import { lowercaseKey } from "../../shared/identity.ts";
-import { getUserByName, hasOwner } from "../users.ts";
+import { claimUserByName, deleteUserById, getUserByName, hasOwner } from "../users.ts";
 import { randomToken } from "./tokens.ts";
 import { setHasOwnerProvider } from "./http-env.ts";
 export { forceExpireSocketsForSession, registerSocket, unregisterSocket } from "./session-sockets.ts";
@@ -17,7 +17,7 @@ export { setRoomsSnapshotProvider } from "./bootstrap-owner.ts";
 import { snapshotRoomIds } from "./bootstrap-owner.ts";
 import { ensureLoaded, inviteStore, mutate, persistInvites, type StoredInvite } from "./store.ts";
 export { listActiveSessions, listActiveSessionsForUserId, listInvites, listInvitesForUsername } from "./lists.ts";
-export { revokeInviteByPrefix, revokeOutstandingInviteByPrefixForUsername, type RevokeResult } from "./invite-revocation.ts";
+export { revokeInviteByPrefix, revokeInvitesForUser, revokeOutstandingInviteByPrefixForUsername, type RevokeResult } from "./invite-revocation.ts";
 export { acceptInvite, claimOwnership, peekInvite, setOnInviteConsumed, type AcceptErr, type AcceptOk, type ClaimErr, type ClaimOk, type InvitePeek } from "./invite-acceptance.ts";
 export { _testResetBrowserSessionDiagnostics, browserSessionDiagnostic, emitBrowserSessionDiagnostic, formatBrowserSessionDiagnostic, type BrowserSessionDiagnostic } from "./session-diagnostics.ts";
 export {
@@ -157,6 +157,25 @@ export async function mintInvite(opts: MintOptions): Promise<MintResult | MintEr
       for (const k of removedKeys) inviteStore().delete(k);
     }
 
+    // A link always signs in an existing member: a new member is created here,
+    // so an expired or revoked link never loses what the owner set up.
+    let userId: string | undefined;
+    let createdUserId: string | null = null;
+    if (!opts.bootstrap && trimmedName) {
+      const existing = getUserByName(trimmedName);
+      if (existing) {
+        userId = existing.id;
+      } else {
+        const created = claimUserByName(trimmedName, {
+          role: opts.role,
+          allowedRooms: opts.role === "owner" ? snapshotRoomIds() : (allowedRooms ?? []),
+          pendingSignIn: true,
+        });
+        userId = created.id;
+        createdUserId = created.id;
+      }
+    }
+
     const { raw, hash, prefix } = randomToken();
     const now = Date.now();
     const invite: StoredInvite = {
@@ -171,12 +190,14 @@ export async function mintInvite(opts: MintOptions): Promise<MintResult | MintEr
       consumedAt: null,
       bootstrap: !!opts.bootstrap,
       ...(allowedRooms ? { allowedRooms } : {}),
+      ...(userId ? { userId } : {}),
     };
     inviteStore().set(hash, invite);
     try {
       persistInvites();
     } catch (err) {
       inviteStore().delete(hash);
+      if (createdUserId) deleteUserById(createdUserId);
       for (let i = 0; i < removedKeys.length; i++) {
         inviteStore().set(removedKeys[i], removedSnapshots[i]);
       }

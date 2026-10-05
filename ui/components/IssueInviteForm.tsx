@@ -119,7 +119,10 @@ export function IssueInviteForm() {
           )}
         </label>
       </div>
-      <p style={{ ...hint, marginTop: 6 }}>Invite link expires 24h after issuing if unused. Accepted sessions last up to 1 year (revocable from the Access pane any time).</p>
+      <p style={{ ...hint, marginTop: 6 }}>
+        Issuing creates the member right away; the link expires 24h after issuing if unused, and you can send a fresh one below. Accepted sessions last up to 1 year (revocable from the Access pane any
+        time).
+      </p>
       {showRoomPicker && (
         <div style={{ marginTop: 8 }}>
           <div style={subLabel}>Rooms</div>

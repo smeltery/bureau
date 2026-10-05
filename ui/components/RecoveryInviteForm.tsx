@@ -51,7 +51,9 @@ export function RecoveryInviteForm() {
 
   return (
     <div style={cardStyle}>
-      <p style={{ ...hint, marginTop: 0 }}>Mint a one-time link for an existing user who cannot access a signed-in device. A new link replaces their previous outstanding link.</p>
+      <p style={{ ...hint, marginTop: 0 }}>
+        Mint a one-time sign-in link for an existing member: one who has never signed in, or one who cannot reach a signed-in device. A new link replaces their previous outstanding link.
+      </p>
       <label style={subLabel}>User</label>
       <select
         value={userId}

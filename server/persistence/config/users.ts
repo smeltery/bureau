@@ -44,6 +44,7 @@ export function loadUsers(): UserRecord[] {
           avatarColor: isHexColor(u.avatarColor) ? normalizeHexColor(u.avatarColor) : defaultGhostColorForUserId(u.id),
           avatarVariant: isGhostVariant(u.avatarVariant) ? u.avatarVariant : "classic",
           createdAt: typeof u.createdAt === "number" ? u.createdAt : Date.now(),
+          ...(u.pendingSignIn === true ? { pendingSignIn: true as const } : {}),
         };
       });
   } catch (err) {
