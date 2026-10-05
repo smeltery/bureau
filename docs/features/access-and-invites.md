@@ -41,8 +41,11 @@ If you don't get to it on the first boot, the same form is served on every subse
 
 Once you're the owner, open `User Settings` → `Access` pane:
 
-- **Issue invite**: enter a display name, pick a role. Click `Issue invite`. The URL appears once — copy it. The URL is one-time per device and expires 24 hours after issuing if unused.
+- **Issue invite**: enter a display name, pick a role and rooms. Click `Issue invite`. This creates the member right away (the roster shows "Never signed in" until they accept) and returns a sign-in link for them. The URL appears once — copy it. The URL is one-time per device and expires 24 hours after issuing if unused.
+- **Sign-in link for an existing member**: mints a fresh link for anyone on the roster, for example after the first link expired. It replaces their previous outstanding link. Nothing the owner set up is lost when a link expires or is revoked, because the member record already exists.
 - **Outstanding invites**: every unclaimed invite is listed with its token prefix; revoke any from this table.
+
+Each link is bound to the member's id, not their name. Renaming a member between issuing and accepting still signs in the same member. Deleting a member revokes their outstanding links, and a link for a deleted member signs nobody in. Accepting a link never creates a member; legacy links minted before this change (still in `invites.json` until they expire) keep the old create-on-accept behavior.
 - **Active sessions**: every currently-signed-in device; revoke any to immediately disconnect them.
 
 Send each URL to the invitee through whatever channel you trust (Signal, text, email). The invitee opens it on their device → cookie set → they're in. No installs, no accounts, no passwords.

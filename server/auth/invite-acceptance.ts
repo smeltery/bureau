@@ -1,5 +1,5 @@
 import type { UserRole } from "../../shared/types.ts";
-import { claimUserByName, getUserByName, hasOwner } from "../users.ts";
+import { claimUserByName, clearPendingSignIn, getUserById, getUserByName, hasOwner } from "../users.ts";
 import { commitBootstrapOwnerUser, snapshotRoomIds } from "./bootstrap-owner.ts";
 import { markAllUnconsumedBootstrapInvitesConsumed } from "./bootstrap-invites.ts";
 import { createSessionForUser } from "./session-creation.ts";
@@ -32,9 +32,11 @@ export function peekInvite(rawToken: string): InvitePeek | { error: "not_found" 
   if (invite.consumed) return { error: "consumed" };
   if (invite.expiresAt < Date.now()) return { error: "expired" };
   if (invite.bootstrap && hasOwner()) return { error: "owner_exists" };
+  const bound = invite.userId ? getUserById(invite.userId) : null;
+  if (invite.userId && !bound) return { error: "not_found" };
   return {
     needsName: invite.username === null,
-    username: invite.username,
+    username: bound?.name ?? invite.username,
     role: invite.role,
     bootstrap: invite.bootstrap,
   };
@@ -78,20 +80,26 @@ export async function acceptInvite(rawToken: string, ctx: { userAgent: string | 
       return { ok: false, error: "owner_exists" };
     }
 
-    let chosenName: string | null = invite.username;
-    if (invite.username === null) {
+    // A link bound to a member signs in exactly that member, whatever they are
+    // called now; a deleted member's link signs nobody in.
+    const bound = invite.userId ? getUserById(invite.userId) : null;
+    if (invite.userId && !bound) return { ok: false, error: "not_found" };
+    if (bound && bound.role !== invite.role) return { ok: false, error: "role_mismatch" };
+
+    let chosenName: string | null = bound?.name ?? invite.username;
+    if (!bound && invite.username === null) {
       const raw = (ctx.chosenName ?? "").trim();
       if (!raw) return { ok: false, error: "needs_name" };
       if (raw.length > 64) return { ok: false, error: "invalid_name" };
       if (!/^[\p{L}\p{N} ._'-]+$/u.test(raw)) return { ok: false, error: "invalid_name" };
       chosenName = raw;
-    } else {
+    } else if (!bound && invite.username !== null) {
       const existing = getUserByName(invite.username);
       if (existing && existing.role !== invite.role) return { ok: false, error: "role_mismatch" };
     }
     if (!chosenName) return { ok: false, error: "invalid_name" };
 
-    let userRecord = getUserByName(chosenName);
+    let userRecord = bound ?? getUserByName(chosenName);
     let bootstrapRollback: (() => void) | null = null;
     if (invite.bootstrap) {
       const committed = commitBootstrapOwnerUser(chosenName);
@@ -151,6 +159,7 @@ export async function acceptInvite(rawToken: string, ctx: { userAgent: string | 
     if (invite.bootstrap) {
       markAllUnconsumedBootstrapInvitesConsumed();
     }
+    clearPendingSignIn(userRecord.id);
 
     return {
       ok: true,

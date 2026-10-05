@@ -5,7 +5,7 @@ import { browsers } from "../ws/broadcast.ts";
 import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payload.ts";
 import { refreshPresenceForUser } from "../presence.ts";
 import { loadOfficeConfig, normalizePreviewAllowHosts, saveOfficeConfig } from "../persistence.ts";
-import { evictSessionsForUserId, isOutsideReachabilityBlocked, mintInvite, setOfficeName } from "../auth/auth.ts";
+import { evictSessionsForUserId, isOutsideReachabilityBlocked, mintInvite, revokeInvitesForUser, setOfficeName } from "../auth/auth.ts";
 import { deleteUserById, firstOfficeOwner, getUserById, getUserByName, listAccessibleRooms, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { pushInvitesListToEachWs } from "../access-broadcasts.ts";
 import type { AccessSettingsWire, SetAccessResult } from "./access.ts";
@@ -157,6 +157,7 @@ export async function deleteUserForApi(actorUserId: string, actorRole: "owner" |
   const successor = firstOfficeOwner(target.id);
   if (successor) await AgentManager.reassignAgentsOwnedBy(target.id, successor.id);
   if (!deleteUserById(target.id)) return { ok: false, status: 404, error: "user not found" };
+  await revokeInvitesForUser(target.id, target.name);
   for (const browser of browsers) sendInitialPayload(browser);
   await evictSessionsForUserId(target.id);
   return { ok: true };

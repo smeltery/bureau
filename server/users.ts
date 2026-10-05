@@ -59,7 +59,7 @@ export function wouldDeleteLeaveNoOwner(userId: string): boolean {
 // claimed implicitly becomes owner. `opts.allowedRooms` defaults to [] for
 // members and to the snapshot for owners — callers (auth.ts) pass the
 // snapshot at first-owner time so the new owner sees every existing room.
-export function claimUserByName(name: string, opts: { role?: UserRole; allowedRooms?: string[] } = {}): UserRecord {
+export function claimUserByName(name: string, opts: { role?: UserRole; allowedRooms?: string[]; pendingSignIn?: boolean } = {}): UserRecord {
   const trimmed = name.trim().slice(0, 64) || "Boss";
   const key = normalizeUserKey(trimmed);
   const existing = users.get(key);
@@ -67,10 +67,18 @@ export function claimUserByName(name: string, opts: { role?: UserRole; allowedRo
   const role: UserRole = opts.role ?? (users.size === 0 ? "owner" : "member");
   const id = generateUserId([...users.values()].map((u) => u.id));
   const allowedRooms = opts.allowedRooms ?? [];
-  const created = createUserRecord({ id, name: trimmed, role, allowedRooms });
+  const created: UserRecord = { ...createUserRecord({ id, name: trimmed, role, allowedRooms }), ...(opts.pendingSignIn ? { pendingSignIn: true as const } : {}) };
   users.set(key, created);
   persist();
   return created;
+}
+
+export function clearPendingSignIn(userId: string): void {
+  const target = getUserById(userId);
+  if (!target?.pendingSignIn) return;
+  const { pendingSignIn: _, ...next } = target;
+  users.set(normalizeUserKey(target.name), next);
+  persist();
 }
 
 export function setUserRoleById(userId: string, role: UserRole): void {
