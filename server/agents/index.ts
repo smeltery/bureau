@@ -55,7 +55,7 @@ export {
 export { editAgent, setAgentPrivileged, reassignAgentsOwnedBy } from "./settings.ts";
 export { sendMessage } from "./conversation/send.ts";
 export { dequeueMessage, enqueueMessage, flushQueue } from "./conversation/message-queue.ts";
-export { abort, sendNow, newConversation, handoff, resume } from "./conversation/control.ts";
+export { abort, abortByAgent, sendNow, newConversation, handoff, resume } from "./conversation/control.ts";
 export { editMessage } from "./conversation/edit.ts";
 export { setTopic, resetTopic } from "./topic.ts";
 export { ensureSlide, getSlideDeck } from "./slides.ts";

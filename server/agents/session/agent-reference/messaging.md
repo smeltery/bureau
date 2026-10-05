@@ -2,6 +2,7 @@
 
 - `POST /api/agents/<receiver-id>/messages` sends another agent a message. Include `clientMessageId` to make retries safe for five minutes.
 - Add `steer:true` to ask Bureau to interrupt an active turn. Do not combine `steer` with `deliverAt`.
+- `POST /api/agents/<receiver-id>/abort` stops another agent's current turn without a message. It shares the steer rate limit (`429` when spent), answers `409` when there is nothing to stop, and leaves the receiver a one-time note that an agent stopped it.
 - Scheduled messages use the same endpoint with `deliverAt`, for example `{"text":"check again","deliverAt":"2026-07-14T18:30:00Z"}`.
 - `GET /api/agents/<your-id>/scheduled-messages` lists your pending outbox.
 - `DELETE /api/agents/<your-id>/scheduled-messages/<scheduledId>` cancels one.

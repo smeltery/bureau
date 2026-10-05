@@ -90,7 +90,8 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   const { managed, sdkText, originalText, visibleText, attachments, origin, humanInput, username, onSendAccepted } = opts;
   const agentId = managed.info.id;
   await admitMemberTurn(managed, username, humanInput);
-  const contextNoticeText = managed.pendingContextNotices.length > 0 ? managed.pendingContextNotices.map((notice) => `[${notice}]`).join("\n") : "";
+  const contextNotices = [...managed.pendingContextNotices];
+  const contextNoticeText = contextNotices.map((notice) => `[${notice}]`).join("\n");
   // Built-in outbound block (server coordination, NOT a plugin — no
   // enable/disable coupling, absent from plugin discovery + failure
   // accounting). Armed by the wake paths when the previous session died to a
@@ -200,7 +201,12 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
       throw new Error("Cannot send: agent has no session.");
     }
     await managed.session.send(finalText, attachments);
-    if (contextNoticeText) managed.pendingContextNotices = [];
+    // Only the notices this send carried: one armed during the send (an
+    // agent's stop of this very turn) belongs to the next turn.
+    for (const notice of contextNotices) {
+      const index = managed.pendingContextNotices.indexOf(notice);
+      if (index !== -1) managed.pendingContextNotices.splice(index, 1);
+    }
     // One-shot, and never before send: a failed send keeps the note so the
     // retry still tells the agent what happened to its interrupted command.
     // The identity check is the conversation-boundary guard — if a /clear (or

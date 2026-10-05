@@ -31,7 +31,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   [Agent-built apps](agent-apps.md).
 - Agents can read other agents' logs and send messages to one another, choosing
   between queueing behind the receiver's turn and steering (interrupting it,
-  rate-limited, with honest acks).
+  rate-limited, with honest acks). Any agent can also stop another agent's
+  turn without a message, under the same rate limit; the stopped agent is told
+  an agent did it.
 - Agents can schedule one-off future messages, including self-reminders.
 - Durable shared memory with office, room, person, and agent scopes. Agents can
   append attributed facts through the local API, users can curate raw memory in

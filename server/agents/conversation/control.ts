@@ -1,10 +1,10 @@
 import { listAgentSessions, loadLogWithAncestors, getSessionCwd, persistSessionCwd, ensureSessionCwd } from "../../persistence.ts";
-import { addLogEntry, agents, emit, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
+import { addLogEntry, agents, emit, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { createSession, replaceSession } from "../session/runtime.ts";
 import { validateCwd } from "../session/paths.ts";
 import { errMessage } from "../../../shared/errors.ts";
 import { generateTopic, persistCurrentSessionTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
-import { flushQueue, enqueueMessage, type EnqueueResult } from "./message-queue.ts";
+import { flushQueue, enqueueMessage, steerRateLimited, type EnqueueResult } from "./message-queue.ts";
 import { getAgentDisplay } from "../lifecycle.ts";
 
 const handoffInProgress = new Set<string>();
@@ -101,6 +101,33 @@ export async function abort(agentId: string) {
     managed.abortPromise = null;
     abortDone();
   }
+}
+
+// An agent's stop delivers no message that could explain it, so the target's
+// next turn carries this note instead.
+export const AGENT_STOP_NOTICE =
+  "Bureau: another agent stopped your previous turn. Any rejection or interruption text at the end of that turn came from that stop, not from a human. A tool call cut short may have done partial work: check its effects before you continue.";
+
+export type AgentAbortResult = { ok: true } | { ok: false; status: 404 | 409 | 429; error: string };
+
+// A stop requested with an agent token. It shares the steer window, because
+// the limit protects the receiver's ability to finish a turn whatever the
+// interruption is called. Joining a stop already in flight, or finding nothing
+// to stop, spends no slot. The note is armed before the abort so a queued flush
+// that starts as the abort settles still carries it.
+export async function abortByAgent(agentId: string): Promise<AgentAbortResult> {
+  const managed = agents.get(agentId);
+  if (!managed) return { ok: false, status: 404, error: "agent not found" };
+  if (managed.aborting && managed.abortPromise) {
+    await managed.abortPromise;
+    return { ok: true };
+  }
+  if (!managed.pendingTurn && !isAgentBusy(managed.info.state)) return { ok: false, status: 409, error: "nothing to stop" };
+  if (steerRateLimited(managed)) return { ok: false, status: 429, error: "this agent was interrupted too often in the last minute; try again later" };
+  managed.recentSteers.push(Date.now());
+  managed.pendingContextNotices.push(AGENT_STOP_NOTICE);
+  await abort(agentId);
+  return { ok: true };
 }
 
 export async function sendNow(agentId: string) {
