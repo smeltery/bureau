@@ -251,7 +251,7 @@ Provider status probes on Connections are time-bounded (~15s). A timed-out check
 
 Before an owner exists, the first-owner form is served only on `127.0.0.1`, so the OS bind rules out off-box clients regardless of LAN/VPN topology — Bureau is not reachable to an outside attacker.
 
-The residual gap: a same-host reverse proxy or tunnel (Tailscale Funnel, Caddy → localhost, etc.) configured **before** an owner claims can forward external traffic to `localhost:4000`, and from Bureau's point of view that connection looks loopback. Anyone who can reach the proxy from outside could claim ownership through it. This is an inherent limit of the proxy-on-same-host topology; bureau can't tell the proxy is there.
+A same-host reverse proxy or tunnel (Tailscale Funnel, Caddy → localhost, etc.) configured **before** an owner claims can forward external traffic to `localhost:4000`, which arrives from a loopback peer. Bureau treats a loopback request as local only when it carries no forwarding header (`X-Forwarded-For`, `Forwarded`, `X-Real-IP`, …). Caddy and Tailscale add one, so the claim refuses their relayed requests and the agent-API loopback bypass doesn't apply to them. The residual gap is a same-host proxy that adds no forwarding header at all, which Bureau can't tell apart from a local process.
 
 The mitigation is operator discipline: **claim first, expose later**. The Access pane's _External access_ toggle is the supported sequence — boot the server, open it locally (or via `ssh -L`), claim, then flip the toggle to enable external listening and configure the proxy.
 

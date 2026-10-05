@@ -4,7 +4,7 @@ import type { Server } from "bun";
 import { browserSessionDiagnostic, emitBrowserSessionDiagnostic, readSessionCookies, validateSession, type SessionLookup } from "./auth.ts";
 import { resolveApiToken, type ResolvedApiToken } from "./api-tokens.ts";
 import { renderLoginPage, securityHeaders } from "./auth-pages.ts";
-import { checkOrigin, requestIsLoopback } from "./auth-request-guards.ts";
+import { checkOrigin, requestIsOnBox } from "./auth-request-guards.ts";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -57,7 +57,7 @@ function unauthorized(req: Request, officeName: string | null): Response {
 // Gating function. Called at the top of every fetch handler.
 
 export function authenticate<T>(req: Request, server: Server<T>, opts?: { allowLoopback?: boolean; officeName?: string | null; gate?: "http" | "ws" }): AuthResult {
-  const looped = !!opts?.allowLoopback && requestIsLoopback(req, server);
+  const looped = !!opts?.allowLoopback && requestIsOnBox(req, server);
   // Origin check runs regardless of the cookie path. A user's browser
   // running on the same machine as the server can otherwise be tricked by
   // a malicious origin into mutating state via the agent-API endpoints

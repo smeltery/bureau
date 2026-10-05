@@ -47,4 +47,12 @@ describe("handleReadyRequest", () => {
       expect(handleReadyRequest(req, new URL(req.url), deps)?.status).toBe(200);
     }
   });
+
+  test("rate-limits probes relayed by a same-host proxy", () => {
+    const req = new Request("http://local.test/readyz", { headers: { "X-Forwarded-For": "203.0.113.7" } });
+    const deps = { server: server("127.0.0.1"), now: () => 1000 };
+
+    for (let i = 0; i < 30; i++) handleReadyRequest(req, new URL(req.url), deps);
+    expect(handleReadyRequest(req, new URL(req.url), deps)?.status).toBe(429);
+  });
 });

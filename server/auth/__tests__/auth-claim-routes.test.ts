@@ -4,7 +4,7 @@
 // becomes owner, with no invite and no prior credential. It is safe only because
 // three layers agree the caller is local, and the two enforced in THIS file are
 // the ones a refactor can quietly drop — the pre-claim 127.0.0.1 bind is in
-// server startup, but `requestIsLoopback` covers an operator who widened the
+// server startup, but `requestIsOnBox` covers an operator who widened the
 // bind, and the strict same-origin check is what stops a page on another origin
 // from walking a logged-out browser through the claim.
 //
@@ -25,7 +25,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import type { Server } from "bun";
 import { claimUserByName, deleteUserById, hasOwner } from "../../users.ts";
 import { securityHeaders } from "../auth-pages.ts";
-import { isLoopbackOrigin, requestIsLoopback } from "../auth-request-guards.ts";
+import { isLoopbackOrigin, requestIsOnBox } from "../auth-request-guards.ts";
 import { handleClaim, handleClaimForm, shouldShowClaimForm } from "../auth-claim-routes.ts";
 
 const createdUserIds: string[] = [];
@@ -99,21 +99,28 @@ describe("isLoopbackOrigin", () => {
   });
 });
 
-describe("requestIsLoopback", () => {
+describe("requestIsOnBox", () => {
   test("recognises the loopback spellings a peer can arrive as", () => {
     const req = new Request("http://127.0.0.1/auth/claim");
     for (const addr of ["127.0.0.1", "::1", "::ffff:127.0.0.1", "127.0.0.5"]) {
-      expect(requestIsLoopback(req, serverSeeing(addr))).toBe(true);
+      expect(requestIsOnBox(req, serverSeeing(addr))).toBe(true);
     }
   });
 
   test("an off-box peer is not loopback, and an unknown peer is refused rather than assumed", () => {
     const req = new Request("http://127.0.0.1/auth/claim");
-    expect(requestIsLoopback(req, serverSeeing("10.0.0.4"))).toBe(false);
-    expect(requestIsLoopback(req, serverSeeing("192.168.1.20"))).toBe(false);
+    expect(requestIsOnBox(req, serverSeeing("10.0.0.4"))).toBe(false);
+    expect(requestIsOnBox(req, serverSeeing("192.168.1.20"))).toBe(false);
     // Fails closed: no peer info, or a throw, means "not local".
-    expect(requestIsLoopback(req, serverSeeing(null))).toBe(false);
-    expect(requestIsLoopback(req, serverThatThrows())).toBe(false);
+    expect(requestIsOnBox(req, serverSeeing(null))).toBe(false);
+    expect(requestIsOnBox(req, serverThatThrows())).toBe(false);
+  });
+
+  test("a loopback peer relaying a same-host proxy is off-box", () => {
+    for (const header of ["X-Forwarded-For", "Forwarded", "X-Real-IP", "X-Forwarded-Proto"]) {
+      const req = new Request("http://127.0.0.1/auth/claim", { headers: { [header]: "203.0.113.9" } });
+      expect(requestIsOnBox(req, serverSeeing("127.0.0.1"))).toBe(false);
+    }
   });
 });
 

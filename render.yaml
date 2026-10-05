@@ -15,6 +15,8 @@ services:
         sync: false
       - key: BUREAU_SETUP_KEY
         generateValue: true
+      - key: BUREAU_TRUSTED_PROXY
+        value: load-balancer
 # Add the office custom domain and *.office-domain to this same service.
 # Generated apps execute on distinct origins. An onrender.com address alone
 # cannot supply those child hostnames. Provider login happens inside Bureau.

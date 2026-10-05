@@ -2,7 +2,7 @@ import type { Server } from "bun";
 import { hasOwner } from "../users.ts";
 import { claimOwnership, setCookieHeader } from "./auth.ts";
 import { renderClaimPage, securityHeaders } from "./auth-pages.ts";
-import { isLoopbackOrigin, requestIsLoopback } from "./auth-request-guards.ts";
+import { isLoopbackOrigin, requestIsOnBox } from "./auth-request-guards.ts";
 
 type OwnerCreatedCb = (opts: { username: string }) => Promise<void> | void;
 
@@ -33,19 +33,19 @@ export function handleClaimForm(officeName: string | null): Response {
 // set the cookie. Locality is enforced at multiple layers:
 //   1. The server bind (127.0.0.1 pre-claim) keeps off-box clients off the
 //      TCP socket entirely;
-//   2. requestIsLoopback rejects non-loopback peers if the bind has been
-//      widened by operator override;
+//   2. requestIsOnBox rejects non-loopback peers if the bind has been
+//      widened by operator override, and loopback requests that carry a
+//      forwarding header (a same-host proxy such as Caddy or `tailscale
+//      serve` relaying an outside client);
 //   3. A strict same-origin check rejects ordinary browser POSTs from
 //      pages on other origins (CSRF defense).
 //
-// The strict-Origin check does NOT close the "non-browser client forges
-// Origin over a same-host proxy" case — curl can set Origin to anything,
-// including the exact loopback value. This is an inherent topology limit;
-// the documented mitigation is operator discipline (claim first, expose
-// later — see docs/features/access-and-invites.md "Bootstrap-window
-// exposure").
+// A same-host proxy that adds no forwarding header at all is still
+// indistinguishable from a local process; the documented mitigation is
+// operator discipline (claim first, expose later — see
+// docs/features/access-and-invites.md "Bootstrap-window exposure").
 export async function handleClaim<T>(req: Request, server: Server<T>, officeName: string | null, onOwnerCreated: OwnerCreatedCb | null): Promise<Response> {
-  if (!requestIsLoopback(req, server)) {
+  if (!requestIsOnBox(req, server)) {
     return new Response("forbidden", { status: 403 });
   }
   const origin = req.headers.get("origin");

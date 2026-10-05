@@ -315,6 +315,8 @@ Known **post-acceptance** authorization gaps fall outside this report's external
 
 **Status:** closed for the legacy agent self-affordance/message aliases. The broader trust model still treats invited users and their agents as powerful local actors.
 
+- Loopback trust (`authenticate(..., { allowLoopback: true })` and the first-owner claim) requires an on-box request: a loopback peer **and** no forwarding header (`server/auth/auth-request-guards.ts:requestSource`). Before this, a same-host proxy (Caddy, `tailscale serve`, Funnel) relayed every outside client from loopback, so those clients got the local-process bypass on the agent HTTP API. Invite and `/readyz` rate limits key on the peer, or on the proxy-written rightmost `X-Forwarded-For` entry when `BUREAU_TRUSTED_PROXY` declares a proxy; they no longer read client-settable headers such as `CF-Connecting-IP`.
+
 ### C.5 HTTP `POST /tasks` accepts client-controlled attribution
 
 - `server/index.ts` — HTTP `POST /tasks` trusts `body.createdBy` and `body.username`; the WS path uses `session.username`.
