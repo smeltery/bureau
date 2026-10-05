@@ -21,7 +21,7 @@ export type Turn = {
   itemsView: TurnItemsView;
   status: TurnStatus;
   /**
-   * Only populated when the Turn's status is failed.
+   * Error associated with a failed or interrupted turn.
    */
   error: TurnError | null;
   /**

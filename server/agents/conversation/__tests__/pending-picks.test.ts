@@ -62,7 +62,7 @@ afterEach(() => {
 describe("handlePendingModelPick", () => {
   test("resolves picks against the Codex list, not Claude families", async () => {
     const models = knownModelFamiliesFor("codex")!;
-    expect(models[2]).toBe("gpt-5.6-terra");
+    expect(models[2]).toBe("gpt-6-astra");
     expect(models[2]).not.toBe("haiku");
 
     const managed = managedFor("codex", CODEX_MODELS[0]!.value);

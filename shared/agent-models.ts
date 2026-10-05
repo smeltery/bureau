@@ -110,17 +110,18 @@ export function claudeFamilySupportsEffort(family: string): boolean {
 }
 
 // Codex model identifiers and UI labels. Verified against `codex debug models`
-// on codex-cli 0.153.4 (2026-09-05). Default first (CODEX_MODELS[0]):
-// gpt-5.6-sol; gpt-6-astra is the newer flagship (Codex 0.153 lists it first)
-// and is not the default here until product owners decide otherwise.
+// on codex-cli 0.160.0 (2026-10-05). Default first (CODEX_MODELS[0]):
+// gpt-5.6-sol; the GPT-6 family (Codex 0.160 lists gpt-6.1-sol first) is
+// not the default here until product owners decide otherwise.
 export const CODEX_MODELS: { value: string; label: string }[] = [
   { value: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
+  { value: "gpt-6.1-sol", label: "GPT-6.1 Sol" },
   { value: "gpt-6-astra", label: "GPT-6 Astra" },
+  { value: "gpt-6-sol", label: "GPT-6 Sol" },
+  { value: "gpt-6-luna", label: "GPT-6 Luna" },
   { value: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
   { value: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
   { value: "gpt-5.5", label: "GPT-5.5" },
-  { value: "gpt-5.4", label: "GPT-5.4" },
-  { value: "gpt-5.4-mini", label: "GPT-5.4 mini" },
 ];
 
 // OpenCode model identifiers (provider/model). Live /provider discovery can

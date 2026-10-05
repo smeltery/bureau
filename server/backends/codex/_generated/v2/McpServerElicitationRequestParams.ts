@@ -17,6 +17,7 @@ export type McpServerElicitationRequestParams = {
   turnId: string | null;
   serverName: string;
 } & (
+  | { mode: "openai/userVerification"; _meta: JsonValue | null; title: string; description: string; challenge: string }
   | { mode: "form"; _meta: JsonValue | null; message: string; requestedSchema: McpElicitationSchema }
   | { mode: "openai/form"; _meta: JsonValue | null; message: string; requestedSchema: JsonValue }
   | { mode: "openaiForm"; _meta: JsonValue | null; message: string; requestedSchema: JsonValue }

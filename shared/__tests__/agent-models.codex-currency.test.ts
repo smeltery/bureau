@@ -3,9 +3,15 @@ import { CODEX_MODELS, DEFAULT_EFFORT, EFFORT_LEVELS, FAMILY_TO_MODEL, effortLev
 import { validateEffort } from "../../server/agent-validators.ts";
 
 describe("Codex model currency", () => {
-  test("offers GPT-6 Astra while keeping GPT-5.6 Sol as the default", () => {
+  test("offers the GPT-6 family while keeping GPT-5.6 Sol as the default", () => {
     expect(CODEX_MODELS[0]?.value).toBe("gpt-5.6-sol");
-    expect(CODEX_MODELS.some((model) => model.value === "gpt-6-astra")).toBe(true);
+    for (const slug of ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-sol", "gpt-6-luna"]) {
+      expect(CODEX_MODELS.some((model) => model.value === slug)).toBe(true);
+    }
+  });
+
+  test("drops models Codex 0.160 no longer lists", () => {
+    expect(CODEX_MODELS.some((model) => model.value.startsWith("gpt-5.4"))).toBe(false);
   });
 
   test("lists ultra as a Codex effort and hides it from Claude", () => {
