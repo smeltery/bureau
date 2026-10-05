@@ -12,17 +12,22 @@ export function normalizeAbsolutePaths(cmd: string): string {
   return result;
 }
 
+// Remove heredoc bodies: <<'EOF' ... EOF, <<"EOF" ... EOF, <<EOF ... EOF.
+// The rest of the opening line (`> file`, `| sh`, `&& next`) is kept.
+export function stripHeredocBodies(cmd: string): string {
+  return cmd
+    .replace(/<<-?\s*'([^']+)'([^\n]*)\n[\s\S]*?\n\s*\1(?=\n|$)/g, "$2")
+    .replace(/<<-?\s*"([^"]+)"([^\n]*)\n[\s\S]*?\n\s*\1(?=\n|$)/g, "$2")
+    .replace(/<<-?\s*(\w+)([^\n]*)\n[\s\S]*?\n\s*\1(?=\n|$)/g, "$2");
+}
+
 /**
  * Strip quoted strings and heredocs from a command so that pattern matching
  * only applies to actual command structure, not to message content.
  * Replaces quoted content with empty strings to preserve command structure.
  */
 export function stripQuotedStrings(cmd: string): string {
-  let result = cmd;
-  // Remove heredoc bodies: <<'EOF' ... EOF, <<"EOF" ... EOF, <<EOF ... EOF
-  result = result.replace(/<<-?\s*'([^']+)'\s*\n[\s\S]*?\n\s*\1/g, "");
-  result = result.replace(/<<-?\s*"([^"]+)"\s*\n[\s\S]*?\n\s*\1/g, "");
-  result = result.replace(/<<-?\s*(\w+)\s*\n[\s\S]*?\n\s*\1/g, "");
+  let result = stripHeredocBodies(cmd);
   // Remove double-quoted strings (handling escaped quotes)
   result = result.replace(/"(?:[^"\\]|\\.)*"/g, '""');
   // Remove single-quoted strings (no escaping in single quotes)

@@ -27,4 +27,39 @@ describe("destructive command segment safety", () => {
   test("checks git subcommands behind global options", async () => {
     expect(await bashDecision("git -C repo --no-pager reset --hard")).toBe("deny");
   });
+
+  test.each([
+    "git -c core.pager=cat reset --hard",
+    "git --config-env core.x=Y reset --hard",
+    "git checkout -b x\ngit reset --hard",
+    "(git reset --hard)",
+    "{ git reset --hard; }",
+    "bash -c 'git reset --hard'",
+    'sh -lc "git clean -fd"',
+    "eval 'git reset --hard'",
+    'echo "$(git reset --hard)"',
+    "echo `git stash clear`",
+    'git reset "--hard"',
+    "git reset $'--hard'",
+    "git reset --hard x git checkout -b y",
+    "rm -rf /tmp/../home/me",
+    "rm -rf /tmp/build/../../etc",
+    "rm -rf $TMPDIR/home",
+    "rm -rf /tmp/a /home/me",
+  ])("denies %s", async (command) => {
+    expect(await bashDecision(command)).toBe("deny");
+  });
+
+  test.each([
+    'git commit -m "never git reset --hard here"',
+    "echo 'rm -rf /' > notes.txt",
+    "git checkout -b feature",
+    "git clean -n",
+    "git restore --staged file.ts",
+    "rm -rf /tmp/bureau-test",
+    "rm -rf /var/tmp/cache/ /tmp/x",
+    "cat <<'EOF' > script.sh\ngit reset --hard\nEOF",
+  ])("allows %s", async (command) => {
+    expect(await bashDecision(command)).toBeUndefined();
+  });
 });

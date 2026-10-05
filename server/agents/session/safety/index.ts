@@ -15,8 +15,8 @@ import type { HookCallback, HookCallbackMatcher, HookEvent, PreToolUseHookInput 
 import { basename, resolve } from "path";
 import { homedir } from "os";
 import { allow, deny, denyMessage, denySecretRead } from "./deny-helpers.ts";
-import { normalizeAbsolutePaths, stripQuotedStrings } from "./bash-parser.ts";
-import { DESTRUCTIVE_PATTERNS, SAFE_PATTERNS } from "./patterns.ts";
+import { normalizeAbsolutePaths, stripHeredocBodies, stripQuotedStrings } from "./bash-parser.ts";
+import { destructiveReason } from "./destructive.ts";
 import { BUREAU_DIR, commandWritesToBureau } from "./bureau-protection.ts";
 import { FILE_READ_COMMANDS, isSensitiveFile } from "./secrets.ts";
 import { checkProcessNetworkSafety } from "./process-network.ts";
@@ -26,24 +26,6 @@ function shellSegments(command: string): string[] {
     .split(/[|;&]+/)
     .map((segment) => segment.trim())
     .filter(Boolean);
-}
-
-function normalizeGitGlobalOptions(command: string): string {
-  const tokens = command.trim().split(/\s+/);
-  if (tokens[0] !== "git") return command;
-  const out = ["git"];
-  for (let i = 1; i < tokens.length; i++) {
-    const token = tokens[i]!;
-    if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree" || token === "--namespace") {
-      i++;
-      continue;
-    }
-    if (token.startsWith("--git-dir=") || token.startsWith("--work-tree=") || token.startsWith("--namespace=")) continue;
-    if (token === "--no-pager" || token === "--bare" || token === "--literal-pathspecs" || token === "--no-replace-objects") continue;
-    out.push(...tokens.slice(i));
-    return out.join(" ");
-  }
-  return command;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,17 +69,11 @@ const checkBashSafety: HookCallback = async (input) => {
     }
   }
 
-  // Check safe/destructive patterns per shell segment. A safe first segment
-  // must not mask a destructive later one, e.g. `git clean -n; git reset --hard`.
-  for (const segment of subCommands) {
-    const safetySegment = normalizeGitGlobalOptions(segment);
-    if (SAFE_PATTERNS.some((pattern) => pattern.test(safetySegment))) continue;
-    for (const [pattern, reason] of DESTRUCTIVE_PATTERNS) {
-      if (pattern.test(safetySegment)) {
-        return denyMessage(reason, command);
-      }
-    }
-  }
+  // Judge every command the line runs, including `sh -c` / `eval` payloads and
+  // substitutions. A safe command must not mask a destructive one, e.g.
+  // `git clean -n; git reset --hard`.
+  const destructive = destructiveReason(stripHeredocBodies(command));
+  if (destructive) return denyMessage(destructive, command);
 
   return allow();
 };
