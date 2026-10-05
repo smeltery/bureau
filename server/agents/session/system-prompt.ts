@@ -58,6 +58,7 @@ How to use the task board (localhost:${PORT}/api/tasks): only touch it when the 
     -d '{"assignee":"${agentName}"}'                                    # claim
   curl -s -X POST localhost:${PORT}/api/tasks/ID/done -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'                  # mark done
 Optional fields on create/update: description, priority (P0-P3), assignee, roomId.
+Every task you read carries a version; send it in PATCH bodies so you never overwrite a newer edit (a 409 means re-read and retry). A claim fails with 409 when someone else holds the task; reassigning is a PATCH of assignee with the version, and only when the boss asks.
 On create, the server attributes the task to your agent token. Omit roomId to file the task in your current room; pass roomId:"" for office-wide globals. You can see and mutate tasks in rooms your manager can access.
 
 Boss-uploaded attachments are passed to you as path notices, not inline content. Open an attachment with your file/image/PDF tools before answering about its contents.
