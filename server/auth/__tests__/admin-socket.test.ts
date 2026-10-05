@@ -2,21 +2,20 @@
 //
 // This is the account-recovery path: it mints a 15-minute owner login URL for
 // somebody who has lost their only session. There is no token, no cookie and no
-// password in front of it — FILESYSTEM PERMISSIONS ARE THE AUTH BOUNDARY, which
-// is defensible only because any UID that can connect to the socket can already
-// read the auth files in ~/.bureau. That argument holds only while the socket is
-// really mode 0600 and the route really refuses everything except an owner, so
-// both are asserted here rather than trusted.
+// password in front of it; the socket checks the connecting peer UID and refuses
+// the Bureau server UID because agents and terminals commonly share it.
 //
 // Driven over a real Unix socket instead of by exporting the handler, because
 // the mode of the created inode is half of what is being tested and a direct
 // call would not create one.
 
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, rmSync, statSync, unlinkSync, writeFileSync } from "fs";
-import { ADMIN_SOCKET_FILE } from "../../persistence/paths.ts";
+import { afterAll, afterEach, beforeAll, describe, expect, spyOn, test } from "bun:test";
+import { existsSync, mkdtempSync, rmSync, statSync, unlinkSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import { claimUserByName, deleteUserById } from "../../users.ts";
-import { startAdminSocket } from "../admin-socket.ts";
+import { resolveAllowedPeerUids, startAdminSocket } from "../admin-socket.ts";
+import { ownerLoginCommand } from "../admin-cli.ts";
 
 const OWNER_LOGIN_TTL_MS = 15 * 60 * 1000;
 const createdUserIds: string[] = [];
@@ -24,6 +23,9 @@ const createdUserIds: string[] = [];
 /** Names are unique per run so this file never depends on another's fixtures. */
 const ownerName = `Recovery Owner ${crypto.randomUUID()}`;
 const memberName = `Recovery Member ${crypto.randomUUID()}`;
+let socketPath: string;
+let socketDir: string | null = null;
+let adminServer: { stop(): void } | null = null;
 
 beforeAll(() => {
   // An owner must exist for the route to get past its pre-claim refusal, and a
@@ -37,16 +39,24 @@ afterAll(() => {
 });
 
 function clearSocketPath() {
+  adminServer?.stop();
+  adminServer = null;
   try {
-    if (existsSync(ADMIN_SOCKET_FILE)) unlinkSync(ADMIN_SOCKET_FILE);
+    if (existsSync(socketPath)) unlinkSync(socketPath);
   } catch {
-    rmSync(ADMIN_SOCKET_FILE, { force: true });
+    rmSync(socketPath, { force: true });
   }
+}
+
+function resetSocketPath() {
+  if (socketDir) rmSync(socketDir, { recursive: true, force: true });
+  socketDir = mkdtempSync(join(tmpdir(), "bureau-admin-sock-"));
+  socketPath = join(socketDir, "admin.sock");
 }
 
 /** Speak to the socket the way the CLI does. */
 async function admin(path: string, init: RequestInit = {}): Promise<Response> {
-  return await fetch(`http://localhost${path}`, { unix: ADMIN_SOCKET_FILE, ...init } as RequestInit);
+  return await fetch(`http://localhost${path}`, { unix: socketPath, ...init } as RequestInit);
 }
 
 function postName(name: unknown): RequestInit {
@@ -54,49 +64,61 @@ function postName(name: unknown): RequestInit {
 }
 
 describe("startAdminSocket", () => {
-  afterEach(clearSocketPath);
+  beforeAll(resetSocketPath);
+  afterEach(() => {
+    clearSocketPath();
+    resetSocketPath();
+  });
+  afterAll(() => {
+    clearSocketPath();
+    if (socketDir) rmSync(socketDir, { recursive: true, force: true });
+  });
 
   test("refuses to overwrite a regular file sitting at its path", () => {
     // The operator (or a bad deployment) put something else there. Unlinking it
     // blind could destroy data, so the admin CLI is given up instead.
     clearSocketPath();
-    writeFileSync(ADMIN_SOCKET_FILE, "not-a-socket, possibly precious");
+    writeFileSync(socketPath, "not-a-socket, possibly precious");
 
-    startAdminSocket();
+    adminServer = startAdminSocket({ socketPath });
 
-    expect(statSync(ADMIN_SOCKET_FILE).isSocket()).toBe(false);
-    expect(Bun.file(ADMIN_SOCKET_FILE).text()).resolves.toBe("not-a-socket, possibly precious");
+    expect(adminServer).toBeNull();
+    expect(statSync(socketPath).isSocket()).toBe(false);
+    expect(Bun.file(socketPath).text()).resolves.toBe("not-a-socket, possibly precious");
   });
 
-  test("binds mode 0600, which is the whole auth boundary", () => {
+  test("binds mode 0600 when only root is allowed", () => {
     clearSocketPath();
 
-    startAdminSocket();
+    adminServer = startAdminSocket({ socketPath, readPeerUid: () => 0 });
 
-    const stat = statSync(ADMIN_SOCKET_FILE);
+    expect(adminServer).not.toBeNull();
+    const stat = statSync(socketPath);
     expect(stat.isSocket()).toBe(true);
-    // Not group- or world-connectable: on a multi-user box this is what keeps
-    // other local users from minting an owner session.
     expect(stat.mode & 0o777).toBe(0o600);
   });
 
   test("replaces a stale socket left by a previous process", () => {
     clearSocketPath();
-    startAdminSocket();
-    const first = statSync(ADMIN_SOCKET_FILE).ino;
+    adminServer = startAdminSocket({ socketPath, readPeerUid: () => 0 });
+    const first = statSync(socketPath).ino;
 
     // A restart must not be wedged by its own leftover inode.
-    startAdminSocket();
+    adminServer = startAdminSocket({ socketPath, readPeerUid: () => 0 });
 
-    expect(statSync(ADMIN_SOCKET_FILE).isSocket()).toBe(true);
-    expect(statSync(ADMIN_SOCKET_FILE).ino).not.toBe(first);
+    expect(statSync(socketPath).isSocket()).toBe(true);
+    expect(statSync(socketPath).ino).not.toBe(first);
   });
 });
 
 describe("POST /admin/owner-login", () => {
   beforeAll(() => {
+    resetSocketPath();
+    adminServer = startAdminSocket({ socketPath, readPeerUid: () => 0 });
+  });
+  afterAll(() => {
     clearSocketPath();
-    startAdminSocket();
+    if (socketDir) rmSync(socketDir, { recursive: true, force: true });
   });
 
   test("serves exactly one route and one method", async () => {
@@ -156,5 +178,95 @@ describe("POST /admin/owner-login", () => {
   test("the name is matched leniently on surrounding whitespace, not on identity", async () => {
     expect((await admin("/admin/owner-login", postName(`  ${ownerName}  `))).status).toBe(200);
     expect((await admin("/admin/owner-login", postName(`${ownerName} extra`))).status).toBe(404);
+  });
+});
+
+describe("admin socket peer authorization", () => {
+  beforeAll(resetSocketPath);
+  afterEach(() => {
+    clearSocketPath();
+    resetSocketPath();
+  });
+  afterAll(() => {
+    clearSocketPath();
+    if (socketDir) rmSync(socketDir, { recursive: true, force: true });
+  });
+
+  test("refuses the server uid as read from the kernel", async () => {
+    adminServer = startAdminSocket({ socketPath });
+    expect(adminServer).not.toBeNull();
+
+    const res = await admin("/admin/owner-login", postName(ownerName));
+
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { ok: boolean }).ok).toBe(false);
+  });
+
+  test("answers a configured recovery uid and lets it connect", async () => {
+    const serverUid = process.getuid?.() ?? -1;
+    const recoveryUid = serverUid + 1;
+    adminServer = startAdminSocket({ socketPath, serverUid, recoveryUidSetting: String(recoveryUid), readPeerUid: () => recoveryUid });
+    expect(adminServer).not.toBeNull();
+    expect(statSync(socketPath).mode & 0o777).toBe(0o666);
+
+    expect((await admin("/admin/owner-login", postName(ownerName))).status).toBe(200);
+  });
+
+  test("ignores a recovery uid matching the server uid", async () => {
+    const serverUid = process.getuid?.() ?? -1;
+    const errors = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      adminServer = startAdminSocket({ socketPath, serverUid, recoveryUidSetting: String(serverUid), readPeerUid: () => serverUid });
+      expect(adminServer).not.toBeNull();
+      expect(statSync(socketPath).mode & 0o777).toBe(0o600);
+      expect((await admin("/admin/owner-login", postName(ownerName))).status).toBe(403);
+      expect(errors.mock.calls.some((call) => String(call[0]).includes("BUREAU_RECOVERY_UID"))).toBe(true);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+});
+
+describe("owner-login CLI", () => {
+  test("prints a root curl command with shell-safe quoting", async () => {
+    resetSocketPath();
+    adminServer = startAdminSocket({ socketPath, readPeerUid: () => 0 });
+    const command = ownerLoginCommand(ownerName, socketPath);
+    expect(command.startsWith("sudo ")).toBe(true);
+    const child = Bun.spawn(["bash", "-c", command.slice("sudo ".length)], { stdout: "pipe" });
+    const body = JSON.parse(await new Response(child.stdout).text()) as { ok: boolean; url: string };
+    expect(await child.exited).toBe(0);
+    expect(body.ok).toBe(true);
+    expect(body.url).toContain("/i/");
+    clearSocketPath();
+    if (socketDir) rmSync(socketDir, { recursive: true, force: true });
+    socketDir = null;
+  });
+});
+
+describe("resolveAllowedPeerUids", () => {
+  test("allows root and a valid recovery uid", () => {
+    expect([...resolveAllowedPeerUids(1000, undefined)]).toEqual([0]);
+    expect([...resolveAllowedPeerUids(1000, " 1001 ")]).toEqual([0, 1001]);
+  });
+
+  test("drops malformed or same-uid recovery settings", () => {
+    const errors = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      for (const setting of ["abc", "-1", "1e3", "1000"]) expect([...resolveAllowedPeerUids(1000, setting)]).toEqual([0]);
+      expect(errors).toHaveBeenCalledTimes(4);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  test("refuses root when the server itself runs as root", () => {
+    const errors = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect([...resolveAllowedPeerUids(0, undefined)]).toEqual([]);
+      expect([...resolveAllowedPeerUids(0, "1001")]).toEqual([1001]);
+    } finally {
+      errors.mockRestore();
+    }
   });
 });

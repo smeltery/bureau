@@ -24,9 +24,9 @@ export const SESSIONS_FILE = join(BUREAU_DIR, "sessions.json");
 export const API_TOKENS_FILE = join(BUREAU_DIR, "api-tokens.json");
 export const API_TOKEN_LOGS_DIR = join(BUREAU_DIR, "token-logs");
 
-// Unix-domain admin socket used by the owner-login recovery CLI. Filesystem
-// permissions (mode 0600 + the parent dir's existing perms) are the auth
-// boundary, so we keep this path next to the rest of ~/.bureau/.
+// Unix-domain admin socket used by owner-login recovery. The socket checks the
+// connecting peer uid; the path still lives next to ~/.bureau auth state so a
+// host-local root or configured recovery user can reach the running server.
 export const ADMIN_SOCKET_FILE = join(BUREAU_DIR, "admin.sock");
 
 // Plugin failure stream — hook failures (throws, timeouts) and load errors

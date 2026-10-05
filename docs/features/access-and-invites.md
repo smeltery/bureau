@@ -181,7 +181,7 @@ Stored in `~/.bureau/`:
 - `invites.json` — outstanding invites, keyed by sha256(token). Raw tokens never persist; only the hash and an 8-char display prefix.
 - `sessions.json` — active sessions, keyed by sha256(session-id). Raw IDs never persist.
 - `api-tokens.json` — personal API tokens, keyed by generated token ID and storing only SHA-256 hashes plus display metadata (`lastSequence`, `lastDrainedAt`). Conversation rows live in `token-logs/<id>.jsonl`.
-- `admin.sock` — Unix-domain socket for the owner-login recovery CLI (mode 0600).
+- `admin.sock` — Unix-domain socket for owner-login recovery. It answers only root or `BUREAU_RECOVERY_UID`, never the Bureau server UID.
 
 All three JSON files are written atomically (temp + rename) and serialized under a single in-process mutex so invite acceptance (which touches all three) can't race.
 
@@ -263,7 +263,7 @@ If you somehow lose your only owner session (cleared cookies, hit the 1-year abs
 bun run server/index.ts owner-login --name "<your-display-name>"
 ```
 
-That prints a one-time login URL valid for 15 minutes. The CLI talks to the running server over a Unix-domain socket at `~/.bureau/admin.sock` (mode 0600 — only the bureau service user can connect), so on a multi-user box only the UID running bureau can mint recovery URLs. The server has to be running for the CLI to work.
+That prints a `sudo curl --unix-socket ...` command. Run it on the host to print a one-time login URL valid for 15 minutes. The server has to be running for the command to work. The admin socket checks the connecting peer UID and answers only root or `BUREAU_RECOVERY_UID`; it refuses the Bureau server UID because agents, terminal panels, and generated apps commonly share it.
 
 ## Operating notes
 

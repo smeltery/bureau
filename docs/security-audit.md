@@ -193,7 +193,7 @@ The command dispatcher uses `session.username` server-side rather than trusting 
 
 ### 5.17 Owner-login CLI is gated by Unix-socket file permissions
 
-`bun run server/index.ts owner-login --name "<owner>"` mints a 15-minute one-time login URL for an existing owner via a Unix-domain admin socket at `~/.bureau/admin.sock` (mode 0600). Filesystem permissions are the auth boundary — any UID that can already read the auth files in `~/.bureau/` can connect to the socket, so the CLI adds no new authority, just a clean RPC instead of editing JSON by hand. On a multi-user box where `~/.bureau/` is mode 0700 only the Bureau service user can mint recovery URLs. The mintInvite `ttlMsOverride` option is private to the admin socket; the WS wire intentionally doesn't accept it.
+`bun run server/index.ts owner-login --name "<owner>"` prints a root-only `curl --unix-socket` command that mints a 15-minute one-time login URL for an existing owner via a Unix-domain admin socket at `~/.bureau/admin.sock`. The socket checks the connecting peer UID and answers only root or `BUREAU_RECOVERY_UID`; it refuses the Bureau server UID because agents, terminal panels, and generated apps commonly share it. The mintInvite `ttlMsOverride` option is private to the admin socket; the WS wire intentionally doesn't accept it.
 
 ---
 
