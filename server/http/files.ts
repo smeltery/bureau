@@ -1,7 +1,9 @@
 import type { Attachment } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
+import { untrustedFileHeaders } from "../auth/auth-pages.ts";
 import { mimeTypeForFilename } from "../mime-types.ts";
+import { cronjobRunStreamId } from "../../shared/types.ts";
 import { getFilePath, saveFile } from "../persistence.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 
@@ -26,16 +28,17 @@ export async function handleFilesRequest(req: Request, url: URL, auth?: AuthResu
 
   // Upload
   if (url.pathname.startsWith("/api/upload/") && req.method === "POST") {
-    const denied = requireBrowserSession(auth);
+    const agentId = url.pathname.split("/")[3];
+    const denied = requireBrowserSession(auth) ?? requireFileRoomAccess(auth, agentId);
     if (denied) return denied;
-    return uploadHandler(req, url.pathname.split("/")[3]);
+    return uploadHandler(req, agentId);
   }
 
   // Serve
   if (url.pathname.startsWith("/api/files/") || url.pathname.startsWith("/api/images/")) {
-    const denied = requireBrowserSession(auth);
-    if (denied) return denied;
     const parts = url.pathname.split("/").filter(Boolean); // ["api", "files"|"images", agentId, filename]
+    const denied = requireBrowserSession(auth) ?? requireFileRoomAccess(auth, parts[2]);
+    if (denied) return denied;
     return serveHandler(parts[2], parts[3]);
   }
 
@@ -101,17 +104,26 @@ function serveHandler(agentId: string | undefined, filename: string | undefined)
   if (!filePath) {
     return new Response("Not found", { status: 404 });
   }
-  return new Response(Bun.file(filePath), {
-    headers: {
-      "Content-Type": mimeTypeForFilename(filename),
-      "Cache-Control": "public, max-age=31536000, immutable",
-    },
-  });
+  return new Response(Bun.file(filePath), { headers: untrustedFileHeaders(mimeTypeForFilename(filename)) });
 }
 
 function requireBrowserSession(auth: AuthResult | undefined): Response | null {
   if (auth?.kind === "ok") return null;
   return new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401, headers: JSON_HEADERS });
+}
+
+// The legacy routes key files by stream id. A live agent's files follow its
+// room and a killed agent's follow its last room; once that room is gone (or
+// the id names no agent), only office owners can read them. Cron-run streams
+// keep the run-log rule: any signed-in member.
+function requireFileRoomAccess(auth: AuthResult | undefined, streamId: string | undefined): Response | null {
+  if (auth?.kind !== "ok" || !streamId || streamId.startsWith(cronjobRunStreamId("")) || auth.session.role === "owner") return null;
+  const user = getUserById(auth.session.userId);
+  const live = AgentManager.getAgent(streamId);
+  const roomId = live ? AgentManager.getRooms()[live.room]?.id : AgentManager.getKilledAgentSummaries().find((agent) => agent.id === streamId)?.lastRoomId;
+  const roomExists = !!roomId && AgentManager.getRooms().some((room) => room.id === roomId);
+  if (user && roomExists && canSeeRoom(user, roomId)) return null;
+  return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: JSON_HEADERS });
 }
 
 function requireUserAgentAccess(auth: AuthResult | undefined, agentId: string): Response | null {

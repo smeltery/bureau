@@ -296,6 +296,8 @@ Known **post-acceptance** authorization gaps fall outside this report's external
 
 **If tightening is desired:** gate both routes with `agentVisibleForSession`.
 
+**Status:** closed. `server/http/files.ts` gates the legacy upload, files and images routes by room: a live agent's files follow its room, a killed agent's follow its last room, and once that room is gone only office owners can read them. Cron-run streams keep the run-log rule (any signed-in member, see C.1). The `/api/agents/:id/...` aliases already required room access.
+
 ### C.3 Uploaded HTML executes as same-origin active content
 
 - `server/mime-types.ts` maps `html`/`css`/`xml`/`json` to their renderable MIME types; the comment at lines 2-5 acknowledges nosniff is absent.
@@ -303,6 +305,8 @@ Known **post-acceptance** authorization gaps fall outside this report's external
 - Combined with C.2, any authenticated member can upload `payload.html` into any agent and deliver the URL to a victim; opening it in the victim's browser (top-level navigation under `SameSite=Lax` attaches the cookie) yields stored XSS in the office's origin with full WebSocket-command capability.
 
 **If tightening is desired:** demote active-content extensions (`html`/`htm`/`xml`/`xhtml`/`svg`/`css`/`js`) on `/api/files` to `application/octet-stream` with `Content-Disposition: attachment`; add `X-Content-Type-Options: nosniff`; consider serving attachments from a separate origin.
+
+**Status:** closed. Every file response carries `untrustedFileHeaders` (`server/auth/auth-pages.ts`): `nosniff`, `Cache-Control: private, no-cache`, and for HTML/SVG/XML the office CSP plus `sandbox allow-scripts`. An opened file still renders and runs, but in an opaque origin with no session cookie, and `/ws` rejects its `null` Origin. SVG now has its image MIME type so it renders inline as `<img>`.
 
 ### C.4 Loopback agent-API trusts any same-host process as an agent
 
