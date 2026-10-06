@@ -169,6 +169,40 @@ export interface ApiTokenInboxDrainRes {
   drainedAt: number;
 }
 
+// A page: something an agent or app needs a person for, delivered to that
+// person until they ack or resolve it. Durable state, not a chat message.
+export type PagerState = "open" | "acked" | "resolved";
+export type PagerDeliveryFailure = "no_webhook" | "http_4xx" | "http_5xx" | "rate_limited" | "network";
+
+export interface PagerEntry {
+  id: string;
+  createdAt: number;
+  lastRaisedAt: number;
+  raiseCount: number;
+  source: { kind: "agent" | "app"; id: string; name: string; roomId: string | null };
+  // The member who receives it: the agent's manager or the app's owner.
+  targetUserId: string;
+  title: string;
+  body?: string;
+  // Chosen by the source; a raise with the key of a still-unresolved page
+  // updates that page instead of opening another.
+  key?: string;
+  state: PagerState;
+  ackedAt?: number;
+  ackedBy?: string;
+  resolvedAt?: number;
+  resolvedBy?: string;
+  // Never the webhook URL or a raw response body.
+  delivery: { lastAttemptAt: number | null; sends: number; failure: PagerDeliveryFailure | null; retryAfter?: number };
+}
+
+export interface PagerSettingsWire {
+  discordUserId: string;
+  // Minutes between repeats of an open page; null sends it once.
+  repeatMinutes: number | null;
+  webhookConfigured: boolean;
+}
+
 // A room with stable ID, display name, and per-room config
 export interface RoomWire {
   id: string; // 8-char hex, stable

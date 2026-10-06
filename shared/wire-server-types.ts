@@ -106,6 +106,8 @@ export type ServerMessage =
   | { type: "editor_open_error"; agentId: string; path: string; reason: "not_found" | "not_file" | "binary" | "too_large" | "io_error" | "bad_path"; message?: string; size?: number }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings; receptionistAgentId?: string | null }
   | { type: "tasks"; tasks: TaskItem[] }
+  // Pages changed; browsers refetch GET /api/pager for their own projection.
+  | { type: "pager_changed" }
   // Office-wide humans-only team chat. `updateOnly` replaces an already-held
   // message (pin/unpin) without appending.
   | { type: "members_chat_message"; message: MembersChatMessage; updateOnly?: boolean }

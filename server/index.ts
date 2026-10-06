@@ -26,6 +26,8 @@ import { startAdminSocket } from "./auth/admin-socket.ts";
 import { installAuthCallbacks } from "./auth/auth-callbacks.ts";
 import { boundExternal, initializeAccessConfig } from "./boot-access.ts";
 import { printStartupBanner, resolveListenOptions } from "./boot-listen.ts";
+import { startPagerDelivery } from "./pager/delivery.ts";
+import { pagerDeliveryDeps } from "./pager/routes.ts";
 
 // ---------------------------------------------------------------------------
 // CLI sub-command fast-path. The operator invokes
@@ -147,6 +149,9 @@ reconcileAppsAtBoot();
 // Release quiet backend sessions; the next user message resumes from disk.
 startIdleSessionEvictor();
 startBusyTurnWatchdog();
+
+// Repeats open pages to their member's Discord until acked or resolved.
+startPagerDelivery(pagerDeliveryDeps);
 
 // Daily ~/.bureau/ backup tarball with N=7 retention. See server/backup.ts.
 startBackupScheduler();

@@ -45,6 +45,7 @@ import { handleStaticRequest } from "./static.ts";
 import { handleStorageRequest } from "./storage.ts";
 import { handleSystemRequest } from "./system.ts";
 import { handleTasksRequest } from "./tasks.ts";
+import { handlePagerRequest } from "../pager/routes.ts";
 import { handleUsageRequest } from "./usage.ts";
 import { handleUsersRequest } from "./users.ts";
 import { handleValidateRequest } from "./validate.ts";
@@ -149,6 +150,9 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
   const tasksResp = await handleTasksRequest(req, url, httpAuth);
   if (tasksResp) return tasksResp;
+
+  const pagerResp = await handlePagerRequest(req, url, httpAuth);
+  if (pagerResp) return pagerResp;
 
   const cronjobsResp = await handleCronjobsRequest(req, url, httpAuth);
   if (cronjobsResp) return cronjobsResp;
