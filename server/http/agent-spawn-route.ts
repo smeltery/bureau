@@ -4,7 +4,7 @@ import { saveRecentCwd } from "../persistence.ts";
 import type { AgentBackendType, AgentInfo } from "../../shared/types.ts";
 import { DESK_COUNT, isValidDesk } from "../../shared/desks.ts";
 import { JSON_HEADERS, jsonError, privilegedAgentIdentity, readJsonBody, requireRoomAccessAllowingPrivileged, requireUserSession } from "./agent-route-helpers.ts";
-import { resolveInteractiveModelSelection } from "../agent-validators.ts";
+import { agentSpawnedPermissions, resolveInteractiveModelSelection, validateCodexSandbox, validatePermissionMode } from "../agent-validators.ts";
 
 export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): Promise<Response> {
   // A privileged agent may hire a coworker on its boss's behalf: the new agent
@@ -38,17 +38,23 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
   const agentType = parseAgentType(body.agentType) ?? "claude";
   const modelSelection = resolveInteractiveModelSelection(agentType, typeof body.modelFamily === "string" ? body.modelFamily : undefined, typeof body.model === "string" ? body.model : undefined);
   if (modelSelection.error) return jsonError(422, modelSelection.error);
+  const requestedMode = typeof body.permissionMode === "string" ? (body.permissionMode as AgentInfo["permissionMode"]) : undefined;
+  const requestedSandbox = typeof body.codexSandbox === "string" ? validateCodexSandbox(body.codexSandbox as AgentInfo["codexSandbox"]) : undefined;
+  const permissions =
+    operator && requestedMode === undefined
+      ? agentSpawnedPermissions(AgentManager.getAgent(operator.agentId), agentType)
+      : { permissionMode: validatePermissionMode(agentType, requestedMode ?? "default"), codexSandbox: requestedSandbox };
   const agent = await AgentManager.spawn(
     name,
     cwd,
-    (body.permissionMode as AgentInfo["permissionMode"] | undefined) ?? "default",
+    permissions.permissionMode,
     desk,
     typeof body.customInstructions === "string" ? body.customInstructions : undefined,
     roomId,
     typeof body.outfit === "object" && body.outfit !== null && !Array.isArray(body.outfit) ? (body.outfit as AgentInfo["outfit"]) : undefined,
     modelSelection.modelFamily,
     agentType,
-    typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
+    agentType === "codex" ? (permissions.codexSandbox ?? requestedSandbox) : undefined,
     typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
     operator ? operator.manager.id : auth?.kind === "ok" ? auth.session.userId : null,
   );
