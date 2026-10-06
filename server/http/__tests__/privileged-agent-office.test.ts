@@ -283,7 +283,7 @@ describe("privileged agent — schedules", () => {
       method: "PATCH",
       body: JSON.stringify({ enabled: false }),
     });
-    expect(patched?.status).toBe(403);
+    expect(patched?.status).toBe(404);
     CronjobManager.deleteCronjob(foreign.id);
   });
 

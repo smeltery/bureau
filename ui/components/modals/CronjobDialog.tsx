@@ -11,6 +11,9 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
   const { t } = useI18n();
   const { recentCwds, isMobile } = useAppState();
   const {
+    roomId,
+    setRoomId,
+    roomOptions,
     agentType,
     codexSandbox,
     confirmDelete,
@@ -90,6 +93,15 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           <label style={labelStyle}>Name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Daily summary" autoFocus={!isEdit} style={inputStyle} />
 
+          <label style={labelStyle}>Room</label>
+          <select value={roomId} onChange={(event) => setRoomId(event.target.value)} style={inputStyle}>
+            {!roomId && <option value="">Creator only (legacy)</option>}
+            {roomOptions.map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.name}
+              </option>
+            ))}
+          </select>
           <CronjobScheduleFields
             scheduleType={scheduleType}
             setScheduleType={setScheduleType}

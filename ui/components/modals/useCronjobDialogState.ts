@@ -1,3 +1,4 @@
+import { useAppState } from "../../store.tsx";
 import { useEffect, useRef, useState } from "react";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import {
@@ -22,6 +23,8 @@ export function defaultCronjobCodexSandboxForTest(): CodexSandboxMode {
 }
 
 export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?: Cronjob; username: string; onClose: () => void }) {
+  const { rooms, currentRoom, allRooms } = useAppState();
+  const [roomId, setRoomId] = useState(cronjob?.roomId ?? rooms[currentRoom]?.id ?? rooms[0]?.id ?? "");
   const isEdit = !!cronjob;
   const [name, setName] = useState(cronjob?.name ?? "");
   const [scheduleType, setScheduleType] = useState<ScheduleType>(cronjob?.schedule.type ?? "daily");
@@ -100,6 +103,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
         requestId: reqId,
         id: cronjob!.id,
         changes: {
+          roomId: roomId || undefined,
           name: name.trim() || cronjob!.name,
           schedule: buildCronjobSchedule({ scheduleType, hourStr, minuteStr, weekday, intervalStr }),
           prompt,
@@ -115,6 +119,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
     } else {
       send({
         type: "add_cronjob",
+        roomId: roomId || undefined,
         requestId: reqId,
         name: name.trim() || "Untitled cron job",
         schedule: buildCronjobSchedule({ scheduleType, hourStr, minuteStr, weekday, intervalStr }),
@@ -154,6 +159,9 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
   }
 
   return {
+    roomId,
+    setRoomId,
+    roomOptions: allRooms.length ? allRooms : rooms,
     agentType,
     codexSandbox,
     confirmDelete,

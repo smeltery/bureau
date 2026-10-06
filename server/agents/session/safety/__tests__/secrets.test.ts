@@ -10,6 +10,9 @@ describe("isSensitiveFile — exact matches", () => {
 describe("isSensitiveFile — pattern matches", () => {
   test.each([
     ["/foo/.env.local", true],
+    ["/home/person/.bureau/webhooks/secrets.json", true],
+    ["/home/person/.bureau/webhooks/secrets.json.tmp", true],
+    ["/home/person/.bureau/browser-sharing/devices.json", true],
     ["/foo/.env.production", true],
     ["/foo/.env.development", true],
     ["/etc/ssl/server.pem", true],

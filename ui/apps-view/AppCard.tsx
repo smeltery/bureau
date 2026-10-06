@@ -1,6 +1,7 @@
 // One app's row: state, the name (which links to the running app), its blurb,
 // the facts a human wants at a glance, the verbs, and the log pane when open.
 
+import { AppArtwork } from "./AppArtwork.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { AppListWire, AppState as AppRunState } from "../../shared/apps.ts";
 import { APP_PREVIEW_OPEN_TTL_MS, getAppPreviewOpenedAt, markAppPreviewOpened } from "../device-settings.ts";
@@ -213,10 +214,12 @@ export function AppCard({
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <StateDot state={app.state} />
         <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{app.name}</span>
-        <span style={{ fontSize: 11, color: STATE_COLOR[app.state], textTransform: "lowercase" }}>{app.state}</span>
-        <a href={href} target="_blank" rel="noreferrer" title={appLinkLabel(app)} style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>
-          {appLinkLabel(app)} ↗
-        </a>
+        <span style={{ fontSize: 11, color: STATE_COLOR[app.state], textTransform: "lowercase" }}>{app.archivedAt ? "archived" : app.state}</span>
+        {!app.archivedAt && (
+          <a href={href} target="_blank" rel="noreferrer" title={appLinkLabel(app)} style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>
+            {appLinkLabel(app)} ↗
+          </a>
+        )}
       </div>
 
       {app.description && <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)" }}>{app.description}</div>}
@@ -237,30 +240,37 @@ export function AppCard({
       {/* Presence only. startError is in-memory on the server, so its absence
           proves nothing and this never renders an all-clear — `state` is the
           durable signal. */}
+      <AppArtwork app={app} />
       {app.canManage && app.startError && <div style={{ ...appMonoPane, marginTop: 8, color: "var(--red)" }}>{app.startError}</div>}
 
-      {previewsEnabled && appCanPreview(app) && <AppPreview app={app} href={href} isMobile={isMobile} framesAllowed={livePreviewFramesAllowed} />}
+      {previewsEnabled && !app.thumbnailVersion && !app.archivedAt && appCanPreview(app) && <AppPreview app={app} href={href} isMobile={isMobile} framesAllowed={livePreviewFramesAllowed} />}
 
       {app.canManage && (
         <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {APP_VERBS.map((verb) => {
-            const inert = isBusy || verbInert(verb, app.state);
-            return (
-              <button key={verb} title={VERB_TITLES[verb]} disabled={inert} onClick={() => onAct(verb)} style={appBtnStyle(false, inert)}>
-                {verb}
-              </button>
-            );
-          })}
-          <button title="Show the app's recent output" disabled={isBusy} onClick={onToggleLogs} style={appBtnStyle(false, isBusy)}>
-            {logOpen ? "hide log" : "log"}
+          {!app.archivedAt &&
+            APP_VERBS.map((verb) => {
+              const inert = isBusy || verbInert(verb, app.state);
+              return (
+                <button key={verb} title={VERB_TITLES[verb]} disabled={inert} onClick={() => onAct(verb)} style={appBtnStyle(false, inert)}>
+                  {verb}
+                </button>
+              );
+            })}
+          <button disabled={isBusy} onClick={() => onAct(app.archivedAt ? "restore" : "archive")} style={appBtnStyle(false, isBusy)}>
+            {app.archivedAt ? "restore" : "archive"}
           </button>
+          {!app.archivedAt && (
+            <button title="Show the app's recent output" disabled={isBusy} onClick={onToggleLogs} style={appBtnStyle(false, isBusy)}>
+              {logOpen ? "hide log" : "log"}
+            </button>
+          )}
           <button title="Remove the app" disabled={isBusy} onClick={onDelete} style={appBtnStyle(true, isBusy)}>
             delete
           </button>
         </div>
       )}
 
-      {app.canManage && logOpen && (
+      {app.canManage && !app.archivedAt && logOpen && (
         <pre
           style={{
             ...appMonoPane,

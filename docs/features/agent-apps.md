@@ -274,3 +274,25 @@ putting one in front of the office — a wildcard record, a site block that
 terminates on demand, and the certificate gate wired to it — is an operator
 task. Everything below that line is inert until then, which is the intended
 resting state for a laptop office.
+
+## Thumbnails and archive
+
+App owners and office owners can upload a PNG thumbnail from the app card. The
+upload is limited to 1 MiB and dimensions of 1–4096 pixels per side. The image
+replaces the live preview, can be removed, and is served only to viewers who can
+see the app. Media is tied to the app's generation, so deleting and reusing a name
+does not inherit an old image.
+
+**Archive** stops and tears down the runtime, revokes its token, and hides the
+app from the active list and hosted routes. It preserves the record, thumbnail,
+name, port reservation and data directory. Toggle **Archived** in Apps to view
+or restore it. **Restore** retains the same identity and data, provisions a fresh
+runtime token and installs the runtime. A failed runtime install is reported on
+the restored card so it can be retried. Failed teardown does not mark an app
+archived. Archived apps stay stopped after a server restart.
+
+The API adds `POST /api/apps/:name/archive`, `POST /api/apps/:name/restore`, and
+`GET /api/apps?includeArchived=true`. `GET`, `PUT` and `DELETE` on
+`/api/apps/:name/thumbnail` read, replace and remove the PNG. Deletion still
+retires app data under `.retired` and removes the thumbnail; archive is reversible
+without deleting that registration.

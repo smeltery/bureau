@@ -1,4 +1,6 @@
 import type { AgentInfo, RoomWire } from "../../shared/types.ts";
+import { useState } from "react";
+import { saveRoomView } from "./room-view.ts";
 import { send } from "../ws.ts";
 
 export function RoomContextMenu({
@@ -16,6 +18,7 @@ export function RoomContextMenu({
   onRename: (roomIdx: number) => void;
   onSettings: (roomId: string) => void;
 }) {
+  const [error, setError] = useState<string | null>(null);
   const room = rooms[ctxMenu.roomIdx];
   if (!room) return null;
   const roomAgents = agents.filter((a) => a.room === ctxMenu.roomIdx);
@@ -56,6 +59,20 @@ export function RoomContextMenu({
       >
         Room settings…
       </button>
+      <button
+        style={ctxItemStyle}
+        onClick={() => {
+          void saveRoomView(
+            "shown",
+            rooms.filter((r) => r.id !== room.id).map((r) => r.id),
+          )
+            .then(onClose)
+            .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not tuck room"));
+        }}
+      >
+        Tuck room
+      </button>
+      {error && <span role="alert">{error}</span>}
       <button
         style={{ ...ctxItemStyle, color: canClose ? "var(--text-dim)" : "var(--text-ghost)", cursor: canClose ? "pointer" : "not-allowed" }}
         disabled={!canClose}

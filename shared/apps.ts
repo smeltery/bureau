@@ -15,6 +15,8 @@ export interface AppRecord {
   // Hostname label, unique across LIVE apps. Lowercase [a-z0-9-], never
   // starting or ending with a hyphen, at most 63 chars (one DNS label), so it
   // can become a hostname later without changing.
+  archivedAt?: number;
+  thumbnailVersion?: number;
   name: string;
   // The app's hostname label, and which generation of the name it is. `hostGen`
   // 1 means the name had never been used, and `hostLabel` is the name itself;
@@ -103,6 +105,8 @@ export interface AppWire extends AppRecord {
 export type AppListWire =
   | AppWire
   | {
+      archivedAt?: number;
+      thumbnailVersion?: number;
       name: string;
       hostLabel: string;
       hostGen: number;

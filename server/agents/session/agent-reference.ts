@@ -13,7 +13,7 @@ export const AGENT_REFERENCE_TOPICS = {
   messaging: "Agent, remote boss, and scheduled messages",
   memory: "Durable memory",
   "conversation-lifecycle": "New conversations and handoffs",
-  browser: "Experimental browser control",
+  browser: "Shared tabs and experimental host browser control",
   "privileged-operations": "Privileged office operations",
 } as const;
 

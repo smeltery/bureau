@@ -206,3 +206,15 @@ After changes, run `bun run build:ui` to rebuild the frontend. The server picks 
 4. Close a room — name array stays in sync
 5. Reload page — names persist
 6. Check agents-summary.json includes room names
+
+## Personal room tabs
+
+Drag room tabs to save your own order. The change updates your other connected
+windows without rearranging anyone else's office or replaying their agent logs.
+A failed save rolls the tab order back and shows an error. New rooms arriving
+during a save are retained.
+
+The room tab menu offers **Tuck room**. Tucked rooms remain accessible; the
+**+N tucked** picker brings them back. Hiding a tab does not revoke room access.
+User Settings continues to expose the full accessible room list. Office-wide
+room management remains a separate owner operation.

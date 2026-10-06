@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Bureau Tab Sharing",
+  "version": "1.0.0",
+  "minimum_chrome_version": "120",
+  "description": "Offer a tab to selected Bureau agents, with expiry and revocation.",
+  "permissions": ["debugger", "tabs", "storage", "alarms"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Bureau tab sharing"
+  }
+}

@@ -440,7 +440,8 @@ function isLegacyPersistedApp(value: unknown): value is LegacyPersistedApp {
     isNullableString(username) &&
     typeof createdBy === "string" &&
     isOptionalString(createdByAgentId, 200) &&
-    isFiniteNumber(createdAt)
+    isFiniteNumber(createdAt) &&
+    (value.archivedAt === undefined || isFiniteNumber(value.archivedAt))
   );
 }
 
@@ -692,8 +693,9 @@ export interface UpdateAppInput {
 
 export interface AppRegistry {
   // Every live app, registration order.
-  list(): AppRecord[];
-  get(name: string): AppRecord | null;
+  list(includeArchived?: boolean): AppRecord[];
+  get(name: string, includeArchived?: boolean): AppRecord | null;
+  setArchived(name: string, archived: boolean): AppRecord | null;
   // Reserve a name + port, create the data dir, persist the record. Throws
   // AppRegistryError on any refusal or failure.
   register(input: RegisterAppInput): AppRecord;
@@ -747,10 +749,19 @@ export function createAppRegistry(options: AppRegistryOptions = {}): AppRegistry
     } satisfies AppsFile);
 
   return {
-    list: () => snapshot().apps,
+    list: (includeArchived = false) => snapshot().apps.filter((app) => includeArchived || app.archivedAt === undefined),
 
-    get(name) {
-      return snapshot().apps.find((a) => a.name === name) ?? null;
+    get(name, includeArchived = false) {
+      return snapshot().apps.find((a) => a.name === name && (includeArchived || a.archivedAt === undefined)) ?? null;
+    },
+    setArchived(name, archived) {
+      const state = snapshot();
+      const app = state.apps.find((row) => row.name === name);
+      if (!app) return null;
+      if (archived) app.archivedAt = now();
+      else delete app.archivedAt;
+      persist(state);
+      return app;
     },
 
     register(input) {
@@ -922,7 +933,7 @@ export function createAppRegistry(options: AppRegistryOptions = {}): AppRegistry
       // Live app first, before the budget is even read. A name nobody has
       // registered - or one somebody used to have - must not be able to learn
       // anything, spend anything, or write anything.
-      const app = state.apps.find((a) => a.hostLabel === label);
+      const app = state.apps.find((a) => a.hostLabel === label && a.archivedAt === undefined);
       if (!app) return "not_live";
       // The exact ISSUANCE, not just the label: the tuple is what the registry
       // treats as an app's identity, and the row is where the admission is

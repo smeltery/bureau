@@ -6,6 +6,7 @@ import type { PresenceInfo } from "../../shared/types.ts";
 import { RoomContextMenu } from "./RoomContextMenu.tsx";
 import { TotalOnlineChip } from "./RoomPresenceChips.tsx";
 import { RoomTabItem } from "./RoomTabItem.tsx";
+import { TuckedRooms } from "./TuckedRooms.tsx";
 import { useRoomTabInteractions } from "./useRoomTabInteractions.ts";
 
 export function RoomTabBar() {
@@ -15,6 +16,7 @@ export function RoomTabBar() {
   const dispatch = useDispatch();
   const selfConnectionId = sessionContext?.connectionId ?? null;
   const {
+    viewError,
     cancelEdit,
     cancelLongPress,
     commitEdit,
@@ -99,7 +101,7 @@ export function RoomTabBar() {
 
         return (
           <RoomTabItem
-            key={i}
+            key={rooms[i].id}
             agents={roomAgents}
             cancelEdit={cancelEdit}
             cancelLongPress={cancelLongPress}
@@ -131,6 +133,8 @@ export function RoomTabBar() {
           />
         );
       })}
+      <TuckedRooms />
+      {viewError && <span role="alert">{viewError}</span>}
       {/* Add room button */}
       <button
         onClick={() => send({ type: "create_room" })}

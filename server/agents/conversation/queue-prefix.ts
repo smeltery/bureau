@@ -3,6 +3,8 @@ import { formatAgentSenderPrefix, formatAppSenderPrefix, formatCronjobSenderPref
 
 function senderPrefixText(sender: QueuedSender): string {
   switch (sender.kind) {
+    case "webhook":
+      return `[Webhook ${JSON.stringify(sender.webhookName)}] `;
     case "user":
       return sender.device ? formatUserPrefix(`${sender.username ?? "User"} (${sender.device})`) : formatUserPrefix(sender.username);
     case "agent":

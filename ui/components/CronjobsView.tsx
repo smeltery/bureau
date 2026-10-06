@@ -1,3 +1,5 @@
+import { WebhooksPane } from "./integrations/WebhooksPane.tsx";
+import { useAppState } from "../store.tsx";
 import { send } from "../ws.ts";
 import { CronjobDialog } from "./modals/CronjobDialog.tsx";
 import { CronjobsPromptDialog } from "./modals/CronjobsPromptDialog.tsx";
@@ -8,11 +10,14 @@ import { useCronjobsViewController, type CronjobsViewTab } from "./useCronjobsVi
 import { useI18n } from "../i18n.tsx";
 import type { PlainMessageKey } from "../../shared/i18n/translate.ts";
 
-const TAB_LABEL_KEYS: Record<CronjobsViewTab, PlainMessageKey> = { runs: "schedules.tab.runs", cronjobs: "schedules.tab.cronjobs" };
+const TAB_LABEL_KEYS: Record<Exclude<CronjobsViewTab, "webhooks">, PlainMessageKey> = { runs: "schedules.tab.runs", cronjobs: "schedules.tab.cronjobs" };
 
 export function CronjobsView({ username, onClose }: { username: string; onClose: () => void }) {
+  const { allRooms, rooms, sessionContext } = useAppState();
   const { t } = useI18n();
   const {
+    roomFilter,
+    setRoomFilter,
     creating,
     cronjobRunsByJob,
     cronjobRunsLoaded,
@@ -43,6 +48,17 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
         color: "var(--text-primary)",
       }}
     >
+      <label style={{ padding: "6px 12px" }}>
+        Room{" "}
+        <select value={roomFilter} onChange={(event) => setRoomFilter(event.target.value)}>
+          <option value="">All accessible rooms</option>
+          {(allRooms.length ? allRooms : rooms).map((room) => (
+            <option key={room.id} value={room.id}>
+              {room.name}
+            </option>
+          ))}
+        </select>
+      </label>
       {/* Header. Use minHeight (not height) so the safe-area-inset-top
           padding extends the bar below the camera notch instead of being
           squashed into the 44px box (box-sizing: border-box is global). */}
@@ -77,7 +93,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
             ←
           </button>
           <div style={{ display: "flex", border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden" }}>
-            {(["runs", "cronjobs"] as CronjobsViewTab[]).map((tabKey) => (
+            {(["runs", "cronjobs", "webhooks"] as CronjobsViewTab[]).map((tabKey) => (
               <button
                 key={tabKey}
                 onClick={() => setTab(tabKey)}
@@ -92,26 +108,28 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
                   textTransform: "capitalize",
                 }}
               >
-                {t(TAB_LABEL_KEYS[tabKey])}
+                {tabKey === "webhooks" ? "Webhooks" : t(TAB_LABEL_KEYS[tabKey])}
               </button>
             ))}
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <button
-            onClick={() => setEditingPrompt(true)}
-            style={{
-              padding: "4px 10px",
-              borderRadius: 6,
-              border: "1px solid var(--border)",
-              background: "transparent",
-              color: "var(--text-dim)",
-              fontSize: 11,
-              cursor: "pointer",
-            }}
-          >
-            {t("common.settings")}
-          </button>
+          {sessionContext?.role === "owner" && (
+            <button
+              onClick={() => setEditingPrompt(true)}
+              style={{
+                padding: "4px 10px",
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                background: "transparent",
+                color: "var(--text-dim)",
+                fontSize: 11,
+                cursor: "pointer",
+              }}
+            >
+              {t("common.settings")}
+            </button>
+          )}
           <button
             onClick={() => setCreating(true)}
             style={{
@@ -158,7 +176,9 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
 
       {/* Body */}
       <div style={{ flex: 1, overflow: "auto" }}>
-        {tab === "cronjobs" ? (
+        {tab === "webhooks" ? (
+          <WebhooksPane />
+        ) : tab === "cronjobs" ? (
           <CronjobsTable
             cronjobs={cronjobs}
             loaded={cronjobsLoaded}

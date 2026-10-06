@@ -6,12 +6,12 @@ import { cronjobRunStreamId, type CronjobRun, type LogEntry } from "../../shared
 import { CronjobRunHeader, CronjobRunSummary } from "./cronjob-run-details.tsx";
 import { CronjobRunComposer } from "./CronjobRunComposer.tsx";
 
-// Cronjob runs are resumable: any boss can send follow-up turns into a past
+// Cronjob runs are resumable: the creator or owner can follow up on a past
 // run, and edit-to-fork lets them branch from any prior user message. The
 // server-side handlers live in cronjobs/index.ts (sendRunMessage,
 // editRunMessage); see send_cronjob_run_message / edit_cronjob_run_message.
 export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: string; runId: string; username: string; onClose: () => void }) {
-  const { cronjobRunsByJob, isMobile, logs, hydrationEpoch } = useAppState();
+  const { cronjobRunsByJob, isMobile, logs, hydrationEpoch, sessionContext } = useAppState();
   const streamId = cronjobRunStreamId(runId);
   const runs = cronjobRunsByJob.get(jobId) ?? [];
   const run = runs.find((r) => r.id === runId);
@@ -80,7 +80,8 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
   // initialized (the placeholder pending-/skipped- ids) can't be resumed.
   const leafSessionId = run?.currentSessionId ?? run?.rootSessionId ?? "";
   const hasResumableSession = !leafSessionId.startsWith("pending-") && !leafSessionId.startsWith("skipped-");
-  const canResume = !!run && !isRunning && run.status !== "skipped" && hasResumableSession;
+  const canManage = sessionContext?.role === "owner" || (!!sessionContext?.userId && run?.userIdSnapshot === sessionContext.userId);
+  const canResume = canManage && !!run && !isRunning && run.status !== "skipped" && hasResumableSession;
 
   // Auto-scroll to bottom on new entries when the user hasn't scrolled up.
   useEffect(() => {

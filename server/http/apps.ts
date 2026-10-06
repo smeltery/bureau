@@ -1,3 +1,5 @@
+import { handleAppAssetsRequest } from "../apps/http-assets.ts";
+import { deleteThumbnail } from "../apps/thumbnails.ts";
 /**
  * /api/apps — the agent-facing app registry. See docs/features/agent-apps.md.
  *
@@ -7,14 +9,8 @@
  *   PATCH  /api/apps/:name      — fix command/cwd/description without burning the name.
  *   DELETE /api/apps/:name      — tear the app down and free its name and port.
  *
- * The verb is REGISTER, not create: the agent already built the app; bureau is
- * being handed something that exists, and answers with the port it allocated
- * and the data directory it created.
- *
- * TWO COLLABORATORS, AND THE ORDER BETWEEN THEM IS THE INTERESTING PART. The
- * registry owns the name, the port and the record; the supervisor owns the
- * unit that runs it. Registration goes registry-then-supervisor and deletion
- * goes supervisor-then-registry, and neither order is arbitrary:
+ * Registration allocates a port and data directory for an existing app. The
+ * registry owns its record; the supervisor owns its process. Their order matters:
  *
  *   - REGISTER commits to the registry FIRST, and a failed install does NOT
  *     undo it. An app whose unit did not install is a registered app that
@@ -82,8 +78,10 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
   const listWireOf = (record: AppRecord, runtime: AppRuntime | undefined): AppListWire => appToListWire(record, runtime, deps.publicUrl(record), identity);
 
   try {
+    const assets = await handleAppAssetsRequest(req, parts, identity, deps, (record) => broadcastAppUpdated(record, deps.states([record.name]).get(record.name), deps));
+    if (assets) return assets;
     if (parts.length === 2 && req.method === "GET") {
-      const visible = visibleApps(deps.registry.list(), identity);
+      const visible = visibleApps(deps.registry.list(url.searchParams.get("includeArchived") === "true"), identity);
       // ONE state lookup for the whole list. A per-app lookup would be a
       // subprocess per app per render, and the Apps tab polls.
       const runtimes = deps.states(visible.map((a) => a.name));
@@ -91,7 +89,7 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
     }
 
     if (parts.length === 3 && req.method === "GET") {
-      const record = visibleApp(deps.registry.get(parts[2]!), identity);
+      const record = visibleApp(deps.registry.get(parts[2]!, true), identity);
       if (!record) return jsonError(404, "not_found", "no app has that name");
       return json(200, listWireOf(record, deps.states([record.name]).get(record.name)));
     }
@@ -155,7 +153,7 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
     }
 
     if (parts.length === 3 && req.method === "DELETE") {
-      const record = manageableApp(deps.registry.get(parts[2]!), identity);
+      const record = manageableApp(deps.registry.get(parts[2]!, true), identity);
       if (!record) return jsonError(404, "not_found", "no app has that name");
       // Teardown FIRST: throws if the app survived, and the record below is
       // then never removed — its name and port stay spoken for, and a retried
@@ -174,6 +172,7 @@ export async function handleAppsRequest(req: Request, url: URL, auth?: AuthResul
       // one had already spent. AFTER the removal committed and non-throwing,
       // because forgetting a rate limit is not worth failing a delete that
       // already happened.
+      deleteThumbnail(record);
       deps.limiter.forget(record.name);
       deps.invalidatePreview(record.name);
       // AFTER the removal committed, from the record read before teardown.
@@ -312,7 +311,7 @@ async function updateApp(req: Request, name: string, identity: AppsIdentity, dep
   return json(200, wire);
 }
 
-const APP_SUBROUTES: ReadonlySet<string> = new Set(["start", "stop", "restart", "logs", "preview"]);
+const APP_SUBROUTES: ReadonlySet<string> = new Set(["start", "stop", "restart", "logs", "preview", "archive", "restore", "thumbnail"]);
 
 function browserIdentity(ws: typeof browsers extends Set<infer T> ? T : never): AppsIdentity {
   const user = getWsUser(ws);

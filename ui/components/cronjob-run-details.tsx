@@ -52,7 +52,12 @@ export function CronjobRunHeader({ run, runId, isMobile, onClose }: { run: Cronj
 
 function RunTitle({ run, isMobile }: { run: CronjobRun; isMobile: boolean }) {
   const timestamp = new Date(run.startedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  const trigger = run.trigger === "manual" ? `manual${run.triggeredBy ? ` \u00b7 ${run.triggeredBy}` : ""}` : "scheduled";
+  const trigger =
+    run.trigger === "manual"
+      ? `manual${run.triggeredBy ? ` \u00b7 ${run.triggeredBy}` : ""}`
+      : run.trigger === "webhook"
+        ? `webhook · ${run.webhook?.deliveryId ?? run.triggeredBy ?? ""}`
+        : "scheduled";
   if (isMobile) {
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, padding: "6px 0", gap: 2 }}>

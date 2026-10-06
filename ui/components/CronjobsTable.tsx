@@ -1,3 +1,4 @@
+import { useAppState } from "../store.tsx";
 import { useState, type CSSProperties } from "react";
 import { humanizeSchedule, type Cronjob, type CronjobRun } from "../../shared/types.ts";
 import { StatusShape } from "../icons/StatusShape.tsx";
@@ -45,6 +46,8 @@ export function CronjobsTable({
   onToggleEnabled: (c: Cronjob) => void;
   onRunNow: (c: Cronjob) => void;
 }) {
+  const { sessionContext } = useAppState();
+  const canManage = (job: Cronjob) => sessionContext?.role === "owner" || (!!sessionContext?.userId && job.userId === sessionContext.userId);
   // Brief visual ack after clicking Run. Cleared after 1.8s so subsequent
   // clicks always re-flash. The persistent in-flight badge (below) is the
   // longer-lived signal that something is actually executing.
@@ -110,7 +113,7 @@ export function CronjobsTable({
                 style={{ padding: cellPad }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onToggleEnabled(c);
+                  if (canManage(c)) onToggleEnabled(c);
                 }}
               >
                 <span
@@ -165,6 +168,7 @@ export function CronjobsTable({
               <td style={{ padding: cellPad, whiteSpace: "nowrap", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                 <div style={{ display: "inline-flex", gap: 6, flexWrap: "nowrap" }}>
                   <button
+                    disabled={!canManage(c)}
                     onClick={() => handleRunClick(c)}
                     title="Run now"
                     style={{
@@ -182,6 +186,7 @@ export function CronjobsTable({
                     Run
                   </button>
                   <button
+                    disabled={!canManage(c)}
                     onClick={() => onEdit(c)}
                     title="Edit"
                     style={{

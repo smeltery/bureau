@@ -241,3 +241,27 @@ Header button on the Cronjobs page → modal with one textarea for `cronjobsProm
 - Cronjobs do not expose a `--effort` thinking-effort field (no `EffortLevel` import, no `--effort` flag in `executableArgs`).
 - The cronjob picker restricts `permissionMode` to `bypassPermissions | auto`, narrower than the full agent union.
 - Cronjob persistence lives under `server/persistence/`, alongside `logs/` and `config/`, rather than as a sibling top-level file.
+
+## Room access and migration
+
+Schedules have a `roomId`. The dialog chooses from accessible rooms, and the
+Schedules view can filter definitions and historical runs by room. Room members
+can read schedules, prompts, transcripts and usage in their rooms. Only the
+creator or an office owner can edit, delete or trigger the schedule. The global
+schedule prompt remains owner-managed. REST, WebSocket snapshots and live events,
+agent prompt discovery and usage reports enforce the same visibility.
+
+On upgrade, a legacy schedule without a room is assigned its creator's default
+room, falling back to their first accessible room. If no room can be resolved,
+it remains creator/owner-only until an owner assigns one. Startup persists the
+migration and records room and creator snapshots on legacy runs. Deleted jobs
+without recoverable attribution remain office-owner-only. Back up the state
+folder before upgrading if you need to review historical room placement.
+
+Each new run freezes its room and creator. Moving a schedule changes future runs;
+it does not transfer historical transcripts or usage to the destination room.
+Deleting the definition retains authorized access to its history. Removing a
+member's room access takes effect on existing browser connections as well.
+
+[Signed inbound webhooks](inbound-webhooks.md) can start runs without changing
+the schedule's timer. These runs carry a `webhook` trigger and delivery metadata.

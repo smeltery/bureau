@@ -25,6 +25,9 @@ Detailed subsystem documentation.
 
 ## Feature Design Docs
 
+- [Signed inbound webhooks](features/inbound-webhooks.md)
+- [Browser tab sharing](features/browser-sharing.md)
+
 | Document                                                            | Description                                                                  |
 | ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | [Access & Invites](features/access-and-invites.md)                  | Invite-link auth, sessions, external access toggle, owner-login CLI          |
@@ -49,7 +52,7 @@ Detailed subsystem documentation.
 Deep dives into bugs, SDK behavior, and architectural decisions.
 
 [October capability review](investigations/capability-review-2026-10.md) records
-the implemented gaps, existing coverage, and remaining integration work.
+the implemented gaps, existing coverage, and integration boundaries.
 
 | Document                                                                     | Description                                                             |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |

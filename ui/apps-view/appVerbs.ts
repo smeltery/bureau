@@ -7,11 +7,13 @@ import type { AppListWire, AppState as AppRunState } from "../../shared/apps.ts"
 import type { AppFilter } from "../device-settings.ts";
 
 export const APP_VERBS = ["start", "stop", "restart"] as const;
-export type AppVerb = (typeof APP_VERBS)[number];
+export type AppVerb = (typeof APP_VERBS)[number] | "archive" | "restore";
 
 // Plain language, not the verb again: the buttons are opaque to a
 // non-technical user.
 export const VERB_TITLES: Record<AppVerb, string> = {
+  archive: "Archive the app and keep its data",
+  restore: "Restore and run the archived app",
   start: "Run the app",
   stop: "Shut the app down (its data is kept)",
   restart: "Stop the app and start it again",

@@ -13,6 +13,7 @@ import { errMessage } from "../../shared/errors.ts";
 export function useAppsViewController() {
   const { apps, appsLoaded, appsRevision, isMobile, hydrationEpoch, sessionContext } = useAppState();
   const dispatch = useDispatch();
+  const [showArchived, setShowArchived] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AppListWire | null>(null);
@@ -186,9 +187,15 @@ export function useAppsViewController() {
   };
   const sorted = sortApps(apps);
   const selfUserId = sessionContext?.userId ?? null;
-  const shown = filterApps(sorted, filters, selfUserId);
+  const shown = filterApps(
+    sorted.filter((app) => (app.archivedAt !== undefined) === showArchived),
+    showArchived ? { ...filters, hideStopped: false } : filters,
+    selfUserId,
+  );
 
   return {
+    showArchived,
+    setShowArchived,
     act,
     appsLoaded,
     busy,

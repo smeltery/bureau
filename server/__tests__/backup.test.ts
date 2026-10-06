@@ -112,6 +112,9 @@ describe("verified backup publication", () => {
     const f = fixture();
     write(f.state, "users.json", JSON.stringify([{ id: "u-alice", name: "Alice" }]));
     const excluded = [
+      "webhooks/secrets.json",
+      "webhooks/secrets.json.tmp",
+      "browser-sharing/devices.json",
       "apps/units/hello.env",
       "user-env/u-alice.env",
       "office-env/office.env",

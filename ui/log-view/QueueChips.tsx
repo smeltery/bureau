@@ -47,15 +47,17 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
       </div>
       {queue.map((msg) => {
         const attachmentCount = msg.attachments?.length ?? 0;
-        const isProgrammatic = msg.sender.kind === "agent" || msg.sender.kind === "app" || msg.sender.kind === "cronjob";
+        const isProgrammatic = msg.sender.kind === "webhook" || msg.sender.kind === "agent" || msg.sender.kind === "app" || msg.sender.kind === "cronjob";
         const senderLabel =
-          msg.sender.kind === "agent"
-            ? `${msg.sender.agentName} · agent · Room "${msg.sender.roomName}"`
-            : msg.sender.kind === "app"
-              ? `${msg.sender.appName} · app`
-              : msg.sender.kind === "cronjob"
-                ? `${msg.sender.cronjobName} · cron job`
-                : msg.sender.username || "you";
+          msg.sender.kind === "webhook"
+            ? `Webhook: ${msg.sender.webhookName}`
+            : msg.sender.kind === "agent"
+              ? `${msg.sender.agentName} · agent · Room "${msg.sender.roomName}"`
+              : msg.sender.kind === "app"
+                ? `${msg.sender.appName} · app`
+                : msg.sender.kind === "cronjob"
+                  ? `${msg.sender.cronjobName} · cron job`
+                  : msg.sender.username || "you";
         return (
           <div
             key={msg.id}

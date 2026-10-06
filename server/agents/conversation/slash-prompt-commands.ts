@@ -1,3 +1,5 @@
+import { canViewSchedule } from "../../cronjobs/access.ts";
+import { getUserById } from "../../users.ts";
 import type { Cronjob } from "../../../shared/types.ts";
 import { addLogEntry, emitEphemeralLog, officeConfig, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "../session/system-prompt.ts";
@@ -30,7 +32,7 @@ export async function handleBureauCronjobSystemPromptCommand(agentId: string, ma
   addLogEntry(agentId, "user_message", rawText, userMeta);
 
   const query = args.join(" ").trim();
-  const all = listCronjobs();
+  const all = listCronjobs().filter((job) => canViewSchedule(managed.info.userId ? getUserById(managed.info.userId) : null, job));
 
   if (!query) {
     if (all.length === 0) {

@@ -14,6 +14,7 @@ export function UserMessage({
   agentName,
   agentRoom,
   cronjobName,
+  webhookName,
   fromNonHuman,
   outgoing,
   attachments,
@@ -31,6 +32,7 @@ export function UserMessage({
   agentName?: string;
   agentRoom?: string;
   cronjobName?: string;
+  webhookName?: string;
   fromNonHuman?: boolean;
   outgoing?: boolean;
   attachments?: Attachment[];
@@ -45,7 +47,7 @@ export function UserMessage({
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   // Programmatic senders get a distinct dashed treatment so they don't read as
   // the human's own typing. Mirrors QueueChips for queued programmatic messages.
-  const sender = describeUserMessageSender({ username, device, agentName, agentRoom, cronjobName });
+  const sender = describeUserMessageSender({ username, device, agentName, agentRoom, cronjobName, webhookName });
   const fromHuman = sender.fromHuman && !fromNonHuman;
   const edge = `3px ${fromHuman ? "solid" : "dashed"} ${fromHuman ? "var(--accent)" : "var(--text-muted)"}`;
   return (
@@ -119,16 +121,19 @@ export function describeUserMessageSender({
   agentName,
   agentRoom,
   cronjobName,
+  webhookName,
 }: {
   username?: string;
   device?: string;
   agentName?: string;
   agentRoom?: string;
   cronjobName?: string;
+  webhookName?: string;
 }): {
   label: string;
   fromHuman: boolean;
 } {
+  if (webhookName) return { label: `${webhookName} · webhook`, fromHuman: false };
   if (agentName) return { label: `${agentName} · agent · Room "${agentRoom ?? "?"}"`, fromHuman: false };
   if (cronjobName) return { label: `${cronjobName} · cron job`, fromHuman: false };
   const label = username ? (device ? `${username} (${device})` : username) : (device ?? "You");

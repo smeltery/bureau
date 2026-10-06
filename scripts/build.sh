@@ -29,3 +29,5 @@ cp ui/manifest.json ui/dist/manifest.json
 mkdir -p ui/dist/icons
 cp ui/icons/*.png ui/dist/icons/
 cp ui/icon.svg ui/dist/icons/icon.svg
+
+bun run scripts/build-browser-extension.ts

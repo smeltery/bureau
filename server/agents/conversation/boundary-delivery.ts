@@ -8,6 +8,8 @@ const NO_CLAIM: ReadonlySet<QueuedMessage> = new Set();
 
 function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
   switch (sender.kind) {
+    case "webhook":
+      return { sender_webhook_id: sender.webhookId, sender_webhook_name: sender.webhookName };
     case "user":
       return sender.username || sender.device ? { ...(sender.username ? { username: sender.username } : {}), ...(sender.device ? { device: sender.device } : {}) } : undefined;
     case "agent":

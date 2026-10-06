@@ -260,8 +260,8 @@ describe("handleCronjobsRequest", () => {
 
     const res = await handleCronjobsRequest(req, new URL(req.url), memberAuth);
 
-    expect(res?.status).toBe(403);
-    expect(await res?.json()).toEqual({ error: "owner access required" });
+    expect(res?.status).toBe(404);
+    expect(await res?.json()).toEqual({ error: "not found" });
 
     CronjobManager.deleteCronjob(cronjob.id);
   });

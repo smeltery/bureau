@@ -1,4 +1,4 @@
-import { listAllAgentIdsOnDisk, listAllCronjobIdsOnDisk, loadAgentHistory, loadCronjobHistory } from "../../persistence.ts";
+import { listAllAgentIdsOnDisk, listAllCronjobIdsOnDisk, loadAgentHistory, loadCronjobHistory, loadRuns } from "../../persistence.ts";
 import { listCronjobs, readCronjobLifetimeUsage } from "../../cronjobs/index.ts";
 import { agents, rooms } from "../state.ts";
 import { addBucket, emptyBucket, formatInCell, formatTokenCount, formatUsd, type UsageBucket } from "../usage-format.ts";
@@ -6,6 +6,22 @@ import { readAgentUsage } from "./data.ts";
 import type { CronjobUsageWire, RoomUsageWire, UsageReportWire, UserRecord } from "../../../shared/types.ts";
 
 export type UsageAudience = { kind: "owner" } | { kind: "member"; roomIds: Set<string> };
+
+function scheduleUsageRows(audience: UsageAudience): CronjobUsageWire[] {
+  const live = listCronjobs();
+  const history = loadCronjobHistory();
+  const ids = new Set([...live.map((job) => job.id), ...listAllCronjobIdsOnDisk()]);
+  const rows: CronjobUsageWire[] = [];
+  for (const id of ids) {
+    const job = live.find((item) => item.id === id);
+    const visible = (run: import("../../../shared/types.ts").CronjobRun) => audienceCanSeeRoom(audience, run.roomIdSnapshot === undefined ? history[id]?.roomId : run.roomIdSnapshot);
+    const runs = loadRuns(id).filter(visible);
+    const seesJob = audienceCanSeeRoom(audience, job?.roomId ?? history[id]?.roomId);
+    if (!seesJob && !runs.length) continue;
+    rows.push({ id, name: seesJob ? (job?.name ?? history[id]?.lastName ?? id) : runs.at(-1)!.cronjobName, deleted: !job, lifetime: readCronjobLifetimeUsage(id, visible) });
+  }
+  return rows.sort((a, b) => b.lifetime.costUSD - a.lifetime.costUSD);
+}
 
 export function usageAudienceForUser(user: UserRecord | null | undefined): UsageAudience {
   if (user?.role === "owner") return { kind: "owner" };
@@ -80,27 +96,8 @@ export function buildUsageReportData(audience: UsageAudience = { kind: "owner" }
     })
     .sort((a, b) => b.lifetime.costUSD - a.lifetime.costUSD);
 
-  let cronjobRows: CronjobUsageWire[] | undefined;
-  if (audience.kind === "owner") {
-    const liveCronjobs = listCronjobs();
-    const liveCronjobIds = new Set(liveCronjobs.map((cronjob) => cronjob.id));
-    const cronjobHistory = loadCronjobHistory();
-    cronjobRows = [];
-    for (const cronjob of liveCronjobs) {
-      const usage = readCronjobLifetimeUsage(cronjob.id);
-      const lifetime = { totalIn: usage.totalIn, cacheRead: usage.cacheRead, cacheCreation: usage.cacheCreation, totalOut: usage.totalOut, costUSD: usage.costUSD };
-      cronjobRows.push({ id: cronjob.id, name: cronjob.name, deleted: false, lifetime });
-      addBucket(totalLifetime, lifetime);
-    }
-    for (const id of listAllCronjobIdsOnDisk()) {
-      if (liveCronjobIds.has(id)) continue;
-      const usage = readCronjobLifetimeUsage(id);
-      const lifetime = { totalIn: usage.totalIn, cacheRead: usage.cacheRead, cacheCreation: usage.cacheCreation, totalOut: usage.totalOut, costUSD: usage.costUSD };
-      cronjobRows.push({ id, name: cronjobHistory[id]?.lastName ?? id, deleted: true, lifetime });
-      addBucket(totalLifetime, lifetime);
-    }
-    cronjobRows.sort((a, b) => b.lifetime.costUSD - a.lifetime.costUSD);
-  }
+  const cronjobRows = scheduleUsageRows(audience);
+  for (const row of cronjobRows) addBucket(totalLifetime, row.lifetime);
 
   return { scoped: audience.kind !== "owner", agents: agentRows, rooms: roomRows, cronjobs: cronjobRows, total: { session: cloneBucket(totalSession), lifetime: cloneBucket(totalLifetime) } };
 }
@@ -206,27 +203,13 @@ export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): 
   // session). Includes cronjobs whose configs are deleted, attributed via
   // cronjob-history.json. Folded into the office-wide grand total below so
   // the bottom line is honest about total spend.
-  type CronjobRow = { id: string; name: string; deleted: boolean; life: UsageBucket };
-  const cronjobRows: CronjobRow[] = [];
-  const liveCronjobs = listCronjobs();
-  const liveCronjobIds = new Set(liveCronjobs.map((c) => c.id));
-  const cronjobHistory = loadCronjobHistory();
-  for (const c of liveCronjobs) {
-    const u = readCronjobLifetimeUsage(c.id);
-    cronjobRows.push({ id: c.id, name: c.name, deleted: false, life: { totalIn: u.totalIn, cacheRead: u.cacheRead, cacheCreation: u.cacheCreation, totalOut: u.totalOut, costUSD: u.costUSD } });
-  }
-  for (const id of listAllCronjobIdsOnDisk()) {
-    if (liveCronjobIds.has(id)) continue;
-    const name = cronjobHistory[id]?.lastName ?? id;
-    const u = readCronjobLifetimeUsage(id);
-    cronjobRows.push({ id, name, deleted: true, life: { totalIn: u.totalIn, cacheRead: u.cacheRead, cacheCreation: u.cacheCreation, totalOut: u.totalOut, costUSD: u.costUSD } });
-  }
+  const cronjobRows = scheduleUsageRows(audience).map(({ lifetime, ...row }) => ({ ...row, life: lifetime }));
 
   const cronjobTotal = emptyBucket();
   for (const c of cronjobRows) addBucket(cronjobTotal, c.life);
   cronjobRows.sort((a, b) => b.life.costUSD - a.life.costUSD);
 
-  if (audience.kind === "owner" && cronjobRows.length > 0) {
+  if (cronjobRows.length > 0) {
     lines.push("");
     lines.push(`## Per-cron job usage`);
     lines.push("");
@@ -244,7 +227,7 @@ export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): 
   // reflects every dollar the office spent.
   const officeTotalLife = emptyBucket();
   addBucket(officeTotalLife, total.life);
-  if (audience.kind === "owner") addBucket(officeTotalLife, cronjobTotal);
+  addBucket(officeTotalLife, cronjobTotal);
 
   const totalLabel = audience.kind === "owner" ? "Office total" : "Total";
   lines.push(

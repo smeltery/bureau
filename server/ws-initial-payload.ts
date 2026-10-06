@@ -1,7 +1,7 @@
 import type { KilledAgentSummary, PresenceInfo, ServerMessage, UserRecord } from "../shared/types.ts";
 import { KILLED_AGENT_CHIP_CAP, LOBBY_ROOM_ID } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
-import * as CronjobManager from "./cronjobs/index.ts";
+import { sendScheduleState } from "./ws/cronjob-events.ts";
 import { loadRecentCwds } from "./persistence.ts";
 import { listAllPresence } from "./presence.ts";
 import { getUpdateStatus } from "./update-checker.ts";
@@ -81,13 +81,7 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
   ws.send(JSON.stringify({ type: "users_list", users: usersForRecipient(user, rooms) } as ServerMessage));
   ws.send(JSON.stringify({ type: "session_context", context: getSessionContext(ws) } as ServerMessage));
   ws.send(JSON.stringify({ type: "tasks", tasks } as ServerMessage));
-  ws.send(
-    JSON.stringify({
-      type: "cronjobs_state",
-      cronjobs: CronjobManager.listCronjobs(),
-      cronjobsPrompt: CronjobManager.getCronjobsPrompt(),
-    } as ServerMessage),
-  );
+  sendScheduleState(ws);
   const update = getUpdateStatus();
   if (update.updateAvailable) {
     ws.send(JSON.stringify({ type: "update_status", ...update } as ServerMessage));

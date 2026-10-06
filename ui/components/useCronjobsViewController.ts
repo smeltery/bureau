@@ -4,10 +4,11 @@ import { useAppState } from "../store.tsx";
 import { send } from "../ws.ts";
 import { shouldHostCloseOnEscape } from "./modals/expandedEditorState.ts";
 
-export type CronjobsViewTab = "runs" | "cronjobs";
+export type CronjobsViewTab = "runs" | "cronjobs" | "webhooks";
 
 export function useCronjobsViewController() {
   const { cronjobs, cronjobsLoaded, cronjobRunsByJob, cronjobRunsLoaded, isMobile } = useAppState();
+  const [roomFilter, setRoomFilter] = useState("");
   const [tab, setTab] = useState<CronjobsViewTab>("runs");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Cronjob | null>(null);
@@ -37,9 +38,8 @@ export function useCronjobsViewController() {
   }, [cronjobRunsByJob]);
 
   const filteredRuns = useMemo(() => {
-    if (!runFilter) return allRuns;
-    return allRuns.filter((r) => r.cronjobId === runFilter.jobId);
-  }, [allRuns, runFilter]);
+    return allRuns.filter((r) => (!runFilter || r.cronjobId === runFilter.jobId) && (!roomFilter || r.roomIdSnapshot === roomFilter));
+  }, [allRuns, runFilter, roomFilter]);
 
   // ESC closes (handled at App level by goHome → popstate; local Escape just dismisses our overlays)
   //
@@ -70,10 +70,12 @@ export function useCronjobsViewController() {
   }, [openRun, editing, creating, editingPrompt]);
 
   return {
+    roomFilter,
+    setRoomFilter,
     creating,
     cronjobRunsByJob,
     cronjobRunsLoaded,
-    cronjobs,
+    cronjobs: roomFilter ? cronjobs.filter((job) => job.roomId === roomFilter) : cronjobs,
     cronjobsLoaded,
     editing,
     editingPrompt,

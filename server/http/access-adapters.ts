@@ -6,7 +6,7 @@ import { pushPresenceListToEachWs, sendInitialPayload } from "../ws-initial-payl
 import { refreshPresenceForUser } from "../presence.ts";
 import { loadOfficeConfig, normalizePreviewAllowHosts, saveOfficeConfig } from "../persistence.ts";
 import { evictSessionsForUserId, isOutsideReachabilityBlocked, mintInvite, revokeInvitesForUser, setOfficeName } from "../auth/auth.ts";
-import { deleteUserById, firstOfficeOwner, getUserById, getUserByName, listAccessibleRooms, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
+import { deleteUserById, firstOfficeOwner, getUserById, getUserByName, getWsUser, projectRooms, listAccessibleRooms, updateUser, wouldDeleteLeaveNoOwner } from "../users.ts";
 import { pushInvitesListToEachWs } from "../access-broadcasts.ts";
 import type { AccessSettingsWire, SetAccessResult } from "./access.ts";
 import type { UserDeleteResult, UserMutationResult, UserRecordChanges } from "./users.ts";
@@ -109,7 +109,17 @@ export function applyViewPreference(userId: string, change: ViewChangeInput): bo
   }
   const updated = updateUser(actor, userId, updates, rooms);
   if (!updated) return false;
-  pushUserViewUpdate(updated);
+  if (change.order && !change.shown && !change.notifRooms && change.defaultRoomId === undefined) {
+    for (const browser of browsers) {
+      if (getWsUser(browser)?.id === userId) {
+        browser.send(JSON.stringify({ type: "rooms_reordered", order: projectRooms(updated, rooms).map((room) => room.id) }));
+      }
+    }
+  } else {
+    for (const browser of browsers) {
+      if (getWsUser(browser)?.id === userId) sendInitialPayload(browser);
+    }
+  }
   return true;
 }
 

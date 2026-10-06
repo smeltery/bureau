@@ -1,11 +1,13 @@
 import { generateCronjobId, type Cronjob, type CronjobPermissionMode, type Schedule } from "../../shared/types.ts";
-import { loadCronjobHistory, saveCronjobHistory, saveCronjobs } from "../persistence.ts";
+import { loadRuns, saveRuns, loadCronjobHistory, saveCronjobHistory, saveCronjobs } from "../persistence.ts";
 import { resolveCwd } from "../agents/session/paths.ts";
 import { assertModelFamilyForAgentType, validateCodexSandbox, validateCronjobPermissionMode, validateEffort, validateModelFamily } from "../agent-validators.ts";
 import { getUserByName } from "../users.ts";
+import { legacyScheduleRoom } from "./access.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 
 export interface AddCronjobInput {
+  roomId?: string | null;
   name: string;
   schedule: Schedule;
   prompt: string;
@@ -20,7 +22,7 @@ export interface AddCronjobInput {
   device?: string;
 }
 
-export type UpdateCronjobChanges = Partial<Pick<Cronjob, "name" | "schedule" | "prompt" | "cwd" | "agentType" | "modelFamily" | "effort" | "permissionMode" | "codexSandbox" | "enabled">>;
+export type UpdateCronjobChanges = Partial<Pick<Cronjob, "roomId" | "name" | "schedule" | "prompt" | "cwd" | "agentType" | "modelFamily" | "effort" | "permissionMode" | "codexSandbox" | "enabled">>;
 
 export function addCronjobDefinition(cronjobs: Cronjob[], input: AddCronjobInput): Cronjob {
   const schedule = clampSchedule(input.schedule);
@@ -34,6 +36,7 @@ export function addCronjobDefinition(cronjobs: Cronjob[], input: AddCronjobInput
   const cronjob: Cronjob = {
     id: generateCronjobId(cronjobs.map((c) => c.id)),
     name: input.name.trim() || "Untitled cron job",
+    roomId: input.roomId ?? legacyScheduleRoom(input.userId ?? null, input.username),
     schedule,
     prompt: input.prompt,
     cwd: resolveCwd(input.cwd),
@@ -64,6 +67,16 @@ export function updateCronjobDefinition(cronjobs: Cronjob[], id: string, changes
   const agentType = changes.agentType === "claude" || changes.agentType === "codex" || changes.agentType === "opencode" ? changes.agentType : prev.agentType;
   const engineChanged = agentType !== prev.agentType;
   next.agentType = agentType;
+  if (changes.roomId !== undefined && changes.roomId !== prev.roomId) {
+    // Freeze historical visibility before moving the definition to another room.
+    const runs = loadRuns(id).map((run) => ({
+      ...run,
+      roomIdSnapshot: run.roomIdSnapshot === undefined ? (prev.roomId ?? null) : run.roomIdSnapshot,
+      userIdSnapshot: run.userIdSnapshot === undefined ? prev.userId : run.userIdSnapshot,
+    }));
+    if (runs.length) saveRuns(id, runs);
+    next.roomId = changes.roomId;
+  }
   if (changes.name !== undefined) next.name = changes.name.trim() || prev.name;
   if (changes.prompt !== undefined) next.prompt = changes.prompt;
   if (changes.cwd !== undefined) next.cwd = resolveCwd(changes.cwd);
@@ -108,6 +121,6 @@ export function deleteCronjobDefinition(cronjobs: Cronjob[], id: string): boolea
 function persistCronjobDefinitions(cronjobs: Cronjob[], latest: Cronjob): void {
   saveCronjobs(cronjobs);
   const history = loadCronjobHistory();
-  history[latest.id] = { lastName: latest.name };
+  history[latest.id] = { lastName: latest.name, roomId: latest.roomId ?? null, userId: latest.userId };
   saveCronjobHistory(history);
 }

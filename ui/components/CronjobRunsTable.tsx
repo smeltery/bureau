@@ -85,7 +85,7 @@ export function RunsTable({
                 {STATUS_ICON[r.status]}
               </td>
               <td style={{ padding: cellPad, color: "var(--text-muted)", fontSize: 12, textAlign: "center" }} title={r.trigger === "manual" && r.triggeredBy ? `manual · ${r.triggeredBy}` : r.trigger}>
-                {r.trigger === "manual" ? <StatusShape kind="triangle" /> : "⏲"}
+                {r.trigger === "manual" ? <StatusShape kind="triangle" /> : r.trigger === "webhook" ? "↪" : "⏲"}
               </td>
               <td style={{ padding: cellPad, fontSize: 12, fontWeight: 600 }}>
                 {r.cronjobName}

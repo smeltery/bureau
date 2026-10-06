@@ -228,12 +228,21 @@ export function startCronjobScheduler() {
 // Per-cronjob lifetime usage helpers (used by /usage)
 // ---------------------------------------------------------------------------
 
-export function readCronjobLifetimeUsage(jobId: string): {
+export function readCronjobLifetimeUsage(
+  jobId: string,
+  visible?: (run: CronjobRun) => boolean,
+): {
   totalIn: number;
   cacheRead: number;
   cacheCreation: number;
   totalOut: number;
   costUSD: number;
 } {
-  return readCronjobLifetimeUsageFromDisk(jobId);
+  return readCronjobLifetimeUsageFromDisk(jobId, visible);
+}
+
+export function runCronjobWebhook(id: string, data: string, hookId: string, deliveryId: string): CronjobRun | null {
+  const job = findCronjob(id);
+  if (!job) return null;
+  return fireCronjobRunWithDeps(runStartDeps(), { ...job, prompt: `${job.prompt}\n\n${data}` }, "webhook", `Webhook ${hookId}`, { hookId, deliveryId });
 }

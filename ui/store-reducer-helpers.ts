@@ -42,7 +42,8 @@ export function applyAgentUpdated(state: AppState, action: AgentUpdatedAction): 
 export function applyRoomsReordered(state: AppState, action: RoomsReorderedAction): AppState {
   // action.order is the new ordering of roomIds
   const idToOldIdx = new Map(state.rooms.map((r, i) => [r.id, i]));
-  const newRooms = action.order.map((id) => state.rooms[idToOldIdx.get(id)!]).filter(Boolean);
+  const orderedIds = [...new Set([...action.order, ...state.rooms.map((room) => room.id)])];
+  const newRooms = orderedIds.map((id) => state.rooms[idToOldIdx.get(id)!]).filter(Boolean);
   // Recompute currentRoom: find where the previously-current room landed
   const prevId = state.rooms[state.currentRoom]?.id;
   const newCurrentRoom = roomIndexById(newRooms, resolveSelectedRoomId(newRooms, prevId ?? null));

@@ -31,6 +31,7 @@ const SAFE_SUFFIXES = [".example", ".template", ".sample", ".dist"];
 export function isSensitiveFile(filePath: string): boolean {
   const path = filePath.replace(/\*+$/, "");
   if (isBackendCredentialPath(path)) return true;
+  if (/(^|\/)webhooks\/secrets\.json(?:\.tmp)?$/.test(path) || /(^|\/)browser-sharing\/devices\.json(?:\.tmp)?$/.test(path)) return true;
 
   const name = basename(filePath).replace(/\*+$/, "");
   // Allow .env.example, .env.template, etc.

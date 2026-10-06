@@ -1,3 +1,4 @@
+import { thumbnailVersion } from "../apps/thumbnails.ts";
 // Identity, visibility and response plumbing for the /api/apps routes. Split
 // out of apps.ts so the handler file reads as the sequence of verbs and their
 // commit-order rules, with the "who is asking, and what may they see" question
@@ -45,12 +46,13 @@ export function appToWire(record: AppRecord, runtime: AppRuntime | undefined, pu
   const { state, restartCount, startError } = runtime ?? UNKNOWN_RUNTIME;
   return {
     ...record,
-    state,
+    ...(thumbnailVersion(record) ? { thumbnailVersion: thumbnailVersion(record) } : {}),
+    state: record.archivedAt !== undefined ? "stopped" : state,
     restartCount,
     ...(startError ? { startError } : {}),
     // `!== null`, not truthiness: the rule is present-iff-there-is-a-URL, and
     // an empty string would be a URL-shaped answer meaning "none".
-    ...(publicUrl !== null ? { url: publicUrl } : {}),
+    ...(publicUrl !== null && record.archivedAt === undefined ? { url: publicUrl } : {}),
     canManage: true,
   };
 }
@@ -58,8 +60,10 @@ export function appToWire(record: AppRecord, runtime: AppRuntime | undefined, pu
 export function appToListWire(record: AppRecord, runtime: AppRuntime | undefined, publicUrl: string | null, identity: AppsIdentity): AppListWire {
   const full = appToWire(record, runtime, publicUrl);
   if (canManageApp(record, identity)) return full;
-  const { name, hostLabel, hostGen, port, description, createdBy, createdByAgentId, createdAt, state, restartCount, url } = full;
+  const { name, hostLabel, hostGen, port, description, createdBy, createdByAgentId, createdAt, state, restartCount, url, archivedAt, thumbnailVersion } = full;
   return {
+    ...(archivedAt !== undefined ? { archivedAt } : {}),
+    ...(thumbnailVersion !== undefined ? { thumbnailVersion } : {}),
     name,
     hostLabel,
     hostGen,

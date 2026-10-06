@@ -1,3 +1,4 @@
+import { refreshBoundUser } from "./user-sockets.ts";
 import type { RoomWire, UserRecord, UserRole } from "../shared/types.ts";
 import { loadUsers, saveUsers, normalizeUserKey, generateUserId } from "./persistence.ts";
 import { reconcileUserRooms } from "./user-room-projection.ts";
@@ -110,6 +111,7 @@ export function updateUserById(userId: string, changes: UserRecordChanges): { ok
     users.set(normalizeUserKey(target.name), target);
     return { ok: false, error: (err as Error).message };
   }
+  refreshBoundUser(userId, next);
   return { ok: true, user: next };
 }
 
@@ -118,6 +120,7 @@ export function deleteUserById(userId: string): boolean {
   if (!target) return false;
   users.delete(normalizeUserKey(target.name));
   persist();
+  refreshBoundUser(userId, null);
   return true;
 }
 
@@ -126,6 +129,7 @@ function ensureUserRooms(user: UserRecord, allRoomIds: string[]): UserRecord {
   if (next === user) return user;
   users.set(normalizeUserKey(next.name), next);
   persist();
+  refreshBoundUser(user.id, next);
   return next;
 }
 
@@ -173,6 +177,7 @@ export function updateUser(actor: UserRecord | null, userId: string, changes: Us
   users.delete(normalizeUserKey(target.name));
   users.set(normalizeUserKey(next.name), next);
   persist();
+  refreshBoundUser(userId, next);
   return next;
 }
 
@@ -182,6 +187,7 @@ export function deleteUser(actor: UserRecord | null, userId: string): boolean {
   if (!target) return false;
   users.delete(normalizeUserKey(target.name));
   persist();
+  refreshBoundUser(userId, null);
   return true;
 }
 

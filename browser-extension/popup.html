@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Bureau tab sharing</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>Bureau tab sharing</h1>
+    <p id="error" role="alert"></p>
+    <form id="pair">
+      <label>Office URL<input id="office" type="url" required placeholder="https://office.example.com" /></label
+      ><label>Pairing code<input id="code" type="password" required autocomplete="off" /></label><button>Pair browser</button>
+    </form>
+    <section id="connected" hidden>
+      <p id="office-name"></p>
+      <h2>Offer the current tab</h2>
+      <p>Selected agents can read, screenshot, click, type and navigate within this tab’s origin. They use your signed-in page session.</p>
+      <p id="tab-name"></p>
+      <div id="agents"></div>
+      <label
+        >Expires<select id="minutes">
+          <option value="15">15 minutes</option>
+          <option value="60">1 hour</option>
+          <option value="">When I stop sharing</option>
+        </select></label
+      ><button id="share">Share this tab</button>
+      <h2>Shared tabs</h2>
+      <div id="grants"></div>
+    </section>
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>
