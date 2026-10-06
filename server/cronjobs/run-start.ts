@@ -26,7 +26,7 @@ export interface RunStartDeps {
   computeNextFire(schedule: Cronjob["schedule"], anchor: number, now?: number): number | null;
 }
 
-export function fireCronjobRunWithDeps(deps: RunStartDeps, job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string): CronjobRun | null {
+export function fireCronjobRunWithDeps(deps: RunStartDeps, job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string, webhook?: CronjobRun["webhook"]): CronjobRun | null {
   const jobId = job.id;
 
   // Validate cwd before spawning so a moved directory surfaces as a failed
@@ -49,7 +49,10 @@ export function fireCronjobRunWithDeps(deps: RunStartDeps, job: Cronjob, trigger
     id: runId,
     cronjobId: jobId,
     cronjobName: job.name,
+    roomIdSnapshot: job.roomId ?? null,
+    userIdSnapshot: job.userId,
     trigger,
+    ...(webhook ? { webhook } : {}),
     status: cwdValid ? "running" : "failed",
     startedAt: now,
     endedAt: cwdValid ? null : now,
@@ -127,6 +130,8 @@ export function recordSkippedRunWithDeps(deps: Pick<RunStartDeps, "appendRun" | 
     id: runId,
     cronjobId: job.id,
     cronjobName: job.name,
+    roomIdSnapshot: job.roomId ?? null,
+    userIdSnapshot: job.userId,
     trigger: "scheduled",
     status: "skipped",
     startedAt: now,

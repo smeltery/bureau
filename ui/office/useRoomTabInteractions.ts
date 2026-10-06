@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { send } from "../ws.ts";
+import { useDispatch } from "../store.tsx";
+import { saveRoomView } from "./room-view.ts";
 import type { RoomWire } from "../../shared/types.ts";
 
 export function useRoomTabInteractions(rooms: RoomWire[], roomNames: string[]) {
+  const dispatch = useDispatch();
+  const [viewError, setViewError] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
   const [editingRoom, setEditingRoom] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +82,7 @@ export function useRoomTabInteractions(rooms: RoomWire[], roomNames: string[]) {
   }
 
   function handleDragStart(e: React.DragEvent, i: number) {
+    if (savingOrder) return;
     setDragFrom(i);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", String(i));
@@ -104,7 +110,16 @@ export function useRoomTabInteractions(rooms: RoomWire[], roomNames: string[]) {
     const order = rooms.map((r) => r.id);
     const [removed] = order.splice(dragFrom, 1);
     order.splice(dropIdx, 0, removed);
-    send({ type: "reorder_rooms", order });
+    const previous = rooms.map((r) => r.id);
+    dispatch({ type: "rooms_reordered", order });
+    setSavingOrder(true);
+    setViewError(null);
+    void saveRoomView("order", order)
+      .catch((error: unknown) => {
+        dispatch({ type: "rooms_reordered", order: previous });
+        setViewError(error instanceof Error ? error.message : "Could not save room order");
+      })
+      .finally(() => setSavingOrder(false));
     setDragFrom(null);
   }
 
@@ -114,6 +129,7 @@ export function useRoomTabInteractions(rooms: RoomWire[], roomNames: string[]) {
   }
 
   return {
+    viewError,
     cancelEdit,
     cancelLongPress,
     commitEdit,

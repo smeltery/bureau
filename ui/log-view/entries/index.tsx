@@ -61,7 +61,7 @@ export function LogEntryCard({
       const agentName = entry.metadata?.sender_agent_name as string | undefined;
       const agentRoom = entry.metadata?.sender_agent_room as string | undefined;
       const cronjobName = entry.metadata?.sender_cronjob_name as string | undefined;
-      const isProgrammaticUser = isApiTokenDevice(device);
+      const isProgrammaticUser = isApiTokenDevice(device) || !!entry.metadata?.sender_webhook_name;
       // Agent-sent messages aren't editable: "edit & branch" rewrites the
       // human's own prompt, not a peer-attributed message.
       if (isEditing && !agentName && !cronjobName && !isProgrammaticUser) {
@@ -76,6 +76,7 @@ export function LogEntryCard({
           agentName={agentName}
           agentRoom={agentRoom}
           cronjobName={cronjobName}
+          webhookName={entry.metadata?.sender_webhook_name as string | undefined}
           attachments={entry.attachments}
           agentId={entry.agentId}
           canEdit={canEdit && !agentName && !cronjobName && !isProgrammaticUser}

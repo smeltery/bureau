@@ -1,3 +1,5 @@
+import { claimUserByName, deleteUserById } from "../../../users.ts";
+const fixtureUserIds: string[] = [];
 import { afterEach, describe, expect, test } from "bun:test";
 import { CODEX_MODELS, DEFAULT_AGENT_CAPABILITIES, knownModelFamiliesFor, type Cronjob } from "../../../../shared/types.ts";
 import { setCronjobDefinitions } from "../../../cronjobs/cronjob-store.ts";
@@ -24,7 +26,9 @@ function managedFor(agentType: "claude" | "codex", modelFamily: string) {
     customInstructions: null,
     customInstructionsVersion: "e3b0c44298fc",
   };
-  const managed = createManagedAgent({ info, skillCwd: process.cwd(), slashCommands: [], skills: [] });
+  const user = claimUserByName(crypto.randomUUID(), { role: "owner", allowedRooms: [] });
+  fixtureUserIds.push(user.id);
+  const managed = createManagedAgent({ info: { ...info, userId: user.id }, skillCwd: process.cwd(), slashCommands: [], skills: [] });
   managed.pendingModelPick = true;
   agents.set(info.id, managed);
   return managed;
@@ -54,6 +58,7 @@ function stubCronjob(overrides: Partial<Cronjob> = {}): Cronjob {
 }
 
 afterEach(() => {
+  for (const id of fixtureUserIds.splice(0)) deleteUserById(id);
   agents.clear();
   logCache.clear();
   setCronjobDefinitions([]);

@@ -1,4 +1,8 @@
+import { handleExtensionRequest, handleBrowserSharingRequest } from "../browser-sharing/routes.ts";
 import type { Server } from "bun";
+import { handleWebhookIngress } from "../webhooks/ingress.ts";
+import { handleWebhookManagement } from "../webhooks/routes.ts";
+import { isOutsideReachabilityBlocked } from "../auth/auth.ts";
 import { getBackupStatus } from "../backup.ts";
 import { closeEditorWatch, findBrowserConnection, watchEditorFile } from "../editor-watchers.ts";
 import { getVersionInfo } from "../version.ts";
@@ -80,6 +84,16 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
   const offBoxToken = refuseOffBoxMachineToken(req, requestIsOnBox(req, server));
   if (offBoxToken) return offBoxToken;
+  if (url.pathname.startsWith("/browser-sharing/extension/")) {
+    if (!requestIsOnBox(req, server) && isOutsideReachabilityBlocked()) return new Response(null, { status: 403 });
+    const extension = await handleExtensionRequest(req, url);
+    if (extension) return extension;
+  }
+  if (url.pathname.startsWith("/hooks/github/")) {
+    if (!requestIsOnBox(req, server) && isOutsideReachabilityBlocked()) return new Response(null, { status: 403 });
+    const webhook = await handleWebhookIngress(req, url);
+    if (webhook) return webhook;
+  }
 
   if (url.pathname === "/.well-known/security.txt" && (req.method === "GET" || req.method === "HEAD")) {
     return new Response(req.method === "HEAD" ? null : securityTxt(), {
@@ -145,8 +159,15 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   // Task / cronjob / files / agents HTTP APIs. Loopback-allowed because
   // local agents legitimately hit them; non-loopback callers need a
   // session cookie.
-  const httpAuth = authenticate(req, server, { allowLoopback: true, officeName: getOfficeName() });
+  const browserManagement = url.pathname.startsWith("/api/webhooks") || url.pathname.startsWith("/api/browser-sharing/") || url.pathname.startsWith("/api/me/view/");
+  const httpAuth = authenticate(req, server, { allowLoopback: !browserManagement, officeName: getOfficeName() });
   if (httpAuth.kind === "rejected") return httpAuth.response;
+
+  const browserSharing = await handleBrowserSharingRequest(req, url, httpAuth);
+  if (browserSharing) return browserSharing;
+
+  const webhookManagement = await handleWebhookManagement(req, url, httpAuth);
+  if (webhookManagement) return webhookManagement;
 
   const tasksResp = await handleTasksRequest(req, url, httpAuth);
   if (tasksResp) return tasksResp;

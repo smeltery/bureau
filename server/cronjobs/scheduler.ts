@@ -1,4 +1,5 @@
 import type { Cronjob, CronjobRun } from "../../shared/types.ts";
+import { loadCronjobHistory, saveCronjobHistory } from "../persistence/cronjobs.ts";
 import type { CronjobEvent } from "./index.ts";
 import { clampSchedule, computeNextFire } from "./schedule.ts";
 
@@ -48,7 +49,7 @@ export function startCronjobSchedulerWithDeps(deps: CronjobSchedulerDeps) {
 
   // Recompute nextFireAt for every cronjob from current time forward.
   const now = Date.now();
-  let dirty = false;
+  let dirty = cronjobs.length > 0;
   for (const job of cronjobs) {
     if (!job.userId && job.username) {
       const owner = deps.getUserByName(job.username);
@@ -66,11 +67,26 @@ export function startCronjobSchedulerWithDeps(deps: CronjobSchedulerDeps) {
     }
   }
   if (dirty) deps.saveCronjobs(cronjobs);
+  const history = loadCronjobHistory();
+  for (const job of cronjobs) {
+    history[job.id] ??= { lastName: job.name };
+    if (history[job.id].roomId === undefined) {
+      history[job.id] = { ...history[job.id], roomId: job.roomId ?? null, userId: job.userId };
+    }
+  }
+  saveCronjobHistory(history);
 
   // Mark any "running" rows on disk as failed — server crashed mid-run.
   for (const jobId of deps.listAllCronjobIdsOnDisk()) {
     const runs = deps.loadRuns(jobId);
     let mutated = false;
+    for (const run of runs) {
+      if (run.roomIdSnapshot === undefined) {
+        run.roomIdSnapshot = history[jobId]?.roomId ?? null;
+        run.userIdSnapshot = history[jobId]?.userId ?? null;
+        mutated = true;
+      }
+    }
     for (const run of runs) {
       if (run.status === "running") {
         run.status = "failed";

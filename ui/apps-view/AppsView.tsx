@@ -20,6 +20,8 @@ const FILTER_LABELS: Record<AppFilter, "apps.filter.hideStopped" | "apps.filter.
 
 export function AppsView({ onClose }: { onClose: () => void }) {
   const {
+    showArchived,
+    setShowArchived,
     act,
     appsLoaded,
     busy,
@@ -66,6 +68,7 @@ export function AppsView({ onClose }: { onClose: () => void }) {
           ←
         </button>
         <div style={{ fontSize: 13, fontWeight: 600 }}>{t("apps.title")}</div>
+        <button onClick={() => setShowArchived(!showArchived)}>{showArchived ? "Show active apps" : "Show archive"}</button>
         <button
           type="button"
           onClick={() => setPreviewsEnabled(!previewsEnabled)}

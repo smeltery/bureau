@@ -1,15 +1,28 @@
 import type { AuthResult } from "../auth/auth-middleware.ts";
+import { canViewSchedule, canViewRun } from "../cronjobs/access.ts";
 import { InvalidModelFamilyError } from "../agent-validators.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import { saveRecentCwd } from "../persistence.ts";
 import { handleCronjobRunAffordanceRequest } from "./cronjob-run-affordances.ts";
-import { cronjobCallerOrError, cronjobCorsHeaders, cronjobRouteParts, jsonError, parseCronjobChanges, parseCronjobCreate, readJson, validateCwdForRequest } from "./cronjob-route-helpers.ts";
+import {
+  scheduleViewer,
+  scheduleRoomAllowed,
+  cronjobCallerOrError,
+  cronjobCorsHeaders,
+  cronjobRouteParts,
+  jsonError,
+  parseCronjobChanges,
+  parseCronjobCreate,
+  readJson,
+  validateCwdForRequest,
+} from "./cronjob-route-helpers.ts";
 
 /**
  * Handle every /cronjobs and /api/cronjobs request. Returns null for unrelated
  * URLs so the caller can fall through to the next router.
  */
 export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthResult): Promise<Response | null> {
+  const viewer = scheduleViewer(req, auth);
   // CORS preflight
   if (req.method === "OPTIONS" && (url.pathname.startsWith("/cronjobs") || url.pathname.startsWith("/api/cronjobs") || url.pathname === "/api/cron-runs" || url.pathname === "/api/cron-prompt")) {
     return new Response(null, {
@@ -38,7 +51,9 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
   if (req.method === "GET" && url.pathname === "/api/cron-runs") {
     return new Response(
       JSON.stringify({
-        jobs: CronjobManager.getAllRunsByJob().map((j) => ({ cronjobId: j.jobId, runs: j.runs })),
+        jobs: CronjobManager.getAllRunsByJob()
+          .map((j) => ({ cronjobId: j.jobId, runs: j.runs.filter((run) => canViewRun(viewer, run)) }))
+          .filter((j) => j.runs.length > 0),
       }),
       { headers: cronjobCorsHeaders },
     );
@@ -52,7 +67,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
 
   // GET /cronjobs
   if (req.method === "GET" && parts.length === 1) {
-    return new Response(JSON.stringify(cronjobs), { headers: cronjobCorsHeaders });
+    return new Response(JSON.stringify(cronjobs.filter((job) => canViewSchedule(viewer, job))), { headers: cronjobCorsHeaders });
   }
 
   const jobId = parts[1];
@@ -63,6 +78,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
     if (body instanceof Response) return body;
     const parsed = parseCronjobCreate(body);
     if (!parsed.ok) return jsonError(400, parsed.error);
+    if (parsed.draft.roomId && !scheduleRoomAllowed(viewer, parsed.draft.roomId)) return jsonError(403, "room access required");
     const cwdError = validateCwdForRequest(parsed.draft.cwd);
     if (cwdError) return jsonError(400, cwdError);
     saveRecentCwd(parsed.draft.cwd);
@@ -80,8 +96,21 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
   }
 
   const cronjob = cronjobs.find((c) => c.id === jobId);
+  if (!cronjob && req.method === "GET" && parts[2] === "runs" && (parts.length === 3 || parts.length === 4)) {
+    const runs = CronjobManager.getRunsForCronjob(jobId).filter((run) => canViewRun(viewer, run));
+    if (!parts[3]) return new Response(JSON.stringify(runs), { headers: cronjobCorsHeaders });
+    if (!runs.some((run) => run.id === parts[3])) return jsonError(404, "not found");
+    return new Response(JSON.stringify(CronjobManager.getRunTranscript(jobId, parts[3])), { headers: cronjobCorsHeaders });
+  }
   if (!cronjob) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: cronjobCorsHeaders });
 
+  const affordanceResponse = await handleCronjobRunAffordanceRequest(req, parts, jobId);
+  if (affordanceResponse) return affordanceResponse;
+  if (!canViewSchedule(viewer, cronjob) && !(req.method === "GET" && parts[2] === "runs")) return jsonError(404, "not found");
+  if (parts[2] === "runs" && parts[3]) {
+    const run = CronjobManager.getRunsForCronjob(jobId).find((r) => r.id === parts[3]);
+    if (!run || !canViewRun(viewer, run)) return jsonError(404, "not found");
+  }
   // GET /cronjobs/:id
   if (req.method === "GET" && parts.length === 2) {
     return new Response(JSON.stringify(cronjob), { headers: cronjobCorsHeaders });
@@ -98,6 +127,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
       if (cwdError) return jsonError(400, cwdError);
       saveRecentCwd(body.cwd);
     }
+    if (body.roomId !== undefined && (typeof body.roomId !== "string" || !scheduleRoomAllowed(viewer, body.roomId))) return jsonError(403, "room access required");
     const parsed = parseCronjobChanges(body);
     if (!parsed.ok) return jsonError(400, parsed.error);
     try {
@@ -116,7 +146,7 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
   }
   // GET /cronjobs/:id/runs
   if (req.method === "GET" && parts[2] === "runs" && parts.length === 3) {
-    const runs = CronjobManager.getRunsForCronjob(jobId);
+    const runs = CronjobManager.getRunsForCronjob(jobId).filter((run) => canViewRun(viewer, run));
     return new Response(JSON.stringify(runs), { headers: cronjobCorsHeaders });
   }
   // POST /cronjobs/:id/runs
@@ -158,8 +188,6 @@ export async function handleCronjobsRequest(req: Request, url: URL, auth?: AuthR
     void CronjobManager.editRunMessage(jobId, runId, parts[5]!, body.newText, caller.session.username);
     return new Response(JSON.stringify({ messageId }), { headers: cronjobCorsHeaders });
   }
-  const affordanceResponse = await handleCronjobRunAffordanceRequest(req, parts, jobId);
-  if (affordanceResponse) return affordanceResponse;
   if (req.method !== "GET" && req.method !== "POST") {
     return new Response(JSON.stringify({ error: "method not allowed" }), { status: 405, headers: cronjobCorsHeaders });
   }

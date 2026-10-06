@@ -1,18 +1,29 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { ServerWebSocket } from "bun";
 import * as CronjobManager from "../cronjobs/index.ts";
+import { claimUserByName, deleteUserById } from "../users.ts";
+import { bindWsUser, clearWsUser } from "../user-sockets.ts";
 import { handleCronjobCommand } from "./cronjob-commands.ts";
 
+const sockets: ServerWebSocket<unknown>[] = [];
+const userIds: string[] = [];
 function wsSink(sent: string[]): ServerWebSocket<unknown> {
-  return {
+  const ws = {
     send(message: string) {
       sent.push(message);
       return 0;
     },
   } as ServerWebSocket<unknown>;
+  const user = claimUserByName(`WS schedule owner ${crypto.randomUUID()}`, { role: "owner" });
+  userIds.push(user.id);
+  sockets.push(ws);
+  bindWsUser(ws, user);
+  return ws;
 }
 
 afterEach(() => {
+  for (const ws of sockets.splice(0)) clearWsUser(ws);
+  for (const id of userIds.splice(0)) deleteUserById(id);
   for (const job of CronjobManager.listCronjobs()) CronjobManager.deleteCronjob(job.id);
 });
 

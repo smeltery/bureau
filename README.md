@@ -82,6 +82,11 @@ bureau/
 └── scripts/         # Build and dev scripts
 ```
 
+Signed [inbound webhooks](docs/features/inbound-webhooks.md) can queue agent work or
+start room-scoped schedules. The [Chrome extension](docs/features/browser-sharing.md)
+shares explicitly offered tabs with selected agents. Apps supports thumbnails and
+reversible archive, and room tabs support personal ordering and tucked rooms.
+
 ## License
 
 [PolyForm Shield License 1.0.0](LICENSE)

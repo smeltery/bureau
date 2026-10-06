@@ -1,3 +1,4 @@
+import type { CronjobRun } from "../../shared/types.ts";
 import { loadRuns, loadRunSessionsMap, type PersistedUsage } from "../persistence.ts";
 
 export interface CronjobLifetimeUsage {
@@ -8,10 +9,10 @@ export interface CronjobLifetimeUsage {
   costUSD: number;
 }
 
-export function readCronjobLifetimeUsage(jobId: string): CronjobLifetimeUsage {
+export function readCronjobLifetimeUsage(jobId: string, visible: (run: CronjobRun) => boolean = () => true): CronjobLifetimeUsage {
   const totals = { totalIn: 0, cacheRead: 0, cacheCreation: 0, totalOut: 0, costUSD: 0 };
   const runs = loadRuns(jobId);
-  for (const run of runs) {
+  for (const run of runs.filter(visible)) {
     const map = loadRunSessionsMap(jobId, run.id);
     for (const entry of Object.values(map)) {
       const u: PersistedUsage | undefined = entry.usage;

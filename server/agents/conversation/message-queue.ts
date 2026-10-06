@@ -43,9 +43,7 @@ function generateQueuedId(existing: QueuedMessage[]): string {
 // `steerDeclined` appear only when the caller asked to steer.
 export type EnqueueResult = { ok: true; queued: boolean; messageId: string; steered?: boolean; steerDeclined?: SteerDeclineReason } | { ok: false; error: string; status: number };
 
-// Steer rate limit. Prunes the receiver's window in place and reports whether
-// another interruption fits. Called only on the path that is about to
-// interrupt, so the pruning cost is bounded by the limit itself.
+// Prune only before an interruption; the limit bounds the cost.
 export function steerRateLimited(managed: ManagedAgent): boolean {
   const cutoff = Date.now() - STEER_RATE_WINDOW_MS;
   managed.recentSteers = managed.recentSteers.filter((t) => t > cutoff);
@@ -163,6 +161,8 @@ export function enqueueMessage(
 
 function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
   switch (sender.kind) {
+    case "webhook":
+      return { sender_webhook_id: sender.webhookId, sender_webhook_name: sender.webhookName };
     case "user":
       return sender.username || sender.device ? { ...(sender.username ? { username: sender.username } : {}), ...(sender.device ? { device: sender.device } : {}) } : undefined;
     case "agent":

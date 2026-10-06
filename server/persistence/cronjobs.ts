@@ -13,6 +13,7 @@
 import { join } from "path";
 import { mkdirSync, readFileSync, existsSync, readdirSync } from "fs";
 import type { AgentBackendType, CodexSandboxMode, Cronjob, CronjobRun, EffortLevel } from "../../shared/types.ts";
+import { legacyScheduleRoom } from "../cronjobs/access.ts";
 import { validateCodexSandbox, validateCronjobPermissionMode, validateEffort } from "../agent-validators.ts";
 import { atomicWriteFileSync, CRONJOBS_DIR, CRONJOBS_FILE, CRONJOB_HISTORY_FILE, CRONJOBS_PROMPT_FILE } from "./paths.ts";
 
@@ -51,6 +52,7 @@ export function loadCronjobs(): Cronjob[] {
       .filter((c): c is Cronjob => c && typeof c === "object" && typeof c.id === "string")
       .map((c) => ({
         ...c,
+        roomId: c.roomId === undefined ? legacyScheduleRoom(c.userId, c.username ?? c.createdBy) : c.roomId,
         agentType: normalizeCronjobAgentType((c as { agentType?: unknown }).agentType),
         permissionMode: validateCronjobPermissionMode(normalizeCronjobAgentType((c as { agentType?: unknown }).agentType), (c as { permissionMode?: string }).permissionMode),
         effort: validateEffort(
@@ -93,7 +95,7 @@ export function saveCronjobs(cronjobs: Cronjob[]) {
   }
 }
 
-export type CronjobHistory = Record<string, { lastName: string }>;
+export type CronjobHistory = Record<string, { lastName: string; roomId?: string | null; userId?: string | null }>;
 
 export function loadCronjobHistory(): CronjobHistory {
   try {

@@ -14,6 +14,7 @@ export type CronjobPermissionMode = "bypassPermissions" | "never";
 export interface Cronjob {
   id: string; // 8-char hex
   name: string; // free text, not unique
+  roomId?: string | null; // null only for legacy jobs without an accessible room
   schedule: Schedule;
   prompt: string; // first user message at each fire
   cwd: string;
@@ -33,12 +34,15 @@ export interface Cronjob {
 }
 
 export type CronjobRunStatus = "running" | "completed" | "failed" | "timed_out" | "skipped";
-export type CronjobRunTrigger = "scheduled" | "manual";
+export type CronjobRunTrigger = "scheduled" | "manual" | "webhook";
 
 export interface CronjobRun {
   id: string; // 8-char hex
   cronjobId: string;
   cronjobName: string; // denormalized so deleted-cronjob runs still display
+  roomIdSnapshot?: string | null;
+  userIdSnapshot?: string | null;
+  webhook?: { hookId: string; deliveryId: string };
   trigger: CronjobRunTrigger;
   status: CronjobRunStatus;
   startedAt: number;

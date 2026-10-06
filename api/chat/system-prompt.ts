@@ -200,6 +200,11 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 ### Notifications
 - Sound notification when agent finishes and tab is unfocused
 - Activity badge on desk when attention needed
+- Schedules are room-scoped, with creator/owner mutations and immutable room snapshots for historical transcripts and usage. Legacy schedules migrate to the creator's default/first room, or remain creator-only if no room resolves.
+- Schedules > Webhooks supports signed GitHub deliveries to agents and schedules, explicit payload-field selection, dry runs, delivery history, secret rotation and seven-day deduplication. Signing secrets are excluded from backups.
+- User Settings > Connections offers a downloadable Chrome tab-sharing extension. Pairing codes are single-use for five minutes; users explicitly offer tabs to selected agents, with expiry and revocation. Cross-origin navigation, disconnects or permission loss end sharing. The action API supports read, screenshot, click, type and same-origin navigation.
+- Apps supports PNG thumbnails and reversible archive/restore, preserving registration and data while revoking archived runtime access.
+- Room tab dragging saves personal order; the tab menu tucks rooms and the tucked-room picker reveals them again without changing access.
 - Pager: agents and apps can page the person responsible for them (the agent's manager or the app's owner) when something needs a human. Pages show in User Settings > Pager (also at /pager), with a count on the settings vent in the office, and can be delivered to the member's Discord channel through an incoming webhook, @mentioning them and repeating until they ack or resolve it. A dedupe key turns repeated raises into one page per incident. Discord is the only push channel; there is no Slack, email, SMS, or browser push for pages.
 
 ### Other

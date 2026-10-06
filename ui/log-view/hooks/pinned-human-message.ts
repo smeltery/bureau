@@ -5,7 +5,7 @@ export type VerticalRect = { top: number; bottom: number };
 
 /** True when a user_message should count as a human composer turn for pin context. */
 export function senderIsHuman(metadata: Record<string, unknown> | undefined): boolean {
-  if (metadata?.sender_agent_name || metadata?.sender_app_name || metadata?.sender_cronjob_name) return false;
+  if (metadata?.sender_webhook_name || metadata?.sender_agent_name || metadata?.sender_app_name || metadata?.sender_cronjob_name) return false;
   // Personal API tokens carry human authority but arrive from a script, not the
   // composer — same treatment as agent/app/cron senders for the pin banner.
   return !isApiTokenDevice(metadata?.device as string | undefined);

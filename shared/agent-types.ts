@@ -143,6 +143,7 @@ export interface AgentSubscriptionUsage {
 // could lie in. Apps have no room and no id of their own — the receiving agent
 // is the one that built the app.
 export type QueuedSender =
+  | { kind: "webhook"; webhookId: string; webhookName: string }
   | { kind: "user"; username?: string; device?: string }
   | { kind: "agent"; agentId: string; agentName: string; roomName: string }
   | { kind: "app"; appName: string }

@@ -1,3 +1,5 @@
+import { canViewSchedule } from "../../cronjobs/access.ts";
+import { getUserById } from "../../users.ts";
 import { EFFORT_LEVELS, effortDisplayLabel, familyDisplayLabel, knownModelFamiliesFor } from "../../../shared/types.ts";
 import { modelFamilyMismatchError } from "../../agent-validators.ts";
 import { listCronjobs } from "../../cronjobs/index.ts";
@@ -71,7 +73,7 @@ export async function handlePendingCronjobPick(agentId: string, managed: Managed
   managed.pendingCronjobPick = false;
   const trimmed = text.trim();
   const num = parseInt(trimmed, 10);
-  const all = listCronjobs();
+  const all = listCronjobs().filter((job) => canViewSchedule(managed.info.userId ? getUserById(managed.info.userId) : null, job));
   if (!isNaN(num) && num >= 1 && num <= all.length) {
     const userMeta = username ? { username } : undefined;
     emitEphemeralLog(agentId, "user_message", text, userMeta);

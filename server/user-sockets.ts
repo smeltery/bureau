@@ -62,3 +62,14 @@ export function listActiveSessions(): SessionWire[] {
     })
     .filter((s): s is SessionWire => s !== null);
 }
+
+export function refreshBoundUser(userId: string, user: UserRecord | null): void {
+  for (const ws of activeSockets)
+    if (wsUsers.get(ws)?.id === userId) {
+      if (user) wsUsers.set(ws, user);
+      else {
+        const previous = wsUsers.get(ws)!;
+        wsUsers.set(ws, { ...previous, role: "member", allowedRooms: [], hidden: [], order: [], notifRooms: [], defaultRoomId: null });
+      }
+    }
+}

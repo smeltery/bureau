@@ -118,3 +118,20 @@ Or via the UI: **Settings → Branches → Add branch protection rule** for
 
 After the rule exists, GitHub disables the merge button on any PR with a
 failing or pending check.
+
+
+### Browser sharing extension
+
+`bun run build:ui` also packages `browser-extension/` as
+`ui/dist/bureau-browser.zip`. The normal Bun suite covers pairing, room/agent
+authorization, grant revocation and the packaged worker's protocol. For an
+optional real-Chrome check of its fixed debugger actions:
+
+```sh
+bun node_modules/playwright-core/cli.js install chromium
+BUREAU_BROWSER_HEADLESS=1 bun scripts/test-browser-extension.mjs
+```
+
+Set `BUREAU_BROWSER_EXECUTABLE` to use another Chrome for Testing executable.
+The smoke fixture uses an inert data document to test debugger actions without
+network dependencies; production sharing accepts only HTTP/HTTPS tabs.

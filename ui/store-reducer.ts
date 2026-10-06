@@ -233,7 +233,7 @@ export function reducer(state: AppState, action: Action): AppState {
     case "cc_plugins_state":
       return { ...state, ccPlugins: action.plugins };
     case "cronjobs_state":
-      return { ...state, cronjobs: action.cronjobs, cronjobsPrompt: action.cronjobsPrompt, cronjobsLoaded: true };
+      return { ...state, cronjobs: action.cronjobs, cronjobsPrompt: action.cronjobsPrompt, cronjobsLoaded: true, cronjobRunsByJob: new Map(), cronjobRunsLoaded: false };
     case "cronjob_added":
       return { ...state, cronjobs: [...state.cronjobs.filter((c) => c.id !== action.cronjob.id), action.cronjob] };
     case "cronjob_updated":

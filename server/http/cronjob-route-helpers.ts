@@ -1,5 +1,9 @@
 import type { AuthOk, AuthResult } from "../auth/auth-middleware.ts";
 import * as AgentManager from "../agent-manager.ts";
+import { resolveRunToken } from "../cronjobs/tokens.ts";
+import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
+import { canManageSchedule, type ScheduleViewer } from "../cronjobs/access.ts";
+import { getUserById } from "../users.ts";
 import { privilegedAgentIdentity } from "./agent-route-helpers.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
 import type { AgentBackendType, CodexSandboxMode, Cronjob, CronjobPermissionMode, EffortLevel, Schedule } from "../../shared/types.ts";
@@ -21,14 +25,14 @@ export function browserSessionOrError(auth: AuthResult | undefined): AuthOk | Re
  */
 export function cronjobCallerOrError(req: Request, auth: AuthResult | undefined, cronjob?: Cronjob): CronjobCaller | Response {
   if (auth?.kind === "ok") {
-    if (!cronjob || auth.session.role === "owner" || cronjob.userId === auth.session.userId) {
+    if (!cronjob || canManageSchedule(getUserById(auth.session.userId) ?? { id: auth.session.userId, role: auth.session.role, allowedRooms: [] }, cronjob)) {
       return { session: { username: auth.session.username, userId: auth.session.userId, role: auth.session.role } };
     }
     return jsonError(403, "owner access required");
   }
   const operator = privilegedAgentIdentity(req);
   if (!operator) return jsonError(401, "authenticated browser session required");
-  if (cronjob && cronjob.userId !== operator.manager.id) return jsonError(403, "owner access required");
+  if (cronjob && !canManageSchedule(operator.manager, cronjob)) return jsonError(403, "owner access required");
   const agent = AgentManager.getAgent(operator.agentId);
   return {
     session: {
@@ -73,6 +77,7 @@ export type CronjobCreateDraft = Omit<Parameters<typeof CronjobManager.addCronjo
 type Weekday = Extract<Schedule, { type: "weekly" }>["weekday"];
 
 export function parseCronjobCreate(body: Record<string, unknown>): { ok: true; draft: CronjobCreateDraft } | { ok: false; error: string } {
+  if (body.roomId !== undefined && (typeof body.roomId !== "string" || !body.roomId)) return { ok: false, error: "roomId must be a room id" };
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) return { ok: false, error: "name is required" };
   if (typeof body.prompt !== "string") return { ok: false, error: "prompt is required" };
@@ -95,6 +100,7 @@ export function parseCronjobCreate(body: Record<string, unknown>): { ok: true; d
     ok: true,
     draft: {
       name,
+      ...(typeof body.roomId === "string" ? { roomId: body.roomId } : {}),
       schedule,
       prompt: body.prompt,
       cwd,
@@ -108,7 +114,9 @@ export function parseCronjobCreate(body: Record<string, unknown>): { ok: true; d
 }
 
 export function parseCronjobChanges(body: Record<string, unknown>): { ok: true; changes: Parameters<typeof CronjobManager.updateCronjob>[1] } | { ok: false; error: string } {
+  if (body.roomId !== undefined && (typeof body.roomId !== "string" || !body.roomId)) return { ok: false, error: "roomId must be a room id" };
   const changes: Parameters<typeof CronjobManager.updateCronjob>[1] = {};
+  if (typeof body.roomId === "string") changes.roomId = body.roomId;
   if (typeof body.name === "string") changes.name = body.name;
   if (body.schedule !== undefined) {
     const schedule = parseSchedule(body.schedule);
@@ -178,4 +186,14 @@ export function cronjobRouteParts(pathname: string): string[] | null {
   if (parts[0] === "cronjobs") return parts;
   if (parts[0] === "api" && parts[1] === "cronjobs") return parts.slice(1);
   return null;
+}
+
+export function scheduleViewer(req: Request, auth: AuthResult | undefined): ScheduleViewer | null {
+  if (auth?.kind === "ok") return getUserById(auth.session.userId) ?? { id: auth.session.userId, role: auth.session.role, allowedRooms: [] };
+  const id = auth?.kind === "api" ? auth.token.userId : (resolveAgentToken(readBearerToken(req))?.userId ?? resolveRunToken(readBearerToken(req))?.userId);
+  return id ? getUserById(id) : null;
+}
+
+export function scheduleRoomAllowed(user: ScheduleViewer | null, roomId: string): boolean {
+  return !!user && AgentManager.getRooms().some((room) => room.id === roomId) && (user.role === "owner" || user.allowedRooms.includes(roomId));
 }

@@ -30,18 +30,15 @@ and room ordering with hidden, unavailable, and duplicate entries.
   `.retired` on deletion.
 - Pager delivery, per-member settings, and backup exclusion of Discord secrets.
 
-## Integration follow-ups
+## Larger integrations implemented
 
-These are real gaps requiring coordinated changes beyond the independent fixes
-above; they are not claimed as implemented:
-
-| Capability | Required work and boundary |
+| Capability | Result and boundary |
 | --- | --- |
-| Signed inbound webhooks | Introduce signature verification over raw bodies, bounded ingress, replay handling, a secret store excluded from backups, delivery records, target authorization at dispatch, and management UI. Public ingress must not bypass existing machine-token restrictions. |
-| Room-scoped schedules | Migrate creator-owned jobs and historical runs to explicit room ownership, then apply consistent visibility to REST reads, WebSocket snapshots/events, usage, and manual triggers. Changing only the picker would expose or hide data inconsistently. |
-| Browser tab sharing through an extension | Requires a separately packaged extension, pairing, per-tab grants, expiry/revocation, and protocol lifecycle tests. Bureau currently uses an opt-in host browser with local/private URL policy. |
-| App thumbnails and archive view | Requires upload ownership/limits, media serving and cleanup, and a distinct archive lifecycle. Existing data retirement on deletion already preserves files. |
-| Personal room ordering and tucked-room controls | Audit the existing office-wide reorder protocol before introducing independent per-member ordering and optimistic updates. The Settings list fix preserves the current access and ordering model. |
+| Signed inbound webhooks | Raw-body HMAC, bounded ingress, durable replay claims, separate signing secrets, delivery records, dispatch authorization, dry runs and management UI. |
+| Room-scoped schedules | Legacy migration, immutable run room snapshots, scoped REST/WS reads and events, usage and prompt discovery; creator/owner mutations. |
+| Browser tab sharing | Packaged Chrome extension with single-use pairing, selected-agent grants, expiry, revocation, restricted actions, and cancellation on disconnect or cross-origin navigation. |
+| App thumbnails and archive | Ownership-checked bounded PNG uploads, identity-scoped media, reversible archive, runtime teardown and credential rotation on restore. |
+| Personal room controls | Personal drag ordering, tuck/reveal controls, same-user socket updates, optimistic rollback and current permission rebinding. |
 
 ## Outside Bureau's current scope
 
@@ -59,4 +56,4 @@ by previous versions cannot be recovered without a backup.
 
 On-demand jobs use the existing manual-run authorization and lifecycle. The
 enabled toggle controls timed runs; explicit Run now remains available even
-when paused, matching recurring jobs. No webhook endpoint is added here.
+when paused, matching recurring jobs. Signed webhook deliveries use the same run lifecycle without changing the timer cadence.

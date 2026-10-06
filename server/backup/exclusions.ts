@@ -21,6 +21,12 @@ function backendExclusion(entry: BackendCredentialPath): BackupExclusion {
 }
 
 const BACKUP_EXCLUSIONS: readonly BackupExclusion[] = [
+  { id: "browser-pairings", matches: (path) => path.startsWith("browser-sharing/"), report: () => ["- Browser pairings were omitted. Pair each browser again in User Settings > Connections."] },
+  {
+    id: "webhook-signing-secrets",
+    matches: (path) => path === "webhooks/secrets.json" || path === "webhooks/secrets.json.tmp",
+    report: () => ["- Webhook signing secrets were omitted. Rotate each webhook secret in Schedules > Webhooks and update its sender after restoring."],
+  },
   { id: "restore-report", matches: (path) => path === RESTORE_REPORT_FILE },
   {
     id: "app-runtime-credentials",

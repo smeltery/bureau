@@ -1,3 +1,4 @@
+import { broadcastScheduleEvent } from "./cronjob-events.ts";
 import type { ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import * as CronjobManager from "../cronjobs/index.ts";
@@ -11,13 +12,13 @@ function sendToVisibleAgent(agentId: string, msg: ServerMessage) {
   for (const ws of browsers) {
     const user = getWsUser(ws);
     if (!roomId || canSeeRoom(user, roomId)) {
-      if (msg.type === "agent_updated" && typeof msg.changes.room === "number" && user?.role === "member") {
+      if (msg.type === "agent_updated" && typeof msg.changes.room === "number" && user) {
         const projectedRooms = projectRooms(user, AgentManager.getRooms());
         const projectedRoom = projectedRooms.findIndex((r) => r.id === roomId);
         ws.send(JSON.stringify({ ...msg, changes: { ...msg.changes, room: projectedRoom, roomId } } as ServerMessage));
       } else if (msg.type === "agent_updated" && typeof msg.changes.room === "number") {
         ws.send(JSON.stringify({ ...msg, changes: { ...msg.changes, roomId } } as ServerMessage));
-      } else if (msg.type === "agent_added" && user?.role === "member") {
+      } else if (msg.type === "agent_added" && user) {
         const projected = projectAgents(user, [msg.agent], AgentManager.getRooms())[0];
         if (projected) ws.send(JSON.stringify({ ...msg, agent: projected } as ServerMessage));
       } else if (msg.type === "agent_added") {
@@ -84,7 +85,5 @@ export function wireAgentAndCronjobEvents() {
   });
 
   // Wire CronjobManager events to WebSocket broadcasts.
-  CronjobManager.onCronjobEvent((event) => {
-    broadcast(event as ServerMessage);
-  });
+  CronjobManager.onCronjobEvent(broadcastScheduleEvent);
 }

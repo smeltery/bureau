@@ -42,7 +42,7 @@ async function appsFetch<T>(method: string, path: string): Promise<T> {
 
 /** The visible apps. The route answers `{apps}`; callers want the list. */
 export async function listApps(): Promise<AppListWire[]> {
-  const body = await appsFetch<{ apps?: AppListWire[] }>("GET", "/api/apps");
+  const body = await appsFetch<{ apps?: AppListWire[] }>("GET", "/api/apps?includeArchived=true");
   return body?.apps ?? [];
 }
 
