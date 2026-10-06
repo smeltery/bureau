@@ -257,6 +257,7 @@ export const zh: Catalog = {
   "settings.sidebar.access": "访问权限",
   "settings.sidebar.account": "Account",
   "settings.sidebar.apiTokens": "API 令牌",
+  "settings.sidebar.pager": "寻呼",
   "settings.sidebar.connections": "Connections",
   "settings.sidebar.createClaim": "Create or claim user",
   "settings.sidebar.devices": "My devices",

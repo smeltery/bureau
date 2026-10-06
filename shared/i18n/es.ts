@@ -257,6 +257,7 @@ export const es = {
   "settings.sidebar.access": "Acceso",
   "settings.sidebar.account": "Cuenta",
   "settings.sidebar.apiTokens": "Tokens de API",
+  "settings.sidebar.pager": "Buscapersonas",
   "settings.sidebar.connections": "Conexiones",
   "settings.sidebar.createClaim": "Crear o reclamar usuario",
   "settings.sidebar.devices": "Mis dispositivos",

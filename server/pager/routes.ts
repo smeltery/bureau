@@ -16,6 +16,7 @@ import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { appRegistry } from "../apps/registry.ts";
 import { resolveAppToken } from "../apps/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
+import { readSessionCookies, validateSession } from "../auth/auth.ts";
 import { getPublicOrigin } from "../public-origin.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { broadcast } from "../ws/broadcast.ts";
@@ -117,8 +118,15 @@ async function finishResolve(id: string, by: string): Promise<Response> {
   return json(200, { page: resolved });
 }
 
-function memberFor(auth: AuthResult | undefined): UserRecord | null {
-  const userId = auth?.kind === "ok" ? auth.session.userId : auth?.kind === "api" ? auth.token.userId : null;
+// A browser on the office's own machine authenticates as loopback, which
+// carries no user; its session cookie still says who is looking.
+function sessionUserId(req: Request, auth: AuthResult | undefined): string | null {
+  if (auth?.kind === "ok") return auth.session.userId;
+  return auth?.kind === "loopback" ? (validateSession(readSessionCookies(req).selected || null)?.userId ?? null) : null;
+}
+
+function memberFor(req: Request, auth: AuthResult | undefined): UserRecord | null {
+  const userId = auth?.kind === "api" ? auth.token.userId : sessionUserId(req, auth);
   return userId ? getUserById(userId) : null;
 }
 
@@ -137,8 +145,8 @@ export async function handlePagerRequest(req: Request, url: URL, auth: AuthResul
   if (req.method === "POST" && parts[0] === "resolve" && parts.length === 1) return resolveFrom(req, agentSource(req));
 
   if (parts[0] === "settings") {
-    if (auth?.kind !== "ok") return json(401, { error: "signed-in session required" });
-    const userId = auth.session.userId;
+    const userId = sessionUserId(req, auth);
+    if (!userId) return json(401, { error: "signed-in session required" });
     if (req.method === "GET" && parts.length === 1) return json(200, { settings: getPagerSettings(userId) });
     if (req.method === "PUT" && parts.length === 1) {
       const result = updatePagerSettings(userId, (await readBody(req)) ?? {});
@@ -170,7 +178,7 @@ export async function handlePagerRequest(req: Request, url: URL, auth: AuthResul
     return json(404, { error: "not found" });
   }
 
-  const user = memberFor(auth);
+  const user = memberFor(req, auth);
   if (!user) return json(401, { error: "signed-in member required" });
   if (req.method === "GET" && parts.length === 0) {
     const pages = listPages().filter((page) => canSeePage(user, page));

@@ -8,6 +8,7 @@ import { AccessPane, sectionHeader } from "./AccessPane.tsx";
 import { InvitesPane } from "./InvitesPane.tsx";
 import { MyDevicesPane } from "./MyDevicesPane.tsx";
 import { ApiTokensPane, MemberApiTokens } from "./ApiTokensPane.tsx";
+import { PagerPane } from "../pager/PagerPane.tsx";
 import { SessionsPane } from "./SessionsPane.tsx";
 import { buildAccountSections, type AccountSection } from "./UserSettingsSections.ts";
 import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
@@ -242,6 +243,8 @@ export function UserSettingsView({
               <MyDevicesPane />
             ) : selection?.kind === "section" && selection.section === "api-tokens" ? (
               <ApiTokensPane />
+            ) : selection?.kind === "section" && selection.section === "pager" ? (
+              <PagerPane />
             ) : selection?.kind === "section" && selection.section === "signout" ? (
               <SignOutPane />
             ) : (

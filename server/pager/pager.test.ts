@@ -141,6 +141,7 @@ describe("pager routes", () => {
 
   test("refuses raises without a source token or a title", async () => {
     expect((await call("/api/pager", { method: "POST", body: JSON.stringify({ title: "x" }) })).status).toBe(401);
+    expect((await call("/api/pager", { auth: { kind: "loopback" } })).status).toBe(401);
     const manager = member("Manager");
     installAgent("pager-agent", 0, manager.id);
     const token = mintAgentToken("pager-agent", manager.id);

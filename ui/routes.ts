@@ -23,6 +23,7 @@ export function pageForPath(pathname: string): Page | null {
       return "plugins";
     case "/settings":
     case "/users":
+    case "/pager":
       return "settings";
     case "/team-chat":
     case "/chat":

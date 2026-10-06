@@ -87,6 +87,7 @@ export function Walls({
   onOpenSettings,
   onOpenApps,
   taskCount = 0,
+  pageCount = 0,
   leftDoor,
   rightDoor,
   decor = "standard",
@@ -99,6 +100,7 @@ export function Walls({
   onOpenSettings?: () => void;
   onOpenApps?: () => void;
   taskCount?: number;
+  pageCount?: number;
   leftDoor?: DoorProps | null;
   rightDoor?: DoorProps | null;
   decor?: RoomDecor;
@@ -216,7 +218,7 @@ export function Walls({
         transform="translate(500, 60) skewY(27)"
         role={onOpenSettings ? "button" : undefined}
         tabIndex={onOpenSettings ? 0 : undefined}
-        aria-label={onOpenSettings ? "Settings" : undefined}
+        aria-label={onOpenSettings ? (pageCount > 0 ? `Settings, ${pageCount} open page${pageCount === 1 ? "" : "s"}` : "Settings") : undefined}
         onClick={onOpenSettings}
         onKeyDown={
           onOpenSettings
@@ -236,6 +238,14 @@ export function Walls({
         <line x1="-22" y1="-2" x2="22" y2="-2" stroke="var(--wall-decor-stroke)" strokeWidth="1.5" />
         <line x1="-22" y1="4" x2="22" y2="4" stroke="var(--wall-decor-stroke)" strokeWidth="1.5" />
         <line x1="-22" y1="10" x2="22" y2="10" stroke="var(--wall-decor-stroke)" strokeWidth="1.5" />
+        {onOpenSettings && pageCount > 0 && (
+          <g transform="translate(25, -15)">
+            <circle r="8" fill="var(--red, #f85149)" stroke="var(--wall-decor)" strokeWidth="1.5" />
+            <text y="3" textAnchor="middle" fontSize="9" fontWeight="700" fill="#fff" fontFamily="'DM Sans',sans-serif">
+              {pageCount > 9 ? "9+" : pageCount}
+            </text>
+          </g>
+        )}
       </g>
 
       {/* Left wall door — leads to previous room */}
