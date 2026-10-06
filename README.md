@@ -4,10 +4,10 @@
 
 [![bureau — Four agents. One office. One glance.](website/public/og.png)](https://bureau.smeltery.io)
 
-**Free · no cloud · no account · works with your Claude subscription**
+**Self-hosted · source-available · works with your Claude subscription**
 
 [![CI](https://github.com/smeltery/bureau/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/smeltery/bureau/actions/workflows/ci.yml)
-[![License: PolyForm Shield 1.0.0](https://img.shields.io/badge/License-PolyForm%20Shield%201.0.0-blue.svg)](https://polyformproject.org/licenses/shield/1.0.0/)
+[![License: BSL 1.1 / MIT contributions](https://img.shields.io/badge/License-BSL%201.1%20%2F%20MIT%20contributions-blue.svg)](LICENSING.md)
 
 ![Bun](https://img.shields.io/badge/-Bun-000000?style=flat-square&logo=bun&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/-TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
@@ -89,6 +89,18 @@ reversible archive, and room tabs support personal ordering and tucked rooms.
 
 ## License
 
-[PolyForm Shield License 1.0.0](LICENSE). Bureau is based on
-[Isomux](https://github.com/nmamano/isomux) by Nil Mamano. See [NOTICE](NOTICE)
-for the inherited copyright notice, full MIT license, and version scope.
+Bureau is a source-available, modified distribution based on
+[Isomux](https://github.com/nmamano/isomux), created by Nil Mamano, and maintained
+independently by smeltery. No upstream endorsement is implied.
+
+The combined work is subject to the applicable upstream [BSL 1.1](LICENSE)
+terms. Personal production use and production use for organizations with at
+most 10 people are permitted by the upstream Additional Use Grant; other
+production use requires an upstream commercial license. Redistribution is
+permitted subject to the license terms.
+
+Historical MIT material retains its [original notice](NOTICE). Original
+contributions owned by smeltery are [MIT-licensed](LICENSES/smeltery-MIT.txt);
+this does not make the entire project MIT-licensed. See
+[LICENSING.md](LICENSING.md) for scope, redistribution requirements, and the
+provenance review.

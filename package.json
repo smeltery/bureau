@@ -21,7 +21,7 @@
     "format:check": "prettier --check 'server/**/*.{ts,tsx}' 'shared/**/*.{ts,tsx}' 'ui/**/*.{ts,tsx}'",
     "test": "bun test",
     "check": "bun run typecheck && bun run budget && bun run lint && bun run format:check && bun run test",
-    "build:server": "bun build server/index.ts --target bun --outdir /tmp/bureau-server-build --external playwright-core",
+    "build:server": "bun build server/index.ts --target bun --outdir /tmp/bureau-server-build --external playwright-core && bun run scripts/license-notices.mjs /tmp/bureau-server-build",
     "ci": "bun run check && bun run build:ui && bun run build:server"
   },
   "dependencies": {

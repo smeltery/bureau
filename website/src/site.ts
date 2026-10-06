@@ -12,6 +12,7 @@ export const SITE = {
   security: `${BLOB}/docs/security-audit.md`,
   contributing: `${BLOB}/docs/contributing/development.md`,
   issues: `${REPO}/issues`,
-  license: `${BLOB}/LICENSE`,
+  license: `${BLOB}/LICENSING.md`,
+  upstream: 'https://github.com/nmamano/isomux',
   smeltery: 'https://github.com/smeltery',
 } as const;
