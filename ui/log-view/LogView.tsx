@@ -323,7 +323,15 @@ export function LogView({
           </>
         )}
       </div>
-      <LogViewPanelHost agentId={agent.id} isMobile={isMobile} terminalEnabled={features.terminal} editorEnabled={features.editor} panels={panels} onSendTerminalToChat={handleTerminalSendToChat} />
+      <LogViewPanelHost
+        agentId={agent.id}
+        isMobile={isMobile}
+        terminalEnabled={features.terminal}
+        editorEnabled={features.editor}
+        panels={panels}
+        onSendTerminalToChat={handleTerminalSendToChat}
+        onCiteEditorSelection={handleCite}
+      />
       {cite && scrollRef.current && <CiteSelectionButton cite={cite} containerRect={scrollRef.current.getBoundingClientRect()} onClick={() => handleCite(cite.text)} />}
     </div>
   );

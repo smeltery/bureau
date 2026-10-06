@@ -9,18 +9,22 @@ import { EditorTabsHeader } from "./EditorTabsHeader.tsx";
 import { useCodeMirrorEditor } from "./hooks/useCodeMirrorEditor.ts";
 import { useEditorPanelLifecycle } from "./hooks/useEditorPanelLifecycle.ts";
 import { useEditorSocket } from "./hooks/useEditorSocket.ts";
+import { useEditorSelectionCite } from "./hooks/useEditorSelectionCite.ts";
+import { CiteSelectionButton } from "./CiteSelectionButton.tsx";
 
 export function EditorPanel({
   agentId,
   initialPath,
   onClose,
   onPathOpened,
+  onCite,
   mobile = false,
 }: {
   agentId: string;
   initialPath: string | null;
   onClose: () => void;
   onPathOpened?: (path: string) => void;
+  onCite?: (text: string, title: string) => void;
   // When true, renders mobile-friendly chrome: a tab dropdown instead of an
   // overflowing tab strip, an explicit Save button (mobile has no Ctrl+S),
   // a hidden line-number gutter, no autocomplete popup, and contentAttributes
@@ -75,6 +79,7 @@ export function EditorPanel({
     [agentId],
   );
   const { containerRef, viewRef, activePathRef } = useCodeMirrorEditor({ mode, mobile, tabs, activePath, setTabsAndPersist });
+  const { cite, clearCite } = useEditorSelectionCite(viewRef, containerRef, activePath, !mobile && !!onCite);
 
   useEditorSocket({ agentId, setPendingError, setActivePath, setTabsAndPersist, setRecentPaths, tabsRef });
 
@@ -219,6 +224,16 @@ export function EditorPanel({
           display: activeTab ? undefined : "none",
         }}
       />
+      {cite && onCite && containerRef.current && (
+        <CiteSelectionButton
+          cite={cite}
+          containerRect={containerRef.current.getBoundingClientRect()}
+          onClick={() => {
+            onCite(cite.text, cite.title);
+            clearCite();
+          }}
+        />
+      )}
 
       {tabs.length === 0 && recentPaths.length > 0 && (
         <div

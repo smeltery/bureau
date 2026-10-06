@@ -37,6 +37,7 @@ export function DesktopEditorSidePanel({
   initialPath,
   onClose,
   onPathOpened,
+  onCite,
 }: {
   agentId: string;
   panelRef: React.RefObject<HTMLDivElement | null>;
@@ -46,11 +47,12 @@ export function DesktopEditorSidePanel({
   initialPath: string | null;
   onClose: () => void;
   onPathOpened: () => void;
+  onCite?: (text: string, title: string) => void;
 }) {
   return (
     <div ref={panelRef} style={{ width, flexShrink: 0, position: "relative" }}>
       <PanelResizer panelRef={panelRef} min={PANEL_MIN.editor} getMax={getMax} onCommit={onCommit} />
-      <EditorPanel agentId={agentId} initialPath={initialPath} onClose={onClose} onPathOpened={onPathOpened} />
+      <EditorPanel agentId={agentId} initialPath={initialPath} onClose={onClose} onPathOpened={onPathOpened} onCite={onCite} />
     </div>
   );
 }
