@@ -18,6 +18,7 @@ import { handleContextCommand } from "./slash-context.ts";
 import { handleEffortCommand, handleModelCommand } from "./slash-model-effort.ts";
 import { handleBureauCronjobSystemPromptCommand, handleBureauSystemPromptCommand } from "./slash-prompt-commands.ts";
 import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
+import { holdQueueForHandoff, releaseQueueAfterHandoff } from "./control.ts";
 
 type HandlerFn = (agentId: string, managed: ManagedAgent, args: string[], rawText: string, username?: string) => Promise<boolean>;
 
@@ -38,7 +39,8 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.pendingModelPick = false;
     managed.pendingEffortPick = false;
     managed.pendingCronjobPick = false;
-    if (managed.messageQueue.length > 0) {
+    const dropped = managed.messageQueue.length;
+    if (dropped > 0) {
       managed.messageQueue = [];
       emit({ type: "agent_updated", agentId, changes: { queue: [] } });
     }
@@ -57,7 +59,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     logCache.set(agentId, []);
     emit({ type: "clear_logs", agentId });
     emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false, contextUsage: null } });
-    emitEphemeralLog(agentId, "system", "Conversation cleared.");
+    emitEphemeralLog(agentId, "system", dropped > 0 ? `Conversation cleared. Dropped ${dropped} queued message${dropped === 1 ? "" : "s"}.` : "Conversation cleared.");
     updateState(agentId, "idle");
     persistAll();
     return true;
@@ -135,12 +137,9 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.pendingModelPick = false;
     managed.pendingEffortPick = false;
     managed.pendingCronjobPick = false;
-    if (managed.messageQueue.length > 0) {
-      managed.messageQueue = [];
-      emit({ type: "agent_updated", agentId, changes: { queue: [] } });
-    }
+    holdQueueForHandoff(managed);
     persistCurrentSessionTopic(agentId, managed);
-    await replaceSession(agentId, managed, newSession);
+    await replaceSession(agentId, managed, newSession).catch((err) => (releaseQueueAfterHandoff(agentId, managed), Promise.reject(err)));
     managed.sessionId = null;
     managed.topicGenerating = false;
     managed.topicMessageCount = 0;
@@ -176,6 +175,8 @@ export const commandHandlers: Record<string, HandlerFn> = {
       }
       addLogEntry(agentId, "error", `Handoff restart error: ${err.message}`);
       updateState(agentId, "error");
+    } finally {
+      releaseQueueAfterHandoff(agentId, managed);
     }
     return true;
   },

@@ -61,7 +61,7 @@ export function enqueueMessage(
   msg: { sender: QueuedSender; text: string; clientMessageId?: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean; handoff?: boolean },
   // Agent-initiated steering. Kept on this call so enqueue and interrupt use
   // the same state read and synchronous queue push.
-  opts?: { steer?: boolean },
+  opts?: { steer?: boolean; atHead?: boolean },
 ): EnqueueResult {
   const managed = agents.get(receiverId);
   if (!managed) return { ok: false, error: "agent not found", status: 404 };
@@ -95,7 +95,7 @@ export function enqueueMessage(
     !hasPendingFlow(managed) &&
     getBackend(managed.info.agentType).toolBoundaryDelivery === true &&
     boundaryEligible({ sender: msg.sender, sdkText: msg.sdkText, handoff: msg.handoff, attachments: msg.attachments });
-  managed.messageQueue.push({
+  managed.messageQueue[opts?.atHead ? "unshift" : "push"]({
     id,
     sender: msg.sender,
     text: msg.text,
@@ -206,7 +206,7 @@ export function enqueueUserMessage(agentId: string, managed: ManagedAgent, text:
 export async function flushQueue(agentId: string): Promise<void> {
   const managed = agents.get(agentId);
   if (!managed) return;
-  if (managed.flushInProgress) return;
+  if (managed.flushInProgress || managed.flushHeld) return;
   if (managed.messageQueue.length === 0) return;
   if (managed.info.state === "error" || managed.info.state === "stopped") return;
   if (isAgentBusy(managed.info.state)) return;

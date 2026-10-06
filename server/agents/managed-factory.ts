@@ -53,6 +53,7 @@ export function createManagedAgent(input: {
     queueDedupe: new Map(),
     autoResumeInProgress: false,
     flushInProgress: false,
+    flushHeld: false,
     recentSteers: [],
     boundaryClaim: null,
     lastWrittenEntryId: null,
