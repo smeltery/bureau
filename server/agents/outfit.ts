@@ -5,7 +5,7 @@ function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function generateOutfit(): AgentOutfit {
+function rollOutfit(): AgentOutfit {
   return {
     hat: pick(HATS),
     costume: pick(COSTUMES),
@@ -16,4 +16,18 @@ export function generateOutfit(): AgentOutfit {
     beard: pick(BEARDS),
     accessory: pick(ACCESSORIES),
   };
+}
+
+// Combinations a person can still pick by hand, but that look like a sprite
+// glitch when they come out of the dice: a hair bow with a beard or no hair,
+// and pigtails with a beard.
+export function outfitClashes(outfit: AgentOutfit): boolean {
+  const bearded = outfit.beard !== "none";
+  return (outfit.hat === "bow" && (bearded || outfit.hairStyle === "bald")) || (bearded && outfit.hairStyle === "pigtails");
+}
+
+export function generateOutfit(): AgentOutfit {
+  let outfit = rollOutfit();
+  while (outfitClashes(outfit)) outfit = rollOutfit();
+  return outfit;
 }

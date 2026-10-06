@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { generateOutfit } from "../outfit.ts";
+import { generateOutfit, outfitClashes } from "../outfit.ts";
 import { ACCESSORIES, BEARDS, HAIR_COLORS, HAIR_STYLES, HATS, SHIRT_COLORS, SKIN_COLORS } from "../../../shared/outfit-options.ts";
 
 // generateOutfit picks each field uniformly at random from the canonical
@@ -83,5 +83,19 @@ describe("generateOutfit covers the option space", () => {
   test("every ACCESSORIES option appears at least once (incl. null)", () => {
     const seen = new Set(outfits.map((o) => o.accessory));
     for (const opt of ACCESSORIES) expect(seen).toContain(opt);
+  });
+});
+
+describe("generateOutfit clashes", () => {
+  test("never rolls a bow with a beard or bald head, or pigtails with a beard", () => {
+    for (const outfit of sample()) expect(outfitClashes(outfit)).toBe(false);
+  });
+
+  test("flags exactly the clashing combinations", () => {
+    const base = generateOutfit();
+    expect(outfitClashes({ ...base, hat: "bow", beard: "full", hairStyle: "short" })).toBe(true);
+    expect(outfitClashes({ ...base, hat: "bow", beard: "none", hairStyle: "bald" })).toBe(true);
+    expect(outfitClashes({ ...base, hat: "cap", beard: "goatee", hairStyle: "pigtails" })).toBe(true);
+    expect(outfitClashes({ ...base, hat: "bow", beard: "none", hairStyle: "pigtails" })).toBe(false);
   });
 });
