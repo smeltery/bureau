@@ -7,7 +7,7 @@ const PIPE_TAIL_DISPLAY_LIMIT = 64;
 
 type JsonObject = Record<string, unknown>;
 
-const routeLabels: Array<[RegExp, string]> = [
+const routeLabels: Array<[RegExp, string | ((path: string) => string)]> = [
   [/^\/api\/agents\/[^/]+\/read-file$/, "Bureau API: show file to boss"],
   [/^\/api\/agents\/[^/]+\/preview-url$/, "Bureau API: browser preview"],
   [/^\/api\/agents\/[^/]+\/browser$/, "Bureau API: interactive browser"],
@@ -42,6 +42,8 @@ const routeLabels: Array<[RegExp, string]> = [
   [/^\/api\/cronjobs(?:\/.*)?$/, "Bureau API: schedules"],
   [/^\/api\/cron-runs$/, "Bureau API: recent cron runs"],
   [/^\/api\/rooms\/[^/]+\/settings$/, "Bureau API: room settings"],
+  [/^\/api\/agent-reference\/?$/, "Bureau API: office API reference"],
+  [/^\/api\/agent-reference\/[^/]+$/, (path) => `Bureau API: office API reference: ${decodeURIComponent(path.split("/").pop()!)}`],
 ];
 
 const fieldOrder = ["action", "path", "url", "name", "command", "text", "steer", "title", "status", "assignee", "room"];
@@ -52,8 +54,9 @@ export function summarizeBureauCurl(command: string): string | null {
   const url = extractLocalBureauUrl(command);
   if (!url) return null;
 
-  const label = routeLabels.find(([pattern]) => pattern.test(url.pathname))?.[1];
-  if (!label) return null;
+  const route = routeLabels.find(([pattern]) => pattern.test(url.pathname))?.[1];
+  if (!route) return null;
+  const label = typeof route === "string" ? route : route(url.pathname);
 
   const fields = extractBodyFields(command);
   const pipeTail = extractPipeTail(command, url.rawEnd);

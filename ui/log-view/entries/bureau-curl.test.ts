@@ -18,6 +18,11 @@ describe("summarizeBureauCurl", () => {
     );
   });
 
+  test("labels office API reference reads, naming the page", () => {
+    expect(summarizeBureauCurl(`curl -s localhost:4000/api/agent-reference -H "Authorization: Bearer $T"`)).toBe("Bureau API: office API reference");
+    expect(summarizeBureauCurl(`curl -s localhost:4000/api/agent-reference/privileged-operations`)).toBe("Bureau API: office API reference: privileged-operations");
+  });
+
   test("falls back for non-curl commands", () => {
     expect(summarizeBureauCurl("bun test ui/log-view")).toBeNull();
   });
