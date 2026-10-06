@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { storageSetItem } from "../browser-storage.ts";
 import { useAppState } from "../store.tsx";
+import { roomsInViewerOrder } from "../roomSelection.ts";
 import { send } from "../ws.ts";
 import type { UserRole } from "../../shared/types.ts";
 import { dialogCancelBtn, dialogInput, dialogLabel, dialogSaveBtn } from "./modals/dialog-styles.ts";
@@ -40,7 +41,7 @@ export function UserSettingsView({
   const { users, rooms, allRooms, sessionContext, activeSessions, activeSessionsLoaded, presences, isMobile } = useAppState();
   const isOwner = sessionContext?.role === "owner";
   const userList = useMemo(() => [...users.values()].sort((a, b) => a.name.localeCompare(b.name)), [users]);
-  const editorRooms = allRooms.length ? allRooms : rooms;
+  const editorRooms = useMemo(() => roomsInViewerOrder(allRooms.length ? allRooms : rooms, rooms), [allRooms, rooms]);
   const [newName, setNewName] = useState("");
   const [selection, setSelection] = useState<Selection | null>(() => {
     if (initialSection) return { kind: "section", section: initialSection };

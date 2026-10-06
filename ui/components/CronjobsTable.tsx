@@ -153,7 +153,7 @@ export function CronjobsTable({
               {!isMobile && <td style={{ padding: cellPad, fontSize: 12, color: "var(--text-secondary)", fontFamily: "'JetBrains Mono',monospace" }}>{humanizeSchedule(c.schedule)}</td>}
               {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{timeAgo(c.lastFireAt)}</td>}
               <td style={{ padding: cellPad, fontSize: 11, color: c.enabled ? "var(--text-secondary)" : "var(--text-ghost)", fontFamily: "'JetBrains Mono',monospace" }}>
-                {c.enabled ? `in ${timeUntil(c.nextFireAt)}` : "paused"}
+                {c.schedule.type === "manual" ? "On demand" : !c.enabled ? "paused" : c.nextFireAt === null ? "—" : `in ${timeUntil(c.nextFireAt)}`}
               </td>
               <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{runs.length}</td>
               {!isMobile && (

@@ -1,6 +1,6 @@
 import type { PagerDeliveryFailure, PagerEntry } from "../../shared/types.ts";
 import { getDiscordWebhook, getPagerSettings } from "./settings.ts";
-import { listPages, pruneResolvedPages, recordDelivery } from "./store.ts";
+import { listPages, recordDelivery } from "./store.ts";
 
 export type DiscordPost = (url: string, payload: object) => Promise<{ status: number; retryAfterMs?: number }>;
 
@@ -94,7 +94,6 @@ export function isDue(page: PagerEntry, now: number): boolean {
 
 export async function pagerTick(deps: PagerDeliveryDeps): Promise<void> {
   const now = deps.now();
-  if (pruneResolvedPages(now) > 0) deps.changed();
   for (const page of listPages().filter((p) => isDue(p, now))) await sendPage(page, "page", deps);
 }
 

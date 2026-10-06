@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { RoomWire } from "../shared/types.ts";
-import { applyRoomClose, resolveSelectedRoomId, roomIndexById } from "./roomSelection.ts";
+import { applyRoomClose, resolveSelectedRoomId, roomIndexById, roomsInViewerOrder } from "./roomSelection.ts";
 
 function room(id: string): RoomWire {
   return { id, name: id.toUpperCase(), prompt: null, envFile: null };
@@ -74,5 +74,18 @@ describe("roomIndexById", () => {
   it("falls back to zero for null or missing ids", () => {
     expect(roomIndexById([A, B, C], null)).toBe(0);
     expect(roomIndexById([A, B, C], "missing")).toBe(0);
+  });
+});
+
+describe("roomsInViewerOrder", () => {
+  it("uses the viewer's tabs first and keeps hidden rooms in office order", () => {
+    const available = [A, B, C];
+    expect(roomsInViewerOrder(available, [C, A])).toEqual([C, A, B]);
+    expect(available).toEqual([A, B, C]);
+  });
+
+  it("ignores unavailable and duplicate tabs without dropping accessible rooms", () => {
+    expect(roomsInViewerOrder([A, B], [C, B, B])).toEqual([B, A]);
+    expect(roomsInViewerOrder([A, B], [])).toEqual([A, B]);
   });
 });

@@ -6,7 +6,6 @@ import { atomicWriteFileSync, BUREAU_DIR } from "../persistence/paths.ts";
 
 export const PAGER_DIR = join(BUREAU_DIR, "pager");
 export const PAGES_FILE = join(PAGER_DIR, "pages.json");
-export const RESOLVED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 export const PAGE_TITLE_MAX = 200;
 export const PAGE_BODY_MAX = 2000;
 export const PAGE_KEY_MAX = 200;
@@ -109,18 +108,6 @@ export function recordDelivery(id: string, delivery: PagerEntry["delivery"]): vo
   if (!page) return;
   page.delivery = delivery;
   persist();
-}
-
-/** Drop resolved pages older than the retention window. Returns how many went. */
-export function pruneResolvedPages(now = Date.now()): number {
-  const list = load();
-  const kept = list.filter((page) => page.state !== "resolved" || (page.resolvedAt ?? 0) > now - RESOLVED_RETENTION_MS);
-  const removed = list.length - kept.length;
-  if (removed > 0) {
-    pages = kept;
-    persist();
-  }
-  return removed;
 }
 
 export function _testResetPagerStore(): void {

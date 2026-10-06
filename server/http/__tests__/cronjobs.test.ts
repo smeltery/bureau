@@ -134,7 +134,7 @@ describe("handleCronjobsRequest", () => {
     const res = await handleCronjobsRequest(createReq, new URL(createReq.url), ownerAuth);
 
     expect(res?.status).toBe(400);
-    expect(await res?.json()).toEqual({ error: "schedule must be daily, weekly, or interval with finite numeric fields" });
+    expect(await res?.json()).toEqual({ error: "schedule must be manual, daily, weekly, or interval with finite numeric fields" });
   });
 
   test("rejects malformed cronjob update schedules", async () => {
@@ -158,7 +158,7 @@ describe("handleCronjobsRequest", () => {
     const res = await handleCronjobsRequest(req, new URL(req.url), ownerAuth);
 
     expect(res?.status).toBe(400);
-    expect(await res?.json()).toEqual({ error: "schedule must be daily, weekly, or interval with finite numeric fields" });
+    expect(await res?.json()).toEqual({ error: "schedule must be manual, daily, weekly, or interval with finite numeric fields" });
 
     CronjobManager.deleteCronjob(cronjob.id);
   });

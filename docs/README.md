@@ -48,6 +48,9 @@ Detailed subsystem documentation.
 
 Deep dives into bugs, SDK behavior, and architectural decisions.
 
+[October capability review](investigations/capability-review-2026-10.md) records
+the implemented gaps, existing coverage, and remaining integration work.
+
 | Document                                                                     | Description                                                             |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | [Held-Back Messages Bug](investigations/held-back-messages-investigation.md) | Persistent consumer loop fix                                            |

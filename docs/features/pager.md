@@ -17,7 +17,7 @@ The token decides the source and the target; the body carries only `title` (requ
 
 ## The page record
 
-Stored in `~/.bureau/pager/pages.json` (`PagerEntry` in `shared/user-types.ts`): id, timestamps, raise count, source (kind, id, name, room), target member, title, body, key, state (`open`, `acked`, `resolved`) with who and when, and delivery status (last attempt, successful sends, last failure class). Webhook URLs and raw responses never land on a page. Resolved pages are deleted after 30 days.
+Stored in `~/.bureau/pager/pages.json` (`PagerEntry` in `shared/user-types.ts`): id, timestamps, raise count, source (kind, id, name, room), target member, title, body, key, state (`open`, `acked`, `resolved`) with who and when, and delivery status (last attempt, successful sends, last failure class). Webhook URLs and raw responses never land on a page. Resolved pages remain available as incident history; delivery ticks never delete them.
 
 ## Delivery
 

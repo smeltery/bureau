@@ -9,7 +9,7 @@ import { claimUserByName, deleteUserById, updateUserById } from "../users.ts";
 import { discordPayload, isDue, pagerTick } from "./delivery.ts";
 import { _testResetPagerRoutes, handlePagerRequest, pagerDeliveryDeps } from "./routes.ts";
 import { _testResetPagerSettings, getDiscordWebhook, PAGER_WEBHOOKS_FILE, updatePagerSettings } from "./settings.ts";
-import { _testResetPagerStore, ackPage, PAGER_DIR, pruneResolvedPages, raisePage, resolvePage, RESOLVED_RETENTION_MS } from "./store.ts";
+import { _testResetPagerStore, ackPage, PAGER_DIR, findPage, raisePage, resolvePage } from "./store.ts";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_9";
 const posts: { url: string; payload: { content: string; allowed_mentions: { users: string[] } } }[] = [];
@@ -71,11 +71,17 @@ describe("pager store", () => {
     expect(raisePage({ source, targetUserId: "u1", title: "Disk full again", key: "disk", now: 5 }).created).toBe(true);
   });
 
-  test("resolved pages are deleted after the retention window", () => {
-    const { entry } = raisePage({ source, targetUserId: "u1", title: "x", now: 1 });
+  test("resolved pages survive delivery ticks and reloads beyond 30 days", async () => {
+    const { entry } = raisePage({ source, targetUserId: "u1", title: "Disk full", key: "disk", now: 1 });
+    ackPage(entry.id, "boss", 5);
     resolvePage(entry.id, "Ada", 10);
-    expect(pruneResolvedPages(10 + RESOLVED_RETENTION_MS - 1)).toBe(0);
-    expect(pruneResolvedPages(10 + RESOLVED_RETENTION_MS + 1)).toBe(1);
+    const snapshot = structuredClone(entry);
+    await pagerTick({ ...pagerDeliveryDeps, now: () => 365 * 24 * 60 * 60 * 1000 });
+    _testResetPagerStore();
+    expect(findPage(entry.id)).toEqual(snapshot);
+    expect(posts).toHaveLength(0);
+    expect(raisePage({ source, targetUserId: "u1", title: "Disk full again", key: "disk" }).created).toBe(true);
+    expect(findPage(entry.id)).toEqual(snapshot);
   });
 });
 

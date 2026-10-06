@@ -55,6 +55,9 @@ Then open **http://localhost:4000** and click an empty desk.
 | **Persistence** | File system (`~/.bureau/` or `BUREAU_HOME`) — survives crashes |
 | **Deploy**      | Local or headless server + Tailscale                           |
 
+Save recurring or on-demand jobs in **Schedules**, and keep resolved incidents in
+your **Pager** history. See the [full feature list](docs/features/full-feature-list.md).
+
 ## Documentation
 
 |                                                                                       |                                                     |

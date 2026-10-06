@@ -81,7 +81,7 @@ export function parseCronjobCreate(body: Record<string, unknown>): { ok: true; d
   if (body.schedule === undefined || body.modelFamily === undefined) return { ok: false, error: "schedule and modelFamily are required" };
   if (body.effort === undefined || body.permissionMode === undefined) return { ok: false, error: "effort and permissionMode are required" };
   const schedule = parseSchedule(body.schedule);
-  if (!schedule) return { ok: false, error: "schedule must be daily, weekly, or interval with finite numeric fields" };
+  if (!schedule) return { ok: false, error: "schedule must be manual, daily, weekly, or interval with finite numeric fields" };
   const agentType = parseAgentType(body.agentType);
   if (body.agentType !== undefined && !agentType) return { ok: false, error: "agentType must be claude, codex, or opencode" };
   if (typeof body.modelFamily !== "string" || !body.modelFamily.trim()) return { ok: false, error: "modelFamily must be a string" };
@@ -112,7 +112,7 @@ export function parseCronjobChanges(body: Record<string, unknown>): { ok: true; 
   if (typeof body.name === "string") changes.name = body.name;
   if (body.schedule !== undefined) {
     const schedule = parseSchedule(body.schedule);
-    if (!schedule) return { ok: false, error: "schedule must be daily, weekly, or interval with finite numeric fields" };
+    if (!schedule) return { ok: false, error: "schedule must be manual, daily, weekly, or interval with finite numeric fields" };
     changes.schedule = schedule;
   }
   if (typeof body.prompt === "string") changes.prompt = body.prompt;
@@ -143,6 +143,7 @@ export function parseCronjobChanges(body: Record<string, unknown>): { ok: true; 
 function parseSchedule(value: unknown): Schedule | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const schedule = value as Record<string, unknown>;
+  if (schedule.type === "manual") return { type: "manual" };
   if (schedule.type === "interval" && isFiniteNumber(schedule.minutes)) return { type: "interval", minutes: schedule.minutes };
   if (schedule.type === "daily" && isFiniteNumber(schedule.hour) && isFiniteNumber(schedule.minute)) return { type: "daily", hour: schedule.hour, minute: schedule.minute };
   if (schedule.type === "weekly" && isFiniteNumber(schedule.weekday) && isFiniteNumber(schedule.hour) && isFiniteNumber(schedule.minute))

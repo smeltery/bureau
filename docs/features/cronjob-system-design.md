@@ -2,7 +2,7 @@
 
 ## Overview
 
-A new "page" (UI view) that lets humans schedule recurring SDK sessions in the office. Each cronjob has a schedule, a name, a prompt, and the same configurability as a bureau agent (model, working directory, permission mode). On schedule, the cronjob spawns a fresh subagent session that runs the prompt; the resulting transcript is preserved as a "run" and is browsable from the UI.
+A new "page" (UI view) that lets humans save on-demand or recurring SDK sessions in the office. Each cronjob has a schedule, a name, a prompt, and the same configurability as a bureau agent (model, working directory, permission mode). On schedule, the cronjob spawns a fresh subagent session that runs the prompt; the resulting transcript is preserved as a "run" and is browsable from the UI.
 
 Cronjobs are **not** bureau agents. They have no desk, no room, no persistent identity — only configuration and a history of runs. They are a separate top-level concept stored under `~/.bureau/cronjobs/`.
 
@@ -33,10 +33,11 @@ interface Cronjob {
   device: string | null;       // boss name (multi-boss attribution; null in v1)
   createdAt: number;           // unix ms
   lastFireAt: number | null;   // unix ms of most recent successful start
-  nextFireAt: number;          // unix ms of next scheduled fire
+  nextFireAt: number | null;          // unix ms of next scheduled fire; null for on demand
 }
 
 type Schedule =
+  | { type: "manual" }
   | { type: "daily"; hour: number; minute: number }
   | { type: "weekly"; weekday: 0|1|2|3|4|5|6; hour: number; minute: number }  // 0 = Sunday
   | { type: "interval"; minutes: number };  // floor enforced server-side (min 5)
@@ -108,6 +109,7 @@ Mirrors `~/.bureau/logs/<agentId>/` exactly with one extra layer of nesting (job
 - **Successful completion:** SDK emits its terminal `result` message. Set `status: "completed"`, `endedAt`, and compute `previewText` from the last assistant text block.
 - **Hard timeout:** global server constant (30 min for v1). Timer fires, session is killed, `status: "timed_out"`, `errorReason: "exceeded global run timeout"`.
 - **Server crash mid-run:** on startup, scan `runs.json` for any row with `status: "running"` and mark `status: "failed"`, `errorReason: "server restarted during run"`. Transcript may be partial; that's fine.
+- **On demand:** choose On demand in the schedule form, or send `schedule: { type: "manual" }` through the API. These jobs have `nextFireAt: null` and never fire on a timer, including after restart. Use Run now to start a fresh run. Switching back to a recurring schedule computes its next future fire.
 - **`enabled: false`:** cronjob still exists in the table; scheduler skips it. Existing runs remain accessible.
 - **Manual "Run now":** identical execution path with `trigger: "manual"`. Does not affect `nextFireAt`. Independent of overlap rule.
 - **Edit while running:** allowed. The in-flight run uses its `*Snapshot` fields; the edit applies to the next scheduled fire.

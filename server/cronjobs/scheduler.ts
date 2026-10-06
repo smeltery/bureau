@@ -23,7 +23,7 @@ export interface CronjobSchedulerDeps {
 export function tickCronjobScheduler(deps: CronjobSchedulerDeps, now: number = Date.now()) {
   const cronjobs = deps.getCronjobs();
   for (const job of cronjobs) {
-    if (!job.enabled) continue;
+    if (!job.enabled || job.schedule.type === "manual" || job.nextFireAt === null) continue;
     if (now < job.nextFireAt) continue;
     if (deps.hasInFlightScheduledRun(job.id)) {
       deps.recordSkippedRun(job);
