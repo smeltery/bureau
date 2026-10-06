@@ -89,4 +89,6 @@ reversible archive, and room tabs support personal ordering and tucked rooms.
 
 ## License
 
-[PolyForm Shield License 1.0.0](LICENSE)
+[PolyForm Shield License 1.0.0](LICENSE). Bureau is based on
+[Isomux](https://github.com/nmamano/isomux) by Nil Mamano. See [NOTICE](NOTICE)
+for the inherited copyright notice, full MIT license, and version scope.
