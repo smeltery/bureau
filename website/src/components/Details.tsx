@@ -40,7 +40,7 @@ const FAQ = [
   },
   {
     q: 'Is it free?',
-    a: 'Yes. Bureau is source-available and free to self-host. You bring the machine and the model subscription.',
+    a: 'Personal use and production use for organizations with at most 10 people are permitted without a commercial license. Other production use requires a commercial license from the upstream licensor, Isomux LLC. Bureau is source-available; see the licensing terms linked below. You bring the machine and the model subscription.',
   },
 ];
 

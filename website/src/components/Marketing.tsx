@@ -58,7 +58,7 @@ export function Hero() {
             See how it works
           </a>
         </div>
-        <p className="fine">Free · self-hosted · runs on your Claude subscription</p>
+        <p className="fine">Free for personal use · self-hosted · runs on your Claude subscription</p>
       </div>
       <figure className="office-card">
         <div className="window-bar" aria-hidden="true">

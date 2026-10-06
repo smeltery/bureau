@@ -31,3 +31,4 @@ cp ui/icons/*.png ui/dist/icons/
 cp ui/icon.svg ui/dist/icons/icon.svg
 
 bun run scripts/build-browser-extension.ts
+bun run scripts/license-notices.mjs ui/dist

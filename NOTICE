@@ -8,20 +8,46 @@ Original project: https://github.com/nmamano/isomux
 Original MIT license:
 https://github.com/nmamano/isomux/blob/0f8b8f8eac592492be1616625689e99930c71d98/LICENSE
 
-The copyright and MIT license below apply to the MIT-licensed portions
-inherited from that project. Bureau's own licensing is described in LICENSE;
-it does not replace the notices or permissions for those inherited portions.
-Retain this notice and the license below when distributing copies or
-substantial portions of that software.
+Bureau is an independently maintained, modified distribution, not an official
+release of Isomux. No endorsement by its authors or Isomux LLC is implied.
 
-The original project's NOTICE identifies releases through v2026.9.10 as
-MIT-licensed. Later releases use different license terms. This notice does
-not grant MIT rights to material obtained under those later terms.
-Reference:
+License scope
+=============
+
+Copyright (c) 2026 Nil -- historical MIT-licensed material (full text below).
+Copyright (c) 2026 Isomux LLC -- material supplied under BSL 1.1.
+Copyright (c) 2026 smeltery -- original Bureau contributions owned by smeltery.
+
+This distribution includes later upstream material and modifications. The
+Business Source License 1.1 in LICENSE applies to the original and modified
+Licensed Work and its derivative works. It is reproduced without changing the
+upstream licensor, Licensed Work, Additional Use Grant, Change Date, or Change
+License. It must be retained with distributed copies. Bureau does not grant
+commercial exceptions to those upstream terms.
+
+The separate MIT grant in LICENSES/smeltery-MIT.txt covers only original
+contributions whose copyright is owned by smeltery. It does not relicense
+upstream material or exempt the combined derivative work from the BSL.
+
+Upstream identifies releases through v2026.9.10 as MIT-licensed. Preserve the
+MIT copyright and permission notice below for inherited MIT material. Later
+BSL terms do not revoke the MIT grant for those earlier versions. Neither the
+historical MIT grant nor the Bureau contribution grant is an alternative
+license for the entire current distribution.
+
+Reference snapshot used for the October integration review:
+fbfe9335f803f247969465b98a1caf29f76ef7a6 (2026-10-06; untagged).
+https://github.com/nmamano/isomux/blob/fbfe9335f803f247969465b98a1caf29f76ef7a6/LICENSE
 https://github.com/nmamano/isomux/blob/fbfe9335f803f247969465b98a1caf29f76ef7a6/NOTICE
 
+Earlier post-MIT additions are also present. See LICENSING.md and
+docs/investigations/licensing-provenance-2026-10.md for the reviewed history,
+material examples, and limitations. Change dates remain version-specific;
+Bureau's release dates do not reset or establish upstream conversion dates.
+
 Other bundled third-party components retain their respective licenses and
-notices, including deploy/container/seccomp/LICENSE.
+notices, including deploy/container/seccomp/LICENSE. Dependency licenses and
+generated-code notices must also be retained where applicable.
 
 Original license (reproduced verbatim)
 =====================================

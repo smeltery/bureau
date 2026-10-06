@@ -100,8 +100,9 @@ export function Footer() {
         </div>
         <div className="footer-bottom">
           <p>
-            © 2026 <a href={SITE.smeltery}>smeltery</a>. Source-available under the{' '}
-            <a href={SITE.license}>PolyForm Shield 1.0.0</a> license.
+            © 2026 <a href={SITE.smeltery}>smeltery</a>. Source-available. See the{' '}
+            <a href={SITE.license}>BSL and MIT licensing terms</a>.
+            {' '}Based on <a href={SITE.upstream}>Isomux</a> by Nil Mamano.
             <span className="footer-sep" aria-hidden="true">
               ·
             </span>

@@ -1,5 +1,6 @@
 import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { PROJECT_LICENSE_FILES } from "./license-notices.mjs";
 
 // Store-only ZIP keeps extension packaging independent of system zip tools.
 function crc32(bytes: Uint8Array): number {
@@ -14,10 +15,15 @@ const root = join(import.meta.dir, "..");
 const chunks: Buffer[] = [],
   directory: Buffer[] = [];
 let offset = 0;
-for (const filename of (await readdir(join(root, "browser-extension"))).sort()) {
-  if (!/\.(js|json|html|css)$/.test(filename)) continue;
+const extensionFiles = (await readdir(join(root, "browser-extension")))
+  .filter((filename) => /\.(js|json|html|css)$/.test(filename))
+  .map((filename) => ({ filename, source: join(root, "browser-extension", filename) }));
+const noticeFiles = PROJECT_LICENSE_FILES.map((filename) => ({ filename, source: join(root, filename) }));
+for (const { filename, source } of [...extensionFiles, ...noticeFiles].sort((a, b) =>
+  a.filename.localeCompare(b.filename),
+)) {
   const name = Buffer.from(filename),
-    data = await readFile(join(root, "browser-extension", filename));
+    data = await readFile(source);
   const header = Buffer.alloc(30);
   header.writeUInt32LE(0x04034b50);
   header.writeUInt16LE(20, 4);

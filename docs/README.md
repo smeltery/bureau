@@ -51,6 +51,9 @@ Detailed subsystem documentation.
 
 Deep dives into bugs, SDK behavior, and architectural decisions.
 
+[Licensing provenance review](investigations/licensing-provenance-2026-10.md)
+records the upstream license history, inspected material, and distribution scope.
+
 [October capability review](investigations/capability-review-2026-10.md) records
 the implemented gaps, existing coverage, and integration boundaries.
 

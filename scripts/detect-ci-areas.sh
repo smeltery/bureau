@@ -23,12 +23,16 @@ while IFS= read -r path; do
   [[ -z "$path" ]] && continue
 
   case "$path" in
-    website/*|vercel.json)
+    website/*|vercel.json|LICENSE|NOTICE|LICENSING.md|LICENSES/*|scripts/license-notices.mjs|docs/investigations/licensing-provenance-2026-10.md)
       website=true
       ;;
   esac
 
   case "$path" in
+    LICENSE|NOTICE|LICENSING.md|LICENSES/*|scripts/license-notices.mjs|docs/investigations/licensing-provenance-2026-10.md)
+      app=true
+      demo=true
+      ;;
     demo/*)
       app=true
       demo=true
