@@ -35,6 +35,7 @@ h2,
 h3 {
   margin: 0;
   letter-spacing: -0.035em;
+  word-spacing: 0.12em;
   line-height: 1.05;
 }
 

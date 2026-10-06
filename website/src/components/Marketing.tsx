@@ -1,4 +1,6 @@
+import { github } from '../brand-icons.ts';
 import { SITE } from '../site.ts';
+import { Logo } from './Logo.tsx';
 import { OfficeScene, STATUS_COLOR, type Status } from './OfficeScene.tsx';
 
 export function Header() {
@@ -17,8 +19,9 @@ export function Header() {
         <a href="#how">How it works</a>
         <a href="#features">Features</a>
         <a href="#faq">FAQ</a>
-        <a href={SITE.github} target="_blank" rel="noreferrer">
-          GitHub <span aria-hidden="true">↗</span>
+        <a className="nav-github" href={SITE.github} target="_blank" rel="noreferrer">
+          <Logo icon={github} />
+          GitHub
         </a>
       </nav>
     </header>

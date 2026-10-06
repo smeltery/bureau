@@ -1,5 +1,3 @@
-import { SITE } from '../site.ts';
-
 export function Local() {
   return (
     <section className="section local" aria-labelledby="local-title">
@@ -62,32 +60,5 @@ export function Faq() {
         ))}
       </div>
     </section>
-  );
-}
-
-export function Footer() {
-  return (
-    <footer className="site-footer">
-      <div className="cta">
-        <h2>
-          Punch in. <em>Pull up a desk.</em>
-        </h2>
-        <pre>
-          <code>{'git clone https://github.com/smeltery/bureau.git\ncd bureau && bun install && bun run dev'}</code>
-        </pre>
-        <a className="btn btn-primary" href={SITE.quickStart}>
-          Read the quick start <span aria-hidden="true">→</span>
-        </a>
-      </div>
-      <div className="footer-line">
-        <span>bureau — your agent office</span>
-        <nav aria-label="Footer">
-          <a href={SITE.docs}>Docs</a>
-          <a href={SITE.article}>How it’s built</a>
-          <a href={SITE.license}>License</a>
-          <a href={SITE.github}>GitHub</a>
-        </nav>
-      </div>
-    </footer>
   );
 }

@@ -1,0 +1,148 @@
+.cta {
+  display: grid;
+  justify-items: start;
+  gap: 18px;
+  margin: 24px 0 72px;
+  padding: 44px;
+  border-radius: 24px;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.cta pre {
+  margin: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cta .btn-primary {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 56px 0 32px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.site-footer a {
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  color: var(--ink);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.6fr repeat(3, 1fr);
+  gap: 40px 32px;
+}
+
+.footer-brand p {
+  max-width: 26ch;
+  margin: 12px 0 18px;
+}
+
+.footer-brand .brand {
+  color: var(--ink);
+}
+
+.btn-small {
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.site-footer h3 {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.site-footer ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-footer nav li + li {
+  margin-top: 10px;
+}
+
+.works-with {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 28px;
+  margin-top: 48px;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.works-with > span {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.works-with ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 28px;
+}
+
+.works-with li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding-top: 22px;
+  font-size: 13px;
+}
+
+.footer-bottom p {
+  margin: 0;
+}
+
+.footer-bottom p a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footer-legal {
+  flex: 1;
+}
+
+.footer-social {
+  display: inline-flex;
+  color: var(--ink);
+}
+
+@media (max-width: 860px) {
+  .cta {
+    padding: 28px;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .footer-brand {
+    grid-column: 1 / -1;
+  }
+}

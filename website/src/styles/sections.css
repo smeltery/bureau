@@ -37,6 +37,12 @@ main,
   text-decoration: none;
 }
 
+.nav-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .site-header nav a:hover {
   color: var(--ink);
 }
@@ -241,49 +247,6 @@ main,
   color: var(--muted);
 }
 
-.site-footer {
-  padding: 24px 0 36px;
-}
-
-.cta {
-  display: grid;
-  justify-items: start;
-  gap: 18px;
-  padding: 44px;
-  border-radius: 24px;
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.cta pre {
-  margin: 0;
-  max-width: 100%;
-  overflow-x: auto;
-  padding: 16px 18px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.cta .btn-primary {
-  background: var(--paper);
-  color: var(--ink);
-}
-
-.footer-line {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding-top: 24px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.footer-line nav {
-  display: flex;
-  gap: 18px;
-}
-
 @media (max-width: 860px) {
   .hero,
   .local {
@@ -295,8 +258,5 @@ main,
   }
   .site-header nav a:not(:last-child) {
     display: none;
-  }
-  .cta {
-    padding: 28px;
   }
 }
