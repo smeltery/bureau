@@ -54,6 +54,9 @@ Deep dives into bugs, SDK behavior, and architectural decisions.
 [Licensing provenance review](investigations/licensing-provenance-2026-10.md)
 records the upstream license history, inspected material, and distribution scope.
 
+[Publication review](investigations/publication-review-2026-10.md) records the
+Git-history secret scan, metadata and image checks, and their limits.
+
 [October capability review](investigations/capability-review-2026-10.md) records
 the implemented gaps, existing coverage, and integration boundaries.
 
