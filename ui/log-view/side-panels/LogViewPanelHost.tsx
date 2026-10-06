@@ -8,6 +8,7 @@ export function LogViewPanelHost({
   editorEnabled,
   panels,
   onSendTerminalToChat,
+  onCiteEditorSelection,
 }: {
   agentId: string;
   isMobile: boolean;
@@ -15,6 +16,7 @@ export function LogViewPanelHost({
   editorEnabled: boolean;
   panels: ReturnType<typeof useLogViewPanels>;
   onSendTerminalToChat?: (text: string) => void;
+  onCiteEditorSelection?: (text: string, title: string) => void;
 }) {
   return (
     <>
@@ -39,6 +41,7 @@ export function LogViewPanelHost({
           initialPath={panels.editorInitialPath}
           onClose={() => panels.setEditorOpen(false)}
           onPathOpened={panels.clearEditorInitialPath}
+          onCite={onCiteEditorSelection}
         />
       )}
       {isMobile && terminalEnabled && panels.terminalOpen && <MobileTerminalSidePanel agentId={agentId} onClose={() => panels.setTerminalOpen(false)} onSendToChat={onSendTerminalToChat} />}

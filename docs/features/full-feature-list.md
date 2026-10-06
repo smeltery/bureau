@@ -153,7 +153,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   environment and standard copy/paste shortcuts across platforms.
 - Built-in file editor with tabs, syntax highlighting, empty-state guidance,
   dirty-buffer tracking,
-  and external-change detection.
+  and external-change detection. On desktop, selecting code shows a Cite pill
+  that quotes the selection into the chat input under its path and line range.
 - Rich diff cards via `/bureau-diff`.
 - Copy-to-terminal cards for commands an agent wants to hand to the user.
 - File-view cards for agent-exposed files.
