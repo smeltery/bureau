@@ -200,6 +200,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 ### Notifications
 - Sound notification when agent finishes and tab is unfocused
 - Activity badge on desk when attention needed
+- Pager: agents and apps can page the person responsible for them (the agent's manager or the app's owner) when something needs a human. Pages show in User Settings > Pager (also at /pager), with a count on the settings vent in the office, and can be delivered to the member's Discord channel through an incoming webhook, @mentioning them and repeating until they ack or resolve it. A dedupe key turns repeated raises into one page per incident. Discord is the only push channel; there is no Slack, email, SMS, or browser push for pages.
 
 ### Other
 - Voice-to-text prompting and text-to-speech responses (works locally; requires HTTPS via Tailscale for remote)

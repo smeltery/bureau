@@ -19,6 +19,7 @@ import { OfficePeopleLayer } from "./OfficePeopleLayer.tsx";
 import { useOfficeDoorFeedback } from "./hooks/useOfficeDoorFeedback.ts";
 import { useRoomSkinVars } from "./skins/index.tsx";
 import { OfficeLobbyLayer, lobbyEditFromUrl } from "./OfficeLobbyLayer.tsx";
+import { openPagesFor, usePager } from "../pager/usePager.ts";
 
 // Pixel coords (scene-container space) where ghosts park when sliding
 // to/from a door on a room switch. Roughly centered horizontally on the
@@ -80,6 +81,7 @@ export function OfficeView({
   const dispatch = useDispatch();
   const { cycleTheme } = useTheme();
   const { embed } = useFeatures();
+  const { pages } = usePager(!embed && !!sessionContext);
   const skinVars = useRoomSkinVars();
   const mobileScale = isMobile ? screen.width / (SCENE_W - 200) : 1;
   // layoutKey changes whenever the centered-scene static transform changes,
@@ -215,6 +217,7 @@ export function OfficeView({
                   onOpenSettings={embed ? undefined : onEditUsername}
                   onOpenApps={embed ? undefined : onOpenApps}
                   taskCount={tasks.filter((t) => t.status !== "done" && t.status !== "backlog").length}
+                  pageCount={openPagesFor(pages, sessionContext?.userId)}
                   leftDoor={
                     currentRoom > 0
                       ? {

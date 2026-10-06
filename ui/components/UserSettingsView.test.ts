@@ -15,12 +15,13 @@ describe("buildAccountSections", () => {
       "sessions",
       "devices",
       "api-tokens",
+      "pager",
       "signout",
     ]);
   });
 
   test("keeps members scoped to their own devices and signout", () => {
-    expect(buildAccountSections(false, true).map((entry) => entry.section)).toEqual(["connections", "personal-env", "usage", "devices", "api-tokens", "signout"]);
+    expect(buildAccountSections(false, true).map((entry) => entry.section)).toEqual(["connections", "personal-env", "usage", "devices", "api-tokens", "pager", "signout"]);
   });
 
   test("shows only owner access before a session context is available", () => {

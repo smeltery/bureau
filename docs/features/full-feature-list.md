@@ -69,6 +69,10 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Invite-link authentication with owner and member roles.
 - Active session revocation and one-time invite management.
 - Live user/device presence in the office.
+- **Pager**: agents (`POST /api/pager`) and apps (`POST /api/app/page`) page
+  the member responsible for them. Pages live in User Settings > Pager
+  (`/pager`), badge the settings vent, and are delivered to the member's
+  Discord webhook until acked or resolved. See `docs/features/pager.md`.
 - Office-wide **Team chat** (`/team-chat`) for signed-in humans — monthly JSONL
   under `~/.bureau/members-chat/`, cookie session only (no agents / API tokens).
 - **Lobby** isometric scene (tab + Room 1 left door): warm wood lobby; click the
@@ -162,9 +166,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Experimental interactive agent browser (opt-in `experimental.browserPanel` in
   Office Settings, off by default): `POST /api/agents/:id/browser` for
   goto/snapshot/click/fill/press/screenshot/close against the same local/private
-  + allowlist URL policy. Uses host Chrome via Playwright (Chromium not bundled).
-  Side panel streams live CDP JPEG frames; managers can type, drag-select, and copy selection.
-  The page closes after 15 idle minutes unless someone is watching, and can be reopened.
+  - allowlist URL policy. Uses host Chrome via Playwright (Chromium not bundled).
+    Side panel streams live CDP JPEG frames; managers can type, drag-select, and copy selection.
+    The page closes after 15 idle minutes unless someone is watching, and can be reopened.
 - Local `curl` calls to Bureau affordance endpoints render as readable
   tool-call summaries with key payload fields.
 

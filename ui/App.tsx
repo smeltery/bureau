@@ -66,7 +66,7 @@ export function App() {
     else if (bootedPage === "team-chat") setTeamChatOpen(true);
     else if (bootedPage === "settings") {
       setEditingUserId(null);
-      setEditingAccountSection(null);
+      setEditingAccountSection(window.location.pathname.startsWith("/pager") ? "pager" : null);
       setEditingUsername(true);
     }
   }, [bootedPage]);

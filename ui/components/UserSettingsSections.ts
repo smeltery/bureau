@@ -1,6 +1,6 @@
 import type { MessageKey, PlainMessageKey } from "../../shared/i18n/translate.ts";
 
-export type AccountSection = "access" | "connections" | "office-env" | "personal-env" | "usage" | "storage" | "invites" | "sessions" | "devices" | "api-tokens" | "signout";
+export type AccountSection = "access" | "connections" | "office-env" | "personal-env" | "usage" | "storage" | "invites" | "sessions" | "devices" | "api-tokens" | "pager" | "signout";
 
 export const ACCOUNT_SECTION_LABEL_KEYS: Record<AccountSection, PlainMessageKey> = {
   access: "settings.sidebar.access",
@@ -13,6 +13,7 @@ export const ACCOUNT_SECTION_LABEL_KEYS: Record<AccountSection, PlainMessageKey>
   sessions: "settings.sidebar.sessions",
   devices: "settings.sidebar.devices",
   "api-tokens": "settings.sidebar.apiTokens",
+  pager: "settings.sidebar.pager",
   signout: "settings.sidebar.signOut",
 };
 
@@ -33,6 +34,7 @@ export function buildAccountSections(isOwner: boolean, hasSession: boolean): { s
     ...(isOwner && hasSession ? [{ section: "sessions" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS.sessions }] : []),
     ...(hasSession ? [{ section: "devices" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS.devices }] : []),
     ...(hasSession ? [{ section: "api-tokens" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS["api-tokens"] }] : []),
+    ...(hasSession ? [{ section: "pager" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS.pager }] : []),
     // Sign out stays visible with no session (disabled in SignOutPane).
     { section: "signout" as const, labelKey: ACCOUNT_SECTION_LABEL_KEYS.signout },
   ];
