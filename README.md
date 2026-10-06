@@ -4,7 +4,7 @@
 
 **Your agent office.** _Cute in a useful way._
 
-![demo](demo/demo-office.gif)
+[![bureau — Four agents. One office. One glance.](website/public/og.png)](https://bureau.smeltery.io)
 
 **Free · no cloud · no account · works with your Claude subscription**
 
@@ -24,6 +24,8 @@
 ---
 
 Friction going from 1 Claude Code to 4+? Bureau is a browser-based office where each AI agent sits at a desk. See who's working, who's sleeping, and who needs you — at a glance.
+
+![demo](demo/demo-office.gif)
 
 ## Quick Start
 
@@ -143,7 +145,7 @@ bureau/
 ├── demo/            # Standalone demo app (build + static assets)
 ├── shared/          # TypeScript types shared between server and UI
 ├── api/             # HTTP API endpoints (chat, uploads)
-├── website/         # Marketing website (Next.js, Vercel)
+├── website/         # Marketing website (Vite + React, Vercel)
 ├── skills/          # Bureau-bundled Claude Code skills
 ├── articles/        # Blog-style articles
 ├── docs/            # Design docs, investigations, plans
