@@ -80,7 +80,11 @@ used for agents they spawn plus browser speech input/output where supported.
 Each signed-in user can create bearer tokens in `User Settings` -> `API tokens`
 for scripts or off-device API calls. A token is shown once at creation, stored
 only as a SHA-256 hash in `~/.bureau/api-tokens.json`, and can expire after 30
-days, 1 year, or never. Revoking a token removes it immediately.
+days, 1 year, or never. Revoking a token removes it immediately. Owners see
+each member's tokens on that member's profile and can revoke them there
+(`GET /api/users/<username>/api-tokens`, `DELETE .../api-tokens/<id>`; owner
+browser session only). Secrets in token conversation logs are masked before
+they are written, using the same patterns as agent logs.
 
 Use one as:
 

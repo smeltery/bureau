@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "fs";
 import type { ApiTokenInboxDrainRes, ApiTokenInboxMessage, ApiTokenLogEntry, ApiTokenWire } from "../../shared/types.ts";
 import { API_TOKENS_FILE, atomicWriteFileSync } from "../persistence/paths.ts";
 import { getUserById } from "../users.ts";
+import { redactLogEntry } from "../persistence/logs/log-redaction.ts";
 import { appendTokenLog, migrateLegacyInbox, readTokenLogAfter, refreshTokenLog, type LegacyInboxMessage, _testResetApiTokenLogs } from "./api-token-log.ts";
 
 const RAW_PREFIX = "bureau_pat_";
@@ -181,7 +182,7 @@ function isLive(record: StoredApiToken, now: number): boolean {
 function commitEntry(record: StoredApiToken, entry: ApiTokenLogEntry): void {
   refreshTokenLog(record.id);
   entry.sequence = record.lastSequence + 1;
-  appendTokenLog(record.id, entry);
+  appendTokenLog(record.id, redactLogEntry(entry));
   record.lastSequence = entry.sequence;
   persist();
 }

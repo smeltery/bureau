@@ -174,3 +174,57 @@ curl -X POST ${window.location.origin}/api/me/api-token-inbox/drain \\
     </div>
   );
 }
+
+export function MemberApiTokens({ username }: { username: string }) {
+  const [tokens, setTokens] = useState<ApiTokenWire[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const base = `/api/users/${encodeURIComponent(username)}/api-tokens`;
+
+  useEffect(() => {
+    let cancelled = false;
+    setTokens(null);
+    setError(null);
+    fetch(base)
+      .then(async (res) => {
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || "Failed to load API tokens");
+        if (!cancelled) setTokens(Array.isArray(body.apiTokens) ? body.apiTokens : []);
+      })
+      .catch((caught) => {
+        if (!cancelled) setError(caught instanceof Error ? caught.message : "Failed to load API tokens");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [base]);
+
+  async function revoke(id: string) {
+    setError(null);
+    const res = await fetch(`${base}/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error || "Failed to revoke API token");
+      return;
+    }
+    setTokens((current) => (current ?? []).filter((token) => token.id !== id));
+  }
+
+  return (
+    <div style={{ border: "1px solid var(--border-subtle)", borderRadius: 8, padding: 12, marginTop: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 650, marginBottom: 6 }}>API tokens this user has created</div>
+      {tokens === null && !error && <p style={hint}>Loading...</p>}
+      {tokens?.length === 0 && <p style={hint}>No API tokens.</p>}
+      {tokens?.map((token) => (
+        <div key={token.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", marginTop: 6 }}>
+          <div style={{ minWidth: 0, fontSize: 11, color: "var(--text-ghost)" }}>
+            <strong style={{ color: "var(--text-primary)" }}>{token.name}</strong> · {token.tokenPrefix}... · last used {token.lastUsedAt ? new Date(token.lastUsedAt).toLocaleString() : "never"}
+          </div>
+          <button onClick={() => void revoke(token.id)} style={{ ...dialogSaveBtn, background: "var(--red, #f85149)" }}>
+            Revoke
+          </button>
+        </div>
+      ))}
+      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{error}</p>}
+    </div>
+  );
+}

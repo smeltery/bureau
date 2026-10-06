@@ -3,6 +3,7 @@ import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { addLogEntry } from "../agents/state.ts";
 import type { AuthResult } from "./auth-middleware.ts";
+import { getUserByName } from "../users.ts";
 import { API_TOKEN_EXPIRY_DAYS, drainApiTokenInbox, enqueueApiTokenInboxMessage, listApiTokens, mintApiToken, revokeApiToken } from "./api-tokens.ts";
 import { apiTokenIdempotency, cachedJson, idempotencyToResponse, readIdempotencyKey } from "../http/idempotency.ts";
 
@@ -87,6 +88,21 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
       },
     );
     return idempotencyToResponse(outcome);
+  }
+
+  const memberMatch = /^\/api\/users\/([^/]+)\/api-tokens(?:\/([^/]+))?$/.exec(url.pathname);
+  if (memberMatch && (req.method === "GET" || req.method === "DELETE")) {
+    if (auth?.kind !== "ok") return jsonError(401, "authenticated session required");
+    if (auth.session.role !== "owner") return jsonError(403, "owner only");
+    const member = getUserByName(decodeURIComponent(memberMatch[1]!));
+    if (!member) return jsonError(404, "user not found");
+    const tokenId = memberMatch[2] ? decodeURIComponent(memberMatch[2]) : null;
+    if (req.method === "GET" && !tokenId) return json({ apiTokens: listApiTokens(member.id) });
+    if (req.method === "DELETE" && tokenId) {
+      if (!(await revokeApiToken(member.id, tokenId))) return jsonError(404, "API token not found");
+      return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+    return jsonError(404, "not found");
   }
 
   if (!url.pathname.startsWith("/api/api-tokens")) return null;
