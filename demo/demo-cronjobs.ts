@@ -10,7 +10,8 @@ export function setCronjobsPrompt(value: string | null) {
   return cronjobsPrompt;
 }
 
-export function computeNextFireDemo(schedule: Schedule, anchor: number, now: number = Date.now()): number {
+export function computeNextFireDemo(schedule: Schedule, anchor: number, now: number = Date.now()): number | null {
+  if (schedule.type === "manual") return null;
   if (schedule.type === "interval") {
     const intervalMs = Math.max(5, schedule.minutes) * 60_000;
     if (now <= anchor) return anchor + intervalMs;

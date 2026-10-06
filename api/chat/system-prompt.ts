@@ -111,7 +111,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Ctrl+C to interrupt — cleanly aborts and lets you resume
 
 ### Cron Jobs
-- Schedule recurring SDK sessions on a daily, weekly, or interval cadence (minimum 5 min)
+- Save on-demand SDK sessions (Run now only), or schedule recurring sessions on a daily, weekly, or interval cadence (minimum 5 min)
 - Each fire opens a fresh session, runs your prompt unattended, and persists the transcript as a "run"
 - Cron Jobs page surfaces a runs feed (with filter by job) and a job-config table; click a run to read its transcript
 - Resume any past run by sending a follow-up message; or edit-to-fork a prior user message to branch from that point

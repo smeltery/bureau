@@ -23,7 +23,7 @@ export interface RunStartDeps {
   startRunHardTimeout(deps: RunLifecycleDeps, active: ActiveRun): void;
   lifecycleDeps(): RunLifecycleDeps;
   finalizeRun(active: ActiveRun, status: CronjobRun["status"], errorReason?: string | null): void;
-  computeNextFire(schedule: Cronjob["schedule"], anchor: number, now?: number): number;
+  computeNextFire(schedule: Cronjob["schedule"], anchor: number, now?: number): number | null;
 }
 
 export function fireCronjobRunWithDeps(deps: RunStartDeps, job: Cronjob, trigger: CronjobRun["trigger"], triggeredBy?: string): CronjobRun | null {

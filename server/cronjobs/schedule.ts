@@ -5,7 +5,10 @@ import type { Schedule } from "../../shared/types.ts";
 
 export const MIN_INTERVAL_MINUTES = 5;
 
-export function computeNextFire(schedule: Schedule, anchor: number, now: number = Date.now()): number {
+export function computeNextFire(schedule: Exclude<Schedule, { type: "manual" }>, anchor: number, now?: number): number;
+export function computeNextFire(schedule: Schedule, anchor: number, now?: number): number | null;
+export function computeNextFire(schedule: Schedule, anchor: number, now: number = Date.now()): number | null {
+  if (schedule.type === "manual") return null;
   if (schedule.type === "interval") {
     const intervalMs = Math.max(MIN_INTERVAL_MINUTES, schedule.minutes) * 60_000;
     if (now <= anchor) return anchor + intervalMs;
@@ -35,6 +38,7 @@ export function computeNextFire(schedule: Schedule, anchor: number, now: number 
 }
 
 export function clampSchedule(schedule: Schedule): Schedule {
+  if (schedule.type === "manual") return { type: "manual" };
   if (schedule.type === "interval") {
     return {
       type: "interval",

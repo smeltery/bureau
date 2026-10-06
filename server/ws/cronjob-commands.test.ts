@@ -42,7 +42,7 @@ describe("handleCronjobCommand", () => {
       type: "agent_save_response",
       requestId: "req-1",
       ok: false,
-      error: "schedule must be daily, weekly, or interval with finite numeric fields",
+      error: "schedule must be manual, daily, weekly, or interval with finite numeric fields",
     });
   });
 
@@ -76,7 +76,7 @@ describe("handleCronjobCommand", () => {
       type: "agent_save_response",
       requestId: "req-2",
       ok: false,
-      error: "schedule must be daily, weekly, or interval with finite numeric fields",
+      error: "schedule must be manual, daily, weekly, or interval with finite numeric fields",
     });
   });
 

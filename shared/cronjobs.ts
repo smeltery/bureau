@@ -1,7 +1,11 @@
 import type { AgentBackendType } from "./agent-types.ts";
 import type { CodexSandboxMode, EffortLevel } from "./agent-models.ts";
 
-export type Schedule = { type: "daily"; hour: number; minute: number } | { type: "weekly"; weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6; hour: number; minute: number } | { type: "interval"; minutes: number };
+export type Schedule =
+  | { type: "manual" }
+  | { type: "daily"; hour: number; minute: number }
+  | { type: "weekly"; weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6; hour: number; minute: number }
+  | { type: "interval"; minutes: number };
 
 // Permission modes available for cronjobs. Modes that can block on human
 // approval would hang forever in an unattended run.
@@ -25,7 +29,7 @@ export interface Cronjob {
   device: string | null;
   createdAt: number;
   lastFireAt: number | null;
-  nextFireAt: number;
+  nextFireAt: number | null;
 }
 
 export type CronjobRunStatus = "running" | "completed" | "failed" | "timed_out" | "skipped";
@@ -71,6 +75,7 @@ export function parseStreamId(id: string): { kind: "agent"; agentId: string } | 
 }
 
 export function humanizeSchedule(s: Schedule): string {
+  if (s.type === "manual") return "On demand";
   const pad = (n: number) => n.toString().padStart(2, "0");
   if (s.type === "daily") return `Daily at ${pad(s.hour)}:${pad(s.minute)}`;
   if (s.type === "weekly") {

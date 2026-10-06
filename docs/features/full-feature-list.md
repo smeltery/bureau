@@ -72,11 +72,14 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - **Pager**: agents (`POST /api/pager`) and apps (`POST /api/app/page`) page
   the member responsible for them. Pages live in User Settings > Pager
   (`/pager`), badge the settings vent, and are delivered to the member's
-  Discord webhook until acked or resolved. See `docs/features/pager.md`.
+  Discord webhook until acked or resolved. Resolved entries remain available
+  as incident history. See `docs/features/pager.md`.
 - Office-wide **Team chat** (`/team-chat`) for signed-in humans — monthly JSONL
   under `~/.bureau/members-chat/`, cookie session only (no agents / API tokens).
 - **Lobby** isometric scene (tab + Room 1 left door): warm wood lobby; click the
   receptionist chip to open Team chat. Presence uses sentinel room id `lobby`.
+- Room lists in user settings follow your tab order, then show other accessible
+  rooms in office order, including when an owner edits another member.
 - Full-page user settings for profiles, access, self-service device links,
   personal API tokens, provider Connections (Claude/Codex status + API keys),
   ghost appearance, saved language preference (English / Spanish / Catalan /
@@ -174,7 +177,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 ## Scheduling And Persistence
 
-- Cron jobs with daily, weekly, and interval schedules.
+- Cron jobs with daily, weekly, and interval schedules, or On demand for
+  saved jobs that run only when you choose Run now.
 - Account → Variables pane for each signed-in user’s managed env (overrides office variables).
 - User-facing "Schedules" naming for cron jobs (header, panels, dialogs); APIs stay `cronjob`.
 - Privileged agents can create/update/delete/run schedules owned by their manager; the office-wide schedules prompt stays boss-only.

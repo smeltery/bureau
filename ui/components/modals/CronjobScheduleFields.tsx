@@ -10,7 +10,7 @@ const WEEKDAYS: { value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }[] = [
   { value: 6, label: "Saturday" },
 ];
 
-export type ScheduleType = "daily" | "weekly" | "interval";
+export type ScheduleType = Schedule["type"];
 
 export function clampScheduleNumber(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
@@ -34,6 +34,7 @@ export function buildCronjobSchedule({
   weekday: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   intervalStr: string;
 }): Schedule {
+  if (scheduleType === "manual") return { type: "manual" };
   const hour = clampScheduleNumber(parseIntOr(hourStr, 0), 0, 23);
   const minute = clampScheduleNumber(parseIntOr(minuteStr, 0), 0, 59);
   const intervalMinutes = Math.max(5, parseIntOr(intervalStr, 5));
@@ -73,6 +74,7 @@ export function CronjobScheduleFields({
     <>
       <label style={{ ...labelStyle, marginTop: 14 }}>Schedule</label>
       <select value={scheduleType} onChange={(e) => setScheduleType(e.target.value as ScheduleType)} style={{ ...inputStyle, appearance: "none", cursor: "pointer", marginBottom: 6 }}>
+        <option value="manual">On demand</option>
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
         <option value="interval">Every N minutes</option>
@@ -131,7 +133,7 @@ export function CronjobScheduleFields({
           />
         </div>
       )}
-      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "6px 0 0" }}>Times are server-local.</p>
+      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "6px 0 0" }}>{scheduleType === "manual" ? "Runs only when you choose Run now." : "Times are server-local."}</p>
     </>
   );
 }
