@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { assertModelFamilyForAgentType, InvalidModelFamilyError, modelFamilyMismatchError, resolveInteractiveModelSelection, validateCronjobPermissionMode } from "../agent-validators.ts";
-import { CODEX_MODELS, knownModelFamiliesFor, MODEL_FAMILIES } from "../../shared/types.ts";
+import {
+  agentSpawnedPermissions,
+  assertModelFamilyForAgentType,
+  InvalidModelFamilyError,
+  modelFamilyMismatchError,
+  resolveInteractiveModelSelection,
+  validateCronjobPermissionMode,
+} from "../agent-validators.ts";
+import { CODEX_MODELS, knownModelFamiliesFor, MODEL_FAMILIES, type AgentInfo } from "../../shared/types.ts";
 
 describe("validateCronjobPermissionMode", () => {
   test("keeps the unattended cron mode", () => {
@@ -96,5 +103,31 @@ describe("assertModelFamilyForAgentType", () => {
   test("allows a well-formed OpenCode provider/model and refuses missing ones", () => {
     expect(() => assertModelFamilyForAgentType("opencode", "provider/model")).not.toThrow();
     expect(() => assertModelFamilyForAgentType("opencode", undefined)).toThrow(InvalidModelFamilyError);
+  });
+});
+
+function spawner(fields: Partial<AgentInfo>): AgentInfo {
+  return { agentType: "claude", permissionMode: "default", ...fields } as AgentInfo;
+}
+
+describe("agentSpawnedPermissions", () => {
+  test("a prompting spawner hands its child the engine's unattended mode", () => {
+    expect(agentSpawnedPermissions(spawner({ permissionMode: "auto" }), "claude")).toEqual({ permissionMode: "bypassPermissions" });
+    expect(agentSpawnedPermissions(spawner({ permissionMode: "acceptEdits" }), "codex")).toEqual({ permissionMode: "never", codexSandbox: "danger-full-access" });
+    expect(agentSpawnedPermissions(spawner({ permissionMode: "default" }), "opencode")).toEqual({ permissionMode: "bypassPermissions" });
+  });
+
+  test("a never-prompting spawner of the same engine passes its own mode on", () => {
+    const codex = spawner({ agentType: "codex", permissionMode: "never", codexSandbox: "workspace-write" });
+    expect(agentSpawnedPermissions(codex, "codex")).toEqual({ permissionMode: "never", codexSandbox: "workspace-write" });
+  });
+
+  test("a never-prompting spawner of another engine maps to the child's unattended mode", () => {
+    const codex = spawner({ agentType: "codex", permissionMode: "never", codexSandbox: "read-only" });
+    expect(agentSpawnedPermissions(codex, "claude")).toEqual({ permissionMode: "bypassPermissions" });
+  });
+
+  test("an unknown spawner still gets an unattended child", () => {
+    expect(agentSpawnedPermissions(undefined, "claude")).toEqual({ permissionMode: "bypassPermissions" });
   });
 });

@@ -18,6 +18,7 @@ import {
   isClaudeFamily,
   OPENCODE_MODELS,
   type AgentBackendType,
+  type AgentInfo,
   type AgentPermissionMode,
   type CodexSandboxMode,
   type CronjobPermissionMode,
@@ -160,4 +161,26 @@ export function validateCronjobPermissionMode(agentType: AgentBackendType, raw: 
   // Claude + OpenCode: only "bypassPermissions" is unattended-safe.
   if (raw === "bypassPermissions") return "bypassPermissions";
   return "bypassPermissions";
+}
+
+type SpawnPermissions = Pick<AgentInfo, "permissionMode" | "codexSandbox">;
+
+// The mode each engine runs in without ever asking a person for approval.
+export function unattendedPermissions(agentType: AgentBackendType): SpawnPermissions {
+  return agentType === "codex" ? { permissionMode: "never", codexSandbox: "danger-full-access" } : { permissionMode: "bypassPermissions" };
+}
+
+function neverPrompts(info: Pick<AgentInfo, "agentType" | "permissionMode">): boolean {
+  return info.agentType === "codex" ? info.permissionMode === "never" : info.permissionMode === "bypassPermissions";
+}
+
+// An agent that spawns a coworker without naming a mode: nobody is watching
+// the new desk, so a prompting mode would leave it stuck on its first tool
+// call. Keep the spawner's mode only when it never prompts and means the same
+// thing in the child's engine; otherwise use the child's unattended mode.
+export function agentSpawnedPermissions(spawner: AgentInfo | undefined, childType: AgentBackendType): SpawnPermissions {
+  if (spawner && spawner.agentType === childType && neverPrompts(spawner)) {
+    return { permissionMode: spawner.permissionMode, ...(spawner.codexSandbox ? { codexSandbox: spawner.codexSandbox } : {}) };
+  }
+  return unattendedPermissions(childType);
 }
