@@ -110,6 +110,9 @@ export interface ManagedAgent {
   // second resume against the same transcript.
   autoResumeInProgress: boolean;
   flushInProgress: boolean;
+  // Set while a handoff swaps sessions, so queued messages wait for the brief
+  // instead of reaching the fresh session ahead of it.
+  flushHeld: boolean;
   // Date.now() of each agent-initiated steer that actually interrupted a turn
   // of THIS receiver, newest last, pruned to the rate-limit window on each
   // check. Per receiver across all senders: what the limit protects is this

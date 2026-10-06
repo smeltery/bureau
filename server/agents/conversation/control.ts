@@ -180,21 +180,36 @@ export async function newConversation(agentId: string) {
   }
 }
 
+// A handoff keeps the queue: the fresh session gets the brief first, then every
+// queued message. Hold flushes while the session swaps; the "queued during your
+// previous turn" note means nothing to a session with no previous turn.
+export function holdQueueForHandoff(managed: ManagedAgent): void {
+  managed.flushHeld = true;
+  managed.messageQueue = managed.messageQueue.map(({ queuedDuringBusyTurn: _, ...item }) => item);
+}
+
+export function releaseQueueAfterHandoff(agentId: string, managed: ManagedAgent): void {
+  managed.flushHeld = false;
+  if (managed.messageQueue.length > 0 && !isAgentBusy(managed.info.state)) {
+    flushQueue(agentId).catch((err: any) => console.error(`flushQueue (after handoff) failed for ${agentId}:`, err.message));
+  }
+}
+
 export async function handoff(agentId: string, text: string): Promise<EnqueueResult> {
-  if (!agents.has(agentId)) return { ok: false, error: "agent not found", status: 404 };
+  const managed = agents.get(agentId);
+  if (!managed) return { ok: false, error: "agent not found", status: 404 };
   if (handoffInProgress.has(agentId)) return { ok: false, error: "handoff_in_progress", status: 409 };
   handoffInProgress.add(agentId);
+  holdQueueForHandoff(managed);
   try {
     await newConversation(agentId);
     const self = getAgentDisplay(agentId);
     if (!self) return { ok: false, error: "agent not found", status: 404 };
-    return enqueueMessage(agentId, {
-      sender: { kind: "agent", agentId, agentName: self.name, roomName: self.roomName },
-      text,
-      handoff: true,
-    });
+    managed.flushHeld = false;
+    return enqueueMessage(agentId, { sender: { kind: "agent", agentId, agentName: self.name, roomName: self.roomName }, text, handoff: true }, { atHead: true });
   } finally {
     handoffInProgress.delete(agentId);
+    releaseQueueAfterHandoff(agentId, managed);
   }
 }
 

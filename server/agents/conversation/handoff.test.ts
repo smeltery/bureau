@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
+import { claudeBackend } from "../../backends/claude.ts";
 import type { BackendSession } from "../../backends/types.ts";
 import { createManagedAgent } from "../managed-factory.ts";
 import { agents, logCache, persistAll, type ManagedAgent } from "../state.ts";
@@ -90,6 +91,32 @@ describe("handoff", () => {
     const result = await handoff("agent-1", "Finish wiring the widget.");
     expect(result).toEqual({ ok: true, queued: false, messageId: expect.any(String) });
     expect(logCache.get("agent-1")?.some((entry) => entry.kind === "system" && entry.content === "New conversation started.")).toBe(true);
+  });
+
+  test("keeps queued messages and delivers the brief ahead of them", async () => {
+    const sent: string[] = [];
+    const managed = makeAgent("agent-1", null as unknown as BackendSession);
+    managed.session = fakeSession(managed, () => {});
+    const spawn = spyOn(claudeBackend, "createSession").mockImplementation(() => fakeSession(managed, (text) => void sent.push(text)));
+    const sender = { kind: "user" as const, username: "boss" };
+    managed.messageQueue = [
+      { id: "q1", sender, text: "first queued ask", queuedAt: 1, queuedDuringBusyTurn: true },
+      { id: "q2", sender, text: "second queued ask", queuedAt: 2, queuedDuringBusyTurn: true },
+    ];
+
+    const result = await handoff("agent-1", "BRIEF: finish the widget.");
+    expect(result.ok).toBe(true);
+    for (let i = 0; i < 50 && sent.length === 0; i++) await new Promise((r) => setTimeout(r, 5));
+
+    expect(sent).toHaveLength(1);
+    const prompt = sent[0]!;
+    const brief = prompt.indexOf("BRIEF: finish the widget.");
+    expect(brief).toBeGreaterThanOrEqual(0);
+    expect(prompt.indexOf("first queued ask")).toBeGreaterThan(brief);
+    expect(prompt.indexOf("second queued ask")).toBeGreaterThan(prompt.indexOf("first queued ask"));
+    expect(prompt).not.toContain("queued while you were processing");
+    expect(managed.flushHeld).toBe(false);
+    spawn.mockRestore();
   });
 
   test("rejects a concurrent handoff with handoff_in_progress", async () => {
