@@ -44,7 +44,7 @@ Some have custom messages (e.g., `/login` directs to the built-in terminal, `/pl
 
 Claude Code skills bundled with Bureau, overridable by user/project skills:
 
-`/bureau-pair-programming`, `/bureau-peer-review`, `/bureau-review`, `/bureau-review-and-commit`, `/bureau-second-opinion`, `/bureau-soft-handoff`, `/bureau-subagent-review`, `/grill-me`, `/report-bureau-bug`
+`/bureau-figure-it-out`, `/bureau-pair-programming`, `/bureau-peer-review`, `/bureau-review`, `/bureau-review-and-commit`, `/bureau-second-opinion`, `/bureau-soft-handoff`, `/bureau-subagent-review`, `/grill-me`, `/report-bureau-bug`
 
 Claude Code bundled skills that Bureau knows about but does not implement natively:
 
