@@ -102,8 +102,11 @@ export function Footer() {
           <p>
             © 2026 <a href={SITE.smeltery}>smeltery</a>. Source-available under the{' '}
             <a href={SITE.license}>PolyForm Shield 1.0.0</a> license.
+            <span className="footer-sep" aria-hidden="true">
+              ·
+            </span>
+            Product names and logos are trademarks of their respective owners.
           </p>
-          <p className="footer-legal">Product names and logos are trademarks of their respective owners.</p>
           <a className="footer-social" href={SITE.github} aria-label="bureau on GitHub">
             <Logo icon={icons.github} size={18} />
           </a>

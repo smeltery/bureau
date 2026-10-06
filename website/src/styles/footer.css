@@ -126,8 +126,12 @@
   text-underline-offset: 3px;
 }
 
-.footer-legal {
-  flex: 1;
+.footer-sep {
+  margin: 0 8px;
+}
+
+.footer-social {
+  margin-left: auto;
 }
 
 .footer-social {
