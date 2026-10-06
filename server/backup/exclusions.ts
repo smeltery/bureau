@@ -48,6 +48,11 @@ const BACKUP_EXCLUSIONS: readonly BackupExclusion[] = [
     ],
   },
   {
+    id: "pager-discord-webhooks",
+    matches: (path) => path === "pager/discord-webhooks.json",
+    report: () => ["- Pager Discord webhook URLs were omitted. Each member who uses the pager must open User Settings > Pager and paste their webhook URL again."],
+  },
+  {
     id: "codex-shell-snapshots",
     matches: (path) => /(^|\/)(?:\.codex|codex-home)\/shell_snapshots(?:\/|$)/.test(path) || /^provider-homes\/[^/]+\/codex\/shell_snapshots(?:\/|$)/.test(path),
     report: () => ["- Codex shell snapshots were omitted because they can contain exported environment variables. Codex regenerates them; no action is required."],

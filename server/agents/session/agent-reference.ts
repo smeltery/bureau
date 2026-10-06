@@ -9,6 +9,7 @@ export const AGENT_REFERENCE_TOPICS = {
   tasks: "Task board",
   affordances: "Files, diffs, previews, and terminal cards",
   apps: "Registered apps",
+  pager: "Paging your manager",
   messaging: "Agent, remote boss, and scheduled messages",
   memory: "Durable memory",
   "conversation-lifecycle": "New conversations and handoffs",

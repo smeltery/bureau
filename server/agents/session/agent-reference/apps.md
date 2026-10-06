@@ -9,4 +9,4 @@ Register durable apps only when the boss wants something they will keep using.
 - `GET /api/apps/<name>/logs?lines=50` reads recent output.
 - `DELETE /api/apps/<name>` stops and retires the app name.
 
-Apps receive `BUREAU_APP_DATA_DIR` for persistent backed-up state and `BUREAU_APP_TOKEN` for server-side `POST /api/app/message` alerts back to your chat.
+Apps receive `BUREAU_APP_DATA_DIR` for persistent backed-up state and `BUREAU_APP_TOKEN` for server-side `POST /api/app/message` alerts back to your chat, and `POST /api/app/page` to page its owner directly (see the pager topic).

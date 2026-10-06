@@ -1,7 +1,8 @@
 /**
  * POST /api/app/message — the loop closed: an app messaging the agent that
- * built it. The ONLY route an app token reaches, and the only app route whose
- * caller is the app rather than its owner.
+ * built it. Besides paging its owner (server/pager/routes.ts), the only route
+ * an app token reaches, and the only app route whose caller is the app rather
+ * than its owner.
  *
  * NOTHING ABOUT THE MESSAGE IS THE CALLER'S TO CHOOSE except the text. Which
  * app is speaking comes from the token, who hears it comes from the registry,
