@@ -12,8 +12,8 @@ import type { AppUrlReconcileDeps } from "../url-reconcile.ts";
 import type { AppRecord, AppState } from "../../../shared/apps.ts";
 
 export const DOMAIN = "office.example";
-// A tailnet office's own name, the one the regression happened on.
-export const TAILNET_HOST = "auntie.parrot-fish.ts.net";
+// A synthetic tailnet office name for the URL-reconciliation regression.
+export const TAILNET_HOST = "office.tail-example.ts.net";
 export const TAILNET_ORIGIN = `https://${TAILNET_HOST}`;
 
 export const record = (over: Partial<AppRecord> = {}): AppRecord => ({

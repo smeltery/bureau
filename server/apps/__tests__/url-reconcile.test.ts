@@ -108,7 +108,7 @@ describe("app-urls: convergence", () => {
   it("takes back an address a tailnet office should never have given out", () => {
     // The regression, end to end. This office IS on HTTPS - Tailscale Serve
     // terminates TLS - so it derived a domain and wrote
-    // `https://hello.auntie.parrot-fish.ts.net` into every app's unit. That
+    // `https://hello.office.tail-example.ts.net` into every app's unit. That
     // name resolves nowhere: MagicDNS has no wildcards. The domain comes from
     // the PRODUCTION derivation here rather than a literal null, so this test
     // is wired to the fix and not to a restatement of it: with the tailnet
@@ -121,7 +121,7 @@ describe("app-urls: convergence", () => {
     const w = world({ apps: [app], domain: lying });
     w.units.set(app.name, unitFor(app, TAILNET_HOST));
     w.states.set(app.name, "running");
-    expect(w.units.get("hello")).toContain('Environment="BUREAU_APP_URL=https://hello.auntie.parrot-fish.ts.net"');
+    expect(w.units.get("hello")).toContain('Environment="BUREAU_APP_URL=https://hello.office.tail-example.ts.net"');
 
     const report = reconcileAppUrls(w.deps);
 
