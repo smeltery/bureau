@@ -42,10 +42,10 @@ function request(path: string, init: RequestInit = {}): Request {
   });
 }
 
-function auth(userId: string): AuthResult {
+function auth(userId: string, role: "owner" | "member" = "member"): AuthResult {
   return {
     kind: "ok",
-    session: { sessionIdHash: "hash", sessionPrefix: "sess", userId, username: USERNAME, role: "member", needsRolling: false, absoluteExpiresAt: Date.now() + 86_400_000 },
+    session: { sessionIdHash: "hash", sessionPrefix: "sess", userId, username: USERNAME, role, needsRolling: false, absoluteExpiresAt: Date.now() + 86_400_000 },
   };
 }
 
@@ -70,6 +70,23 @@ describe("handleApiTokensRequest", () => {
     const deleteReq = request(`/api/api-tokens/${createBody.apiToken.id}`, { method: "DELETE" });
     const deleted = await handleApiTokensRequest(deleteReq, new URL(deleteReq.url), auth(user.id));
     expect(deleted?.status).toBe(204);
+  });
+
+  test("lets an owner list and revoke a member's tokens, and refuses members", async () => {
+    const member = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
+    const minted = await mintApiToken({ userId: member.id, name: "automation", expiresInDays: 30 });
+    const base = `/api/users/${encodeURIComponent(USERNAME)}/api-tokens`;
+    const owner = auth("owner-id", "owner");
+
+    const refusedReq = request(base, { method: "GET" });
+    expect((await handleApiTokensRequest(refusedReq, new URL(refusedReq.url), auth("someone-else")))?.status).toBe(403);
+
+    const listReq = request(base, { method: "GET" });
+    expect(await (await handleApiTokensRequest(listReq, new URL(listReq.url), owner))!.json()).toEqual({ apiTokens: [minted.apiToken] });
+
+    const deleteReq = request(`${base}/${minted.apiToken.id}`, { method: "DELETE" });
+    expect((await handleApiTokensRequest(deleteReq, new URL(deleteReq.url), owner))?.status).toBe(204);
+    expect(resolveApiToken(minted.token)).toBeNull();
   });
 
   test("requires a browser or personal-token authenticated user", async () => {

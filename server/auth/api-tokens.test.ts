@@ -97,6 +97,17 @@ describe("personal API tokens", () => {
     expect(after?.latestSequence).toBe(2);
   });
 
+  test("masks secrets before they reach the token log", async () => {
+    const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
+    const minted = await mintApiToken({ userId: user.id, name: "phone", expiresInDays: 30 });
+    const secret = "sk_live_" + "A1".repeat(12);
+    await enqueueApiTokenInboxMessage({ tokenId: minted.apiToken.id, userId: user.id, text: `key ${secret}`, senderAgentId: "a1", senderAgentName: "Ada", senderRoomName: "Main" });
+    _testResetApiTokens();
+
+    const drained = await drainApiTokenInbox(minted.apiToken.id, Date.now(), 0);
+    expect(drained?.entries[0]).toMatchObject({ text: `key ${secret.slice(0, 8)}...REDACTED` });
+  });
+
   test("has no inbox capacity limit", async () => {
     const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
     const minted = await mintApiToken({ userId: user.id, name: "bulk", expiresInDays: 30 });
