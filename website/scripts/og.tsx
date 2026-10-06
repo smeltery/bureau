@@ -2,6 +2,7 @@
 // Run: bun scripts/og.tsx && npm run og
 import { writeFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { officeMark } from '../src/brand-mark.ts';
 import { OfficeArt } from '../src/components/OfficeScene.tsx';
 
 const SANS = "'Helvetica Neue', Helvetica, Arial, sans-serif";
@@ -13,11 +14,9 @@ function OgCard() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width={1200} height={630} viewBox="0 0 1200 630">
       <rect width={1200} height={630} fill="#f6f6f3" />
-      <g transform="translate(72 52)">
-        <polygon points="0,9 13,16.5 13,27.5 0,20" fill="#209050" />
-        <polygon points="26,9 13,16.5 13,27.5 26,20" fill="#186840" />
-        <polygon points="13,2 26,9 13,16.5 0,9" fill="#3AC874" />
-        <text x={38} y={23} fontFamily={SANS} fontSize={26} fontWeight={800} letterSpacing={-1} fill={INK}>
+      <g transform="translate(66 44)">
+        <g transform="scale(0.62)" dangerouslySetInnerHTML={{ __html: officeMark(true) }} />
+        <text x={46} y={31} fontFamily={SANS} fontSize={26} fontWeight={800} letterSpacing={-1} fill={INK}>
           bureau<tspan fill="#1f7a49">.</tspan>
         </text>
       </g>
