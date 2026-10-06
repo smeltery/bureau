@@ -37,7 +37,7 @@ Read the [design and architecture article](articles/punching-in-building-an-offi
 - `ui/` — React frontend
 - `demo/` — Standalone demo app sources and build output
 - `shared/` — TypeScript types shared between server and UI
-- `website/` — Marketing website (Next.js), deployed via Vercel.
+- `website/` — Marketing website (Vite + React, prerendered to static HTML), deployed via Vercel.
 - `docs/` — Design documents, plans, and reference material
 - `skills/` — Claude Code skills bundled with the project, available to any bureau agent
 - `articles/` — Blog-style articles about the project
@@ -57,7 +57,7 @@ When a feature lands, several places describe Bureau to its various audiences. T
 2. **`articles/punching-in-building-an-office-for-ai-agents.md`** — only if the change is architecture-level (SDK upgrades, lifecycle changes, new subsystems).
 3. **`docs/README.md`** — if you're adding a new design doc, register it in the appropriate table (`architecture/`, `features/`, `investigations/`, or `contributing/`).
 4. **`docs/features/` or `docs/architecture/`** — add the design doc itself.
-5. **Landing page** — `website/app/page.tsx` plus the section components in `website/src/components/sections/*`. Only update if the feature belongs on the marketing-headline list. Next.js app, deployed via Vercel.
+5. **Landing page** — `website/src/App.tsx` plus the section components in `website/src/components/*`. Only update if the feature belongs on the marketing-headline list. Vite app, deployed via Vercel. The OG image (`website/public/og.png`, also embedded in `README.md`) is generated from `website/scripts/og.tsx` — rerun `bun scripts/og.tsx && npm run og` in `website/` if the office art or headline changes.
 6. **Site chatbot system prompt** — the `SYSTEM_PROMPT` constant in `api/chat/system-prompt.ts` (`api/chat.ts` is just a re-export of the handler). The prompt has a "never make up features" rule, so stale content here makes the bot lie by omission — and a "not yet supported" line that has since shipped makes it deny a real feature outright. Vercel Edge function; redeployed with the site.
 7. **`/help` slash command** — `server/agents/conversation/slash-help.ts` (`handleHelpCommand`). It renders from the `server/agents/commands.ts` registry rather than a hardcoded list, so adding a command there is usually enough; keep that registry's `description` fields accurate, since they show up both in `/help` and in the autocomplete UI.
 

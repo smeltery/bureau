@@ -2,6 +2,6 @@
   "installCommand": "cd website && npm ci",
   "buildCommand": "cd website && npm run build",
   "devCommand": "cd website && npm run dev",
-  "framework": "nextjs",
-  "outputDirectory": "website/.next"
+  "framework": "vite",
+  "outputDirectory": "website/dist"
 }

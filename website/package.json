@@ -1,35 +1,27 @@
 {
   "name": "@bureau/website",
-  "version": "0.1.0",
-  "description": "Marketing website for bureau — your local multi-agent office for Claude Code",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Marketing website for bureau — your agent office",
   "scripts": {
-    "dev": "next dev -p 3006",
-    "build": "next build",
-    "start": "next start -p 3006",
-    "ci": "npm run lint && npm run build",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix"
+    "dev": "vite --port 3006",
+    "build": "vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
+    "preview": "vite preview --port 3006",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "og": "rsvg-convert -w 1200 -h 630 public/og.svg -o public/og.png",
+    "ci": "npm run typecheck && npm run build"
   },
   "dependencies": {
-    "clsx": "^2.1.0",
-    "lucide-react": "^0.263.1",
-    "next": "^15.1.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-syntax-highlighter": "^16.1.0"
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "@types/react": "^18.2.47",
-    "@types/react-dom": "^18.2.18",
-    "@types/react-syntax-highlighter": "^15.5.13",
-    "@typescript-eslint/eslint-plugin": "^6.17.0",
-    "@typescript-eslint/parser": "^6.17.0",
-    "autoprefixer": "^10.4.16",
-    "eslint": "^8.56.0",
-    "eslint-config-next": "^15.1.0",
-    "postcss": "^8.4.32",
-    "tailwindcss": "^3.4.0",
-    "typescript": "^5.3.3"
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.4"
   }
 }

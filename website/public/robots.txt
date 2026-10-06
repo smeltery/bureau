@@ -1,0 +1,6 @@
+# /api/ hosts the site chatbot; a GET there is a 405 nobody should reach from search.
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://bureau.smeltery.io/sitemap.xml

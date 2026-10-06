@@ -5,7 +5,8 @@ ui/dist/
 # from being committed again.
 ui/index.js
 demo/dist/
-website/.next/
+website/dist/
+website/dist-ssr/
 *.log
 .vercel
 .claude/
