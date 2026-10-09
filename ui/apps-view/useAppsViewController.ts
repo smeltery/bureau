@@ -11,7 +11,8 @@ import { filterApps, sortApps, type AppVerb } from "./appVerbs.ts";
 import { errMessage } from "../../shared/errors.ts";
 
 export function useAppsViewController() {
-  const { apps, appsLoaded, appsRevision, isMobile, hydrationEpoch, sessionContext } = useAppState();
+  const { apps, appsLoaded, appsRevision, isMobile, hydrationEpoch, sessionContext, agents, rooms, currentRoom, lobbyOpen } = useAppState();
+  const [roomFilter, setRoomFilter] = useState(() => (lobbyOpen ? "" : (rooms[currentRoom]?.id ?? "")));
   const dispatch = useDispatch();
   const [showArchived, setShowArchived] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -188,12 +189,15 @@ export function useAppsViewController() {
   const sorted = sortApps(apps);
   const selfUserId = sessionContext?.userId ?? null;
   const shown = filterApps(
-    sorted.filter((app) => (app.archivedAt !== undefined) === showArchived),
+    sorted.filter((app) => (app.archivedAt !== undefined) === showArchived && (!roomFilter || agents.some((agent) => agent.id === app.createdByAgentId && agent.roomId === roomFilter))),
     showArchived ? { ...filters, hideStopped: false } : filters,
     selfUserId,
   );
 
   return {
+    rooms,
+    roomFilter,
+    setRoomFilter,
     showArchived,
     setShowArchived,
     act,

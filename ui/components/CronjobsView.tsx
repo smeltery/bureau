@@ -48,7 +48,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
         color: "var(--text-primary)",
       }}
     >
-      <label style={{ padding: "6px 12px" }}>
+      <label hidden={tab === "webhooks"} style={{ padding: "6px 12px" }}>
         Room{" "}
         <select value={roomFilter} onChange={(event) => setRoomFilter(event.target.value)}>
           <option value="">All accessible rooms</option>

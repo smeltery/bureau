@@ -112,6 +112,11 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   clear of the desk paint grid.
 - Clickable wall affordances: corkboard → Tasks, clock → Schedules, vent →
   Settings, apps plaque → Apps (moon/sun still toggles theme).
+- Apps, scheduled jobs/runs, and Pager start filtered to the room they were
+  opened from, with an All rooms option. Opening from the lobby shows all rooms;
+  direct Pager links also show all rooms so the linked page stays visible.
+  App room filtering follows the registering agent's current room; apps without
+  a living visible creator remain available under All rooms.
 - Keyboard shortcuts `t` (toggle Tasks), `a` (toggle Apps), and `s` (open
   Settings) when not typing.
 - Bookmarkable full-page URLs for Tasks (`/tasks`), Schedules (`/schedules`),
