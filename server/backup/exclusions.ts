@@ -30,11 +30,11 @@ const BACKUP_EXCLUSIONS: readonly BackupExclusion[] = [
   { id: "restore-report", matches: (path) => path === RESTORE_REPORT_FILE },
   {
     id: "app-runtime-credentials",
-    matches: (path) => path === "apps/units" || path.startsWith("apps/units/"),
+    matches: (path) => path === "apps/units" || path.startsWith("apps/units/") || /^container-runtime\/[^/]+\.token\.(?:json|tmp)$/.test(path),
     report: (paths) => {
       const apps = paths
-        .filter((path) => path.endsWith(".env"))
-        .map((path) => basename(path, ".env"))
+        .filter((path) => path.endsWith(".env") || path.endsWith(".token.json"))
+        .map((path) => basename(path).replace(/(?:\.env|\.token\.json)$/, ""))
         .sort();
       return [
         `- App runtime credentials were omitted${apps.length ? ` for: ${apps.join(", ")}` : ""}. Bureau re-mints them at startup. Start previously stopped apps from the Apps page when you need them.`,

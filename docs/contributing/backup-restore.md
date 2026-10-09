@@ -20,6 +20,12 @@ curl -X POST http://localhost:4000/api/storage/prune \
 
 Bureau snapshots its state directory once per day into local tarballs.
 
+Generated app runtime credentials are excluded, including container app tokens
+and their temporary files. App readiness and exit records remain in the backup.
+The archive's `RESTORE.txt` lists omitted credential stores and the steps needed
+after restoring. Bureau re-mints app runtime credentials at startup; start
+previously stopped apps from the Apps page when needed.
+
 ## State Directory
 
 Default state directory:
