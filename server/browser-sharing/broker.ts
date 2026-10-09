@@ -4,6 +4,8 @@ import * as Agents from "../agent-manager.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { listDevices, type BrowserDevice } from "./devices.ts";
 
+import { prepareBrowserUpload } from "./upload.ts";
+
 const grants = new Map<string, SharedTabGrant>();
 interface Pending {
   command: SharedBrowserCommand;
@@ -89,7 +91,7 @@ export function requestBrowserAction(agentId: string, grantId: string, input: un
   const grant = currentGrants().find((row) => row.id === grantId && row.agentIds.includes(agentId));
   if (!grant || !eligibleAgent(grant.userId, agentId)) return Promise.reject(new Error("tab grant unavailable"));
   if ([...pending.values()].some((item) => item.command.grantId === grantId)) return Promise.reject(new Error("tab is busy"));
-  const action = parseBrowserAction(input, grant.origin);
+  const action = (input as Record<string, unknown> | null)?.action === "upload" ? prepareBrowserUpload(agentId, input as Record<string, unknown>) : parseBrowserAction(input, grant.origin);
   const command: SharedBrowserCommand = { id: id(), grantId, tabId: grant.tabId, origin: grant.origin, input: action };
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {

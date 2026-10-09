@@ -1,5 +1,5 @@
-import { afterEach, expect, test } from "bun:test";
-import { rmSync } from "node:fs";
+import { afterEach, expect, spyOn, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { agents } from "../agents/state.ts";
 import { createManagedAgent } from "../agents/managed-factory.ts";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo, type UserRecord } from "../../shared/types.ts";
@@ -9,6 +9,9 @@ import { browserDevice, createPairingCode, DEVICES_FILE, pairBrowser, revokeBrow
 import { completeBrowserAction, currentGrants, grantTab, pollBrowser, requestBrowserAction, revokeDeviceGrants, revokeGrant } from "./broker.ts";
 import { handleBrowserSharingRequest, handleExtensionRequest } from "./routes.ts";
 import { mintAgentToken, revokeAgentToken } from "../agents/tokens.ts";
+
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const origin = "chrome-extension://" + "a".repeat(32);
 const users: UserRecord[] = [],
@@ -117,5 +120,67 @@ test("HTTP rejects foreign origins, unpaired clients and mismatched agent bearer
   ] as const) {
     const req = new Request(`http://local/api/agents/${target}/shared-browser`, { headers: { authorization: `Bearer ${token}` } });
     expect((await handleBrowserSharingRequest(req, new URL(req.url), { kind: "loopback" }))?.status).toBe(status);
+  }
+});
+
+test("uploads are authorized before reading and transfer only the bounded file payload", async () => {
+  const { id, paired, input } = setup();
+  const root = mkdtempSync(join(tmpdir(), "bureau-upload-"));
+  const path = join(root, "report.txt");
+  writeFileSync(path, "Upload contents");
+  const resolve = spyOn(Agents, "resolveEditorPathForAgent").mockReturnValue(path);
+  try {
+    const grant = grantTab(paired.device, input);
+    const upload = { action: "upload", selector: "#file", path: "report.txt" };
+    await expect(requestBrowserAction("other", grant.id, upload)).rejects.toThrow("unavailable");
+    expect(resolve).not.toHaveBeenCalled();
+    const req = new Request(`http://local/api/agents/${id}/shared-browser`, { method: "POST", body: JSON.stringify({ ...upload, grantId: grant.id }) });
+    expect((await handleBrowserSharingRequest(req, new URL(req.url), { kind: "loopback" }))?.status).toBe(403);
+    expect(resolve).not.toHaveBeenCalled();
+    const result = requestBrowserAction(id, grant.id, upload);
+    const command = pollBrowser(paired.device.id).commands[0]!;
+    expect(resolve).toHaveBeenCalledWith(id, "report.txt");
+    expect(command.input).toEqual({
+      action: "upload",
+      selector: "#file",
+      file: { name: "report.txt", mimeType: "text/plain;charset=utf-8", base64: Buffer.from("Upload contents").toString("base64") },
+    });
+    await expect(requestBrowserAction(id, grant.id, upload)).rejects.toThrow("busy");
+    expect(resolve).toHaveBeenCalledTimes(1);
+    const rejected = result.catch((error: Error) => error);
+    revokeGrant(grant.id);
+    expect(((await rejected) as Error).message).toContain("revoked");
+    expect(completeBrowserAction(paired.device.id, command.id, {})).toBe(false);
+    await expect(requestBrowserAction(id, grant.id, upload)).rejects.toThrow("unavailable");
+    expect(resolve).toHaveBeenCalledTimes(1);
+  } finally {
+    resolve.mockRestore();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("upload refuses invalid paths, protected files and oversized files without queuing a command", () => {
+  const { id, paired, input } = setup();
+  const grant = grantTab(paired.device, input);
+  const root = mkdtempSync(join(tmpdir(), "bureau-upload-"));
+  const resolve = spyOn(Agents, "resolveEditorPathForAgent");
+  try {
+    for (const path of ["", "x".repeat(4097), "bad\0path"]) {
+      expect(() => requestBrowserAction(id, grant.id, { action: "upload", selector: "#file", path })).toThrow("path");
+    }
+    expect(resolve).not.toHaveBeenCalled();
+    for (const [name, bytes] of [
+      [".env", Buffer.from("secret")],
+      ["large.txt", Buffer.alloc(1024 * 1024 + 1)],
+    ] as const) {
+      const path = join(root, name);
+      writeFileSync(path, bytes);
+      resolve.mockReturnValue(path);
+      expect(() => requestBrowserAction(id, grant.id, { action: "upload", selector: "#file", path })).toThrow("non-sensitive regular file");
+    }
+    expect(pollBrowser(paired.device.id).commands).toHaveLength(0);
+  } finally {
+    resolve.mockRestore();
+    rmSync(root, { recursive: true, force: true });
   }
 });

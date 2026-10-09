@@ -199,6 +199,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Rich diff cards via `/bureau-diff`.
 - Copy-to-terminal cards for commands an agent wants to hand to the user.
 - File-view cards for agent-exposed files.
+- Explicitly shared Chrome tabs support reading, screenshots, clicks, typing,
+  same-origin navigation and file uploads up to 1 MiB from the agent working directory.
 - Browser preview cards for local/private development URLs.
 - Experimental interactive agent browser (opt-in `experimental.browserPanel` in
   Office Settings, off by default): `POST /api/agents/:id/browser` for
