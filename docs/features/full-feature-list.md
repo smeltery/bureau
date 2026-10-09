@@ -27,6 +27,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   a missing credentials file triggers a bounded local Keychain status check; an
   inconclusive check stays unavailable rather than claiming the user is signed out.
   Refresh and login guidance recheck status so a fresh sign-in is recognized.
+  Claude login cards use the bundled CLI with the configured credential directory;
+  a separate Claude installation is not required.
   Codex checks locally known sign-out before desk-agent turns. Confirmed sign-out
   opens login guidance without sending a provider prompt; queued work remains
   pending until an explicit retry or session refresh. Inconclusive checks do not
