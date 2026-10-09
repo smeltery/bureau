@@ -40,6 +40,8 @@ test("office proxy forwards scoped integrations and preserves binary responses",
       ["DELETE", "/api/apps/report/thumbnail"],
       ["POST", "/api/apps/report/archive", {}],
       ["POST", "/api/apps/report/restore", {}],
+      ["POST", "/api/cronjobs/job/runs/run/read-file", { path: "report.txt" }],
+      ["POST", "/api/cronjobs/job/runs/run/diff", {}],
       ["POST", "/api/pager", { title: "Needs attention" }],
       ["POST", "/api/pager/resolve", { key: "alert" }],
     ] as const) {

@@ -1,4 +1,6 @@
 import type { ApprovalDecision, AttachmentSpec, BackendSession, ContextUsage, CreateSessionOptions, NormalizedEvent, SubscriptionUsageResult } from "../types.ts";
+import { parseStreamId } from "../../../shared/types.ts";
+import { getRunToken } from "../../cronjobs/tokens.ts";
 import { getAgentToken } from "../../agents/tokens.ts";
 import { permissionAgent } from "./config.ts";
 import type { OpenCodeSupervisor } from "./supervisor.ts";
@@ -19,6 +21,8 @@ export class OpenCodeBackendSession implements BackendSession {
     private readonly onSessionId?: (sessionId: string) => void,
   ) {
     this.agentId = opts.agentId;
+    const identity = parseStreamId(opts.agentId);
+    const token = identity.kind === "cronjob_run" ? getRunToken(identity.runId) : getAgentToken(identity.agentId);
     this.transport = new OpenCodeTransport({
       cwd: opts.cwd,
       model,
@@ -29,7 +33,7 @@ export class OpenCodeBackendSession implements BackendSession {
       supervisor,
       sessionId,
       agentId: opts.agentId,
-      agentToken: getAgentToken(opts.agentId) ?? undefined,
+      agentToken: token ?? undefined,
     });
   }
 

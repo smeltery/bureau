@@ -98,6 +98,7 @@ const ROUTES: ReadonlyArray<{ method: string; path: RegExp }> = [
     path: /^\/api\/cronjobs(?:\/[^/]+(?:\/runs(?:\/[^/]+)?)?)?$/,
   },
   { method: "POST", path: /^\/api\/cronjobs(?:\/[^/]+\/runs)?$/ },
+  { method: "POST", path: /^\/api\/cronjobs\/[^/]+\/runs\/[^/]+\/(?:read-file|diff)$/ },
   { method: "PATCH", path: /^\/api\/cronjobs\/[^/]+$/ },
   { method: "DELETE", path: /^\/api\/cronjobs\/[^/]+$/ },
   { method: "GET", path: /^\/api\/cron-runs$/ },

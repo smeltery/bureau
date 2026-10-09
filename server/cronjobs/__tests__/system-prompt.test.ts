@@ -97,3 +97,12 @@ describe("buildCronjobSystemPrompt", () => {
     expect(prompt).not.toContain("## Special Instructions For");
   });
 });
+
+test("OpenCode schedules use the active-turn proxy instead of an inherited bearer", () => {
+  const prompt = buildCronjobSystemPrompt(cronjob({ agentType: "opencode", modelFamily: "opencode/gpt-5-nano" }), "cron-1", "run-1");
+  expect(prompt).toContain("curl --unix-socket");
+  expect(prompt).toContain("X-Bureau-Turn: __BUREAU_OPENCODE_TURN__");
+  expect(prompt).toContain("http://bureau/api/cronjobs/cron-1/runs/run-1/read-file");
+  expect(prompt).not.toContain("Authorization: Bearer");
+  expect(prompt).not.toContain("$BUREAU_AGENT_TOKEN");
+});
