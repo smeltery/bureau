@@ -11,12 +11,13 @@ import {
   type PermissionUpdate,
 } from "@anthropic-ai/claude-agent-sdk";
 
-import { FAMILY_TO_MODEL, MODEL_FAMILIES, type ModelFamily } from "../../shared/types.ts";
+import { MODEL_FAMILIES } from "../../shared/types.ts";
 import { CLAUDE_NATIVE_BIN } from "../agents/session/claude-native.ts";
 import { claudeProjectDir, claudeSessionFileExists } from "../agents/session/paths.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
-import { isClaudeCloudSelected, isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
+import { isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
 import { createClaudeSubscriptionUsageReader, type ClaudeUsageCapableQuery } from "./claude-subscription-usage.ts";
+import { claudeModelForEnvironment, claudeSessionModelOptions, claudeModelsForEnvironment } from "./claude/model-options.ts";
 import { claudeSessionStore } from "./claude/session-store.ts";
 import { buildUserMessage, extractMessageText, normalizeClaudeMessage, TaskBreadcrumbTracker } from "./claude-messages.ts";
 import { RawClaudeSession, runClaudeOneShot } from "./claude-raw-session.ts";
@@ -121,11 +122,6 @@ export const CLAUDE_LAUNCH_SETTINGS: Extract<Options["settings"], object> = {
   env: { DISABLE_TELEMETRY: "1", DISABLE_ERROR_REPORTING: "1" },
 };
 
-function claudeModelForEnvironment(modelFamily: string, env: { [key: string]: string | undefined } | undefined): string {
-  if (isClaudeCloudSelected(env)) return modelFamily;
-  return FAMILY_TO_MODEL[modelFamily as ModelFamily] ?? modelFamily;
-}
-
 class ClaudeBackendSession implements BackendSession {
   private pendingApprovals = new Map<string, { input: Record<string, unknown>; suggestions?: PermissionUpdate[]; resolve: (r: PermissionResult) => void }>();
   private readonly raw: RawClaudeSession;
@@ -140,8 +136,7 @@ class ClaudeBackendSession implements BackendSession {
     resumeSessionId?: string,
   ) {
     const options: Options = {
-      model: claudeModelForEnvironment(opts.modelFamily, opts.env),
-      permissionMode: opts.permissionMode as Options["permissionMode"],
+      ...claudeSessionModelOptions(opts),
       pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
       systemPrompt: { type: "preset", preset: "claude_code", append: opts.systemPrompt },
       cwd: opts.cwd,
@@ -245,8 +240,8 @@ export const claudeBackend: Backend = {
   getPermissionModes() {
     return PERMISSION_MODES;
   },
-  async listModels(_opts: ListModelsOptions): Promise<BackendModel[]> {
-    return this.getModelOptions().map((m) => ({ id: m.value, label: m.label, supportedEfforts: [], isDefault: m.value === "opus" }));
+  async listModels(opts: ListModelsOptions): Promise<BackendModel[]> {
+    return claudeModelsForEnvironment(opts.env);
   },
   createSession(opts) {
     return new ClaudeBackendSession(opts);

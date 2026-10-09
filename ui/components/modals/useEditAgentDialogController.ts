@@ -7,6 +7,7 @@ import { useAppState } from "../../store.tsx";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
 import { makeRandomOutfit } from "./AgentAppearanceEditor.tsx";
 import type { EditAgentDialogProps } from "./EditAgentDialog.tsx";
+import { useModelOptions } from "../../hooks/models/useModelOptions.ts";
 import { useI18n } from "../../i18n.tsx";
 import { applySpawnEngineDefaults } from "./spawn-engine-defaults.ts";
 import { canToggleAgentPrivilege, isFormDirty, type EditAgentFormSnapshot } from "./edit-agent-form.ts";
@@ -29,13 +30,13 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const [customInstructions, setCustomInstructions] = useState(agent?.customInstructions ?? "");
   const instructionsVersionAtOpen = useRef(agent?.customInstructionsVersion ?? "");
   const instructionsStale = !isSpawn && !!agent && agent.customInstructionsVersion !== instructionsVersionAtOpen.current;
-  const modelOptions =
+  const fallbackModelOptions =
     agentType === "codex"
       ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label }))
       : agentType === "opencode"
         ? OPENCODE_MODELS.map((m) => ({ family: m.value, label: m.label }))
         : MODEL_FAMILIES;
-  const [modelFamily, setModelFamily] = useState<string>(agent?.modelFamily ?? modelOptions[0].family);
+  const [modelFamily, setModelFamily] = useState<string>(agent?.modelFamily ?? fallbackModelOptions[0].family);
   const [effort, setEffort] = useState<EffortLevel>(agent?.effort ?? DEFAULT_EFFORT);
   const initialPermissionMode: AgentInfo["permissionMode"] =
     agentType === "codex"
@@ -45,7 +46,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
           ? "bypassPermissions"
           : (agent?.permissionMode ?? "default")
         : agent?.permissionMode === "auto" && !familyAllowsAutoPermission(agent?.modelFamily ?? MODEL_FAMILIES[0].family)
-          ? "bypassPermissions"
+          ? "default"
           : (agent?.permissionMode ?? "auto");
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
   const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(agent?.codexSandbox ?? "danger-full-access");
@@ -55,6 +56,11 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const canEditManager = !isSpawn && sessionContext?.role === "owner";
   const [managerUserId, setManagerUserId] = useState(agent?.userId ?? "");
   const agentRoomId = agent?.roomId ?? (agent ? rooms[agent.room]?.id : undefined);
+  const { modelOptions, modelCatalogError } = useModelOptions(agentType, cwd, fallbackModelOptions, modelFamily, {
+    agentId: agent?.id,
+    roomId: agentRoomId ?? (props.room !== undefined ? rooms[props.room]?.id : undefined),
+    userId: canEditManager ? managerUserId : undefined,
+  });
   const managerOptions = [...users.values()].filter((u) => u.role === "owner" || (agentRoomId ? u.allowedRooms.includes(agentRoomId) : false)).sort((a, b) => a.name.localeCompare(b.name));
   const [saving, setSaving] = useState(false);
   const [cwdError, setCwdError] = useState<string | null>(null);
@@ -288,6 +294,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     effort,
     modelFamily,
     modelOptions,
+    modelCatalogError,
     managerOptions,
     managerUserId,
     name,

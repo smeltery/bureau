@@ -26,9 +26,10 @@ describe("Codex model currency", () => {
     expect(validateEffort("codex", "gpt-6-astra", "ultra")).toBe("ultra");
   });
 
-  test("does not offer effort levels for Haiku", () => {
+  test("offers effort levels for Haiku 5.5", () => {
     expect(FAMILY_TO_MODEL.sonnet).toBe("claude-sonnet-5-5");
-    expect(effortLevelsFor("claude", "haiku")).toEqual([]);
+    expect(FAMILY_TO_MODEL.haiku).toBe("claude-haiku-5-5");
+    expect(effortLevelsFor("claude", "haiku").map(({ level }) => level)).toEqual(["low", "medium", "high", "xhigh", "max"]);
     expect(effortLevelsFor("claude", "sonnet").length).toBeGreaterThan(0);
   });
 

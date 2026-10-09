@@ -1,11 +1,8 @@
 import type { CSSProperties } from "react";
 import type { AgentBackendType, AgentInfo, CodexSandboxMode, EffortLevel } from "../../../shared/types.ts";
-import { effortDisplayLabel, effortLevelsFor, familyAllowsAutoPermission, modelVersionLabel } from "../../../shared/types.ts";
+import { effortDisplayLabel } from "../../../shared/types.ts";
 
-type ModelOption = {
-  family: string;
-  label: string;
-};
+import { modelEfforts, modelAllowsAuto, modelOptionLabel, type ModelOption } from "../../hooks/models/model-options.ts";
 
 type AgentModelPermissionFieldsProps = {
   agentType: AgentBackendType;
@@ -14,6 +11,7 @@ type AgentModelPermissionFieldsProps = {
   labelStyle: CSSProperties;
   modelFamily: string;
   modelOptions: ModelOption[];
+  catalogNotice?: string;
   effort: EffortLevel;
   permissionMode: AgentInfo["permissionMode"];
   codexSandbox: CodexSandboxMode;
@@ -32,6 +30,7 @@ export function AgentModelPermissionFields({
   labelStyle,
   modelFamily,
   modelOptions,
+  catalogNotice,
   effort,
   permissionMode,
   codexSandbox,
@@ -42,14 +41,19 @@ export function AgentModelPermissionFields({
   setCodexSandbox,
   setPrivileged,
 }: AgentModelPermissionFieldsProps) {
-  const effortOptions = effortLevelsFor(agentType, modelFamily);
+  const effortOptions = modelEfforts(agentType, modelFamily, modelOptions);
+  const allowsAuto = modelAllowsAuto(modelFamily, modelOptions);
   return (
     <>
       <label style={{ ...labelStyle, marginTop: 12 }}>Permission Mode</label>
-      <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as AgentInfo["permissionMode"])} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+      <select
+        value={permissionMode === "auto" && !allowsAuto ? "default" : permissionMode}
+        onChange={(e) => setPermissionMode(e.target.value as AgentInfo["permissionMode"])}
+        style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
+      >
         {agentType === "claude" ? (
           <>
-            {familyAllowsAutoPermission(modelFamily) && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
+            {allowsAuto && <option value="auto">Auto (classifier auto-approves safe actions)</option>}
             <option value="default">Default (ask for everything)</option>
             <option value="acceptEdits">Accept Edits (auto-approve file changes)</option>
             <option value="bypassPermissions">Bypass (auto-approve all)</option>
@@ -92,22 +96,33 @@ export function AgentModelPermissionFields({
         onChange={(e) => {
           const next = e.target.value;
           setModelFamily(next);
-          if (!familyAllowsAutoPermission(next) && permissionMode === "auto") setPermissionMode("bypassPermissions");
-          if (!effortLevelsFor(agentType, next).some((option) => option.level === effort)) setEffort("high");
+          if (!modelAllowsAuto(next, modelOptions) && permissionMode === "auto") setPermissionMode("default");
+          const levels = modelEfforts(agentType, next, modelOptions);
+          if (levels.length && !levels.some((option) => option.level === effort)) setEffort(levels[0]!.level);
         }}
         style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
       >
         {modelOptions.map((m) => (
           <option key={m.family} value={m.family}>
-            {agentType === "claude" ? `${m.label} (${modelVersionLabel(m.family as any)})` : m.label}
+            {modelOptionLabel(agentType, m)}
           </option>
         ))}
       </select>
 
+      {catalogNotice && (
+        <p role="status" style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          {catalogNotice}
+        </p>
+      )}
       {effortOptions.length > 0 && (
         <>
           <label style={{ ...labelStyle, marginTop: 12 }}>Effort</label>
           <select value={effort} onChange={(e) => setEffort(e.target.value as EffortLevel)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+            {!effortOptions.some((option) => option.level === effort) && (
+              <option value={effort} disabled>
+                {effortDisplayLabel(effort)} (unsupported)
+              </option>
+            )}
             {effortOptions.map((option) => (
               <option key={option.level} value={option.level}>
                 {effortDisplayLabel(option.level)}
