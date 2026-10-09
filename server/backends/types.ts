@@ -119,6 +119,7 @@ export interface BackendModel {
   isDefault?: boolean;
   hidden?: boolean;
   supportedEfforts: BackendEffortOption[];
+  supportsAutoPermission?: boolean;
   defaultEffort?: string;
 }
 

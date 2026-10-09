@@ -1,5 +1,6 @@
+import { modelOptionLabel } from "../../hooks/models/model-options.ts";
 import { useAppState } from "../../store.tsx";
-import { modelVersionLabel, type AgentBackendType, type CodexSandboxMode, type Cronjob, type CronjobPermissionMode, type EffortLevel, type ModelFamily } from "../../../shared/types.ts";
+import { type AgentBackendType, type CodexSandboxMode, type Cronjob, type CronjobPermissionMode, type EffortLevel } from "../../../shared/types.ts";
 import { dialogCancelBtn, dialogChip, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 import { CronjobScheduleFields } from "./CronjobScheduleFields.tsx";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
@@ -30,6 +31,7 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
     minuteStr,
     modelFamily,
     modelOptions,
+    modelCatalogError,
     name,
     permissionMode,
     prompt,
@@ -151,15 +153,25 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           <select value={modelFamily} onChange={(e) => selectModelFamily(e.target.value)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
             {modelOptions.map((m) => (
               <option key={m.family} value={m.family}>
-                {agentType === "claude" ? `${m.label} (${modelVersionLabel(m.family as ModelFamily)})` : m.label}
+                {modelOptionLabel(agentType, m)}
               </option>
             ))}
           </select>
 
+          {modelCatalogError && (
+            <p role="status" style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {modelCatalogError}
+            </p>
+          )}
           {effortOptions.length > 0 && (
             <>
               <label style={{ ...labelStyle, marginTop: 14 }}>Effort</label>
               <select value={effort} onChange={(e) => setEffort(e.target.value as EffortLevel)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+                {!effortOptions.some((option) => option.level === effort) && (
+                  <option value={effort} disabled>
+                    {effort} (unsupported)
+                  </option>
+                )}
                 {effortOptions.map((e) => (
                   <option key={e.level} value={e.level}>
                     {e.label}

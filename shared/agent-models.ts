@@ -37,7 +37,7 @@ export type ClaudeModel = string;
 export const FAMILY_TO_MODEL: Record<ModelFamily, ClaudeModel> = {
   opus: "claude-opus-5-5",
   sonnet: "claude-sonnet-5-5",
-  haiku: "claude-haiku-4-5-20251001",
+  haiku: "claude-haiku-5-5",
   fable: "claude-fable-5-1",
 };
 
@@ -62,7 +62,7 @@ export function knownModelFamiliesFor(agentType: "claude" | "codex" | "opencode"
 // "claude-fable-5-1" for display. Single-number slugs fall back to the
 // trailing number.
 export function modelVersionLabel(family: ModelFamily): string {
-  const exact = FAMILY_TO_MODEL[family];
+  const exact = FAMILY_TO_MODEL[family] ?? family;
   const twoPart = exact.match(/-(\d+)-(\d+)/);
   if (twoPart) return `${twoPart[1]}.${twoPart[2]}`;
   const onePart = exact.match(/-(\d+)$/);
@@ -106,7 +106,7 @@ export function effortLevelsFor(agentType: "claude" | "codex" | "opencode", mode
 }
 
 export function claudeFamilySupportsEffort(family: string): boolean {
-  return family === "opus" || family === "fable" || family === "sonnet";
+  return family === "opus" || family === "fable" || family === "sonnet" || family === "haiku";
 }
 
 // Codex model identifiers and UI labels. Verified against `codex debug models`
@@ -145,7 +145,7 @@ export function isOpenCodeModel(s: string): boolean {
 // The classifier-backed "auto" permission mode is only offered for the
 // higher-capability families that drive the safe-action classifier well.
 export function familyAllowsAutoPermission(family: string | undefined): boolean {
-  return family === "opus" || family === "fable" || family === "sonnet";
+  return family === "opus" || family === "fable" || family === "sonnet" || family === "haiku";
 }
 
 export function familyDisplayLabel(family: string): string {

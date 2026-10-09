@@ -44,6 +44,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     effort,
     modelFamily,
     modelOptions,
+    modelCatalogError,
     managerOptions,
     managerUserId,
     name,
@@ -120,6 +121,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
         labelStyle={labelStyle}
         modelFamily={modelFamily}
         modelOptions={modelOptions}
+        catalogNotice={modelCatalogError}
         effort={effort}
         permissionMode={permissionMode}
         codexSandbox={codexSandbox}

@@ -185,7 +185,7 @@ function clampEffort(desired: EffortLevel, current: EffortLevel, supported: Effo
 
 export function resolveTemplatePermission(engine: AgentBackendType, modelFamily: string, current: AgentPermissionMode): AgentPermissionMode {
   if (engine === "opencode") return current === "bypassPermissions" ? "bypassPermissions" : "default";
-  return engine === "claude" && current === "auto" && !familyAllowsAutoPermission(modelFamily) ? "bypassPermissions" : current;
+  return engine === "claude" && current === "auto" && !familyAllowsAutoPermission(modelFamily) ? "default" : current;
 }
 
 export function templateFormValues(template: AgentTemplate, engine: AgentBackendType, current: TemplateFormBaseline, language: SupportedLanguageCode = "en"): TemplateFormValues {

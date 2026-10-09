@@ -7,6 +7,12 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 - Choose Claude, Codex, or OpenCode when spawning an agent.
 - Mix providers across desks in the same office.
+- Agent and schedule dialogs load model choices and effort capabilities for the
+  session environment (office and managing user, plus room overrides for agents).
+  Unavailable catalogs show built-in choices
+  with a notice. Claude Haiku uses 5.5 on direct access; supported effort settings
+  reach Claude sessions. Limited Bedrock/Vertex aliases omit unsupported effort
+  and use Default (ask) when Auto was selected, without enabling Bypass.
 - Use existing CLI authentication where available. Codex runs through Bureau's
   bundled `@openai/codex` launcher and isolated `CODEX_HOME`.
 - Account → Connections shows Claude/Codex connection status for the signed-in

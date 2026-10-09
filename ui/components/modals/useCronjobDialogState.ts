@@ -1,3 +1,5 @@
+import { useModelOptions } from "../../hooks/models/useModelOptions.ts";
+import { modelEfforts } from "../../hooks/models/model-options.ts";
 import { useAppState } from "../../store.tsx";
 import { useEffect, useRef, useState } from "react";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
@@ -6,7 +8,6 @@ import {
   DEFAULT_EFFORT,
   MODEL_FAMILIES,
   OPENCODE_MODELS,
-  effortLevelsFor,
   type AgentBackendType,
   type CodexSandboxMode,
   type Cronjob,
@@ -23,7 +24,7 @@ export function defaultCronjobCodexSandboxForTest(): CodexSandboxMode {
 }
 
 export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?: Cronjob; username: string; onClose: () => void }) {
-  const { rooms, currentRoom, allRooms } = useAppState();
+  const { rooms, currentRoom, allRooms, sessionContext } = useAppState();
   const [roomId, setRoomId] = useState(cronjob?.roomId ?? rooms[currentRoom]?.id ?? rooms[0]?.id ?? "");
   const isEdit = !!cronjob;
   const [name, setName] = useState(cronjob?.name ?? "");
@@ -38,17 +39,21 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
   const [prompt, setPrompt] = useState(cronjob?.prompt ?? "");
   const [cwd, setCwd] = useState(cronjob?.cwd ?? "~");
   const [agentType, setAgentType] = useState<AgentBackendType>(cronjob?.agentType ?? "claude");
-  const modelOptions =
+  const fallbackModelOptions =
     agentType === "codex"
       ? CODEX_MODELS.map((m) => ({ family: m.value, label: m.label }))
       : agentType === "opencode"
         ? OPENCODE_MODELS.map((m) => ({ family: m.value, label: m.label }))
         : MODEL_FAMILIES;
-  const [modelFamily, setModelFamily] = useState<string>(cronjob?.modelFamily ?? modelOptions[0].family);
+  const [modelFamily, setModelFamily] = useState<string>(cronjob?.modelFamily ?? fallbackModelOptions[0].family);
   const [effort, setEffort] = useState<EffortLevel>(cronjob?.effort ?? DEFAULT_EFFORT);
   const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(cronjob?.codexSandbox ?? DEFAULT_CODEX_CRONJOB_SANDBOX);
   const [permissionMode, setPermissionMode] = useState<CronjobPermissionMode>(cronjob?.permissionMode ?? "bypassPermissions");
-  const effortOptions = effortLevelsFor(agentType, modelFamily);
+  const { modelOptions, modelCatalogError } = useModelOptions(agentType, cwd, fallbackModelOptions, modelFamily, {
+    // Schedule sessions inherit office and creator env, without room overrides.
+    userId: sessionContext?.role === "owner" && cronjob ? (cronjob.userId ?? "") : undefined,
+  });
+  const effortOptions = modelEfforts(agentType, modelFamily, modelOptions);
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +160,8 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
 
   function selectModelFamily(next: string) {
     setModelFamily(next);
-    if (!effortLevelsFor(agentType, next).some((option) => option.level === effort)) setEffort(DEFAULT_EFFORT);
+    const levels = modelEfforts(agentType, next, modelOptions);
+    if (levels.length && !levels.some((option) => option.level === effort)) setEffort(levels[0]!.level);
   }
 
   return {
@@ -178,6 +184,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
     minuteStr,
     modelFamily,
     modelOptions,
+    modelCatalogError,
     name,
     permissionMode,
     prompt,
