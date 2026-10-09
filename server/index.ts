@@ -17,7 +17,7 @@ import { broadcast } from "./ws/broadcast.ts";
 export { editorWatchers } from "./editor-watchers.ts";
 export { pushPresenceListToEachWs, sendInitialPayload } from "./ws-initial-payload.ts";
 import { wireAgentAndCronjobEvents } from "./ws/agent-events.ts";
-import { closeBrowserWebSocket, handleBrowserWebSocketMessage, openBrowserWebSocket, type WsData } from "./ws/websocket-handlers.ts";
+import { drainBrowserWebSocket, closeBrowserWebSocket, handleBrowserWebSocketMessage, openBrowserWebSocket, type WsData } from "./ws/websocket-handlers.ts";
 import { startLiveReloadWatcher } from "./http/live-reload.ts";
 import { createFetchHandler } from "./http/router.ts";
 import { getPublicOrigin } from "./public-origin.ts";
@@ -84,6 +84,7 @@ const server = Bun.serve<WsData>({
     open: openBrowserWebSocket,
     message: handleBrowserWebSocketMessage,
     close: closeBrowserWebSocket,
+    drain: drainBrowserWebSocket,
   },
 });
 

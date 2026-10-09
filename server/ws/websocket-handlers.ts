@@ -1,3 +1,4 @@
+import { officeSocket, drainOfficeSocket, disposeOfficeSocket } from "./outbox/sockets.ts";
 import type { ServerWebSocket } from "bun";
 import type { ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
@@ -33,7 +34,7 @@ export function openBrowserWebSocket(ws: ServerWebSocket<WsData>): void {
     openAppRelaySocket(ws as ServerWebSocket<AppRelayWsData>);
     return;
   }
-  openOfficeWebSocket(ws as ServerWebSocket<OfficeWsData>);
+  openOfficeWebSocket(officeSocket(ws as ServerWebSocket<OfficeWsData>));
 }
 
 export function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>, message: string | Buffer): void | Promise<void> {
@@ -43,7 +44,7 @@ export function handleBrowserWebSocketMessage(ws: ServerWebSocket<WsData>, messa
     appRelaySocketMessage(ws as ServerWebSocket<AppRelayWsData>, message);
     return;
   }
-  return handleOfficeWebSocketMessage(ws as ServerWebSocket<OfficeWsData>, message);
+  return handleOfficeWebSocketMessage(officeSocket(ws as ServerWebSocket<OfficeWsData>), message);
 }
 
 export function closeBrowserWebSocket(ws: ServerWebSocket<WsData>, code?: number, reason?: string): void {
@@ -51,7 +52,8 @@ export function closeBrowserWebSocket(ws: ServerWebSocket<WsData>, code?: number
     closeAppRelaySocket(ws as ServerWebSocket<AppRelayWsData>, code ?? 1006, reason ?? "");
     return;
   }
-  closeOfficeWebSocket(ws as ServerWebSocket<OfficeWsData>);
+  closeOfficeWebSocket(officeSocket(ws as ServerWebSocket<OfficeWsData>));
+  disposeOfficeSocket(ws);
 }
 
 function openOfficeWebSocket(ws: ServerWebSocket<OfficeWsData>): void {
@@ -103,4 +105,8 @@ function closeOfficeWebSocket(ws: ServerWebSocket<OfficeWsData>): void {
   clearWsUser(ws);
   closeEditorWatchesFor(ws);
   closeBrowserWatchesFor(ws);
+}
+
+export function drainBrowserWebSocket(ws: ServerWebSocket<WsData>): void {
+  if (!isAppRelaySocket(ws.data)) drainOfficeSocket(ws);
 }

@@ -1,7 +1,8 @@
+import { replayOfficeFrames } from "./ws/outbox/sockets.ts";
 import type { KilledAgentSummary, PresenceInfo, ServerMessage, UserRecord } from "../shared/types.ts";
 import { KILLED_AGENT_CHIP_CAP, LOBBY_ROOM_ID } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
-import { sendScheduleState } from "./ws/cronjob-events.ts";
+import { scheduleStateFrames } from "./ws/cronjob-events.ts";
 import { loadRecentCwds } from "./persistence.ts";
 import { listAllPresence } from "./presence.ts";
 import { getUpdateStatus } from "./update-checker.ts";
@@ -67,8 +68,15 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
   const agents = AgentManager.getAllAgents();
   const projectedRooms = projectRooms(user, rooms);
   const projectedAgents = projectAgents(user, agents, rooms);
-  ws.send(
-    JSON.stringify({
+  const histories = projectedAgents.map((agent) => {
+    const logs = AgentManager.getAgentLogs(agent.id);
+    return { agent, logs, length: logs.length, commands: AgentManager.getAgentCommands(agent.id) };
+  });
+  const schedules = scheduleStateFrames(ws);
+  const users = usersForRecipient(user, rooms);
+  const context = getSessionContext(ws);
+  const frames = (function* () {
+    yield JSON.stringify({
       type: "full_state",
       agents: projectedAgents,
       recentCwds: loadRecentCwds(),
@@ -76,30 +84,29 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
       rooms: projectedRooms,
       allRooms: user ? listAccessibleRooms(user, rooms) : undefined,
       killedAgents: killedAgentsFor(ws),
-    } as ServerMessage),
-  );
-  ws.send(JSON.stringify({ type: "users_list", users: usersForRecipient(user, rooms) } as ServerMessage));
-  ws.send(JSON.stringify({ type: "session_context", context: getSessionContext(ws) } as ServerMessage));
-  ws.send(JSON.stringify({ type: "tasks", tasks } as ServerMessage));
-  sendScheduleState(ws);
-  const update = getUpdateStatus();
-  if (update.updateAvailable) {
-    ws.send(JSON.stringify({ type: "update_status", ...update } as ServerMessage));
-  }
-  for (const agent of projectedAgents) {
-    const logs = AgentManager.getAgentLogs(agent.id);
-    for (const entry of logs) {
-      ws.send(JSON.stringify({ type: "log_entry", entry } as ServerMessage));
+    } as ServerMessage);
+    yield JSON.stringify({ type: "users_list", users } as ServerMessage);
+    yield JSON.stringify({ type: "session_context", context } as ServerMessage);
+    yield JSON.stringify({ type: "tasks", tasks } as ServerMessage);
+    yield* schedules;
+    const update = getUpdateStatus();
+    if (update.updateAvailable) {
+      yield JSON.stringify({ type: "update_status", ...update } as ServerMessage);
     }
-    const cmds = AgentManager.getAgentCommands(agent.id);
-    if (cmds.commands.length > 0 || cmds.skills.length > 0) {
-      ws.send(JSON.stringify({ type: "slash_commands", agentId: agent.id, commands: cmds.commands, skills: cmds.skills } as ServerMessage));
+    for (const { agent, logs, length, commands: cmds } of histories) {
+      for (let index = 0; index < length; index++) {
+        yield JSON.stringify({ type: "log_entry", entry: logs[index]! } as ServerMessage);
+      }
+      if (cmds.commands.length > 0 || cmds.skills.length > 0) {
+        yield JSON.stringify({ type: "slash_commands", agentId: agent.id, commands: cmds.commands, skills: cmds.skills } as ServerMessage);
+      }
     }
-  }
-  // Fence the burst: everything cached has now been replayed, so the client can
-  // swap the whole transcript in at once instead of guessing when the frames
-  // stopped. Sent even when nothing was replayed — "the replay is empty" is
-  // exactly the case a client cannot infer.
-  ws.send(JSON.stringify({ type: "log_replay_complete" } as ServerMessage));
-  ws.send(JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws), totalOnlineUsers: countTotalOnlineUsers() } as ServerMessage));
+    // Fence the burst: everything cached has now been replayed, so the client can
+    // swap the whole transcript in at once instead of guessing when the frames
+    // stopped. Sent even when nothing was replayed — "the replay is empty" is
+    // exactly the case a client cannot infer.
+    yield JSON.stringify({ type: "log_replay_complete" } as ServerMessage);
+    yield JSON.stringify({ type: "presence_list", entries: buildPresenceListFor(ws), totalOnlineUsers: countTotalOnlineUsers() } as ServerMessage);
+  })();
+  replayOfficeFrames(ws, frames);
 }

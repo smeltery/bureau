@@ -106,7 +106,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   Simplified Chinese; UI chrome follows the same preference), and roster
   online/session summaries.
 - PWA-friendly mobile UI.
-- WebSocket sync across all connected browsers.
+- WebSocket sync across all connected browsers. Large transcript replays stream
+  in order as each browser drains, followed by live events. Slow connections have
+  bounded queues and reconnect if they fall too far behind or access changes.
 
 ## Office UI
 

@@ -107,7 +107,9 @@ AgentManager events ──> onEvent handler ──> broadcast() ──> all brow
                                                               └── Phone
 ```
 
-The `browsers` Set holds all active WebSocket connections. `broadcast()` iterates and sends to each. No per-client filtering — all browsers see all state changes.
+The `browsers` Set holds office socket facades whose `send()` routes through a per-browser outbound queue. Agent, room, and schedule payloads are filtered by recipient access before enqueueing. App relay sockets bypass this office queue.
+
+Initial history is a lazy producer with captured log lengths: serialization advances only while Bun’s buffer is below 256 KiB, yielding after 512 KiB per pump. A backpressured frame is accepted once; drain schedules the next pump on a later tick. Live events wait behind the replay fence, with an 8 MiB / 8,192-frame backlog limit. Dropped frames or overflow terminate the connection so the browser reloads authoritative state. A fresh access projection also terminates a backlogged connection rather than delivering frames authorized under the previous view. Any received frame counts as heartbeat activity.
 
 ## Static File Serving
 

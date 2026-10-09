@@ -132,6 +132,9 @@ export function connect(onMessage: MessageHandler, onStatusChange?: StatusHandle
     startHeartbeat();
   };
   ws.onmessage = (e) => {
+    if (myGen !== socketGen) return;
+    // Any frame proves liveness, including history ahead of a queued pong.
+    clearPongTimer();
     const data = e.data as string;
     let msg: ServerMessage | null = null;
     try {
