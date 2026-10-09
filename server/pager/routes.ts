@@ -22,7 +22,7 @@ import { canSeeRoom, getUserById } from "../users.ts";
 import { broadcast } from "../ws/broadcast.ts";
 import { postToDiscord, sendPage, type PagerDeliveryDeps } from "./delivery.ts";
 import { getPagerSettings, updatePagerSettings } from "./settings.ts";
-import { ackPage, findPage, findUnresolvedByKey, listPages, PAGE_BODY_MAX, PAGE_KEY_MAX, PAGE_TITLE_MAX, raisePage, recordDelivery, resolvePage } from "./store.ts";
+import { ackPage, findPage, findUnresolvedByKey, listPages, PAGE_BODY_MAX, PAGE_KEY_MAX, PAGE_TITLE_MAX, raisePage, recordDelivery, resolvePage, pagerArchive } from "./store.ts";
 
 const JSON_HEADERS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 const NEW_PAGES_PER_HOUR = 20;
@@ -114,8 +114,8 @@ async function finishResolve(id: string, by: string): Promise<Response> {
   const resolved = resolvePage(id, by);
   if (!resolved) return json(409, { error: "page is already resolved" });
   pagerDeliveryDeps.changed();
-  if (resolved.delivery.sends > 0) await sendPage(resolved, "resolved", pagerDeliveryDeps);
-  return json(200, { page: resolved });
+  await sendPage(resolved, "resolved", pagerDeliveryDeps);
+  return json(200, { page: findPage(id) });
 }
 
 // A browser on the office's own machine authenticates as loopback, which
@@ -181,11 +181,30 @@ export async function handlePagerRequest(req: Request, url: URL, auth: AuthResul
   const user = memberFor(req, auth);
   if (!user) return json(401, { error: "signed-in member required" });
   if (req.method === "GET" && parts.length === 0) {
-    const pages = listPages().filter((page) => canSeePage(user, page));
-    return json(200, { pages });
+    const roomId = url.searchParams.get("roomId");
+    const visible = (page: PagerEntry) => canSeePage(user, page) && (!roomId || page.source.roomId === roomId);
+    const pages = listPages().filter(visible);
+    const limit = Number(url.searchParams.get("limit") ?? 50);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) return json(400, { error: "history limit must be between 1 and 100" });
+    let nextCursor: string | null = null;
+    if (url.searchParams.get("includeResolved") !== "false") {
+      try {
+        const history = await pagerArchive.list({ visible, limit, cursor: url.searchParams.get("cursor") });
+        pages.push(...history.pages);
+        nextCursor = history.nextCursor;
+      } catch (error) {
+        if (error instanceof Error && error.message === "invalid history cursor") return json(400, { error: error.message });
+        throw error;
+      }
+    }
+    const linkedId = url.searchParams.get("page");
+    const linked = linkedId ? findPage(linkedId) : undefined;
+    if (linked && visible(linked) && !pages.some((page) => page.id === linked.id)) pages.push(linked);
+    return json(200, { pages, nextCursor });
   }
-  const page = parts.length === 2 ? findPage(parts[0]!) : undefined;
+  const page = parts.length === 1 || parts.length === 2 ? findPage(parts[0]!) : undefined;
   if (!page || !canSeePage(user, page)) return json(404, { error: "page not found" });
+  if (req.method === "GET" && parts.length === 1) return json(200, { page });
   if (req.method === "POST" && parts[1] === "ack") {
     const acked = ackPage(page.id, user.name);
     if (!acked) return json(409, { error: "only an open page can be acked" });

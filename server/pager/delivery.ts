@@ -1,6 +1,6 @@
 import type { PagerDeliveryFailure, PagerEntry } from "../../shared/types.ts";
 import { getDiscordWebhook, getPagerSettings } from "./settings.ts";
-import { listPages, recordDelivery } from "./store.ts";
+import { findPage, listPages, recordDelivery } from "./store.ts";
 
 export type DiscordPost = (url: string, payload: object) => Promise<{ status: number; retryAfterMs?: number }>;
 
@@ -55,8 +55,28 @@ function failureFor(status: number): PagerDeliveryFailure | null {
   return status >= 500 ? "http_5xx" : "http_4xx";
 }
 
-/** Send one Discord message for a page. Records the outcome on the page unless it is a test. */
-export async function sendPage(page: PagerEntry, kind: "page" | "resolved" | "test", deps: PagerDeliveryDeps): Promise<PagerDeliveryFailure | null> {
+const inFlight = new Map<string, Promise<PagerDeliveryFailure | null>>();
+
+/** Serialize page and resolution notices so a late delivery cannot follow its resolution. */
+export function sendPage(page: PagerEntry, kind: "page" | "resolved" | "test", deps: PagerDeliveryDeps): Promise<PagerDeliveryFailure | null> {
+  if (kind === "test") return deliver(page, kind, deps);
+  const previous = inFlight.get(page.id) ?? Promise.resolve(null);
+  const pending = previous
+    .catch(() => null)
+    .then(() => {
+      const current = findPage(page.id) ?? page;
+      if (kind === "page" && !isDue(current, deps.now())) return null;
+      if (kind === "resolved" && current.delivery.sends === 0) return null;
+      return deliver(current, kind, deps);
+    })
+    .finally(() => {
+      if (inFlight.get(page.id) === pending) inFlight.delete(page.id);
+    });
+  inFlight.set(page.id, pending);
+  return pending;
+}
+
+async function deliver(page: PagerEntry, kind: "page" | "resolved" | "test", deps: PagerDeliveryDeps): Promise<PagerDeliveryFailure | null> {
   const now = deps.now();
   const url = getDiscordWebhook(page.targetUserId);
   let failure: PagerDeliveryFailure | null = null;

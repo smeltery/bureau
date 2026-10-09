@@ -28,9 +28,10 @@ function age(ms: number): string {
 
 export function PagerPane() {
   const { rooms, currentRoom, lobbyOpen } = useAppState();
-  const { pages, error, reload } = usePager();
   const [showResolved, setShowResolved] = useState(false);
   const [roomId, setRoomId] = useState(() => (linkedPageId || lobbyOpen ? "" : (rooms[currentRoom]?.id ?? "")));
+  const [cursors, setCursors] = useState<string[]>([]);
+  const { pages, error, reload, nextCursor, loading } = usePager(true, { roomId, includeResolved: showResolved, cursor: cursors.at(-1), linkedPageId });
   const [actionError, setActionError] = useState<string | null>(null);
 
   const visible = pages
@@ -50,7 +51,14 @@ export function PagerPane() {
       <h4 style={sectionHeader}>Pager</h4>
       <p style={hint}>Agents and apps page you here when something needs a person. Ack a page to stop the repeats; resolve it when it is dealt with. Resolved pages remain in your history.</p>
       <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "12px 0" }}>
-        <select value={roomId} onChange={(e) => setRoomId(e.target.value)} style={{ ...dialogInput, width: "auto" }}>
+        <select
+          value={roomId}
+          onChange={(e) => {
+            setRoomId(e.target.value);
+            setCursors([]);
+          }}
+          style={{ ...dialogInput, width: "auto" }}
+        >
           <option value="">All rooms</option>
           {rooms.map((room) => (
             <option key={room.id} value={room.id}>
@@ -59,12 +67,20 @@ export function PagerPane() {
           ))}
         </select>
         <label style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", gap: 6, alignItems: "center" }}>
-          <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} /> Show resolved
+          <input
+            type="checkbox"
+            checked={showResolved}
+            onChange={(e) => {
+              setShowResolved(e.target.checked);
+              setCursors([]);
+            }}
+          />{" "}
+          Show resolved
         </label>
       </div>
       {(error || actionError) && <p style={{ fontSize: 11, color: "#ff6b6b" }}>{actionError ?? error}</p>}
       {visible.length === 0 ? (
-        <p style={hint}>No pages.</p>
+        <p style={hint}>{loading ? "Loading pages…" : "No pages."}</p>
       ) : (
         <div style={{ display: "grid", gap: 8 }}>
           {visible.map((page) => {
@@ -101,6 +117,20 @@ export function PagerPane() {
               </div>
             );
           })}
+        </div>
+      )}
+      {showResolved && (cursors.length > 0 || nextCursor) && (
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          {cursors.length > 0 && (
+            <button disabled={loading} style={dialogSaveBtn} onClick={() => setCursors((previous) => previous.slice(0, -1))}>
+              Newer resolved pages
+            </button>
+          )}
+          {nextCursor && (
+            <button disabled={loading} style={dialogSaveBtn} onClick={() => setCursors((previous) => [...previous, nextCursor])}>
+              Older resolved pages
+            </button>
+          )}
         </div>
       )}
       <div style={{ marginTop: 24 }}>
