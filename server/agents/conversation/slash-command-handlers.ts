@@ -1,3 +1,4 @@
+import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import { familyDisplayLabel } from "../../../shared/types.ts";
 import { getBackupStatus } from "../../backup.ts";
 import { listAgentSessions } from "../../persistence.ts";
@@ -104,7 +105,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
         humanInput: true,
       });
     } catch (err: any) {
-      if (err instanceof SessionSwappedError) return true;
+      if (err instanceof SessionSwappedError || err instanceof ProviderSignInRequiredError) return true;
       if (err instanceof UsageCapError) {
         addLogEntry(agentId, "error", usageCapText(err));
         updateState(agentId, "waiting_for_response");
@@ -167,7 +168,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
         humanInput: true,
       });
     } catch (err: any) {
-      if (err instanceof SessionSwappedError) return true;
+      if (err instanceof SessionSwappedError || err instanceof ProviderSignInRequiredError) return true;
       if (err instanceof UsageCapError) {
         addLogEntry(agentId, "error", usageCapText(err));
         updateState(agentId, "waiting_for_response");

@@ -3,7 +3,7 @@ import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, persistAll
 import { SessionSwappedError, createSession, installSession } from "../session/runtime.ts";
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
-import { ProviderCapacityError } from "../../internal-types.ts";
+import { ProviderCapacityError, ProviderSignInRequiredError } from "../../internal-types.ts";
 import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
 import { getBackend } from "../../backends/index.ts";
 import { flushPrefix } from "./queue-prefix.ts";
@@ -51,6 +51,7 @@ export function steerRateLimited(managed: ManagedAgent): boolean {
 }
 
 function hasPendingFlow(managed: ManagedAgent): boolean {
+  if (managed.session && managed.providerSignInBlockedSession === managed.session) return true;
   return !!(managed.pendingPermission || (managed.queuedPermissions?.length ?? 0) > 0 || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick || managed.pendingCronjobPick);
 }
 
@@ -200,9 +201,8 @@ export function enqueueUserMessage(agentId: string, managed: ManagedAgent, text:
   return true;
 }
 
-// Flush the per-agent message queue. Combines all queued items into one SDK
-// send. Each item is also written as its own user_message log entry so chat
-// history shows them as individual turns.
+// Flush queued items as one SDK send, while preserving individual
+// user_message entries in chat history.
 export async function flushQueue(agentId: string): Promise<void> {
   const managed = agents.get(agentId);
   if (!managed) return;
@@ -308,7 +308,7 @@ export async function flushQueue(agentId: string): Promise<void> {
         },
       });
     } catch (err: any) {
-      if (err instanceof SessionSwappedError) return;
+      if (err instanceof SessionSwappedError || err instanceof ProviderSignInRequiredError) return;
       if (err instanceof ProviderCapacityError) {
         updateState(agentId, "waiting_for_response");
         return;

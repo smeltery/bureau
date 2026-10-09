@@ -5,6 +5,8 @@ import type { BackendSession, NormalizedEvent } from "../backends/types.ts";
 export interface ManagedAgent {
   info: AgentInfo;
   session: BackendSession | null;
+  /** Suspend automatic queue retries only for the session known to need login. */
+  providerSignInBlockedSession?: BackendSession;
   sessionId: string | null;
   lastActivityAt: number;
   // Persistent consumer loop iterating `session.stream()` for the session's

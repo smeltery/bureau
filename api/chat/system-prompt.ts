@@ -77,6 +77,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Agent and schedule model pickers load capabilities for the session environment, with built-in fallback choices and a notice if unavailable. Direct Claude Haiku uses 5.5. Limited cloud aliases omit unsupported effort and fall back from Auto to Default (ask), never to Bypass
 - Per-agent effort level (minimal → ultra, default xhigh) controls how much thinking an agent spends per turn; Codex also offers ultra, and the GPT-6 family (GPT-6.1 Sol, GPT-6 Astra, GPT-6 Sol, GPT-6 Luna) is available alongside the GPT-5.6 Sol/Terra/Luna family
 - Large browser transcript replays respect slow connections, preserve history-before-live ordering, and reconnect when a pending backlog is no longer valid
+- Codex desk agents check for known sign-out before submitting work, show Connections guidance, and keep queued messages for retry after login
 - Connections and Claude login guidance recognize environment tokens and macOS Keychain credentials. An inconclusive local sign-in check is shown as unavailable, and refreshing checks again
 - Fresh offices seed one Claude and one Codex welcome agent on first owner claim so you can try whichever backend you have set up
 - Click empty desk to spawn — name, working directory, model, permission mode, custom instructions
