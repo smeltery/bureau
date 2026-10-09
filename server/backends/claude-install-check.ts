@@ -1,25 +1,11 @@
-// Checks for the human-facing Claude Code CLI and credentials.
-//
-// The Claude Agent SDK ships its own native binary for agent runtime. The
-// standalone `claude` command is only needed for the human login flow:
-// running `claude` then `/login` writes credentials the SDK can read.
-
-import { execSync } from "child_process";
+// Local credential presence and availability of the bundled or host Claude CLI.
 import { existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import { claudeLoginCommand } from "./claude/login-command.ts";
 
-let cachedClaudeOnPath: boolean | null = null;
-
-export function isClaudeCodeInstalled(): boolean {
-  if (cachedClaudeOnPath !== null) return cachedClaudeOnPath;
-  try {
-    execSync("which claude", { stdio: "pipe" });
-    cachedClaudeOnPath = true;
-  } catch {
-    cachedClaudeOnPath = false;
-  }
-  return cachedClaudeOnPath;
+export function isClaudeCodeInstalled(env?: Record<string, string | undefined>): boolean {
+  return claudeLoginCommand(env) !== null;
 }
 
 export function isClaudeCodeAuthenticated(env?: { [key: string]: string | undefined }): boolean {

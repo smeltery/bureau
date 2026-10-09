@@ -1,3 +1,4 @@
+import { claudeLoginCommand } from "../backends/claude/login-command.ts";
 import { claudeSignInStatus } from "../backends/claude/sign-in-status.ts";
 import { isClaudeCloudSelected, isClaudeCodeInstalled } from "../backends/claude-install-check.ts";
 import { getCodexLoginCommands, isCodexAuthenticated } from "../backends/codex/native-bin.ts";
@@ -90,7 +91,7 @@ export async function listProviderAccounts(userId: string, refresh = false): Pro
     return { accounts: withLiveQueues(cached.accounts) };
   }
   const env = buildProviderProbeEnv(userId);
-  const probed = await Promise.all([runBoundedProbe("claude", () => probeFns.probeClaude(env)), runBoundedProbe("codex", () => probeFns.probeCodex(env))]);
+  const probed = await Promise.all([runBoundedProbe("claude", () => probeFns.probeClaude(env), env), runBoundedProbe("codex", () => probeFns.probeCodex(env), env)]);
   const unavailable = probed.some((wire) => wire.accountStatus === "unavailable");
   const accounts = probed.map(stripProbeMarker);
   // Unavailable results must not stick in the TTL cache — next read starts fresh.
@@ -118,7 +119,7 @@ function withLiveQueues(accounts: ProviderAccountWire[]): ProviderAccountWire[] 
   });
 }
 
-async function runBoundedProbe(provider: ProviderAccountProvider, read: () => Promise<ProviderAccountWire>): Promise<ProbedAccountWire> {
+async function runBoundedProbe(provider: ProviderAccountProvider, read: () => Promise<ProviderAccountWire>, env: Record<string, string | undefined>): Promise<ProbedAccountWire> {
   let cancelTimeout = () => {};
   try {
     const timedOut = new Promise<never>((_resolve, reject) => {
@@ -133,7 +134,7 @@ async function runBoundedProbe(provider: ProviderAccountProvider, read: () => Pr
       accountStatus: "unavailable",
       authVia: "none",
       hasApiKey: false,
-      hostHints: timedOut ? hostHintsFor(provider) : [],
+      hostHints: timedOut ? hostHintsFor(provider, env) : [],
       canOfferSignIn: timedOut,
       ...(timedOut ? {} : { error: err instanceof Error ? err.message || undefined : String(err) }),
     };
@@ -149,15 +150,15 @@ function stripProbeMarker(wire: ProbedAccountWire): ProviderAccountWire {
   return rest;
 }
 
-function hostHintsFor(provider: ProviderAccountProvider): string[] {
-  if (provider === "claude") return claudeHostHints(isClaudeCodeInstalled());
+function hostHintsFor(provider: ProviderAccountProvider, env: Record<string, string | undefined>): string[] {
+  if (provider === "claude") return claudeHostHints(env);
   return getCodexLoginCommands();
 }
 
 async function probeClaude(env: { [key: string]: string | undefined }): Promise<ProviderAccountWire> {
   const hasApiKey = Boolean(env.ANTHROPIC_API_KEY?.trim());
   const cloudSelected = isClaudeCloudSelected(env);
-  const cliInstalled = isClaudeCodeInstalled();
+  const cliInstalled = isClaudeCodeInstalled(env);
   const signIn = await claudeSignInStatus(env, true);
   const connected = signIn === "signed_in";
   const hasToken = Boolean(env.CLAUDE_CODE_OAUTH_TOKEN?.trim() || env.ANTHROPIC_AUTH_TOKEN?.trim());
@@ -169,7 +170,7 @@ async function probeClaude(env: { [key: string]: string | undefined }): Promise<
     authVia,
     hasApiKey,
     cliInstalled,
-    hostHints: claudeHostHints(cliInstalled),
+    hostHints: claudeHostHints(env),
     canOfferSignIn: !connected,
   };
 }
@@ -201,9 +202,9 @@ function authViaOf(hasApiKey: boolean, hasCli: boolean): ProviderAuthVia {
   return "none";
 }
 
-function claudeHostHints(cliInstalled: boolean): string[] {
-  if (cliInstalled) return ["claude"];
-  return ["curl -fsSL https://claude.ai/install.sh | bash"];
+function claudeHostHints(env?: Record<string, string | undefined>): string[] {
+  const command = claudeLoginCommand(env);
+  return command ? [command] : [];
 }
 
 export function providerLabel(provider: ProviderAccountProvider): string {

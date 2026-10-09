@@ -15,7 +15,7 @@ import { MODEL_FAMILIES } from "../../shared/types.ts";
 import { CLAUDE_NATIVE_BIN } from "../agents/session/claude-native.ts";
 import { claudeProjectDir, claudeSessionFileExists } from "../agents/session/paths.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
-import { isClaudeCodeInstalled } from "./claude-install-check.ts";
+import { claudeLoginCommand } from "./claude/login-command.ts";
 import { createClaudeSubscriptionUsageReader, type ClaudeUsageCapableQuery } from "./claude-subscription-usage.ts";
 import { claudeSignInStatus } from "./claude/sign-in-status.ts";
 import { claudeModelForEnvironment, claudeSessionModelOptions, claudeModelsForEnvironment } from "./claude/model-options.ts";
@@ -43,28 +43,13 @@ import type {
 
 export { runClaudeOneShot } from "./claude-raw-session.ts";
 
-const LOGIN_INSTRUCTIONS = `Claude authentication failed.
+const LOGIN_INSTRUCTIONS = `Claude needs sign-in.
 
-Open User Settings → Connections to paste an ANTHROPIC_API_KEY, or sign in on the host:
-
-1. Open the built-in terminal
-2. Run \`claude\`
-3. Type \`/login\`
-4. Follow the auth flow
+Open Account → Connections to paste an ANTHROPIC_API_KEY, or copy the command below into the built-in terminal and follow the sign-in flow. Bureau includes the Claude CLI.
 
 Once complete, type \`/clear\` in this conversation.`;
 
 const ALREADY_AUTHED_INSTRUCTIONS = `Claude Code is signed in. Type \`/clear\` to refresh this agent's session and pick up the new auth.`;
-
-const CLAUDE_CODE_NOT_INSTALLED_MESSAGE = `To install Claude Code, click [Copy to terminal] on the card below:
-
-\`curl -fsSL https://claude.ai/install.sh | bash\`
-
-macOS users with Homebrew can alternatively run \`brew install --cask claude-code\`.
-
-After install, open a new shell and run \`claude\` to sign in. If \`claude\` is not found, make sure \`~/.local/bin\` is on your PATH.
-
-Alternative: open User Settings → Connections and paste an ANTHROPIC_API_KEY, then \`/clear\`.`;
 
 const AUTH_ERROR_PATTERNS = /unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|not logged in|run \/login|403|401/i;
 
@@ -296,12 +281,8 @@ export const claudeBackend: Backend = {
     if (signIn === "signed_in") {
       return { text: ALREADY_AUTHED_INSTRUCTIONS };
     }
-    if (isClaudeCodeInstalled()) {
-      return { text: LOGIN_INSTRUCTIONS, commands: ["claude"] };
-    }
-    return {
-      text: CLAUDE_CODE_NOT_INSTALLED_MESSAGE,
-      commands: ["curl -fsSL https://claude.ai/install.sh | bash"],
-    };
+    const command = claudeLoginCommand(opts?.env);
+    if (command) return { text: LOGIN_INSTRUCTIONS, commands: [command] };
+    return { text: "Claude's bundled executable is unavailable. Repair the Bureau installation, or open Account → Connections to provide an ANTHROPIC_API_KEY, then /clear." };
   },
 };
