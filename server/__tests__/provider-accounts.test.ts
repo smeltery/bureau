@@ -75,6 +75,17 @@ describe("provider-accounts status + keys", () => {
     expect(claude?.authVia).toBe("none");
   });
 
+  test("recognizes personal Claude tokens without returning their values", async () => {
+    const user = claimUserByName(`Claude Token ${crypto.randomUUID()}`);
+    const dir = mkdtempSync(join(tmpdir(), "bureau-provider-token-"));
+    const envPath = join(dir, "user.env");
+    writeFileSync(envPath, "ANTHROPIC_API_KEY=\nCLAUDE_CODE_USE_BEDROCK=0\nCLAUDE_CODE_USE_VERTEX=0\nCLAUDE_CODE_OAUTH_TOKEN=test-private-token\n");
+    updateUser(getUserById(user.id)!, user.id, { envFile: envPath }, []);
+    const listed = await listProviderAccounts(user.id, true);
+    expect(listed.accounts.find((account) => account.provider === "claude")).toMatchObject({ accountStatus: "connected", accountLabel: "Environment token", hasApiKey: false });
+    expect(JSON.stringify(listed)).not.toContain("test-private-token");
+  });
+
   test("timed-out probes settle as unavailable, keep sign-in, and are not cached", async () => {
     const user = claimUserByName(`Probe Timeout ${crypto.randomUUID()}`);
     invalidateProviderAccountCache(user.id);

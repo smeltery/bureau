@@ -41,10 +41,17 @@ export function isAuthErrorForAgent(managed: ManagedAgent | undefined, text: str
   return getBackend(managed.info.agentType).detectAuthError(text);
 }
 
-export function emitLoginInstructions(agentId: string, managed: ManagedAgent | undefined) {
+export async function emitLoginInstructions(agentId: string, managed: ManagedAgent | undefined) {
   if (!managed) return;
   const provider = managed.info.agentType === "codex" ? "codex" : managed.info.agentType === "claude" ? "claude" : null;
-  const instructions = getBackend(managed.info.agentType).getLoginInstructions({ env: envForHints(managed) });
+  const session = managed.session;
+  let instructions: { text: string; commands?: string[] };
+  try {
+    instructions = await getBackend(managed.info.agentType).getLoginInstructions({ env: envForHints(managed) });
+  } catch {
+    instructions = { text: "Could not check provider sign-in. Open Account → Connections to check or reconnect." };
+  }
+  if (managed.session !== session) return;
   // Connections deep-link: system notice carries providerLogin so the log card
   // can open Account → Connections without embedding secrets or OAuth state.
   emitEphemeralLog(agentId, "system", instructions.text, provider ? { providerLogin: provider, openConnections: true } : undefined);

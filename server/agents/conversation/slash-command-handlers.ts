@@ -68,7 +68,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
   async login(agentId, managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
     addLogEntry(agentId, "user_message", rawText, userMeta);
-    emitLoginInstructions(agentId, managed);
+    await emitLoginInstructions(agentId, managed);
     updateState(agentId, "waiting_for_response");
     return true;
   },
