@@ -12,7 +12,7 @@ export function resolveOpenCodeBinary(env: NodeJS.ProcessEnv = process.env): str
     }
     return override;
   }
-  const fromPath = Bun.which("opencode");
+  const fromPath = Bun.which("opencode", { PATH: env.PATH ?? "/usr/bin:/bin" });
   if (fromPath) return fromPath;
   throw new Error("OpenCode CLI not found. Install the `opencode` binary on PATH " + "(https://opencode.ai), or set OPENCODE_BINARY to its absolute path.");
 }

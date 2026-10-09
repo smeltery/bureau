@@ -175,7 +175,7 @@ export class OpenCodeSupervisor {
     const configPath = join(this.profileDir, "opencode.json");
     await writeFile(configPath, `${JSON.stringify(this.config)}\n`, { mode: 0o600 });
     await chmod(configPath, 0o600);
-    const binary = this.binary ?? resolveOpenCodeBinary();
+    const binary = this.binary ?? resolveOpenCodeBinary({ ...process.env, ...this.launchEnv });
     const password = randomBytes(32).toString("base64url");
     let started: ServerRecord | null = null;
     let lastError = "";
@@ -213,10 +213,15 @@ export class OpenCodeSupervisor {
   }
 
   private childEnv(password: string, configPath: string): NodeJS.ProcessEnv {
-    const filtered = Object.fromEntries(Object.entries({ ...process.env, ...this.launchEnv }).filter(([name]) => name === "OPENCODE_API_KEY" || !name.startsWith("OPENCODE_")));
+    // Office authority belongs to the per-turn broker, never to a shared child.
+    const filtered = Object.fromEntries(
+      Object.entries({ ...process.env, ...this.launchEnv }).filter(
+        ([name]) => name !== "BUREAU_AGENT_TOKEN" && name !== "BUREAU_APP_TOKEN" && (name === "OPENCODE_API_KEY" || !name.startsWith("OPENCODE_")),
+      ),
+    );
     return {
       ...filtered,
-      PATH: process.env.PATH ?? "/usr/bin:/bin",
+      PATH: this.launchEnv.PATH ?? process.env.PATH ?? "/usr/bin:/bin",
       LANG: "C.UTF-8",
       HOME: join(this.profileDir, "home"),
       XDG_CONFIG_HOME: join(this.profileDir, "config"),

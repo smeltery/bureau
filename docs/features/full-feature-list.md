@@ -33,6 +33,10 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   block custom providers.
 - OpenCode uses the host `opencode` binary on PATH (or `OPENCODE_BINARY`) plus
   `OPENCODE_API_KEY` / host `opencode auth login` — the CLI is not bundled.
+- OpenCode's shared child never inherits office agent/app bearer tokens. Office
+  calls use the active-turn Unix-socket broker, including shared tabs, Pager,
+  agent reference pages, app archive/restore and binary-safe thumbnails.
+  The launch environment's PATH and OPENCODE_BINARY select the installed CLI.
 - OpenCode requests and silent event streams stop waiting after 30 seconds.
   Heartbeats keep long turns alive. A failed subscription may recover before
   sending the prompt; a submitted prompt is never automatically replayed.
