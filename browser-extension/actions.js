@@ -26,6 +26,13 @@ async function execute(command) {
     result = await send(tabId, "Page.captureScreenshot", { format: "jpeg", quality: 60 });
     if (result.data.length > 1_900_000) throw new Error("Screenshot exceeds the transfer limit");
     result = { mimeType: "image/jpeg", base64: result.data };
+  } else if (input.action === "upload") {
+    if (!input.file || typeof input.file.base64 !== "string" || input.file.base64.length > 1_398_104) throw new Error("Upload exceeds the transfer limit");
+    result = await evaluate(
+      tabId,
+      origin,
+      `(() => { const e=document.querySelector(${JSON.stringify(input.selector)}); if(!(e instanceof HTMLInputElement) || e.type!=='file' || e.disabled) throw new Error('File input unavailable'); const f=${JSON.stringify(input.file)}; const bytes=Uint8Array.from(atob(f.base64), c=>c.charCodeAt(0)); if(bytes.length>1048576) throw new Error('Upload exceeds the transfer limit'); const file=new File([bytes], f.name, {type:f.mimeType}); const transfer=new DataTransfer(); transfer.items.add(file); e.files=transfer.files; e.dispatchEvent(new Event('input',{bubbles:true})); e.dispatchEvent(new Event('change',{bubbles:true})); return {name:file.name,mimeType:file.type,size:file.size}; })()`,
+    );
   } else if (input.action === "navigate") {
     if (new URL(input.url).origin !== origin) throw new Error("Navigation must stay on the shared origin");
     result = await send(tabId, "Page.navigate", { url: input.url });

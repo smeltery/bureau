@@ -2,7 +2,7 @@
 
 Bureau's Chrome extension lets you offer a tab to selected agents you manage.
 Those agents can read visible page text, take a screenshot, click an element,
-type into a focused field, and navigate within the tab's original origin. They
+type into a focused field, upload a file, and navigate within the tab's original origin. They
 use your existing signed-in page session. Other tabs are not offered implicitly.
 
 ## Setup
@@ -45,7 +45,12 @@ curl -s localhost:4000/api/agents/AGENT_ID/shared-browser \
 
 The list includes only grants offered to that exact agent. POST accepts `read`,
 `screenshot`, `click` with a CSS `selector`, `type` with `selector` and `text`, or
-`navigate` with a same-origin `url`. Typing inserts text at the field's cursor;
+`navigate` with a same-origin `url`, or `upload` with a file-input `selector` and
+a `path` on the office host. Upload paths resolve relative to the agent's working
+directory (absolute paths also work). Files must be readable, non-sensitive
+regular files of at most 1 MiB. Upload replaces the input's selection with one
+file and dispatches input/change events; the response includes name, MIME type,
+and size. Reload the unpacked extension after updating Bureau to use new actions. Typing inserts text at the field's cursor;
 it does not implicitly clear existing contents. Read returns up to 32,000
 characters plus a bounded list of interactive elements. Screenshot returns JPEG
 base64. There is no arbitrary JavaScript or unrestricted debugger command API.
