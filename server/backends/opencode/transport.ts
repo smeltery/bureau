@@ -13,6 +13,7 @@ import type { OpenCodeLease, OpenCodeSupervisor } from "./supervisor.ts";
 import { applyOpenCodeEvent, type TrackedTool } from "./transport-events.ts";
 import { openCodeAuthorityBroker, type OpenCodeAuthorityBinding, type OpenCodeAuthorityBroker } from "./authority-broker.ts";
 import { OPENCODE_TURN_HANDLE_PLACEHOLDER } from "./office-proxy-shared.ts";
+import { fetchOpenCode, readOpenCodeEvent, OPENCODE_DEADLINE_MS } from "./connection/deadlines.ts";
 
 type EventSink = (event: NormalizedEvent) => void;
 
@@ -27,6 +28,8 @@ export interface OpenCodeTransportOptions {
   agentId?: string;
   agentToken?: string;
   authorityBroker?: OpenCodeAuthorityBroker;
+  requestTimeoutMs?: number;
+  eventIdleTimeoutMs?: number;
 }
 
 export class OpenCodeTransport {
@@ -38,6 +41,8 @@ export class OpenCodeTransport {
   private readonly autoApprove: boolean;
   private readonly authorityBroker: OpenCodeAuthorityBroker;
   private readonly resumedSessionId?: string;
+  private readonly requestTimeoutMs: number;
+  private readonly eventIdleTimeoutMs: number;
   private lease: OpenCodeLease | null = null;
   private sessionId: string | null = null;
   private abortController: AbortController | null = null;
@@ -60,6 +65,8 @@ export class OpenCodeTransport {
     this.agent = options.agent;
     this.autoApprove = options.autoApprove ?? !!options.agent;
     this.resumedSessionId = options.sessionId;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? OPENCODE_DEADLINE_MS;
+    this.eventIdleTimeoutMs = options.eventIdleTimeoutMs ?? OPENCODE_DEADLINE_MS;
   }
 
   modelId(): string {
@@ -123,14 +130,17 @@ export class OpenCodeTransport {
       });
     } catch (error) {
       this.abortController?.abort();
+      const wasActive = this.activeTurn;
+      if (wasActive && !this.abortRequested && !this.closed) this.lease?.markUnresponsive?.();
       this.activeTurn = false;
       this.authorityBinding?.deactivate();
       this.lease!.endTurn();
-      sink({
-        kind: "turn_completed",
-        status: "failed",
-        error: error instanceof Error ? error.message : "OpenCode request failed.",
-      });
+      if (wasActive)
+        sink({
+          kind: "turn_completed",
+          status: "failed",
+          error: error instanceof Error ? error.message : "OpenCode request failed.",
+        });
     }
   }
 
@@ -208,7 +218,7 @@ export class OpenCodeTransport {
     void (async () => {
       try {
         while (!signal.aborted) {
-          const { done, value } = await reader.read();
+          const { done, value } = await readOpenCodeEvent(reader, this.eventIdleTimeoutMs);
           if (done) break;
           buffer = `${buffer}${decoder.decode(value, { stream: true })}`.replaceAll("\r\n", "\n");
           let boundary: number;
@@ -249,16 +259,20 @@ export class OpenCodeTransport {
           }
         }
         if (!signal.aborted) {
+          this.lease?.markUnresponsive?.();
           settle({ kind: "turn_completed", status: "failed", error: "OpenCode event stream ended before turn completion." });
         }
       } catch (error) {
         if (!signal.aborted) {
+          this.lease?.markUnresponsive?.();
           settle({
             kind: "turn_completed",
             status: "failed",
             error: `OpenCode event stream failed: ${error instanceof Error ? error.message : "unknown error"}`,
           });
         }
+      } finally {
+        await reader.cancel().catch(() => undefined);
       }
     })();
   }
@@ -281,14 +295,18 @@ export class OpenCodeTransport {
     if (!this.lease) throw new Error("OpenCode transport is not initialized.");
     const url = new URL(path, this.lease.baseUrl);
     url.searchParams.set("directory", this.cwd);
-    const response = await fetch(url, {
-      ...init,
-      headers: {
-        authorization: this.lease.authHeader,
-        ...(init.body ? { "content-type": "application/json" } : {}),
-        ...init.headers,
+    const response = await fetchOpenCode(
+      url,
+      {
+        ...init,
+        headers: {
+          authorization: this.lease.authHeader,
+          ...(init.body ? { "content-type": "application/json" } : {}),
+          ...init.headers,
+        },
       },
-    });
+      this.requestTimeoutMs,
+    );
     if (!response.ok) {
       await response.body?.cancel().catch(() => undefined);
       throw new Error(`OpenCode HTTP ${response.status} at ${path}.`);

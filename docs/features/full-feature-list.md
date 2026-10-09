@@ -19,6 +19,11 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   deferred. Auth-failure chat notices deep-link to Connections.
 - OpenCode uses the host `opencode` binary on PATH (or `OPENCODE_BINARY`) plus
   `OPENCODE_API_KEY` / host `opencode auth login` — the CLI is not bundled.
+- OpenCode requests and silent event streams stop waiting after 30 seconds.
+  Heartbeats keep long turns alive. A failed subscription may recover before
+  sending the prompt; a submitted prompt is never automatically replayed.
+  Recovery waits for other active turns, and a slow health probe alone does
+  not restart a process whose identity still matches.
 
 ## Multi-Agent
 

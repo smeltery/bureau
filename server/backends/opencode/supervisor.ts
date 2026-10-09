@@ -9,6 +9,8 @@ import { BUREAU_DIR } from "../../persistence/paths.ts";
 import { DEFAULT_OPENCODE_CONFIG } from "./config.ts";
 import { allowDiscoveredModels, type DiscoveredOpenCodeModel } from "./parse.ts";
 import { resolveOpenCodeBinary } from "./runtime.ts";
+import { processIdentityMatches, readProcessStartTicks } from "./process-identity.ts";
+import { fetchOpenCode } from "./connection/deadlines.ts";
 
 export const OPENCODE_IDLE_SHUTDOWN_MS = 10 * 60 * 1000;
 const USERNAME = "bureau";
@@ -18,6 +20,7 @@ interface ServerRecord {
   pid: number;
   port: number;
   password: string;
+  startTicks?: string;
 }
 
 export interface OpenCodeLease {
@@ -28,6 +31,7 @@ export interface OpenCodeLease {
   beginTurn(): Promise<void>;
   recoverBeforePrompt(): Promise<void>;
   endTurn(): void;
+  markUnresponsive?(): void;
 }
 
 export interface OpenCodeSupervisorOptions {
@@ -45,6 +49,7 @@ export class OpenCodeSupervisor {
   private record: ServerRecord | null = null;
   private child: ChildProcess | null = null;
   private starting: Promise<void> | null = null;
+  private unresponsive = false;
   readonly profileDir: string;
   private readonly binary: string | undefined;
   private readonly config: Record<string, unknown>;
@@ -85,7 +90,8 @@ export class OpenCodeSupervisor {
       },
       beginTurn: async () => {
         if (released || turnActive) return;
-        await this.validateServerForTurn(this.activeTurns > 0);
+        await this.validateServerForTurn(false);
+        if (released) return;
         turnActive = true;
         this.activeTurns++;
         if (this.idleTimer) clearTimeout(this.idleTimer);
@@ -93,7 +99,11 @@ export class OpenCodeSupervisor {
       },
       recoverBeforePrompt: async () => {
         if (released || !turnActive) return;
-        await this.validateServerForTurn(this.activeTurns > 1);
+        this.unresponsive = true;
+        await this.validateServerForTurn(true);
+      },
+      markUnresponsive: () => {
+        this.unresponsive = true;
       },
       endTurn: () => {
         if (!turnActive) return;
@@ -113,6 +123,7 @@ export class OpenCodeSupervisor {
     this.record = null;
     if (!child?.pid && !record) return;
     const pid = child?.pid ?? record!.pid;
+    if (record?.startTicks && !processIdentityMatches(pid, record.startTicks)) return;
     try {
       process.kill(pid, "SIGTERM");
     } catch {}
@@ -130,21 +141,31 @@ export class OpenCodeSupervisor {
   }
 
   private async ensureServer(): Promise<void> {
-    if (this.record && (await this.healthy(this.record))) return;
     if (this.starting) {
       await this.starting;
       return;
     }
+    const record = this.record;
+    const healthy = record && !this.unresponsive && (await this.healthy(record));
+    if (healthy && record === this.record && !this.unresponsive) return;
+    if (this.starting) return this.starting;
+    if (this.activeTurns > 0) throw new Error("OpenCode server cannot restart while another turn is active.");
     this.starting = this.startServer().finally(() => {
       this.starting = null;
     });
     await this.starting;
   }
 
-  private async validateServerForTurn(otherTurnActive: boolean): Promise<void> {
-    if (!this.record || !(await this.healthy(this.record))) {
-      if (otherTurnActive) throw new Error("OpenCode server health check failed during an active turn.");
-      await this.ensureServer();
+  private async validateServerForTurn(ownsTurn: boolean): Promise<void> {
+    const healthy = this.record && !this.unresponsive && (await this.healthy(this.record));
+    if (this.unresponsive || !healthy) {
+      if (this.activeTurns > (ownsTurn ? 1 : 0)) throw new Error("OpenCode server health check failed during an active turn.");
+      // Before submitting a prompt this turn may own the only active lease.
+      if (!this.starting)
+        this.starting = this.startServer().finally(() => {
+          this.starting = null;
+        });
+      await this.starting;
     }
   }
 
@@ -172,7 +193,7 @@ export class OpenCodeSupervisor {
         stderr += String(chunk);
       });
       if (child.pid && (await this.waitHealthy(port, password, child))) {
-        started = { pid: child.pid, port, password };
+        started = { pid: child.pid, port, password, startTicks: readProcessStartTicks(child.pid) ?? undefined };
         this.child = child;
         break;
       }
@@ -188,6 +209,7 @@ export class OpenCodeSupervisor {
       throw new Error(`OpenCode server failed to start: ${lastError}`);
     }
     this.record = started;
+    this.unresponsive = false;
   }
 
   private childEnv(password: string, configPath: string): NodeJS.ProcessEnv {
@@ -218,8 +240,10 @@ export class OpenCodeSupervisor {
       });
       const body = (await response.json()) as { healthy?: boolean };
       return response.ok && body.healthy === true;
-    } catch {
-      return false;
+    } catch (error) {
+      // A busy server may miss a short health deadline. Reuse it only when
+      // its kernel process identity still matches the process we launched.
+      return error instanceof Error && error.name === "TimeoutError" && processIdentityMatches(record.pid, record.startTicks);
     }
   }
 
@@ -253,7 +277,7 @@ export async function discoverOpenCodeModels(supervisor: OpenCodeSupervisor, cwd
   try {
     const url = new URL("/provider", lease.baseUrl);
     url.searchParams.set("directory", cwd);
-    const response = await fetch(url, { headers: { authorization: lease.authHeader } });
+    const response = await fetchOpenCode(url, { headers: { authorization: lease.authHeader } });
     if (!response.ok) {
       await response.body?.cancel().catch(() => undefined);
       throw new Error(`OpenCode HTTP ${response.status} at /provider.`);
