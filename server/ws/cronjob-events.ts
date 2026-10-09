@@ -4,20 +4,19 @@ import * as Cronjobs from "../cronjobs/index.ts";
 import { getWsUser } from "../users.ts";
 import { browsers } from "./broadcast.ts";
 
-export function sendScheduleState(ws: ServerWebSocket<unknown>): void {
+export function scheduleStateFrames(ws: ServerWebSocket<unknown>): Iterable<string> {
   const user = getWsUser(ws);
-  ws.send(
-    JSON.stringify({
-      type: "cronjobs_state",
-      cronjobs: Cronjobs.listCronjobs().filter((job) => canViewSchedule(user, job)),
-      cronjobsPrompt: user?.role === "owner" ? Cronjobs.getCronjobsPrompt() : null,
-    }),
-  );
-  for (const { jobId, runs } of Cronjobs.getAllRunsByJob()) {
-    const visible = runs.filter((run) => canViewRun(user, run));
-    if (visible.length) ws.send(JSON.stringify({ type: "cronjob_runs", cronjobId: jobId, runs: visible }));
-  }
-  ws.send(JSON.stringify({ type: "cronjob_runs_complete" }));
+  const state = { type: "cronjobs_state", cronjobs: Cronjobs.listCronjobs().filter((job) => canViewSchedule(user, job)), cronjobsPrompt: user?.role === "owner" ? Cronjobs.getCronjobsPrompt() : null };
+  const history = Cronjobs.getAllRunsByJob().map(({ jobId, runs }) => ({ jobId, runs: runs.filter((run) => canViewRun(user, run)) }));
+  return (function* () {
+    yield JSON.stringify(state);
+    for (const { jobId, runs } of history) if (runs.length) yield JSON.stringify({ type: "cronjob_runs", cronjobId: jobId, runs });
+    yield JSON.stringify({ type: "cronjob_runs_complete" });
+  })();
+}
+
+export function sendScheduleState(ws: ServerWebSocket<unknown>): void {
+  for (const frame of scheduleStateFrames(ws)) ws.send(frame);
 }
 
 export function broadcastScheduleEvent(event: Cronjobs.CronjobEvent): void {

@@ -551,3 +551,7 @@ That said, Bureau — especially with Tailscale — can provide real value to pe
 The gap going from Level 1 to Level 5 was mostly about models getting smarter. But for 5 to 6, the orchestration tool matters more.
 
 We'll all be working with agents, so it's important to really like your orchestration tool. The orchestration tool is the new editor.
+
+### Bounded browser replay
+
+Office WebSocket connections serialize cached transcripts lazily, yielding between batches and waiting for Bun’s drain signal when a browser falls behind. Live updates follow the replay fence in order. Pending live traffic is bounded, and a changed access projection closes a backlogged connection so it reconnects with a fresh view. App proxy sockets retain their separate transport.
