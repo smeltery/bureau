@@ -17,7 +17,7 @@ The token decides the source and the target; the body carries only `title` (requ
 
 ## The page record
 
-Stored in `~/.bureau/pager/pages.json` (`PagerEntry` in `shared/user-types.ts`): id, timestamps, raise count, source (kind, id, name, room), target member, title, body, key, state (`open`, `acked`, `resolved`) with who and when, and delivery status (last attempt, successful sends, last failure class). Webhook URLs and raw responses never land on a page. Resolved pages remain available as incident history; delivery ticks never delete them.
+Active pages are stored in `~/.bureau/pager/pages.json`; resolved entries live individually in `~/.bureau/pager/resolved/<id>.json` (`PagerEntry` in `shared/user-types.ts`): id, timestamps, raise count, source (kind, id, name, room), target member, title, body, key, state (`open`, `acked`, `resolved`) with who and when, and delivery status (last attempt, successful sends, last failure class). Webhook URLs and raw responses never land on a page. Resolved pages remain available as incident history; delivery ticks never delete them. Existing resolved rows migrate on the first store load. Resolution commits the archive record before removing the active row; after a crash, the archive wins over any stale active copy. Failed archive writes leave the active page unchanged. Discord sends for one page are serialized so a resolution notice cannot overtake an in-flight page, and final delivery metadata remains attached to the archived entry.
 
 ## Delivery
 
@@ -34,10 +34,30 @@ Each message holds the title, body, source and room, the raise count, and a link
 
 ## Reading and acting
 
-`GET /api/pager` lists pages a member can see: pages addressed to them, plus pages whose source room they can see (owners see all). `POST /api/pager/<id>/ack` and `/resolve` act on one. These accept a browser session or a personal API token; delivery settings (`GET/PUT /api/pager/settings`, `POST /api/pager/settings/test`) are browser-session only. A browser on the office machine itself, which authenticates as loopback, is identified by its session cookie.
+`GET /api/pager` lists active pages and up to 50 resolved entries a member can see: pages addressed to them, plus pages whose source room they can see (owners see all). `POST /api/pager/<id>/ack` and `/resolve` act on one. `GET /api/pager/<id>` also opens retained history directly. These accept a browser session or a personal API token; delivery settings (`GET/PUT /api/pager/settings`, `POST /api/pager/settings/test`) are browser-session only. A browser on the office machine itself, which authenticates as loopback, is identified by its session cookie.
 
 The UI lists pages in **User Settings > Pager** with a room filter and a resolved toggle, open pages first. `/pager?page=<id>` (the Discord link) opens the section with that page highlighted. The settings vent on the office wall shows a count of the member's open pages. Browsers refetch when the server broadcasts `pager_changed`.
 
 ## Not in v0
 
 Server-raised watchdog pages (agent crashes, auth expiry, app crash loops), other channels (Slack, Web Push), escalation to other members, and acking from inside Discord.
+
+## History windows
+
+`GET /api/pager` accepts `includeResolved=false` (active only), `roomId`, a resolved
+history `limit` from 1 to 100, and the opaque `cursor` returned as `nextCursor`.
+Resolved entries are ordered by resolution time, then id; access and room filters
+apply before the page limit. `nextCursor: null` means no older visible entries.
+The optional `page=<id>` includes an accessible linked entry even when it falls
+outside the selected window. It never bypasses access or room filters.
+
+The UI's **Show resolved** view has **Older resolved pages** and **Newer resolved
+pages** controls. Refreshing retains that window; changing the room or resolved
+filter starts at the newest window. Only that window and active pages are loaded,
+plus an explicitly linked entry. The office badge requests active pages only.
+
+Archive queries scan files incrementally and retain at most one result window in
+memory. Query time grows with the archive's file count, while routine raises,
+acknowledgments, and delivery updates no longer rewrite resolved history. The
+archive directory belongs in backups alongside `pages.json`; webhook credentials
+remain excluded as before.

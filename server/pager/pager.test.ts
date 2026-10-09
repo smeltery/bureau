@@ -1,15 +1,16 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, rmSync, statSync } from "fs";
+import * as persistencePaths from "../persistence/paths.ts";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "fs";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { agents } from "../agents/state.ts";
 import { _testResetAgentTokens, mintAgentToken } from "../agents/tokens.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { installAgent } from "../http/__tests__/privileged-agent-fixture.ts";
 import { claimUserByName, deleteUserById, updateUserById } from "../users.ts";
-import { discordPayload, isDue, pagerTick } from "./delivery.ts";
+import { discordPayload, isDue, pagerTick, sendPage } from "./delivery.ts";
 import { _testResetPagerRoutes, handlePagerRequest, pagerDeliveryDeps } from "./routes.ts";
 import { _testResetPagerSettings, getDiscordWebhook, PAGER_WEBHOOKS_FILE, updatePagerSettings } from "./settings.ts";
-import { _testResetPagerStore, ackPage, PAGER_DIR, findPage, raisePage, resolvePage } from "./store.ts";
+import { _testResetPagerStore, ackPage, PAGER_DIR, PAGES_FILE, pagerArchive, listPages, findPage, raisePage, resolvePage } from "./store.ts";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123456/abc-DEF_9";
 const posts: { url: string; payload: { content: string; allowed_mentions: { users: string[] } } }[] = [];
@@ -166,5 +167,127 @@ describe("pager routes", () => {
     await pagerTick(pagerDeliveryDeps);
     expect(posts).toHaveLength(1);
     expect(existsSync(PAGER_WEBHOOKS_FILE)).toBe(true);
+  });
+});
+
+describe("retained Pager history", () => {
+  const source = { kind: "agent" as const, id: "archive-agent", name: "Archive", roomId: null };
+  test("moves resolved entries out of active memory and reconciles a crash before cleanup", () => {
+    const { entry } = raisePage({ source, targetUserId: "u", title: "Retained", now: 1 });
+    const original = structuredClone(entry);
+    resolvePage(entry.id, "Boss", 2);
+    expect(listPages()).toHaveLength(0);
+    expect(JSON.parse(readFileSync(PAGES_FILE, "utf8"))).toEqual([]);
+    writeFileSync(PAGES_FILE, JSON.stringify([original]));
+    _testResetPagerStore();
+    expect(findPage(entry.id)).toMatchObject({ state: "resolved", resolvedAt: 2 });
+    expect(listPages()).toHaveLength(0);
+    expect(JSON.parse(readFileSync(PAGES_FILE, "utf8"))).toEqual([]);
+  });
+  test("migrates legacy resolved pages and refuses to overwrite corrupt active storage", () => {
+    const { entry } = raisePage({ source, targetUserId: "u", title: "Legacy", now: 1 });
+    writeFileSync(PAGES_FILE, JSON.stringify([{ ...entry, state: "resolved", resolvedAt: 2 }]));
+    _testResetPagerStore();
+    expect(listPages()).toHaveLength(0);
+    expect(pagerArchive.read(entry.id)?.title).toBe("Legacy");
+    writeFileSync(PAGES_FILE, "broken");
+    _testResetPagerStore();
+    expect(() => raisePage({ source, targetUserId: "u", title: "New" })).toThrow();
+    expect(readFileSync(PAGES_FILE, "utf8")).toBe("broken");
+  });
+  test("a committed archive survives failure to clean the active file", () => {
+    const { entry } = raisePage({ source, targetUserId: "u", title: "Committed" });
+    const write = spyOn(persistencePaths, "atomicWriteFileSync").mockImplementation(() => {
+      throw new Error("cleanup failed");
+    });
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(resolvePage(entry.id, "Boss")?.state).toBe("resolved");
+      expect(listPages()).toHaveLength(0);
+      expect(JSON.parse(readFileSync(PAGES_FILE, "utf8"))[0].state).toBe("open");
+      expect(error).toHaveBeenCalled();
+    } finally {
+      write.mockRestore();
+      error.mockRestore();
+    }
+    _testResetPagerStore();
+    expect(findPage(entry.id)?.state).toBe("resolved");
+    expect(listPages()).toHaveLength(0);
+  });
+  test("an archive write failure leaves the unresolved page intact", () => {
+    const { entry } = raisePage({ source, targetUserId: "u", title: "Keep open" });
+    const save = spyOn(pagerArchive, "save").mockImplementation(() => {
+      throw new Error("disk full");
+    });
+    try {
+      expect(() => resolvePage(entry.id, "Boss")).toThrow("disk full");
+    } finally {
+      save.mockRestore();
+    }
+    expect(entry.state).toBe("open");
+    _testResetPagerStore();
+    expect(findPage(entry.id)?.state).toBe("open");
+  });
+  test("an in-flight page is delivered before its resolution and retains its final delivery status", async () => {
+    updatePagerSettings("u", { webhookUrl: WEBHOOK });
+    const { entry } = raisePage({ source, targetUserId: "u", title: "Incident" });
+    let started!: () => void;
+    let release!: () => void;
+    const firstStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const sent: string[] = [];
+    const deps = {
+      ...pagerDeliveryDeps,
+      post: async (_url: string, payload: object) => {
+        sent.push((payload as { content: string }).content);
+        if (sent.length === 1) {
+          started();
+          await held;
+        }
+        return { status: 204 };
+      },
+    };
+    const sending = sendPage(entry, "page", deps);
+    await firstStarted;
+    const resolved = resolvePage(entry.id, "Boss")!;
+    const finishing = sendPage(resolved, "resolved", deps);
+    release();
+    await Promise.all([sending, finishing]);
+    expect(sent).toHaveLength(2);
+    expect(sent[0]).toContain("Page:");
+    expect(sent[1]).toStartWith("Resolved:");
+    _testResetPagerStore();
+    expect(findPage(entry.id)).toMatchObject({ state: "resolved", delivery: { sends: 1, failure: null } });
+    expect(listPages()).toHaveLength(0);
+  });
+  test("history pagination and old links apply access and room filters", async () => {
+    const viewer = member("History viewer");
+    const hidden = member("Hidden history");
+    const ids: string[] = [];
+    for (let i = 0; i < 9; i++) {
+      const { entry } = raisePage({ source: { ...source, roomId: i % 2 ? "room-a" : "room-b" }, targetUserId: viewer.id, title: `Visible ${i}`, now: i });
+      resolvePage(entry.id, "Boss", i + 1);
+      ids.push(entry.id);
+      const other = raisePage({ source, targetUserId: hidden.id, title: "Hidden secret", now: i });
+      resolvePage(other.entry.id, "Boss", i + 1);
+    }
+    const first = await call("/api/pager?limit=2&roomId=room-a", { auth: session(viewer.id) });
+    expect(first.body.pages).toHaveLength(2);
+    expect(first.body.pages.every((page: any) => page.source.roomId === "room-a")).toBe(true);
+    const second = await call(`/api/pager?limit=2&roomId=room-a&cursor=${first.body.nextCursor}`, { auth: session(viewer.id) });
+    expect(second.body.pages).toHaveLength(2);
+    expect(second.body.nextCursor).toBeNull();
+    expect(new Set([...first.body.pages, ...second.body.pages].map((page: any) => page.id)).size).toBe(4);
+    expect(JSON.stringify([first.body, second.body])).not.toContain("Hidden secret");
+    expect((await call(`/api/pager/${ids[0]}`, { auth: session(viewer.id) })).body.page.id).toBe(ids[0]);
+    expect((await call(`/api/pager/${ids[0]}`, { auth: session(hidden.id) })).status).toBe(404);
+    const linked = await call(`/api/pager?includeResolved=false&page=${ids[0]}`, { auth: session(viewer.id) });
+    expect(linked.body.pages.map((page: any) => page.id)).toEqual([ids[0]]);
+    expect((await call("/api/pager?cursor=bad", { auth: session(viewer.id) })).status).toBe(400);
+    expect((await call("/api/pager?limit=101", { auth: session(viewer.id) })).status).toBe(400);
   });
 });

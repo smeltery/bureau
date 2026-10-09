@@ -94,7 +94,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   the member responsible for them. Pages live in User Settings > Pager
   (`/pager`), badge the settings vent, and are delivered to the member's
   Discord webhook until acked or resolved. Resolved entries remain available
-  as incident history. See `docs/features/pager.md`.
+  as incident history in a disk archive, with access-filtered pagination and
+  direct links to older entries. Refreshing keeps the selected history window.
+  See `docs/features/pager.md`.
 - Office-wide **Team chat** (`/team-chat`) for signed-in humans — monthly JSONL
   under `~/.bureau/members-chat/`, cookie session only (no agents / API tokens).
 - **Lobby** isometric scene (tab + Room 1 left door): warm wood lobby; click the

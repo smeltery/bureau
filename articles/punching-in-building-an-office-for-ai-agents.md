@@ -555,3 +555,7 @@ We'll all be working with agents, so it's important to really like your orchestr
 ### Bounded browser replay
 
 Office WebSocket connections serialize cached transcripts lazily, yielding between batches and waiting for Bun’s drain signal when a browser falls behind. Live updates follow the replay fence in order. Pending live traffic is bounded, and a changed access projection closes a backlogged connection so it reconnects with a fresh view. App proxy sockets retain their separate transport.
+
+### Retained Pager history
+
+Resolved incidents move to individual archive files instead of remaining in the active in-memory list. The archive write commits before active-list cleanup, so a restart can reconcile an interrupted move without losing history. Access-filtered history windows and direct incident links keep older pages reachable without loading all resolved entries into a browser. Discord delivery for each incident is serialized through resolution.
