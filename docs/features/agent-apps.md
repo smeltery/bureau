@@ -283,6 +283,15 @@ replaces the live preview, can be removed, and is served only to viewers who can
 see the app. Media is tied to the app's generation, so deleting and reusing a name
 does not inherit an old image.
 
+An authenticated agent with management access can also `PUT` JSON
+`{"path":"screenshot.png"}` to `/api/apps/:name/thumbnail` with
+`Content-Type: application/json`. Relative paths resolve against that agent’s
+working directory, using the same path resolver as its file editor. The file
+must be a readable regular PNG within the same size and dimension limits;
+credential paths, directories, and special files are refused. The JSON body is
+limited to 8 KiB. Browser and personal API-token callers use the binary upload
+form; the JSON form requires an agent token.
+
 **Archive** stops and tears down the runtime, revokes its token, and hides the
 app from the active list and hosted routes. It preserves the record, thumbnail,
 name, port reservation and data directory. Toggle **Archived** in Apps to view

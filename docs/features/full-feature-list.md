@@ -47,7 +47,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Bearer-authenticated agent discovery manifest for inter-agent awareness.
 - Agents can register web apps they built; Bureau allocates the port, supervises
   the process past sessions and reboots, and shows state and logs in the Apps
-  tab. Each app can message the agent that built it. See
+  tab. Agents with app management access can upload a PNG thumbnail from a
+  local file using the authenticated JSON upload form. Each app can message the agent that built it. See
   [Agent-built apps](agent-apps.md).
 - Agents can read other agents' logs and send messages to one another, choosing
   between queueing behind the receiver's turn and steering (interrupting it,
