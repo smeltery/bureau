@@ -32,6 +32,14 @@ describe("Claude Code effective-environment probes", () => {
     });
   }
 
+  test("recognizes token credentials without treating whitespace as authentication", () => {
+    for (const key of ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_AUTH_TOKEN"]) {
+      const env = { CLAUDE_CONFIG_DIR: tempDir() };
+      expect(isClaudeCodeAuthenticated({ ...env, [key]: "test-token" })).toBe(true);
+      expect(isClaudeCodeAuthenticated({ ...env, [key]: "  " })).toBe(false);
+    }
+  });
+
   test("resolves credentials from the effective CLAUDE_CONFIG_DIR", () => {
     const signedIn = tempDir();
     const signedOut = tempDir();

@@ -22,7 +22,11 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   status-cached. A process-local per-provider "sign-in in progress" slot lets
   another member see who is following host CLI login (holder name + start time;
   sentence composed client-side). Full browser/device OAuth login remains
-  deferred. Auth-failure chat notices deep-link to Connections.
+  deferred. Auth-failure chat notices deep-link to Connections. Claude recognizes
+  API keys, OAuth tokens, and auth tokens in the effective environment. On macOS,
+  a missing credentials file triggers a bounded local Keychain status check; an
+  inconclusive check stays unavailable rather than claiming the user is signed out.
+  Refresh and login guidance recheck status so a fresh sign-in is recognized.
 - OpenCode uses the host `opencode` binary on PATH (or `OPENCODE_BINARY`) plus
   `OPENCODE_API_KEY` / host `opencode auth login` — the CLI is not bundled.
 - OpenCode requests and silent event streams stop waiting after 30 seconds.

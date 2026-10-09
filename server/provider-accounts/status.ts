@@ -1,4 +1,5 @@
-import { isClaudeCloudSelected, isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "../backends/claude-install-check.ts";
+import { claudeSignInStatus } from "../backends/claude/sign-in-status.ts";
+import { isClaudeCloudSelected, isClaudeCodeInstalled } from "../backends/claude-install-check.ts";
 import { getCodexLoginCommands, isCodexAuthenticated } from "../backends/codex/native-bin.ts";
 import { readEnvFile } from "../persistence.ts";
 import { managedUserEnvExists, readManagedUserEnv } from "../persistence/managed-env.ts";
@@ -38,7 +39,7 @@ const defaultScheduleTimeout: ScheduleAccountStatusTimeout = (onTimeout) => {
 };
 
 let probeFns: ProviderProbeFns = {
-  probeClaude: async (env) => probeClaudeSync(env),
+  probeClaude: probeClaude,
   probeCodex: async (env) => probeCodexSync(env),
   scheduleTimeout: defaultScheduleTimeout,
 };
@@ -90,10 +91,10 @@ export async function listProviderAccounts(userId: string, refresh = false): Pro
   }
   const env = buildProviderProbeEnv(userId);
   const probed = await Promise.all([runBoundedProbe("claude", () => probeFns.probeClaude(env)), runBoundedProbe("codex", () => probeFns.probeCodex(env))]);
-  const anyTimedOut = probed.some((wire) => wire[PROBE_TIMED_OUT]);
+  const unavailable = probed.some((wire) => wire.accountStatus === "unavailable");
   const accounts = probed.map(stripProbeMarker);
-  // Timed-out results must not stick in the TTL cache — next read starts fresh.
-  if (!anyTimedOut) {
+  // Unavailable results must not stick in the TTL cache — next read starts fresh.
+  if (!unavailable) {
     statusCache.set(userId, { checkedAt: Date.now(), accounts });
   } else {
     statusCache.delete(userId);
@@ -153,16 +154,18 @@ function hostHintsFor(provider: ProviderAccountProvider): string[] {
   return getCodexLoginCommands();
 }
 
-function probeClaudeSync(env: { [key: string]: string | undefined }): ProviderAccountWire {
+async function probeClaude(env: { [key: string]: string | undefined }): Promise<ProviderAccountWire> {
   const hasApiKey = Boolean(env.ANTHROPIC_API_KEY?.trim());
   const cloudSelected = isClaudeCloudSelected(env);
   const cliInstalled = isClaudeCodeInstalled();
-  const connected = isClaudeCodeAuthenticated(env);
-  const authVia = authViaOf(hasApiKey, connected && !hasApiKey && !cloudSelected);
+  const signIn = await claudeSignInStatus(env, true);
+  const connected = signIn === "signed_in";
+  const hasToken = Boolean(env.CLAUDE_CODE_OAUTH_TOKEN?.trim() || env.ANTHROPIC_AUTH_TOKEN?.trim());
+  const authVia = authViaOf(hasApiKey, connected && !hasApiKey && !hasToken && !cloudSelected);
   return {
     provider: "claude",
-    accountStatus: connected ? "connected" : "not_connected",
-    accountLabel: connected ? (hasApiKey ? "API key" : cloudSelected ? claudeCloudLabel(env) : "CLI credentials") : undefined,
+    accountStatus: signIn === "unknown" ? "unavailable" : connected ? "connected" : "not_connected",
+    accountLabel: connected ? (hasApiKey ? "API key" : cloudSelected ? claudeCloudLabel(env) : hasToken ? "Environment token" : "CLI credentials") : undefined,
     authVia,
     hasApiKey,
     cliInstalled,

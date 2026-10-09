@@ -15,8 +15,9 @@ import { MODEL_FAMILIES } from "../../shared/types.ts";
 import { CLAUDE_NATIVE_BIN } from "../agents/session/claude-native.ts";
 import { claudeProjectDir, claudeSessionFileExists } from "../agents/session/paths.ts";
 import { createSafetyHooks } from "../agents/session/safety/index.ts";
-import { isClaudeCodeAuthenticated, isClaudeCodeInstalled } from "./claude-install-check.ts";
+import { isClaudeCodeInstalled } from "./claude-install-check.ts";
 import { createClaudeSubscriptionUsageReader, type ClaudeUsageCapableQuery } from "./claude-subscription-usage.ts";
+import { claudeSignInStatus } from "./claude/sign-in-status.ts";
 import { claudeModelForEnvironment, claudeSessionModelOptions, claudeModelsForEnvironment } from "./claude/model-options.ts";
 import { claudeSessionStore } from "./claude/session-store.ts";
 import { buildUserMessage, extractMessageText, normalizeClaudeMessage, TaskBreadcrumbTracker } from "./claude-messages.ts";
@@ -289,8 +290,10 @@ export const claudeBackend: Backend = {
   detectAuthError(text: string) {
     return AUTH_ERROR_PATTERNS.test(text);
   },
-  getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }) {
-    if (isClaudeCodeAuthenticated(opts?.env)) {
+  async getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }) {
+    const signIn = await claudeSignInStatus(opts?.env, true);
+    if (signIn === "unknown") return { text: "Claude sign-in could not be checked. Open User Settings → Connections to check or reconnect, then /clear this conversation." };
+    if (signIn === "signed_in") {
       return { text: ALREADY_AUTHED_INSTRUCTIONS };
     }
     if (isClaudeCodeInstalled()) {

@@ -25,7 +25,7 @@ export function isClaudeCodeInstalled(): boolean {
 export function isClaudeCodeAuthenticated(env?: { [key: string]: string | undefined }): boolean {
   const effective = env ?? process.env;
   if (isClaudeCloudSelected(effective)) return true;
-  if (effective.ANTHROPIC_API_KEY) return true;
+  if ([effective.ANTHROPIC_API_KEY, effective.CLAUDE_CODE_OAUTH_TOKEN, effective.ANTHROPIC_AUTH_TOKEN].some((value) => value?.trim())) return true;
   const configDir = effective.CLAUDE_CONFIG_DIR?.trim() || join(homedir(), ".claude");
   return existsSync(join(configDir, ".credentials.json"));
 }
