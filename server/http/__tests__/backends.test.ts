@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
+import { getBackend } from "../../backends/index.ts";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { handleBackendsRequest } from "../backends.ts";
 
@@ -46,6 +47,19 @@ describe("handleBackendsRequest", () => {
     expect(body.models[0]).toHaveProperty("id");
     expect(body.models[0]).toHaveProperty("label");
     expect(body.models[0]).toHaveProperty("supportedEfforts");
+  });
+
+  test("exposes OpenCode model variants through the authenticated catalog route", async () => {
+    const models = [{ id: "test/model", label: "Test model", supportedEfforts: [{ level: "high" }] }];
+    const list = spyOn(getBackend("opencode"), "listModels").mockResolvedValue(models);
+    try {
+      const req = request(`/api/backends/opencode/models?cwd=${encodeURIComponent(process.cwd())}`);
+      const res = await handleBackendsRequest(req, new URL(req.url), ownerAuth);
+      expect(res?.status).toBe(200);
+      expect(await res?.json()).toEqual({ models });
+    } finally {
+      list.mockRestore();
+    }
   });
 
   test("rejects unknown backend names", async () => {
