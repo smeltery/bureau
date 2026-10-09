@@ -50,7 +50,7 @@ export async function handleBackendsRequest(req: Request, url: URL, auth: AuthRe
 }
 
 function parseAgentType(value: string | undefined): AgentBackendType | null {
-  return value === "claude" || value === "codex" ? value : null;
+  return value === "claude" || value === "codex" || value === "opencode" ? value : null;
 }
 
 function buildUserEnv(userId: string): { [key: string]: string | undefined } | undefined {

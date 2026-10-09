@@ -69,7 +69,6 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
         if (models.length === 0) return staticBackendModels();
         return models.map(({ contextLimit: _c, isFree: _f, ...entry }) => ({
           ...entry,
-          supportedEfforts: [],
         }));
       } catch {
         return staticBackendModels();

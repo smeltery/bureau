@@ -8,12 +8,15 @@ afterEach(async () => {
   for (const dispose of cleanup.splice(0).reverse()) await dispose();
 });
 
-function mockSupervisorWithPromptCapture(onPrompt: (system: string) => void): OpenCodeSupervisor {
+function mockSupervisorWithPromptCapture(onPrompt: (system: string, variant?: string) => void): OpenCodeSupervisor {
   let eventController: ReadableStreamDefaultController<Uint8Array> | null = null;
   const server = Bun.serve({
     port: 0,
     async fetch(req) {
       const url = new URL(req.url);
+      if (url.pathname === "/provider") {
+        return Response.json({ connected: ["opencode"], all: [{ id: "opencode", models: { "gpt-5-nano": { variants: { low: {}, high: {} }, limit: { context: 128000 } } } }] });
+      }
       if (url.pathname === "/event") {
         return new Response(
           new ReadableStream({
@@ -29,8 +32,8 @@ function mockSupervisorWithPromptCapture(onPrompt: (system: string) => void): Op
         return Response.json({ id: "sess-stable-1" });
       }
       if (url.pathname.endsWith("/prompt_async") && req.method === "POST") {
-        const body = (await req.json()) as { system: string };
-        onPrompt(body.system);
+        const body = (await req.json()) as { system: string; variant?: string };
+        onPrompt(body.system, body.variant);
         const controller = eventController;
         eventController = null;
         queueMicrotask(() => {
@@ -152,6 +155,21 @@ describe("OpenCode transport pre-prompt recovery", () => {
       expect(subscriptions).toBe(2);
       expect(recoveries).toBe(1);
       expect(prompts).toBe(1);
+    } finally {
+      transport.close();
+    }
+  });
+});
+
+describe("OpenCode catalog-backed prompt settings", () => {
+  it("forwards a supported effort variant and exposes the discovered context limit", async () => {
+    const variants: Array<string | undefined> = [];
+    const supervisor = mockSupervisorWithPromptCapture((_system, variant) => variants.push(variant));
+    const transport = new OpenCodeTransport({ cwd: "/tmp", model: "opencode/gpt-5-nano", effort: "high", systemPrompt: "stable", supervisor, sessionId: "sess-stable-1" });
+    try {
+      await awaitTurn(transport, "hello");
+      expect(variants).toEqual(["high"]);
+      expect(transport.contextLimit()).toBe(128000);
     } finally {
       transport.close();
     }

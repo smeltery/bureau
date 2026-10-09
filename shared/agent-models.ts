@@ -96,8 +96,8 @@ export function effortLevelsFor(agentType: "claude" | "codex" | "opencode", mode
   // supportedReasoningEfforts from model/list; Codex rejects unsupported
   // values at thread/start (same pass-through stance as validateEffort).
   if (agentType === "codex") return EFFORT_LEVELS;
-  // OpenCode: effort is accepted on the wire but not forwarded to serve yet;
-  // offer the shared non-Codex-only levels so the picker stays usable.
+  // OpenCode's live catalog supplies the supported variants for each model.
+  // Keep a conservative fallback while that catalog is unavailable.
   if (agentType === "opencode") {
     return EFFORT_LEVELS.filter((e) => e.level !== "minimal" && e.level !== "ultra" && e.level !== "max");
   }
