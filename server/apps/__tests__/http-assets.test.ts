@@ -1,4 +1,6 @@
-import { afterEach, expect, mock, test } from "bun:test";
+import * as AgentManager from "../../agent-manager.ts";
+import { handleAppAssetsRequest } from "../http-assets.ts";
+import { afterEach, expect, mock, spyOn, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -94,4 +96,38 @@ test("thumbnail uploads require management access and are scoped to an app gener
   const successor = registry.register({ name: app.name, command: "bun app.ts", cwd: dir, userId: "owner", username: "Owner", createdBy: "Owner" });
   records.push(successor);
   expect(readThumbnail(successor)).toBeNull();
+});
+
+test("JSON thumbnails require an authorized agent and preserve the image on refusal", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "bureau-thumbnail-path-"));
+  dirs.push(dir);
+  const registry = createAppRegistry({ dir, probePort: () => true });
+  const app = registry.register({ name: "path-test", command: "bun app.ts", cwd: dir, userId: "owner", username: "Owner", createdBy: "Owner" });
+  records.push(app);
+  const image = join(dir, "screenshot.png");
+  writeFileSync(image, png);
+  const deps = { ...defaultAppsDeps, registry, publicUrl: () => null, states: () => new Map() };
+  const resolve = spyOn(AgentManager, "resolveEditorPathForAgent").mockReturnValue(image);
+  const announce = mock(() => {});
+  const identity = { scope: "agent" as const, agentId: "builder", userId: "owner" };
+  const request = (body: string) => new Request(`http://local/api/apps/${app.name}/thumbnail`, { method: "PUT", headers: { "Content-Type": "application/json; charset=utf-8" }, body });
+  const parts = ["api", "apps", app.name, "thumbnail"];
+  try {
+    const body = JSON.stringify({ path: "screenshot.png" });
+    expect((await handleAppAssetsRequest(request(body), parts, { scope: "user", userId: "owner", username: "Owner", role: "owner" }, deps, announce))?.status).toBe(403);
+    expect((await handleAppAssetsRequest(request(body), parts, { ...identity, userId: "other" }, deps, announce))?.status).toBe(404);
+    expect(resolve).not.toHaveBeenCalled();
+    expect((await handleAppAssetsRequest(request(body), parts, identity, deps, announce))?.status).toBe(200);
+    expect(resolve).toHaveBeenCalledWith("builder", "screenshot.png");
+    expect(readThumbnail(app)).toEqual(png);
+    for (const invalid of ["{}", "null", "{broken", JSON.stringify({ path: "x".repeat(8192) })]) {
+      expect((await handleAppAssetsRequest(request(invalid), parts, identity, deps, announce))?.status).toBe(400);
+    }
+    writeFileSync(image, "not an image");
+    expect((await handleAppAssetsRequest(request(body), parts, identity, deps, announce))?.status).toBe(400);
+    expect(readThumbnail(app)).toEqual(png);
+    expect(announce).toHaveBeenCalledTimes(1);
+  } finally {
+    resolve.mockRestore();
+  }
 });

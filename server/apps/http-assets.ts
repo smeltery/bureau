@@ -1,3 +1,5 @@
+import * as AgentManager from "../agent-manager.ts";
+import { readThumbnailFile } from "./media/thumbnail-file.ts";
 import type { AppRecord } from "../../shared/apps.ts";
 import type { AppsDeps } from "../http/apps-seam.ts";
 import { appToWire, jsonError, manageableApp, visibleApp, type AppsIdentity } from "../http/app-route-helpers.ts";
@@ -18,8 +20,18 @@ export async function handleAppAssetsRequest(req: Request, parts: string[], iden
         : new Response(null, { status: 404 });
     }
     if (req.method === "PUT") {
+      const fromPath = req.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() === "application/json";
+      if (fromPath && identity.scope !== "agent") return jsonError(403, "forbidden", "file-path uploads require an agent token");
       try {
-        saveThumbnail(app, await boundedBody(req, THUMBNAIL_LIMIT));
+        let bytes: Buffer;
+        if (fromPath) {
+          const body = JSON.parse((await boundedBody(req, 8192)).toString("utf8"));
+          if (typeof body?.path !== "string" || !body.path.trim()) throw new Error("path is required");
+          const path = identity.scope === "agent" ? AgentManager.resolveEditorPathForAgent(identity.agentId, body.path) : null;
+          if (!path) throw new Error("agent or file path is unavailable");
+          bytes = readThumbnailFile(path);
+        } else bytes = await boundedBody(req, THUMBNAIL_LIMIT);
+        saveThumbnail(app, bytes);
       } catch (error) {
         return jsonError(400, "invalid_request", error instanceof Error ? error.message : "Invalid image");
       }
