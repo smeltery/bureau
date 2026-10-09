@@ -27,10 +27,10 @@ function age(ms: number): string {
 }
 
 export function PagerPane() {
-  const { rooms } = useAppState();
+  const { rooms, currentRoom, lobbyOpen } = useAppState();
   const { pages, error, reload } = usePager();
   const [showResolved, setShowResolved] = useState(false);
-  const [roomId, setRoomId] = useState("");
+  const [roomId, setRoomId] = useState(() => (linkedPageId || lobbyOpen ? "" : (rooms[currentRoom]?.id ?? "")));
   const [actionError, setActionError] = useState<string | null>(null);
 
   const visible = pages
@@ -48,7 +48,7 @@ export function PagerPane() {
   return (
     <div style={{ marginTop: 24 }}>
       <h4 style={sectionHeader}>Pager</h4>
-      <p style={hint}>Agents and apps page you here when something needs a person. Ack a page to stop the repeats; resolve it when it is dealt with. Resolved pages are deleted after 30 days.</p>
+      <p style={hint}>Agents and apps page you here when something needs a person. Ack a page to stop the repeats; resolve it when it is dealt with. Resolved pages remain in your history.</p>
       <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "12px 0" }}>
         <select value={roomId} onChange={(e) => setRoomId(e.target.value)} style={{ ...dialogInput, width: "auto" }}>
           <option value="">All rooms</option>

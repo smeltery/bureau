@@ -20,6 +20,9 @@ const FILTER_LABELS: Record<AppFilter, "apps.filter.hideStopped" | "apps.filter.
 
 export function AppsView({ onClose }: { onClose: () => void }) {
   const {
+    rooms,
+    roomFilter,
+    setRoomFilter,
     showArchived,
     setShowArchived,
     act,
@@ -119,6 +122,14 @@ export function AppsView({ onClose }: { onClose: () => void }) {
                 {t(FILTER_LABELS[filter])}
               </label>
             ))}
+          <select aria-label="Filter apps by room" value={roomFilter} onChange={(event) => setRoomFilter(event.target.value)}>
+            <option value="">All rooms</option>
+            {rooms.map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.name}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 

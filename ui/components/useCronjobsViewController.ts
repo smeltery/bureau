@@ -7,8 +7,8 @@ import { shouldHostCloseOnEscape } from "./modals/expandedEditorState.ts";
 export type CronjobsViewTab = "runs" | "cronjobs" | "webhooks";
 
 export function useCronjobsViewController() {
-  const { cronjobs, cronjobsLoaded, cronjobRunsByJob, cronjobRunsLoaded, isMobile } = useAppState();
-  const [roomFilter, setRoomFilter] = useState("");
+  const { cronjobs, cronjobsLoaded, cronjobRunsByJob, cronjobRunsLoaded, isMobile, rooms, currentRoom, lobbyOpen } = useAppState();
+  const [roomFilter, setRoomFilter] = useState(() => (lobbyOpen ? "" : (rooms[currentRoom]?.id ?? "")));
   const [tab, setTab] = useState<CronjobsViewTab>("runs");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Cronjob | null>(null);
