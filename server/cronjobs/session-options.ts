@@ -90,7 +90,7 @@ export function buildRunResumeOptions({
     permissionMode: run.permissionModeSnapshot,
     sandbox: run.codexSandboxSnapshot,
     env,
-    systemPrompt: job ? buildSystemPrompt(job, run.cronjobId, run.id, buildCronjobMemoryPrompt()) : "",
+    systemPrompt: job ? buildSystemPrompt({ ...job, agentType: run.agentTypeSnapshot ?? "claude" }, run.cronjobId, run.id, buildCronjobMemoryPrompt()) : "",
     cwd: run.cwdSnapshot,
   };
 }

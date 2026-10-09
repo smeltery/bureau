@@ -1,5 +1,5 @@
 import { humanizeSchedule, type Cronjob } from "../../shared/types.ts";
-import { memorySection } from "../agents/session/system-prompt.ts";
+import { memorySection, rewriteOpenCodeOfficeCommands } from "../agents/session/system-prompt.ts";
 import { officeConfig } from "../agents/state.ts";
 import { memoryStore } from "../memory-store.ts";
 import { getUserById, getUserByName } from "../users.ts";
@@ -62,5 +62,5 @@ How to read prior runs of this cronjob: ~/.bureau/cronjobs/${jobId}/runs.json li
   const creatorPrompt = creatorMemberPrompt(cronjob);
   if (creatorPrompt) prompt += `\n\n## Special Instructions For ${creatorPrompt.name}\n\n${creatorPrompt.memberPrompt}`;
   prompt += memorySection(memoryPrompt);
-  return prompt;
+  return cronjob.agentType === "opencode" ? rewriteOpenCodeOfficeCommands(prompt) : prompt;
 }

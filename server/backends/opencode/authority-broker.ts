@@ -55,6 +55,10 @@ const PORT = process.env.PORT || "4000";
 
 const ROUTES: ReadonlyArray<{ method: string; path: RegExp }> = [
   { method: "GET", path: /^\/agents$/ },
+  { method: "GET", path: /^\/api\/agent-reference(?:\/[^/]+)?$/ },
+  { method: "GET", path: /^\/api\/agents\/[^/]+\/shared-browser$/ },
+  { method: "POST", path: /^\/api\/agents\/[^/]+\/shared-browser$/ },
+  { method: "POST", path: /^\/api\/pager(?:\/resolve)?$/ },
   { method: "GET", path: /^\/api\/agents$/ },
   { method: "GET", path: /^\/api\/tasks$/ },
   { method: "POST", path: /^\/api\/tasks$/ },
@@ -74,9 +78,11 @@ const ROUTES: ReadonlyArray<{ method: string; path: RegExp }> = [
     path: /^\/api\/agents\/[^/]+(?:\/queue\/[^/]+|\/scheduled-messages\/[^/]+)?$/,
   },
   { method: "POST", path: /^\/api\/agents$/ },
-  { method: "GET", path: /^\/api\/apps(?:\/[^/]+(?:\/logs)?)?$/ },
-  { method: "POST", path: /^\/api\/apps(?:\/[^/]+\/(restart|start|stop))?$/ },
+  { method: "GET", path: /^\/api\/apps(?:\/[^/]+(?:\/(?:logs|thumbnail))?)?$/ },
+  { method: "POST", path: /^\/api\/apps(?:\/[^/]+\/(restart|start|stop|archive|restore))?$/ },
   { method: "PATCH", path: /^\/api\/apps\/[^/]+$/ },
+  { method: "PUT", path: /^\/api\/apps\/[^/]+\/thumbnail$/ },
+  { method: "DELETE", path: /^\/api\/apps\/[^/]+\/thumbnail$/ },
   { method: "DELETE", path: /^\/api\/apps\/[^/]+$/ },
   { method: "GET", path: /^\/api\/memory$/ },
   { method: "POST", path: /^\/api\/memory$/ },
@@ -92,6 +98,7 @@ const ROUTES: ReadonlyArray<{ method: string; path: RegExp }> = [
     path: /^\/api\/cronjobs(?:\/[^/]+(?:\/runs(?:\/[^/]+)?)?)?$/,
   },
   { method: "POST", path: /^\/api\/cronjobs(?:\/[^/]+\/runs)?$/ },
+  { method: "POST", path: /^\/api\/cronjobs\/[^/]+\/runs\/[^/]+\/(?:read-file|diff)$/ },
   { method: "PATCH", path: /^\/api\/cronjobs\/[^/]+$/ },
   { method: "DELETE", path: /^\/api\/cronjobs\/[^/]+$/ },
   { method: "GET", path: /^\/api\/cron-runs$/ },
@@ -300,7 +307,19 @@ function statusText(status: number): string {
 }
 
 function scrubToken(body: Buffer, token: string): Buffer {
-  return Buffer.from(body.toString("utf8").split(token).join("[REDACTED]"));
+  const needle = Buffer.from(token);
+  if (!needle.length) return body;
+  const chunks: Buffer[] = [];
+  let offset = 0;
+  let index = body.indexOf(needle);
+  if (index < 0) return body;
+  while (index >= 0) {
+    chunks.push(body.subarray(offset, index), Buffer.from("[REDACTED]"));
+    offset = index + needle.length;
+    index = body.indexOf(needle, offset);
+  }
+  chunks.push(body.subarray(offset));
+  return Buffer.concat(chunks);
 }
 
 async function readCappedResponse(response: Response): Promise<Buffer | null> {
