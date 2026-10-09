@@ -1,3 +1,4 @@
+import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import type { Attachment } from "../../../shared/types.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, isAgentBusy, logCache, persistAll, updateState } from "../state.ts";
@@ -205,14 +206,6 @@ export async function sendMessage(agentId: string, text: string, username?: stri
 
   addLogEntry(agentId, "user_message", text, username ? { username } : undefined, attachments);
 
-  // First-message bootstrap (topic === null) OR drift-driven refresh after
-  // resume/restart/long session (shouldAutoRegenerateTopic). The threshold
-  // inside the helper keeps cost bounded to ~one regen per
-  // TOPIC_REGEN_THRESHOLD new user/text entries.
-  if ((managed.info.topic === null || shouldAutoRegenerateTopic(managed)) && !managed.topicGenerating) {
-    generateTopic(agentId); // fire-and-forget
-  }
-
   const prefixedText = username ? `[${username}] ${text}` : text;
   try {
     await runAgentTurn({
@@ -226,6 +219,10 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       attachments,
       origin: "user",
       humanInput: true,
+      onSendAccepted: () => {
+        // Do not start a separate topic-generation request for a signed-out turn.
+        if ((managed.info.topic === null || shouldAutoRegenerateTopic(managed)) && !managed.topicGenerating) generateTopic(agentId);
+      },
     });
   } catch (err: any) {
     // runAgentTurn re-throws whatever the underlying turn threw; it also
@@ -233,6 +230,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     // if session.send threw before await turn ran). The per-call-site catch
     // remains responsible for the distinct error semantics each path needs.
     if (err instanceof SessionSwappedError) return { ok: true };
+    if (err instanceof ProviderSignInRequiredError) return { ok: false, error: err.message };
     if (err instanceof ProviderCapacityError) {
       updateState(agentId, "waiting_for_response");
       return { ok: false, error: err.message };

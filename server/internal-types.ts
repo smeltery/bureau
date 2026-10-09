@@ -14,3 +14,10 @@ export class ProviderCapacityError extends Error {
     this.name = "ProviderCapacityError";
   }
 }
+
+export class ProviderSignInRequiredError extends Error {
+  constructor() {
+    super("Sign in through Account → Connections, then retry or /clear the conversation.");
+    this.name = "ProviderSignInRequiredError";
+  }
+}

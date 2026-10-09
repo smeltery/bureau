@@ -1,3 +1,4 @@
+import { CodexSignInProbe } from "./session/sign-in-probe.ts";
 // Codex backend session.
 
 import { errMessage } from "../../../shared/errors.ts";
@@ -23,6 +24,7 @@ import { CodexCapacityRetry } from "./session/capacity-retry.ts";
 import { routeCodexNotification } from "./session/notification-router.ts";
 
 export class CodexSession implements BackendSession {
+  private readonly signInProbe = new CodexSignInProbe(() => this.client.request("account/read", { refreshToken: false }));
   private client: JsonRpcLiteClient;
   private threadId: string | null = null;
   private activeTurnId: string | null = null;
@@ -121,6 +123,11 @@ export class CodexSession implements BackendSession {
 
   async *stream(): AsyncGenerator<NormalizedEvent, void> {
     yield* this.events.stream();
+  }
+
+  async isKnownSignedOut(): Promise<boolean> {
+    await this.bootstrapPromise;
+    return !this.closed && this.signInProbe.check(this.opts.env, this.bootstrapError);
   }
 
   async send(text: string, attachments?: AttachmentSpec[]): Promise<void> {

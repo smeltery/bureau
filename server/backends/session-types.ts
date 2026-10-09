@@ -212,6 +212,8 @@ export interface BackendSession {
   // behind it (test doubles, future backends), and keeps the contract additive
   // for every existing BackendSession implementation.
   getSubscriptionUsage?(): Promise<SubscriptionUsageResult>;
+  /** Bounded preflight; false includes unknown, true requires explicit evidence. */
+  isKnownSignedOut?(): Promise<boolean>;
   send(text: string, attachments?: AttachmentSpec[]): Promise<void>;
   approve(approvalId: string, decision: ApprovalDecision): Promise<void>;
   abort(): Promise<void>;

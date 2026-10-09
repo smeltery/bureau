@@ -37,10 +37,12 @@
  * with the pre-refactor patterns in each call site.
  */
 
+import { ProviderSignInRequiredError } from "../internal-types.ts";
+import { emitLoginInstructions } from "../agents/session/diagnostics.ts";
 import type { Attachment } from "../../shared/types.ts";
 import type { PluginAfterTurnInput, PluginTurnContext } from "../../shared/plugin-types.ts";
 import type { ManagedAgent } from "../agents/state.ts";
-import { beginTurn, logCache, rooms } from "../agents/state.ts";
+import { beginTurn, clearLiveTurn, logCache, rooms, updateState } from "../agents/state.ts";
 import { SessionSwappedError, createTurnDeferred } from "../agents/session/runtime.ts";
 import { getEnabledPlugins } from "./registry.ts";
 import { assistantTextFromEntries, runAfterTurn, runBeforeTurnHooks } from "./turn-hooks.ts";
@@ -130,6 +132,19 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
       throw new SessionSwappedError("Turn cancelled during plugin retrieval.");
     }
   };
+
+  const session = managed.session;
+  if (session?.isKnownSignedOut && (await session.isKnownSignedOut())) {
+    checkCancelled();
+    managed.providerSignInBlockedSession = session;
+    clearLiveTurn(managed);
+    updateState(agentId, "waiting_for_response");
+    await emitLoginInstructions(agentId, managed);
+    checkCancelled();
+    throw new ProviderSignInRequiredError();
+  }
+  checkCancelled();
+  managed.providerSignInBlockedSession = undefined;
 
   // 2. Gate on the previous turn's afterTurn. The promise stored on
   // `managed.afterTurnPromise` self-clears via runAfterTurn's .finally

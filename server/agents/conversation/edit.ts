@@ -1,3 +1,5 @@
+import { ProviderSignInRequiredError } from "../../internal-types.ts";
+import { emitLoginInstructions } from "../session/diagnostics.ts";
 import { getBackend } from "../../backends/index.ts";
 import { getSessionClaudeConfigDir, persistSessionFork } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitQueueUpdate, logCache, persistAll, updateState } from "../state.ts";
@@ -266,7 +268,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       persistAll();
       return;
     }
-    console.error(`Agent ${agentId} edit/fork error:`, err.message);
+    if (!(err instanceof ProviderSignInRequiredError)) console.error(`Agent ${agentId} edit/fork error:`, err.message);
 
     if (managed.sessionId !== oldSessionId) {
       // We switched to the fork — roll back to old session and restore UI
@@ -291,6 +293,12 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       emit({ type: "agent_updated", agentId, changes: { topic: oldTopic, topicStale: oldTopicStale } });
     }
 
+    if (err instanceof ProviderSignInRequiredError) {
+      if (managed.session) managed.providerSignInBlockedSession = managed.session;
+      updateState(agentId, "waiting_for_response");
+      await emitLoginInstructions(agentId, managed);
+      return;
+    }
     addLogEntry(agentId, "error", `Failed to branch conversation: ${err.message}`);
     updateState(agentId, "error");
   }

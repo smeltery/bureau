@@ -133,6 +133,7 @@ export async function abortByAgent(agentId: string): Promise<AgentAbortResult> {
 export async function sendNow(agentId: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
+  managed.providerSignInBlockedSession = undefined;
   if (managed.messageQueue.length === 0) return;
   if (managed.info.state === "thinking" || managed.info.state === "tool_executing") {
     await abort(agentId);

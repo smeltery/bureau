@@ -1,3 +1,4 @@
+import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
 import { addLogEntry, emitEphemeralLog, isAgentBusy, updateState, type ManagedAgent } from "../state.ts";
 import { enqueueMessage } from "./message-queue.ts";
@@ -122,7 +123,7 @@ async function executeSkill(agentId: string, managed: ManagedAgent, skillPrompt:
     // runAgentTurn re-throws whatever the underlying turn threw and has
     // already cleaned up the pendingTurn deferred if session.send fell
     // before await turn. Per-site error semantics remain here.
-    if (err instanceof SessionSwappedError) return true;
+    if (err instanceof SessionSwappedError || err instanceof ProviderSignInRequiredError) return true;
     if (err instanceof UsageCapError) {
       addLogEntry(agentId, "error", usageCapText(err));
       updateState(agentId, "waiting_for_response");
