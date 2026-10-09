@@ -1,12 +1,14 @@
 // OpenCode SSE / HTTP response parsers. Keeps wire-shape validation out of
 // the transport class so both stay under the file-size budget.
 
+import { EFFORT_LEVELS } from "../../../shared/types.ts";
 import type { NormalizedMessage, TokenUsage } from "../types.ts";
 
 export interface DiscoveredOpenCodeModel {
   id: string;
   label: string;
   contextLimit?: number;
+  supportedEfforts: { level: string }[];
   isFree?: boolean;
 }
 
@@ -129,6 +131,7 @@ export function allowDiscoveredModels(raw: unknown): DiscoveredOpenCodeModel[] {
       if (!byId.has(id)) {
         byId.set(id, {
           id,
+          supportedEfforts: EFFORT_LEVELS.filter(({ level }) => Object.hasOwn(asRecord(model.variants), level)).map(({ level }) => ({ level })),
           label: providerId === "opencode" || providerId === "opencode-go" ? modelLabel : `${providerLabel} - ${modelLabel}`,
           ...(contextLimit !== null && contextLimit > 0 ? { contextLimit } : {}),
           ...(openCodeModelIsFree(model.cost) ? { isFree: true } : {}),

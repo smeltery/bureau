@@ -7,10 +7,10 @@ import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { BUREAU_DIR } from "../../persistence/paths.ts";
 import { DEFAULT_OPENCODE_CONFIG } from "./config.ts";
-import { allowDiscoveredModels, type DiscoveredOpenCodeModel } from "./parse.ts";
+import { type DiscoveredOpenCodeModel } from "./parse.ts";
 import { resolveOpenCodeBinary } from "./runtime.ts";
 import { processIdentityMatches, readProcessStartTicks } from "./process-identity.ts";
-import { fetchOpenCode } from "./connection/deadlines.ts";
+import { modelCatalogFor, waitForCatalog } from "./connection/model-catalog.ts";
 
 export const OPENCODE_IDLE_SHUTDOWN_MS = 10 * 60 * 1000;
 const USERNAME = "bureau";
@@ -275,14 +275,7 @@ export function getSharedOpenCodeSupervisor(launchEnv?: Record<string, string | 
 export async function discoverOpenCodeModels(supervisor: OpenCodeSupervisor, cwd: string): Promise<DiscoveredOpenCodeModel[]> {
   const lease = await supervisor.acquire();
   try {
-    const url = new URL("/provider", lease.baseUrl);
-    url.searchParams.set("directory", cwd);
-    const response = await fetchOpenCode(url, { headers: { authorization: lease.authHeader } });
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new Error(`OpenCode HTTP ${response.status} at /provider.`);
-    }
-    return allowDiscoveredModels(await response.json());
+    return await waitForCatalog(modelCatalogFor(supervisor).load(lease, cwd));
   } finally {
     lease.release();
   }

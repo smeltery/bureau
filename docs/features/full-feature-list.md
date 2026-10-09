@@ -24,6 +24,11 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   sending the prompt; a submitted prompt is never automatically replayed.
   Recovery waits for other active turns, and a slow health probe alone does
   not restart a process whose identity still matches.
+- OpenCode shares model catalog loads for the same server and working directory.
+  Supported effort settings reach the model as variants, and context usage uses
+  the catalog's model limit. If the catalog is unavailable or a model advertises
+  effort variants that exclude the selected level, the turn uses the model's
+  default effort with a notice. Models without effort variants use their default.
 
 ## Multi-Agent
 

@@ -6,7 +6,8 @@
 // handle per session and activates it only for the live turn, so the system
 // payload remains byte-identical across turns.
 
-import { formatAttachmentLines, resolveAttachmentNotices } from "../../attachment-prompt.ts";
+import { buildPromptParts } from "./connection/prompt.ts";
+import { modelCatalogFor, OpenCodeModelSelection } from "./connection/model-catalog.ts";
 import type { ApprovalDecision, AttachmentSpec, NormalizedEvent, NormalizedMessage, TokenUsage } from "../types.ts";
 import { allowMessages, allowSession, parseAllowedEvent, splitModel, type OpenCodeContextBreakdown } from "./parse.ts";
 import type { OpenCodeLease, OpenCodeSupervisor } from "./supervisor.ts";
@@ -20,6 +21,7 @@ type EventSink = (event: NormalizedEvent) => void;
 export interface OpenCodeTransportOptions {
   cwd: string;
   model: string;
+  effort?: string;
   systemPrompt?: string;
   agent?: string;
   supervisor: OpenCodeSupervisor;
@@ -34,6 +36,7 @@ export interface OpenCodeTransportOptions {
 
 export class OpenCodeTransport {
   private readonly supervisor: OpenCodeSupervisor;
+  private readonly modelSelection: OpenCodeModelSelection;
   private readonly cwd: string;
   private readonly model: string;
   private readonly systemPrompt: string | undefined;
@@ -57,6 +60,7 @@ export class OpenCodeTransport {
     this.supervisor = options.supervisor;
     this.cwd = options.cwd;
     this.model = options.model;
+    this.modelSelection = new OpenCodeModelSelection(modelCatalogFor(options.supervisor), options.cwd, options.model, options.effort, options.requestTimeoutMs);
     this.authorityBroker = options.authorityBroker ?? openCodeAuthorityBroker;
     if (options.agentId && options.agentToken) {
       this.authorityBinding = this.authorityBroker.bind(options.agentId, options.agentToken);
@@ -67,6 +71,10 @@ export class OpenCodeTransport {
     this.resumedSessionId = options.sessionId;
     this.requestTimeoutMs = options.requestTimeoutMs ?? OPENCODE_DEADLINE_MS;
     this.eventIdleTimeoutMs = options.eventIdleTimeoutMs ?? OPENCODE_DEADLINE_MS;
+  }
+
+  contextLimit(): number | undefined {
+    return this.modelSelection.contextLimit;
   }
 
   modelId(): string {
@@ -80,6 +88,7 @@ export class OpenCodeTransport {
   async initialize(sink: EventSink): Promise<string> {
     if (this.sessionId) return this.sessionId;
     this.lease = await this.supervisor.acquire();
+    if (this.systemPrompt !== undefined) this.modelSelection.prefetch(this.lease);
     if (this.resumedSessionId) {
       this.sessionId = this.resumedSessionId;
     } else {
@@ -118,11 +127,15 @@ export class OpenCodeTransport {
         await this.consumeEvents(sessionId, sink, this.abortController.signal);
       }
       const [providerID, modelID] = splitModel(this.model);
+      const { variant, notice } = await this.modelSelection.resolve(this.lease!);
+      this.abortController.signal.throwIfAborted();
+      if (notice) sink({ kind: "system_text", text: notice, bureauAuthored: true });
       const parts = buildPromptParts(text, attachments, agentId);
       await this.request(`/session/${encodeURIComponent(sessionId)}/prompt_async`, {
         method: "POST",
         body: JSON.stringify({
           model: { providerID, modelID },
+          ...(variant ? { variant } : {}),
           ...(this.agent ? { agent: this.agent } : {}),
           system: this.systemPrompt,
           parts,
@@ -313,13 +326,4 @@ export class OpenCodeTransport {
     }
     return response;
   }
-}
-
-export function buildPromptParts(text: string, attachments: AttachmentSpec[] | undefined, agentId: string): Array<{ type: "text"; text: string }> {
-  const parts: Array<{ type: "text"; text: string }> = [];
-  if (text) parts.push({ type: "text", text });
-  const lines = formatAttachmentLines(resolveAttachmentNotices(agentId, attachments ?? []));
-  if (lines.length > 0) parts.push({ type: "text", text: lines.join("\n") });
-  if (parts.length === 0) parts.push({ type: "text", text: "" });
-  return parts;
 }

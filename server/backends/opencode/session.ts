@@ -22,6 +22,7 @@ export class OpenCodeBackendSession implements BackendSession {
     this.transport = new OpenCodeTransport({
       cwd: opts.cwd,
       model,
+      effort: opts.effort,
       systemPrompt: opts.systemPrompt,
       agent: permissionAgent(opts.permissionMode),
       autoApprove: opts.permissionMode === "bypassPermissions",
@@ -56,7 +57,7 @@ export class OpenCodeBackendSession implements BackendSession {
     if (!breakdown) return null;
     // Without a discovered context limit, expose tokens with a conservative
     // synthetic max so the battery still moves.
-    const maxTokens = Math.max(breakdown.totalTokens, 200_000);
+    const maxTokens = this.transport.contextLimit() ?? Math.max(breakdown.totalTokens, 200_000);
     return {
       model: this.transport.modelId(),
       totalTokens: breakdown.totalTokens,
