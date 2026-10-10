@@ -1,0 +1,18 @@
+export const skills = {
+  "skills.title": "Habilidades",
+  "skills.commands": "Comandos",
+  "skills.agent": "Agente",
+  "skills.search": "Buscar habilidades",
+  "skills.new": "Nueva habilidad",
+  "skills.name": "Nombre",
+  "skills.directory": "Directorio",
+  "skills.reload": "Recargar",
+  "skills.ownership": "Las habilidades empaquetadas son de solo lectura. Solo el propietario puede editar archivos compartidos y del proyecto.",
+  "skills.confirmDelete": "¿Eliminar esta instrucción? Se conservarán los archivos vecinos.",
+  "skills.discard": "¿Descartar cambios sin guardar?",
+  "skills.selectAgent": "Selecciona un agente para gestionar sus habilidades.",
+  "skills.empty": "No hay habilidades coincidentes.",
+  "skills.readonly": "Solo lectura",
+  "skills.content": "Contenido",
+  "skills.loading": "Cargando…",
+} as const;

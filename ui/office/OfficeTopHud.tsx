@@ -18,6 +18,7 @@ export function OfficeTopHud({
   onOpenTasks,
   onOpenCronjobs,
   onOpenApps,
+  onOpenSkills,
   onOpenPlugins,
   onOpenTeamChat,
   onOpenUpdate,
@@ -34,6 +35,7 @@ export function OfficeTopHud({
   onOpenTasks: () => void;
   onOpenCronjobs?: () => void;
   onOpenApps?: () => void;
+  onOpenSkills?: () => void;
   onOpenPlugins?: () => void;
   onOpenTeamChat?: () => void;
   onOpenUpdate: () => void;
@@ -69,6 +71,7 @@ export function OfficeTopHud({
           onOpenTasks={onOpenTasks}
           onOpenCronjobs={onOpenCronjobs}
           onOpenApps={onOpenApps}
+          onOpenSkills={onOpenSkills}
           onOpenPlugins={onOpenPlugins}
           onOpenTeamChat={onOpenTeamChat}
           onEditUsername={onEditUsername}

@@ -1,11 +1,20 @@
 import type { AgentInfo } from "../shared/types.ts";
 import type { Page } from "./routes.ts";
 
-export function pageFromFlags(flags: { tasksOpen: boolean; cronjobsOpen: boolean; appsOpen: boolean; pluginsOpen: boolean; settingsOpen: boolean; teamChatOpen: boolean }): Page | null {
+export function pageFromFlags(flags: {
+  tasksOpen: boolean;
+  cronjobsOpen: boolean;
+  appsOpen: boolean;
+  skillsOpen?: boolean;
+  pluginsOpen: boolean;
+  settingsOpen: boolean;
+  teamChatOpen: boolean;
+}): Page | null {
   if (flags.settingsOpen) return "settings";
   if (flags.tasksOpen) return "tasks";
   if (flags.cronjobsOpen) return "schedules";
   if (flags.appsOpen) return "apps";
+  if (flags.skillsOpen) return "skills";
   if (flags.pluginsOpen) return "plugins";
   if (flags.teamChatOpen) return "team-chat";
   return null;

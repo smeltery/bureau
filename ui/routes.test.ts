@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { pageForPath, pathForPage, type Page } from "./routes.ts";
 
-const PAGES: Page[] = ["tasks", "schedules", "apps", "plugins", "settings", "team-chat"];
+const PAGES: Page[] = ["tasks", "schedules", "apps", "skills", "plugins", "settings", "team-chat"];
 
 describe("pageForPath", () => {
   test("maps each canonical panel path", () => {

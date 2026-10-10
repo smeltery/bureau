@@ -124,21 +124,14 @@ establish that a hosting platform permits nested sandboxes.
 | Not destination-native | Automatically changing a restricted Codex sandbox to full access after a failed host probe. Bureau retains the selected mode and reports errors. |
 | Not destination-native | Hosted signup, billing database privileges, Caddy installer changes, deployment-specific release gates and safety-hook artifact tests for a backend that does not expose hooks. |
 
-### Needs follow-up: skills management
+### Implemented: skills management
 
-Bureau discovers skills for autocomplete and invocation, but does not yet offer
-a dedicated create/edit/delete library. Discovery currently includes shared host
-Claude directories, project commands, plugins and bundled aliases. A web editor
-must first distinguish manager-owned files from shared or packaged content and
-resolve the same configuration root the selected agent actually uses.
-
-The implementation needs stable file handles rather than client-supplied paths,
-symlink and directory-boundary checks, bounded reads, version-checked atomic
-writes, and deletion that preserves adjacent assets. Bundled/plugin content
-should be read-only, aliases should not duplicate entries, and built-in commands
-need a separate read-only view. Existing general file editing is not equivalent
-to these ownership and discovery guarantees. No new shared-file write API is
-introduced by this review.
+The dedicated `/skills` page supports browse, create, edit and delete for
+owner-managed personal/project prompts in Claude and Codex agent contexts.
+Packaged/plugin content is read-only; members can browse their own agents.
+Aliases appear once and built-in commands have a separate tab. Versioned atomic
+writes, opaque handles, bounded text and symlink guards protect the editor API;
+deletion preserves adjacent assets. See [Skills library](../features/skills-library.md).
 
 ### Needs follow-up: clean-install certification
 
@@ -149,5 +142,5 @@ That is a real deployment-test gap. A future matrix must use disposable state,
 synthetic credentials and destination deployment entrypoints; it should not
 require paid hosted accounts or inherit a different product's release service.
 
-OpenCode environment profiles are implemented as recorded above. The skills
-editor and full install matrix remain the next continuation items.
+OpenCode environment profiles are implemented as recorded above. The fresh-install
+matrix remains the next continuation item.

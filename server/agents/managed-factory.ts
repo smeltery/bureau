@@ -1,7 +1,8 @@
 import type { AgentInfo, SkillInfo } from "../../shared/types.ts";
 import { versionOf } from "../memory-store.ts";
 import { autocompleteCommands } from "./commands.ts";
-import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "./skills-discovery.ts";
+import { contextSkills } from "../skills/catalog.ts";
+import { buildSessionEnv } from "./session/session-env.ts";
 import type { ManagedAgent } from "./state.ts";
 
 export function createManagedAgent(input: {
@@ -17,7 +18,7 @@ export function createManagedAgent(input: {
     customInstructionsVersion: input.info.customInstructionsVersion ?? versionOf(input.info.customInstructions ?? ""),
   };
   const slashCommands = input.slashCommands ?? autocompleteCommands();
-  const skills = input.skills ?? deduplicateSkills([...discoverUserSkills(), ...discoverProjectSkills(input.skillCwd), ...discoverPluginSkills(), ...discoverBundledSkills()]);
+  const skills = input.skills ?? contextSkills({ ...info, cwd: input.skillCwd, env: buildSessionEnv({ info }) });
   return {
     info,
     session: null,

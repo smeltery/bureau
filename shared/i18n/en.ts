@@ -1,8 +1,9 @@
+import { skills } from "./skills-en.ts";
 // The English catalog: typed source of truth for office UI strings.
 // Keys name the surface and meaning ("preferences.language"), never the English
 // text. es.ts and ca.ts are complete records over these keys.
-
 export const en = {
+  ...skills,
   "access.title": "Access",
   "apiTokens.title": "API tokens",
   "apps.confirmDelete": "Delete {name}? Its data directory will be kept.",
@@ -322,6 +323,5 @@ export const en = {
   "variables.save": "Save variables",
   "variables.saved": "Variables saved",
 } as const;
-
 export type Catalog = { [K in keyof typeof en]: string };
 export type MessageKey = keyof typeof en;

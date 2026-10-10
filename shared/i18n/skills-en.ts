@@ -1,0 +1,18 @@
+export const skills = {
+  "skills.title": "Skills",
+  "skills.commands": "Commands",
+  "skills.agent": "Agent",
+  "skills.search": "Search skills",
+  "skills.new": "New skill",
+  "skills.name": "Skill name",
+  "skills.directory": "Directory",
+  "skills.reload": "Reload",
+  "skills.ownership": "Packaged skills are read-only. Only the office owner can edit shared host and project skills.",
+  "skills.confirmDelete": "Delete this skill prompt? Neighboring assets will be kept.",
+  "skills.discard": "Discard unsaved changes?",
+  "skills.selectAgent": "Select an agent to manage its skills.",
+  "skills.empty": "No matching skills.",
+  "skills.readonly": "Read-only",
+  "skills.content": "Skill content",
+  "skills.loading": "Loading…",
+} as const;

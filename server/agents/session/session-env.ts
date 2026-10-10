@@ -7,7 +7,7 @@ import { officeConfig, rooms, type ManagedAgent } from "../state.ts";
 // User overrides room, room overrides office, office overrides process.env.
 // Spawn-time failure mode: if a configured env file is missing or fails to
 // parse, throw; callers surface the error to the agent log.
-export function buildSessionEnv(managed: ManagedAgent): { [key: string]: string | undefined } | undefined {
+export function buildSessionEnv(managed: Pick<ManagedAgent, "info">): { [key: string]: string | undefined } | undefined {
   const room = rooms[managed.info.room];
   const roomEnvFile = room?.envFile ?? null;
   const officeEnvFile = officeConfig.envFile;

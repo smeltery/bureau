@@ -1,0 +1,18 @@
+export const skills = {
+  "skills.title": "技能",
+  "skills.commands": "命令",
+  "skills.agent": "代理",
+  "skills.search": "搜索技能",
+  "skills.new": "新建技能",
+  "skills.name": "技能名称",
+  "skills.directory": "目录",
+  "skills.reload": "重新加载",
+  "skills.ownership": "打包技能为只读。只有办公室所有者可以编辑共享和项目技能。",
+  "skills.confirmDelete": "删除此技能提示？相邻资源将保留。",
+  "skills.discard": "放弃未保存的更改？",
+  "skills.selectAgent": "选择代理以管理其技能。",
+  "skills.empty": "没有匹配的技能。",
+  "skills.readonly": "只读",
+  "skills.content": "技能内容",
+  "skills.loading": "加载中…",
+} as const;
