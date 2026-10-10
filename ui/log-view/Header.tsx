@@ -132,12 +132,17 @@ export function Header({
         </span>
         <span style={{ color: "var(--text-ghost)", flexShrink: 0 }}>&middot;</span>
         <span
+          title={familyDisplayLabel(agent.modelFamily, agent.claudeModelOverrides)}
           style={{
             fontFamily: "'JetBrains Mono',monospace",
             color: "var(--text-ghost)",
             fontSize: 11,
             whiteSpace: "nowrap",
-            flexShrink: 0,
+            flexShrink: 1,
+            minWidth: 0,
+            maxWidth: 200,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
           {familyDisplayLabel(agent.modelFamily, agent.claudeModelOverrides)}
