@@ -23,7 +23,7 @@ export async function handlePendingModelPick(agentId: string, managed: ManagedAg
       emitEphemeralLog(agentId, "system", mismatch);
       return true;
     }
-    const label = familyDisplayLabel(picked);
+    const label = familyDisplayLabel(picked, managed.info.claudeModelOverrides);
     if (picked === managed.info.modelFamily) {
       emitEphemeralLog(agentId, "system", `Already using ${label}.`);
     } else {

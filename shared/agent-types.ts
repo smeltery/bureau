@@ -1,4 +1,4 @@
-import type { AgentCapabilities, AgentPermissionMode, CodexSandboxMode, EffortLevel } from "./agent-models.ts";
+import type { AgentCapabilities, AgentPermissionMode, CodexSandboxMode, EffortLevel, ModelFamily } from "./agent-models.ts";
 import type { Attachment } from "./log-types.ts";
 
 // Agent states derived from SDK stream events
@@ -62,6 +62,9 @@ export interface AgentInfo {
   outfit: AgentOutfit;
   permissionMode: AgentPermissionMode;
   modelFamily: string;
+  // Launch-time metadata; persisted preferences remain unchanged.
+  claudeModelOverrides?: Partial<Record<ModelFamily, string>>;
+  effectivePermissionMode?: AgentPermissionMode;
   agentType: AgentBackendType;
   capabilities: AgentCapabilities;
   privileged?: boolean;

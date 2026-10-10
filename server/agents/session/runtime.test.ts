@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
 import type { BackendSession } from "../../backends/types.ts";
 import { createManagedAgent } from "../managed-factory.ts";
 import { agents, logCache, type ManagedAgent } from "../state.ts";
-import { replaceSession } from "./runtime.ts";
+import { claudeBackend } from "../../backends/claude.ts";
+import { createSession, replaceSession } from "./runtime.ts";
 
 afterEach(() => {
   agents.clear();
@@ -70,4 +71,23 @@ describe("replaceSession", () => {
     expect(managed.session).toBe(newSession);
     expect(managed.info.sessionSwapping).toBe(false);
   });
+});
+
+test("session launch attaches model metadata without changing the stored preference", () => {
+  const managed = makeAgent("launch-metadata", fakeSession());
+  managed.info.permissionMode = "auto";
+  const original = process.env.CLAUDE_CODE_USE_VERTEX;
+  process.env.CLAUDE_CODE_USE_VERTEX = "1";
+  const launch = spyOn(claudeBackend, "createSession").mockImplementation(() => fakeSession());
+  try {
+    createSession(managed);
+    expect(managed.info.claudeModelOverrides?.sonnet).toBe("claude-sonnet-4-5");
+    expect(managed.info.effectivePermissionMode).toBe("default");
+    expect(managed.info.permissionMode).toBe("auto");
+    expect(launch.mock.calls[0]?.[0].permissionMode).toBe("auto");
+  } finally {
+    launch.mockRestore();
+    if (original === undefined) delete process.env.CLAUDE_CODE_USE_VERTEX;
+    else process.env.CLAUDE_CODE_USE_VERTEX = original;
+  }
 });

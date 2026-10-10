@@ -140,7 +140,7 @@ export function Header({
             flexShrink: 0,
           }}
         >
-          {familyDisplayLabel(agent.modelFamily)}
+          {familyDisplayLabel(agent.modelFamily, agent.claudeModelOverrides)}
         </span>
         <SubscriptionPill
           // Remount on agent/engine change so the pinned-limit state is
