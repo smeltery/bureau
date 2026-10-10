@@ -3,7 +3,8 @@ import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, ensureSe
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { ProviderCapacityError } from "../../internal-types.ts";
 import { autocompleteCommands } from "../commands.ts";
-import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
+import { contextSkills } from "../../skills/catalog.ts";
+import { buildSessionEnv } from "./session-env.ts";
 import { addLogEntry, agents, clearLiveTurn, emit, emitEphemeralLog, logCache, persistAll, syncPendingPrompt, updateState, type ManagedAgent } from "../state.ts";
 import { diagnoseProcessExit, emitLoginInstructions as emitLoginInstructionsImpl, emitLoginInstructionsIfAuth, isAuthErrorForAgent } from "./diagnostics.ts";
 import { backendFailureMeta, humanizeBackendFailure } from "./backend-failure-text.ts";
@@ -137,7 +138,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       if (managed) {
         managed.sdkReportedCommands = filteredSdkCommands;
         managed.slashCommands = autocompleteCommands();
-        managed.skills = deduplicateSkills([...discoverUserSkills(), ...discoverProjectSkills(managed.info.cwd), ...discoverPluginSkills(), ...discoverBundledSkills()]);
+        managed.skills = contextSkills({ ...managed.info, env: buildSessionEnv(managed) });
         emit({ type: "slash_commands", agentId, commands: managed.slashCommands, skills: managed.skills });
       }
       break;

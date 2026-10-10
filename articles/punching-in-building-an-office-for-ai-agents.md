@@ -571,3 +571,11 @@ histories or login files. The supervisor applies environment changes between
 turns and retains the existing per-turn office-authority broker. See the
 [environment design](../docs/features/opencode-environments.md) for upgrade
 and authentication behavior.
+
+### Skills as editable prompts
+
+The `/skills` library uses an agent's effective provider environment for discovery
+and slash invocation. Owners manage personal and project prompts; packaged skills
+remain read-only. Opaque file handles, bounded reads, version checks and atomic
+replacements keep editing separate from unrestricted filesystem access. Deletion
+removes the prompt only, preserving supporting assets.

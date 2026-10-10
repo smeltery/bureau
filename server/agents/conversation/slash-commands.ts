@@ -2,7 +2,8 @@ import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
 import { addLogEntry, emitEphemeralLog, isAgentBusy, updateState, type ManagedAgent } from "../state.ts";
 import { enqueueMessage } from "./message-queue.ts";
-import { resolveSkillPrompt } from "../skills-discovery.ts";
+import { contextPrompt } from "../../skills/catalog.ts";
+import { buildSessionEnv } from "../session/session-env.ts";
 import { SessionSwappedError } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { commandHandlers } from "./slash-command-handlers.ts";
@@ -39,7 +40,7 @@ export async function handleSlashCommand(agentId: string, managed: ManagedAgent,
   }
 
   // Step 2: Skill override check (for overridable config entries OR unknown commands)
-  const skillPrompt = resolveSkillPrompt(cmd, managed.info.cwd);
+  const skillPrompt = contextPrompt(cmd, { ...managed.info, env: buildSessionEnv(managed) });
   if (skillPrompt) {
     recordHandled();
     return executeSkill(agentId, managed, skillPrompt, args, rawText, username);

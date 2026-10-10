@@ -73,6 +73,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 
 ### Agent Creation & Editing
 - Three engines, chosen per agent when you click an empty desk: **Claude** (Claude Code login), **Codex** (ChatGPT / \`OPENAI_API_KEY\`), or **OpenCode** (host \`opencode\` CLI on PATH plus \`OPENCODE_API_KEY\` or \`opencode auth login\`). All kinds sit in the same office and are driven the same way
+- Skills library: /skills lets owners create/edit/delete Claude and Codex personal/project prompts. Members browse their own agents; packaged skills stay read-only. Built-in commands have their own tab.
 - OpenCode conversations use durable profiles per managing user and room. Credential rotation preserves history and waits for active turns to finish; old conversations retain their legacy store. Authentication notices provide profile-scoped login commands
 - Claude agents pick a model family — Opus, Sonnet, Haiku, or Fable — and families resolve to exact versions centrally. Codex agents pick a GPT-5.x model; OpenCode agents pick a \`provider/model\` id
 - Agent and schedule model pickers load capabilities for the session environment, with built-in fallback choices and a notice if unavailable. Direct Claude Haiku uses 5.5. Limited cloud aliases omit unsupported effort and fall back from Auto to Default (ask), never to Bypass. Model labels reflect cloud alias targets or custom pins, and agent manifests report effective launch settings while preserving saved preferences

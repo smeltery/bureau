@@ -2,7 +2,7 @@
 // be unit-tested without rendering App. Agent chats stay on "/" — only the
 // panel pages (plus plugins) get their own path.
 
-export type Page = "tasks" | "schedules" | "apps" | "plugins" | "settings" | "team-chat";
+export type Page = "tasks" | "schedules" | "apps" | "skills" | "plugins" | "settings" | "team-chat";
 
 /**
  * The page a pathname names, or null for the office.
@@ -19,6 +19,8 @@ export function pageForPath(pathname: string): Page | null {
       return "schedules";
     case "/apps":
       return "apps";
+    case "/skills":
+      return "skills";
     case "/plugins":
       return "plugins";
     case "/settings":

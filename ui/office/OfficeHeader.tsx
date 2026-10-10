@@ -17,6 +17,7 @@ export function DesktopOfficeHeader({
   onOpenTasks,
   onOpenCronjobs,
   onOpenApps,
+  onOpenSkills,
   onOpenPlugins,
   onOpenTeamChat,
   onEditUsername,
@@ -33,6 +34,7 @@ export function DesktopOfficeHeader({
   onOpenTasks: () => void;
   onOpenCronjobs?: () => void;
   onOpenApps?: () => void;
+  onOpenSkills?: () => void;
   onOpenPlugins?: () => void;
   onOpenTeamChat?: () => void;
   onEditUsername: () => void;
@@ -128,6 +130,7 @@ export function DesktopOfficeHeader({
         {onOpenTeamChat && <HeaderButton icon={<ChatIcon />} label={t("common.teamChat")} title={t("common.teamChat")} onClick={onOpenTeamChat} />}
         {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label={t("common.schedules")} title={t("common.schedules")} onClick={onOpenCronjobs} />}
         {onOpenApps && <HeaderButton icon={<AppsIcon />} label={t("common.apps")} title={t("office.header.appsTitle")} onClick={onOpenApps} />}
+        {onOpenSkills && <HeaderButton icon={<span>▤</span>} label={t("skills.title")} title={t("skills.title")} onClick={onOpenSkills} />}
         {onOpenPlugins && <HeaderButton icon={<PlugIcon />} label={t("common.plugins")} title={t("office.header.pluginsTitle")} onClick={onOpenPlugins} />}
         <HeaderButton icon={<UserIcon />} label={t("common.user")} title={username || t("office.header.userSettings")} onClick={onEditUsername} />
         <HeaderButton icon={<DeviceIcon />} label={t("common.device")} title={t("office.header.deviceSettings")} onClick={onOpenDeviceSettings} />

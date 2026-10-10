@@ -1,7 +1,8 @@
 import { appendLog, loadLogWithAncestors } from "../../persistence.ts";
 import { autocompleteCommands } from "../commands.ts";
 import { addLogEntry, emit, logCache, persistAll, type ManagedAgent } from "../state.ts";
-import { deduplicateSkills, discoverBundledSkills, discoverPluginSkills, discoverProjectSkills, discoverUserSkills } from "../skills-discovery.ts";
+import { contextSkills } from "../../skills/catalog.ts";
+import { buildSessionEnv } from "./session-env.ts";
 
 export function handleInitMessage(agentId: string, managed: ManagedAgent | undefined, sessionId: string | undefined, sdkCommands: string[]) {
   if (managed && sessionId) {
@@ -42,8 +43,8 @@ export function handleInitMessage(agentId: string, managed: ManagedAgent | undef
   // Autocomplete: config entries with autocomplete:true + all discovered skills
   // SDK-reported commands are NOT added to autocomplete (per design)
   // Skills are listed in priority order; deduplicate by name (highest priority wins)
-  const discoveredSkills = managed ? [...discoverUserSkills(), ...discoverProjectSkills(managed.info.cwd), ...discoverPluginSkills(), ...discoverBundledSkills()] : [];
-  const uniqueSkills = deduplicateSkills(discoveredSkills);
+  const discoveredSkills = managed ? contextSkills({ ...managed.info, env: buildSessionEnv(managed) }) : [];
+  const uniqueSkills = discoveredSkills;
   const configCommands = autocompleteCommands();
   if (managed) {
     managed.slashCommands = configCommands;

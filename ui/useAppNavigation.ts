@@ -32,12 +32,14 @@ export function useAppNavigation({
   tasksOpen,
   cronjobsOpen,
   appsOpen,
+  skillsOpen,
   pluginsOpen,
   teamChatOpen,
   anyModalOpen,
   setTasksOpen,
   setCronjobsOpen,
   setAppsOpen,
+  setSkillsOpen,
   setPluginsOpen,
   setTeamChatOpen,
   setSpawnDesk,
@@ -62,12 +64,14 @@ export function useAppNavigation({
   tasksOpen: boolean;
   cronjobsOpen: boolean;
   appsOpen: boolean;
+  skillsOpen: boolean;
   pluginsOpen: boolean;
   teamChatOpen: boolean;
   anyModalOpen: boolean;
   setTasksOpen: Dispatch<SetStateAction<boolean>>;
   setCronjobsOpen: Dispatch<SetStateAction<boolean>>;
   setAppsOpen: Dispatch<SetStateAction<boolean>>;
+  setSkillsOpen: Dispatch<SetStateAction<boolean>>;
   setPluginsOpen: Dispatch<SetStateAction<boolean>>;
   setTeamChatOpen: Dispatch<SetStateAction<boolean>>;
   setSpawnDesk: Dispatch<SetStateAction<number | null>>;
@@ -81,16 +85,14 @@ export function useAppNavigation({
 }) {
   const roomCount = rooms.length;
   const viewportControlsRef = useRef<ViewportControls | null>(null);
-  // History ownership for the current entry (isomux ruling 8):
-  // none = office on the load entry; adopted = cold deep link we did not push;
-  // pushed = we pushed the entry, so Close/Escape may history.back().
+  // Close goes back only when this hook pushed the current history entry.
   const entryRef = useRef<"none" | "adopted" | "pushed">(bootPage === null ? "none" : "adopted");
 
   useEffect(() => {
     if (username && connected) sendClaim(username);
   }, [username, connected]);
 
-  const viewMode: ViewMode = tasksOpen || cronjobsOpen || appsOpen || pluginsOpen || teamChatOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
+  const viewMode: ViewMode = tasksOpen || cronjobsOpen || appsOpen || skillsOpen || pluginsOpen || teamChatOpen || anyModalOpen ? "away" : focusedAgentId ? "log" : "office";
   const presenceRoom = lobbyOpen ? null : (focusedAgent?.room ?? currentRoom);
   const presenceRoomId = lobbyOpen ? LOBBY_ROOM_ID : (focusedAgent?.roomId ?? rooms[presenceRoom ?? 0]?.id ?? null);
   useEffect(() => {
@@ -137,12 +139,13 @@ export function useAppNavigation({
       setTasksOpen(page === "tasks");
       setCronjobsOpen(page === "schedules");
       setAppsOpen(page === "apps");
+      setSkillsOpen(page === "skills");
       setPluginsOpen(page === "plugins");
       setTeamChatOpen(page === "team-chat");
       if (page === "settings") openSettings();
       else closeSettings();
     },
-    [closeSettings, openSettings, setAppsOpen, setCronjobsOpen, setPluginsOpen, setTasksOpen, setTeamChatOpen],
+    [closeSettings, openSettings, setAppsOpen, setCronjobsOpen, setSkillsOpen, setPluginsOpen, setTasksOpen, setTeamChatOpen],
   );
 
   const goHome = useCallback(() => {
@@ -172,11 +175,7 @@ export function useAppNavigation({
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       const isInput = tag === "INPUT" || tag === "TEXTAREA" || !!target?.isContentEditable;
-      // This is the global fallback: it closes views and clears the spawn /
-      // context-menu / edit-agent slots. An expanded editor (ExpandableTextarea)
-      // stops Escape from reaching us at all, but check anyway — this handler
-      // discards a whole dialog's worth of unsaved form state, so it must never
-      // be the thing that fires when the user only meant to collapse an editor.
+      // Expanded editors consume Escape before this global navigation handler.
       if (shouldHostCloseOnEscape(e)) {
         goHome();
         setSpawnDesk(null);
@@ -217,10 +216,11 @@ export function useAppNavigation({
       // "a": toggle Apps from office or agent chat, unless Settings is open.
       if (!isInput && e.key === "a" && !settingsOpen && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
-        if (appsOpen && !tasksOpen && !cronjobsOpen && !pluginsOpen && !teamChatOpen) goHome();
+        if (appsOpen && !tasksOpen && !cronjobsOpen && !skillsOpen && !pluginsOpen && !teamChatOpen) goHome();
         else {
           setTasksOpen(false);
           setCronjobsOpen(false);
+          setSkillsOpen(false);
           setPluginsOpen(false);
           setTeamChatOpen(false);
           setAppsOpen(true);
@@ -258,12 +258,14 @@ export function useAppNavigation({
     agents,
     drafts,
     currentRoom,
+    skillsOpen,
     pluginsOpen,
     roomCount,
     setAppsOpen,
     setCronjobsOpen,
     setCtxMenu,
     setEditAgent,
+    setSkillsOpen,
     setPluginsOpen,
     setSpawnDesk,
     setTasksOpen,
@@ -276,7 +278,7 @@ export function useAppNavigation({
 
   // Agent chats are not routes — they share "/" with the office. Panels get
   // real paths so refresh/share keep working.
-  const page = pageFromFlags({ tasksOpen, cronjobsOpen, appsOpen, pluginsOpen, settingsOpen, teamChatOpen });
+  const page = pageFromFlags({ tasksOpen, cronjobsOpen, appsOpen, skillsOpen, pluginsOpen, settingsOpen, teamChatOpen });
   const isDeep = page !== null || focusedAgentId !== null;
   useEffect(() => {
     const entry = { bureau: true, page };

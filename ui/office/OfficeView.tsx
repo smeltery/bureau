@@ -46,6 +46,7 @@ export function OfficeView({
   onOpenTasks,
   onOpenCronjobs,
   onOpenApps,
+  onOpenSkills,
   onOpenPlugins,
   onOpenTeamChat,
   onFocusAgent,
@@ -65,6 +66,7 @@ export function OfficeView({
   onOpenTasks: () => void;
   onOpenCronjobs?: () => void;
   onOpenApps?: () => void;
+  onOpenSkills?: () => void;
   onOpenPlugins?: () => void;
   onOpenTeamChat?: () => void;
   onFocusAgent?: (agentId: string) => void;
@@ -160,6 +162,7 @@ export function OfficeView({
         onOpenTasks={onOpenTasks}
         onOpenCronjobs={onOpenCronjobs}
         onOpenApps={onOpenApps}
+        onOpenSkills={onOpenSkills}
         onOpenPlugins={onOpenPlugins}
         onOpenTeamChat={onOpenTeamChat}
         onOpenUpdate={onOpenUpdate}

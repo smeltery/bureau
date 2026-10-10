@@ -1,8 +1,8 @@
+import { skills } from "./skills-zh.ts";
 // Simplified Chinese translations for the office UI catalog.
-
 import type { Catalog } from "./en.ts";
-
 export const zh: Catalog = {
+  ...skills,
   "access.title": "Access",
   "apiTokens.title": "API tokens",
   "apps.confirmDelete": "删除 {name}？其数据目录将会保留。",

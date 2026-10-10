@@ -1,8 +1,8 @@
+import { skills } from "./skills-es.ts";
 import type { Catalog } from "./en.ts";
-
 // Spanish translations for the office UI catalog.
-
 export const es = {
+  ...skills,
   "access.title": "Acceso",
   "apiTokens.title": "Tokens de API",
   "apps.confirmDelete": "¿Eliminar {name}? Se conservará su directorio de datos.",

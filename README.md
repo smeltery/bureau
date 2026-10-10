@@ -56,7 +56,7 @@ Then open **http://localhost:4000** and click an empty desk.
 | **Deploy**      | Local or headless server + Tailscale                           |
 
 Save recurring or on-demand jobs in **Schedules**, and keep resolved incidents in
-your **Pager** history. OpenCode uses [durable manager/room profiles](docs/features/opencode-environments.md) so credential changes preserve conversation history. See the [full feature list](docs/features/full-feature-list.md).
+your **Pager** history. Manage agent prompts in the [Skills library](docs/features/skills-library.md). OpenCode uses [durable manager/room profiles](docs/features/opencode-environments.md) so credential changes preserve conversation history. See the [full feature list](docs/features/full-feature-list.md).
 
 ## Documentation
 

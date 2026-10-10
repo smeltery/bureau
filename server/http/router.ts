@@ -44,6 +44,7 @@ import { handlePluginsRequest } from "./plugins.ts";
 import { handleReadyRequest } from "./ready.ts";
 import { handleRoomsRequest } from "./rooms.ts";
 import { handleSessionsRequest } from "./sessions.ts";
+import { handleSkillsRequest } from "../skills/http.ts";
 import { handleSkillUsageRequest } from "./skill-usage.ts";
 import { handleStaticRequest } from "./static.ts";
 import { handleStorageRequest } from "./storage.ts";
@@ -159,7 +160,8 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   // Task / cronjob / files / agents HTTP APIs. Loopback-allowed because
   // local agents legitimately hit them; non-loopback callers need a
   // session cookie.
-  const browserManagement = url.pathname.startsWith("/api/webhooks") || url.pathname.startsWith("/api/browser-sharing/") || url.pathname.startsWith("/api/me/view/");
+  const browserManagement =
+    url.pathname.startsWith("/api/skills") || url.pathname.startsWith("/api/webhooks") || url.pathname.startsWith("/api/browser-sharing/") || url.pathname.startsWith("/api/me/view/");
   const httpAuth = authenticate(req, server, { allowLoopback: !browserManagement, officeName: getOfficeName() });
   if (httpAuth.kind === "rejected") return httpAuth.response;
 
@@ -230,6 +232,9 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
   const usageResp = handleUsageRequest(req, url, httpAuth);
   if (usageResp) return usageResp;
+
+  const skillsResp = await handleSkillsRequest(req, url, httpAuth);
+  if (skillsResp) return skillsResp;
 
   const skillUsageResp = handleSkillUsageRequest(req, url, httpAuth);
   if (skillUsageResp) return skillUsageResp;

@@ -1,0 +1,18 @@
+export const skills = {
+  "skills.title": "Habilitats",
+  "skills.commands": "Ordres",
+  "skills.agent": "Agent",
+  "skills.search": "Cerca habilitats",
+  "skills.new": "Habilitat nova",
+  "skills.name": "Nom",
+  "skills.directory": "Directori",
+  "skills.reload": "Recarrega",
+  "skills.ownership": "Les habilitats empaquetades són de només lectura. Només el propietari pot editar fitxers compartits i del projecte.",
+  "skills.confirmDelete": "Vols eliminar aquesta instrucció? Es conservaran els fitxers veïns.",
+  "skills.discard": "Vols descartar els canvis sense desar?",
+  "skills.selectAgent": "Selecciona un agent per gestionar les habilitats.",
+  "skills.empty": "No hi ha habilitats coincidents.",
+  "skills.readonly": "Només lectura",
+  "skills.content": "Contingut",
+  "skills.loading": "Carregant…",
+} as const;

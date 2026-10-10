@@ -13,6 +13,7 @@ import { RoomSettingsModal } from "./components/modals/RoomSettingsModal.tsx";
 import { TaskView } from "./task-view/TaskView.tsx";
 import { CronjobsView } from "./components/CronjobsView.tsx";
 import { AppsView } from "./apps-view/AppsView.tsx";
+import { SkillsView } from "./skills-view/SkillsView.tsx";
 import { PluginsView } from "./components/PluginsView.tsx";
 import { TeamChatView } from "./team-chat/TeamChatView.tsx";
 import { UpdateModal } from "./components/modals/UpdateModal.tsx";
@@ -49,6 +50,7 @@ export function App() {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [cronjobsOpen, setCronjobsOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
   const [teamChatOpen, setTeamChatOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
@@ -62,6 +64,7 @@ export function App() {
     if (bootedPage === "tasks") setTasksOpen(true);
     else if (bootedPage === "schedules") setCronjobsOpen(true);
     else if (bootedPage === "apps") setAppsOpen(true);
+    else if (bootedPage === "skills") setSkillsOpen(true);
     else if (bootedPage === "plugins") setPluginsOpen(true);
     else if (bootedPage === "team-chat") setTeamChatOpen(true);
     else if (bootedPage === "settings") {
@@ -127,6 +130,7 @@ export function App() {
     if (saved.panel === "tasks") setTasksOpen(true);
     else if (saved.panel === "cronjobs") setCronjobsOpen(true);
     else if (saved.panel === "apps") setAppsOpen(true);
+    else if (saved.panel === "skills") setSkillsOpen(true);
     else if (saved.panel === "plugins") setPluginsOpen(true);
     else if (saved.panel === "team-chat") setTeamChatOpen(true);
   }, [agents, bootedPage, dispatch, draftUser, hasReceivedInitialState, rooms]);
@@ -135,20 +139,20 @@ export function App() {
     if (!draftUser || !hasRestoredViewRef.current) return;
     const focused = focusedAgentId ? (agents.find((agent) => agent.id === focusedAgentId) ?? null) : null;
     const roomId = focused?.roomId ?? rooms[currentRoom]?.id ?? null;
-    const panel = tasksOpen ? "tasks" : cronjobsOpen ? "cronjobs" : appsOpen ? "apps" : pluginsOpen ? "plugins" : teamChatOpen ? "team-chat" : null;
+    const panel = tasksOpen ? "tasks" : cronjobsOpen ? "cronjobs" : appsOpen ? "apps" : skillsOpen ? "skills" : pluginsOpen ? "plugins" : teamChatOpen ? "team-chat" : null;
     writeSavedView(draftUser, { roomId, agentId: focusedAgentId, panel });
-  }, [agents, appsOpen, cronjobsOpen, currentRoom, draftUser, focusedAgentId, pluginsOpen, rooms, tasksOpen, teamChatOpen]);
+  }, [agents, appsOpen, cronjobsOpen, currentRoom, draftUser, focusedAgentId, skillsOpen, pluginsOpen, rooms, tasksOpen, teamChatOpen]);
 
   const focusedAgentName = focusedAgent?.name ?? null;
   const focusedAgentState = focusedAgent?.state ?? null;
   const currentRoomName = rooms[currentRoom]?.name ?? null;
   useEffect(() => {
     if (!connected) return;
-    const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Schedules" : appsOpen ? "Apps" : pluginsOpen ? "Plugins" : teamChatOpen ? "Team chat" : null;
+    const panelTitle = tasksOpen ? "Tasks" : cronjobsOpen ? "Schedules" : appsOpen ? "Apps" : skillsOpen ? "Skills" : pluginsOpen ? "Plugins" : teamChatOpen ? "Team chat" : null;
     const focusedAgentTitle = focusedAgentName && focusedAgentState ? agentTabLabel(focusedAgentName, focusedAgentState) : null;
     const label = panelTitle ?? focusedAgentTitle ?? currentRoomName ?? null;
     document.title = label ? `${label} | Bureau` : "Bureau";
-  }, [appsOpen, connected, cronjobsOpen, currentRoomName, focusedAgentName, focusedAgentState, pluginsOpen, tasksOpen, teamChatOpen]);
+  }, [appsOpen, connected, cronjobsOpen, currentRoomName, focusedAgentName, focusedAgentState, skillsOpen, pluginsOpen, tasksOpen, teamChatOpen]);
 
   const { goHome, closeTasks, swipeAgentNext, swipeAgentPrev, swipeRoomNext, swipeRoomPrev, viewportControlsRef } = useAppNavigation({
     agents,
@@ -165,12 +169,14 @@ export function App() {
     tasksOpen,
     cronjobsOpen,
     appsOpen,
+    skillsOpen,
     pluginsOpen,
     teamChatOpen,
     anyModalOpen,
     setTasksOpen,
     setCronjobsOpen,
     setAppsOpen,
+    setSkillsOpen,
     setPluginsOpen,
     setTeamChatOpen,
     setSpawnDesk,
@@ -199,6 +205,8 @@ export function App() {
         <UserSettingsView currentUsername={username} initialUserId={editingUserId} initialSection={editingAccountSection} onSwitchUser={setUsername} onClose={goHome} />
       ) : teamChatOpen ? (
         <TeamChatView onClose={goHome} />
+      ) : skillsOpen ? (
+        <SkillsView onClose={goHome} />
       ) : pluginsOpen ? (
         <PluginsView onClose={goHome} />
       ) : cronjobsOpen ? (
@@ -275,6 +283,7 @@ export function App() {
           onOpenTasks={() => setTasksOpen(true)}
           onOpenCronjobs={() => setCronjobsOpen(true)}
           onOpenApps={() => setAppsOpen(true)}
+          onOpenSkills={() => setSkillsOpen(true)}
           onOpenPlugins={() => setPluginsOpen(true)}
           onOpenTeamChat={() => setTeamChatOpen(true)}
           onFocusAgent={(agentId) => dispatch({ type: "focus", agentId })}
