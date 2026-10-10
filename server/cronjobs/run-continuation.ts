@@ -1,3 +1,4 @@
+import { openCodeEnvironmentId } from "../backends/opencode/profiles/identity.ts";
 import { validateCwd } from "../agents/session/paths.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
 import { appendRunLog, findRun, getRunSessionClaudeConfigDir, updateRun } from "../persistence.ts";
@@ -113,9 +114,11 @@ export async function editRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
 
 function checkCronRunSessionFile(deps: RunContinuationDeps, run: CronjobRun, leaf: string, action: "resume" | "edit"): boolean {
   let env: { [key: string]: string | undefined } | undefined;
+  let userId = run.userIdSnapshot ?? null;
   try {
     const job = deps.getCronjobs().find((c) => c.id === run.cronjobId);
-    env = buildCronjobEnv(job?.userId ?? null);
+    userId = run.userIdSnapshot !== undefined ? run.userIdSnapshot : (job?.userId ?? null);
+    env = buildCronjobEnv(userId);
   } catch (err: any) {
     emitRunErrorEntry(deps, run.cronjobId, run.id, `Cannot ${action}: env file is invalid: ${err.message || String(err)}`);
     return false;
@@ -123,6 +126,7 @@ function checkCronRunSessionFile(deps: RunContinuationDeps, run: CronjobRun, lea
   const error = cronRunBackend(run).checkSessionResumable(leaf, {
     cwd: run.cwdSnapshot,
     env,
+    environmentId: openCodeEnvironmentId(userId),
   });
   if (!error) return true;
   emitRunErrorEntry(deps, run.cronjobId, run.id, action === "resume" ? error : `Cannot edit: ${error}`);

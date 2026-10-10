@@ -1,8 +1,10 @@
-// Local OpenCode `serve` supervisor. One shared process under ~/.bureau/opencode,
-// leased by transports and idle-reaped between turns.
+// One process per durable profile, leased by transports and idle-reaped.
+// Environment changes restart only between turns; legacy stores remain in place.
 
+import { statSync } from "node:fs";
+import { previousProfileProcess, saveProfileProcess } from "./profiles/process-record.ts";
 import { spawn, type ChildProcess } from "node:child_process";
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { BUREAU_DIR } from "../../persistence/paths.ts";
@@ -10,6 +12,7 @@ import { DEFAULT_OPENCODE_CONFIG } from "./config.ts";
 import { type DiscoveredOpenCodeModel } from "./parse.ts";
 import { resolveOpenCodeBinary } from "./runtime.ts";
 import { processIdentityMatches, readProcessStartTicks } from "./process-identity.ts";
+import { environmentRevision, openCodeChildEnvironment } from "./profiles/environment.ts";
 import { modelCatalogFor, waitForCatalog } from "./connection/model-catalog.ts";
 
 export const OPENCODE_IDLE_SHUTDOWN_MS = 10 * 60 * 1000;
@@ -54,7 +57,10 @@ export class OpenCodeSupervisor {
   private readonly binary: string | undefined;
   private readonly config: Record<string, unknown>;
   private readonly idleShutdownMs: number;
-  private readonly launchEnv: Record<string, string | undefined>;
+  private launchEnv: Record<string, string | undefined>;
+
+  private checkedPreviousProcess = false;
+  private runningRevision: string | null = null;
 
   constructor(options: OpenCodeSupervisorOptions = {}) {
     this.profileDir = options.profileDir ?? join(BUREAU_DIR, "opencode", "profiles", "default");
@@ -64,14 +70,19 @@ export class OpenCodeSupervisor {
     this.launchEnv = options.launchEnv ?? {};
   }
 
-  async acquire(): Promise<OpenCodeLease> {
+  async acquire(env?: Record<string, string | undefined>): Promise<OpenCodeLease> {
+    const requestedEnv = { ...process.env, ...(env ?? this.launchEnv) };
+    const revision = this.revisionFor(requestedEnv);
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = null;
-    await this.ensureServer();
+    await this.ensureServer(requestedEnv);
     this.leases++;
     let released = false;
     let turnActive = false;
-    const record = () => this.record!;
+    const record = () => {
+      if (!this.record || this.runningRevision !== revision) throw new Error("OpenCode environment changed; retry the operation.");
+      return this.record;
+    };
     return {
       get baseUrl() {
         return `http://127.0.0.1:${record().port}`;
@@ -90,7 +101,8 @@ export class OpenCodeSupervisor {
       },
       beginTurn: async () => {
         if (released || turnActive) return;
-        await this.validateServerForTurn(false);
+        await this.validateServerForTurn(false, requestedEnv);
+        record();
         if (released) return;
         turnActive = true;
         this.activeTurns++;
@@ -100,7 +112,7 @@ export class OpenCodeSupervisor {
       recoverBeforePrompt: async () => {
         if (released || !turnActive) return;
         this.unresponsive = true;
-        await this.validateServerForTurn(true);
+        await this.validateServerForTurn(true, requestedEnv);
       },
       markUnresponsive: () => {
         this.unresponsive = true;
@@ -140,37 +152,46 @@ export class OpenCodeSupervisor {
     } catch {}
   }
 
-  private async ensureServer(): Promise<void> {
+  private async ensureServer(env: Record<string, string | undefined>): Promise<void> {
     if (this.starting) {
       await this.starting;
-      return;
+      return this.ensureServer(env);
     }
     const record = this.record;
-    const healthy = record && !this.unresponsive && (await this.healthy(record));
+    const healthy = record && this.runningRevision === this.revisionFor(env) && !this.unresponsive && (await this.healthy(record));
     if (healthy && record === this.record && !this.unresponsive) return;
-    if (this.starting) return this.starting;
+    if (this.starting) {
+      await this.starting;
+      return this.ensureServer(env);
+    }
     if (this.activeTurns > 0) throw new Error("OpenCode server cannot restart while another turn is active.");
-    this.starting = this.startServer().finally(() => {
+    this.starting = this.startServer(env).finally(() => {
       this.starting = null;
     });
     await this.starting;
   }
 
-  private async validateServerForTurn(ownsTurn: boolean): Promise<void> {
-    const healthy = this.record && !this.unresponsive && (await this.healthy(this.record));
+  private async validateServerForTurn(ownsTurn: boolean, env: Record<string, string | undefined>): Promise<void> {
+    const healthy = this.record && this.runningRevision === this.revisionFor(env) && !this.unresponsive && (await this.healthy(this.record));
     if (this.unresponsive || !healthy) {
       if (this.activeTurns > (ownsTurn ? 1 : 0)) throw new Error("OpenCode server health check failed during an active turn.");
       // Before submitting a prompt this turn may own the only active lease.
       if (!this.starting)
-        this.starting = this.startServer().finally(() => {
+        this.starting = this.startServer(env).finally(() => {
           this.starting = null;
         });
       await this.starting;
     }
   }
 
-  private async startServer(): Promise<void> {
+  private async startServer(env: Record<string, string | undefined>): Promise<void> {
+    if (!this.checkedPreviousProcess) {
+      this.checkedPreviousProcess = true;
+      const previous = previousProfileProcess(this.profileDir);
+      if (previous) this.record = { ...previous, port: 0, password: "" };
+    }
     await this.shutdown();
+    this.launchEnv = env;
     await mkdir(this.profileDir, { recursive: true });
     const configPath = join(this.profileDir, "opencode.json");
     await writeFile(configPath, `${JSON.stringify(this.config)}\n`, { mode: 0o600 });
@@ -209,16 +230,19 @@ export class OpenCodeSupervisor {
       throw new Error(`OpenCode server failed to start: ${lastError}`);
     }
     this.record = started;
+    try {
+      saveProfileProcess(this.profileDir, started.pid, started.startTicks);
+    } catch (error) {
+      await this.shutdown();
+      throw error;
+    }
+    this.runningRevision = this.revisionFor(env);
     this.unresponsive = false;
   }
 
   private childEnv(password: string, configPath: string): NodeJS.ProcessEnv {
     // Office authority belongs to the per-turn broker, never to a shared child.
-    const filtered = Object.fromEntries(
-      Object.entries({ ...process.env, ...this.launchEnv }).filter(
-        ([name]) => name !== "BUREAU_AGENT_TOKEN" && name !== "BUREAU_APP_TOKEN" && (name === "OPENCODE_API_KEY" || !name.startsWith("OPENCODE_")),
-      ),
-    );
+    const filtered = openCodeChildEnvironment(this.launchEnv);
     return {
       ...filtered,
       PATH: this.launchEnv.PATH ?? process.env.PATH ?? "/usr/bin:/bin",
@@ -262,23 +286,25 @@ export class OpenCodeSupervisor {
     return false;
   }
 
+  private revisionFor(env: Record<string, string | undefined>): string {
+    let credentials = "absent";
+    try {
+      const stat = statSync(join(this.profileDir, "data", "opencode", "auth.json"));
+      credentials = `${stat.mtimeMs}:${stat.ctimeMs}:${stat.size}`;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    return `${environmentRevision(env)}:${credentials}`;
+  }
+
   private armIdleReap(): void {
     if (this.leases > 0 || this.activeTurns > 0 || this.idleTimer) return;
     this.idleTimer = setTimeout(() => void this.shutdown(), this.idleShutdownMs);
   }
 }
 
-let shared: OpenCodeSupervisor | null = null;
-
-export function getSharedOpenCodeSupervisor(launchEnv?: Record<string, string | undefined>): OpenCodeSupervisor {
-  if (!shared) {
-    shared = new OpenCodeSupervisor({ launchEnv });
-  }
-  return shared;
-}
-
-export async function discoverOpenCodeModels(supervisor: OpenCodeSupervisor, cwd: string): Promise<DiscoveredOpenCodeModel[]> {
-  const lease = await supervisor.acquire();
+export async function discoverOpenCodeModels(supervisor: OpenCodeSupervisor, cwd: string, env?: Record<string, string | undefined>): Promise<DiscoveredOpenCodeModel[]> {
+  const lease = await supervisor.acquire(env);
   try {
     return await waitForCatalog(modelCatalogFor(supervisor).load(lease, cwd));
   } finally {

@@ -9,17 +9,20 @@ import type {
   NormalizedMessage,
   OneShotOptions,
   PermissionModeOption,
+  SessionAccessOptions,
 } from "../types.ts";
-import { AUTH_ERROR_PATTERNS, CAPABILITIES, DEFAULT_OPENCODE_MODEL, getOpenCodeLoginInstructions, MODEL_OPTIONS, OPENCODE_AUTH_FAILURE, permissionAgent, PERMISSION_MODES } from "./config.ts";
+import { AUTH_ERROR_PATTERNS, CAPABILITIES, DEFAULT_OPENCODE_MODEL, getOpenCodeLoginInstructions, MODEL_OPTIONS, OPENCODE_AUTH_FAILURE, PERMISSION_MODES } from "./config.ts";
 import { splitModel } from "./parse.ts";
 import { OpenCodeBackendSession } from "./session.ts";
-import { discoverOpenCodeModels, getSharedOpenCodeSupervisor, type OpenCodeSupervisor } from "./supervisor.ts";
+import { discoverOpenCodeModels, type OpenCodeSupervisor } from "./supervisor.ts";
+import { OpenCodeProfiles, type ProfileBinding } from "./profiles/registry.ts";
 import { OpenCodeTransport } from "./transport.ts";
 
 const ONE_SHOT_TIMEOUT_MS = 30_000;
 
 export interface OpenCodeBackendOptions {
   supervisor?: OpenCodeSupervisor;
+  profiles?: OpenCodeProfiles;
   oneShotTimeoutMs?: number;
 }
 
@@ -29,28 +32,16 @@ function productionModel(model: string): string {
 }
 
 export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Backend {
-  const bindings = new Map<string, { cwd: string; supervisor: OpenCodeSupervisor; model: string; agent?: string }>();
-
-  const supervisorFor = (env?: { [key: string]: string | undefined }): OpenCodeSupervisor => {
-    if (options.supervisor) return options.supervisor;
-    return getSharedOpenCodeSupervisor(env);
-  };
-
-  const setBinding = (sessionId: string, binding: { cwd: string; supervisor: OpenCodeSupervisor; model: string; agent?: string }) => {
-    bindings.set(sessionId, binding);
-  };
-
-  const transportForSession = (sessionId: string): OpenCodeTransport => {
-    const binding = bindings.get(sessionId);
-    if (!binding) throw new Error("OpenCode session is not bound to this Bureau process.");
-    return new OpenCodeTransport({
+  const profiles = options.profiles ?? (options.supervisor ? new OpenCodeProfiles(null, () => options.supervisor!) : new OpenCodeProfiles());
+  const transportFor = (sessionId: string, binding: ProfileBinding) =>
+    new OpenCodeTransport({
       cwd: binding.cwd,
       model: binding.model,
       agent: binding.agent,
       supervisor: binding.supervisor,
+      resolveEnv: binding.resolveEnv,
       sessionId,
     });
-  };
 
   return {
     capabilities: CAPABILITIES,
@@ -65,7 +56,7 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
 
     async listModels(opts: ListModelsOptions): Promise<BackendModel[]> {
       try {
-        const models = await discoverOpenCodeModels(supervisorFor(opts.env), opts.cwd);
+        const models = await discoverOpenCodeModels(profiles.select(opts, DEFAULT_OPENCODE_MODEL).supervisor, opts.cwd, opts.env);
         if (models.length === 0) return staticBackendModels();
         return models.map(({ contextLimit: _c, isFree: _f, ...entry }) => ({
           ...entry,
@@ -77,46 +68,40 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
 
     createSession(opts: CreateSessionOptions): BackendSession {
       const model = productionModel(opts.modelFamily || DEFAULT_OPENCODE_MODEL);
-      const supervisor = supervisorFor(opts.env);
-      const agent = permissionAgent(opts.permissionMode);
-      return new OpenCodeBackendSession(opts, model, supervisor, undefined, (sessionId) => setBinding(sessionId, { cwd: opts.cwd, supervisor, model, agent }));
+      const binding = profiles.session(opts, model);
+      return new OpenCodeBackendSession(opts, model, binding.supervisor, undefined, (id) => profiles.bind(id, binding));
     },
 
     resumeSession(sessionId: string, opts: CreateSessionOptions): BackendSession {
       const model = productionModel(opts.modelFamily || DEFAULT_OPENCODE_MODEL);
-      const supervisor = supervisorFor(opts.env);
-      const agent = permissionAgent(opts.permissionMode);
-      setBinding(sessionId, { cwd: opts.cwd, supervisor, model, agent });
-      return new OpenCodeBackendSession(opts, model, supervisor, sessionId, (resolved) => setBinding(resolved, { cwd: opts.cwd, supervisor, model, agent }));
+      const binding = profiles.session(opts, model, sessionId);
+      return new OpenCodeBackendSession(opts, model, binding.supervisor, sessionId, (id) => profiles.bind(id, binding));
     },
 
-    checkSessionResumable(_sessionId: string, _opts: { cwd: string; env?: { [key: string]: string | undefined } }): string | null {
-      // OpenCode sessions live in the local profile DB; optimistic resume — a
-      // missing session surfaces as a turn failure rather than blocking start.
-      return null;
+    checkSessionResumable(sessionId: string, opts: SessionAccessOptions): string | null {
+      try {
+        profiles.select(opts, DEFAULT_OPENCODE_MODEL, undefined, sessionId);
+        return null;
+      } catch (error) {
+        return error instanceof Error ? error.message : "OpenCode session binding could not be read.";
+      }
     },
 
-    async forkSessionBeforeMessage(sessionId: string, targetMessageId: string): Promise<ForkSessionBeforeMessageResult> {
-      const parent = bindings.get(sessionId);
-      if (!parent) return { kind: "fresh" };
-      const transport = transportForSession(sessionId);
+    async forkSessionBeforeMessage(sessionId: string, targetMessageId: string, access?: SessionAccessOptions): Promise<ForkSessionBeforeMessageResult> {
+      const binding = profiles.access(sessionId, access);
+      const transport = transportFor(sessionId, binding);
       try {
         const childId = await transport.forkAtMessage(targetMessageId);
-        setBinding(childId, parent);
+        profiles.bind(childId, binding);
         return { kind: "fork", sessionId: childId, forkedFromSessionId: sessionId };
-      } catch {
-        return { kind: "fresh" };
       } finally {
         transport.close();
       }
     },
 
-    async getSessionMessages(sessionId: string, cwd: string): Promise<NormalizedMessage[]> {
-      const existing = bindings.get(sessionId);
-      const supervisor = existing?.supervisor ?? supervisorFor();
-      const model = existing?.model ?? DEFAULT_OPENCODE_MODEL;
-      if (!existing) setBinding(sessionId, { cwd, supervisor, model });
-      const transport = transportForSession(sessionId);
+    async getSessionMessages(sessionId: string, cwd: string, access?: SessionAccessOptions): Promise<NormalizedMessage[]> {
+      const binding = profiles.access(sessionId, access);
+      const transport = transportFor(sessionId, { ...binding, cwd });
       try {
         return await transport.getSessionMessages();
       } finally {
@@ -125,10 +110,10 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
     },
 
     async oneShotPrompt(prompt: string, opts: OneShotOptions): Promise<string> {
-      const supervisor = supervisorFor(opts.env);
+      const supervisor = profiles.select({ ...opts, cwd: opts.cwd ?? "/tmp" }, opts.modelFamily || DEFAULT_OPENCODE_MODEL).supervisor;
       let model = opts.modelFamily || DEFAULT_OPENCODE_MODEL;
       try {
-        const discovered = await discoverOpenCodeModels(supervisor, opts.cwd ?? "/tmp");
+        const discovered = await discoverOpenCodeModels(supervisor, opts.cwd ?? "/tmp", opts.env);
         const free = discovered.filter((m) => m.isFree).sort((a, b) => a.id.localeCompare(b.id));
         const preferred = free.find((m) => m.id === model) ?? free[0];
         if (preferred) model = preferred.id;
@@ -185,8 +170,9 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
       return AUTH_ERROR_PATTERNS.test(text) || text.includes(OPENCODE_AUTH_FAILURE);
     },
 
-    getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }) {
-      return getOpenCodeLoginInstructions(opts);
+    getLoginInstructions(opts?: { env?: { [key: string]: string | undefined }; environmentId?: string; sessionId?: string }) {
+      const binding = profiles.select({ ...opts, cwd: process.cwd() }, DEFAULT_OPENCODE_MODEL, undefined, opts?.sessionId);
+      return getOpenCodeLoginInstructions({ ...opts, profileDir: binding.supervisor.profileDir });
     },
   };
 }

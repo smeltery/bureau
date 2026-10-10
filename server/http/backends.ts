@@ -1,5 +1,6 @@
 import type { AgentBackendType } from "../../shared/types.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
+import { openCodeEnvironmentId } from "../backends/opencode/profiles/identity.ts";
 import { getBackend } from "../backends/index.ts";
 import { readEnvFile } from "../persistence.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
@@ -55,6 +56,7 @@ export async function handleBackendsRequest(req: Request, url: URL, auth: AuthRe
   try {
     const models = await backend.listModels({
       cwd: resolvedCwd,
+      environmentId: openCodeEnvironmentId(managerUserId, roomId),
       env: buildUserEnv(managerUserId ?? null, roomId ?? null),
       includeHidden: url.searchParams.get("includeHidden") === "true",
     });

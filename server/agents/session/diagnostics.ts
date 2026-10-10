@@ -1,4 +1,5 @@
-import { addLogEntry, emitEphemeralLog, type ManagedAgent } from "../state.ts";
+import { addLogEntry, emitEphemeralLog, rooms, type ManagedAgent } from "../state.ts";
+import { openCodeEnvironmentId } from "../../backends/opencode/profiles/identity.ts";
 import { getBackend } from "../../backends/index.ts";
 import { buildSessionEnv } from "./session-env.ts";
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
@@ -47,7 +48,11 @@ export async function emitLoginInstructions(agentId: string, managed: ManagedAge
   const session = managed.session;
   let instructions: { text: string; commands?: string[] };
   try {
-    instructions = await getBackend(managed.info.agentType).getLoginInstructions({ env: envForHints(managed) });
+    instructions = await getBackend(managed.info.agentType).getLoginInstructions({
+      env: envForHints(managed),
+      environmentId: openCodeEnvironmentId(managed.info.userId, rooms[managed.info.room]?.id),
+      sessionId: managed.sessionId ?? undefined,
+    });
   } catch {
     instructions = { text: "Could not check provider sign-in. Open Account → Connections to check or reconnect." };
   }

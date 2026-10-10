@@ -14,6 +14,8 @@
 // the only one that knows both halves. It stays free of the HTTP layer: the
 // routes in server/http/agent-slides.ts consume getSlideDeck / ensureSlide.
 
+import { openCodeEnvironmentId } from "../backends/opencode/profiles/identity.ts";
+import { buildSessionEnv } from "./session/session-env.ts";
 import { getBackend } from "../backends/index.ts";
 import { createSlideMode, slideModelFamily } from "../slides/generate.ts";
 import type { SlideJobContext } from "../slides/generate.ts";
@@ -21,7 +23,7 @@ import { getRootSessionId } from "../slides/root-session.ts";
 import { readDeck, readSlide, writeSlide } from "../slides/store.ts";
 import { buildDeckTurns, turnIsTerminal } from "../../shared/slide-turns.ts";
 import type { AgentBackendType, SlideDeckRes } from "../../shared/types.ts";
-import { agents, emit, logCache, type ManagedAgent } from "./state.ts";
+import { agents, rooms, emit, logCache, type ManagedAgent } from "./state.ts";
 
 // The anchor of the turn the agent is producing RIGHT NOW, or null when it is
 // producing nothing. Two sources, because a turn is claimed by the agent well
@@ -68,6 +70,8 @@ function resolveSlideJob(agentId: string, entryId: string): SlideJobContext | nu
   const prevSlideHtml = prevEntryId ? (readSlide(agentId, rootSessionId, prevEntryId)?.html ?? null) : null;
   return {
     agentType: managed.info.agentType,
+    environmentId: openCodeEnvironmentId(managed.info.userId, rooms[managed.info.room]?.id),
+    env: buildSessionEnv(managed),
     // A fixed cheap tier per backend, NOT the agent's own family (which may be a
     // pricey frontier model).
     modelFamily: slideModelFamily(managed.info.agentType),

@@ -95,24 +95,14 @@ the normal CI gate; browser uploads also passed the real Chrome debugger harness
   subsystem, a bundled browser, public-origin host previews and provider-device
   OAuth remain outside the accepted changes recorded in the earlier review.
 
-### Needs follow-up: OpenCode environment profiles
+### Implemented: OpenCode environment profiles
 
-`server/backends/opencode/supervisor.ts` still uses one shared supervisor and
-`opencode/profiles/default` store. Its first launch environment remains in use;
-this review does not claim per-manager or per-room credential isolation. Removing
-office bearer tokens from the child fixes a separate authority leak, not provider
-credential sharing.
-
-Before introducing separate profiles, define durable environment identities and
-persist session-to-profile bindings for create, resume, fork and history reads.
-Credential rotation must restart the appropriate server after active turns finish
-without selecting a new, empty history store. Existing default-profile sessions
-need an explicit migration or legacy-resume path; copying the shared store into
-every manager profile would duplicate unrelated histories and credentials.
-Catalogs, schedules and one-shot calls must select the same intended environment.
-This storage migration is intentionally unimplemented, with existing history left
-in place. Credential scanning/live provider certification and the other earlier
-operational follow-ups are not claimed as complete.
+The remaining profile work was completed in the continuation pass. New sessions
+use stable manager/room stores; durable bindings preserve resume, fork and
+history access after restarts. Credential changes restart only between turns.
+Legacy sessions retain their original store without copying shared data. See
+[OpenCode environments](../features/opencode-environments.md) for the explicit
+legacy boundary and profile-scoped login instructions.
 
 ## Follow-up review — 2026-10-10
 
@@ -159,6 +149,5 @@ That is a real deployment-test gap. A future matrix must use disposable state,
 synthetic credentials and destination deployment entrypoints; it should not
 require paid hosted accounts or inherit a different product's release service.
 
-OpenCode environment profiles remain open for the storage-migration reasons
-recorded above. Neither these profiles nor the skills editor or full install
-matrix is claimed as complete.
+OpenCode environment profiles are implemented as recorded above. The skills
+editor and full install matrix remain the next continuation items.

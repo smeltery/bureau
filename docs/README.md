@@ -37,6 +37,7 @@ Detailed subsystem documentation.
 | [Full Feature List](features/full-feature-list.md)                  | Consolidated operator-facing feature inventory                               |
 | [Members Team Chat](features/members-chat.md)                       | Humans-only office chat (REST + WebSocket + `/team-chat` panel)              |
 | [Multi-Office Isolation](features/multi-office-design.md)           | Multiple isolated workspaces                                                 |
+| [OpenCode Environments](features/opencode-environments.md) | Durable manager/room profiles, credential rotation and legacy history |
 | [Pager](features/pager.md)                                          | Agents and apps page their person; Discord delivery until acked or resolved  |
 | [Per-Agent MCP Access](features/per-agent-mcp-access.md)            | Controlling MCP integration access per agent                                 |
 | [Plugin Management](features/plugin-management-design.md)           | Plugin UI and lifecycle                                                      |

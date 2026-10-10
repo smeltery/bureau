@@ -128,6 +128,8 @@ export function createSlideMode(deps: SlideModeDeps) {
       const prompt = buildFormatterPrompt(job.turn, job.prevSlideHtml, feedback);
       const raw = await backend.oneShotPrompt(prompt, {
         cwd: job.cwd,
+        environmentId: job.environmentId,
+        env: job.env,
         modelFamily: job.modelFamily,
         systemPrompt: SLIDE_SYSTEM_PROMPT,
       });

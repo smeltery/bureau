@@ -25,6 +25,7 @@ export class OpenCodeBackendSession implements BackendSession {
     const token = identity.kind === "cronjob_run" ? getRunToken(identity.runId) : getAgentToken(identity.agentId);
     this.transport = new OpenCodeTransport({
       cwd: opts.cwd,
+      resolveEnv: opts.resolveEnv ?? (() => opts.env),
       model,
       effort: opts.effort,
       systemPrompt: opts.systemPrompt,

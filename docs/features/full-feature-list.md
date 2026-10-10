@@ -49,6 +49,11 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   sending the prompt; a submitted prompt is never automatically replayed.
   Recovery waits for other active turns, and a slow health probe alone does
   not restart a process whose identity still matches.
+- OpenCode uses durable manager/room profiles for new conversations, with
+  credential changes applied between turns. Resume, fork and history reads retain
+  their profile across restarts; legacy conversations keep their original store.
+  Authentication notices provide profile-scoped login commands. See
+  [OpenCode environments](opencode-environments.md).
 - OpenCode shares model catalog loads for the same server and working directory.
   Supported effort settings reach the model as variants, and context usage uses
   the catalog's model limit. If the catalog is unavailable or a model advertises

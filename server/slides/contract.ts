@@ -24,6 +24,8 @@ export function slideModelFamily(agentType: AgentBackendType): string {
 }
 
 export interface SlideJobContext {
+  environmentId?: string;
+  env?: Record<string, string | undefined>;
   agentType: string;
   // Already resolved to the formatter family: "sonnet" for Claude, a cheap
   // GPT-5.x family for Codex (see slideModelFamily).
@@ -65,7 +67,7 @@ export function slideMatchesTurn(cached: SlideRecord, turn: DeckTurn): boolean {
 }
 
 export interface SlideBackend {
-  oneShotPrompt(prompt: string, opts: { cwd?: string; modelFamily: string; systemPrompt?: string }): Promise<string>;
+  oneShotPrompt(prompt: string, opts: { cwd?: string; modelFamily: string; systemPrompt?: string; environmentId?: string; env?: Record<string, string | undefined> }): Promise<string>;
 }
 
 export interface SlideModeDeps {

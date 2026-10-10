@@ -50,6 +50,8 @@ export type BackendCapabilities = AgentCapabilities;
 // bypassPermissions/auto; Codex: gpt-5 family × sandbox × approvalPolicy).
 
 export interface CreateSessionOptions {
+  environmentId?: string;
+  resolveEnv?: () => Record<string, string | undefined> | undefined;
   agentId: string;
   cwd: string;
   systemPrompt: string;
@@ -79,6 +81,7 @@ export interface PermissionModeOption {
 }
 
 export interface OneShotOptions {
+  environmentId?: string;
   // Working directory. Used by Codex (sandbox + RPC client) but ignored by
   // the Claude backend, which forces a neutral cwd internally so caller-cwd
   // context (git status, CLAUDE.md autoload) can't leak into the response.
@@ -89,12 +92,14 @@ export interface OneShotOptions {
 }
 
 export interface ListModelsOptions {
+  environmentId?: string;
   cwd: string;
   env?: { [key: string]: string | undefined };
   includeHidden?: boolean;
 }
 
 export interface SessionAccessOptions {
+  environmentId?: string;
   cwd: string;
   env?: { [key: string]: string | undefined };
 }
@@ -178,5 +183,9 @@ export interface Backend {
   // envFile + user envFile, in that override order). Backends that detect
   // env-var auth (e.g. Codex's OPENAI_API_KEY) check it to avoid telling a
   // user to "sign in" when their envFile already authenticates them.
-  getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): { text: string; commands?: string[] } | Promise<{ text: string; commands?: string[] }>;
+  getLoginInstructions(opts?: {
+    env?: { [key: string]: string | undefined };
+    environmentId?: string;
+    sessionId?: string;
+  }): { text: string; commands?: string[] } | Promise<{ text: string; commands?: string[] }>;
 }

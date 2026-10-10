@@ -1,8 +1,9 @@
+import { openCodeEnvironmentId } from "../../backends/opencode/profiles/identity.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import { emitLoginInstructions } from "../session/diagnostics.ts";
 import { getBackend } from "../../backends/index.ts";
 import { getSessionClaudeConfigDir, persistSessionFork } from "../../persistence.ts";
-import { addLogEntry, agents, emit, emitQueueUpdate, logCache, persistAll, updateState } from "../state.ts";
+import { addLogEntry, agents, emit, emitQueueUpdate, logCache, persistAll, updateState, rooms } from "../state.ts";
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
 import { buildSessionEnv } from "../session/session-env.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
@@ -113,6 +114,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // 2. Get SDK session messages and match by content + occurrence index
     const env = buildSessionEnv(managed);
     const access = {
+      environmentId: openCodeEnvironmentId(managed.info.userId, rooms[managed.info.room]?.id),
       cwd: managed.info.cwd,
       env: getSessionClaudeConfigDir(agentId, oldSessionId) ? { ...(env ?? process.env), CLAUDE_CONFIG_DIR: getSessionClaudeConfigDir(agentId, oldSessionId)! } : env,
     };

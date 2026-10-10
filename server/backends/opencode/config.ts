@@ -1,17 +1,14 @@
+import { join } from "node:path";
 import type { BackendCapabilities, ModelOption, PermissionModeOption } from "../types.ts";
 
 export const OPENCODE_AUTH_FAILURE = "OpenCode authentication is not configured.";
 
 export const AUTH_ERROR_PATTERNS = /opencode authentication is not configured|unauthori[zs]ed|not authenticated|authentication|auth.*expired|invalid.*token|login.*required|opencode_api_key|403|401/i;
 
-export const LOGIN_INSTRUCTIONS = `OpenCode needs provider credentials.
-
-1. Add \`OPENCODE_API_KEY\` under Settings → You → Individual connections (or your env file / agent Variables), then \`/clear\` this conversation
-2. Or sign in with the host CLI: install \`opencode\` on PATH and run \`opencode auth login\`, then \`/clear\`
-
-Other OpenCode agents pick up the new auth on their next \`/clear\`.`;
-
-export const ALREADY_AUTHED_INSTRUCTIONS = `OpenCode credentials look present (\`OPENCODE_API_KEY\`). Type \`/clear\` to refresh this agent's session and pick up the new auth.`;
+export const LOGIN_INSTRUCTIONS =
+  "OpenCode needs provider credentials. Add OPENCODE_API_KEY to your personal environment file, or use the profile-scoped login command below. Retry after active turns in this environment finish; existing history stays in place.";
+export const ALREADY_AUTHED_INSTRUCTIONS =
+  "OpenCode credentials (OPENCODE_API_KEY) are configured. Check the key in your personal environment file and retry; credential updates take effect between turns without clearing history.";
 
 export const CAPABILITIES: BackendCapabilities = {
   fork: true,
@@ -67,12 +64,18 @@ export function permissionAgent(permissionMode: string): string | undefined {
   return permissionMode === "bypassPermissions" ? OPENCODE_CRON_AGENT : undefined;
 }
 
-export function getOpenCodeLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): {
+export function getOpenCodeLoginInstructions(opts?: { env?: { [key: string]: string | undefined }; profileDir?: string }): {
   text: string;
   commands?: string[];
 } {
   if (opts?.env?.OPENCODE_API_KEY?.trim()) {
     return { text: ALREADY_AUTHED_INSTRUCTIONS };
   }
-  return { text: LOGIN_INSTRUCTIONS, commands: ["opencode auth login"] };
+  const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
+  const prefix = opts?.profileDir
+    ? Object.entries({ HOME: "home", XDG_CONFIG_HOME: "config", XDG_DATA_HOME: "data", XDG_STATE_HOME: "state", XDG_CACHE_HOME: "cache" })
+        .map(([key, directory]) => `${key}=${quote(join(opts.profileDir!, directory))}`)
+        .join(" ") + " "
+    : "";
+  return { text: LOGIN_INSTRUCTIONS, commands: [`${prefix}opencode auth login`] };
 }
