@@ -46,6 +46,7 @@ function extensionFixture() {
         },
       },
       debugger: {
+        onEvent: { addListener() {}, removeListener() {} },
         attach: async ({ tabId }: { tabId: number }) => {
           attached.add(tabId);
         },
@@ -113,4 +114,15 @@ test("worker refuses foreign popup messages and commands for an unoffered tab", 
   expect(fixture.results).toHaveLength(0);
   await fixture.call({ action: "revoke", id: "grant" });
   expect(fixture.attached.size).toBe(0);
+});
+
+test("worker reports a failed action before revoking the tab", async () => {
+  const fixture = extensionFixture();
+  await fixture.call({ action: "pair", office: "http://localhost:4000", code: "one-use" });
+  await fixture.call({ action: "share", tabId: 9, agentIds: ["agent"], minutes: null });
+  fixture.commands.push({ id: "bad", grantId: "grant", tabId: 9, origin: "https://offered.test", input: { action: "unsupported" } });
+  await fixture.poll();
+  expect(fixture.results).toEqual([{ error: "Unsupported action" }]);
+  expect(fixture.attached.size).toBe(0);
+  expect(fixture.requests.findIndex((row) => row.path === "results/bad")).toBeLessThan(fixture.requests.findIndex((row) => row.path === "grants/grant"));
 });

@@ -1,9 +1,16 @@
-export const BROWSER_ACTIONS = ["goto", "snapshot", "text", "click", "fill", "press", "screenshot", "close"] as const;
+export const BROWSER_ACTIONS = ["goto", "snapshot", "text", "click", "select", "fill", "press", "screenshot", "close"] as const;
 export type BrowserAction = (typeof BROWSER_ACTIONS)[number];
 
 export type BrowserErrorCode = "invalid_request" | "no_browser" | "launch_failed" | "no_page" | "action_failed" | "action_timeout";
 
+export interface BrowserDialog {
+  type: string;
+  message: string;
+  accepted: boolean;
+}
+
 export interface BrowserFailure {
+  dialogs?: BrowserDialog[];
   ok: false;
   status: 400 | 500;
   code: BrowserErrorCode;
@@ -11,6 +18,7 @@ export interface BrowserFailure {
 }
 
 export interface BrowserSuccess {
+  dialogs?: BrowserDialog[];
   ok: true;
   url: string;
   title: string;
@@ -69,6 +77,9 @@ export function describeShot(raw: string): { filename: string; caption: string }
 export interface ParsedParams {
   ok: true;
   action: BrowserAction;
+  value?: string;
+  label?: string;
+  dialog?: "accept" | "dismiss";
   url?: URL;
   framePath?: number[];
   selector?: string;
@@ -90,6 +101,15 @@ export function parseBrowserParams(body: unknown): ParsedParams | BrowserFailure
     viewport: { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT },
   };
 
+  if (body.dialog !== undefined) {
+    if (body.dialog !== "accept" && body.dialog !== "dismiss") return invalid("dialog must be accept or dismiss");
+    params.dialog = body.dialog;
+  }
+  if (action === "select") {
+    if (typeof body.value === "string" && body.value.length <= MAX_FILL_LEN && body.label === undefined) params.value = body.value;
+    else if (typeof body.label === "string" && body.label.length <= MAX_FILL_LEN && body.value === undefined) params.label = body.label;
+    else return invalid("select requires exactly one value or label (up to 10000 characters)");
+  }
   if (body.viewport !== undefined) {
     if (!isPlainObject(body.viewport)) return invalid("viewport must be an object {width, height}");
     const { width: w, height: h } = body.viewport;
@@ -101,7 +121,7 @@ export function parseBrowserParams(body: unknown): ParsedParams | BrowserFailure
 
   if (body.framePath !== undefined) {
     if (
-      !["click", "fill", "press", "snapshot", "text"].includes(action) ||
+      !["click", "select", "fill", "press", "snapshot", "text"].includes(action) ||
       !Array.isArray(body.framePath) ||
       body.framePath.length > MAX_FRAME_DEPTH ||
       body.framePath.some((index) => !Number.isSafeInteger(index) || index < 0) ||
@@ -127,7 +147,7 @@ export function parseBrowserParams(body: unknown): ParsedParams | BrowserFailure
     params.url = url;
   }
 
-  if (action === "click" || action === "fill") {
+  if (action === "click" || action === "select" || action === "fill") {
     const selector = body.selector;
     if (typeof selector !== "string" || selector.length === 0) return invalid(`selector is required for the ${action} action`);
     if (selector.length > MAX_SELECTOR_LEN) return invalid(`selector too long (max ${MAX_SELECTOR_LEN} chars)`);

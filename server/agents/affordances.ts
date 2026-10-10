@@ -1,3 +1,4 @@
+import type { BrowserDialog } from "../browser/params.ts";
 import { homedir } from "os";
 import { basename, resolve as resolvePath } from "path";
 import { existsSync, readFileSync, statSync } from "fs";
@@ -120,7 +121,10 @@ export async function emitAgentPreviewUrl(agentId: string, body: unknown): Promi
   return { ok: true };
 }
 
-export async function emitAgentBrowser(agentId: string, body: unknown): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; status: number; error: string; code?: string }> {
+export async function emitAgentBrowser(
+  agentId: string,
+  body: unknown,
+): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; status: number; error: string; code?: string; dialogs?: BrowserDialog[] }> {
   const managed = agents.get(agentId);
   if (!managed) return { ok: false, status: 404, error: "agent not found" };
   if (!officeConfig.experimental.browserPanel) {
@@ -128,7 +132,7 @@ export async function emitAgentBrowser(agentId: string, body: unknown): Promise<
   }
   browserPool.setPublicHostAllowlist(officeConfig.previewAllowHosts);
   const result = await browserPool.run(agentId, body);
-  if (!result.ok) return { ok: false, status: result.status, error: result.error, code: result.code };
+  if (!result.ok) return { ok: false, status: result.status, error: result.error, code: result.code, ...(result.dialogs ? { dialogs: result.dialogs } : {}) };
   if (result.png && result.filename) {
     const att = savePersistedFile(agentId, result.png, "image/png", result.filename);
     if (!att) return { ok: false, status: 500, error: "failed to save browser screenshot" };

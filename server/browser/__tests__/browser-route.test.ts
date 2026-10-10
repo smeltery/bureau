@@ -195,3 +195,11 @@ describe("system prompt browser gate", () => {
     setOfficeConfig(previous);
   });
 });
+
+test("select requires a selector and one bounded value or label; dialog policy is explicit", () => {
+  expect(parseBrowserParams({ action: "select", selector: "select", value: "", dialog: "accept", framePath: [0] })).toMatchObject({ ok: true, value: "", dialog: "accept" });
+  for (const input of [{ value: "a", label: "A" }, {}, { value: 3 }, { label: "x".repeat(10001) }])
+    expect(parseBrowserParams({ action: "select", selector: "select", ...input })).toMatchObject({ ok: false });
+  expect(parseBrowserParams({ action: "select", value: "a" })).toMatchObject({ ok: false });
+  expect(parseBrowserParams({ action: "click", selector: "button", dialog: "yes" })).toMatchObject({ ok: false });
+});

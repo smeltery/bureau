@@ -74,6 +74,7 @@ export async function handleAgentBearerPost(req: Request, parts: string[]): Prom
     if (!result.ok) {
       const payload: Record<string, unknown> = { error: result.error };
       if (result.code) payload.code = result.code;
+      if (result.dialogs) payload.dialogs = result.dialogs;
       return new Response(JSON.stringify(payload), { status: result.status, headers: JSON_HEADERS });
     }
     return new Response(JSON.stringify(result.result), { headers: JSON_HEADERS });

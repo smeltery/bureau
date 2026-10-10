@@ -71,7 +71,9 @@ async function poll() {
       } catch (caught) {
         error = caught.message;
         lastError = error;
+        await api(`results/${command.id}`, "POST", { error, result: caught.dialogs ? { dialogs: caught.dialogs } : undefined });
         await revoke(grant);
+        continue;
       }
       if (grants.has(grant.id)) await api(`results/${command.id}`, "POST", { result, error });
     }

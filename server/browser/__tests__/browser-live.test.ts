@@ -14,6 +14,7 @@ interface StubCalls {
 
 function stubBrowser(calls: StubCalls, page: Record<string, unknown> = {}, options: { screenshot?: () => Promise<{ data: string }> } = {}) {
   const defaults = {
+    on() {},
     url: () => "http://127.0.0.1:3000/",
     title: async () => "Example",
     goto: async (u: string) => {
