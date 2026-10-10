@@ -71,8 +71,9 @@ jobs:
       - name: Install k3d
         if: matrix.mode == 'kubernetes'
         run: |
-          curl -fsSL https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64 -o /usr/local/bin/k3d
-          chmod +x /usr/local/bin/k3d
+          curl -fsSL https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64 -o "$RUNNER_TEMP/k3d"
+          chmod +x "$RUNNER_TEMP/k3d"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - name: Check Kubernetes manifests and pod entrypoint
         if: matrix.mode == 'kubernetes'
         run: bash deploy/install-verify/kubernetes.sh
