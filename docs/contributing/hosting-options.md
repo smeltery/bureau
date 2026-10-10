@@ -42,8 +42,8 @@ Use this when every device and collaborator can join your tailnet.
 1. Install Tailscale on the Bureau host and on each client device.
 2. Claim Bureau from the host at `http://localhost:4000`.
 3. Run Bureau as a persistent service; see [Self-Hosted Setup](self-hosted.md).
-4. Enable external access with the tailnet URL, such as
-   `http://my-office:4000`, then restart Bureau.
+4. Configure Tailscale Serve as shown below, enable external access with its
+   HTTPS URL, then restart Bureau.
 5. Test from a phone or laptop while connected to Tailscale.
 
 For HTTPS on the tailnet, enable Tailscale HTTPS certificates and run:
@@ -154,3 +154,8 @@ details.
   failures.
 - Keep backups of `~/.bureau` or `BUREAU_HOME`; see
   [Backup And Restore](backup-restore.md).
+
+## Fresh-install checks
+
+See [Fresh-install verification](fresh-install-matrix.md) for the automated
+entrypoint matrix and the external network/storage checks it does not replace.

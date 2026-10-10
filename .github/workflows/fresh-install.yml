@@ -1,0 +1,78 @@
+name: Fresh install
+
+on:
+  pull_request:
+    paths: ['server/**', 'shared/**', 'ui/**', 'skills/**', 'deploy/**', 'scripts/**', '.flox/**', 'package.json', 'bun.lock', '.github/workflows/fresh-install.yml']
+  push:
+    branches: [master]
+    paths: ['server/**', 'shared/**', 'ui/**', 'skills/**', 'deploy/**', 'scripts/**', '.flox/**', 'package.json', 'bun.lock', '.github/workflows/fresh-install.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: fresh-install-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: install-${{ matrix.os }}-${{ matrix.mode }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04, mode: local}
+          - {os: macos-14, mode: local}
+          - {os: ubuntu-24.04, mode: private}
+          - {os: ubuntu-24.04, mode: funnel}
+          - {os: ubuntu-24.04, mode: domain}
+          - {os: ubuntu-24.04, mode: vps}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - run: bun install --frozen-lockfile
+      - run: bun run build:ui
+      - name: Claim a clean office and exercise terminal and providers
+        run: bun deploy/install-verify/local.ts "${{ matrix.mode }}"
+
+  container:
+    name: install-${{ matrix.mode }}
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [render, kubernetes]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/render/Dockerfile
+          tags: bureau-install:verify
+          load: true
+          cache-from: type=gha,scope=bureau-install
+          cache-to: type=gha,mode=max,scope=bureau-install
+      - name: Check Render entrypoint
+        if: matrix.mode == 'render'
+        run: bun deploy/install-verify/container.ts
+      - name: Install k3d
+        if: matrix.mode == 'kubernetes'
+        run: |
+          curl -fsSL https://github.com/k3d-io/k3d/releases/download/v5.9.0/k3d-linux-amd64 -o /usr/local/bin/k3d
+          chmod +x /usr/local/bin/k3d
+      - name: Check Kubernetes manifests and pod entrypoint
+        if: matrix.mode == 'kubernetes'
+        run: bash deploy/install-verify/kubernetes.sh

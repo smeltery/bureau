@@ -28,6 +28,9 @@ python3.pkg-path = "python3"
 gnumake.pkg-path = "gnumake"
 gcc.pkg-path = "gcc"
 gcc.systems = ["aarch64-linux", "x86_64-linux"]
+# Interactive terminals use a Node sidecar for the native PTY addon.
+nodejs.pkg-path = "nodejs"
+nodejs.version = "24"
 
 
 ## Activation Hook ---------------------------------------------------

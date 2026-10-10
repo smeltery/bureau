@@ -11,3 +11,9 @@ core
 core.*
 **/core.*
 *.core
+
+# Local build/tool caches do not belong in the runtime image.
+.flox
+website/node_modules
+website/.next
+website/dist
