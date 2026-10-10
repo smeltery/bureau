@@ -1,5 +1,5 @@
 FROM node:24-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends python3 build-essential ca-certificates git tini chromium && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends python3 build-essential ca-certificates git tini chromium bubblewrap && rm -rf /var/lib/apt/lists/*
 COPY --from=oven/bun:1.4.2 /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /opt/bureau
 COPY . .

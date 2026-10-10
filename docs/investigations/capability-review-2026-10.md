@@ -113,3 +113,52 @@ Catalogs, schedules and one-shot calls must select the same intended environment
 This storage migration is intentionally unimplemented, with existing history left
 in place. Credential scanning/live provider certification and the other earlier
 operational follow-ups are not claimed as complete.
+
+## Follow-up review — 2026-10-10
+
+Reviewed the latest release notes and comparison range, current implementation,
+and nearby tests against Bureau's existing capabilities. The release review is
+recorded separately from deployment certification; passing app CI does not
+establish that a hosting platform permits nested sandboxes.
+
+| Classification | Capability and result |
+| --- | --- |
+| Implemented | Task status and priority checkbox filters, counts respecting the opposite filter group, and a retained/reopenable Obsolete state. Active counts exclude completed and obsolete tasks. |
+| Implemented | Single-dispatch browser pointer clicks, native select actions by value or label, and explicit first-dialog acceptance with recorded outcomes. Shared tabs retain origin and selected-agent restrictions. |
+| Implemented | Bun 1.4.2 in Flox on Linux/Apple Silicon and in the Render image. Intel macOS retains 1.3.13 pending catalog availability. |
+| Implemented | Cloud model labels and manifests reflect launch-time alias targets/custom pins and effective permissions without overwriting saved preferences. |
+| Implemented | Render includes bubblewrap. Codex stderr retains namespace diagnostics, including failures coalesced with informational startup notices. |
+| Implemented | Corrected the Render entrypoint's stale authentication import, found by a fresh-container startup check, and added a production-import build test. |
+| Already covered | Render's setup key is origin-checked and accepted only before owner creation; existing tests cover invalid keys, foreign origins and replay after claim. |
+| Already covered | Browser checks use a real Chrome harness, and app relay tests exercise socket closure and resource cleanup under the pinned runtime. No blanket quarantine was added. |
+| Not destination-native | Automatically changing a restricted Codex sandbox to full access after a failed host probe. Bureau retains the selected mode and reports errors. |
+| Not destination-native | Hosted signup, billing database privileges, Caddy installer changes, deployment-specific release gates and safety-hook artifact tests for a backend that does not expose hooks. |
+
+### Needs follow-up: skills management
+
+Bureau discovers skills for autocomplete and invocation, but does not yet offer
+a dedicated create/edit/delete library. Discovery currently includes shared host
+Claude directories, project commands, plugins and bundled aliases. A web editor
+must first distinguish manager-owned files from shared or packaged content and
+resolve the same configuration root the selected agent actually uses.
+
+The implementation needs stable file handles rather than client-supplied paths,
+symlink and directory-boundary checks, bounded reads, version-checked atomic
+writes, and deletion that preserves adjacent assets. Bundled/plugin content
+should be read-only, aliases should not duplicate entries, and built-in commands
+need a separate read-only view. Existing general file editing is not equivalent
+to these ownership and discovery guarantees. No new shared-file write API is
+introduced by this review.
+
+### Needs follow-up: clean-install certification
+
+Focused setup, supervisor and Kubernetes checks exist, but Bureau does not yet
+have an automated fresh-install matrix that certifies owner claim, a first
+terminal and signed-out provider behavior across every supported hosting path.
+That is a real deployment-test gap. A future matrix must use disposable state,
+synthetic credentials and destination deployment entrypoints; it should not
+require paid hosted accounts or inherit a different product's release service.
+
+OpenCode environment profiles remain open for the storage-migration reasons
+recorded above. Neither these profiles nor the skills editor or full install
+matrix is claimed as complete.
