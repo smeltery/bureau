@@ -260,3 +260,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   expansion.
 
 - Task board: combined status/priority filters with counts, including unprioritized tasks; Obsolete retains dropped work separately from completed tasks.
+
+- Shared-tab and experimental host-browser actions support native selects and bounded dialog results, with explicit first-dialog acceptance. Clicks do not retry after pointer dispatch.

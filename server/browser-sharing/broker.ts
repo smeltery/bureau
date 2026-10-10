@@ -81,6 +81,12 @@ export function parseBrowserAction(value: unknown, origin: string): SharedBrowse
     if (url.origin !== origin || url.username || url.password) throw new Error("Navigation must remain on the shared origin. Offer a new tab for another origin.");
     return { action: "navigate", url: url.href };
   }
+  if (input.action === "select" && typeof input.selector === "string" && input.selector.length > 0 && input.selector.length <= 500) {
+    const hasValue = typeof input.value === "string" && input.value.length <= 10_000;
+    const hasLabel = typeof input.label === "string" && input.label.length <= 10_000;
+    if (hasValue && input.label === undefined) return { action: "select", selector: input.selector, value: input.value as string };
+    if (hasLabel && input.value === undefined) return { action: "select", selector: input.selector, label: input.label as string };
+  }
   if ((input.action === "click" || input.action === "type") && typeof input.selector === "string" && input.selector.length > 0 && input.selector.length <= 500) {
     if (input.action === "click") return { action: "click", selector: input.selector };
     if (typeof input.text === "string" && input.text.length <= 10_000) return { action: "type", selector: input.selector, text: input.text };
@@ -92,6 +98,9 @@ export function requestBrowserAction(agentId: string, grantId: string, input: un
   if (!grant || !eligibleAgent(grant.userId, agentId)) return Promise.reject(new Error("tab grant unavailable"));
   if ([...pending.values()].some((item) => item.command.grantId === grantId)) return Promise.reject(new Error("tab is busy"));
   const action = (input as Record<string, unknown> | null)?.action === "upload" ? prepareBrowserUpload(agentId, input as Record<string, unknown>) : parseBrowserAction(input, grant.origin);
+  const dialog = (input as Record<string, unknown>).dialog;
+  if (dialog !== undefined && dialog !== "accept" && dialog !== "dismiss") throw new Error("dialog must be accept or dismiss");
+  if (dialog) action.dialog = dialog;
   const command: SharedBrowserCommand = { id: id(), grantId, tabId: grant.tabId, origin: grant.origin, input: action };
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -115,7 +124,15 @@ export function completeBrowserAction(deviceId: string, commandId: string, resul
   if (!item || item.deviceId !== deviceId || !item.delivered) return false;
   pending.delete(commandId);
   clearTimeout(item.timer);
-  if (error) item.reject(new Error(error.slice(0, 300)));
-  else item.resolve(result);
+  if (error) {
+    const dialogs = (result as { dialogs?: unknown } | null)?.dialogs;
+    const detail = Array.isArray(dialogs)
+      ? dialogs
+          .slice(0, 20)
+          .filter((row) => row && typeof row.type === "string" && typeof row.message === "string" && typeof row.accepted === "boolean")
+          .map((row) => ({ type: row.type.slice(0, 40), message: row.message.slice(0, 2000), accepted: row.accepted }))
+      : [];
+    item.reject(Object.assign(new Error(error.slice(0, 300)), detail.length ? { dialogs: detail } : {}));
+  } else item.resolve(result);
   return true;
 }

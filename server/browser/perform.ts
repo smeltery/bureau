@@ -22,8 +22,22 @@ export async function performBrowserAction(page: Page, params: ParsedParams, tim
       markOpened();
       break;
     case "click":
-      await target.click(params.selector!, { timeout });
+      await target.click(params.selector!, { timeout, noWaitAfter: true });
+      await new Promise((resolve) => setTimeout(resolve, Math.min(100, timeout)));
       break;
+    case "select": {
+      await target.$eval(
+        params.selector!,
+        (node, choice) => {
+          if (!(node instanceof HTMLSelectElement) || node.matches(":disabled")) throw new Error("Select unavailable");
+          const option = Array.from(node.options).find((option) => (choice.value !== undefined ? option.value === choice.value : option.label === choice.label));
+          if (!option || option.disabled || option.parentElement?.matches("optgroup:disabled")) throw new Error("Option unavailable");
+        },
+        { value: params.value, label: params.label },
+      );
+      await target.selectOption(params.selector!, params.value !== undefined ? { value: params.value } : { label: params.label! }, { timeout, force: true });
+      break;
+    }
     case "fill":
       await target.fill(params.selector!, params.text!, { timeout });
       break;

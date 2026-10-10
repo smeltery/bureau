@@ -1,9 +1,11 @@
-export type SharedBrowserAction =
+export type SharedBrowserAction = (
+  | { action: "select"; selector: string; value?: string; label?: string }
   | { action: "upload"; selector: string; file: { name: string; mimeType: string; base64: string } }
   | { action: "read" | "screenshot" }
   | { action: "click"; selector: string }
   | { action: "type"; selector: string; text: string }
-  | { action: "navigate"; url: string };
+  | { action: "navigate"; url: string }
+) & { dialog?: "accept" | "dismiss" };
 
 export interface SharedTabGrant {
   id: string;

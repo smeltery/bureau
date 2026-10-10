@@ -1,3 +1,6 @@
+import { defaultLaunch } from "./launch.ts";
+export { launchOptions } from "./launch.ts";
+import { BrowserDialogs } from "./dialogs.ts";
 // Interactive agent browser — engine behind POST /api/agents/:id/browser.
 //
 // One shared Chrome for the office, one BrowserContext per agent, idle teardown.
@@ -42,27 +45,8 @@ export interface BrowserSessionDeps {
   lookupFn?: (hostname: string) => Promise<Array<{ address: string; family: number }>>;
 }
 
-const LAUNCH_ARGS = [
-  "--disable-background-networking",
-  "--disable-component-update",
-  "--disable-sync",
-  "--disable-default-apps",
-  "--disable-client-side-phishing-detection",
-  "--disable-domain-reliability",
-  "--metrics-recording-only",
-  "--disable-features=OptimizationHints,MediaRouter,Translate",
-];
-
-export function launchOptions(executablePath: string) {
-  return { executablePath, headless: true as const, args: LAUNCH_ARGS, handleSIGINT: false as const, handleSIGTERM: false as const, handleSIGHUP: false as const };
-}
-
-async function defaultLaunch(executablePath: string): Promise<Browser> {
-  const { chromium } = await import("playwright-core");
-  return chromium.launch(launchOptions(executablePath));
-}
-
 interface AgentSession extends LiveSession {
+  dialogs: BrowserDialogs;
   context: BrowserContext;
   timer: ReturnType<typeof setTimeout> | null;
 }
@@ -232,7 +216,10 @@ export class BrowserPool {
     }
     const context = await browser.newContext({ viewport, acceptDownloads: false });
     const page = await context.newPage();
+    const dialogs = new BrowserDialogs();
+    dialogs.watch(page);
     const session: AgentSession = {
+      dialogs,
       context,
       page,
       opened: false,
@@ -247,6 +234,7 @@ export class BrowserPool {
     };
     this.sessions.set(agentId, session);
     context.on("page", (fresh: Page) => {
+      dialogs.watch(fresh);
       void this.serialize(agentId, async () => {
         const current = this.sessions.get(agentId);
         if (!current || current.context !== context) return;
@@ -314,6 +302,7 @@ export class BrowserPool {
     if (params.action !== "goto" && !session.opened) {
       return fail(400, "no_page", "no page is open; call the goto action first");
     }
+    const finish = session.dialogs.begin(params.dialog);
     let work: Promise<BrowserSuccess> | undefined;
     try {
       work = performBrowserAction(session.page, params, this.actionMs, () => {
@@ -323,15 +312,15 @@ export class BrowserPool {
       session.title = result.title;
       if (this.live.hasViewers(agentId)) void this.live.ensureScreencast(agentId, session, () => this.sessions.get(agentId));
       this.live.notify(agentId, null);
-      return result;
+      return finish(result);
     } catch (err) {
       if (err instanceof DeadlineError) {
         await this.closeNow(agentId);
         if (work) await work.catch(() => {});
-        return fail(500, "action_timeout", `the browser did not finish ${params.action} in ${this.backstopMs}ms`);
+        return finish(fail(500, "action_timeout", `the browser did not finish ${params.action} in ${this.backstopMs}ms`));
       }
-      if (err instanceof NoPageError) return fail(400, "no_page", err.message);
-      return selectorSyntaxFailure(err) ?? fail(500, "action_failed", err instanceof Error ? err.message.split("\n")[0]! : String(err));
+      if (err instanceof NoPageError) return finish(fail(400, "no_page", err.message));
+      return finish(selectorSyntaxFailure(err) ?? fail(500, "action_failed", err instanceof Error ? err.message.split("\n")[0]! : String(err)));
     }
   }
 }

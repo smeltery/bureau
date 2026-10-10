@@ -12,7 +12,7 @@ async function evaluate(tabId, origin, expression) {
   if (result.exceptionDetails) throw new Error("Page action failed; check the selector");
   return result.result.value;
 }
-async function execute(command) {
+async function perform(command) {
   const { tabId, origin, input } = command;
   await assertOrigin(tabId, origin);
   let result;
@@ -37,13 +37,28 @@ async function execute(command) {
     if (new URL(input.url).origin !== origin) throw new Error("Navigation must stay on the shared origin");
     result = await send(tabId, "Page.navigate", { url: input.url });
     if (result.errorText) throw new Error(result.errorText);
-  } else if (input.action === "click" || input.action === "type") {
-    const selector = JSON.stringify(input.selector);
-    await evaluate(
+  } else if (input.action === "select") {
+    result = await evaluate(
       tabId,
       origin,
-      `(() => { const e=document.querySelector(${selector}); if(!e || e.type==='file') throw new Error('Element unavailable'); e.${input.action === "click" ? "click" : "focus"}(); return true; })()`,
+      `(() => { const e=document.querySelector(${JSON.stringify(input.selector)}); if(!(e instanceof HTMLSelectElement) || e.matches(':disabled')) throw new Error('Select unavailable'); const value=${JSON.stringify(input.value ?? null)}, label=${JSON.stringify(input.label ?? null)}; const option=Array.from(e.options).find(o=>value!==null ? o.value===value : o.label===label); if(!option || option.disabled || option.parentElement.matches('optgroup:disabled')) throw new Error('Option unavailable'); for(const o of e.options) o.selected=o===option; e.dispatchEvent(new Event('input',{bubbles:true})); e.dispatchEvent(new Event('change',{bubbles:true})); return {values:Array.from(e.selectedOptions,o=>o.value)}; })()`,
     );
+  } else if (input.action === "click") {
+    const point = await evaluate(
+      tabId,
+      origin,
+      `(() => { const e=document.querySelector(${JSON.stringify(input.selector)}); if(!e || e.type==='file' || e.matches(':disabled')) throw new Error('Element unavailable'); e.scrollIntoView({block:'center',inline:'center'}); const r=e.getBoundingClientRect(), x=r.x+r.width/2, y=r.y+r.height/2; if(!r.width || !r.height || !e.contains(document.elementFromPoint(x,y))) throw new Error('Element is hidden or covered'); return {x,y}; })()`,
+    );
+    await assertOrigin(tabId, origin);
+    await send(tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
+    await send(tabId, "Input.dispatchMouseEvent", { type: "mousePressed", button: "left", clickCount: 1, ...point });
+    await send(tabId, "Input.dispatchMouseEvent", { type: "mouseReleased", button: "left", clickCount: 1, ...point });
+    // One dispatch only: a pointerdown handler may replace the target.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    result = { ok: true };
+  } else if (input.action === "type") {
+    const selector = JSON.stringify(input.selector);
+    await evaluate(tabId, origin, `(() => { const e=document.querySelector(${selector}); if(!e || e.type==='file') throw new Error('Element unavailable'); e.focus(); return true; })()`);
     if (input.action === "type") {
       await assertOrigin(tabId, origin);
       await send(tabId, "Input.insertText", { text: input.text });
@@ -52,4 +67,46 @@ async function execute(command) {
   } else throw new Error("Unsupported action");
   await assertOrigin(tabId, origin);
   return result;
+}
+
+const dialogPolicies = new Map();
+chrome.debugger.onEvent.addListener((source, method, event) => {
+  if (method !== "Page.javascriptDialogOpening") return;
+  const policy = dialogPolicies.get(source.tabId);
+  let sameOrigin = false;
+  try {
+    sameOrigin = !!policy && new URL(event.url).origin === policy.origin;
+  } catch {}
+  const accepted = sameOrigin && policy.first && policy.accept;
+  if (policy) policy.first = false;
+  const record = { type: event.type, message: String(event.message).slice(0, 2000), accepted: false };
+  if (sameOrigin && policy.dialogs.length < 20) policy.dialogs.push(record);
+  // Catch close races, including dialogs opened outside an active action.
+  const handling = send(source.tabId, "Page.handleJavaScriptDialog", { accept: accepted })
+    .then(() => {
+      record.accepted = accepted;
+    })
+    .catch(() => {
+      if (policy) policy.error = new Error("Could not close page dialog");
+    })
+    .finally(() => policy?.pending.delete(handling));
+  policy?.pending.add(handling);
+});
+
+async function execute(command) {
+  const policy = { dialogs: [], pending: new Set(), first: true, accept: command.input.dialog === "accept", origin: command.origin };
+  await assertOrigin(command.tabId, command.origin);
+  dialogPolicies.set(command.tabId, policy);
+  try {
+    await send(command.tabId, "Page.enable");
+    const result = await perform(command);
+    await Promise.all([...policy.pending]);
+    if (policy.error) throw policy.error;
+    return policy.dialogs.length ? { ...result, dialogs: policy.dialogs } : result;
+  } catch (error) {
+    if (policy.dialogs.length) error.dialogs = policy.dialogs;
+    throw error;
+  } finally {
+    if (dialogPolicies.get(command.tabId) === policy) dialogPolicies.delete(command.tabId);
+  }
 }

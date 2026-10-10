@@ -6,7 +6,7 @@ import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo, type UserRecord } from "../
 import * as Agents from "../agent-manager.ts";
 import { claimUserByName, deleteUserById, updateUserById } from "../users.ts";
 import { browserDevice, createPairingCode, DEVICES_FILE, pairBrowser, revokeBrowser } from "./devices.ts";
-import { completeBrowserAction, currentGrants, grantTab, pollBrowser, requestBrowserAction, revokeDeviceGrants, revokeGrant } from "./broker.ts";
+import { completeBrowserAction, currentGrants, grantTab, pollBrowser, parseBrowserAction, requestBrowserAction, revokeDeviceGrants, revokeGrant } from "./broker.ts";
 import { handleBrowserSharingRequest, handleExtensionRequest } from "./routes.ts";
 import { mintAgentToken, revokeAgentToken } from "../agents/tokens.ts";
 
@@ -183,4 +183,15 @@ test("upload refuses invalid paths, protected files and oversized files without 
     resolve.mockRestore();
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("select accepts exactly one value or label and rejects malformed choices", () => {
+  expect(parseBrowserAction({ action: "select", selector: "#choice", value: "" }, "https://example.com")).toEqual({ action: "select", selector: "#choice", value: "" });
+  expect(parseBrowserAction({ action: "select", selector: "#choice", label: "Second" }, "https://example.com")).toEqual({ action: "select", selector: "#choice", label: "Second" });
+  for (const choice of [{}, { value: "a", label: "A" }, { value: 2 }, { label: "x".repeat(10_001) }])
+    expect(() => parseBrowserAction({ action: "select", selector: "#choice", ...choice }, "https://example.com")).toThrow();
+  const { id, paired, input } = setup();
+  const grant = grantTab(paired.device, input);
+  expect(() => requestBrowserAction(id, grant.id, { action: "click", selector: "button", dialog: "yes" })).toThrow("dialog");
+  expect(pollBrowser(paired.device.id).commands).toHaveLength(0);
 });

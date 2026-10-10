@@ -7,7 +7,8 @@ import { browserDevice, createPairingCode, listDevices, pairBrowser, revokeBrows
 import { completeBrowserAction, currentGrants, eligibleAgent, grantTab, pollBrowser, requestBrowserAction, revokeDeviceGrants, revokeGrant } from "./broker.ts";
 
 const jsonBody = async (req: Request, limit = 32_768) => JSON.parse((await boundedBody(req, limit)).toString("utf8"));
-const failure = (error: unknown, status = 400) => Response.json({ error: error instanceof Error ? error.message : "Invalid request" }, { status });
+const failure = (error: unknown, status = 400) =>
+  Response.json({ error: error instanceof Error ? error.message : "Invalid request", ...(error instanceof Error && "dialogs" in error ? { dialogs: error.dialogs } : {}) }, { status });
 
 export async function handleExtensionRequest(req: Request, url: URL): Promise<Response | null> {
   if (!url.pathname.startsWith("/browser-sharing/extension/")) return null;
