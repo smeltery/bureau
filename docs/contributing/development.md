@@ -6,7 +6,10 @@ The project pins its toolchain with a [Flox](https://flox.dev) environment at
 `.flox/env/manifest.toml` — Bun (the runtime, bundler, package manager, and
 test runner) plus the native-build deps `bun install` needs to compile
 `node-pty` (Python, make, and a C/C++ compiler on Linux). The version is locked
-in `.flox/env/manifest.lock`, so local and CI run byte-identical tooling.
+in `.flox/env/manifest.lock`. Linux and Apple Silicon use Bun 1.4.2, including
+the Render image. Intel macOS remains on 1.3.13 until Flox publishes the newer
+version for that platform. The newer runtime includes package extraction and
+terminal startup fixes.
 
 ```sh
 flox activate                   # enter the env; first run installs deps via the hook
@@ -16,6 +19,8 @@ flox activate --start-services  # run the `bureau` service (= bun run dev)
 
 Bump Bun by editing `bun.version` in the manifest and re-locking with
 `flox edit -f .flox/env/manifest.toml`; commit the updated `manifest.lock`.
+Check `flox show bun` for platform availability and update the Render image
+pin together with the Linux runtime.
 
 Flox is the supported path but not required — any matching Bun works with the
 plain `bun install` / `bun run dev` flow.
