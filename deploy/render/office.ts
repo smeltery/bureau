@@ -1,5 +1,5 @@
 import { hasOwner } from "../../server/users.ts";
-import { claimOwnership, freezeBootState, setCookieHeader, setPublicOriginFallback } from "../../server/auth.ts";
+import { claimOwnership, freezeBootState, setCookieHeader, setPublicOriginFallback } from "../../server/auth/auth.ts";
 import { loadOfficeConfig, saveOfficeConfig } from "../../server/persistence.ts";
 import { createSetupHandler } from "./bootstrap.ts";
 

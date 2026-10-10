@@ -128,6 +128,7 @@ establish that a hosting platform permits nested sandboxes.
 | Implemented | Bun 1.4.2 in Flox on Linux/Apple Silicon and in the Render image. Intel macOS retains 1.3.13 pending catalog availability. |
 | Implemented | Cloud model labels and manifests reflect launch-time alias targets/custom pins and effective permissions without overwriting saved preferences. |
 | Implemented | Render includes bubblewrap. Codex stderr retains namespace diagnostics, including failures coalesced with informational startup notices. |
+| Implemented | Corrected the Render entrypoint's stale authentication import, found by a fresh-container startup check, and added a production-import build test. |
 | Already covered | Render's setup key is origin-checked and accepted only before owner creation; existing tests cover invalid keys, foreign origins and replay after claim. |
 | Already covered | Browser checks use a real Chrome harness, and app relay tests exercise socket closure and resource cleanup under the pinned runtime. No blanket quarantine was added. |
 | Not destination-native | Automatically changing a restricted Codex sandbox to full access after a failed host probe. Bureau retains the selected mode and reports errors. |
