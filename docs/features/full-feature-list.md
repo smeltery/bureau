@@ -258,3 +258,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   isolated plugin failure logging.
 - Per-agent MCP access design and plugin-management design docs for future
   expansion.
+
+- Task board: combined status/priority filters with counts, including unprioritized tasks; Obsolete retains dropped work separately from completed tasks.

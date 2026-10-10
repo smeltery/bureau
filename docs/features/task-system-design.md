@@ -10,7 +10,7 @@ Replace the current human-only todo system with a task system that both agents a
 - `title`: required
 - `description`: optional
 - `priority`: optional (P0-P3)
-- `status`: open | in_progress | backlog | done
+- `status`: open | in_progress | backlog | done | obsolete
 - `assignee`: optional, free-text string
 - `roomId`: optional stable room id; omitted means office-wide
 - `createdBy`: who created it (agent name or human username)
@@ -25,7 +25,7 @@ Server holds canonical state in memory, persists to `~/.bureau/tasks.json` on ev
 Agents use `curl` directly — no CLI wrapper, no MCP server, no env variables.
 
 ```
-GET    /tasks           — list (excludes done/backlog by default), ?status=open|done|backlog|all, ?assignee=X, ?title=<query>
+GET    /tasks           — list (excludes done/obsolete/backlog by default), ?status=open|done|backlog|all, ?assignee=X, ?title=<query>
 GET    /tasks/:id       — full task detail with description
 POST   /tasks           — create task
 PATCH  /tasks/:id       — update fields, including roomId (convention: agents only use when human directs)
@@ -61,10 +61,14 @@ DELETE is available to authenticated callers and the UI uses the WebSocket delet
 
 ## Default List Behavior
 
-`GET /tasks` excludes done and backlog tasks by default. Use `?status=all`, `?status=done`, or `?status=backlog` for other views.
+`GET /tasks` excludes done, obsolete and backlog tasks by default. Use `?status=all`, `?status=done`, or `?status=backlog` for other views.
 
 ## Files to modify
 
 - **Remove**: TodoModal.tsx, TodoPanel.tsx
 - **Modify**: App.tsx, OfficeView.tsx, Floor.tsx, AgentListView.tsx, MobileHeader.tsx, store.tsx, types.ts, office-state.ts, server/index.ts, persistence.ts, demo-server.ts
 - **Create**: new TaskView component, task-related API routes on server
+
+Close abandoned or superseded work with `PATCH {"status":"obsolete","description":"Reason for closing"}`. Done means the requested work was completed. Obsolete tasks remain readable and can be reopened; default active lists exclude them.
+
+The board supports multiple status and priority checkboxes, including no priority. Counts apply the room, search and assignee filters plus the opposite checkbox group. Clearing a group shows no tasks.

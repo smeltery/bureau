@@ -12,6 +12,9 @@ export function TaskView({ username, onClose, onFocusAgent, openTaskId }: { user
     filterAssignee,
     filtered,
     filterStatus,
+    filterPriorities,
+    setFilterPriorities,
+    filterCounts,
     handleSelectTask,
     handleSort,
     inputRef,
@@ -55,6 +58,9 @@ export function TaskView({ username, onClose, onFocusAgent, openTaskId }: { user
         isMobile={isMobile}
         shownCount={filtered.length}
         filterStatus={filterStatus}
+        filterPriorities={filterPriorities}
+        setFilterPriorities={setFilterPriorities}
+        filterCounts={filterCounts}
         setFilterStatus={setFilterStatus}
         roomScope={roomScope}
         setRoomScope={setRoomScope}

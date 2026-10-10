@@ -1,7 +1,8 @@
+import { useI18n } from "../i18n.tsx";
 import type { CSSProperties, ReactNode } from "react";
 import type { TaskItem } from "../../shared/types.ts";
 import { timeAgo } from "../utils/time.ts";
-import { PRIORITY_COLORS, STATUS_COLORS, STATUS_LABELS, type SortDir, type SortField } from "./constants.ts";
+import { PRIORITY_COLORS, STATUS_COLORS, STATUS_LABEL_KEYS, type SortDir, type SortField } from "./constants.ts";
 
 export function TaskTable({
   tasks,
@@ -30,6 +31,7 @@ export function TaskTable({
   renderName: (name: string | undefined) => ReactNode;
   roomNameById: (roomId: string | undefined) => string;
 }) {
+  const { t } = useI18n();
   return (
     <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: isMobile ? "fixed" : undefined }}>
       <thead>
@@ -77,7 +79,7 @@ export function TaskTable({
                 cursor: "pointer",
                 background: task.id === selectedId ? "var(--bg-hover)" : "transparent",
                 borderBottom: "1px solid var(--border-subtle)",
-                opacity: task.status === "done" ? 0.5 : 1,
+                opacity: task.status === "done" || task.status === "obsolete" ? 0.5 : 1,
               }}
               onMouseEnter={(e) => {
                 if (task.id !== selectedId) e.currentTarget.style.background = "var(--bg-hover)";
@@ -96,7 +98,7 @@ export function TaskTable({
                     background: STATUS_COLORS[task.status],
                     boxShadow: task.status === "open" || task.status === "in_progress" ? `0 0 6px ${STATUS_COLORS[task.status]}` : "none",
                   }}
-                  title={STATUS_LABELS[task.status]}
+                  title={t(STATUS_LABEL_KEYS[task.status])}
                 />
               </td>
               <td style={{ padding: cellPad }}>
@@ -131,7 +133,7 @@ export function TaskTable({
                 style={{
                   padding: cellPad,
                   fontSize: 13,
-                  textDecoration: task.status === "done" ? "line-through" : "none",
+                  textDecoration: task.status === "done" || task.status === "obsolete" ? "line-through" : "none",
                   maxWidth: isMobile ? 0 : 300,
                   overflow: "hidden",
                   textOverflow: "ellipsis",

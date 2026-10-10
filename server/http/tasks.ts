@@ -61,7 +61,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
       }
     }
     if (!status) {
-      filtered = filtered.filter((t) => t.status !== "done" && t.status !== "backlog");
+      filtered = filtered.filter((t) => t.status === "open" || t.status === "in_progress");
     } else if (status !== "all") {
       filtered = filtered.filter((t) => t.status === status);
     }
@@ -132,7 +132,7 @@ export async function handleTasksRequest(req: Request, url: URL, auth?: AuthResu
       return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: corsHeaders });
     }
     if (body.status !== undefined && !isValidStatus(body.status)) {
-      return new Response(JSON.stringify({ error: "invalid status, must be open|in_progress|backlog|done" }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "invalid status, must be open|in_progress|backlog|done|obsolete" }), { status: 400, headers: corsHeaders });
     }
     if (body.priority !== undefined && body.priority !== null && !isValidPriority(body.priority)) {
       return new Response(JSON.stringify({ error: "invalid priority, must be P0-P3 or null to clear" }), { status: 400, headers: corsHeaders });

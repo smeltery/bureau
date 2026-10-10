@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { TaskItem } from "../../shared/types.ts";
-import { filterAndSortTasks } from "./taskFilters.ts";
+import { filterAndSortTasks, taskFilterCounts } from "./taskFilters.ts";
 
 const tasks: TaskItem[] = [
   { id: "task-1", title: "Fix auth", status: "done", createdBy: "Alice", createdAt: 10, priority: "P2", assignee: "Claude" },
@@ -46,4 +46,19 @@ describe("filterAndSortTasks", () => {
     expect(filterAndSortTasks(roomTasks, "global", "all", "", "", "createdAt", "asc").map((task) => task.id)).toEqual(["office"]);
     expect(filterAndSortTasks(roomTasks, "room-a", "all", "", "", "createdAt", "asc").map((task) => task.id)).toEqual(["room-a-task"]);
   });
+});
+
+test("combined filters include unprioritized tasks and an empty selection shows nothing", () => {
+  const closed: TaskItem = { id: "old", title: "Dropped", status: "obsolete", createdAt: 50, createdBy: "Boss" };
+  expect(filterAndSortTasks([...tasks, closed], "all", "active", "", "", "createdAt", "asc")).not.toContainEqual(closed);
+  expect(filterAndSortTasks([...tasks, closed], "all", ["obsolete", "backlog"], "", "", "createdAt", "asc", ["none"]).map((t) => t.id)).toEqual(["task-4", "old"]);
+  expect(filterAndSortTasks(tasks, "all", [], "", "", "createdAt", "asc")).toEqual([]);
+  expect(filterAndSortTasks(tasks, "all", "all", "", "", "createdAt", "asc", [])).toEqual([]);
+});
+
+test("counts apply the opposite group and contextual filters without changing their own totals", () => {
+  expect(taskFilterCounts(tasks, "all", ["open"], ["P0", "P1"], "", "")).toEqual({ statusCounts: { open: 1, in_progress: 1 }, priorityCounts: { P1: 1 } });
+  expect(taskFilterCounts(tasks, "all", ["done"], ["P0", "P1"], "", "")).toEqual({ statusCounts: { open: 1, in_progress: 1 }, priorityCounts: { P2: 1 } });
+  expect(taskFilterCounts(tasks, "all", ["open"], ["P1"], "Settings", "codex")).toEqual({ statusCounts: { open: 1 }, priorityCounts: { P1: 1 } });
+  expect(taskFilterCounts(tasks, "missing-room", ["open"], ["P1"], "", "")).toEqual({ statusCounts: {}, priorityCounts: {} });
 });

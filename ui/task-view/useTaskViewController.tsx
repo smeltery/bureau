@@ -1,8 +1,9 @@
+import type { TaskStatus } from "../../shared/tasks.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { shouldHostCloseOnEscape } from "../components/modals/expandedEditorState.ts";
 import { useAppState } from "../store.tsx";
 import { type SortDir, type SortField } from "./constants.ts";
-import { filterAndSortTasks, type TaskRoomScope, type TaskStatusFilter } from "./taskFilters.ts";
+import { filterAndSortTasks, TASK_PRIORITIES, taskFilterCounts, type TaskPriorityFilter, type TaskRoomScope } from "./taskFilters.ts";
 
 export function useTaskViewController({
   onClose,
@@ -16,7 +17,8 @@ export function useTaskViewController({
 }) {
   const { tasks, tasksLoaded, agents, isMobile, rooms, currentRoom } = useAppState();
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<TaskStatusFilter>("active");
+  const [filterStatus, setFilterStatus] = useState<TaskStatus[]>(["open", "in_progress"]);
+  const [filterPriorities, setFilterPriorities] = useState<TaskPriorityFilter[]>(TASK_PRIORITIES);
   const [roomScope, setRoomScope] = useState<TaskRoomScope>(() => (rooms[currentRoom]?.id ? rooms[currentRoom]!.id : "all"));
   const [allRoomsCreateRoomId, setAllRoomsCreateRoomId] = useState(() => (rooms[currentRoom]?.id ? rooms[currentRoom]!.id : ""));
   const [creating, setCreating] = useState(false);
@@ -77,8 +79,13 @@ export function useTaskViewController({
   }, [agents]);
 
   const filtered = useMemo(() => {
-    return filterAndSortTasks(tasks, roomScope, filterStatus, search, filterAssignee, sortField, sortDir);
-  }, [tasks, roomScope, filterStatus, search, filterAssignee, sortField, sortDir]);
+    return filterAndSortTasks(tasks, roomScope, filterStatus, search, filterAssignee, sortField, sortDir, filterPriorities);
+  }, [tasks, roomScope, filterStatus, search, filterAssignee, sortField, sortDir, filterPriorities]);
+
+  const filterCounts = useMemo(
+    () => taskFilterCounts(tasks, roomScope, filterStatus, filterPriorities, search, filterAssignee),
+    [tasks, roomScope, filterStatus, filterPriorities, search, filterAssignee],
+  );
 
   function renderName(name: string | undefined) {
     if (!name) return "";
@@ -166,6 +173,9 @@ export function useTaskViewController({
     filterAssignee,
     filtered,
     filterStatus,
+    filterPriorities,
+    setFilterPriorities,
+    filterCounts,
     handleSelectTask,
     handleSort,
     inputRef,
