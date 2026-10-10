@@ -68,6 +68,16 @@ the existing token and URL reconciliation APIs. It records the installed app
 environment; it is not a systemd unit and does not claim systemd resource limits.
 The systemd adapter remains the default on existing deployments.
 
+## Codex sandbox support
+
+The image includes bubblewrap for Codex's Linux sandbox. Restricted modes still
+require the hosting platform to permit user namespaces and the associated mount
+operations. A package installation alone cannot establish that permission.
+Bureau preserves the selected sandbox mode and exposes namespace failures in
+the agent log; it does not automatically retry with full access. If a restricted
+agent cannot execute tools, check the host's namespace, seccomp and AppArmor
+policies before changing the agent's settings.
+
 ## Material limitations
 
 The prototype has sampled aggregate RSS and process-count guards for each app.

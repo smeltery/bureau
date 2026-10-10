@@ -7,17 +7,17 @@ export function handleCodexSessionStderr(chunk: string, seenMissingToolOutputs: 
   // skip pure whitespace.
   const text = filterMissingToolOutputRepeats(chunk.trimEnd(), seenMissingToolOutputs);
   if (!text) return;
-  // Drop known-benign startup notices. Codex logs these at ERROR level
-  // but they're informational: the bubblewrap line is a "here's how our
-  // Linux sandbox works" note, and the trusted-project line tells the
-  // user how to opt into project-local config; neither is actionable
-  // for Bureau users in the chat.
-  if (/bubblewrap.*needs access to create user namespaces/i.test(text) || /until the project is trusted, but skills still load/i.test(text)) {
-    return;
-  }
+  // A chunk can contain both a startup notice and an actionable failure.
+  // Keep sandbox diagnostics: host namespace policy can prevent tool execution.
+  const visible = text
+    .split("\n")
+    .filter((line) => !/until the project is trusted, but skills still load/i.test(line))
+    .join("\n")
+    .trim();
+  if (!visible) return;
   // Route through the auth-aware gate so codex's websocket retry burst
   // produces at most one user-visible signal per turn (Claude-SDK parity).
-  enqueueAuthAwareSystemText(`[codex stderr] ${text}`);
+  enqueueAuthAwareSystemText(`[codex stderr] ${visible}`);
 }
 
 export function codexSubprocessExitEvent({ code, signal, turnInFlight }: { code: number | null; signal: NodeJS.Signals | null; turnInFlight: boolean }): NormalizedEvent {
