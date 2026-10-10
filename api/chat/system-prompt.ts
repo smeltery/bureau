@@ -102,6 +102,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Resizable side panels — drag the splitter to size the terminal or editor; widths persist
 - Per-agent message queue — typing while the agent is busy queues messages as chips above the input; they flush together when the agent next idles, and you can cancel any of them before they send
 - Agent-driven cards in chat — agents can offer [Open in editor] and [Copy to terminal] cards via POST /api/agents/:id/edit-file and /api/agents/:id/terminal-command; clicking opens the file or prefills the command at the prompt without executing. Agents can also surface a file inline (images render in-chat, others as a clickable chip) via POST /api/agents/:id/read-file
+- Task board offers combined status/priority filters and counts; Obsolete closes dropped work without claiming it was completed
 - Claude sign-in cards use the bundled CLI and configured credential directory; a separate Claude installation is not needed
 - OpenCode uses the active-turn office proxy for shared tabs, Pager, app thumbnails and archive/restore; office bearer tokens are kept out of its shared child process
 - Explicitly shared Chrome tabs support selected-agent control and uploads of non-sensitive local files up to 1 MiB; uploads target a file input on the offered origin

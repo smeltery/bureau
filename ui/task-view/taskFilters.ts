@@ -1,7 +1,9 @@
-import type { TaskItem, TaskStatus } from "../../shared/types.ts";
+import type { TaskItem, TaskStatus, TaskPriority } from "../../shared/types.ts";
 import { PRIORITY_ORDER, STATUS_ORDER, type SortDir, type SortField } from "./constants.ts";
 
-export type TaskStatusFilter = TaskStatus | "all" | "active";
+export type TaskStatusFilter = TaskStatus | "all" | "active" | readonly TaskStatus[];
+export type TaskPriorityFilter = TaskPriority | "none";
+export const TASK_PRIORITIES: TaskPriorityFilter[] = ["P0", "P1", "P2", "P3", "none"];
 export type TaskRoomScope = "all" | "global" | string;
 
 export function filterAndSortTasks(
@@ -12,6 +14,7 @@ export function filterAndSortTasks(
   filterAssignee: string,
   sortField: SortField,
   sortDir: SortDir,
+  priorities: readonly TaskPriorityFilter[] = TASK_PRIORITIES,
 ): TaskItem[] {
   let list = tasks;
   if (roomScope === "global") {
@@ -20,11 +23,15 @@ export function filterAndSortTasks(
     list = list.filter((task) => task.roomId === roomScope);
   }
 
-  if (filterStatus === "active") {
-    list = list.filter((task) => task.status !== "done" && task.status !== "backlog");
+  if (Array.isArray(filterStatus)) {
+    list = list.filter((task) => filterStatus.includes(task.status));
+  } else if (filterStatus === "active") {
+    list = list.filter((task) => task.status === "open" || task.status === "in_progress");
   } else if (filterStatus !== "all") {
     list = list.filter((task) => task.status === filterStatus);
   }
+
+  list = list.filter((task) => priorities.includes(task.priority ?? "none"));
 
   if (search) {
     const query = search.toLowerCase();
@@ -62,4 +69,17 @@ function compareTasks(a: TaskItem, b: TaskItem, sortField: SortField): number {
     case "createdAt":
       return a.createdAt - b.createdAt;
   }
+}
+
+/** Each count applies the opposite checkbox group, plus room/search/assignee. */
+export function taskFilterCounts(tasks: TaskItem[], room: TaskRoomScope, statuses: readonly TaskStatus[], priorities: readonly TaskPriorityFilter[], search: string, assignee: string) {
+  const base = filterAndSortTasks(tasks, room, "all", search, assignee, "createdAt", "asc");
+  const statusCounts: Partial<Record<TaskStatus, number>> = {};
+  const priorityCounts: Partial<Record<TaskPriorityFilter, number>> = {};
+  for (const task of base) {
+    const priority = task.priority ?? "none";
+    if (priorities.includes(priority)) statusCounts[task.status] = (statusCounts[task.status] ?? 0) + 1;
+    if (statuses.includes(task.status)) priorityCounts[priority] = (priorityCounts[priority] ?? 0) + 1;
+  }
+  return { statusCounts, priorityCounts };
 }

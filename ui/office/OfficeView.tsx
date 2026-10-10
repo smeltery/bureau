@@ -216,7 +216,7 @@ export function OfficeView({
                   onOpenCronjobs={embed ? undefined : onOpenCronjobs}
                   onOpenSettings={embed ? undefined : onEditUsername}
                   onOpenApps={embed ? undefined : onOpenApps}
-                  taskCount={tasks.filter((t) => t.status !== "done" && t.status !== "backlog").length}
+                  taskCount={tasks.filter((t) => t.status === "open" || t.status === "in_progress").length}
                   pageCount={openPagesFor(pages, sessionContext?.userId)}
                   leftDoor={
                     currentRoom > 0

@@ -1,3 +1,4 @@
+import { loadTasks } from "../../persistence.ts";
 import { describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { handleTasksRequest } from "../tasks.ts";
@@ -109,4 +110,22 @@ describe("task priority updates", () => {
     const cleanup = new Request(`http://local.test/api/tasks/${created.id}`, { method: "DELETE" });
     await handleTasksRequest(cleanup, new URL(cleanup.url), auth);
   });
+});
+
+test("obsolete tasks persist, leave active lists, remain readable and can reopen", async () => {
+  const created = (await call("POST", "", { title: "Superseded work" })).json;
+  try {
+    const closed = await call("PATCH", `/${created.id}`, { status: "obsolete", description: "Replaced by another approach", version: created.version });
+    expect(closed.status).toBe(200);
+    expect(closed.json.status).toBe("obsolete");
+    expect(loadTasks().find((task) => task.id === created.id)?.status).toBe("obsolete");
+    expect((await call("GET", "")).json.some((task: any) => task.id === created.id)).toBe(false);
+    expect((await call("GET", "?status=obsolete")).json.some((task: any) => task.id === created.id)).toBe(true);
+    expect((await call("GET", "?status=all")).json.some((task: any) => task.id === created.id)).toBe(true);
+    expect((await call("GET", `/${created.id}`)).json.description).toBe("Replaced by another approach");
+    expect((await call("PATCH", `/${created.id}`, { status: "open", version: closed.json.version })).status).toBe(200);
+    expect((await call("GET", "")).json.some((task: any) => task.id === created.id)).toBe(true);
+  } finally {
+    await call("DELETE", `/${created.id}`);
+  }
 });

@@ -30,3 +30,13 @@ describe("handleTaskCommand", () => {
     expect("priority" in tasks[0]!).toBe(false);
   });
 });
+
+test("WebSocket task edits accept obsolete without erasing the task", () => {
+  setTasks([{ id: "old", title: "Dropped", status: "open", createdBy: "Boss", createdAt: 1 }]);
+  try {
+    expect(handleTaskCommand({ type: "update_task", id: "old", changes: { status: "obsolete", description: "No longer needed" } })).toBe(true);
+    expect(tasks[0]).toMatchObject({ status: "obsolete", description: "No longer needed" });
+  } finally {
+    setTasks([]);
+  }
+});

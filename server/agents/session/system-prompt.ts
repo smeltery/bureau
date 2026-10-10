@@ -50,9 +50,11 @@ How to list an agent's past sessions and its current session id: GET localhost:$
 How to read this room's current settings before proposing changes: call GET localhost:${PORT}/api/rooms/<roomId>/settings with your bearer token. Find your room id in the agent manifest. If the boss asks you to update room settings, include the returned version in the PUT body so you do not overwrite a newer change.
   curl -s localhost:${PORT}/api/rooms/<roomId>/settings -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 
+Dropped tasks should be closed with status "obsolete" and a reason in the description; "done" means completed work.
+
 How to use the task board (localhost:${PORT}/api/tasks): only touch it when the boss asks. When you do:
-  curl -s localhost:${PORT}/api/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                                          # list active tasks (excludes done and backlog)
-  curl -s localhost:${PORT}/api/tasks?status=all -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                               # include done and backlog
+  curl -s localhost:${PORT}/api/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                                          # list active tasks (excludes done, obsolete and backlog)
+  curl -s localhost:${PORT}/api/tasks?status=all -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                               # include done, obsolete and backlog
   curl -s localhost:${PORT}/api/tasks?status=backlog -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                           # only backlog tasks
   curl -s -X POST localhost:${PORT}/api/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' \\
     -d '{"title":"...","roomId":"<roomId>"}'                            # create

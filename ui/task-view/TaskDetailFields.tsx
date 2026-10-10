@@ -104,6 +104,7 @@ export function TaskDetailFields({
             <option value="in_progress">In Progress</option>
             <option value="backlog">Backlog</option>
             <option value="done">Done</option>
+            <option value="obsolete">Obsolete</option>
           </select>
         </div>
       </div>

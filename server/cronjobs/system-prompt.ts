@@ -33,9 +33,11 @@ How to discover other office agents and their conversation logs: call GET localh
 How to alert a desk agent during this run: call POST localhost:${PORT}/api/agents/<receiver-id>/messages with your bearer token and body {"text":"..."}. The message is labeled as coming from this scheduled job. You can only message agents your creator can see; do not pass sendNow, steer, deliverAt, attachments, or senderAgentId.
   curl -s -X POST localhost:${PORT}/api/agents/<receiver-id>/messages -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"text":"..."}'
 
+Dropped tasks should be closed with status "obsolete" and a reason in the description; "done" means completed work.
+
 How to use the task board (localhost:${PORT}/api/tasks): only touch it if your prompt directs you to. When you do, authenticate with your bearer token. You only see and create global (office-wide) tasks — not room-scoped ones. Creates are attributed to this job's name; do not pass createdBy.
   curl -s localhost:${PORT}/api/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                                              # list active global tasks
-  curl -s localhost:${PORT}/api/tasks?status=all -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                                   # include done and backlog
+  curl -s localhost:${PORT}/api/tasks?status=all -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"                                   # include done, obsolete and backlog
   curl -s -X POST localhost:${PORT}/api/tasks -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' \\
     -d '{"title":"..."}'                                                                        # create a global task
   curl -s -X POST localhost:${PORT}/api/tasks/ID/done -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'                      # mark done

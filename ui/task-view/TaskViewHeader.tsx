@@ -1,11 +1,16 @@
-import type { TaskRoomScope, TaskStatusFilter } from "./taskFilters.ts";
+import type { TaskRoomScope, TaskPriorityFilter, taskFilterCounts } from "./taskFilters.ts";
+import type { TaskStatus } from "../../shared/tasks.ts";
+import { TaskFilterOptions } from "./TaskFilterOptions.tsx";
 import { useI18n } from "../i18n.tsx";
 
 type TaskViewHeaderProps = {
   isMobile: boolean;
   shownCount: number;
-  filterStatus: TaskStatusFilter;
-  setFilterStatus: (status: TaskStatusFilter) => void;
+  filterStatus: TaskStatus[];
+  filterPriorities: TaskPriorityFilter[];
+  setFilterPriorities: (priorities: TaskPriorityFilter[]) => void;
+  filterCounts: ReturnType<typeof taskFilterCounts>;
+  setFilterStatus: (status: TaskStatus[]) => void;
   roomScope: TaskRoomScope;
   setRoomScope: (scope: TaskRoomScope) => void;
   rooms: { id: string; name: string }[];
@@ -20,6 +25,9 @@ export function TaskViewHeader({
   isMobile,
   shownCount,
   filterStatus,
+  filterPriorities,
+  setFilterPriorities,
+  filterCounts,
   setFilterStatus,
   roomScope,
   setRoomScope,
@@ -83,7 +91,7 @@ export function TaskViewHeader({
           {t("common.add")}
         </button>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <select value={roomScope} onChange={(event) => setRoomScope(event.target.value)} title={t("tasks.filterTitle")} style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}>
           <option value="all">{t("tasks.allRooms")}</option>
           <option value="global">{t("tasks.officeWide")}</option>
@@ -93,14 +101,7 @@ export function TaskViewHeader({
             </option>
           ))}
         </select>
-        <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value as TaskStatusFilter)} style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}>
-          <option value="active">Open + In Progress</option>
-          <option value="open">Open</option>
-          <option value="in_progress">In Progress</option>
-          <option value="backlog">Backlog</option>
-          <option value="done">Done</option>
-          <option value="all">All</option>
-        </select>
+        <TaskFilterOptions statuses={filterStatus} onStatuses={setFilterStatus} priorities={filterPriorities} onPriorities={setFilterPriorities} counts={filterCounts} />
         {!isMobile && (
           <input
             value={filterAssignee}

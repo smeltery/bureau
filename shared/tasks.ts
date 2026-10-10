@@ -1,5 +1,5 @@
 // Task item (replaces todos)
-export type TaskStatus = "open" | "in_progress" | "done" | "backlog";
+export type TaskStatus = "open" | "in_progress" | "done" | "backlog" | "obsolete";
 export type TaskPriority = "P0" | "P1" | "P2" | "P3";
 
 export interface TaskItem {
@@ -31,7 +31,7 @@ export function generateTaskId(existing?: string[]): string {
   return generateHexId(existing);
 }
 
-const VALID_STATUSES = new Set<TaskStatus>(["open", "in_progress", "done", "backlog"]);
+const VALID_STATUSES = new Set<TaskStatus>(["open", "in_progress", "done", "backlog", "obsolete"]);
 const VALID_PRIORITIES = new Set<TaskPriority>(["P0", "P1", "P2", "P3"]);
 
 export function isValidStatus(s: unknown): s is TaskStatus {
