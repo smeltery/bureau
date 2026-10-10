@@ -8,6 +8,7 @@ import { getBackend } from "../../backends/index.ts";
 import type { BackendSession } from "../../backends/types.ts";
 import { getUserById } from "../../users.ts";
 import { sessionModelMetadata } from "./model-metadata.ts";
+import { openCodeEnvironmentId } from "../../backends/opencode/profiles/identity.ts";
 import { buildSessionEnv } from "./session-env.ts";
 import { runConsumer } from "./event-consumer.ts";
 import { drainOnSettle } from "../../slides/generate.ts";
@@ -198,6 +199,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     const resumableError = backend.checkSessionResumable(resumeSessionId, {
       cwd: managed.info.cwd,
       env,
+      environmentId: openCodeEnvironmentId(managed.info.userId, rooms[managed.info.room]?.id),
     });
     if (resumableError) {
       throw new Error(`${resumableError} Use /resume to pick a different session.`);
@@ -224,8 +226,15 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   // inject --append-system-prompt via executableArgs. When
   // pathToClaudeCodeExecutable is a native binary, executableArgs are prepended
   // to the CLI args verbatim (verified against SDK 0.2.116 sdk.mjs).
+  const environmentId = openCodeEnvironmentId(managed.info.userId, room.id);
   const opts = {
     agentId: managed.info.id,
+    environmentId,
+    resolveEnv: () => {
+      if (managed.info.agentType === "opencode" && openCodeEnvironmentId(managed.info.userId, rooms[managed.info.room]?.id) !== environmentId)
+        throw new Error("OpenCode agent environment changed. Start a new conversation in the new room or manager context.");
+      return buildSessionEnv(managed);
+    },
     modelFamily: managed.info.modelFamily,
     effort: managed.info.effort ?? "xhigh",
     permissionMode: managed.info.permissionMode,

@@ -559,3 +559,15 @@ Office WebSocket connections serialize cached transcripts lazily, yielding betwe
 ### Retained Pager history
 
 Resolved incidents move to individual archive files instead of remaining in the active in-memory list. The archive write commits before active-list cleanup, so a restart can reconcile an interrupted move without losing history. Access-filtered history windows and direct incident links keep older pages reachable without loading all resolved entries into a browser. Discord delivery for each incident is serialized through resolution.
+
+
+### OpenCode profile storage
+
+OpenCode uses a stable profile per manager and room, with session-to-profile
+bindings persisted independently of credentials. This allows API key rotation
+without changing the history directory. Existing shared-profile conversations
+retain an explicit legacy binding; new profiles do not inherit unrelated
+histories or login files. The supervisor applies environment changes between
+turns and retains the existing per-turn office-authority broker. See the
+[environment design](../docs/features/opencode-environments.md) for upgrade
+and authentication behavior.

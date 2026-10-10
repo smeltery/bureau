@@ -101,11 +101,11 @@ describe("createOpenCodeBackend", () => {
     expect(backend.detectAuthError("model not found")).toBe(false);
   });
 
-  it("getLoginInstructions points at Connections / env and host login", async () => {
+  it("getLoginInstructions points at personal environment and profile login", async () => {
     const backend = createOpenCodeBackend({ supervisor: mockSupervisor({}) });
     const bare = await backend.getLoginInstructions();
     expect(bare.text).toContain("OPENCODE_API_KEY");
-    expect(bare.text).toContain("Individual connections");
+    expect(bare.text).toContain("personal environment file");
     expect(bare.commands).toEqual(["opencode auth login"]);
     const withKey = await backend.getLoginInstructions({ env: { OPENCODE_API_KEY: "sk-test" } });
     expect(withKey.text).toContain("OPENCODE_API_KEY");

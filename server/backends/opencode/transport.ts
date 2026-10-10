@@ -21,6 +21,7 @@ type EventSink = (event: NormalizedEvent) => void;
 export interface OpenCodeTransportOptions {
   cwd: string;
   model: string;
+  resolveEnv?: () => Record<string, string | undefined> | undefined;
   effort?: string;
   systemPrompt?: string;
   agent?: string;
@@ -35,6 +36,8 @@ export interface OpenCodeTransportOptions {
 }
 
 export class OpenCodeTransport {
+  private readonly resolveEnv: OpenCodeTransportOptions["resolveEnv"];
+  private announcedSession = false;
   private readonly supervisor: OpenCodeSupervisor;
   private readonly modelSelection: OpenCodeModelSelection;
   private readonly cwd: string;
@@ -58,6 +61,7 @@ export class OpenCodeTransport {
 
   constructor(options: OpenCodeTransportOptions) {
     this.supervisor = options.supervisor;
+    this.resolveEnv = options.resolveEnv;
     this.cwd = options.cwd;
     this.model = options.model;
     this.modelSelection = new OpenCodeModelSelection(modelCatalogFor(options.supervisor), options.cwd, options.model, options.effort, options.requestTimeoutMs);
@@ -86,19 +90,18 @@ export class OpenCodeTransport {
   }
 
   async initialize(sink: EventSink): Promise<string> {
-    if (this.sessionId) return this.sessionId;
-    this.lease = await this.supervisor.acquire();
-    if (this.systemPrompt !== undefined) this.modelSelection.prefetch(this.lease);
-    if (this.resumedSessionId) {
-      this.sessionId = this.resumedSessionId;
-    } else {
-      const response = await this.request("/session", {
-        method: "POST",
-        body: JSON.stringify({ title: "Bureau OpenCode session" }),
-      });
-      this.sessionId = allowSession(await response.json()).id;
+    this.lease ??= await this.supervisor.acquire(this.resolveEnv?.());
+    if (!this.sessionId) {
+      if (this.systemPrompt !== undefined) this.modelSelection.prefetch(this.lease);
+      if (this.resumedSessionId) this.sessionId = this.resumedSessionId;
+      else {
+        const response = await this.request("/session", { method: "POST", body: JSON.stringify({ title: "Bureau OpenCode session" }) });
+        this.sessionId = allowSession(await response.json()).id;
+      }
     }
+    if (this.announcedSession) return this.sessionId;
     sink({ kind: "system_init", sessionId: this.sessionId, model: this.model });
+    this.announcedSession = true;
     return this.sessionId;
   }
 
@@ -111,6 +114,8 @@ export class OpenCodeTransport {
       sink({ kind: "turn_completed", status: "failed", error: "OpenCode cannot send Bureau instructions without an authority binding." });
       return;
     }
+    if (this.activeTurn) throw new Error("OpenCode already has an active turn.");
+    this.resetLease();
     const sessionId = await this.initialize(sink);
     await this.lease!.beginTurn();
     try {
@@ -155,6 +160,11 @@ export class OpenCodeTransport {
           error: error instanceof Error ? error.message : "OpenCode request failed.",
         });
     }
+  }
+
+  private resetLease() {
+    this.lease?.release();
+    this.lease = null;
   }
 
   async abort(): Promise<void> {

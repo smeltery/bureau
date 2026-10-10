@@ -83,3 +83,33 @@ it("keeps office bearers out of the shared child while honoring launch configura
     else process.env.BUREAU_APP_TOKEN = inherited;
   }
 });
+
+it("rotates credentials only after active turns finish and refuses stale leases", async () => {
+  const supervisor = fixture({ OPENCODE_API_KEY: "first-key" });
+  const first = await supervisor.acquire();
+  const originalPid = first.pid;
+  await first.beginTurn();
+  const nextEnv = { OPENCODE_API_KEY: "second-key", OPENCODE_BINARY: join(supervisor.profileDir, "..", "serve") };
+  await expect(supervisor.acquire(nextEnv)).rejects.toThrow("another turn");
+  expect((await (await fetch(`${first.baseUrl}/env`)).json()).providerKey).toBe("first-key");
+  first.endTurn();
+  const next = await supervisor.acquire(nextEnv);
+  expect(next.pid).not.toBe(originalPid);
+  expect((await (await fetch(`${next.baseUrl}/env`)).json()).providerKey).toBe("second-key");
+  expect(() => first.baseUrl).toThrow("environment changed");
+  first.release();
+  next.release();
+});
+
+it("recovers the same history directory after a supervisor restart", async () => {
+  const first = fixture({ OPENCODE_API_KEY: "first-key" });
+  const lease = await first.acquire();
+  const oldPid = lease.pid;
+  lease.release();
+  const replacement = new OpenCodeSupervisor({ profileDir: first.profileDir, binary: join(first.profileDir, "..", "serve"), launchEnv: { OPENCODE_API_KEY: "replacement-key" } });
+  cleanup.push(() => replacement.shutdown());
+  const recovered = await replacement.acquire();
+  expect(recovered.pid).not.toBe(oldPid);
+  expect((await (await fetch(`${recovered.baseUrl}/env`)).json()).home).toBe(join(first.profileDir, "home"));
+  recovered.release();
+});

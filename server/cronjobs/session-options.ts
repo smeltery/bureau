@@ -2,6 +2,7 @@ import { cronjobRunStreamId, type Cronjob, type CronjobRun } from "../../shared/
 import { ensureRunSessionClaudeConfigDir, getRunSessionClaudeConfigDir, readEnvFile, rollRunSessionUsageOnResume } from "../persistence.ts";
 import { claudeConfigRoot } from "../agents/session/paths.ts";
 import { officeConfig } from "../agents/state.ts";
+import { openCodeEnvironmentId } from "../backends/opencode/profiles/identity.ts";
 import { getBackend } from "../backends/index.ts";
 import type { Backend, CreateSessionOptions } from "../backends/types.ts";
 import { getUserById } from "../users.ts";
@@ -45,6 +46,8 @@ export function buildRunSessionOptions({
   const systemPrompt = buildSystemPrompt(job, jobId, runId, buildCronjobMemoryPrompt());
   return {
     agentId: cronjobRunStreamId(runId),
+    environmentId: openCodeEnvironmentId(job.userId),
+    resolveEnv: () => buildCronjobEnv(job.userId),
     modelFamily: job.modelFamily,
     effort: job.effort,
     permissionMode: job.permissionMode,
@@ -76,7 +79,8 @@ export function buildRunResumeOptions({
   // pick up any office/cronjobs prompt edits. For deleted cronjobs, use an
   // empty append instead of synthesizing a partial prompt.
   const job = cronjobs.find((c) => c.id === run.cronjobId);
-  const baseEnv = buildCronjobEnv(job?.userId ?? null);
+  const userId = run.userIdSnapshot !== undefined ? run.userIdSnapshot : (job?.userId ?? null);
+  const baseEnv = buildCronjobEnv(userId);
   let env = withRunTokenEnv(baseEnv, runToken);
   if ((run.agentTypeSnapshot ?? "claude") === "claude") {
     const pinnedRoot = getRunSessionClaudeConfigDir(run.cronjobId, run.id, resumeSessionId);
@@ -85,6 +89,8 @@ export function buildRunResumeOptions({
   }
   return {
     agentId: cronjobRunStreamId(run.id),
+    environmentId: openCodeEnvironmentId(userId),
+    resolveEnv: () => buildCronjobEnv(userId),
     modelFamily: run.modelFamilySnapshot,
     effort: run.effortSnapshot,
     permissionMode: run.permissionModeSnapshot,

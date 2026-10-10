@@ -27,7 +27,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
 
   const backend = deps.cronRunBackend(run);
   const leafResumeOptions = deps.buildRunResumeOptions(run, leaf);
-  const leafAccess = { cwd: run.cwdSnapshot, env: leafResumeOptions.env };
+  const leafAccess = { cwd: run.cwdSnapshot, env: leafResumeOptions.env, environmentId: leafResumeOptions.environmentId };
   let sessionMessages: NormalizedMessage[];
   try {
     sessionMessages = await backend.getSessionMessages(leaf, run.cwdSnapshot, leafAccess);
