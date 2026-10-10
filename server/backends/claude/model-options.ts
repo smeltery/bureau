@@ -1,5 +1,5 @@
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
-import { FAMILY_TO_MODEL, MODEL_FAMILIES, modelVersionLabel, effortLevelsFor, familyAllowsAutoPermission, type ModelFamily } from "../../../shared/types.ts";
+import { FAMILY_TO_MODEL, MODEL_FAMILIES, familyDisplayLabel, effortLevelsFor, familyAllowsAutoPermission, type ModelFamily } from "../../../shared/types.ts";
 import type { BackendModel, CreateSessionOptions } from "../types.ts";
 import { isClaudeCloudSelected } from "../claude-install-check.ts";
 
@@ -31,10 +31,21 @@ export function claudeSessionModelOptions(opts: Pick<CreateSessionOptions, "mode
   };
 }
 
+/** Snapshot cloud alias targets without changing the aliases sent to the CLI. */
+export function claudeModelOverrides(env: Environment = process.env): Partial<Record<ModelFamily, string>> {
+  if (!isClaudeCloudSelected(env)) return {};
+  const overrides: Partial<Record<ModelFamily, string>> = {};
+  for (const { family } of MODEL_FAMILIES) {
+    const model = env[`ANTHROPIC_DEFAULT_${family.toUpperCase()}_MODEL`]?.trim() || (family === "sonnet" || family === "haiku" ? `claude-${family}-4-5` : FAMILY_TO_MODEL[family]);
+    if (model !== FAMILY_TO_MODEL[family]) overrides[family] = model;
+  }
+  return overrides;
+}
+
 export function claudeModelsForEnvironment(env?: Environment): BackendModel[] {
-  return MODEL_FAMILIES.map(({ family, label }) => ({
+  return MODEL_FAMILIES.map(({ family }) => ({
     id: family,
-    label: `${label} (${isClaudeCloudSelected(env ?? process.env) ? "cloud alias" : modelVersionLabel(family)})`,
+    label: familyDisplayLabel(family, claudeModelOverrides(env)),
     isDefault: family === "opus",
     ...claudeModelCapabilities(family, env),
   }));

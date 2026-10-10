@@ -10,11 +10,11 @@ export async function handleModelCommand(agentId: string, managed: ManagedAgent,
     return true;
   }
   const models = knownModelFamiliesFor(managed.info.agentType) ?? [];
-  const currentLabel = familyDisplayLabel(managed.info.modelFamily);
+  const currentLabel = familyDisplayLabel(managed.info.modelFamily, managed.info.claudeModelOverrides);
   const lines: string[] = [`Switch model (current: **${currentLabel}**):\n`];
   const choices = models.map((modelFamily) => ({
     value: modelFamily,
-    label: familyDisplayLabel(modelFamily),
+    label: familyDisplayLabel(modelFamily, managed.info.claudeModelOverrides),
     current: modelFamily === managed.info.modelFamily,
   }));
   lines.push(...choices.map((choice, index) => `  ${index + 1}. ${choice.label}${choice.current ? " (current)" : ""}`));

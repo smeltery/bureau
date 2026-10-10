@@ -61,8 +61,9 @@ export function knownModelFamiliesFor(agentType: "claude" | "codex" | "opencode"
 // Extract "4.8" from "claude-opus-4-8" or "5.1" from
 // "claude-fable-5-1" for display. Single-number slugs fall back to the
 // trailing number.
-export function modelVersionLabel(family: ModelFamily): string {
-  const exact = FAMILY_TO_MODEL[family] ?? family;
+export function modelVersionLabel(family: ModelFamily, overrides?: Partial<Record<ModelFamily, string>>): string {
+  const exact = overrides?.[family] ?? FAMILY_TO_MODEL[family] ?? family;
+  if (overrides?.[family] && exact.match(/^claude-(opus|sonnet|haiku|fable)-\d+(?:-\d+)?$/)?.[1] !== family) return exact;
   const twoPart = exact.match(/-(\d+)-(\d+)/);
   if (twoPart) return `${twoPart[1]}.${twoPart[2]}`;
   const onePart = exact.match(/-(\d+)$/);
@@ -148,10 +149,10 @@ export function familyAllowsAutoPermission(family: string | undefined): boolean 
   return family === "opus" || family === "fable" || family === "sonnet" || family === "haiku";
 }
 
-export function familyDisplayLabel(family: string): string {
+export function familyDisplayLabel(family: string, overrides?: Partial<Record<ModelFamily, string>>): string {
   if (isClaudeFamily(family)) {
     const base = MODEL_FAMILIES.find((m) => m.family === family)?.label ?? family;
-    return `${base} ${modelVersionLabel(family)}`;
+    return `${base} ${modelVersionLabel(family, overrides)}`;
   }
   return OPENCODE_MODELS.find((m) => m.value === family)?.label ?? CODEX_MODELS.find((m) => m.value === family)?.label ?? family;
 }

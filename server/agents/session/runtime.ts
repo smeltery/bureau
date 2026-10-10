@@ -7,6 +7,7 @@ import { claudeConfigRoot, validateCwd } from "./paths.ts";
 import { getBackend } from "../../backends/index.ts";
 import type { BackendSession } from "../../backends/types.ts";
 import { getUserById } from "../../users.ts";
+import { sessionModelMetadata } from "./model-metadata.ts";
 import { buildSessionEnv } from "./session-env.ts";
 import { runConsumer } from "./event-consumer.ts";
 import { drainOnSettle } from "../../slides/generate.ts";
@@ -241,5 +242,9 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     rollSessionUsageOnResume(managed.info.id, resumeSessionId);
   }
   managed.launchedClaudeConfigDir = managed.info.agentType === "claude" ? claudeConfigRoot(env) : undefined;
-  return resumeSessionId ? backend.resumeSession(resumeSessionId, opts) : backend.createSession(opts);
+  const session = resumeSessionId ? backend.resumeSession(resumeSessionId, opts) : backend.createSession(opts);
+  const changes = sessionModelMetadata(managed.info, env);
+  Object.assign(managed.info, changes);
+  emit({ type: "agent_updated", agentId: managed.info.id, changes });
+  return session;
 }

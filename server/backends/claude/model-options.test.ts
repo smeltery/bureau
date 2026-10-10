@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { claudeModelsForEnvironment, claudeSessionModelOptions } from "./model-options.ts";
+import { claudeModelOverrides, claudeModelsForEnvironment, claudeSessionModelOptions } from "./model-options.ts";
 
 const selected = { modelFamily: "haiku", effort: "max" as const, permissionMode: "auto" as const };
 
@@ -36,4 +36,12 @@ describe("Claude model capabilities", () => {
   test("does not pass Codex-only effort values to Claude", () => {
     for (const effort of ["minimal", "ultra"] as const) expect(claudeSessionModelOptions({ ...selected, effort, env: {} })).not.toHaveProperty("effort");
   });
+});
+
+test("cloud model labels preserve exact pins and identify legacy defaults", () => {
+  const cloud = { CLAUDE_CODE_USE_BEDROCK: "1", ANTHROPIC_DEFAULT_OPUS_MODEL: "custom-opus-route", ANTHROPIC_DEFAULT_HAIKU_MODEL: "us.anthropic.claude-haiku-5-5" };
+  expect(claudeModelOverrides(cloud)).toEqual({ opus: "custom-opus-route", sonnet: "claude-sonnet-4-5", haiku: "us.anthropic.claude-haiku-5-5" });
+  expect(claudeModelsForEnvironment(cloud).map((model) => model.label)).toEqual(["Opus custom-opus-route", "Sonnet 4.5", "Haiku us.anthropic.claude-haiku-5-5", "Fable 5.1"]);
+  expect(claudeModelOverrides({ ANTHROPIC_DEFAULT_SONNET_MODEL: "custom-model" })).toEqual({});
+  expect(claudeModelsForEnvironment({}).find((model) => model.id === "sonnet")?.label).toBe("Sonnet 5.5");
 });

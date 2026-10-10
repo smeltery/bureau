@@ -60,3 +60,13 @@ describe("handleModelCommand", () => {
     expect(managed.pendingModelPick).toBe(false);
   });
 });
+
+test("the in-chat picker uses the session's cloud model labels", async () => {
+  const managed = managedFor("claude", "sonnet");
+  managed.info.claudeModelOverrides = { sonnet: "claude-sonnet-4-5", haiku: "custom-route" };
+  await handleModelCommand(managed.info.id, managed, [], "/model");
+  const content = (logCache.get(managed.info.id) ?? []).map((entry) => entry.content).join("\n");
+  expect(content).toContain("Sonnet 4.5");
+  expect(content).toContain("Haiku custom-route");
+  expect(content).not.toContain("Sonnet 5.5");
+});

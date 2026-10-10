@@ -13,6 +13,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   with a notice. Claude Haiku uses 5.5 on direct access; supported effort settings
   reach Claude sessions. Limited Bedrock/Vertex aliases omit unsupported effort
   and use Default (ask) when Auto was selected, without enabling Bypass.
+  Model pickers, agent headers and in-chat model labels show cloud alias targets
+  or exact custom pins. Agent manifests report the launch-time model and effective
+  permission mode; saved model families and permission preferences remain intact.
 - Use existing CLI authentication where available. Codex runs through Bureau's
   bundled `@openai/codex` launcher and isolated `CODEX_HOME`.
 - Account → Connections shows Claude/Codex connection status for the signed-in

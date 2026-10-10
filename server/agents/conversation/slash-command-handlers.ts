@@ -259,7 +259,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
 
       for (const a of roomAgents) {
         const selfTag = a.info.id === agentId ? "  **(me)**" : "";
-        const modelLabel = familyDisplayLabel(a.info.modelFamily);
+        const modelLabel = familyDisplayLabel(a.info.modelFamily, a.info.claudeModelOverrides);
         const topic = a.info.topic;
         const hasTopic = topic && topic !== "...";
         const header = `**${a.info.name}** (desk ${a.info.desk + 1})${selfTag} — ${modelLabel} — \`${a.info.cwd}\``;
