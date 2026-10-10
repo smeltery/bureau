@@ -1,0 +1,65 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../kubernetes
+# The test builds this image from the checked-out revision.
+images:
+  - name: ghcr.io/dotbrains/bureau
+    newName: bureau-install
+    newTag: verify
+configMapGenerator:
+  - name: bureau-config
+    namespace: bureau
+    behavior: replace
+    literals:
+      - BUREAU_PUBLIC_URL=https://office.install.test
+patches:
+  # Disposable smoke storage. The separate Kubernetes verification suite
+  # exercises CSI persistence; this matrix certifies first-boot behavior.
+  - target:
+      kind: PersistentVolumeClaim
+      name: bureau-data
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: bureau-data
+  - target:
+      kind: StorageClass
+      name: bureau-gp3
+    patch: |-
+      $patch: delete
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: bureau-gp3
+  - target:
+      kind: Ingress
+      name: bureau
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: bureau
+  - target:
+      kind: Deployment
+      name: bureau
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/volumes/0
+        value:
+          name: data
+          emptyDir: {}
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests: {cpu: 250m, memory: 256Mi}
+          limits: {cpu: '2', memory: 2Gi}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: ANTHROPIC_BASE_URL, value: 'http://127.0.0.1:9'}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: OPENAI_BASE_URL, value: 'http://127.0.0.1:9'}

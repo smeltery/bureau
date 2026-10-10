@@ -133,14 +133,19 @@ Aliases appear once and built-in commands have a separate tab. Versioned atomic
 writes, opaque handles, bounded text and symlink guards protect the editor API;
 deletion preserves adjacent assets. See [Skills library](../features/skills-library.md).
 
-### Needs follow-up: clean-install certification
+### Implemented: fresh-install matrix
 
-Focused setup, supervisor and Kubernetes checks exist, but Bureau does not yet
-have an automated fresh-install matrix that certifies owner claim, a first
-terminal and signed-out provider behavior across every supported hosting path.
-That is a real deployment-test gap. A future matrix must use disposable state,
-synthetic credentials and destination deployment entrypoints; it should not
-require paid hosted accounts or inherit a different product's release service.
+The Fresh install workflow now exercises local Linux/macOS, private/Funnel/domain/
+VPS origin configurations, the Render deployment image and a disposable Kubernetes
+cluster using the production security context. Each case claims an owner, runs a
+real PTY command and checks signed-out Claude/Codex guidance. No provider account
+or paid hosting service is required. The first runs found and fixed the packaged
+macOS PTY helper's missing execute bit; Flox now supplies Node 24 for the sidecar.
 
-OpenCode environment profiles are implemented as recorded above. The fresh-install
-matrix remains the next continuation item.
+See [Fresh-install verification](../contributing/fresh-install-matrix.md) for the
+commands and explicit boundaries: remote service provisioning, public TLS and
+cloud storage certification remain environment-specific operational checks.
+
+All three continuation gaps are implemented: OpenCode profiles, the skills
+library and the fresh-install matrix. Earlier product-scope exclusions remain
+unchanged; no actionable gap from this review is deferred for size.

@@ -31,6 +31,10 @@
       "gnumake": {
         "pkg-path": "gnumake"
       },
+      "nodejs": {
+        "pkg-path": "nodejs",
+        "version": "24"
+      },
       "python3": {
         "pkg-path": "python3"
       }
@@ -512,6 +516,143 @@
       },
       "system": "x86_64-linux",
       "group": "runtime",
+      "priority": 5
+    },
+    {
+      "attr_path": "nodejs",
+      "broken": false,
+      "derivation": "/nix/store/4f7gz4vdm9msfw3958cy6d7b4mn8zcpn-nodejs-24.15.0.drv",
+      "description": "Event-driven I/O framework for the V8 JavaScript engine",
+      "install_id": "nodejs",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+      "name": "nodejs-24.15.0",
+      "pname": "nodejs",
+      "rev": "64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+      "rev_count": 1004030,
+      "rev_date": "2026-05-23T18:24:25Z",
+      "scrape_date": "2026-05-26T07:06:28.026811Z",
+      "stabilities": [
+        "lts",
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "24.15.0",
+      "outputs_to_install": [
+        "out",
+        "out",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/3mvbmkd7lmxi3xlka1avra24flwbgjv9-nodejs-24.15.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "nodejs",
+      "broken": false,
+      "derivation": "/nix/store/lzdf2d8kky8k67nqjv07r9zbcqmihns7-nodejs-24.15.0.drv",
+      "description": "Event-driven I/O framework for the V8 JavaScript engine",
+      "install_id": "nodejs",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+      "name": "nodejs-24.15.0",
+      "pname": "nodejs",
+      "rev": "64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+      "rev_count": 1004030,
+      "rev_date": "2026-05-23T18:24:25Z",
+      "scrape_date": "2026-05-26T07:35:05.583415Z",
+      "stabilities": [
+        "lts",
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "24.15.0",
+      "outputs_to_install": [
+        "out",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/rmdjmd0iy5zlyg0j2i1cd0s7ha1562fs-nodejs-24.15.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "nodejs",
+      "broken": false,
+      "derivation": "/nix/store/3q3jmp4ahvdy9dr6zhwsd2zhv12nw3d2-nodejs-24.15.0.drv",
+      "description": "Event-driven I/O framework for the V8 JavaScript engine",
+      "install_id": "nodejs",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+      "name": "nodejs-24.15.0",
+      "pname": "nodejs",
+      "rev": "64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+      "rev_count": 1004030,
+      "rev_date": "2026-05-23T18:24:25Z",
+      "scrape_date": "2026-05-26T08:02:36.816893Z",
+      "stabilities": [
+        "lts",
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "24.15.0",
+      "outputs_to_install": [
+        "out",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/rhv8jiklgw2bw4ljh4nm3h3r3bpnkcl3-nodejs-24.15.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "nodejs",
+      "broken": false,
+      "derivation": "/nix/store/jk98cvnvcb5adz3d58r8x6zxrvnhlng0-nodejs-24.15.0.drv",
+      "description": "Event-driven I/O framework for the V8 JavaScript engine",
+      "install_id": "nodejs",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+      "name": "nodejs-24.15.0",
+      "pname": "nodejs",
+      "rev": "64c08a7ca051951c8eae34e3e3cb1e202fe36786",
+      "rev_count": 1004030,
+      "rev_date": "2026-05-23T18:24:25Z",
+      "scrape_date": "2026-05-26T08:33:31.711302Z",
+      "stabilities": [
+        "lts",
+        "stable",
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "24.15.0",
+      "outputs_to_install": [
+        "out",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/5a8ysg1jnj8jmzzyfcfw7rvpvnp5rfpa-nodejs-24.15.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
       "priority": 5
     }
   ]

@@ -37,7 +37,7 @@ while IFS= read -r path; do
       app=true
       demo=true
       ;;
-    browser-extension/*|api/*|scripts/*|server/*|shared/*|skills/*|ui/*|.flox/*|.githooks/*|.oxlintrc.json|.prettierignore|.prettierrc.json|bun.lock|package.json|tsconfig.json)
+    deploy/*|browser-extension/*|api/*|scripts/*|server/*|shared/*|skills/*|ui/*|.flox/*|.githooks/*|.oxlintrc.json|.prettierignore|.prettierrc.json|bun.lock|package.json|tsconfig.json)
       app=true
       ;;
   esac

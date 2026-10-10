@@ -272,3 +272,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Shared-tab and experimental host-browser actions support native selects and bounded dialog results, with explicit first-dialog acceptance. Clicks do not retry after pointer dispatch.
 
 - **Skills library** — browse Claude/Codex agent skills, edit owner-managed prompts, keep packaged skills read-only, and browse built-in commands separately. See [Skills library](skills-library.md).
+
+- **Fresh-install checks** — automated disposable owner-claim, terminal and signed-out provider checks for native, container and Kubernetes entrypoints. See [verification scope](../contributing/fresh-install-matrix.md).

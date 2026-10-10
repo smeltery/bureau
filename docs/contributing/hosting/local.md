@@ -4,6 +4,9 @@ Use this path when you only need Bureau on the machine in front of you.
 
 ## Install
 
+Use Bun 1.4.2 and Node 24 (needed for the terminal sidecar), or run the commands
+inside `flox activate` to use the repository's locked toolchain.
+
 ```sh
 git clone https://github.com/smeltery/bureau.git
 cd bureau

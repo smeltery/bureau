@@ -77,6 +77,7 @@ the implemented gaps, existing coverage, and integration boundaries.
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
 | [Development Guide](contributing/development.md)       | Quality gate (typecheck / oxlint / prettier / tests / build) and branch protection setup           |
 | [Hosting Options](contributing/hosting-options.md)     | Choose local, Tailscale, Funnel, own-domain, VPS, Render, or Kubernetes hosting                    |
+| [Fresh-install verification](contributing/fresh-install-matrix.md) | Disposable native, container and Kubernetes setup checks |
 | [Hosting Reference](contributing/hosting/reference.md) | Shared external access, invites, provider connections, backup, and health-check notes              |
 | [Self-Hosted Setup](contributing/self-hosted.md)       | Keep Bureau running, expose it safely, and install it on mobile                                    |
 | [CLAUDE.md](../CLAUDE.md)                              | Developer & agent guide to the codebase — includes the "Shipping a user-visible feature" checklist |
