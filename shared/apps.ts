@@ -98,6 +98,7 @@ export interface AppWire extends AppRecord {
   // issued LABEL (never its name, which is reusable), and never stored -
   // present exactly when a URL exists, absent otherwise, the same rule the
   // app's own BUREAU_APP_URL follows.
+  shortUrl?: string;
   url?: string;
   canManage: true;
 }
@@ -117,6 +118,7 @@ export type AppListWire =
       createdAt: number;
       state: AppState;
       restartCount: number;
+      shortUrl?: string;
       url?: string;
       canManage: false;
     };
@@ -166,6 +168,7 @@ export interface AppMessageReq {
 // persists as a present, empty value and reads back that way - so without null
 // there would be no way to undo a description at all.
 export interface AppUpdateReq {
+  createdByAgentId?: string;
   command?: string;
   cwd?: string;
   description?: string | null;

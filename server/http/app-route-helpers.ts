@@ -1,3 +1,5 @@
+import { appShortUrl } from "../apps/short-links.ts";
+import { buildPublicOrigin } from "../auth/auth.ts";
 import { thumbnailVersion } from "../apps/thumbnails.ts";
 // Identity, visibility and response plumbing for the /api/apps routes. Split
 // out of apps.ts so the handler file reads as the sequence of verbs and their
@@ -53,6 +55,7 @@ export function appToWire(record: AppRecord, runtime: AppRuntime | undefined, pu
     // `!== null`, not truthiness: the rule is present-iff-there-is-a-URL, and
     // an empty string would be a URL-shaped answer meaning "none".
     ...(publicUrl !== null && record.archivedAt === undefined ? { url: publicUrl } : {}),
+    ...(appShortUrl(record, publicUrl, buildPublicOrigin().origin) ? { shortUrl: appShortUrl(record, publicUrl, buildPublicOrigin().origin) } : {}),
     canManage: true,
   };
 }
@@ -60,7 +63,7 @@ export function appToWire(record: AppRecord, runtime: AppRuntime | undefined, pu
 export function appToListWire(record: AppRecord, runtime: AppRuntime | undefined, publicUrl: string | null, identity: AppsIdentity): AppListWire {
   const full = appToWire(record, runtime, publicUrl);
   if (canManageApp(record, identity)) return full;
-  const { name, hostLabel, hostGen, port, description, createdBy, createdByAgentId, createdAt, state, restartCount, url, archivedAt, thumbnailVersion } = full;
+  const { name, hostLabel, hostGen, port, description, createdBy, createdByAgentId, createdAt, state, restartCount, url, shortUrl, archivedAt, thumbnailVersion } = full;
   return {
     ...(archivedAt !== undefined ? { archivedAt } : {}),
     ...(thumbnailVersion !== undefined ? { thumbnailVersion } : {}),
@@ -75,6 +78,7 @@ export function appToListWire(record: AppRecord, runtime: AppRuntime | undefined
     state,
     restartCount,
     ...(url !== undefined ? { url } : {}),
+    ...(shortUrl !== undefined ? { shortUrl } : {}),
     canManage: false,
   };
 }

@@ -1,3 +1,5 @@
+import { appShortRedirect } from "../apps/short-links.ts";
+import { appPublicUrl } from "../apps/domain.ts";
 import { handleExtensionRequest, handleBrowserSharingRequest } from "../browser-sharing/routes.ts";
 import type { Server } from "bun";
 import { handleWebhookIngress } from "../webhooks/ingress.ts";
@@ -301,7 +303,6 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
     return handleAppMintRequest(req, url, auth.session, { appHostDomain: appHostDomain() });
   }
 
-  // Keep misspelled and retired API routes out of the SPA fallback.
   if (url.pathname.replace(/%2f/gi, "/").startsWith("/api/")) {
     return Response.json({ error: "not_found" }, { status: 404 });
   }
@@ -313,7 +314,12 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   // incidental cookie is not what authenticated the request.
   const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
   if (auth.kind === "rejected") return auth.response;
-  const staticResp = await handleStaticRequest(req, url);
+  const shortLink = appShortRedirect(
+    req,
+    (name) => appRegistry.get(name),
+    (app) => appPublicUrl(app.hostLabel, appHostDomain()),
+  );
+  const staticResp = shortLink ?? (await handleStaticRequest(req, url));
   if (auth.kind === "ok") {
     for (const line of sessionCookieMigrationHeaders(readSessionCookies(req), auth.session)) {
       staticResp.headers.append("Set-Cookie", line);

@@ -42,7 +42,8 @@ function portLinkHost(officeHostname: string): string {
  * `url` rather than sending "", and an empty href would silently link the row to
  * the page it is already on.
  */
-export function appHref(app: Pick<AppWire, "url" | "port">, officeHostname: string): string {
+export function appHref(app: Pick<AppWire, "url" | "shortUrl" | "port">, officeHostname: string): string {
+  if (app.shortUrl) return app.shortUrl;
   if (typeof app.url === "string" && app.url !== "") return app.url;
   return `http://${portLinkHost(officeHostname)}:${app.port}/`;
 }

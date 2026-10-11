@@ -79,3 +79,7 @@ describe("appLinkLabel", () => {
     expect(appLinkLabel({ url: "" })).toBe("Open on this network");
   });
 });
+
+test("prefers the office short address when available", () => {
+  expect(appHref({ shortUrl: "https://office.example/board", url: "https://board.apps.example", port: 21000 }, "untrusted.example")).toBe("https://office.example/board");
+});
