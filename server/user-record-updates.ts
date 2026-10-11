@@ -5,7 +5,7 @@ import { normalizeAllowedRooms } from "./user-room-projection.ts";
 
 export type UserRecordChanges = Partial<
   Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "language" | "slideMode" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">
->;
+> & { memberPromptVersion?: string };
 
 export function createUserRecord({ id, name, role, allowedRooms }: Pick<UserRecord, "id" | "name" | "role" | "allowedRooms">): UserRecord {
   return {

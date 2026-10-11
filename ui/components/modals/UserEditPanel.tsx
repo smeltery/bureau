@@ -1,3 +1,4 @@
+import { useMemberInstructions } from "./useMemberInstructions.ts";
 import { useEffect, useState } from "react";
 import type { UserRecord, UserRole } from "../../../shared/types.ts";
 import type { GhostVariant } from "../../../shared/avatar.ts";
@@ -33,7 +34,8 @@ export function UserEditPanel({
   const [defaultRoomId, setDefaultRoomId] = useState<string | null>(user.defaultRoomId ?? user.allowedRooms[0] ?? rooms[0]?.id ?? null);
   const [notifRooms, setNotifRooms] = useState(() => new Set(user.notifRooms ?? []));
   const [envFile, setEnvFile] = useState(user.envFile ?? "");
-  const [memberPrompt, setMemberPrompt] = useState(user.memberPrompt ?? "");
+  const instructions = useMemberInstructions(user.name, user.memberPrompt);
+  const { content: memberPrompt, setContent: setMemberPrompt } = instructions;
   const [language, setLanguage] = useState<SupportedLanguageCode | "">(user.language ?? "");
   const [slideMode, setSlideMode] = useState(user.slideMode === true);
   const [avatarColor, setAvatarColor] = useState(user.avatarColor);
@@ -46,7 +48,7 @@ export function UserEditPanel({
     name !== user.name ||
     role !== user.role ||
     envFile !== (user.envFile ?? "") ||
-    memberPrompt !== (user.memberPrompt ?? "") ||
+    instructions.dirty ||
     language !== (user.language ?? "") ||
     slideMode !== (user.slideMode === true) ||
     avatarColor !== user.avatarColor ||
@@ -80,7 +82,8 @@ export function UserEditPanel({
     setEnvStatus({ kind: "idle" });
   });
 
-  function save() {
+  async function save() {
+    if (!(await instructions.save())) return;
     const shownRooms = [...allowedRooms].filter((id) => !hiddenRooms.has(id));
     const notif = [...notifRooms].filter((id) => shownRooms.includes(id));
     send({
@@ -95,7 +98,6 @@ export function UserEditPanel({
         defaultRoomId,
         notifRooms: notif,
         envFile: envFile.trim() || null,
-        memberPrompt: memberPrompt.trim() || null,
         language: language || null,
         slideMode,
         avatarColor,
@@ -195,11 +197,22 @@ export function UserEditPanel({
         placeholder={t("settings.profile.personalContextPlaceholder")}
         style={{ ...dialogInput, resize: "vertical", minHeight: 86 }}
       />
+      {instructions.error && (
+        <p role="alert" style={{ color: "#ff6b6b" }}>
+          {instructions.error}
+        </p>
+      )}
+      {instructions.current !== null && (
+        <label style={dialogLabel}>
+          Current instructions
+          <textarea readOnly value={instructions.current} style={dialogInput} />
+        </label>
+      )}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
         <button style={dialogCancelBtn} onClick={cancel}>
           {t("common.cancel")}
         </button>
-        <button style={dialogSaveBtn} onClick={save}>
+        <button style={dialogSaveBtn} onClick={() => void save()} disabled={instructions.busy || (instructions.dirty && !instructions.ready)}>
           {t("common.save")}
         </button>
       </div>

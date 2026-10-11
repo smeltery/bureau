@@ -163,7 +163,11 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   // local agents legitimately hit them; non-loopback callers need a
   // session cookie.
   const browserManagement =
-    url.pathname.startsWith("/api/skills") || url.pathname.startsWith("/api/webhooks") || url.pathname.startsWith("/api/browser-sharing/") || url.pathname.startsWith("/api/me/view/");
+    (url.pathname.startsWith("/api/users/") && !req.headers.has("authorization")) ||
+    url.pathname.startsWith("/api/skills") ||
+    url.pathname.startsWith("/api/webhooks") ||
+    url.pathname.startsWith("/api/browser-sharing/") ||
+    url.pathname.startsWith("/api/me/view/");
   const httpAuth = authenticate(req, server, { allowLoopback: !browserManagement, officeName: getOfficeName() });
   if (httpAuth.kind === "rejected") return httpAuth.response;
 
@@ -307,11 +311,7 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
     return Response.json({ error: "not_found" }, { status: 404 });
   }
 
-  // SPA shell — auth-gated; an unauthenticated visitor lands on the
-  // login page (or the claim form pre-claim). The shell also carries the
-  // __Host- cookie migration (the seam for a plain page load or reload);
-  // only a cookie-authenticated session migrates — a loopback caller's
-  // incidental cookie is not what authenticated the request.
+  // Authenticate office pages before serving redirects or the SPA shell.
   const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
   if (auth.kind === "rejected") return auth.response;
   const shortLink = appShortRedirect(
