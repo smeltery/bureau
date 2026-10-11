@@ -46,6 +46,7 @@ function extensionFixture() {
         },
       },
       debugger: {
+        getTargets: async () => [...attached].map((tabId) => ({ tabId, type: "page", id: `page-${tabId}` })),
         onEvent: { addListener() {}, removeListener() {} },
         attach: async ({ tabId }: { tabId: number }) => {
           attached.add(tabId);
@@ -78,7 +79,9 @@ function extensionFixture() {
       return new Response(null, { status: 204 });
     },
   });
-  context.importScripts = (path: string) => runInContext(readFileSync(join(root, path), "utf8"), context);
+  context.importScripts = (...paths: string[]) => {
+    for (const path of paths) runInContext(readFileSync(join(root, path), "utf8"), context);
+  };
   runInContext(readFileSync(join(root, "worker.js"), "utf8"), context);
   const call = (input: unknown) => {
     context.input = input;

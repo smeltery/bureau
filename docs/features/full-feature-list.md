@@ -85,15 +85,21 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   busy; queued messages are persisted with the agent record and replay after a
   Bureau restart.
 - Shared task board with create, room assignment, claim, backlog, and done
-  states.
+  states. Task records retain actor-attributed history; owners can inspect
+  deleted tasks and restore them while preserving earlier changes.
 - Owner-controlled privileged operator tokens for selected agents. A privileged
   token is accepted on the office-management routes — room create (owner
   managers only), rename, close, settings and desk swaps; agent spawn, kill,
   edit, move and topic; and conversation steering (resume, new conversation,
   send-now, dequeue) — always scoped to the rooms and agents the agent's manager
   can see. It is refused on office settings and external access, invites,
-  browser sessions, user records, view preferences, the terminal, and the
-  privilege toggle itself, so no agent can widen its own authority.
+  browser sessions, general user records, view preferences, the terminal, and the
+  privilege toggle itself, so no agent can widen its own authority. A narrow
+  versioned member-instructions endpoint lets privileged agents edit their
+  manager’s prompt; owner-managed privileged agents can edit other members’
+  prompts without changing roles or room access.
+- Owner-only audit history records actor, operation, changed field names and
+  outcome for persisted office changes without storing secret values.
 - Office-wide, room-level, and per-agent prompt composition. Office settings
   saves require the version from a preceding GET (HTTP and the settings dialog)
   so concurrent owner tabs cannot clobber each other; room settings and custom

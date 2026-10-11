@@ -28,6 +28,15 @@ Navigation to another origin, closing the tab, losing the office connection,
 restarting the extension worker, or restarting Bureau ends sharing. Offer the
 tab again to restore access. Opening Developer Tools may detach the debugger;
 that also ends sharing. Actions time out after 15 seconds and revoke the grant.
+
+Chrome can report a temporary target closure when a page opens a native app.
+The extension makes one reattach attempt per grant, bounded to three seconds,
+only if the same tab, page target and origin still exist. Selected agents and
+expiry stay unchanged. An interrupted action reports an unknown outcome and
+never replays input; agents must inspect the page before deciding what to do
+next. Changed targets, changed origins, repeated detachments and failed recovery
+end sharing. Reload the unpacked extension after updating Bureau to use this
+behavior.
 Pairings are excluded from backups, and active grants are never persisted.
 
 ## Agent API

@@ -21,6 +21,7 @@ class ApiError extends Error {
 
 export function MemberUsageCard() {
   const { t, language } = useI18n();
+  const [loadFailed, setLoadFailed] = useState(false);
   const [settings, setSettings] = useState<OfficeSettingsRes | null>(null);
   const [usageCap, setUsageCap] = useState(false);
   const [usageShare, setUsageShare] = useState(DEFAULT_MEMBER_SHARE);
@@ -41,14 +42,23 @@ export function MemberUsageCard() {
         if (!cancelled) adopt(result);
       })
       .catch(() => {
-        // Older or unavailable servers do not give us a version-safe write.
+        if (!cancelled) setLoadFailed(true);
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (!settings || settings.memberUsageCap === undefined) return null;
+  const unavailable = loadFailed || (settings !== null && settings.memberUsageCap === undefined);
+  if (!settings || settings.memberUsageCap === undefined)
+    return (
+      <section aria-busy={!unavailable} style={{ marginTop: 14, minHeight: 72, padding: "12px 0 0", borderTop: "1px solid var(--border-subtle)" }}>
+        <strong style={{ fontSize: 12 }}>{t("memberUsage.cap")}</strong>
+        <p role={unavailable ? "alert" : undefined} style={dialogHint}>
+          {unavailable ? "Unable to load usage settings. Refresh to retry." : t("common.loading")}
+        </p>
+      </section>
+    );
 
   const baselineCap = settings.memberUsageCap ?? false;
   const baselineShare = settings.memberUsageShare ?? DEFAULT_MEMBER_SHARE;
