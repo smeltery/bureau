@@ -149,3 +149,35 @@ cloud storage certification remain environment-specific operational checks.
 All three continuation gaps are implemented: OpenCode profiles, the skills
 library and the fresh-install matrix. Earlier product-scope exclusions remain
 unchanged; no actionable gap from this review is deferred for size.
+
+## Follow-up review — 2026-10-11
+
+Compared the October 10 release notes and comparison range with the current
+default-branch implementation, docs and tests. All actionable gaps in this
+review are implemented; the existing product-scope exclusions still apply.
+
+| Classification | Capability and result |
+| --- | --- |
+| Implemented | App short links redirect to authenticated app hostnames, preserve queries and avoid reserved office paths. Agent handoffs preserve ownership and app data while rebinding room visibility. |
+| Implemented | Regional Claude cloud defaults select supported Sonnet/Haiku profiles without replacing explicit pins or routing unknown regions through a global fallback. |
+| Implemented | Privileged agents can edit versioned member instructions through a narrow endpoint. Concurrent edits preserve the local draft and surface the current text; role and access changes remain unavailable. |
+| Implemented | Per-task atomic records retain actor-attributed changes, deletion tombstones and owner restoration. Legacy task storage remains readable; history respects both sides of room changes. |
+| Implemented | Owner-only office audit records capture mutation metadata and pending/committed/failed persistence outcomes. Flat files preserve Bureau's no-database architecture; secrets and request bodies are excluded. |
+| Implemented | A transient shared-tab target closure gets one bounded recovery attempt for the same page and origin. Interrupted input is never replayed; revocation, expiry, changed targets and repeated detachments end sharing. |
+| Implemented | Member usage settings retain a visible loading frame and show an explicit load failure. |
+| Already covered | Interactive terminal behavior and provider login commands have real PTY coverage across the fresh-install matrix. Replacing the PTY implementation is unnecessary for that capability and would disrupt the retained Intel macOS runtime boundary. |
+| Not destination-native | Hosted provisioning, billing governance, deployment logging and platform-specific smoke infrastructure remain outside the self-hosted product scope. |
+| Not an implemented capability | An app-chat widget design document does not establish a working feature to port. |
+
+Validation includes the normal CI gate, authorization and stale-write tests,
+task reload/failure/restore tests, audit concurrency and secret-omission tests,
+and a real Chrome debugger detach/reattach exercise. Browser interruption tests
+verify that a late protocol response cannot send input after invalidation.
+The Chrome harness simulates the debugger detachment; it does not launch a
+native application on the operator's desktop.
+
+Task history and audit records consume retained disk space and use file scans,
+not indexed queries. See [task storage](../features/task-system-design.md),
+[office audit](../features/office-audit.md) and
+[browser sharing](../features/browser-sharing.md) for migration and failure
+boundaries.

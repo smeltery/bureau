@@ -1,4 +1,4 @@
-importScripts("actions.js");
+importScripts("actions.js", "recovery.js");
 let connection;
 const grants = new Map();
 const expiryTimers = new Map();
@@ -33,6 +33,7 @@ async function persist() {
   await chrome.action.setBadgeBackgroundColor({ color: "#b45309" });
 }
 async function revoke(grant) {
+  invalidateBrowserActions(grant.tabId);
   grants.delete(grant.id);
   clearTimeout(expiryTimers.get(grant.id));
   expiryTimers.delete(grant.id);
@@ -55,6 +56,10 @@ async function poll() {
     for (const command of state.commands) {
       const grant = grants.get(command.grantId);
       if (!grant || grant.tabId !== command.tabId || grant.origin !== command.origin) continue;
+      const recovery = recoveringGrants.get(grant.id);
+      if (recovery) await recovery;
+      if (!grants.has(grant.id)) continue;
+      const recoveryGeneration = grant.recoveryGeneration ?? 0;
       let result, error;
       try {
         let timer;
@@ -62,7 +67,10 @@ async function poll() {
           result = await Promise.race([
             execute(command),
             new Promise((_, reject) => {
-              timer = setTimeout(() => reject(new Error("Browser action timed out")), 14000);
+              timer = setTimeout(() => {
+                invalidateBrowserActions(grant.tabId);
+                reject(new Error("Browser action timed out"));
+              }, 14000);
             }),
           ]);
         } finally {
@@ -72,7 +80,9 @@ async function poll() {
         error = caught.message;
         lastError = error;
         await api(`results/${command.id}`, "POST", { error, result: caught.dialogs ? { dialogs: caught.dialogs } : undefined });
-        await revoke(grant);
+        if ((grant.recoveryGeneration ?? 0) > recoveryGeneration && grants.has(grant.id)) {
+          await recoveringGrants.get(grant.id);
+        } else await revoke(grant);
         continue;
       }
       if (grants.has(grant.id)) await api(`results/${command.id}`, "POST", { result, error });
@@ -87,8 +97,13 @@ async function poll() {
 }
 setInterval(() => void poll(), 1000);
 chrome.alarms.onAlarm.addListener(() => void poll());
-chrome.debugger.onDetach.addListener(({ tabId }) => {
-  for (const grant of grants.values()) if (grant.tabId === tabId) void revoke(grant);
+chrome.debugger.onDetach.addListener(({ tabId }, reason) => {
+  invalidateBrowserActions(tabId);
+  for (const grant of grants.values()) {
+    if (grant.tabId !== tabId) continue;
+    if (reason === "target_closed" && grant.targetId && !grant.recoveryAttempted) void recoverGrant(grant);
+    else void revoke(grant);
+  }
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
   for (const grant of grants.values()) if (grant.tabId === tabId) void revoke(grant);
@@ -138,7 +153,10 @@ async function handle(message) {
     for (const grant of grants.values()) if (grant.tabId === tab.id) await revoke(grant);
     await chrome.debugger.attach({ tabId: tab.id }, "1.3");
     try {
+      const target = (await chrome.debugger.getTargets()).find((row) => row.tabId === tab.id && row.type === "page");
+      if (!target) throw new Error("Shared page target disappeared");
       const grant = await api("grants", "POST", { tabId: tab.id, title: tab.title, url: tab.url, agentIds: message.agentIds, minutes: message.minutes });
+      grant.targetId = target.id;
       grants.set(grant.id, grant);
       if (grant.expiresAt !== null)
         expiryTimers.set(

@@ -1,10 +1,10 @@
 const send = (tabId, method, params = {}) => chrome.debugger.sendCommand({ tabId }, method, params);
-async function assertOrigin(tabId, origin) {
-  const { frameTree } = await send(tabId, "Page.getFrameTree");
+async function assertOrigin(tabId, origin, channelSend = send) {
+  const { frameTree } = await channelSend(tabId, "Page.getFrameTree");
   if (new URL(frameTree.frame.url).origin !== origin) throw new Error("Tab left its shared origin");
 }
-async function evaluate(tabId, origin, expression) {
-  const result = await send(tabId, "Runtime.evaluate", {
+async function evaluate(tabId, origin, expression, channelSend = send) {
+  const result = await channelSend(tabId, "Runtime.evaluate", {
     expression: `(() => { if (location.origin !== ${JSON.stringify(origin)}) throw new Error("Tab left its shared origin"); return (${expression}); })()`,
     returnByValue: true,
     awaitPromise: true,
@@ -14,6 +14,7 @@ async function evaluate(tabId, origin, expression) {
 }
 async function perform(command) {
   const { tabId, origin, input } = command;
+  const { send, assertOrigin, evaluate } = command.channel;
   await assertOrigin(tabId, origin);
   let result;
   if (input.action === "read") {
@@ -82,7 +83,7 @@ chrome.debugger.onEvent.addListener((source, method, event) => {
   const record = { type: event.type, message: String(event.message).slice(0, 2000), accepted: false };
   if (sameOrigin && policy.dialogs.length < 20) policy.dialogs.push(record);
   // Catch close races, including dialogs opened outside an active action.
-  const handling = send(source.tabId, "Page.handleJavaScriptDialog", { accept: accepted })
+  const handling = (policy?.send ?? send)(source.tabId, "Page.handleJavaScriptDialog", { accept: accepted })
     .then(() => {
       record.accepted = accepted;
     })
@@ -94,19 +95,69 @@ chrome.debugger.onEvent.addListener((source, method, event) => {
 });
 
 async function execute(command) {
-  const policy = { dialogs: [], pending: new Set(), first: true, accept: command.input.dialog === "accept", origin: command.origin };
-  await assertOrigin(command.tabId, command.origin);
+  const channel = actionChannel(command.tabId);
+  const policy = { send: channel.send, dialogs: [], pending: new Set(), first: true, accept: command.input.dialog === "accept", origin: command.origin };
   dialogPolicies.set(command.tabId, policy);
-  try {
-    await send(command.tabId, "Page.enable");
-    const result = await perform(command);
+  const work = async () => {
+    await channel.assertOrigin(command.tabId, command.origin);
+    await channel.send(command.tabId, "Page.enable");
+    const result = await perform({ ...command, channel });
     await Promise.all([...policy.pending]);
+    channel.check();
     if (policy.error) throw policy.error;
     return policy.dialogs.length ? { ...result, dialogs: policy.dialogs } : result;
+  };
+  try {
+    return await Promise.race([work(), channel.interrupted]);
   } catch (error) {
     if (policy.dialogs.length) error.dialogs = policy.dialogs;
     throw error;
   } finally {
+    channel.dispose();
     if (dialogPolicies.get(command.tabId) === policy) dialogPolicies.delete(command.tabId);
   }
+}
+
+const browserEpochs = new Map();
+const browserInterrupts = new Map();
+function browserEpoch(tabId) {
+  if (!browserEpochs.has(tabId)) browserEpochs.set(tabId, Symbol());
+  return browserEpochs.get(tabId);
+}
+function invalidateBrowserActions(tabId) {
+  browserEpochs.set(tabId, Symbol());
+  for (const interrupt of browserInterrupts.get(tabId) ?? []) interrupt();
+  browserInterrupts.delete(tabId);
+}
+function actionChannel(tabId) {
+  const epoch = browserEpoch(tabId);
+  let interrupt;
+  const interrupted = new Promise((_, reject) => {
+    interrupt = () => reject(new Error("Browser connection changed; action outcome is unknown. Input was not replayed."));
+  });
+  if (!browserInterrupts.has(tabId)) browserInterrupts.set(tabId, new Set());
+  browserInterrupts.get(tabId).add(interrupt);
+  const dispose = () => {
+    const callbacks = browserInterrupts.get(tabId);
+    callbacks?.delete(interrupt);
+    if (!callbacks?.size) browserInterrupts.delete(tabId);
+  };
+  const check = () => {
+    if (browserEpoch(tabId) !== epoch) throw new Error("Browser connection changed; action outcome is unknown. Input was not replayed.");
+  };
+  const guarded = async (target, method, params = {}) => {
+    check();
+    if (target !== tabId) throw new Error("Browser action target changed");
+    const result = await send(target, method, params);
+    check();
+    return result;
+  };
+  return {
+    check,
+    interrupted,
+    dispose,
+    send: guarded,
+    assertOrigin: (id, origin) => assertOrigin(id, origin, guarded),
+    evaluate: (id, origin, expression) => evaluate(id, origin, expression, guarded),
+  };
 }

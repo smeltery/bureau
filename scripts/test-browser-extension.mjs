@@ -89,7 +89,23 @@ try {
   });
   await hostAction({ action: "click", selector: "#host-pointer" });
   assert.equal(await page.evaluate(() => window.hostPointerCount), 1);
-  console.log("Chrome debugger actions passed: read, type, upload, pointer click, select, dialogs, screenshot, origin mismatch refusal.");
+  const recovery = await worker.evaluate(async (id) => {
+    await chrome.debugger.attach({ tabId: id }, "1.3");
+    const target = (await chrome.debugger.getTargets()).find((row) => row.tabId === id && row.type === "page");
+    await chrome.debugger.detach({ tabId: id });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const grant = { id: "recovery-fixture", tabId: id, targetId: target.id, origin: "null", expiresAt: null };
+    grants.set(grant.id, grant);
+    await recoverGrant(grant);
+    const survived = grants.has(grant.id);
+    const result = survived ? await execute({ tabId: id, origin: "null", input: { action: "read" } }) : null;
+    grants.delete(grant.id);
+    return { survived, text: result?.text, attempts: grant.recoveryGeneration, error: lastError };
+  }, tabId);
+  assert.equal(recovery.survived, true, recovery.error);
+  assert.equal(recovery.attempts, 1);
+  assert.match(recovery.text, /Clicked/);
+  console.log("Chrome debugger actions passed: read, type, upload, pointer click, select, dialogs, screenshot, origin mismatch refusal, same-target debugger recovery.");
 } finally {
   await context?.close();
   await rm(profile, { recursive: true, force: true });
