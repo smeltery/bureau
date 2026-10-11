@@ -215,6 +215,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Schedules > Webhooks supports signed GitHub deliveries to agents and schedules, explicit payload-field selection, dry runs, delivery history, secret rotation and seven-day deduplication. Signing secrets are excluded from backups.
 - User Settings > Connections offers a downloadable Chrome tab-sharing extension. Pairing codes are single-use for five minutes; users explicitly offer tabs to selected agents, with expiry and revocation. Cross-origin navigation, disconnects or permission loss end sharing. The action API supports read, screenshot, click, type and same-origin navigation.
 - Agents with app management access can upload a PNG thumbnail by sending a local file path to the thumbnail API; browser users upload the image itself
+- Owners have a filterable audit log of persisted office changes, with actor attribution and explicit outcomes. Credentials and request bodies are not copied into it.
 - Privileged agents can edit their manager’s special instructions with version checks; owner-managed agents can edit other members. Settings preserves drafts when concurrent edits conflict.
 - Apps supports short office links on custom domains and agent handoffs that preserve ownership and data.
 - Apps supports PNG thumbnails and reversible archive/restore, preserving registration and data while revoking archived runtime access.

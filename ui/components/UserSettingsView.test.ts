@@ -16,6 +16,7 @@ describe("buildAccountSections", () => {
       "devices",
       "api-tokens",
       "pager",
+      "audit",
       "signout",
     ]);
   });

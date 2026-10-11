@@ -1,3 +1,4 @@
+import { auditFileWrite } from "./audit/store.ts";
 import { appendFileSync, mkdirSync, readFileSync } from "fs";
 import { createHash } from "crypto";
 import { dirname, join } from "path";
@@ -189,7 +190,7 @@ export function createMemoryStore(deps: MemoryStoreDeps = {}): MemoryStore {
     const path = filePath(input.scope, input.scopeId);
     mkdirSync(dirname(path), { recursive: true });
     const separator = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
-    appendFileSync(path, separator + line + "\n");
+    auditFileWrite(path, existing + separator + line + "\n", () => appendFileSync(path, separator + line + "\n"));
     const content = readText(input.scope, input.scopeId);
     const version = versionOf(content);
     logOp({ ts: now(), actor: input.author, scope: input.scope, scopeId: input.scopeId, op: "append", text: input.text, content, version });

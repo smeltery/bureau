@@ -266,6 +266,7 @@ export const zh: Catalog = {
   "settings.sidebar.personalEnv": "Variables",
   "settings.sidebar.sessions": "会话",
   "settings.sidebar.signOut": "Sign out",
+  "settings.sidebar.audit": "审计日志",
   "settings.sidebar.storage": "存储",
   "settings.sidebar.usage": "用量",
   "settings.sidebar.users": "Users",

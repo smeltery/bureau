@@ -1,3 +1,4 @@
+import { auditFileWrite } from "../audit/store.ts";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -20,8 +21,11 @@ export function listDevices(): BrowserDevice[] {
 }
 function save(rows: BrowserDevice[]) {
   mkdirSync(join(BUREAU_DIR, "browser-sharing"), { recursive: true, mode: 0o700 });
-  writeFileSync(DEVICES_FILE + ".tmp", JSON.stringify(rows), { mode: 0o600 });
-  renameSync(DEVICES_FILE + ".tmp", DEVICES_FILE);
+  const text = JSON.stringify(rows);
+  auditFileWrite(DEVICES_FILE, text, () => {
+    writeFileSync(DEVICES_FILE + ".tmp", text, { mode: 0o600 });
+    renameSync(DEVICES_FILE + ".tmp", DEVICES_FILE);
+  });
 }
 export function createPairingCode(userId: string, now = Date.now()): string {
   for (const [key, value] of codes) if (value.userId === userId || value.expiresAt <= now) codes.delete(key);
