@@ -1,3 +1,4 @@
+import { withCloudModelDefaults } from "./claude/cloud-defaults.ts";
 import {
   forkSession as sdkForkSession,
   getSessionMessages as sdkGetSessionMessages,
@@ -134,7 +135,7 @@ class ClaudeBackendSession implements BackendSession {
         : createSafetyHooks(),
       settings: CLAUDE_LAUNCH_SETTINGS,
       canUseTool: ((toolName, input, callbackOpts) => this.requestPermission(toolName, input, callbackOpts)) as CanUseTool,
-      ...(opts.env ? { env: opts.env } : {}),
+      env: withCloudModelDefaults(opts.env),
       ...(resumeSessionId ? { resume: resumeSessionId } : {}),
     };
     this.raw = new RawClaudeSession(options);
@@ -268,7 +269,7 @@ export const claudeBackend: Backend = {
       model: claudeModelForEnvironment(opts.modelFamily, opts.env),
       ...(opts.systemPrompt ? { systemPrompt: opts.systemPrompt } : {}),
       settings: CLAUDE_LAUNCH_SETTINGS,
-      ...(opts.env ? { env: opts.env } : {}),
+      env: withCloudModelDefaults(opts.env),
     });
     return result.subtype === "success" ? result.result : "";
   },
