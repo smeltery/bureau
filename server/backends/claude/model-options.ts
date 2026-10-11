@@ -1,3 +1,4 @@
+import { withCloudModelDefaults } from "./cloud-defaults.ts";
 import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import { FAMILY_TO_MODEL, MODEL_FAMILIES, familyDisplayLabel, effortLevelsFor, familyAllowsAutoPermission, type ModelFamily } from "../../../shared/types.ts";
 import type { BackendModel, CreateSessionOptions } from "../types.ts";
@@ -9,8 +10,9 @@ export function claudeModelForEnvironment(family: string, env: Environment = pro
   return isClaudeCloudSelected(env) ? family : (FAMILY_TO_MODEL[family as ModelFamily] ?? family);
 }
 
-/** Cloud aliases still select older Sonnet/Haiku unless explicitly pinned. */
+/** Unknown cloud regions retain the CLI aliases and their capabilities. */
 export function claudeModelCapabilities(family: string, env: Environment = process.env) {
+  env = withCloudModelDefaults(env);
   const cloudLimited =
     isClaudeCloudSelected(env) &&
     ((family === "sonnet" && !/claude-sonnet-5(?:\D|$)/i.test(env.ANTHROPIC_DEFAULT_SONNET_MODEL ?? "")) ||
@@ -34,6 +36,7 @@ export function claudeSessionModelOptions(opts: Pick<CreateSessionOptions, "mode
 /** Snapshot cloud alias targets without changing the aliases sent to the CLI. */
 export function claudeModelOverrides(env: Environment = process.env): Partial<Record<ModelFamily, string>> {
   if (!isClaudeCloudSelected(env)) return {};
+  env = withCloudModelDefaults(env);
   const overrides: Partial<Record<ModelFamily, string>> = {};
   for (const { family } of MODEL_FAMILIES) {
     const model = env[`ANTHROPIC_DEFAULT_${family.toUpperCase()}_MODEL`]?.trim() || (family === "sonnet" || family === "haiku" ? `claude-${family}-4-5` : FAMILY_TO_MODEL[family]);

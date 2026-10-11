@@ -125,6 +125,16 @@ export const RESERVED_APP_NAMES: ReadonlySet<string> = new Set([
   "ws",
   "docs",
   "cdn",
+  "tasks",
+  "schedules",
+  "cronjobs",
+  "skills",
+  "plugins",
+  "settings",
+  "users",
+  "pager",
+  "team-chat",
+  "chat",
 ]);
 
 // --- errors -----------------------------------------------------------------
@@ -686,6 +696,7 @@ export interface RegisterAppInput {
 // field alone; `description: null` removes it (see AppUpdateReq for why absence
 // and the empty string are different answers).
 export interface UpdateAppInput {
+  createdByAgentId?: string;
   command?: string;
   cwd?: string;
   description?: string | null;
@@ -844,12 +855,6 @@ export function createAppRegistry(options: AppRegistryOptions = {}): AppRegistry
       return { ...persisted, dataDir };
     },
 
-    // The cure for a typo that would otherwise cost the app its address.
-    // Everything that makes the app THE app - name, port, data directory,
-    // ownership, creation attribution - is untouched by construction: only the
-    // three patchable fields are ever copied over, and the record keeps its
-    // position in the file so registration order still reads as registration
-    // order.
     update(name, patch) {
       // Validated BEFORE the snapshot, exactly as register does: a bad patch
       // must be refused the same way whether or not the registry is readable,
@@ -867,6 +872,7 @@ export function createAppRegistry(options: AppRegistryOptions = {}): AppRegistry
 
       const updated: AppRecord = {
         ...apps[index],
+        ...(patch.createdByAgentId !== undefined ? { createdByAgentId: patch.createdByAgentId } : {}),
         ...(patch.command !== undefined ? { command: patch.command } : {}),
         ...(patch.cwd !== undefined ? { cwd: patch.cwd } : {}),
       };

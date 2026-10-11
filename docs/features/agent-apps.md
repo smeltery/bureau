@@ -305,3 +305,19 @@ The API adds `POST /api/apps/:name/archive`, `POST /api/apps/:name/restore`, and
 `/api/apps/:name/thumbnail` read, replace and remove the PNG. Deletion still
 retires app data under `.retired` and removes the thumbnail; archive is reversible
 without deleting that registration.
+
+
+## Short links and agent handoffs
+
+Offices with app hostnames also return `shortUrl` (for example,
+`https://office.example/board`). GET and HEAD redirect to the app's issued
+hostname, preserving the query string. The app still runs on its own origin
+and requires its usual sign-in. Reserved office paths and archived apps do not
+have short links. Offices without app hostnames retain their network port links.
+
+An app manager can PATCH `/api/apps/:name` with `createdByAgentId` to assign a
+live agent as its message recipient and room attribution. The caller and app's
+human owner must both have access to that agent's room. The owner, data directory,
+port and hostname stay unchanged; no process restart is required. Room viewers
+can read apps but cannot edit them. Connected viewers receive the updated
+visibility immediately.

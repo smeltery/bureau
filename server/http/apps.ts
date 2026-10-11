@@ -1,3 +1,4 @@
+import { validateAppHandoff } from "../apps/handoff.ts";
 import { handleAppAssetsRequest } from "../apps/http-assets.ts";
 import { deleteThumbnail } from "../apps/thumbnails.ts";
 /**
@@ -246,15 +247,13 @@ async function registerApp(req: Request, identity: AppsIdentity, deps: AppsDeps,
 async function updateApp(req: Request, name: string, identity: AppsIdentity, deps: AppsDeps, wireOf: (r: AppRecord, rt: AppRuntime | undefined) => AppWire): Promise<Response> {
   const body = await readAppJson(req);
   if (!body) return jsonError(400, "invalid_request", "invalid JSON body");
-  const before = visibleApp(deps.registry.get(name), identity);
+  const before = manageableApp(deps.registry.get(name), identity);
   if (!before) return jsonError(404, "not_found", "no app has that name");
 
-  // The immutable fields. PRESENCE is what triggers the check, not type:
-  // testing `typeof body.name === "string"` first would let `{name: 7}` slip
-  // past as "not a rename" and be silently ignored, which is the same lie as
-  // accepting one. Present is then tolerated in exactly one case: the value
-  // the app already has — reading an app and PATCHing the object back with one
-  // field edited is the obvious way to use this route.
+  const handoff = validateAppHandoff(body.createdByAgentId, before, identity);
+  if (handoff instanceof Response) return handoff;
+
+  // Names and allocated ports remain stable across edits and handoffs.
   if (Object.hasOwn(body, "name") && body.name !== before.name) {
     return jsonError(400, "invalid_request", "an app's name cannot be changed: it is the address people bookmark. To use a different name, delete the app and register it again");
   }
@@ -266,10 +265,8 @@ async function updateApp(req: Request, name: string, identity: AppsIdentity, dep
   if (body.description !== undefined && body.description !== null && typeof body.description !== "string") {
     return jsonError(400, "invalid_description", "description must be a string, or null to remove it");
   }
-  // An empty patch is a caller mistake, not a no-op: answering 200 to a
-  // request that asked for nothing hides whatever built it.
-  if (body.command === undefined && body.cwd === undefined && body.description === undefined) {
-    return jsonError(400, "invalid_request", "nothing to update: send at least one of command, cwd, description");
+  if (body.command === undefined && body.cwd === undefined && body.description === undefined && body.createdByAgentId === undefined) {
+    return jsonError(400, "invalid_request", "nothing to update: send at least one of command, cwd, description, createdByAgentId");
   }
 
   let cwd: string | undefined;
@@ -282,6 +279,7 @@ async function updateApp(req: Request, name: string, identity: AppsIdentity, dep
   }
 
   const after = deps.registry.update(before.name, {
+    ...handoff,
     ...(body.command !== undefined ? { command: body.command } : {}),
     ...(cwd !== undefined ? { cwd } : {}),
     ...(body.description !== undefined ? { description: body.description } : {}),
@@ -307,7 +305,10 @@ async function updateApp(req: Request, name: string, identity: AppsIdentity, dep
   }
   if (runtimeChanged) deps.invalidatePreview(after.name);
   const wire = wireOf(after, deps.states([after.name]).get(after.name));
-  announced(after.name, () => broadcastAppUpdated(after, deps.states([after.name]).get(after.name), deps));
+  announced(after.name, () => {
+    broadcastAppRemoved(before);
+    broadcastAppUpdated(after, deps.states([after.name]).get(after.name), deps);
+  });
   return json(200, wire);
 }
 

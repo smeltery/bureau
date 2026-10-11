@@ -248,7 +248,11 @@ The bearer token is a Bedrock API key from the AWS console (Bedrock → API keys
 
 Then `/clear` Claude agents to pick up the variables.
 
-Model pins are optional: with none, the picker’s `opus` is Opus 5.5 and `sonnet` is Sonnet 4.5 on Bedrock. To change a default, set the family’s pin to a Bedrock model or inference-profile ID, for example `ANTHROPIC_DEFAULT_SONNET_MODEL=us.anthropic.claude-sonnet-4-6`; the others are `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL` and `ANTHROPIC_DEFAULT_FABLE_MODEL`. Conversation titles use the Sonnet default. `ANTHROPIC_MODEL` does not override the picker. Agents pick the variables up on their next new or resumed conversation.
+Bureau supplies Sonnet 5.5 and Haiku 5.5 defaults for known Bedrock US, EU and Australian regions; Haiku also supports Japanese regions. It uses geographic inference profiles and never selects global routing automatically. Unknown regions, explicit routing prefixes, and a Haiku helper region outside the primary geography retain the CLI default. Vertex defaults apply only to the configured `us`, `eu` or `global` endpoint (including model-specific region overrides).
+
+Explicit `ANTHROPIC_DEFAULT_SONNET_MODEL` and `ANTHROPIC_DEFAULT_HAIKU_MODEL` pins always win. Set a pin for other regions, provisioned models, or account-specific routing; the office must already have access to the chosen model. Opus and Fable retain CLI defaults unless pinned. Conversation titles use the Sonnet default. `ANTHROPIC_MODEL` does not override the picker. Changes apply on the next new or resumed conversation.
+
+Region coverage was checked against the [AWS Sonnet model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-sonnet-5-5.html), [AWS Haiku model card](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-5-5.html), and Google’s [Sonnet](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/partner-models/claude/sonnet-5-5) and [Haiku](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/partner-models/claude/haiku-5-5) documentation.
 
 The model dialogs label cloud selections as aliases rather than claiming a direct-access version. Sonnet and Haiku cloud aliases disable effort and Auto unless their explicit pins identify Claude Sonnet 5 or Haiku 5.5. A saved Auto setting falls back to Default (ask); an explicit Bypass selection stays Bypass. Capabilities use the office, room, and managing user’s environment in that order.
 
