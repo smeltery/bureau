@@ -1,3 +1,4 @@
+import { TaskHistory } from "./TaskHistory.tsx";
 import { useEffect, useState } from "react";
 import { send } from "../ws.ts";
 import type { TaskItem, TaskPriority, TaskStatus } from "../../shared/types.ts";
@@ -211,6 +212,7 @@ export function TaskDetailPanel({
         onTitleChange={setTitle}
       />
 
+      {task && mode === "edit" && <TaskHistory key={task.id} taskId={task.id} revision={JSON.stringify(task)} />}
       <TaskDetailFooter
         confirmDelete={confirmDelete}
         confirmDiscard={confirmDiscard}

@@ -14,7 +14,7 @@ export async function handleCommand(cmd: ClientCommand, ws: ServerWebSocket<unkn
     return;
   }
   if (await handleAccessCommand(cmd, ws)) return;
-  if (handleTaskCommand(cmd)) return;
+  if (handleTaskCommand(cmd, ws)) return;
   if (await handleUserCommand(cmd, ws)) return;
   if (handleCronjobCommand(cmd, ws)) return;
   if (handleSettingsCommand(cmd, ws, (roomId) => canUseRoom(ws, roomId))) return;

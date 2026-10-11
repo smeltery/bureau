@@ -163,7 +163,7 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   // local agents legitimately hit them; non-loopback callers need a
   // session cookie.
   const browserManagement =
-    (url.pathname.startsWith("/api/users/") && !req.headers.has("authorization")) ||
+    ((url.pathname.startsWith("/api/users/") || url.pathname.startsWith("/api/tasks")) && !req.headers.has("authorization")) ||
     url.pathname.startsWith("/api/skills") ||
     url.pathname.startsWith("/api/webhooks") ||
     url.pathname.startsWith("/api/browser-sharing/") ||

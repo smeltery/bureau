@@ -1,3 +1,4 @@
+import { DeletedTasks } from "./DeletedTasks.tsx";
 import { TaskDetailPanel } from "./TaskDetailPanel.tsx";
 import { TaskViewHeader } from "./TaskViewHeader.tsx";
 import { TaskTable } from "./TaskTable.tsx";
@@ -75,6 +76,7 @@ export function TaskView({ username, onClose, onFocusAgent, openTaskId }: { user
         }}
       />
 
+      <DeletedTasks />
       {/* Body */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* Table area */}
