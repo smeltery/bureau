@@ -9,3 +9,5 @@ Use these only when a boss explicitly asks. Actions are attributed to you and sc
 - Members chat: use `/api/members-chat` routes when asked to tell all humans in the office something.
 
 You cannot grant human access, mint invites, change office settings, edit the office-wide schedule prompt, or set privilege flags.
+
+- Member instructions: GET `/api/users/:username/member-prompt`, then PATCH that URL with `memberPrompt` and the returned `memberPromptVersion`. You may edit your manager, or other members if your manager owns the office. Re-read and resolve a 409 conflict before retrying. This route cannot change roles or room access.

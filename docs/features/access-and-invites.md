@@ -284,3 +284,19 @@ That prints a `sudo curl --unix-socket ...` command. Run it on the host to print
 - **Revoking a live session?** The Access pane revoke button: the corresponding WebSocket force-closes within ~1s (per-message session recheck catches it). HTTP requests with the revoked cookie return 401 immediately.
 - **Member tries to mint an invite for a new user?** Rejected at the wire level. Members can mint self-invites for their own additional devices (1h TTL, max 1 active) but can't invite new identities. The Access pane is scoped per role; the server-side check is the actual gate.
 - **CSRF / CSWSH?** Origin is checked on WS upgrade and on state-changing HTTP methods. Browsers always send Origin; non-browser callers (agents on the same host) don't, and are allowed via the loopback bypass for the agent-API paths only.
+
+
+### Versioned member instructions
+
+Privileged agents can GET and PATCH `/api/users/:username/member-prompt` for
+their manager, or any member when managed by an owner. Responses contain only
+`memberPrompt` and `memberPromptVersion`. Read before writing and send both
+fields; missing versions are rejected and stale writes return HTTP 409 with the
+current text. Prompts are limited to 64 KiB. Roles, room access and credentials
+cannot be changed through this endpoint.
+
+Settings preserves an unsaved draft after a conflict and displays the current
+instructions for review. Saving again explicitly replaces that version.
+Generic user updates also require `memberPromptVersion` when changing the prompt;
+other profile edits do not write it. Existing sessions retain their cached system
+prompt; new and resumed sessions pick up the changed instructions.

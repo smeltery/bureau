@@ -54,6 +54,8 @@ const PROXY_TIMEOUT_MS = 30_000;
 const PORT = process.env.PORT || "4000";
 
 const ROUTES: ReadonlyArray<{ method: string; path: RegExp }> = [
+  { method: "GET", path: /^\/api\/users\/[^/]+\/member-prompt$/ },
+  { method: "PATCH", path: /^\/api\/users\/[^/]+\/member-prompt$/ },
   { method: "GET", path: /^\/agents$/ },
   { method: "GET", path: /^\/api\/agent-reference(?:\/[^/]+)?$/ },
   { method: "GET", path: /^\/api\/agents\/[^/]+\/shared-browser$/ },

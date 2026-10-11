@@ -1,3 +1,4 @@
+import { instructionConflict } from "../members/instructions.ts";
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand } from "../../shared/types.ts";
 import { LOBBY_ROOM_ID } from "../../shared/lobby.ts";
@@ -17,6 +18,12 @@ export async function handleUserCommand(cmd: ClientCommand, ws: ServerWebSocket<
       return true;
     }
     case "update_user": {
+      const target = getUserById(cmd.userId);
+      const conflict = target ? instructionConflict(target, cmd.changes) : null;
+      if (conflict) {
+        ws.send(JSON.stringify({ type: "error", message: conflict }));
+        return true;
+      }
       const envFile = cmd.changes.envFile;
       if (typeof envFile === "string" && envFile.trim()) {
         try {

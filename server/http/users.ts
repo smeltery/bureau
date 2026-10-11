@@ -1,3 +1,6 @@
+import { handleMemberInstructions } from "../members/instructions-http.ts";
+import { instructionConflict } from "../members/instructions.ts";
+import { getUserByName } from "../users.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import type { UserRecord } from "../../shared/types.ts";
 import { isSupportedLanguage } from "../../shared/languages.ts";
@@ -14,18 +17,14 @@ export interface UsersHttpDeps {
   delete(actorUserId: string, role: "owner" | "member", username: string): Promise<UserDeleteResult>;
 }
 
-export type UserRecordChanges = Partial<Pick<UserRecord, "name" | "envFile" | "memberPrompt" | "language" | "slideMode" | "avatarColor" | "avatarVariant">>;
+export type UserRecordChanges = Partial<Pick<UserRecord, "name" | "envFile" | "memberPrompt" | "language" | "slideMode" | "avatarColor" | "avatarVariant">> & { memberPromptVersion?: string };
 
 export async function handleUsersRequest(req: Request, url: URL, auth: AuthResult | undefined, deps: UsersHttpDeps): Promise<Response | null> {
   const parts = usersRouteParts(url.pathname);
   if (!parts) return null;
-  // DELIBERATELY session-only: no `privilegedAgentIdentity` path here. User
-  // records ARE the authorization data a privileged agent is scoped by —
-  // `PUT /:username/access` writes `allowedRooms`, the very set
-  // `privilegedAgentIdentity` measures the agent against. A bearer path here
-  // would let an agent widen its own manager's room access and thereby its own,
-  // and `DELETE` would let it remove a boss. Upstream excludes all `user:*`
-  // capabilities from the privileged set.
+  if (parts.length === 3 && parts[2] === "member-prompt") return handleMemberInstructions(req, decodeURIComponent(parts[1]!), auth, deps);
+  // General profile and access writes remain browser-only. Agents use the
+  // narrow versioned instruction route above, never authorization fields.
   if (auth?.kind !== "ok") return jsonError(401, "authenticated browser session required");
 
   const username = parts[1];
@@ -37,6 +36,12 @@ export async function handleUsersRequest(req: Request, url: URL, auth: AuthResul
     if (body instanceof Response) return body;
     const malformed = malformedUserUpdate(body);
     if (malformed) return jsonError(422, malformed);
+    if (body.memberPrompt !== undefined) {
+      const target = getUserByName(decodeURIComponent(username));
+      if (!target || (auth.session.role !== "owner" && target.id !== auth.session.userId)) return jsonError(404, "member not found");
+      const conflict = instructionConflict(target, body);
+      if (conflict) return jsonError(conflict.startsWith("version conflict") ? 409 : 400, conflict);
+    }
     const result = await deps.update(auth.session.userId, auth.session.role, decodeURIComponent(username), pickUserChanges(body));
     return result.ok ? json({ user: result.user }) : jsonError(result.status, result.error);
   }
@@ -75,6 +80,7 @@ function malformedUserUpdate(body: Record<string, unknown>): string | null {
 
 function pickUserChanges(body: Record<string, unknown>): UserRecordChanges {
   const changes: UserRecordChanges = {};
+  if (typeof body.memberPromptVersion === "string") changes.memberPromptVersion = body.memberPromptVersion;
   if (body.name !== undefined) changes.name = body.name as string;
   if (body.envFile !== undefined) changes.envFile = body.envFile as string | null;
   if (body.memberPrompt !== undefined) changes.memberPrompt = body.memberPrompt as string | null;

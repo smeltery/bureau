@@ -1,3 +1,4 @@
+import { instructionConflict } from "./members/instructions.ts";
 import { refreshBoundUser } from "./user-sockets.ts";
 import type { RoomWire, UserRecord, UserRole } from "../shared/types.ts";
 import { loadUsers, saveUsers, normalizeUserKey, generateUserId } from "./persistence.ts";
@@ -171,7 +172,7 @@ export function updateUser(actor: UserRecord | null, userId: string, changes: Us
   const target = [...users.values()].find((u) => u.id === userId);
   if (!target) return null;
   const canEdit = actor.role === "owner" || actor.id === target.id;
-  if (!canEdit) return null;
+  if (!canEdit || instructionConflict(target, changes)) return null;
   const allRoomIds = rooms.map((r) => r.id);
   const next = applyInteractiveUserChanges(target, actor, changes, allRoomIds);
   users.delete(normalizeUserKey(target.name));
