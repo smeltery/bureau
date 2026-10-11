@@ -1,3 +1,4 @@
+import { recordAuditEvent } from "../audit/store.ts";
 import { randomBytes } from "node:crypto";
 import type { SharedBrowserAction, SharedBrowserCommand, SharedTabGrant } from "../../shared/integrations/browser-sharing.ts";
 import * as Agents from "../agent-manager.ts";
@@ -24,7 +25,7 @@ export function eligibleAgent(userId: string, agentId: string): boolean {
   return !!user && !!agent && agent.userId === userId && canSeeRoom(user, Agents.getRooms()[agent.room]?.id);
 }
 export function revokeGrant(grantId: string): void {
-  grants.delete(grantId);
+  if (grants.delete(grantId)) recordAuditEvent(`browser-grant:${grantId}`, ["revoked"]);
   for (const [key, item] of pending)
     if (item.command.grantId === grantId) {
       clearTimeout(item.timer);
@@ -70,6 +71,7 @@ export function grantTab(device: BrowserDevice, input: unknown, now = Date.now()
     expiresAt: body.minutes === null ? null : now + (body.minutes as number) * 60_000,
   };
   grants.set(grant.id, grant);
+  recordAuditEvent(`browser-grant:${grant.id}`, ["granted"]);
   return grant;
 }
 export function parseBrowserAction(value: unknown, origin: string): SharedBrowserAction {

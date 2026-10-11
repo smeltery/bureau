@@ -1,3 +1,4 @@
+import { withAuditContext } from "../audit/context.ts";
 // Unix-domain admin socket. Bound at ~/.bureau/admin.sock by default. It mints
 // a short-lived owner sign-in URL for account recovery.
 //
@@ -146,7 +147,9 @@ function refusal(allowed: Set<number>): string {
 
 function handleParsed(request: ParsedRequest): Promise<Response> {
   const hasBody = request.method !== "GET" && request.body.length > 0;
-  return handleAdmin(new Request(request.url, { method: request.method, headers: request.headers, body: hasBody ? request.body.toString("utf8") : undefined }));
+  return withAuditContext({ actor: "local admin socket", operation: "owner-login" }, () =>
+    handleAdmin(new Request(request.url, { method: request.method, headers: request.headers, body: hasBody ? request.body.toString("utf8") : undefined })),
+  );
 }
 
 function jsonBytes(status: number, body: unknown): Buffer {

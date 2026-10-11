@@ -1,3 +1,4 @@
+import { withAuditContext } from "../audit/context.ts";
 import { createHash } from "node:crypto";
 import type { Webhook } from "../../shared/integrations/webhooks.ts";
 import { boundedBody, selectWebhookData, validSignature } from "./protocol.ts";
@@ -23,7 +24,7 @@ export async function handleWebhookIngress(req: Request, url: URL): Promise<Resp
   else recent.count++;
   inFlight++;
   try {
-    return await receive(req, hook, secret, now);
+    return await withAuditContext({ actor: `webhook:${hook.id}`, operation: "webhook delivery" }, () => receive(req, hook, secret, now));
   } finally {
     inFlight--;
   }

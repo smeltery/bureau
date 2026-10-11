@@ -1,3 +1,4 @@
+import { auditHttpRequest, handleAuditRequest } from "../audit/http.ts";
 import { appShortRedirect } from "../apps/short-links.ts";
 import { appPublicUrl } from "../apps/domain.ts";
 import { handleExtensionRequest, handleBrowserSharingRequest } from "../browser-sharing/routes.ts";
@@ -60,20 +61,13 @@ import { handleViewRequest } from "./view.ts";
 
 export function createFetchHandler() {
   return async function fetch(req: Request, server: Server<WsData>) {
-    const response = await routeFetch(req, server);
+    const response = await auditHttpRequest(req, () => routeFetch(req, server));
     return response ? withSecurityHeaders(response) : response;
   };
 }
 
 async function routeFetch(req: Request, server: Server<WsData>): Promise<Response | undefined> {
-  // FIRST, before the URL is parsed and before any office route runs: is this
-  // request for one of the office's apps rather than the office itself? A
-  // strict child of the office host is diverted and NO handler below ever sees
-  // it — app hostnames sit under a wildcard record, so anyone can point any
-  // name under it at this server, and none of those names may reach the
-  // office's own surface. Returns null on every office request, and on every
-  // install that has no app-host domain at all. See server/apps/host/
-  // dispatch.ts.
+  // App-host requests must never reach office routes, even with a forged wildcard host.
   const diverted = handleAppHostRequest(req, {
     peer: () => server.requestIP(req)?.address,
     upgrade: (request, data, headers) => server.upgrade(request, { data, ...(headers ? { headers } : {}) }),
@@ -163,7 +157,7 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   // local agents legitimately hit them; non-loopback callers need a
   // session cookie.
   const browserManagement =
-    ((url.pathname.startsWith("/api/users/") || url.pathname.startsWith("/api/tasks")) && !req.headers.has("authorization")) ||
+    ((url.pathname.startsWith("/api/users/") || url.pathname.startsWith("/api/tasks") || url.pathname === "/api/audit-log") && !req.headers.has("authorization")) ||
     url.pathname.startsWith("/api/skills") ||
     url.pathname.startsWith("/api/webhooks") ||
     url.pathname.startsWith("/api/browser-sharing/") ||
@@ -171,6 +165,8 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   const httpAuth = authenticate(req, server, { allowLoopback: !browserManagement, officeName: getOfficeName() });
   if (httpAuth.kind === "rejected") return httpAuth.response;
 
+  const auditResponse = handleAuditRequest(req, url, httpAuth);
+  if (auditResponse) return auditResponse;
   const browserSharing = await handleBrowserSharingRequest(req, url, httpAuth);
   if (browserSharing) return browserSharing;
 

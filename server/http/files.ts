@@ -1,3 +1,4 @@
+import { recordAuditEvent } from "../audit/store.ts";
 import type { Attachment } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
@@ -85,7 +86,10 @@ async function uploadHandler(req: Request, agentId: string | undefined): Promise
       }
       const buffer = Buffer.from(await value.arrayBuffer());
       const att = saveFile(agentId, buffer, value.type || "application/octet-stream", value.name);
-      if (att) attachments.push(att);
+      if (att) {
+        attachments.push(att);
+        recordAuditEvent(`agent:${agentId}/uploads`, ["uploaded"]);
+      }
     }
     return new Response(JSON.stringify({ attachments }), { headers: JSON_HEADERS });
   } catch (err: any) {

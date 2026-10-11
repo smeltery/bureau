@@ -45,6 +45,7 @@ Detailed subsystem documentation.
 | [Plugin System](features/plugin-system.md)                          | First-party `beforeTurn` / `afterTurn` hooks around the agent turn loop      |
 | [Room Environment & Prompts](features/room-env-prompt-design.md)    | Per-room env vars and prompt hierarchy                                       |
 | [Slide Mode](features/slide-mode.md)                                | Conversations as a per-turn deck of model-designed slides                    |
+| [Office Audit](features/office-audit.md) | Owner-only change metadata, outcomes and filters |
 | [Task System](features/task-system-design.md)                       | Shared task board for humans and agents                                      |
 | [Named Rooms](features/prompt-named-rooms.md)                       | Custom room names                                                            |
 | [Members Chat](features/members-chat.md)                            | Office-wide humans-only team chat (`/team-chat`)                             |

@@ -1,3 +1,4 @@
+import { auditFileWrite } from "../audit/store.ts";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -16,8 +17,11 @@ function read<T>(path: string, fallback: T): T {
 }
 function write(path: string, value: unknown): void {
   mkdirSync(WEBHOOK_DIR, { recursive: true, mode: 0o700 });
-  writeFileSync(path + ".tmp", JSON.stringify(value), { mode: 0o600 });
-  renameSync(path + ".tmp", path);
+  const text = JSON.stringify(value);
+  auditFileWrite(path, text, () => {
+    writeFileSync(path + ".tmp", text, { mode: 0o600 });
+    renameSync(path + ".tmp", path);
+  });
 }
 export function listWebhooks(): Webhook[] {
   return read<Webhook[]>(CONFIG, []);

@@ -266,6 +266,7 @@ export const ca = {
   "settings.sidebar.personalEnv": "Variables",
   "settings.sidebar.sessions": "Sessions",
   "settings.sidebar.signOut": "Tanca la sessió",
+  "settings.sidebar.audit": "Registre d’auditoria",
   "settings.sidebar.storage": "Emmagatzematge",
   "settings.sidebar.usage": "Ús",
   "settings.sidebar.users": "Usuaris",

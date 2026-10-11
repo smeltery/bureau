@@ -1,3 +1,4 @@
+import { recordAuditEvent } from "../audit/store.ts";
 import { homedir, userInfo } from "os";
 import { join } from "path";
 import { readEnvFile } from "../persistence.ts";
@@ -108,6 +109,7 @@ export function openTerminal(agentId: string): boolean {
     env: ptyEnv,
   });
 
+  recordAuditEvent(`terminal:${agentId}`, ["opened"]);
   console.log(`[terminal] Spawned sidecar for ${agentId}: shell=${shell}, cwd=${managed.info.cwd}, pid=${sidecar.pid}`);
   return true;
 }
@@ -142,6 +144,7 @@ export function closeTerminal(agentId: string) {
   const managed = agents.get(agentId);
   if (!managed?.ptySidecar) return;
   sidecarSend(managed, { type: "kill" });
+  recordAuditEvent(`terminal:${agentId}`, ["closed"]);
   managed.ptySidecar = null;
   managed.ptyBuffer = "";
 }

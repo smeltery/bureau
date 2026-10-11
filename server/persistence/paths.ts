@@ -1,3 +1,4 @@
+import { auditFileWrite } from "../audit/store.ts";
 import { join } from "path";
 import { homedir } from "os";
 import { mkdirSync, renameSync, writeFileSync } from "fs";
@@ -59,7 +60,9 @@ try {
 // tarball) sees either the previous contents or the new contents, never a
 // half-written file. JSONL appends are line-tolerant and skip this.
 export function atomicWriteFileSync(path: string, data: string | Buffer) {
-  const tmp = path + ".tmp";
-  writeFileSync(tmp, data);
-  renameSync(tmp, path);
+  auditFileWrite(path, data, () => {
+    const tmp = path + ".tmp";
+    writeFileSync(tmp, data);
+    renameSync(tmp, path);
+  });
 }

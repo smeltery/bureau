@@ -267,6 +267,7 @@ export const en = {
   "settings.sidebar.personalEnv": "Variables",
   "settings.sidebar.sessions": "Sessions",
   "settings.sidebar.signOut": "Sign out",
+  "settings.sidebar.audit": "Audit log",
   "settings.sidebar.storage": "Storage",
   "settings.sidebar.usage": "Usage",
   "settings.sidebar.users": "Users",

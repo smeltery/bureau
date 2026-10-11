@@ -240,6 +240,14 @@ Further, through the `logDir` paths, each agent has access to the current conver
 
 This means you can ask an agent, *"What do you think of OTHER_AGENT's approach?"* and it just works.
 
+### Office change history
+
+An owner-only audit view records actor-attributed state writes in flat files.
+Each write records an intent and then its outcome, so an interrupted audit
+finalization remains visibly pending. Task records keep their detailed history
+and current state together in one atomic write, including deleted-task recovery.
+The audit metadata omits credentials and request bodies.
+
 ### Agent persistence
 
 The file system is the source of truth. If the server crashes, nothing is lost (agents constantly restart their own server while building Bureau, and pick conversations right back up).
