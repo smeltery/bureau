@@ -14,3 +14,5 @@ Use the task board only when the boss asks.
 Omit `roomId` to file in your current room. Use `roomId:""` for office-wide globals.
 
 Close abandoned or superseded work with `PATCH {"status":"obsolete","description":"Reason for closing"}`. Done means the requested work was completed. Obsolete tasks remain readable and can be reopened; default active lists exclude them.
+
+- Read `/api/tasks/:id/history` for actor-attributed changes, following `nextCursor` for older entries. Owner-managed privileged agents may list `/api/tasks/deleted` and POST `/api/tasks/:id/restore`. Restoration preserves the original ID and content.

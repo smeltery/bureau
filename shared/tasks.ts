@@ -41,3 +41,17 @@ export function isValidStatus(s: unknown): s is TaskStatus {
 export function isValidPriority(p: unknown): p is TaskPriority {
   return typeof p === "string" && VALID_PRIORITIES.has(p as TaskPriority);
 }
+
+export interface TaskChange {
+  id: string;
+  at: number;
+  actor: string;
+  operation: "create" | "update" | "delete" | "restore";
+  before: TaskItem | null;
+  after: TaskItem | null;
+  fields: string[];
+}
+export interface TaskHistoryPage {
+  entries: TaskChange[];
+  nextCursor: string | null;
+}

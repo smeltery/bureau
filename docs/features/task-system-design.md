@@ -72,3 +72,30 @@ DELETE is available to authenticated callers and the UI uses the WebSocket delet
 Close abandoned or superseded work with `PATCH {"status":"obsolete","description":"Reason for closing"}`. Done means the requested work was completed. Obsolete tasks remain readable and can be reopened; default active lists exclude them.
 
 The board supports multiple status and priority checkboxes, including no priority. Counts apply the room, search and assignee filters plus the opposite checkbox group. Clearing a group shows no tasks.
+
+## Durable history and recovery
+
+Task detail includes History, with the actor, timestamp and changed fields for
+each recorded edit. The HTTP equivalent is `GET /api/tasks/:id/history`, paged
+with the returned `nextCursor`. History requires access to the current task and
+filters out events involving rooms the reader cannot access.
+
+Office owners can list `GET /api/tasks/deleted` and restore a deleted task with
+`POST /api/tasks/:id/restore`; Tasks also has an owner-only Deleted tasks list.
+Owner API tokens and owner-managed privileged agents have the same recovery
+access. Restoration retains the task's ID and content, and refuses a room that
+no longer exists. Completed and obsolete tasks do not need restoration: they
+remain ordinary board records.
+
+Each changed task is persisted in `task-records/:id.json` with its history. A
+single atomic rename commits both, before broadcasting the change. Writes that
+fail leave the live board unchanged; stale writes are rejected. Deleted records
+retain their last content and cannot have their IDs reused. WebSocket writes
+check both the current and requested room and derive the actor from the session.
+
+Legacy `tasks.json` is read alongside newer records and stays untouched. The
+first subsequent edit records the previous task as its baseline; earlier edit
+history cannot be reconstructed. Backups include the new records. Rolling back
+to a version that only reads `tasks.json` shows the pre-upgrade board, so retain
+a current backup before rollback. History queries read one task file; deleted
+lists scan record files. Disk usage grows with retained history.
