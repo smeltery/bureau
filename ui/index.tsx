@@ -1,3 +1,10 @@
+import { AppChatPage } from "./apps-view/AppChatPage.tsx";
+import type { AppChatBoot } from "../shared/integrations/app-chat.ts";
+declare global {
+  interface Window {
+    __BUREAU_APP__?: AppChatBoot;
+  }
+}
 import { createRoot } from "react-dom/client";
 import { StoreProvider, ThemeProvider, FeaturesProvider } from "./store.tsx";
 import { PRODUCTION_FEATURES } from "../shared/features.ts";
@@ -12,9 +19,7 @@ root.render(
   <ThemeProvider>
     <FeaturesProvider features={PRODUCTION_FEATURES}>
       <StoreProvider>
-        <LanguageProvider>
-          <App />
-        </LanguageProvider>
+        <LanguageProvider>{window.__BUREAU_APP__ ? <AppChatPage boot={window.__BUREAU_APP__} /> : <App />}</LanguageProvider>
       </StoreProvider>
     </FeaturesProvider>
   </ThemeProvider>,

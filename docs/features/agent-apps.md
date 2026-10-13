@@ -264,10 +264,9 @@ office's own `/ws`.
 
 ## Not here yet
 
-Nothing in the arm itself. Two limits worth knowing: an app is reachable only by
-its owner and by office owners (see the divergence above), and pointing a second
-app at a different agent is not supported — an app messages the agent that
-registered it or nobody.
+Apps remain separate from office authority. Owners, the app owner and permitted
+viewers of its assigned agent’s room can open an app. An app manager can assign
+a different agent using the handoff endpoint described below.
 
 On the deployment side, Bureau ships no TLS terminator and no installer, so
 putting one in front of the office — a wildcard record, a site block that
@@ -310,9 +309,10 @@ without deleting that registration.
 ## Short links and agent handoffs
 
 Offices with app hostnames also return `shortUrl` (for example,
-`https://office.example/board`). GET and HEAD redirect to the app's issued
-hostname, preserving the query string. The app still runs on its own origin
-and requires its usual sign-in. Reserved office paths and archived apps do not
+`https://office.example/board`). GET opens an office page containing the app and
+a chat button for its assigned agent. Query parameters reach the app unchanged.
+The app still runs in a sandboxed frame on its own origin and requires its usual
+sign-in. The office cookie never reaches the app. Reserved office paths and archived apps do not
 have short links. Offices without app hostnames retain their network port links.
 
 An app manager can PATCH `/api/apps/:name` with `createdByAgentId` to assign a
@@ -321,3 +321,5 @@ human owner must both have access to that agent's room. The owner, data director
 port and hostname stay unchanged; no process restart is required. Room viewers
 can read apps but cannot edit them. Connected viewers receive the updated
 visibility immediately.
+
+See [App chat view](app-chat.md) for conversation controls, framing and sign-in recovery.

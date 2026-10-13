@@ -32,6 +32,7 @@ Detailed subsystem documentation.
 | ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | [Access & Invites](features/access-and-invites.md)                  | Invite-link auth, sessions, external access toggle, owner-login CLI          |
 | [Agent-Built Apps](features/agent-apps.md)                          | Apps agents build and Bureau runs: registry, systemd supervision, app tokens |
+| [App chat view](features/app-chat.md) | Chat beside an isolated app, session recovery and draft boundaries |
 | [Conversation Branching](features/conversation-branching-design.md) | Edit past messages to fork conversations                                     |
 | [Cronjob System](features/cronjob-system-design.md)                 | Scheduled SDK sessions; per-run transcripts; Cronjobs page                   |
 | [Full Feature List](features/full-feature-list.md)                  | Consolidated operator-facing feature inventory                               |

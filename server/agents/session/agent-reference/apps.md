@@ -11,3 +11,5 @@ Register durable apps only when the boss wants something they will keep using.
 - `DELETE /api/apps/<name>` stops and retires the app name.
 
 Apps receive `BUREAU_APP_DATA_DIR` for persistent backed-up state and `BUREAU_APP_TOKEN` for server-side `POST /api/app/message` alerts back to your chat, and `POST /api/app/page` to page its owner directly (see the pager topic).
+
+Short office links open the app with a chat button for its assigned visible agent. The app hostname remains isolated; agents and app code never receive the viewer’s office credentials.

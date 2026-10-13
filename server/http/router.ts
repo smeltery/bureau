@@ -1,5 +1,6 @@
+import { handleAppChatRequest } from "../apps/chat-http.ts";
 import { auditHttpRequest, handleAuditRequest } from "../audit/http.ts";
-import { appShortRedirect } from "../apps/short-links.ts";
+import { appChatPage, shortAppName } from "../apps/chat-page.ts";
 import { appPublicUrl } from "../apps/domain.ts";
 import { handleExtensionRequest, handleBrowserSharingRequest } from "../browser-sharing/routes.ts";
 import type { Server } from "bun";
@@ -197,6 +198,9 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   const agentsResp = await handleAgentsRequest(req, url, httpAuth);
   if (agentsResp) return agentsResp;
 
+  const appChatResp = handleAppChatRequest(req, url, () => authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() }));
+  if (appChatResp) return appChatResp;
+
   const appsResp = await handleAppsRequest(req, url, httpAuth);
   if (appsResp) return appsResp;
 
@@ -310,12 +314,12 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   // Authenticate office pages before serving redirects or the SPA shell.
   const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() });
   if (auth.kind === "rejected") return auth.response;
-  const shortLink = appShortRedirect(
-    req,
-    (name) => appRegistry.get(name),
-    (app) => appPublicUrl(app.hostLabel, appHostDomain()),
-  );
-  const staticResp = shortLink ?? (await handleStaticRequest(req, url));
+  const appName = shortAppName(url.pathname);
+  const app = appName ? appRegistry.get(appName) : null;
+  const staticResp =
+    app && auth.kind === "ok" && (req.method === "GET" || req.method === "HEAD")
+      ? await appChatPage(req, app, auth.session, appPublicUrl(app.hostLabel, appHostDomain()))
+      : await handleStaticRequest(req, url);
   if (auth.kind === "ok") {
     for (const line of sessionCookieMigrationHeaders(readSessionCookies(req), auth.session)) {
       staticResp.headers.append("Set-Cookie", line);

@@ -128,6 +128,7 @@ export interface PendingCode {
   // swapped between the two hops, and is not a second value written into a
   // browser's history.
   returnPath: string;
+  officeReturnUrl?: string;
   expiresAt: number;
 }
 
@@ -142,6 +143,14 @@ interface AppSession {
 const pendingCodes = new Map<string, PendingCode>();
 const appSessions = new Map<string, AppSession>();
 
+export function appSessionExpiresAt(app: Pick<AppRecord, "hostLabel" | "hostGen">, officeSessionHash: string, now = Date.now()): number | null {
+  let deadline: number | null = null;
+  for (const row of appSessions.values()) {
+    if (row.label === app.hostLabel && row.hostGen === app.hostGen && row.officeSessionHash === officeSessionHash && row.expiresAt > now) deadline = Math.max(deadline ?? 0, row.expiresAt);
+  }
+  return deadline;
+}
+
 function pruneExpired<T extends { expiresAt: number }>(table: Map<string, T>, now: number): void {
   for (const [key, row] of table) {
     if (row.expiresAt <= now) table.delete(key);
@@ -153,7 +162,7 @@ function pruneExpired<T extends { expiresAt: number }>(table: Map<string, T>, no
 export type MintFailure = "rate_limited" | "no_capacity";
 
 export function mintAppCode(
-  input: { label: string; hostGen: number; appHost: string; officeSessionHash: string; returnPath: string },
+  input: { label: string; hostGen: number; appHost: string; officeSessionHash: string; returnPath: string; officeReturnUrl?: string },
   now: number = Date.now(),
 ): { code: string } | { error: MintFailure } {
   if (!mintLimiter.allow(input.officeSessionHash, now)) {

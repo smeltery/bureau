@@ -1,50 +1,28 @@
 import { expect, test } from "bun:test";
 import type { AppRecord } from "../../../shared/apps.ts";
-import { appShortRedirect, appShortUrl } from "../short-links.ts";
+import { appShortUrl } from "../short-links.ts";
+import { shortAppName, appChatStatus } from "../chat-page.ts";
+import type { SessionLookup } from "../../auth/auth.ts";
 
-const app = { name: "board", hostLabel: "board-g2" } as AppRecord;
+const app = { name: "board", hostLabel: "board-g2", hostGen: 2, userId: "alice" } as AppRecord;
 const publicUrl = "https://board-g2.apps.example/";
+const owner = { userId: "owner", role: "owner", sessionIdHash: "office-session" } as SessionLookup;
 
-test("short addresses keep queries and redirect to the issued origin", () => {
+test("short addresses name the office app shell and preserve the app generation", () => {
   expect(appShortUrl(app, publicUrl, "https://office.example")).toBe("https://office.example/board");
-  for (const method of ["GET", "HEAD"]) {
-    const response = appShortRedirect(
-      new Request("https://untrusted.example/board/?tab=2", { method }),
-      () => app,
-      () => publicUrl,
-    )!;
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(`${publicUrl}?tab=2`);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-  }
+  expect(shortAppName("/board/")).toBe("board");
+  expect(appChatStatus(app, owner, publicUrl)).toEqual({ name: "board", hostGen: 2, appUrl: publicUrl, agentId: null, sessionExpiresAt: null });
 });
 
-test("office routes, archived apps and offices without app domains keep their routing", () => {
+test("reserved paths and inaccessible, archived or unhosted apps are refused", () => {
   for (const name of ["tasks", "skills", "settings", "pager", "chat", "schedules", "api"]) {
+    expect(shortAppName(`/${name}`)).toBeNull();
     expect(appShortUrl({ ...app, name }, publicUrl, "https://office.example")).toBeUndefined();
-    expect(
-      appShortRedirect(
-        new Request(`https://office.example/${name}`),
-        () => ({ ...app, name }),
-        () => publicUrl,
-      ),
-    ).toBeNull();
   }
+  for (const path of ["/board/path", "/%62oard"]) expect(shortAppName(path)).toBeNull();
+  expect(appChatStatus(app, { ...owner, role: "member", userId: "bob" }, publicUrl)).toBeNull();
+  expect(appChatStatus({ ...app, archivedAt: 1 }, owner, publicUrl)).toBeNull();
+  expect(appChatStatus(app, owner, null)).toBeNull();
   expect(appShortUrl(app, null, "https://office.example")).toBeUndefined();
   expect(appShortUrl({ ...app, archivedAt: 1 }, publicUrl, "https://office.example")).toBeUndefined();
-  for (const path of ["/board/path", "/%62oard"])
-    expect(
-      appShortRedirect(
-        new Request(`https://office.example${path}`),
-        () => app,
-        () => publicUrl,
-      ),
-    ).toBeNull();
-  expect(
-    appShortRedirect(
-      new Request("https://office.example/board", { method: "POST" }),
-      () => app,
-      () => publicUrl,
-    ),
-  ).toBeNull();
 });
