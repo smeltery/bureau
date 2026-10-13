@@ -100,8 +100,9 @@ export function Footer() {
         </div>
         <div className="footer-bottom">
           <p>
-            © 2026 <a href={SITE.smeltery}>smeltery</a>. Source-available. See the{' '}
-            <a href={SITE.license}>BSL and MIT licensing terms</a>.
+            © 2026 <a href={SITE.smeltery}>smeltery</a>. Source-available under applicable BSL 1.1 terms.
+            Original smeltery contributions are MIT-licensed; this does not remove the combined distribution’s BSL obligations.{' '}
+            <a href={SITE.license}>Licensing details</a>.
             {' '}Based on <a href={SITE.upstream}>Isomux</a> by Nil Mamano.
             <span className="footer-sep" aria-hidden="true">
               ·
