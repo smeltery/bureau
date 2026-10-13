@@ -1,3 +1,6 @@
+import { Workflows } from './components/Workflows.tsx';
+import { Workspace } from './components/Workspace.tsx';
+import { Hosting } from './components/Hosting.tsx';
 import { Faq, Local } from './components/Details.tsx';
 import { Features } from './components/Features.tsx';
 import { Cta, Footer } from './components/Footer.tsx';
@@ -10,8 +13,11 @@ export function App() {
       <main id="main">
         <Hero />
         <HowItWorks />
+        <Workflows />
+        <Workspace />
         <Features />
         <Local />
+        <Hosting />
         <Faq />
         <Cta />
       </main>

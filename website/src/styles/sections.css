@@ -234,7 +234,18 @@ main,
   .feature-grid {
     grid-template-columns: 1fr;
   }
-  .site-header nav a:not(:last-child) {
-    display: none;
+  .site-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .site-header nav {
+    flex-wrap: wrap;
+    gap: 4px 20px;
+  }
+  .site-header nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
   }
 }

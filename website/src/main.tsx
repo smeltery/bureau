@@ -4,6 +4,8 @@ import { App } from './App.tsx';
 import './styles/base.css';
 import './styles/sections.css';
 import './styles/faq.css';
+import './styles/product-sections.css';
+import './styles/hosting.css';
 import './styles/footer.css';
 
 const root = document.getElementById('root');

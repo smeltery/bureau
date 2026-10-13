@@ -17,7 +17,9 @@ export function Header() {
       </a>
       <nav aria-label="Primary">
         <a href="#how">How it works</a>
-        <a href="#features">Features</a>
+        <a href="#workflows">Workflows</a>
+        <a href="#workspace">Workspace</a>
+        <a href="#hosting">Hosting</a>
         <a href="#faq">FAQ</a>
         <a className="nav-github" href={SITE.github} target="_blank" rel="noreferrer">
           <Logo icon={github} />
