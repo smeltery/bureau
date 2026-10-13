@@ -1,3 +1,4 @@
+import { OfficeRequestReader, OfficeResponseWriter, OfficeHttpError, type OfficeRequest } from "./connection/office-http.ts";
 import { randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
@@ -17,7 +18,8 @@ interface TurnBinding {
 
 interface ConnectionData {
   peer: PeerIdentity | null;
-  buffer: Buffer;
+  reader: OfficeRequestReader;
+  writer?: OfficeResponseWriter;
   handled: boolean;
 }
 
@@ -46,14 +48,13 @@ const HOST_PROCESS_READERS: OpenCodeAuthorityProcessReaders = {
   readProcessHop: (pid) => readProcessHop(pid),
 };
 
-const MAX_REQUEST_BYTES = 64 * 1024;
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const MAX_CALLS_PER_TURN = 32;
 const MAX_ANCESTRY_DEPTH = 32;
 const PROXY_TIMEOUT_MS = 30_000;
 const PORT = process.env.PORT || "4000";
 
-const ROUTES: ReadonlyArray<{ method: string; path: RegExp }> = [
+export const OFFICE_AGENT_ROUTES: ReadonlyArray<{ method: string; path: RegExp }> = [
   { method: "GET", path: /^\/api\/audit-log$/ },
   { method: "GET", path: /^\/api\/users\/[^/]+\/member-prompt$/ },
   { method: "PATCH", path: /^\/api\/users\/[^/]+\/member-prompt$/ },
@@ -65,6 +66,9 @@ const ROUTES: ReadonlyArray<{ method: string; path: RegExp }> = [
   { method: "GET", path: /^\/api\/agents$/ },
   { method: "GET", path: /^\/api\/tasks(?:\/[^/]+(?:\/history)?)?$/ },
   { method: "POST", path: /^\/api\/tasks$/ },
+  { method: "DELETE", path: /^\/api\/tasks\/[^/]+$/ },
+  { method: "PUT", path: /^\/api\/agents\/[^/]+\/topic$/ },
+  { method: "DELETE", path: /^\/api\/agents\/[^/]+\/topic$/ },
   { method: "PATCH", path: /^\/api\/tasks\/[^/]+$/ },
   { method: "POST", path: /^\/api\/tasks\/[^/]+\/(claim|done|restore)$/ },
   {
@@ -81,7 +85,7 @@ const ROUTES: ReadonlyArray<{ method: string; path: RegExp }> = [
     path: /^\/api\/agents\/[^/]+(?:\/queue\/[^/]+|\/scheduled-messages\/[^/]+)?$/,
   },
   { method: "POST", path: /^\/api\/agents$/ },
-  { method: "GET", path: /^\/api\/apps(?:\/[^/]+(?:\/(?:logs|thumbnail))?)?$/ },
+  { method: "GET", path: /^\/api\/apps(?:\/[^/]+(?:\/(?:logs|thumbnail|preview))?)?$/ },
   { method: "POST", path: /^\/api\/apps(?:\/[^/]+\/(restart|start|stop|archive|restore))?$/ },
   { method: "PATCH", path: /^\/api\/apps\/[^/]+$/ },
   { method: "PUT", path: /^\/api\/apps\/[^/]+\/thumbnail$/ },
@@ -174,41 +178,48 @@ export class OpenCodeAuthorityBroker {
       unix: this.socketPath,
       data: {
         peer: null,
-        buffer: Buffer.alloc(0),
+        reader: new OfficeRequestReader(),
         handled: false,
       },
       socket: {
         open: (socket) => {
+          socket.timeout(30);
           const fd = socketFileDescriptor(socket);
           socket.data = {
             peer: fd === null ? null : this.readPeer(fd),
-            buffer: Buffer.alloc(0),
+            reader: new OfficeRequestReader(),
             handled: false,
           };
         },
         data: (socket, chunk) => {
           if (socket.data.handled) return;
-          socket.data.buffer = Buffer.concat([socket.data.buffer, Buffer.from(chunk)]);
-          if (socket.data.buffer.length > MAX_REQUEST_BYTES) {
-            socket.data.handled = true;
-            socket.end(httpResponse(413, "OpenCode office request is too large."));
-            return;
-          }
-          let request: ParsedRequest | null;
+          const writer = (socket.data.writer ??= new OfficeResponseWriter(socket));
+          let request: OfficeRequest | null;
           try {
-            request = parseHttpRequest(socket.data.buffer);
-          } catch {
+            request = socket.data.reader.read(Buffer.from(chunk), (head) => {
+              const admission = this.admit(head, socket.data.peer);
+              if (Buffer.isBuffer(admission)) {
+                socket.data.handled = true;
+                writer.send(admission);
+                throw new Error("refused");
+              }
+              if (head.headers.get("expect")?.toLowerCase() === "100-continue") writer.send(Buffer.from("HTTP/1.1 100 Continue\r\n\r\n"), false);
+            });
+          } catch (error) {
+            if (socket.data.handled) return;
             socket.data.handled = true;
-            socket.end(httpResponse(400, "Invalid OpenCode office request."));
+            writer.send(httpResponse(error instanceof OfficeHttpError ? error.status : 400, error instanceof OfficeHttpError ? error.message : "Invalid OpenCode office request."));
             return;
           }
           if (!request) return;
           socket.data.handled = true;
           void this.proxy(request, socket.data.peer).then(
-            (response) => socket.end(response),
-            () => socket.end(httpResponse(502, "OpenCode office request failed.")),
+            (response) => writer.send(response),
+            () => writer.send(httpResponse(502, "OpenCode office request failed.")),
           );
         },
+        drain: (socket) => socket.data.writer?.drain(),
+        timeout: (socket) => socket.terminate(),
       },
     });
   }
@@ -220,7 +231,7 @@ export class OpenCodeAuthorityBroker {
     return hop ? { ...credentials, startTicks: hop.startTicks } : null;
   }
 
-  private async proxy(request: ParsedRequest, peer: PeerIdentity | null): Promise<Buffer> {
+  private admit(request: Omit<OfficeRequest, "body">, peer: PeerIdentity | null): TurnBinding | Buffer {
     const handle = request.headers.get("x-bureau-turn") ?? "";
     const turn = this.turns.get(handle);
     const ancestry = peer ? readVerifiedAncestry(peer, (pid) => this.readers.readProcessHop(pid)) : null;
@@ -230,25 +241,24 @@ export class OpenCodeAuthorityBroker {
     const serverHop = ancestry.find((hop) => hop.pid === turn.serverPid);
     if (!serverHop || serverHop.startTicks !== turn.serverStartTicks) return httpResponse(403, ancestryFailureMessage(ancestry));
     if (turn.calls >= MAX_CALLS_PER_TURN) return httpResponse(429, "OpenCode office call limit reached for this turn.");
-    if (!ROUTES.some((route) => route.method === request.method && route.path.test(request.url.pathname))) return httpResponse(403, "This Bureau API route is not available through OpenCode.");
+    if (!OFFICE_AGENT_ROUTES.some((route) => route.method === request.method && route.path.test(request.url.pathname)))
+      return httpResponse(403, "This Bureau API route is not available through OpenCode.");
+    return turn;
+  }
+
+  private async proxy(request: OfficeRequest, peer: PeerIdentity | null): Promise<Buffer> {
+    const turn = this.admit(request, peer);
+    if (Buffer.isBuffer(turn)) return turn;
     turn.calls += 1;
     const upstream = new URL(request.url.pathname, this.upstreamOrigin);
     for (const [name, value] of request.url.searchParams) upstream.searchParams.append(name, value);
-    let upstreamBody: string | undefined;
-    if (request.body.length) {
-      try {
-        upstreamBody = JSON.stringify(JSON.parse(request.body.toString("utf8")));
-      } catch {
-        return httpResponse(400, "OpenCode office request body must be JSON.");
-      }
-    }
     const response = await fetch(upstream, {
       method: request.method,
       headers: {
         authorization: `Bearer ${turn.token}`,
-        ...(upstreamBody ? { "content-type": "application/json" } : {}),
+        ...(request.body.length ? { "content-type": request.headers.get("content-type") ?? "application/octet-stream" } : {}),
       },
-      body: upstreamBody,
+      body: request.body.length ? Uint8Array.from(request.body).buffer : undefined,
       signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
     });
     const contentLength = response.headers.get("content-length");
@@ -260,41 +270,6 @@ export class OpenCodeAuthorityBroker {
     if (!body) return httpResponse(502, "OpenCode office response exceeded the size limit.");
     return httpResponse(response.status, scrubToken(body, turn.token), response.headers.get("content-type") ?? undefined);
   }
-}
-
-interface ParsedRequest {
-  method: string;
-  url: URL;
-  headers: Headers;
-  body: Buffer;
-}
-
-function parseHttpRequest(buffer: Buffer): ParsedRequest | null {
-  const headerEnd = buffer.indexOf("\r\n\r\n");
-  if (headerEnd < 0) return null;
-  const lines = buffer.subarray(0, headerEnd).toString("utf8").split("\r\n");
-  const match = /^(GET|POST|PATCH|PUT|DELETE) ([^ ]+) HTTP\/1\.[01]$/.exec(lines.shift() ?? "");
-  if (!match || /[\r\n]/.test(match[2])) throw new Error("Invalid proxy request.");
-  const headers = new Headers();
-  for (const line of lines) {
-    const colon = line.indexOf(":");
-    if (colon <= 0) throw new Error("Invalid proxy header.");
-    headers.append(line.slice(0, colon).trim(), line.slice(colon + 1).trim());
-  }
-  const lengthText = headers.get("content-length") ?? "0";
-  if (!/^\d+$/.test(lengthText)) throw new Error("Invalid content length.");
-  const length = Number(lengthText);
-  if (length > MAX_REQUEST_BYTES) throw new Error("Proxy body is too large.");
-  const bodyStart = headerEnd + 4;
-  if (buffer.length < bodyStart + length) return null;
-  const url = new URL(match[2], "http://bureau");
-  if (url.origin !== "http://bureau") throw new Error("Proxy host is fixed.");
-  return {
-    method: match[1],
-    url,
-    headers,
-    body: buffer.subarray(bodyStart, bodyStart + length),
-  };
 }
 
 function httpResponse(status: number, body: string | Buffer, contentType = "text/plain; charset=utf-8"): Buffer {

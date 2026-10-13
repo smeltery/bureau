@@ -71,3 +71,18 @@ Bureau does not replay a submitted prompt.
 Usage includes all billed steps, including compaction. Repeated updates of the
 same step replace its snapshot; per-turn charges are added once to both agent
 and schedule history. Other providers retain their cumulative-cost semantics.
+
+## Office API payloads
+
+The active-turn Unix broker preserves raw body bytes and the caller's content
+type, including PNG thumbnails. Request heads are limited to 64 KiB and bodies
+to 8 MiB; responses remain limited to 8 MiB. Route-specific limits still apply.
+Send Content-Length (curl supplies it for ordinary data/file bodies); chunked
+requests return 411. `Expect: 100-continue` is admitted only after the route and
+process identity checks. Partial response writes drain before the socket closes.
+
+Task deletion, agent topic updates and app previews use the same scoped HTTP
+routes as other backends. The broker retains explicit route admission because
+Bureau's loopback HTTP routes do not all accept agent authority. Browser-only
+uploads, app chat metadata, account settings and privilege changes remain
+unavailable through agent tokens; binary transport does not broaden access.
