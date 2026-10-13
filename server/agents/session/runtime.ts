@@ -1,6 +1,6 @@
 import { ensureSessionClaudeConfigDir, getSessionClaudeConfigDir, rollSessionUsageOnResume } from "../../persistence.ts";
 import { armMemoryNotice } from "../memory-notice.ts";
-import { clearLiveTurn, emit, officeConfig, rooms, syncPendingPrompt, type ManagedAgent } from "../state.ts";
+import { agents, clearLiveTurn, emit, officeConfig, rooms, syncPendingPrompt, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { memoryStore } from "../../memory-store.ts";
 import { claudeConfigRoot, validateCwd } from "./paths.ts";
@@ -160,10 +160,14 @@ export async function replaceSession(agentId: string, managed: ManagedAgent, new
     if (oldConsumer) {
       await waitForConsumerDrain(oldConsumer, consumerDrainTimeoutMs);
     }
+    if (agents.get(agentId) !== managed) {
+      newSession.close();
+      return;
+    }
     installSession(agentId, managed, newSession);
   } finally {
     managed.info = { ...managed.info, sessionSwapping: false };
-    emit({ type: "agent_updated", agentId, changes: { sessionSwapping: false } });
+    if (agents.get(agentId) === managed) emit({ type: "agent_updated", agentId, changes: { sessionSwapping: false } });
   }
 }
 
