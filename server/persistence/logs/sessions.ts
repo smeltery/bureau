@@ -50,6 +50,7 @@ export type SessionsMap = Record<
     forkedFrom?: string;
     forkMessageId?: string;
     usage?: PersistedUsage;
+    lastUsageId?: string;
     priorRunsUsage?: PersistedUsage;
     forkBaseUsage?: PersistedUsage;
     usageSnapshots?: UsageSnapshot[];

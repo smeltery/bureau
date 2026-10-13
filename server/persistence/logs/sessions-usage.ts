@@ -4,18 +4,19 @@ import { loadSessionsMap, saveSessionsMap, type PersistedUsage } from "./session
 // fields (per-turn from the SDK) are summed; cost (cumulative-per-process
 // from the SDK) overwrites. Returns the resulting cumulative so callers can
 // use it for downstream bookkeeping (e.g. snapshots).
-export function accumulateSessionUsage(agentId: string, sessionId: string, turnTokens: Omit<PersistedUsage, "costUSD">, runCostUSD: number): PersistedUsage {
+export function accumulateSessionUsage(agentId: string, sessionId: string, turnTokens: Omit<PersistedUsage, "costUSD">, runCostUSD: number, costMode?: "turn", usageId?: string): PersistedUsage {
   const map = loadSessionsMap(agentId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
   const prev = existing.usage;
+  if (usageId && existing.lastUsageId === usageId && prev) return prev;
   const next: PersistedUsage = {
     inputTokens: (prev?.inputTokens ?? 0) + turnTokens.inputTokens,
     outputTokens: (prev?.outputTokens ?? 0) + turnTokens.outputTokens,
     cacheReadInputTokens: (prev?.cacheReadInputTokens ?? 0) + turnTokens.cacheReadInputTokens,
     cacheCreationInputTokens: (prev?.cacheCreationInputTokens ?? 0) + turnTokens.cacheCreationInputTokens,
-    costUSD: runCostUSD,
+    costUSD: costMode === "turn" ? (prev?.costUSD ?? 0) + runCostUSD : runCostUSD,
   };
-  map[sessionId] = { ...existing, usage: next, lastModified: Date.now() };
+  map[sessionId] = { ...existing, usage: next, ...(usageId ? { lastUsageId: usageId } : {}), lastModified: Date.now() };
   saveSessionsMap(agentId, map);
   return next;
 }

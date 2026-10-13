@@ -17,12 +17,13 @@ function fixture(launchEnv?: Record<string, string | undefined>) {
     binary,
     `#!/usr/bin/env bun
 let slow = false;
-Bun.serve({ port: Number(process.argv[process.argv.indexOf("--port") + 1]), hostname: "127.0.0.1", async fetch(req) {
+const server = Bun.serve({ port: Number(process.argv[process.argv.indexOf("--port") + 1]), hostname: "127.0.0.1", async fetch(req) {
   if (new URL(req.url).pathname === "/slow") { slow = true; return Response.json({ ok: true }); }
   if (new URL(req.url).pathname === "/env") return Response.json({ agentToken: process.env.BUREAU_AGENT_TOKEN ?? null, appToken: process.env.BUREAU_APP_TOKEN ?? null, providerKey: process.env.OPENCODE_API_KEY, path: process.env.PATH, home: process.env.HOME });
   if (slow) await Bun.sleep(2500);
   return Response.json({ healthy: true });
 }});
+console.log("opencode server listening on http://127.0.0.1:" + server.port);
 `,
     { mode: 0o700 },
   );

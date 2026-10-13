@@ -1,6 +1,7 @@
 // One process per durable profile, leased by transports and idle-reaped.
 // Environment changes restart only between turns; legacy stores remain in place.
 
+import { waitForStartedServer } from "./connection/startup.ts";
 import { statSync } from "node:fs";
 import { previousProfileProcess, saveProfileProcess } from "./profiles/process-record.ts";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -17,7 +18,6 @@ import { modelCatalogFor, waitForCatalog } from "./connection/model-catalog.ts";
 
 export const OPENCODE_IDLE_SHUTDOWN_MS = 10 * 60 * 1000;
 const USERNAME = "bureau";
-const HEALTH_TIMEOUT_MS = 8_000;
 
 interface ServerRecord {
   pid: number;
@@ -198,37 +198,31 @@ export class OpenCodeSupervisor {
     await chmod(configPath, 0o600);
     const binary = this.binary ?? resolveOpenCodeBinary({ ...process.env, ...this.launchEnv });
     const password = randomBytes(32).toString("base64url");
-    let started: ServerRecord | null = null;
-    let lastError = "";
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const port = 22000 + Math.floor(Math.random() * 1000);
-      const child = spawn(binary, ["serve", "--hostname", "127.0.0.1", "--port", String(port)], {
-        cwd: this.profileDir,
-        detached: true,
-        stdio: ["ignore", "ignore", "pipe"],
-        env: this.childEnv(password, configPath),
-      });
-      child.unref();
-      let stderr = "";
-      child.stderr?.on("data", (chunk) => {
-        stderr += String(chunk);
-      });
-      if (child.pid && (await this.waitHealthy(port, password, child))) {
-        started = { pid: child.pid, port, password, startTicks: readProcessStartTicks(child.pid) ?? undefined };
-        this.child = child;
-        break;
-      }
-      if (child.pid) {
-        try {
-          process.kill(child.pid, "SIGTERM");
-        } catch {}
-      }
-      lastError = stderr.trim() || "health check failed";
-      if (!/EADDRINUSE|address already in use/i.test(stderr)) break;
+    const child = spawn(binary, ["serve", "--hostname", "127.0.0.1", "--port", "0"], {
+      cwd: this.profileDir,
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: this.childEnv(password, configPath),
+    });
+    child.unref();
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (chunk) => {
+      stdout = (stdout + String(chunk)).slice(-65536);
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr = (stderr + String(chunk)).slice(-8192);
+    });
+    child.on("error", (error) => {
+      stderr = error.message;
+    });
+    const port = await waitForStartedServer(child, () => stdout, password);
+    if (!child.pid || port === null) {
+      child.kill("SIGTERM");
+      throw new Error(`OpenCode server failed to start: ${stderr.trim() || "no healthy loopback listener within 60 seconds"}`);
     }
-    if (!started) {
-      throw new Error(`OpenCode server failed to start: ${lastError}`);
-    }
+    const started: ServerRecord = { pid: child.pid, port, password, startTicks: readProcessStartTicks(child.pid) ?? undefined };
+    this.child = child;
     this.record = started;
     try {
       saveProfileProcess(this.profileDir, started.pid, started.startTicks);
@@ -274,16 +268,6 @@ export class OpenCodeSupervisor {
       // its kernel process identity still matches the process we launched.
       return error instanceof Error && error.name === "TimeoutError" && processIdentityMatches(record.pid, record.startTicks);
     }
-  }
-
-  private async waitHealthy(port: number, password: string, child: ChildProcess): Promise<boolean> {
-    const deadline = Date.now() + HEALTH_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      if (child.exitCode !== null || !child.pid) return false;
-      if (await this.healthy({ pid: child.pid, port, password })) return true;
-      await Bun.sleep(50);
-    }
-    return false;
   }
 
   private revisionFor(env: Record<string, string | undefined>): string {

@@ -1,3 +1,4 @@
+import { OpenCodeTurnAccounting } from "./connection/turn-accounting.ts";
 // Thin HTTP + SSE client that maps OpenCode serve events onto Bureau
 // NormalizedEvent.
 //
@@ -8,7 +9,7 @@
 
 import { buildPromptParts } from "./connection/prompt.ts";
 import { modelCatalogFor, OpenCodeModelSelection } from "./connection/model-catalog.ts";
-import type { ApprovalDecision, AttachmentSpec, NormalizedEvent, NormalizedMessage, TokenUsage } from "../types.ts";
+import type { ApprovalDecision, AttachmentSpec, NormalizedEvent, NormalizedMessage } from "../types.ts";
 import { allowMessages, allowSession, parseAllowedEvent, splitModel, type OpenCodeContextBreakdown } from "./parse.ts";
 import type { OpenCodeLease, OpenCodeSupervisor } from "./supervisor.ts";
 import { applyOpenCodeEvent, type TrackedTool } from "./transport-events.ts";
@@ -225,7 +226,7 @@ export class OpenCodeTransport {
     const reasoningByPart = new Map<string, string>();
     const tools = new Map<string, TrackedTool>();
     const seenPermissions = new Set<string>();
-    let stepFinish: { usage?: TokenUsage; cost?: number } | null = null;
+    const accounting = new OpenCodeTurnAccounting();
     let settled = false;
     const settle = (event: NormalizedEvent): void => {
       if (settled) return;
@@ -234,7 +235,7 @@ export class OpenCodeTransport {
       this.pendingPermission = null;
       this.authorityBinding?.deactivate();
       this.lease?.endTurn();
-      sink(event);
+      sink(event.kind === "turn_completed" ? { ...event, ...accounting.totals(sessionId) } : event);
       this.abortController?.abort();
     };
     let buffer = "";
@@ -270,10 +271,7 @@ export class OpenCodeTransport {
               reasoningByPart,
               tools,
               seenPermissions,
-              setStepFinish: (v) => {
-                stepFinish = v;
-              },
-              getStepFinish: () => stepFinish,
+              accounting,
               onContext: (breakdown) => {
                 this.latestContext = breakdown;
               },
