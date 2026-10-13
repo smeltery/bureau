@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
+timeout_bin=$(command -v timeout || command -v gtimeout || true)
+if [[ -z "$timeout_bin" ]]; then echo "GNU timeout is required (install coreutils)." >&2; exit 1; fi
 work=$(mktemp -d "${TMPDIR:-/tmp}/bureau-install-k8s.XXXXXX")
 cluster="bureau-install-$RANDOM-$RANDOM"
 k3d_bin=${K3D_BIN:-k3d}
@@ -8,7 +10,7 @@ export KUBECONFIG="$work/kubeconfig"
 forward_pid=
 cleanup() {
   if [[ -n "$forward_pid" ]]; then kill "$forward_pid" 2>/dev/null || true; wait "$forward_pid" 2>/dev/null || true; fi
-  "$k3d_bin" cluster delete "$cluster" >/dev/null 2>&1 || true
+  "$timeout_bin" --kill-after=10s 120s "$k3d_bin" cluster delete "$cluster" >/dev/null 2>&1 || true
   rm -rf "$work"
 }
 trap cleanup EXIT
@@ -22,7 +24,13 @@ key="synthetic-$(openssl rand -hex 16)"
 kubectl -n bureau create secret generic bureau-setup --from-literal="BUREAU_SETUP_KEY=$key"
 kubectl apply -k deploy/install-verify/kubernetes
 kubectl -n bureau-node-setup rollout status daemonset/bureau-seccomp-installer --timeout=180s
-kubectl -n bureau wait --for=jsonpath='{.status.phase}'=Running pod -l app.kubernetes.io/name=bureau --timeout=180s
+# Running only means the container started; forwarding before the HTTP listener
+# is ready can permanently close the tunnel on the first connection.
+if ! kubectl -n bureau wait --for=condition=Ready pod -l app.kubernetes.io/name=bureau --timeout=300s; then
+  kubectl -n bureau describe pod -l app.kubernetes.io/name=bureau
+  kubectl -n bureau logs deployment/bureau --tail=100
+  exit 1
+fi
 kubectl -n bureau port-forward --address=127.0.0.1 deployment/bureau :10000 > "$work/forward.log" 2>&1 &
 forward_pid=$!
 for _ in $(seq 1 100); do
@@ -33,6 +41,7 @@ done
 port=$(sed -n 's/.*127\.0\.0\.1:\([0-9]*\).*/\1/p' "$work/forward.log" | head -n 1)
 if [[ -z "$port" ]]; then cat "$work/forward.log"; exit 1; fi
 if ! BUREAU_VERIFY_URL="http://127.0.0.1:$port" BUREAU_VERIFY_SETUP_KEY="$key" bun deploy/install-verify/remote.ts; then
+  cat "$work/forward.log"
   kubectl -n bureau logs deployment/bureau --tail=100
   exit 1
 fi
