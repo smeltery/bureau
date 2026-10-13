@@ -6,7 +6,7 @@ import { serializeEntries } from "./entries/index.tsx";
 import { Header } from "./Header.tsx";
 import { InputBar } from "./InputBar.tsx";
 import { QueueChips } from "./QueueChips.tsx";
-import { useViewportHeight } from "./hooks/useViewportHeight.ts";
+import { useViewportHeight, logViewFrameStyle } from "./hooks/useViewportHeight.ts";
 import { useAutoScroll } from "./hooks/useAutoScroll.ts";
 import { usePinnedUserMessage } from "./hooks/usePinnedUserMessage.ts";
 import { useSlashAutocomplete } from "./hooks/useSlashAutocomplete.ts";
@@ -41,6 +41,7 @@ export function LogView({
   onOpenTask,
   onSwipeLeft,
   onSwipeRight,
+  embedded = false,
 }: {
   agent: AgentInfo;
   logs: LogEntry[];
@@ -51,6 +52,7 @@ export function LogView({
   onOpenTask?: (id: string) => void;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
+  embedded?: boolean;
 }) {
   const logs = useMemo(() => coalesceCodexDiagnostics(rawLogs), [rawLogs]);
   const { agents, drafts, slashCommands, stateChangedAt, isMobile, connected, tasks, office } = useAppState();
@@ -220,18 +222,7 @@ export function LogView({
   return (
     <div
       style={{
-        ...(isMobile
-          ? {
-              position: "fixed" as const,
-              top: 0,
-              left: 0,
-              right: 0,
-              height: vpHeight != null ? vpHeight : "calc(100dvh - var(--banner-h, 0px))",
-              overflow: "hidden",
-            }
-          : {
-              height: "calc(100vh - var(--banner-h, 0px))",
-            }),
+        ...logViewFrameStyle(isMobile, vpHeight, embedded),
         display: "flex",
         flexDirection: "row",
         background: "var(--bg-base)",

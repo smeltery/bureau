@@ -107,6 +107,17 @@ beforeEach(() => {
 });
 
 describe("the office mint route", () => {
+  it("returns widget sign-ins to the trusted office and preserves query parameters", () => {
+    const minted = mintReq(`?app=${LABEL}&r=%2F%3Ftab%3D1&widget=1`);
+    const callback = minted.headers.get("location")!;
+    const redeemed = handleAppAuthRedeem(new Request(callback), { host: HOST, app: record() });
+    expect(redeemed.status).toBe(302);
+    expect(redeemed.headers.get("location")).toBe(`${buildPublicOrigin().origin}/${LABEL}?tab=1`);
+    expect(redeemed.headers.getSetCookie().join(";")).toContain(APP_COOKIE_NAME);
+    expect(mintReq(`?app=${LABEL}&widget=https://evil.example`).status).toBe(400);
+    expect(mintReq(`?app=${LABEL}&widget=1&widget=1`).status).toBe(400);
+  });
+
   it("mints a code and redirects to the app host, carrying the code and nothing else", () => {
     const res = mintReq(`?app=${LABEL}&r=%2Fdashboard%3Ftab%3D1`);
     expect(res.status).toBe(302);

@@ -1,3 +1,4 @@
+import { appFrameNeedsSession } from "./framing.ts";
 // The sign-in handshake for registered-app hostnames.
 //
 // Consumed by server/apps/host/dispatch.ts for the app-host side
@@ -50,7 +51,7 @@ export { APP_AUTH_PATH, APP_COOKIE_NAME, APP_MINT_PATH, APP_RESERVED_PATH, appCo
 export { mayInitiateHandshake, mayReachApp, validateReturnPath, type AppViewer } from "./auth-permit.ts";
 export { validateAppSession } from "./auth-store.ts";
 
-function viewerForApp(app: Pick<AppRecord, "userId" | "createdByAgentId">, session: Pick<SessionLookup, "userId" | "role">): AppViewer {
+export function viewerForApp(app: Pick<AppRecord, "userId" | "createdByAgentId">, session: Pick<SessionLookup, "userId" | "role">): AppViewer {
   if (session.role === "owner") return { userId: session.userId, role: session.role };
   const creator = app.createdByAgentId ? AgentManager.getAgent(app.createdByAgentId) : undefined;
   const roomId = creator ? (AgentManager.getRooms()[creator.room]?.id ?? creator.roomId) : undefined;
@@ -107,6 +108,8 @@ export function handleAppMintRequest(req: Request, url: URL, session: SessionLoo
 
   const labelParam = singleParam(url, "app");
   const rParam = singleParam(url, "r");
+  const widget = singleParam(url, "widget");
+  if (widget !== null && widget !== "1") return handshake(400, BAD_REQUEST_BODY);
   if (labelParam === undefined || rParam === undefined) {
     return handshake(400, BAD_REQUEST_BODY);
   }
@@ -128,7 +131,17 @@ export function handleAppMintRequest(req: Request, url: URL, session: SessionLoo
   // Built from the registry's own label and the boot-frozen domain — never from a
   // request value — so there is nothing here to point elsewhere.
   const appHost = `${app.hostLabel}.${opts.appHostDomain}`;
-  const minted = mintAppCode({ label: app.hostLabel, hostGen: app.hostGen, appHost, officeSessionHash: session.sessionIdHash, returnPath }, opts.now);
+  const minted = mintAppCode(
+    {
+      label: app.hostLabel,
+      hostGen: app.hostGen,
+      appHost,
+      officeSessionHash: session.sessionIdHash,
+      returnPath,
+      ...(widget === "1" ? { officeReturnUrl: new URL(`/${app.name}${new URL(returnPath, "https://app.invalid").search}`, buildPublicOrigin().origin).href } : {}),
+    },
+    opts.now,
+  );
   if ("error" in minted) return handshake(429, MINT_LIMITED_BODY);
 
   // The `__Host-` office-cookie migration rides this response like it rides a
@@ -184,7 +197,7 @@ export function handleAppAuthRedeem(req: Request, ctx: AppHostContext): Response
   const started = startAppSession({ label: ctx.app.hostLabel, hostGen: ctx.app.hostGen, officeSessionHash: record.officeSessionHash, absoluteExpiresAt: office.absoluteExpiresAt }, now);
   if (started === null) return handshake(400, SIGN_IN_FAILED_BODY);
 
-  return handshakeRedirect(record.returnPath, [appCookieLine(started.token, started.maxAgeSec)]);
+  return handshakeRedirect(record.officeReturnUrl ?? record.returnPath, [appCookieLine(started.token, started.maxAgeSec)]);
 }
 
 function holdsLiveAppSession(req: Request, ctx: AppHostContext): boolean {
@@ -227,6 +240,7 @@ export function appHostAuthGate(req: Request, ctx: AppHostContext): Response | n
   // revoked, no longer permitted, another app's, or empty). Absent -> nothing to
   // clear.
   const clear = rawCookie === null ? [] : [appCookieClearLine()];
+  if (req.method === "GET" && req.headers.get("sec-fetch-dest") === "iframe") return appFrameNeedsSession();
   if (!mayInitiateHandshake(req)) {
     return handshake(401, AUTH_REQUIRED_BODY, clear.length > 0 ? { "Set-Cookie": clear[0] } : undefined);
   }

@@ -82,6 +82,8 @@ export type NormalizedEvent =
       status: "completed" | "interrupted" | "failed";
       usage?: TokenUsage;
       cost?: number;
+      costMode?: "turn";
+      usageId?: string;
       error?: string;
       causedByAuth?: boolean;
       causedByProviderCapacity?: boolean;

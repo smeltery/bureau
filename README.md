@@ -84,7 +84,7 @@ bureau/
 
 Signed [inbound webhooks](docs/features/inbound-webhooks.md) can queue agent work or
 start room-scoped schedules. The [Chrome extension](docs/features/browser-sharing.md)
-shares explicitly offered tabs with selected agents, including bounded file uploads. Owners can review a filterable audit log of office changes. Tasks retain per-change history and support owner recovery after deletion. Privileged agents can edit versioned member instructions. Apps supports short links, agent handoffs, thumbnails and
+shares explicitly offered tabs with selected agents, including bounded file uploads. Owners can review a filterable audit log of office changes. Tasks retain per-change history and support owner recovery after deletion. Privileged agents can edit versioned member instructions. Apps supports short links with an agent chat view, agent handoffs, thumbnails and
 reversible archive, and room tabs support personal ordering and tucked rooms.
 
 ## License

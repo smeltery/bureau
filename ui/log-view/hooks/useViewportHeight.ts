@@ -29,3 +29,8 @@ export function useViewportHeight(isMobile: boolean, scrollRef: React.RefObject<
   }, [isMobile]);
   return vpHeight;
 }
+
+export function logViewFrameStyle(isMobile: boolean, height: number | null, embedded: boolean): import("react").CSSProperties {
+  if (embedded) return { height: "100%", minHeight: 0, overflow: "hidden" };
+  return isMobile ? { position: "fixed", top: 0, left: 0, right: 0, height: height ?? "calc(100dvh - var(--banner-h, 0px))", overflow: "hidden" } : { height: "calc(100vh - var(--banner-h, 0px))" };
+}

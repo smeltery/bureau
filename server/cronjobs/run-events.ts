@@ -85,7 +85,7 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
       break;
     case "turn_completed": {
       if (active.sessionId && ev.usage) {
-        const cumulative = accumulateRunSessionUsage(active.jobId, active.runId, active.sessionId, ev.usage, ev.cost ?? 0);
+        const cumulative = accumulateRunSessionUsage(active.jobId, active.runId, active.sessionId, ev.usage, ev.cost ?? 0, ev.costMode, ev.usageId);
         if (active.lastWrittenEntryId) {
           appendRunSessionUsageSnapshot(active.jobId, active.runId, active.sessionId, active.lastWrittenEntryId, cumulative);
         }

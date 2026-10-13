@@ -36,6 +36,7 @@ type RunSessionsMap = Record<
     forkMessageId?: string;
     claudeConfigDir?: string;
     usage?: PersistedUsage;
+    lastUsageId?: string;
     priorRunsUsage?: PersistedUsage;
     forkBaseUsage?: PersistedUsage;
     usageSnapshots?: UsageSnapshot[];
@@ -150,18 +151,27 @@ export function rollRunSessionUsageOnResume(jobId: string, runId: string, sessio
   saveRunSessionsMap(jobId, runId, map);
 }
 
-export function accumulateRunSessionUsage(jobId: string, runId: string, sessionId: string, turnTokens: Omit<PersistedUsage, "costUSD">, runCostUSD: number): PersistedUsage {
+export function accumulateRunSessionUsage(
+  jobId: string,
+  runId: string,
+  sessionId: string,
+  turnTokens: Omit<PersistedUsage, "costUSD">,
+  runCostUSD: number,
+  costMode?: "turn",
+  usageId?: string,
+): PersistedUsage {
   const map = loadRunSessionsMap(jobId, runId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
   const prev = existing.usage;
+  if (usageId && existing.lastUsageId === usageId && prev) return prev;
   const next: PersistedUsage = {
     inputTokens: (prev?.inputTokens ?? 0) + turnTokens.inputTokens,
     outputTokens: (prev?.outputTokens ?? 0) + turnTokens.outputTokens,
     cacheReadInputTokens: (prev?.cacheReadInputTokens ?? 0) + turnTokens.cacheReadInputTokens,
     cacheCreationInputTokens: (prev?.cacheCreationInputTokens ?? 0) + turnTokens.cacheCreationInputTokens,
-    costUSD: runCostUSD,
+    costUSD: costMode === "turn" ? (prev?.costUSD ?? 0) + runCostUSD : runCostUSD,
   };
-  map[sessionId] = { ...existing, usage: next, lastModified: Date.now() };
+  map[sessionId] = { ...existing, usage: next, ...(usageId ? { lastUsageId: usageId } : {}), lastModified: Date.now() };
   saveRunSessionsMap(jobId, runId, map);
   return next;
 }

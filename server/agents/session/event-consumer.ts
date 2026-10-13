@@ -220,7 +220,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       const managed = agents.get(agentId);
       if (managed && ev.status === "completed") drainToolBoundaryClaim(agentId, managed);
       if (managed?.sessionId && ev.usage) {
-        const cumulative = accumulateSessionUsage(agentId, managed.sessionId, ev.usage, ev.cost ?? 0);
+        const cumulative = accumulateSessionUsage(agentId, managed.sessionId, ev.usage, ev.cost ?? 0, ev.costMode, ev.usageId);
         if (managed.lastWrittenEntryId) appendSessionUsageSnapshot(agentId, managed.sessionId, managed.lastWrittenEntryId, cumulative);
       }
       if (managed && ev.status !== "completed") {

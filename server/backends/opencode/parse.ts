@@ -29,7 +29,7 @@ export interface SafeOpenCodeError {
 }
 
 export type AllowedEvent =
-  | { kind: "assistant"; sessionId: string; messageId: string }
+  | { kind: "assistant"; sessionId: string; messageId: string; summary?: boolean }
   | { kind: "text"; sessionId: string; messageId: string; partId: string; text: string }
   | { kind: "reasoning"; sessionId: string; messageId: string; partId: string; text: string; durationMs?: number }
   | {
@@ -49,11 +49,14 @@ export type AllowedEvent =
   | { kind: "permission_fault"; sessionId: string }
   | {
       kind: "step_finish";
+      partId: string;
+      messageId?: string;
       sessionId: string;
       usage?: TokenUsage;
       contextBreakdown?: OpenCodeContextBreakdown;
       cost?: number;
     }
+  | { kind: "retry"; sessionId: string; attempt: number; message: string }
   | { kind: "idle"; sessionId: string }
   | { kind: "error"; sessionId: string; error: SafeOpenCodeError };
 
@@ -162,8 +165,12 @@ export function parseAllowedEvent(data: string): AllowedEvent | null {
   }
   const type = raw.type;
   const properties = asRecord(raw.properties);
-  const sessionId = stringField(properties, "sessionID");
+  const sessionId = stringField(properties, "sessionID") ?? stringField(asRecord(properties.info), "sessionID") ?? stringField(asRecord(properties.part), "sessionID");
   if (!sessionId) return null;
+  if (type === "session.status") {
+    const status = asRecord(properties.status);
+    if (status.type === "retry") return { kind: "retry", sessionId, attempt: numberField(status, "attempt") ?? 1, message: stringField(status, "message") ?? "" };
+  }
   if (type === "session.idle") return { kind: "idle", sessionId };
   if (type === "session.error") return { kind: "error", sessionId, error: allowError(properties.error) };
   if (type === "permission.asked") {
@@ -174,7 +181,7 @@ export function parseAllowedEvent(data: string): AllowedEvent | null {
   if (type === "message.updated") {
     const info = asRecord(properties.info);
     const messageId = stringField(info, "id");
-    if (info.role === "assistant" && messageId) return { kind: "assistant", sessionId, messageId };
+    if (info.role === "assistant" && messageId) return { kind: "assistant", sessionId, messageId, ...(info.summary === true ? { summary: true } : {}) };
   }
   if (type === "message.part.updated") return parsePartUpdated(sessionId, asRecord(properties.part));
   return null;
@@ -256,6 +263,8 @@ function parsePartUpdated(sessionId: string, part: Record<string, unknown>): All
     return {
       kind: "step_finish",
       sessionId,
+      partId,
+      ...(messageId ? { messageId } : {}),
       ...(usage ? { usage } : {}),
       ...(contextBreakdown ? { contextBreakdown } : {}),
       ...(cost !== null ? { cost } : {}),

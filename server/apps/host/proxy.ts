@@ -1,3 +1,4 @@
+import { allowOfficeFrame } from "./framing.ts";
 // The HTTP relay behind app hostnames.
 //
 // A request whose Host is a strict child of the office host is diverted before
@@ -219,6 +220,8 @@ export async function relayToApp(req: Request, ctx: RelayContext): Promise<Respo
       // cache validation with a length of a body that was never sent.
       rewriteEncoding: !bodyless,
     });
+
+    allowOfficeFrame(headers);
 
     if (bodyless) {
       // Cancel rather than leave a body half-read holding the connection.

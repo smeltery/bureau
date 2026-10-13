@@ -1,5 +1,6 @@
-import type { NormalizedEvent, TokenUsage } from "../types.ts";
-import { OPENCODE_AUTH_FAILURE } from "./config.ts";
+import type { NormalizedEvent } from "../types.ts";
+import { providerFailure } from "./connection/failures.ts";
+import type { OpenCodeTurnAccounting } from "./connection/turn-accounting.ts";
 import type { AllowedEvent, SafeOpenCodeError } from "./parse.ts";
 
 export interface TrackedTool {
@@ -13,8 +14,7 @@ export interface TrackedTool {
 export type EventSink = (event: NormalizedEvent) => void;
 
 export function classifyFailure(error: SafeOpenCodeError): string {
-  if (error.statusCode === 401 || error.statusCode === 403) return OPENCODE_AUTH_FAILURE;
-  return "OpenCode reported a provider or transport error.";
+  return providerFailure(error);
 }
 
 export function toolUpdateEvents(
@@ -75,12 +75,17 @@ export function applyOpenCodeEvent(
     reasoningByPart: Map<string, string>;
     tools: Map<string, TrackedTool>;
     seenPermissions: Set<string>;
-    setStepFinish: (v: { usage?: TokenUsage; cost?: number } | null) => void;
-    getStepFinish: () => { usage?: TokenUsage; cost?: number } | null;
+    accounting: OpenCodeTurnAccounting;
     onContext: (breakdown: NonNullable<Extract<AllowedEvent, { kind: "step_finish" }>["contextBreakdown"]>) => void;
   },
 ): void {
-  if (event.kind === "assistant") ctx.assistantMessages.add(event.messageId);
+  if (event.kind === "assistant") {
+    if (event.summary) {
+      ctx.accounting.summaries.add(event.messageId);
+      ctx.assistantMessages.delete(event.messageId);
+    } else ctx.assistantMessages.add(event.messageId);
+  }
+  if (event.kind === "retry") ctx.sink({ kind: "system_text", text: `${providerFailure({ message: event.message })} OpenCode retry ${event.attempt}.`, bureauAuthored: true });
   if (event.kind === "text" && ctx.assistantMessages.has(event.messageId)) {
     const prior = ctx.textByPart.get(event.partId) ?? "";
     if (event.text.startsWith(prior)) {
@@ -128,27 +133,27 @@ export function applyOpenCodeEvent(
     ctx.settle({ kind: "turn_completed", status: "failed", error: msg });
   }
   if (event.kind === "step_finish") {
-    ctx.setStepFinish({ usage: event.usage, cost: event.cost });
-    if (event.contextBreakdown) ctx.onContext(event.contextBreakdown);
+    if (ctx.accounting.record(event) && event.contextBreakdown) ctx.onContext(event.contextBreakdown);
   }
   if (event.kind === "idle") {
     if (ctx.abortRequested) {
       for (const result of interruptedToolResults(ctx.tools.values())) ctx.sink(result);
       ctx.settle({ kind: "turn_completed", status: "interrupted" });
-    } else if (ctx.getStepFinish()) {
-      const finish = ctx.getStepFinish()!;
-      ctx.settle({
-        kind: "turn_completed",
-        status: "completed",
-        ...(finish.usage ? { usage: finish.usage } : {}),
-        ...(finish.cost !== undefined ? { cost: finish.cost } : {}),
-      });
+    } else if (ctx.accounting.overflowPending) {
+      ctx.settle({ kind: "turn_completed", status: "failed", error: providerFailure({ name: "ContextOverflowError" }) });
+    } else if (ctx.accounting.completed) {
+      ctx.settle({ kind: "turn_completed", status: "completed" });
     } else {
       ctx.settle({ kind: "turn_completed", status: "failed", error: "OpenCode became idle without a recorded completion." });
     }
   }
   if (event.kind === "error") {
     if (ctx.abortRequested) return;
+    if (event.error.name === "ContextOverflowError") {
+      ctx.accounting.overflowPending = true;
+      ctx.sink({ kind: "system_text", text: "OpenCode is compacting the conversation to fit the model.", bureauAuthored: true });
+      return;
+    }
     ctx.settle({
       kind: "turn_completed",
       status: "failed",

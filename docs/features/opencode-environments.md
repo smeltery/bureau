@@ -55,3 +55,19 @@ Validation covers profile separation, credential rotation, retained legacy
 history, restart/fork bindings, corrupt records, stale leases, active-turn
 protection, scoped login commands and process recovery. Tests use isolated
 profiles and local fake providers; they do not spend provider credits.
+
+## Startup and turn reporting
+
+The OS assigns each server's loopback port. Bureau waits up to 60 seconds for
+its announced listener to become healthy, accommodating cold starts under load.
+Existing active turns still prevent process replacement.
+
+Provider retries appear in the conversation with a classified cause, without
+copying raw provider responses or credentials. Context-overflow compaction stays
+inside the original turn; its internal summary is not shown as an answer. Stop
+remains available and the event-stream deadline still detects lost connections.
+Bureau does not replay a submitted prompt.
+
+Usage includes all billed steps, including compaction. Repeated updates of the
+same step replace its snapshot; per-turn charges are added once to both agent
+and schedule history. Other providers retain their cumulative-cost semantics.
