@@ -1,4 +1,3 @@
-import type { SkillInfo } from "../../../shared/types.ts";
 import { addLogEntry, updateState, type ManagedAgent } from "../state.ts";
 
 const DOCS_URL = "https://github.com/smeltery/bureau/tree/master/docs";
@@ -38,19 +37,11 @@ function formatAliasGroup(names: string[], description?: string): string {
   return description ? `  ${head} — ${description}` : `  ${head}`;
 }
 
-function skillSection(lines: string[], label: string, skills: SkillInfo[]): void {
-  if (skills.length === 0) return;
-  const skillLines = groupByAlias(skills.map((s) => ({ name: s.name, description: s.description, aliasFor: s.aliasFor })))
-    .map((g) => formatAliasGroup(g.names, g.description))
-    .join("\n");
-  lines.push(`\n## ${label}\n${skillLines}`);
-}
-
 export async function handleHelpCommand(agentId: string, managed: ManagedAgent, rawText: string, username?: string): Promise<boolean> {
   const userMeta = username ? { username } : undefined;
   addLogEntry(agentId, "user_message", rawText, userMeta);
 
-  // Docs + a few short tips lead. Full command/skill inventories follow.
+  // Docs + a few short tips lead. The command inventory and skills link follow.
   // Phone/device and invite sprawl belong in the docs, not this pane.
   const lines: string[] = [
     `**Docs:** ${DOCS_URL}`,
@@ -67,17 +58,7 @@ export async function handleHelpCommand(agentId: string, managed: ManagedAgent, 
   const cmdList = cmdGroups.map((g) => formatAliasGroup(g.names, g.description)).join("\n");
   lines.push(`\n## Commands you can type\n${cmdList}`);
 
-  // Two sections: skills Bureau ships, and everything else the reader brought.
-  skillSection(
-    lines,
-    "Bureau Skills",
-    managed.skills.filter((s) => s.origin === "bureau"),
-  );
-  skillSection(
-    lines,
-    "User Skills",
-    managed.skills.filter((s) => s.origin !== "bureau"),
-  );
+  lines.push("\n[Skills library](/skills) — browse and manage available skills.");
 
   // Compact card header in the transcript; full body rides in metadata so it
   // stays out of the model context and doesn't clobber the chat.

@@ -1,5 +1,5 @@
 import type { AgentInfo, PendingPromptKind } from "../../shared/types.ts";
-import { familyDisplayLabel } from "../../shared/types.ts";
+import { agentModelLabel } from "../../shared/types.ts";
 import { useAppState } from "../store.tsx";
 import { StatusLight } from "../office/scene/StatusLight.tsx";
 import { HeaderTimer, PENDING_PROMPT_LABEL, STATE_LABELS } from "./StateIndicators.tsx";
@@ -132,7 +132,7 @@ export function Header({
         </span>
         <span style={{ color: "var(--text-ghost)", flexShrink: 0 }}>&middot;</span>
         <span
-          title={familyDisplayLabel(agent.modelFamily, agent.claudeModelOverrides)}
+          title={agentModelLabel(agent.agentType, agent.modelFamily, agent.claudeModelOverrides)}
           style={{
             fontFamily: "'JetBrains Mono',monospace",
             color: "var(--text-ghost)",
@@ -145,7 +145,7 @@ export function Header({
             textOverflow: "ellipsis",
           }}
         >
-          {familyDisplayLabel(agent.modelFamily, agent.claudeModelOverrides)}
+          {agentModelLabel(agent.agentType, agent.modelFamily, agent.claudeModelOverrides)}
         </span>
         <SubscriptionPill
           // Remount on agent/engine change so the pinned-limit state is

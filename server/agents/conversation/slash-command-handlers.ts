@@ -1,5 +1,5 @@
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
-import { familyDisplayLabel } from "../../../shared/types.ts";
+import { agentModelLabel } from "../../../shared/types.ts";
 import { getBackupStatus } from "../../backup.ts";
 import { listAgentSessions } from "../../persistence.ts";
 import { BUREAU_DIR } from "../../persistence/paths.ts";
@@ -259,7 +259,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
 
       for (const a of roomAgents) {
         const selfTag = a.info.id === agentId ? "  **(me)**" : "";
-        const modelLabel = familyDisplayLabel(a.info.modelFamily, a.info.claudeModelOverrides);
+        const modelLabel = agentModelLabel(a.info.agentType, a.info.modelFamily, a.info.claudeModelOverrides);
         const topic = a.info.topic;
         const hasTopic = topic && topic !== "...";
         const header = `**${a.info.name}** (desk ${a.info.desk + 1})${selfTag} — ${modelLabel} — \`${a.info.cwd}\``;

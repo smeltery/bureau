@@ -3,11 +3,11 @@ import type { AuthResult } from "../auth/auth-middleware.ts";
 import { getUserById } from "../users.ts";
 import { getPublicOrigin } from "../public-origin.ts";
 import { boundedBody, parseHookInput, selectWebhookData } from "./protocol.ts";
-import { deleteWebhook, listDeliveries, listWebhooks, rotateWebhookSecret, saveWebhook } from "./store.ts";
+import { deleteWebhook, listDeliveries, listWebhooks, rotateWebhookSecret, saveWebhook, webhookSecret } from "./store.ts";
 import { canUseWebhookTarget } from "./targets.ts";
 
 export async function handleWebhookManagement(req: Request, url: URL, auth?: AuthResult): Promise<Response | null> {
-  const match = /^\/api\/webhooks(?:\/([a-f0-9]{32})(?:\/(deliveries|test|rotate))?)?$/.exec(url.pathname);
+  const match = /^\/api\/webhooks(?:\/([a-f0-9]{32})(?:\/(deliveries|test|rotate|secret))?)?$/.exec(url.pathname);
   if (!match) return null;
   const user = auth?.kind === "ok" ? getUserById(auth.session.userId) : null;
   if (!user) return Response.json({ error: "browser session required" }, { status: 401 });
@@ -17,6 +17,12 @@ export async function handleWebhookManagement(req: Request, url: URL, auth?: Aut
   const visible = (row: (typeof hooks)[number]) => user.role === "owner" || canUseWebhookTarget(user, row.target, false);
   if (id && (!hook || !visible(hook))) return Response.json({ error: "not found" }, { status: 404 });
   const link = (hookId: string) => `${getPublicOrigin().replace(/\/$/, "")}/hooks/github/${hookId}`;
+  if (action === "secret") {
+    if (req.method !== "GET") return new Response(null, { status: 405 });
+    if (user.role !== "owner" && hook?.userId !== user.id) return Response.json({ error: "owner access required" }, { status: 403 });
+    const secret = webhookSecret(id);
+    return Response.json(secret ? { secret } : { error: "not found" }, { status: secret ? 200 : 404, headers: { "Cache-Control": "no-store" } });
+  }
   if (req.method === "GET") {
     if (action === "deliveries") return Response.json(listDeliveries(id));
     if (id) return Response.json({ ...hook, url: link(id) });

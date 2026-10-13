@@ -1,3 +1,5 @@
+import { isPythonDisplayFilter, unwrapCurlFunction } from "./curl-wrapper.ts";
+
 const LOCAL_BUREAU_URL_RE = /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1)(?::\d+)?\/[^\s'"\\)]+/g;
 
 const BODY_FLAG_RE = /(?:^|\s)(?:--data(?:-raw|-binary)?|-d)\s+(["'])([\s\S]*?)\1/;
@@ -53,6 +55,9 @@ const fieldOrder = ["action", "path", "url", "name", "command", "text", "steer",
 const displayFilterCommands = new Set(["jq", "grep", "rg", "sed", "sort", "uniq", "head", "tail", "cut", "tr", "wc", "column"]);
 
 export function summarizeBureauCurl(command: string): string | null {
+  const unwrapped = unwrapCurlFunction(command);
+  if (unwrapped === null) return null;
+  command = unwrapped;
   if (!/\bcurl\b/.test(command)) return null;
   const url = extractLocalBureauUrl(command);
   if (!url) return null;
@@ -114,7 +119,7 @@ function extractDirectHeredocBody(command: string): string | null {
 function extractPipeTail(command: string, start: number): string | null {
   let quote: "'" | '"' | null = null;
   let escaped = false;
-  for (let index = start; index < command.length; index++) {
+  for (let index = 0; index < command.length; index++) {
     const ch = command[index]!;
     if (escaped) {
       escaped = false;
@@ -132,7 +137,7 @@ function extractPipeTail(command: string, start: number): string | null {
       quote = null;
       continue;
     }
-    if (ch === "|" && quote === null) return command.slice(index).trim();
+    if (ch === "|" && quote === null && index >= start) return command.slice(index).trim();
   }
   return null;
 }
@@ -140,11 +145,9 @@ function extractPipeTail(command: string, start: number): string | null {
 function isSafeDisplayPipeTail(tail: string): boolean {
   if (!tail.startsWith("|")) return false;
   if (hasUnquotedShellControl(tail)) return false;
-  const stages = splitUnquotedPipes(tail.slice(1))
-    .map((stage) => stage.trim())
-    .filter(Boolean);
-  if (stages.length === 0) return false;
-  return stages.every((stage) => displayFilterCommands.has(stage.split(/\s+/, 1)[0] ?? ""));
+  const stages = splitUnquotedPipes(tail.slice(1)).map((stage) => stage.trim());
+  if (stages.length === 0 || stages.some((stage) => !stage)) return false;
+  return stages.every((stage) => displayFilterCommands.has(stage.split(/\s+/, 1)[0] ?? "") || isPythonDisplayFilter(stage));
 }
 
 function pipeTailForDisplay(tail: string): string {
@@ -203,6 +206,7 @@ function hasUnquotedShellControl(value: string): boolean {
       quote = null;
       continue;
     }
+    if (quote === '"' && /[$`]/.test(ch)) return true;
     if (quote === null && /[;&`$()<>]/.test(ch)) return true;
   }
   return quote !== null;

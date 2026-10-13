@@ -27,11 +27,20 @@ test("public setup requires its secret and origin and closes after owner creatio
         body: new URLSearchParams({ key: secret, name: "Owner" }),
       }),
     );
+  const ready = () => handler(new Request("https://office.example.com/readyz"));
+  const initialReady = await ready();
+  expect(initialReady.status).toBe(200);
+  expect(initialReady.headers.get("cache-control")).toBe("no-store");
+  expect(await initialReady.json()).toEqual({ ok: true });
+  expect(claims).toBe(0);
   expect((await post("wrong")).status).toBe(403);
   expect((await post(key, "https://other.example.com")).status).toBe(403);
   expect(claims).toBe(0);
   const accepted = await post(key);
   expect(accepted.status).toBe(200);
+  const transitioning = await ready();
+  expect(transitioning.status).toBe(503);
+  expect(await transitioning.json()).toEqual({ ok: false });
   expect(accepted.headers.get("set-cookie")).toContain("Secure; HttpOnly");
   expect(claims).toBe(1);
   expect((await post(key)).status).toBe(409);

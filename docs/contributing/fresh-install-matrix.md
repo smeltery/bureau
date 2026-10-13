@@ -39,7 +39,7 @@ flox activate -- bun deploy/install-verify/local.ts vps
 
 The native checks also run with the documented manual Bun/Node installation.
 For deployment images and Kubernetes, Docker is required; Kubernetes additionally
-needs k3d 5.9.0, kubectl and OpenSSL:
+needs k3d 5.9.0, kubectl, OpenSSL and GNU timeout (coreutils):
 
 ```sh
 docker build -f deploy/render/Dockerfile -t bureau-install:verify .
@@ -50,7 +50,12 @@ flox activate -- bash deploy/install-verify/kubernetes.sh
 Each native run removes its temporary home and stops its server. Container runs
 remove only their uniquely named container. Kubernetes runs use a unique cluster
 and private kubeconfig, then delete both without changing the operator's current
-kubectl context. A failed case exits nonzero and prints diagnostics.
+kubectl context. The harness waits for pod readiness before opening its HTTP
+tunnel and bounds cluster cleanup to two minutes. A failed case exits nonzero
+and prints diagnostics. The first-owner setup listener answers readiness while
+serving the setup form, then returns 503 during the brief handover to the full
+office listener. This lets Kubernetes route first-time setup without treating
+an unfinished listener handover as ready.
 
 ## Installation repairs covered
 

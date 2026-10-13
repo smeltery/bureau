@@ -66,6 +66,8 @@ export function RoomTabBar() {
         background: "var(--bg-hud)",
         borderBottom: "1px solid var(--border-subtle)",
         overflowX: "auto",
+        touchAction: "pan-x",
+        overscrollBehaviorX: "contain",
         overflowY: "hidden",
         scrollbarWidth: "none",
         flexShrink: 0,

@@ -40,3 +40,6 @@ logs discovery errors without preventing the office from starting.
 Tests cover configured roots, Codex roots, aliases, plugin immutability, API
 identity/origin checks, traversal rejection, conflicts, symlinks, bounded text,
 and preservation of neighboring assets.
+
+The agent chat `/help` card links to this library instead of repeating skill
+inventories; command aliases remain grouped in the help card.

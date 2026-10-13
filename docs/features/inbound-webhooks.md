@@ -11,7 +11,7 @@ for example `repository.full_name, ref, head_commit.message`. No whole payload,
 template evaluation, or script execution is accepted. Use **Dry run** with an
 event and sample JSON to inspect the selected data without dispatching it.
 
-Create the hook, copy its URL and the one-time signing secret, then configure
+Create the hook, copy its URL and the signing secret, then configure
 GitHub's webhook with that URL, **application/json**, the secret, and the selected
 events. For remote GitHub delivery, the office needs external access enabled and
 a reachable HTTPS public origin. GitHub setup details are in its
@@ -39,6 +39,11 @@ shows the latest 200 receipts; it does not store full incoming payloads.
 
 Disable a hook to stop incoming work. Rotate its secret to invalidate the old
 signing key immediately, then update GitHub. Secrets are stored separately with
-owner-only filesystem permissions, are never returned by list/read endpoints,
+owner-only filesystem permissions, are omitted from list and detail responses,
 and are excluded from backups. After restoring a backup, rotate and configure
 fresh secrets. Deleting a hook removes its configuration, secret, and receipts.
+
+Webhook owners and the office owner can use **Copy signing secret** in Details
+to copy the existing secret without rotating it. The browser fetches the secret
+only on that click, through a non-cacheable manager-only endpoint; shared room
+members cannot read it. Clipboard failures are displayed explicitly.

@@ -13,6 +13,7 @@ export {
   effortLevelsFor,
   familyAllowsAutoPermission,
   familyDisplayLabel,
+  agentModelLabel,
   familyFromLegacyModel,
   isClaudeFamily,
   isOpenCodeModel,
