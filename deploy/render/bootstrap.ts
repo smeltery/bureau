@@ -25,6 +25,12 @@ export function createSetupHandler(options: { origin: string; key: string; hasOw
   let windowStart = Date.now();
   return async (request: Request): Promise<Response> => {
     const path = new URL(request.url).pathname;
+    // The setup form is a ready service before ownership is claimed. During
+    // listener replacement, keep clients waiting for the full office server.
+    if (path === "/readyz" && request.method === "GET") {
+      const transitioning = options.hasOwner() || claimed;
+      return Response.json({ ok: !transitioning }, { status: transitioning ? 503 : 200, headers: { "Cache-Control": "no-store" } });
+    }
     if (path === "/health" && request.method === "GET") return new Response("ok");
     if (options.hasOwner() || claimed) return new Response("Office setup is complete", { status: 409 });
     if (path === "/" && request.method === "GET") return new Response(page, { headers });

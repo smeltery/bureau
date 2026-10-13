@@ -52,7 +52,10 @@ remove only their uniquely named container. Kubernetes runs use a unique cluster
 and private kubeconfig, then delete both without changing the operator's current
 kubectl context. The harness waits for pod readiness before opening its HTTP
 tunnel and bounds cluster cleanup to two minutes. A failed case exits nonzero
-and prints diagnostics.
+and prints diagnostics. The first-owner setup listener answers readiness while
+serving the setup form, then returns 503 during the brief handover to the full
+office listener. This lets Kubernetes route first-time setup without treating
+an unfinished listener handover as ready.
 
 ## Installation repairs covered
 
