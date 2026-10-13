@@ -181,3 +181,37 @@ not indexed queries. See [task storage](../features/task-system-design.md),
 [office audit](../features/office-audit.md) and
 [browser sharing](../features/browser-sharing.md) for migration and failure
 boundaries.
+
+## Follow-up review — 2026-10-13
+
+Reviewed the October 11 release and its comparison range, then default-branch
+changes through October 13, including implementation, tests and design documents.
+The app-chat proposal has now become an implemented capability; this review
+supersedes its earlier design-only classification.
+
+| Classification | Capability and result |
+| --- | --- |
+| Implemented | App short URLs now open an authenticated app/chat view with a sandboxed app iframe, existing agent chat, mobile switching, drafts scoped to user/app generation/agent, session renewal and access revocation. |
+| Implemented | Session replacement closes a prepared replacement when its agent is removed during consumer drain; it cannot resurrect the removed agent. |
+| Implemented | OpenCode startup uses an OS-selected port and a bounded 60-second health window. Errors, retry notices and context compaction are normalized; hidden summaries do not appear as answers. |
+| Implemented | OpenCode turn usage deduplicates billed steps and persists summed turn charges for agents and schedules, including compaction work. |
+| Implemented | Office broker requests preserve bounded binary bodies, support admitted Expect/Continue requests and drain partial socket writes before closing. Task deletion, topic changes and app preview routes are available through the existing agent allowlist. |
+| Implemented | Webhook managers can copy the existing signing secret without rotation; room peers cannot read it, responses are non-cacheable and clipboard failure is explicit. |
+| Implemented | API cards recognize literal single-call curl wrappers and quoted Python display filters. Ambiguous shell commands retain their raw presentation. Help links to the skills library; room tabs constrain touch scrolling and empty lobby presence inputs remain stable. |
+| Implemented | Chat headers and agent listings retain an explicit OpenCode engine label even for model identifiers containing another provider’s name. |
+| Already covered | Task histories retain old/new values and actor attribution; the office audit page exposes actor and operation filtering. Layout-only differences do not require a second history system. |
+| Already covered | Task and schedule routes support direct browser entry and refresh through the office shell. Provider subprocess diagnostics and real PTY behavior have native adapter and fresh-install coverage. |
+| Not destination-native | Opening every loopback route through the agent broker would bypass its explicit authorization boundary. Large browser-only uploads remain browser-only; broker request and response bodies remain bounded at 8 MiB. |
+| Not destination-native | Implicit popup grants would expand selected-tab browser sharing. Existing target revocation and bounded recovery remain in effect. |
+| Not destination-native | Sweat artwork, recording/branding changes and alternative history layouts are presentation choices; Bureau already shows agent work state and elapsed time. |
+| Not destination-native | Hosted provisioning, billing, journal retention and database governance do not belong to the self-hosted flat-file architecture. Removing the PTY Node sidecar would break the retained Intel macOS runtime boundary. |
+| Not an implemented capability | The proposed OS-user secret-isolation design does not yet establish a working feature to port. |
+
+Validation covers replacement cancellation, provider compaction/retries/usage,
+binary Unix-socket round trips and partial writes, app chat in real Chrome,
+webhook authorization and conservative API-card parsing. The normal CI gate
+and eight fresh-install configurations remain the shipping checks.
+
+App chat uses the office's existing agent permissions and assigned app identity;
+it does not create a public anonymous chat endpoint. See [App chat](../features/app-chat.md)
+and [OpenCode environments](../features/opencode-environments.md) for boundaries.

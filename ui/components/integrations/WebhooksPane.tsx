@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import type { Webhook, WebhookDelivery } from "../../../shared/integrations/webhooks.ts";
 import { useAppState } from "../../store.tsx";
 
+import { copyLoadedText } from "../../utils/clipboard-load.ts";
+import { copyText } from "../../utils/clipboard.ts";
+
 type HookRow = Webhook & { url: string };
 async function api(path: string, method = "GET", body?: unknown) {
   const response = await fetch(`/api/webhooks${path}`, { method, headers: { "Content-Type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -25,6 +28,7 @@ export function WebhooksPane() {
   const [payload, setPayload] = useState("{}");
   const [testEvent, setTestEvent] = useState("push");
   const [preview, setPreview] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const canManage = (row: { userId?: string | null }) => sessionContext?.role === "owner" || (!!sessionContext?.userId && row.userId === sessionContext.userId);
   const reload = async () => setHooks(await api(""));
@@ -45,6 +49,7 @@ export function WebhooksPane() {
   }
   function edit(row: HookRow | null) {
     setEditing(row);
+    setCopied(false);
     setName(row?.name ?? "");
     setTarget(row ? `${row.target.kind}:${row.target.id}` : "");
     setEvents(row?.events.join(",") ?? "push");
@@ -167,7 +172,7 @@ export function WebhooksPane() {
       {editing && (
         <>
           <p>
-            GitHub settings: Payload URL <code>{editing.url}</code>; Content type <code>application/json</code>; choose the listed events and paste the secret below.
+            GitHub settings: Payload URL <code>{editing.url}</code>; Content type <code>application/json</code>; choose the listed events and copy the signing secret.
           </p>
           {canManage(editing) && (
             <button
@@ -180,12 +185,36 @@ export function WebhooksPane() {
               Rotate secret
             </button>
           )}
+          {canManage(editing) && !secret && (
+            <button
+              disabled={busy}
+              onClick={() =>
+                void perform(async () => {
+                  setCopied(false);
+                  if (!(await copyLoadedText(async () => (await api(`/${editing.id}/secret`)).secret))) throw new Error("Clipboard unavailable; allow clipboard access and try again.");
+                  setCopied(true);
+                })
+              }
+            >
+              Copy signing secret
+            </button>
+          )}
+          {copied && <p role="status">Signing secret copied.</p>}
           {secret && (
             <p>
               <label>
                 Copy this secret now <input type="password" readOnly value={secret} autoComplete="off" />
               </label>{" "}
-              <button onClick={() => void navigator.clipboard.writeText(secret).catch(() => setError("Clipboard unavailable; select and copy the secret field."))}>Copy secret</button>{" "}
+              <button
+                onClick={() =>
+                  void copyText(secret).then((ok) => {
+                    if (ok) setCopied(true);
+                    else setError("Clipboard unavailable; select and copy the secret field.");
+                  })
+                }
+              >
+                Copy secret
+              </button>{" "}
               <button onClick={() => setSecret(null)}>Dismiss</button>
             </p>
           )}

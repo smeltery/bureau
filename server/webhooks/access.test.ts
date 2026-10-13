@@ -55,6 +55,11 @@ test("webhook management is room scoped and dispatch records a schedule delivery
   expect(created.secret).toHaveLength(64);
   expect(await (await request(outsider, "")).json()).toEqual([]);
   expect((await request(outsider, `/${created.id}`)).status).toBe(404);
+  const signingSecret = await request(creator, `/${created.id}/secret`);
+  expect(signingSecret.headers.get("cache-control")).toBe("no-store");
+  expect(await signingSecret.json()).toEqual({ secret: created.secret });
+  expect((await request(peer, `/${created.id}/secret`)).status).toBe(403);
+  expect((await request(outsider, `/${created.id}/secret`)).status).toBe(404);
   const visible = await (await request(peer, "")).json();
   expect(visible).toHaveLength(1);
   expect(visible[0].secret).toBeUndefined();
@@ -69,5 +74,6 @@ test("webhook management is room scoped and dispatch records a schedule delivery
     promptSnapshot: "Check this event\n\nSelected event data",
   });
   updateUserById(creator.id, { allowedRooms: [] });
+  expect((await request(creator, `/${created.id}/secret`)).status).toBe(404);
   expect(() => dispatchWebhook(hook, "Revoked", "next")).toThrow("revoked");
 });

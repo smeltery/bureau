@@ -48,9 +48,11 @@ export interface LobbySceneProps {
   decorateScene?: boolean;
 }
 
+const EMPTY_PRESENCES: PresenceInfo[] = [];
+
 export function LobbyScene({
   rooms,
-  presences = [],
+  presences = EMPTY_PRESENCES,
   onMoveGhost,
   onOpenUser,
   officeName,

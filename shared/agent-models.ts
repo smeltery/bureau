@@ -166,3 +166,9 @@ export function familyFromLegacyModel(model: string | undefined): ModelFamily {
   if (model.includes("fable")) return "fable";
   return "opus";
 }
+
+// A provider/model string identifies the model, not the engine running it.
+export function agentModelLabel(agentType: string | undefined, family: string, overrides?: Partial<Record<ModelFamily, string>>): string {
+  const label = familyDisplayLabel(family, overrides);
+  return agentType === "opencode" ? `${label} · OpenCode` : label;
+}

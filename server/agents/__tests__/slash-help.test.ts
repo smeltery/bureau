@@ -51,13 +51,13 @@ describe("handleHelpCommand", () => {
     expect(helpContent).not.toContain("Receptionist");
   });
 
-  test("groups skills into Bureau Skills and User Skills", async () => {
+  test("links to the skills library without duplicating its inventory", async () => {
     const { helpContent } = await runHelp();
-    expect(helpContent).toContain("## Bureau Skills");
-    expect(helpContent).toContain("`/peer`");
-    expect(helpContent).toContain("## User Skills");
-    expect(helpContent).toContain("`/mine`");
-    expect(helpContent).toContain("`/proj`");
+    expect(helpContent).toContain("[Skills library](/skills)");
+    expect(helpContent).not.toContain("`/peer`");
+    expect(helpContent).not.toContain("## User Skills");
+    expect(helpContent).not.toContain("`/mine`");
+    expect(helpContent).not.toContain("`/proj`");
     expect(helpContent).not.toContain("**User skills:**");
     expect(helpContent).not.toContain("**Project skills:**");
   });
