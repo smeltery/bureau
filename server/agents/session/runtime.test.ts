@@ -60,6 +60,25 @@ function fakeSession(): BackendSession {
 }
 
 describe("replaceSession", () => {
+  test("closes the replacement if the agent is removed during consumer drain", async () => {
+    const managed = makeAgent("removed", fakeSession());
+    const replacement = fakeSession();
+    const close = spyOn(replacement, "close");
+    const stream = spyOn(replacement, "stream");
+    let drain!: () => void;
+    managed.consumerPromise = new Promise<void>((resolve) => {
+      drain = resolve;
+    });
+    const swapping = replaceSession("removed", managed, replacement);
+    agents.delete("removed");
+    drain();
+    await swapping;
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(stream).not.toHaveBeenCalled();
+    expect(managed.session).toBeNull();
+    expect(managed.info.sessionSwapping).toBe(false);
+  });
+
   test("installs the replacement when the old consumer does not drain", async () => {
     const oldSession = fakeSession();
     const newSession = fakeSession();
