@@ -258,7 +258,7 @@ The model dialogs label cloud selections as aliases rather than claiming a direc
 
 Connections shows Bedrock as connected when the variables are set; it does not check AWS model access. A user who wants their own Claude login in a Bedrock office sets `CLAUDE_CODE_USE_BEDROCK=0` in their own Env file. Vertex works the same way with `CLAUDE_CODE_USE_VERTEX`.
 
-Provider status probes on Connections are time-bounded (~15s). A timed-out check reports unavailable but still offers host CLI guidance, and is not written into the status cache. Bureau does not yet run shared browser/device OAuth login; instead a process-local per-provider "sign-in in progress" slot (Claim via **I'm signing in on the host**) surfaces the holder's name and start time to other members until they finish or an owner cancels. Slots expire after ten minutes and vanish on process restart.
+Provider status probes on Connections are time-bounded (~15s). A timed-out check reports unavailable but still offers host CLI guidance, and is not written into the status cache. Bureau does not yet run shared browser/device OAuth login; instead a process-local per-provider "sign-in in progress" slot (Owners claim via **I'm signing in on the host**) surfaces the holder's name and start time to other members until they finish or an owner cancels. Slots expire after ten minutes and vanish on process restart.
 
 ## Bootstrap-window exposure
 
@@ -288,8 +288,8 @@ That prints a `sudo curl --unix-socket ...` command. Run it on the host to print
 
 ### Versioned member instructions
 
-Privileged agents can GET and PATCH `/api/users/:username/member-prompt` for
-their manager, or any member when managed by an owner. Responses contain only
+Personal API tokens and privileged agents can GET and PATCH `/api/users/:username/member-prompt` for
+their owning member or manager, or any member when acting for an owner. Responses contain only
 `memberPrompt` and `memberPromptVersion`. Read before writing and send both
 fields; missing versions are rejected and stale writes return HTTP 409 with the
 current text. Prompts are limited to 64 KiB. Roles, room access and credentials
@@ -300,3 +300,5 @@ instructions for review. Saving again explicitly replaces that version.
 Generic user updates also require `memberPromptVersion` when changing the prompt;
 other profile edits do not write it. Existing sessions retain their cached system
 prompt; new and resumed sessions pick up the changed instructions.
+
+Shared provider sign-in coordination is owner-only. Members can inspect connection status and save their own provider API keys; host CLI sign-in guidance and shared sign-in controls are shown only to owners. Personal API tokens use their owning member’s current permissions for instruction edits, and revocation is checked again after reading an update request.

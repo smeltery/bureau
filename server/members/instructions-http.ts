@@ -1,3 +1,4 @@
+import { resolveApiToken } from "../auth/api-tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { getUserById, getUserByName } from "../users.ts";
 import { privilegedAgentIdentity } from "../http/agent-route-helpers.ts";
@@ -8,8 +9,9 @@ import { instructionConflict, instructionSnapshot } from "./instructions.ts";
 export async function handleMemberInstructions(req: Request, username: string, auth: AuthResult | undefined, deps: UsersHttpDeps): Promise<Response> {
   const operator = privilegedAgentIdentity(req);
   const bearer = readBearerToken(req);
-  if (bearer && !operator) return Response.json({ error: "privileged agent required" }, { status: 403 });
-  const actor = operator?.manager ?? (auth?.kind === "ok" ? getUserById(auth.session.userId) : null);
+  const personalToken = auth?.kind === "api" ? resolveApiToken(bearer) : null;
+  if (bearer && !operator && !personalToken) return Response.json({ error: "privileged agent required" }, { status: 403 });
+  const actor = operator?.manager ?? (personalToken ? getUserById(personalToken.userId) : null) ?? (auth?.kind === "ok" ? getUserById(auth.session.userId) : null);
   if (!actor) return Response.json({ error: "authentication required" }, { status: 401 });
   const user = getUserByName(username);
   if (!user || (actor.role !== "owner" && actor.id !== user.id)) return Response.json({ error: "member not found" }, { status: 404 });
@@ -46,7 +48,8 @@ export async function handleMemberInstructions(req: Request, username: string, a
     return Response.json({ error: "only memberPrompt and memberPromptVersion are accepted" }, { status: 400 });
   }
   // Re-read after the asynchronous body read so another write cannot invalidate the check.
-  const latestActor = bearer ? privilegedAgentIdentity(req)?.manager : getUserById(actor.id);
+  const latestToken = personalToken ? resolveApiToken(bearer) : null;
+  const latestActor = personalToken ? (latestToken?.userId === actor.id ? getUserById(actor.id) : null) : bearer ? privilegedAgentIdentity(req)?.manager : getUserById(actor.id);
   if (!latestActor || (latestActor.role !== "owner" && latestActor.id !== user.id)) return Response.json({ error: "forbidden" }, { status: 403 });
   const current = getUserById(user.id);
   if (!current) return Response.json({ error: "member not found" }, { status: 404 });

@@ -20,10 +20,10 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   bundled `@openai/codex` launcher and isolated `CODEX_HOME`.
 - Account → Connections shows Claude/Codex connection status for the signed-in
   user, accepts API keys into personal managed env (no secret echo), and points
-  at host CLI login. Status probes are time-bounded so the pane never sticks on
+  office owners at host CLI login. Status probes are time-bounded so the pane never sticks on
   "Checking…"; a timed-out check stays offerable for CLI guidance and is not
   status-cached. A process-local per-provider "sign-in in progress" slot lets
-  another member see who is following host CLI login (holder name + start time;
+  members see which owner is following host CLI login (holder name + start time;
   sentence composed client-side). Full browser/device OAuth login remains
   deferred. Auth-failure chat notices deep-link to Connections. Claude recognizes
   API keys, OAuth tokens, and auth tokens in the effective environment. On macOS,
