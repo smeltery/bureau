@@ -197,7 +197,7 @@ function ProviderConnectionCard({
     }
   }
 
-  const showSignInGuidance = account.canOfferSignIn !== false && account.accountStatus !== "connected";
+  const showSignInGuidance = canCancelSharedLogin && account.canOfferSignIn !== false && account.accountStatus !== "connected";
 
   return (
     <section
@@ -222,7 +222,7 @@ function ProviderConnectionCard({
       {queueMessage && (
         <div data-provider-login-queue style={{ margin: "8px 0 12px" }}>
           <p style={{ ...dialogHint, margin: "0 0 8px" }}>{queueMessage}</p>
-          {(holdsSlot || canCancelSharedLogin) && (
+          {canCancelSharedLogin && (
             <button type="button" style={dialogCancelBtn} disabled={slotPending} onClick={() => void releaseSigningIn()}>
               {holdsSlot ? t("connections.signInDone") : t("connections.signInCancelShared")}
             </button>

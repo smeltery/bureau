@@ -104,7 +104,7 @@ describe("handleProviderAccountsRequest", () => {
     expect(await res?.json()).toEqual({ error: "provide anthropicApiKey and/or openaiApiKey" });
   });
 
-  test("sign-in slot claim returns queue fields; second member gets 409 detail", async () => {
+  test("sign-in slot claim returns queue fields; second owner gets 409 detail", async () => {
     const first = claimUserByName(`Conn Slot A ${crypto.randomUUID()}`);
     const second = claimUserByName(`Conn Slot B ${crypto.randomUUID()}`);
     const claim = request("/api/me/provider-accounts/claude/sign-in", { method: "POST" });
@@ -116,10 +116,21 @@ describe("handleProviderAccountsRequest", () => {
     expect(body.accounts.find((a: { provider: string }) => a.provider === "claude").loginQueue.holderName).toBe(first.name);
 
     const conflict = request("/api/me/provider-accounts/claude/sign-in", { method: "POST" });
-    const blocked = await handleProviderAccountsRequest(conflict, new URL(conflict.url), authFor(second.id, second.name, "member"));
+    const blocked = await handleProviderAccountsRequest(conflict, new URL(conflict.url), authFor(second.id, second.name));
     expect(blocked?.status).toBe(409);
     const detail = await blocked!.json();
     expect(detail.code).toBe("shared_login_in_progress");
     expect(detail.detail).toEqual({ holderName: first.name, startedAt: body.queue.startedAt });
   });
+});
+
+test("members cannot coordinate shared provider sign-in", async () => {
+  const user = claimUserByName(`Conn Member ${crypto.randomUUID()}`, { role: "member", allowedRooms: [] });
+  for (const provider of ["claude", "codex"]) {
+    for (const method of ["POST", "DELETE"]) {
+      const req = request(`/api/me/provider-accounts/${provider}/sign-in`, { method });
+      const res = await handleProviderAccountsRequest(req, new URL(req.url), authFor(user.id, user.name, "member"));
+      expect(res?.status).toBe(403);
+    }
+  }
 });

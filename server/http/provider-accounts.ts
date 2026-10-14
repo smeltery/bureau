@@ -47,6 +47,7 @@ export async function handleProviderAccountsRequest(req: Request, url: URL, auth
 
   const signInMatch = url.pathname.match(/^\/api\/me\/provider-accounts\/(claude|codex)\/sign-in$/);
   if (signInMatch) {
+    if (role !== "owner") return error(403, "office owner required for shared provider sign-in");
     const provider = signInMatch[1] as ProviderAccountProvider;
     if (!PROVIDERS.has(provider)) return error(404, "not found");
 
