@@ -1,3 +1,4 @@
+import { changedPromptSnapshots } from "./prompt-snapshots.ts";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative } from "node:path";
@@ -98,6 +99,8 @@ export function auditFileWrite(path: string, data: string | Buffer, write: () =>
     throw error;
   }
   entry.outcome = "committed";
+  const prompts = changedPromptSnapshots(target, before, after);
+  if (prompts.length) entry.prompts = prompts;
   try {
     persist(entry);
   } catch (error) {

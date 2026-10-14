@@ -96,7 +96,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   managers only), rename, close, settings and desk swaps; agent spawn, kill,
   edit, move and topic; and conversation steering (resume, new conversation,
   send-now, dequeue) — always scoped to the rooms and agents the agent's manager
-  can see. It is refused on office settings and external access, invites,
+  can see. Owner-managed privileged agents can edit versioned office prompts, names and usage caps. It is refused on external access, invites,
   browser sessions, general user records, view preferences, the terminal, and the
   privilege toggle itself, so no agent can widen its own authority. A narrow
   versioned member-instructions endpoint lets privileged agents edit their
@@ -284,3 +284,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - **Skills library** — browse Claude/Codex agent skills, edit owner-managed prompts, keep packaged skills read-only, and browse built-in commands separately. See [Skills library](skills-library.md).
 
 - **Fresh-install checks** — automated disposable owner-claim, terminal and signed-out provider checks for native, container and Kubernetes entrypoints. See [verification scope](../contributing/fresh-install-matrix.md).
+
+- Owner audit history retains changed office, room, agent and member prompt text, including clears. Expand a history entry to recover its text and restore it through the corresponding versioned settings editor. Environment and credential fields are excluded from these snapshots.

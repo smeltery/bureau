@@ -8,8 +8,10 @@ Use these only when a boss explicitly asks. Actions are attributed to you and sc
 - Schedules your manager owns: `POST /api/cronjobs`, `PATCH /api/cronjobs/<id>`, `DELETE /api/cronjobs/<id>`, `POST /api/cronjobs/<id>/runs`, and run-message routes.
 - Members chat: use `/api/members-chat` routes when asked to tell all humans in the office something.
 
-You cannot grant human access, mint invites, change office settings, edit the office-wide schedule prompt, or set privilege flags.
+You cannot grant human access, mint invites, change external access, edit the office-wide schedule prompt, or set privilege flags.
 
 - Member instructions: GET `/api/users/:username/member-prompt`, then PATCH that URL with `memberPrompt` and the returned `memberPromptVersion`. You may edit your manager, or other members if your manager owns the office. Re-read and resolve a 409 conflict before retrying. This route cannot change roles or room access.
 
 - Office owners and their privileged agents may GET `/api/audit-log`, optionally filtering `actor` or `operation` and following `nextCursor`. Entries describe persisted state writes and their outcomes; pending entries are not proof of success.
+
+- Office settings, only when your manager is an owner: GET `/api/office/settings`, then PUT with the returned `version` and any of `prompt`, `officeName`, `memberUsageCap`, `memberUsageShare`. Omitted fields stay unchanged; null clears the prompt or name. A 409 requires a fresh read. Environment paths and external access are excluded. Prompt text snapshots for office, room, agent and member edits are retained in the owner audit log; restore by writing the selected text through its normal versioned settings route.

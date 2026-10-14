@@ -32,6 +32,7 @@ export const DEFAULT_EXPERIMENTAL: ExperimentalSettings = { browserPanel: false 
 
 // Office-level settings (prompt + optional env file path)
 export interface OfficeSettings {
+  officeName?: string | null;
   prompt: string | null;
   envFile: string | null;
   previewAllowHosts: string[];
