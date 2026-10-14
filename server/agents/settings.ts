@@ -6,6 +6,7 @@ import { persistSessionCwd } from "../persistence.ts";
 import { moveClaudeSessionFile, resolveCwd } from "./session/paths.ts";
 import { buildSessionEnv, createSession, replaceSession } from "./session/runtime.ts";
 import { agents, emit, logCache, persistAll } from "./state.ts";
+import { armSettingsNotice } from "./session/settings-notice.ts";
 import { mintAgentToken } from "./tokens.ts";
 
 export class AgentEditConflictError extends Error {
@@ -31,10 +32,13 @@ export async function editAgent(
     effort?: AgentInfo["effort"];
     userId?: string | null;
   },
+  actor = "an office member",
 ) {
   const managed = agents.get(agentId);
   if (!managed) return;
 
+  const before = { ...managed.info };
+  const interrupted = managed.info.state === "thinking" || managed.info.state === "tool_executing" || managed.pendingTurn !== null;
   const updated: Partial<AgentInfo> = {};
   let managerChanging = false;
   const previousUserId = managed.info.userId ?? null;
@@ -189,6 +193,8 @@ export async function editAgent(
     try {
       const newSession = resumeId ? createSession(managed, resumeId) : createSession(managed);
       await replaceSession(agentId, managed, newSession);
+      if (resumeId && before.agentType === managed.info.agentType) armSettingsNotice(managed, before, actor, interrupted);
+      else managed.settingsNotice = null;
     } catch (err) {
       if (managerChanging) {
         managed.info.userId = previousUserId;

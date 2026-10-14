@@ -161,19 +161,23 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
           }
           return true;
         }
-        await AgentManager.editAgent(cmd.agentId, {
-          name: cmd.name,
-          cwd: cmd.cwd,
-          outfit: cmd.outfit,
-          customInstructions: cmd.customInstructions,
-          customInstructionsVersion: cmd.customInstructionsVersion,
-          agentType: cmd.agentType,
-          modelFamily: modelSelection.modelFamily,
-          permissionMode: cmd.permissionMode,
-          codexSandbox: cmd.codexSandbox,
-          effort: cmd.effort,
-          userId: cmd.userId,
-        });
+        await AgentManager.editAgent(
+          cmd.agentId,
+          {
+            name: cmd.name,
+            cwd: cmd.cwd,
+            outfit: cmd.outfit,
+            customInstructions: cmd.customInstructions,
+            customInstructionsVersion: cmd.customInstructionsVersion,
+            agentType: cmd.agentType,
+            modelFamily: modelSelection.modelFamily,
+            permissionMode: cmd.permissionMode,
+            codexSandbox: cmd.codexSandbox,
+            effort: cmd.effort,
+            userId: cmd.userId,
+          },
+          getWsUser(ws)?.name,
+        );
         if (cmd.requestId) {
           ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: true } as ServerMessage));
         }

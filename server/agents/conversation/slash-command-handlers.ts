@@ -54,6 +54,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.firedUiThresholds.clear();
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
+    managed.settingsNotice = null;
     managed.info.topic = null;
     managed.info.topicStale = false;
     managed.info.contextUsage = null;
@@ -148,6 +149,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.firedUiThresholds.clear();
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
+    managed.settingsNotice = null;
     managed.info.topic = null;
     managed.info.topicStale = false;
     managed.info.contextUsage = null;

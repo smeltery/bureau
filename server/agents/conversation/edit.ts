@@ -200,6 +200,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // For first-message edits, sessionId will be set by the system/init event (like newConversation).
     // For forks, set it now.
     managed.sessionId = isFirstMessage ? null : newSessionId;
+    managed.settingsNotice = null;
     managed.topicGenerating = false;
 
     // --- Phase 2: UI/cache mutations (point of no return) ---

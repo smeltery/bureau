@@ -1,8 +1,11 @@
 import type { AgentInfo, AgentSubscriptionUsage, ExperimentalSettings, KilledAgentSummary, LogEntry, RoomPet, RoomWire, SkillInfo, SlideFailureReason, SlideRecord } from "../../shared/types.ts";
 import type { BackendSession, NormalizedEvent } from "../backends/types.ts";
 
+import type { SettingsNotice } from "./session/settings-notice.ts";
+
 // Internal agent state
 export interface ManagedAgent {
+  settingsNotice?: SettingsNotice | null;
   info: AgentInfo;
   session: BackendSession | null;
   /** Suspend automatic queue retries only for the session known to need login. */

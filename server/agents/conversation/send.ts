@@ -146,6 +146,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         managed.firedUiThresholds.clear();
         managed.pendingContextNotices = [];
         managed.wakeNotice = null;
+        managed.settingsNotice = null;
         managed.info.contextUsage = null;
         // Restore the textCount baseline from sessions.json so drift is
         // measured against the replayed history, not from zero (otherwise

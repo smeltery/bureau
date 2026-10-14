@@ -1,3 +1,4 @@
+import { armSettingsNotice } from "../session/settings-notice.ts";
 import { canViewSchedule } from "../../cronjobs/access.ts";
 import { getUserById } from "../../users.ts";
 import { EFFORT_LEVELS, effortDisplayLabel, familyDisplayLabel, knownModelFamiliesFor } from "../../../shared/types.ts";
@@ -27,13 +28,15 @@ export async function handlePendingModelPick(agentId: string, managed: ManagedAg
     if (picked === managed.info.modelFamily) {
       emitEphemeralLog(agentId, "system", `Already using ${label}.`);
     } else {
+      const before = { ...managed.info };
       managed.info.modelFamily = picked;
       const sessionId = managed.sessionId;
       const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
       await replaceSession(agentId, managed, newSession);
+      if (sessionId) armSettingsNotice(managed, before, username ?? "an office member", false);
       emit({ type: "agent_updated", agentId, changes: { modelFamily: picked } });
       persistAll();
-      addLogEntry(agentId, "system", `Model switched to ${label}. The agent's context may still say they are a different model — the correct model is shown in the top bar.`);
+      addLogEntry(agentId, "system", `Model switched to ${label}. The agent will be notified on its next turn.`);
     }
     return true;
   }
@@ -54,13 +57,15 @@ export async function handlePendingEffortPick(agentId: string, managed: ManagedA
     if (picked.level === managed.info.effort) {
       emitEphemeralLog(agentId, "system", `Already using ${label}.`);
     } else {
+      const before = { ...managed.info };
       managed.info.effort = picked.level;
       const sessionId = managed.sessionId;
       const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
       await replaceSession(agentId, managed, newSession);
+      if (sessionId) armSettingsNotice(managed, before, username ?? "an office member", false);
       emit({ type: "agent_updated", agentId, changes: { effort: picked.level } });
       persistAll();
-      addLogEntry(agentId, "system", `Thinking effort set to ${label}.`);
+      addLogEntry(agentId, "system", `Thinking effort set to ${label}. The agent will be notified on its next turn.`);
     }
     return true;
   }

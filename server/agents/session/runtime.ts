@@ -256,6 +256,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   }
   managed.launchedClaudeConfigDir = managed.info.agentType === "claude" ? claudeConfigRoot(env) : undefined;
   const session = resumeSessionId ? backend.resumeSession(resumeSessionId, opts) : backend.createSession(opts);
+  if (!resumeSessionId) managed.settingsNotice = null;
   const changes = sessionModelMetadata(managed.info, env);
   Object.assign(managed.info, changes);
   emit({ type: "agent_updated", agentId: managed.info.id, changes });

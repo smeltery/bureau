@@ -172,3 +172,31 @@ describe("wake notice delivery", () => {
     expect(managed.wakeNotice).toBe("a newer wake notice");
   });
 });
+
+test("settings notices survive failed sends and are delivered only once", async () => {
+  let fail = true;
+  const sent: string[] = [];
+  let managed!: ManagedAgent;
+  managed = makeAgent(
+    "agent-settings",
+    fakeSession((text) => {
+      if (fail) throw new Error("send unavailable");
+      sent.push(text);
+      settleTurn(managed);
+    }),
+  );
+  managed.settingsNotice = { changes: { modelFamily: { from: "sonnet", to: "opus" } }, actors: ["Alex"], interrupted: true };
+  enqueue(managed, "settings-1", "Continue.");
+  await flushQueue(managed.info.id);
+  expect(managed.settingsNotice).not.toBeNull();
+  fail = false;
+  managed.info.state = "waiting_for_response";
+  await flushQueue(managed.info.id);
+  expect(sent[0]).toContain("settings changed by Alex");
+  expect(sent[0]).toContain("verify their effects");
+  expect(managed.settingsNotice).toBeNull();
+  managed.info.state = "waiting_for_response";
+  enqueue(managed, "settings-2", "Next.");
+  await flushQueue(managed.info.id);
+  expect(sent[1]).not.toContain("settings-notice");
+});

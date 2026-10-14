@@ -161,6 +161,7 @@ export async function newConversation(agentId: string) {
     managed.firedUiThresholds.clear();
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
+    managed.settingsNotice = null;
     managed.memoryNotice = null;
     managed.memoryNoticeFired = false;
     managed.info.topic = null;
@@ -241,6 +242,7 @@ export async function resume(agentId: string, sessionId: string) {
     managed.firedUiThresholds.clear();
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
+    managed.settingsNotice = null;
     managed.memoryNotice = null;
     managed.memoryNoticeFired = false;
     managed.info.contextUsage = null;
