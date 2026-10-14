@@ -99,3 +99,22 @@ sign in again from the connection card.
 **Sign out** removes Bureau's saved tokens and invalidates pending flows. It does
 not revoke consent at the provider; use the provider's account settings when that
 is required. Browser sign-in cannot be initiated or completed by an agent bearer.
+
+## Credential request cards
+
+An agent can request a missing credential with a card in its conversation. The
+card names the environment variable, purpose, scope, exact HTTPS hosts and header.
+The responsible member can paste a value into a masked field or decline. Office
+requests require an owner; personal requests require the requesting agent's member,
+even when another owner can see the conversation.
+
+The value goes directly to the secret store. Neither the request card, transcript
+nor completion message contains it. The agent receives a confirmation and loads
+the stand-in on its next turn. If the agent is stopped or its queue is full, the
+card explains that it could not be notified; send it a message when ready.
+
+Requests expire after thirty minutes, close when the conversation or manager
+changes, and do not survive a server restart. They cannot overwrite a secret that
+already exists or was created while the card was open. Rotate existing credentials
+from Settings instead. Agents are instructed to decline credential searches and
+use presence-only checks for environment variables, never dump their contents.

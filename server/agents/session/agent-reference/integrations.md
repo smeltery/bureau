@@ -39,3 +39,20 @@ invoke remote tools. Never paste access tokens into MCP URLs.
 For OAuth connections, your manager completes browser sign-in from the MCP card.
 Never collect authorization codes, client secrets or refresh tokens in chat. If a
 connection needs sign-in again, direct the manager to its card.
+
+Request a missing credential with a masked conversation card:
+
+```sh
+curl -fsS -X POST -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" \
+  -H 'Content-Type: application/json' \
+  "$BUREAU_URL/api/integrations/requests" \
+  -d '{"name":"GH_TOKEN","hosts":["api.github.com","github.com"],"form":{"kind":"authorization"},"scope":"member","reason":"Read and update the project issues you asked me to manage."}'
+```
+
+Use `scope: "office"` only when the credential should be shared office-wide. Do
+not put a credential value in this request, its reason, a chat message or a command.
+The response gives a request ID; the responsible human answers the masked card.
+You cannot answer it with your agent bearer. Wait for the saved/declined outcome
+and continue within the approved scope. A declined request is not permission to
+search for another credential. A 409 means the credential or a request already
+exists; use the configured connection or ask the member to rotate it in Settings.

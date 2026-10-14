@@ -1,3 +1,4 @@
+import type { SecretRequestCard } from "./integrations/secret-requests.ts";
 // File attachment metadata
 export interface Attachment {
   filename: string; // on-disk hash name: "a1b2c3.png"
@@ -86,7 +87,7 @@ export interface LogEntry {
   timestamp: number;
   kind: "text" | "thinking" | "tool_call" | "tool_result" | "error" | "system" | "user_message" | "api_token_outbound" | "diff" | "edit-request" | "terminal-command" | "file-view";
   content: string;
-  metadata?: Record<string, unknown> & { choicePrompt?: ChoicePromptPayload };
+  metadata?: Record<string, unknown> & { choicePrompt?: ChoicePromptPayload; secretRequest?: SecretRequestCard };
   ephemeral?: boolean;
   attachments?: Attachment[]; // file attachments, served via /api/files/<agentId>/<filename>
   diff?: DiffPayload; // present only when kind === "diff"

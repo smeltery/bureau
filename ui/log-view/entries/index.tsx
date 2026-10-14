@@ -1,3 +1,4 @@
+import { SecretRequestCard } from "../integrations/SecretRequestCard.tsx";
 import type { ChoicePromptPayload, LogEntry } from "../../../shared/types.ts";
 import { UserMessage, EditableUserMessage } from "./UserMessage.tsx";
 import { AssistantText, ThinkingBlock, ErrorBlock, SystemMessage, TaskBreadcrumb, PermissionDeniedCard, ChoicePromptCard } from "./AssistantEntries.tsx";
@@ -136,6 +137,7 @@ export function LogEntryCard({
     case "error":
       return <ErrorBlock content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
     case "system":
+      if (entry.metadata?.secretRequest) return <SecretRequestCard card={entry.metadata.secretRequest} />;
       if (typeof entry.metadata?.helpContent === "string") {
         return <HelpCard header={entry.content} helpContent={entry.metadata.helpContent} />;
       }

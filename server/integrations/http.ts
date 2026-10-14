@@ -1,3 +1,4 @@
+import { handleSecretRequests } from "./requests/http.ts";
 import { mcpOAuthFlows } from "./oauth/flows.ts";
 import { handleMcpOAuth } from "./oauth/http.ts";
 import { testConnection } from "./connection-test.ts";
@@ -16,6 +17,8 @@ import { notifyIntegrationChange } from "./changes.ts";
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 export async function handleIntegrationsRequest(req: Request, url: URL, auth: AuthResult): Promise<Response | null> {
+  const secretRequest = await handleSecretRequests(req, url, auth);
+  if (secretRequest) return secretRequest;
   const oauth = await handleMcpOAuth(req, url, auth);
   if (oauth) return oauth;
   const agentConnections = handleAgentConnections(req, url);

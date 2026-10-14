@@ -6,11 +6,11 @@ self-hosted product scope.
 
 ## Implemented gaps
 
-| Capability | Result |
-| --- | --- |
-| Durable incident history | Resolved pages remain on disk and in the Pager view instead of disappearing after 30 days. Delivery still stops when acknowledged or resolved. |
-| On-demand jobs | Schedules accepts `schedule: { type: "manual" }` through the form, REST, and WebSocket paths. `nextFireAt` is null, including after reload; Run now remains available. |
-| Consistent room lists | User Settings orders rooms by the viewer's tabs, followed by other accessible rooms in office order. Editing another member does not substitute that member's ordering. |
+| Capability               | Result                                                                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Durable incident history | Resolved pages remain on disk and in the Pager view instead of disappearing after 30 days. Delivery still stops when acknowledged or resolved.                          |
+| On-demand jobs           | Schedules accepts `schedule: { type: "manual" }` through the form, REST, and WebSocket paths. `nextFireAt` is null, including after reload; Run now remains available.  |
+| Consistent room lists    | User Settings orders rooms by the viewer's tabs, followed by other accessible rooms in office order. Editing another member does not substitute that member's ordering. |
 
 Regression coverage checks pager reloads after a year, recurring/manual cadence
 changes, stale timer timestamps, explicit run recording, schedule form rendering,
@@ -32,13 +32,13 @@ and room ordering with hidden, unavailable, and duplicate entries.
 
 ## Larger integrations implemented
 
-| Capability | Result and boundary |
-| --- | --- |
-| Signed inbound webhooks | Raw-body HMAC, bounded ingress, durable replay claims, separate signing secrets, delivery records, dispatch authorization, dry runs and management UI. |
-| Room-scoped schedules | Legacy migration, immutable run room snapshots, scoped REST/WS reads and events, usage and prompt discovery; creator/owner mutations. |
-| Browser tab sharing | Packaged Chrome extension with single-use pairing, selected-agent grants, expiry, revocation, restricted actions, and cancellation on disconnect or cross-origin navigation. |
-| App thumbnails and archive | Ownership-checked bounded PNG uploads, identity-scoped media, reversible archive, runtime teardown and credential rotation on restore. |
-| Personal room controls | Personal drag ordering, tuck/reveal controls, same-user socket updates, optimistic rollback and current permission rebinding. |
+| Capability                 | Result and boundary                                                                                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Signed inbound webhooks    | Raw-body HMAC, bounded ingress, durable replay claims, separate signing secrets, delivery records, dispatch authorization, dry runs and management UI.                       |
+| Room-scoped schedules      | Legacy migration, immutable run room snapshots, scoped REST/WS reads and events, usage and prompt discovery; creator/owner mutations.                                        |
+| Browser tab sharing        | Packaged Chrome extension with single-use pairing, selected-agent grants, expiry, revocation, restricted actions, and cancellation on disconnect or cross-origin navigation. |
+| App thumbnails and archive | Ownership-checked bounded PNG uploads, identity-scoped media, reversible archive, runtime teardown and credential rotation on restore.                                       |
+| Personal room controls     | Personal drag ordering, tuck/reveal controls, same-user socket updates, optimistic rollback and current permission rebinding.                                                |
 
 ## Outside Bureau's current scope
 
@@ -66,18 +66,18 @@ recent release notes, the release comparison range, implementation, docs and
 tests against the destination's current behavior. Changes were validated with
 the normal CI gate; browser uploads also passed the real Chrome debugger harness.
 
-| Capability | Shipped follow-up |
-| --- | --- |
-| API and backups | Unknown API paths return JSON 404; container app tokens stay out of backups. |
-| Claude models | Haiku 5.5 and effort forwarding; environment-aware cloud capabilities; unsupported Auto falls back to Default without broadening permissions. |
-| Provider sign-in | Environment tokens and macOS Keychain probes; bounded explicit Codex sign-out preflight, retained queued work and manual retry; bundled Claude login commands preserve the credential directory. |
-| Browser replay | Lazy history replay with bounded live-event backlog, ordered history/live delivery, drain handling and access-change invalidation. Any incoming frame confirms heartbeat liveness. |
-| Pager | Resolved entries move to retained disk archives; access-filtered cursor pagination, old-entry links, crash reconciliation and serialized delivery. |
-| Apps | Agents can upload bounded PNG thumbnails by local file path. |
-| Shared tabs | Selected agents can upload a non-sensitive regular file up to 1 MiB into a same-origin file input. |
-| OpenCode | Bounded HTTP/SSE waits; no automatic prompt replay; active peers prevent process replacement; shared catalog loads, effort fallback notices and discovered context limits. |
+| Capability             | Shipped follow-up                                                                                                                                                                                                      |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API and backups        | Unknown API paths return JSON 404; container app tokens stay out of backups.                                                                                                                                           |
+| Claude models          | Haiku 5.5 and effort forwarding; environment-aware cloud capabilities; unsupported Auto falls back to Default without broadening permissions.                                                                          |
+| Provider sign-in       | Environment tokens and macOS Keychain probes; bounded explicit Codex sign-out preflight, retained queued work and manual retry; bundled Claude login commands preserve the credential directory.                       |
+| Browser replay         | Lazy history replay with bounded live-event backlog, ordered history/live delivery, drain handling and access-change invalidation. Any incoming frame confirms heartbeat liveness.                                     |
+| Pager                  | Resolved entries move to retained disk archives; access-filtered cursor pagination, old-entry links, crash reconciliation and serialized delivery.                                                                     |
+| Apps                   | Agents can upload bounded PNG thumbnails by local file path.                                                                                                                                                           |
+| Shared tabs            | Selected agents can upload a non-sensitive regular file up to 1 MiB into a same-origin file input.                                                                                                                     |
+| OpenCode               | Bounded HTTP/SSE waits; no automatic prompt replay; active peers prevent process replacement; shared catalog loads, effort fallback notices and discovered context limits.                                             |
 | OpenCode office access | Office bearer tokens stay out of the shared child. Desk agents and schedules bind their own active-turn authority. The broker supports current reference, browser, Pager and app APIs and preserves binary thumbnails. |
-| Room entry context | Apps, Schedules and Pager initially filter to the room they were opened from. |
+| Room entry context     | Apps, Schedules and Pager initially filter to the room they were opened from.                                                                                                                                          |
 
 ### Covered or intentionally different
 
@@ -111,18 +111,18 @@ and nearby tests against Bureau's existing capabilities. The release review is
 recorded separately from deployment certification; passing app CI does not
 establish that a hosting platform permits nested sandboxes.
 
-| Classification | Capability and result |
-| --- | --- |
-| Implemented | Task status and priority checkbox filters, counts respecting the opposite filter group, and a retained/reopenable Obsolete state. Active counts exclude completed and obsolete tasks. |
-| Implemented | Single-dispatch browser pointer clicks, native select actions by value or label, and explicit first-dialog acceptance with recorded outcomes. Shared tabs retain origin and selected-agent restrictions. |
-| Implemented | Bun 1.4.2 in Flox on Linux/Apple Silicon and in the Render image. Intel macOS retains 1.3.13 pending catalog availability. |
-| Implemented | Cloud model labels and manifests reflect launch-time alias targets/custom pins and effective permissions without overwriting saved preferences. |
-| Implemented | Render includes bubblewrap. Codex stderr retains namespace diagnostics, including failures coalesced with informational startup notices. |
-| Implemented | Corrected the Render entrypoint's stale authentication import, found by a fresh-container startup check, and added a production-import build test. |
-| Already covered | Render's setup key is origin-checked and accepted only before owner creation; existing tests cover invalid keys, foreign origins and replay after claim. |
-| Already covered | Browser checks use a real Chrome harness, and app relay tests exercise socket closure and resource cleanup under the pinned runtime. No blanket quarantine was added. |
-| Not destination-native | Automatically changing a restricted Codex sandbox to full access after a failed host probe. Bureau retains the selected mode and reports errors. |
-| Not destination-native | Hosted signup, billing database privileges, Caddy installer changes, deployment-specific release gates and safety-hook artifact tests for a backend that does not expose hooks. |
+| Classification         | Capability and result                                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implemented            | Task status and priority checkbox filters, counts respecting the opposite filter group, and a retained/reopenable Obsolete state. Active counts exclude completed and obsolete tasks.                    |
+| Implemented            | Single-dispatch browser pointer clicks, native select actions by value or label, and explicit first-dialog acceptance with recorded outcomes. Shared tabs retain origin and selected-agent restrictions. |
+| Implemented            | Bun 1.4.2 in Flox on Linux/Apple Silicon and in the Render image. Intel macOS retains 1.3.13 pending catalog availability.                                                                               |
+| Implemented            | Cloud model labels and manifests reflect launch-time alias targets/custom pins and effective permissions without overwriting saved preferences.                                                          |
+| Implemented            | Render includes bubblewrap. Codex stderr retains namespace diagnostics, including failures coalesced with informational startup notices.                                                                 |
+| Implemented            | Corrected the Render entrypoint's stale authentication import, found by a fresh-container startup check, and added a production-import build test.                                                       |
+| Already covered        | Render's setup key is origin-checked and accepted only before owner creation; existing tests cover invalid keys, foreign origins and replay after claim.                                                 |
+| Already covered        | Browser checks use a real Chrome harness, and app relay tests exercise socket closure and resource cleanup under the pinned runtime. No blanket quarantine was added.                                    |
+| Not destination-native | Automatically changing a restricted Codex sandbox to full access after a failed host probe. Bureau retains the selected mode and reports errors.                                                         |
+| Not destination-native | Hosted signup, billing database privileges, Caddy installer changes, deployment-specific release gates and safety-hook artifact tests for a backend that does not expose hooks.                          |
 
 ### Implemented: skills management
 
@@ -156,18 +156,18 @@ Compared the October 10 release notes and comparison range with the current
 default-branch implementation, docs and tests. All actionable gaps in this
 review are implemented; the existing product-scope exclusions still apply.
 
-| Classification | Capability and result |
-| --- | --- |
-| Implemented | App short links redirect to authenticated app hostnames, preserve queries and avoid reserved office paths. Agent handoffs preserve ownership and app data while rebinding room visibility. |
-| Implemented | Regional Claude cloud defaults select supported Sonnet/Haiku profiles without replacing explicit pins or routing unknown regions through a global fallback. |
-| Implemented | Privileged agents can edit versioned member instructions through a narrow endpoint. Concurrent edits preserve the local draft and surface the current text; role and access changes remain unavailable. |
-| Implemented | Per-task atomic records retain actor-attributed changes, deletion tombstones and owner restoration. Legacy task storage remains readable; history respects both sides of room changes. |
-| Implemented | Owner-only office audit records capture mutation metadata and pending/committed/failed persistence outcomes. Flat files preserve Bureau's no-database architecture; secrets and request bodies are excluded. |
-| Implemented | A transient shared-tab target closure gets one bounded recovery attempt for the same page and origin. Interrupted input is never replayed; revocation, expiry, changed targets and repeated detachments end sharing. |
-| Implemented | Member usage settings retain a visible loading frame and show an explicit load failure. |
-| Already covered | Interactive terminal behavior and provider login commands have real PTY coverage across the fresh-install matrix. Replacing the PTY implementation is unnecessary for that capability and would disrupt the retained Intel macOS runtime boundary. |
-| Not destination-native | Hosted provisioning, billing governance, deployment logging and platform-specific smoke infrastructure remain outside the self-hosted product scope. |
-| Not an implemented capability | An app-chat widget design document does not establish a working feature to port. |
+| Classification                | Capability and result                                                                                                                                                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implemented                   | App short links redirect to authenticated app hostnames, preserve queries and avoid reserved office paths. Agent handoffs preserve ownership and app data while rebinding room visibility.                                                         |
+| Implemented                   | Regional Claude cloud defaults select supported Sonnet/Haiku profiles without replacing explicit pins or routing unknown regions through a global fallback.                                                                                        |
+| Implemented                   | Privileged agents can edit versioned member instructions through a narrow endpoint. Concurrent edits preserve the local draft and surface the current text; role and access changes remain unavailable.                                            |
+| Implemented                   | Per-task atomic records retain actor-attributed changes, deletion tombstones and owner restoration. Legacy task storage remains readable; history respects both sides of room changes.                                                             |
+| Implemented                   | Owner-only office audit records capture mutation metadata and pending/committed/failed persistence outcomes. Flat files preserve Bureau's no-database architecture; secrets and request bodies are excluded.                                       |
+| Implemented                   | A transient shared-tab target closure gets one bounded recovery attempt for the same page and origin. Interrupted input is never replayed; revocation, expiry, changed targets and repeated detachments end sharing.                               |
+| Implemented                   | Member usage settings retain a visible loading frame and show an explicit load failure.                                                                                                                                                            |
+| Already covered               | Interactive terminal behavior and provider login commands have real PTY coverage across the fresh-install matrix. Replacing the PTY implementation is unnecessary for that capability and would disrupt the retained Intel macOS runtime boundary. |
+| Not destination-native        | Hosted provisioning, billing governance, deployment logging and platform-specific smoke infrastructure remain outside the self-hosted product scope.                                                                                               |
+| Not an implemented capability | An app-chat widget design document does not establish a working feature to port.                                                                                                                                                                   |
 
 Validation includes the normal CI gate, authorization and stale-write tests,
 task reload/failure/restore tests, audit concurrency and secret-omission tests,
@@ -189,23 +189,23 @@ changes through October 13, including implementation, tests and design documents
 The app-chat proposal has now become an implemented capability; this review
 supersedes its earlier design-only classification.
 
-| Classification | Capability and result |
-| --- | --- |
-| Implemented | App short URLs now open an authenticated app/chat view with a sandboxed app iframe, existing agent chat, mobile switching, drafts scoped to user/app generation/agent, session renewal and access revocation. |
-| Implemented | Session replacement closes a prepared replacement when its agent is removed during consumer drain; it cannot resurrect the removed agent. |
-| Implemented | OpenCode startup uses an OS-selected port and a bounded 60-second health window. Errors, retry notices and context compaction are normalized; hidden summaries do not appear as answers. |
-| Implemented | OpenCode turn usage deduplicates billed steps and persists summed turn charges for agents and schedules, including compaction work. |
-| Implemented | Office broker requests preserve bounded binary bodies, support admitted Expect/Continue requests and drain partial socket writes before closing. Task deletion, topic changes and app preview routes are available through the existing agent allowlist. |
-| Implemented | Webhook managers can copy the existing signing secret without rotation; room peers cannot read it, responses are non-cacheable and clipboard failure is explicit. |
-| Implemented | API cards recognize literal single-call curl wrappers and quoted Python display filters. Ambiguous shell commands retain their raw presentation. Help links to the skills library; room tabs constrain touch scrolling and empty lobby presence inputs remain stable. |
-| Implemented | Chat headers and agent listings retain an explicit OpenCode engine label even for model identifiers containing another provider’s name. |
-| Already covered | Task histories retain old/new values and actor attribution; the office audit page exposes actor and operation filtering. Layout-only differences do not require a second history system. |
-| Already covered | Task and schedule routes support direct browser entry and refresh through the office shell. Provider subprocess diagnostics and real PTY behavior have native adapter and fresh-install coverage. |
-| Not destination-native | Opening every loopback route through the agent broker would bypass its explicit authorization boundary. Large browser-only uploads remain browser-only; broker request and response bodies remain bounded at 8 MiB. |
-| Not destination-native | Implicit popup grants would expand selected-tab browser sharing. Existing target revocation and bounded recovery remain in effect. |
-| Not destination-native | Sweat artwork, recording/branding changes and alternative history layouts are presentation choices; Bureau already shows agent work state and elapsed time. |
-| Not destination-native | Hosted provisioning, billing, journal retention and database governance do not belong to the self-hosted flat-file architecture. Removing the PTY Node sidecar would break the retained Intel macOS runtime boundary. |
-| Not an implemented capability | The proposed OS-user secret-isolation design does not yet establish a working feature to port. |
+| Classification                | Capability and result                                                                                                                                                                                                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implemented                   | App short URLs now open an authenticated app/chat view with a sandboxed app iframe, existing agent chat, mobile switching, drafts scoped to user/app generation/agent, session renewal and access revocation.                                                         |
+| Implemented                   | Session replacement closes a prepared replacement when its agent is removed during consumer drain; it cannot resurrect the removed agent.                                                                                                                             |
+| Implemented                   | OpenCode startup uses an OS-selected port and a bounded 60-second health window. Errors, retry notices and context compaction are normalized; hidden summaries do not appear as answers.                                                                              |
+| Implemented                   | OpenCode turn usage deduplicates billed steps and persists summed turn charges for agents and schedules, including compaction work.                                                                                                                                   |
+| Implemented                   | Office broker requests preserve bounded binary bodies, support admitted Expect/Continue requests and drain partial socket writes before closing. Task deletion, topic changes and app preview routes are available through the existing agent allowlist.              |
+| Implemented                   | Webhook managers can copy the existing signing secret without rotation; room peers cannot read it, responses are non-cacheable and clipboard failure is explicit.                                                                                                     |
+| Implemented                   | API cards recognize literal single-call curl wrappers and quoted Python display filters. Ambiguous shell commands retain their raw presentation. Help links to the skills library; room tabs constrain touch scrolling and empty lobby presence inputs remain stable. |
+| Implemented                   | Chat headers and agent listings retain an explicit OpenCode engine label even for model identifiers containing another provider’s name.                                                                                                                               |
+| Already covered               | Task histories retain old/new values and actor attribution; the office audit page exposes actor and operation filtering. Layout-only differences do not require a second history system.                                                                              |
+| Already covered               | Task and schedule routes support direct browser entry and refresh through the office shell. Provider subprocess diagnostics and real PTY behavior have native adapter and fresh-install coverage.                                                                     |
+| Not destination-native        | Opening every loopback route through the agent broker would bypass its explicit authorization boundary. Large browser-only uploads remain browser-only; broker request and response bodies remain bounded at 8 MiB.                                                   |
+| Not destination-native        | Implicit popup grants would expand selected-tab browser sharing. Existing target revocation and bounded recovery remain in effect.                                                                                                                                    |
+| Not destination-native        | Sweat artwork, recording/branding changes and alternative history layouts are presentation choices; Bureau already shows agent work state and elapsed time.                                                                                                           |
+| Not destination-native        | Hosted provisioning, billing, journal retention and database governance do not belong to the self-hosted flat-file architecture. Removing the PTY Node sidecar would break the retained Intel macOS runtime boundary.                                                 |
+| Not an implemented capability | The proposed OS-user secret-isolation design does not yet establish a working feature to port.                                                                                                                                                                        |
 
 Validation covers replacement cancellation, provider compaction/retries/usage,
 binary Unix-socket round trips and partial writes, app chat in real Chrome,
@@ -215,3 +215,46 @@ and eight fresh-install configurations remain the shipping checks.
 App chat uses the office's existing agent permissions and assigned app identity;
 it does not create a public anonymous chat endpoint. See [App chat](../features/app-chat.md)
 and [OpenCode environments](../features/opencode-environments.md) for boundaries.
+
+## Follow-up review — 2026-10-14
+
+Reviewed the October 14 release, its comparison with the October 11 release,
+and default-branch implementation, documentation and tests through October 14.
+This review supersedes the earlier design-only classification for integrations:
+scoped secrets, remote MCP connections and shared sign-in are now implemented.
+The proposed OS-user isolation boundary remains distinct from these features.
+
+| Classification         | Capability and result                                                                                                                                                                                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Implemented            | Members can update their own instructions with personal API tokens. Shared provider sign-in is owner-only, with member guidance and coordinated pending attempts.                                                                                                          |
+| Implemented            | Actor-attributed settings notices coalesce and arrive on the next accepted agent turn; clearing or replacing conversations clears stale notices.                                                                                                                           |
+| Implemented            | Owners and authorized privileged agents can edit versioned office settings through a narrow endpoint. Prompt changes retain actor-attributed snapshots and a history UI.                                                                                                   |
+| Implemented            | Opt-in automatic handoff uses observed context limits and compaction behavior, preserves queued work across the brief and fresh session, and pauses repeated fresh-session loops.                                                                                          |
+| Implemented            | Office/member secrets and variables have scoped management, notes, masked editing, explicit reveal/rotation/reissue actions and live next-turn refresh. Member credentials override office credentials.                                                                    |
+| Implemented            | A local HTTPS proxy replaces stand-ins only in approved headers on exact allowed hosts, rejects misplaced stand-ins and scrubs reflected values from responses, including compressed streams. Git credentials use stand-ins too.                                           |
+| Implemented            | Agents request missing credentials through expiring masked conversation cards. Only the responsible member, or an owner for office scope, can answer; agent bearers cannot answer, and values never enter chat. Requests cannot overwrite a value created in the meantime. |
+| Implemented            | Remote MCP registrations reach Claude, Codex and OpenCode through their native session configuration. Bounded connection tests discover tools without executing them and omit reflected credentials from results.                                                          |
+| Implemented            | Shared MCP OAuth supports browser sign-in, PKCE, same-user callbacks, private client/refresh-token storage, renewal and sign-out. Registration changes and revocation prevent stale callbacks or refreshes from restoring access.                                          |
+| Already covered        | Settings → Connections provides the native home for provider accounts, MCP, secrets and variables. A separate top-level integrations page would duplicate that workflow.                                                                                                   |
+| Already covered        | App chat visibility, office naming, instruction history and provider diagnostics have existing native controls or the scoped additions above.                                                                                                                              |
+| Not destination-native | Hosted provisioning removal, billing infrastructure and cosmetic title/artwork changes do not add missing self-hosted capabilities. Prior product-scope exclusions remain unchanged.                                                                                       |
+
+Validation includes the normal CI gate, 2,683 passing tests with four platform/
+optional tests skipped, and the eight-case fresh-install workflow. Focused tests
+cover live authorization, stale writes, handoff queue preservation, real curl
+proxy traffic, compressed and split response redaction, all three MCP engine
+adapters, OAuth replay/revocation/refresh races, and credential-request log
+omission. Desktop and phone portal checks exercise scoped forms, MCP sign-in
+controls and a masked credential request using dummy values in a temporary office.
+OAuth protocol behavior is tested against controlled responses; no external
+provider account was used for these checks.
+
+Secret storage uses private local files, not encryption or a separate OS-user
+boundary. Programs running as the server user can read those files. Response
+scrubbing covers supported representations, not arbitrary encodings. MCP access
+tokens reach private engine configuration; client and refresh credentials remain
+server-side. Pending credential requests expire after 30 minutes or restart and
+close when the agent's owner or session changes. See
+[integration secrets and MCP](../features/integration-secrets.md) for these
+operational limits. No actionable destination-native gap from this reviewed
+snapshot is deferred for size.
