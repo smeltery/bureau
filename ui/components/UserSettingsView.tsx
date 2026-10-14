@@ -16,7 +16,7 @@ import { SessionsPane } from "./SessionsPane.tsx";
 import { buildAccountSections, type AccountSection } from "./UserSettingsSections.ts";
 import { UserSettingsRosterMeta } from "./UserSettingsRosterMeta.tsx";
 import { MemberVariableNames } from "./MemberVariableNames.tsx";
-import { ConnectionsPane } from "./ConnectionsPane.tsx";
+import { IntegrationsPane } from "./integrations/scoped/IntegrationsPane.tsx";
 import { OfficeVariablesPane } from "./OfficeVariablesPane.tsx";
 import { PersonalVariablesPane } from "./PersonalVariablesPane.tsx";
 import { SignOutPane } from "./SignOutPane.tsx";
@@ -229,7 +229,7 @@ export function UserSettingsView({
             ) : selection?.kind === "section" && selection.section === "access" ? (
               <AccessPane onDirtyChange={setDetailDirtyCb} />
             ) : selection?.kind === "section" && selection.section === "connections" && sessionContext ? (
-              <ConnectionsPane username={sessionContext.username} />
+              <IntegrationsPane />
             ) : selection?.kind === "section" && selection.section === "office-env" ? (
               <OfficeVariablesPane />
             ) : selection?.kind === "section" && selection.section === "personal-env" && sessionContext ? (

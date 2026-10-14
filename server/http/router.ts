@@ -1,3 +1,5 @@
+import { requiresBrowserSession } from "./routing/browser-management.ts";
+import { handleIntegrationsRequest } from "../integrations/http.ts";
 import { handleAppChatRequest } from "../apps/chat-http.ts";
 import { auditHttpRequest, handleAuditRequest } from "../audit/http.ts";
 import { appChatPage, shortAppName } from "../apps/chat-page.ts";
@@ -157,12 +159,7 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   // Task / cronjob / files / agents HTTP APIs. Loopback-allowed because
   // local agents legitimately hit them; non-loopback callers need a
   // session cookie.
-  const browserManagement =
-    ((url.pathname.startsWith("/api/users/") || url.pathname.startsWith("/api/tasks") || url.pathname === "/api/audit-log") && !req.headers.has("authorization")) ||
-    url.pathname.startsWith("/api/skills") ||
-    url.pathname.startsWith("/api/webhooks") ||
-    url.pathname.startsWith("/api/browser-sharing/") ||
-    url.pathname.startsWith("/api/me/view/");
+  const browserManagement = requiresBrowserSession(req, url);
   const httpAuth = authenticate(req, server, { allowLoopback: !browserManagement, officeName: getOfficeName() });
   if (httpAuth.kind === "rejected") return httpAuth.response;
 
@@ -189,9 +186,6 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   const filesResp = await handleFilesRequest(req, url, httpAuth);
   if (filesResp) return filesResp;
 
-  // Ahead of the general agent routes: those answer null for /slides paths, so
-  // the order is documentation rather than dispatch, but it keeps the Slide
-  // Mode surface findable next to the routes it belongs beside.
   const slidesResp = await handleAgentSlidesRequest(req, url, httpAuth, defaultSlideRoutesDeps);
   if (slidesResp) return slidesResp;
 
@@ -204,7 +198,6 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   const appsResp = await handleAppsRequest(req, url, httpAuth);
   if (appsResp) return appsResp;
 
-  // The app-SELF surface: authenticated by an app token, never by a session.
   const appSelfResp = await handleAppSelfRequest(req, url);
   if (appSelfResp) return appSelfResp;
 
@@ -217,6 +210,9 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
   const roomsResp = await handleRoomsRequest(req, url, httpAuth, { pushPresence: pushPresenceListToEachWs });
   if (roomsResp) return roomsResp;
+
+  const integrationsResp = await handleIntegrationsRequest(req, url, httpAuth);
+  if (integrationsResp) return integrationsResp;
 
   const officeSettingsResp = await handleOfficeSettingsRequest(req, url, httpAuth);
   if (officeSettingsResp) return officeSettingsResp;

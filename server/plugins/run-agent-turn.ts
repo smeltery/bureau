@@ -1,3 +1,4 @@
+import { refreshAgentIntegrations } from "../integrations/agent-refresh.ts";
 import { formatSettingsNoticeBlock } from "./plugin-prefix.ts";
 import { renderSettingsNotice } from "../agents/session/settings-notice.ts";
 /**
@@ -93,6 +94,7 @@ export interface RunAgentTurnOpts {
 export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   const { managed, sdkText, originalText, visibleText, attachments, origin, humanInput, username, onSendAccepted } = opts;
   const agentId = managed.info.id;
+  await refreshAgentIntegrations(managed);
   await admitMemberTurn(managed, username, humanInput);
   const contextNotices = [...managed.pendingContextNotices];
   const contextNoticeText = contextNotices.map((notice) => `[${notice}]`).join("\n");

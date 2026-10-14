@@ -1,3 +1,5 @@
+import { integrationStore } from "./integrations/store.ts";
+import { notifyIntegrationChange } from "./integrations/changes.ts";
 import { instructionConflict } from "./members/instructions.ts";
 import { refreshBoundUser } from "./user-sockets.ts";
 import type { RoomWire, UserRecord, UserRole } from "../shared/types.ts";
@@ -122,6 +124,8 @@ export function deleteUserById(userId: string): boolean {
   users.delete(normalizeUserKey(target.name));
   persist();
   refreshBoundUser(userId, null);
+  integrationStore.removeMember(userId);
+  void notifyIntegrationChange({ kind: "member", userId });
   return true;
 }
 

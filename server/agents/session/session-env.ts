@@ -1,3 +1,4 @@
+import { credentialRuntime, appendGitCredentialHelpers } from "../../integrations/proxy/runtime.ts";
 import { readEnvFile } from "../../persistence.ts";
 import { getUserById } from "../../users.ts";
 import { getAgentToken } from "../tokens.ts";
@@ -13,7 +14,8 @@ export function buildSessionEnv(managed: Pick<ManagedAgent, "info">): { [key: st
   const officeEnvFile = officeConfig.envFile;
   const userEnvFile = managed.info.userId ? (getUserById(managed.info.userId)?.envFile ?? null) : null;
   const agentToken = getAgentToken(managed.info.id);
-  if (!roomEnvFile && !officeEnvFile && !userEnvFile && !agentToken) return undefined;
+  const credentials = credentialRuntime.environment(managed.info.userId);
+  if (!roomEnvFile && !officeEnvFile && !userEnvFile && !agentToken && !credentials) return undefined;
 
   // Intentional: inherit parent process.env so agents see HOME/PATH/etc.
   // Office, room, and user files override individual keys but cannot unset
@@ -23,6 +25,7 @@ export function buildSessionEnv(managed: Pick<ManagedAgent, "info">): { [key: st
     const officeEnv = readEnvFile(officeEnvFile);
     Object.assign(merged, officeEnv);
   }
+  if (credentials) Object.assign(merged, credentials.office);
   if (roomEnvFile) {
     const roomEnv = readEnvFile(roomEnvFile);
     Object.assign(merged, roomEnv);
@@ -30,6 +33,10 @@ export function buildSessionEnv(managed: Pick<ManagedAgent, "info">): { [key: st
   if (userEnvFile) {
     const userEnv = readEnvFile(userEnvFile);
     Object.assign(merged, userEnv);
+  }
+  if (credentials) {
+    Object.assign(merged, credentials.member, credentials.fixed);
+    appendGitCredentialHelpers(merged, credentials.gitCredentials);
   }
   if (agentToken) merged.BUREAU_AGENT_TOKEN = agentToken;
   return merged;

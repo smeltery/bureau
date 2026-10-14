@@ -6,6 +6,8 @@ import type { SettingsNotice } from "./session/settings-notice.ts";
 
 // Internal agent state
 export interface ManagedAgent {
+  integrationRevision?: number;
+  appliedIntegrationRevision?: number;
   autoHandoffAttempt?: AutoHandoffAttempt | null;
   autoHandoffSpent?: boolean;
   autoHandoffFresh?: boolean;

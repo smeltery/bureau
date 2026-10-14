@@ -1,3 +1,4 @@
+import { enableIntegrations } from "./integrations/agent-refresh.ts";
 import type { ServerMessage } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
 import * as CronjobManager from "./cronjobs/index.ts";
@@ -133,6 +134,11 @@ void (async () => {
     console.error("[plugins] unexpected error during plugin load:", err);
   }
 
+  try {
+    await enableIntegrations();
+  } catch {
+    console.error("[integrations] credential delivery could not start; stored values remain private");
+  }
   const restored = await AgentManager.restoreAgents();
   if (restored.length > 0) {
     console.log(`Restored ${restored.length} agent(s): ${restored.map((a) => a.name).join(", ")}`);
