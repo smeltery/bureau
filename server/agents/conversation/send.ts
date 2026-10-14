@@ -23,7 +23,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   // / model pick / permission) bypass the queue: the boss expects their input
   // to flow into the prompt immediately.
   if (
-    isAgentBusy(managed.info.state) &&
+    (isAgentBusy(managed.info.state) || !!managed.autoHandoffAttempt) &&
     !managed.pendingPermission &&
     (managed.queuedPermissions?.length ?? 0) === 0 &&
     !managed.pendingResume &&
@@ -147,6 +147,8 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         managed.pendingContextNotices = [];
         managed.wakeNotice = null;
         managed.settingsNotice = null;
+        managed.autoHandoffSpent = false;
+        managed.autoHandoffFresh = false;
         managed.info.contextUsage = null;
         // Restore the textCount baseline from sessions.json so drift is
         // measured against the replayed history, not from zero (otherwise

@@ -48,6 +48,7 @@ export type ClientCommand =
       outfit?: AgentOutfit;
       customInstructions?: string;
       customInstructionsVersion?: string;
+      autoHandoff?: boolean;
       agentType?: AgentInfo["agentType"];
       modelFamily?: string;
       permissionMode?: AgentInfo["permissionMode"];

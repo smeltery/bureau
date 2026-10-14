@@ -17,6 +17,7 @@ export interface PersistedAgent {
   modelFamily?: string;
   agentType?: AgentInfo["agentType"];
   privileged?: boolean;
+  autoHandoff?: boolean;
   codexSandbox?: AgentInfo["codexSandbox"];
   effort?: AgentInfo["effort"];
   lastSessionId: string | null;

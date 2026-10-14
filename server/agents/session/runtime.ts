@@ -1,3 +1,4 @@
+import { cancelAutoHandoff } from "../conversation/auto-handoff.ts";
 import { ensureSessionClaudeConfigDir, getSessionClaudeConfigDir, rollSessionUsageOnResume } from "../../persistence.ts";
 import { armMemoryNotice } from "../memory-notice.ts";
 import { agents, clearLiveTurn, emit, officeConfig, rooms, syncPendingPrompt, type ManagedAgent } from "../state.ts";
@@ -135,6 +136,7 @@ export async function waitForConsumerDrain(consumer: Promise<void>, timeoutMs = 
 // drain, install the new session + consumer. Rejects any in-flight turn so
 // callers awaiting sendMessage's deferred don't hang.
 export async function replaceSession(agentId: string, managed: ManagedAgent, newSession: BackendSession, consumerDrainTimeoutMs = SESSION_REPLACE_CONSUMER_DRAIN_TIMEOUT_MS) {
+  cancelAutoHandoff(managed);
   clearLiveTurn(managed);
   // Bump the cancel token first so any concurrent runAgentTurn in its
   // pre-send plugin-retrieval window bails on the next await checkpoint —
@@ -256,7 +258,11 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   }
   managed.launchedClaudeConfigDir = managed.info.agentType === "claude" ? claudeConfigRoot(env) : undefined;
   const session = resumeSessionId ? backend.resumeSession(resumeSessionId, opts) : backend.createSession(opts);
-  if (!resumeSessionId) managed.settingsNotice = null;
+  if (!resumeSessionId) {
+    managed.settingsNotice = null;
+    managed.autoHandoffSpent = false;
+    managed.autoHandoffFresh = false;
+  }
   const changes = sessionModelMetadata(managed.info, env);
   Object.assign(managed.info, changes);
   emit({ type: "agent_updated", agentId: managed.info.id, changes });

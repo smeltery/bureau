@@ -8,6 +8,8 @@ export interface DiscoveredOpenCodeModel {
   id: string;
   label: string;
   contextLimit?: number;
+  inputLimit?: number;
+  outputLimit?: number;
   supportedEfforts: { level: string }[];
   isFree?: boolean;
 }
@@ -131,11 +133,15 @@ export function allowDiscoveredModels(raw: unknown): DiscoveredOpenCodeModel[] {
       const model = asRecord(rawModel);
       const modelLabel = safeCatalogLabel(model.name, modelId);
       const contextLimit = numberField(asRecord(model.limit), "context");
+      const inputLimit = numberField(asRecord(model.limit), "input");
+      const outputLimit = numberField(asRecord(model.limit), "output");
       if (!byId.has(id)) {
         byId.set(id, {
           id,
           supportedEfforts: EFFORT_LEVELS.filter(({ level }) => Object.hasOwn(asRecord(model.variants), level)).map(({ level }) => ({ level })),
           label: providerId === "opencode" || providerId === "opencode-go" ? modelLabel : `${providerLabel} - ${modelLabel}`,
+          ...(inputLimit !== null && inputLimit > 0 ? { inputLimit } : {}),
+          ...(outputLimit !== null && outputLimit > 0 ? { outputLimit } : {}),
           ...(contextLimit !== null && contextLimit > 0 ? { contextLimit } : {}),
           ...(openCodeModelIsFree(model.cost) ? { isFree: true } : {}),
         });

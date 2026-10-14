@@ -1,8 +1,8 @@
+import { resetAutoHandoff } from "./auto-handoff.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import { agentModelLabel } from "../../../shared/types.ts";
 import { getBackupStatus } from "../../backup.ts";
-import { listAgentSessions } from "../../persistence.ts";
-import { BUREAU_DIR } from "../../persistence/paths.ts";
+import { BUREAU_DIR, listAgentSessions } from "../../persistence.ts";
 import { renderStorageReport } from "../../storage/report.ts";
 import { measureStorage } from "../../storage-usage.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
@@ -55,6 +55,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
     managed.settingsNotice = null;
+    resetAutoHandoff(managed);
     managed.info.topic = null;
     managed.info.topicStale = false;
     managed.info.contextUsage = null;
@@ -150,6 +151,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
     managed.settingsNotice = null;
+    resetAutoHandoff(managed);
     managed.info.topic = null;
     managed.info.topicStale = false;
     managed.info.contextUsage = null;

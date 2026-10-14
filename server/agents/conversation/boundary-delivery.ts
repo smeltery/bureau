@@ -53,7 +53,7 @@ export function unclaimedQueue(managed: ManagedAgent): QueuedMessage[] {
 
 export function takeToolBoundaryMessage(agentId: string, session: BackendSession | null): string | null {
   const managed = agents.get(agentId);
-  if (!managed || managed.session !== session || managed.flushInProgress || hasPendingFlow(managed)) return null;
+  if (!managed || managed.autoHandoffAttempt || managed.session !== session || managed.flushInProgress || hasPendingFlow(managed)) return null;
   const items = unclaimedQueue(managed);
   if (!items.some((m) => m.steer) || !items.every(boundaryEligible)) return null;
   const claim = managed.boundaryClaim?.session === session ? managed.boundaryClaim : { session, items: new Set<QueuedMessage>() };

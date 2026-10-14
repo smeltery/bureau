@@ -31,6 +31,7 @@ export async function editAgent(
     codexSandbox?: AgentInfo["codexSandbox"];
     effort?: AgentInfo["effort"];
     userId?: string | null;
+    autoHandoff?: boolean;
   },
   actor = "an office member",
 ) {
@@ -123,6 +124,11 @@ export async function editAgent(
   if (changes.effort && changes.effort !== managed.info.effort) {
     managed.info.effort = changes.effort;
     updated.effort = changes.effort;
+  }
+
+  if (typeof changes.autoHandoff === "boolean" && changes.autoHandoff !== managed.info.autoHandoff) {
+    managed.info.autoHandoff = changes.autoHandoff;
+    updated.autoHandoff = changes.autoHandoff;
   }
 
   if (Object.keys(updated).length === 0) return;

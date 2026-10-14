@@ -85,6 +85,7 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
           codexSandbox: typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
           effort: typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
           userId: nextUserId,
+          autoHandoff: typeof body.autoHandoff === "boolean" ? body.autoHandoff : undefined,
         },
         privilegedAgentIdentity(req)?.manager.name ?? sessionUser(auth)?.name,
       );

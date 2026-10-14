@@ -65,6 +65,7 @@ export class OpenCodeBackendSession implements BackendSession {
     const maxTokens = this.transport.contextLimit() ?? Math.max(breakdown.totalTokens, 200_000);
     return {
       model: this.transport.modelId(),
+      compactAtTokens: this.transport.compactionLimit(),
       totalTokens: breakdown.totalTokens,
       maxTokens,
       percentage: Math.min(100, (breakdown.totalTokens / maxTokens) * 100),
