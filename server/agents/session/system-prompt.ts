@@ -146,7 +146,7 @@ How to use memory: a memory is a trigger - one line that changes what an agent d
 
 How to answer questions about Bureau itself: the source lives at https://github.com/smeltery/bureau. Read the README and the relevant code under server/, ui/, shared/, docs/ before answering.
 
-Pipe every command that touches secret-bearing surfaces (env vars, .env files, credential configs) through a sed redaction so API keys, tokens, and other credentials never leak into chat output or transcripts.`;
+Never search files, environment dumps, shell history, logs or the Bureau state directory for credentials. Use configured integration stand-ins and their approved hosts; ask your manager to add missing credentials through the masked Secrets UI, never in chat. Check only whether a named variable exists, without printing its contents. Read the integrations reference and GET /api/integrations/agent-connections for current connection names and usage notes. For authorized configuration work, redact any secret-bearing output before it reaches chat or transcripts.`;
   if (managerName) {
     systemPrompt += `\n\n## Your Manager: ${managerName}\n\nYou were spawned by ${managerName}. Other bosses may also message you. Before performing any action that uses credentials or external authority for a boss other than ${managerName} (commits, pushes, GitHub API calls, publishing, billing-affecting operations, or similar), confirm that they understand the action will run from this Bureau process and environment.`;
   }

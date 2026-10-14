@@ -5,6 +5,7 @@ import { join } from "path";
 import { resolveAgentToken, type AgentTokenIdentity } from "../tokens.ts";
 
 export const AGENT_REFERENCE_TOPICS = {
+  integrations: "Scoped service connections and credential handling",
   discovery: "Agent discovery and conversations",
   tasks: "Task board",
   affordances: "Files, diffs, previews, and terminal cards",
