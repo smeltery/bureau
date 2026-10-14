@@ -18,7 +18,7 @@ export const CAPABILITIES: BackendCapabilities = {
   canUseTool: true,
   topicGen: true,
   edit: true,
-  mcp: false,
+  mcp: true,
 };
 
 // Static fallbacks when live /provider discovery is unavailable. IDs use

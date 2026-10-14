@@ -1,3 +1,5 @@
+import { resolveMcpServers } from "../integrations/mcp.ts";
+import { credentialRuntime, appendGitCredentialHelpers } from "../integrations/proxy/runtime.ts";
 import { cronjobRunStreamId, type Cronjob, type CronjobRun } from "../../shared/types.ts";
 import { ensureRunSessionClaudeConfigDir, getRunSessionClaudeConfigDir, readEnvFile, rollRunSessionUsageOnResume } from "../persistence.ts";
 import { claudeConfigRoot } from "../agents/session/paths.ts";
@@ -11,10 +13,16 @@ import { buildCronjobMemoryPrompt } from "./system-prompt.ts";
 export function buildCronjobEnv(userId?: string | null): { [key: string]: string | undefined } | undefined {
   const officeEnvFile = officeConfig.envFile;
   const userEnvFile = userId ? (getUserById(userId)?.envFile ?? null) : null;
-  if (!officeEnvFile && !userEnvFile) return undefined;
+  const credentials = credentialRuntime.environment(userId);
+  if (!officeEnvFile && !userEnvFile && !credentials) return undefined;
   const merged: { [key: string]: string | undefined } = { ...process.env };
   if (officeEnvFile) Object.assign(merged, readEnvFile(officeEnvFile));
+  if (credentials) Object.assign(merged, credentials.office);
   if (userEnvFile) Object.assign(merged, readEnvFile(userEnvFile));
+  if (credentials) {
+    Object.assign(merged, credentials.member, credentials.fixed);
+    appendGitCredentialHelpers(merged, credentials.gitCredentials);
+  }
   return merged;
 }
 
@@ -46,6 +54,7 @@ export function buildRunSessionOptions({
   const systemPrompt = buildSystemPrompt(job, jobId, runId, buildCronjobMemoryPrompt());
   return {
     agentId: cronjobRunStreamId(runId),
+    mcpServers: resolveMcpServers(job.userId),
     environmentId: openCodeEnvironmentId(job.userId),
     resolveEnv: () => buildCronjobEnv(job.userId),
     modelFamily: job.modelFamily,
@@ -89,6 +98,7 @@ export function buildRunResumeOptions({
   }
   return {
     agentId: cronjobRunStreamId(run.id),
+    mcpServers: resolveMcpServers(userId),
     environmentId: openCodeEnvironmentId(userId),
     resolveEnv: () => buildCronjobEnv(userId),
     modelFamily: run.modelFamilySnapshot,

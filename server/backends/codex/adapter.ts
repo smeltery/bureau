@@ -38,6 +38,7 @@ export const codexBackend: Backend = {
   createSession(opts: CreateSessionOptions): BackendSession {
     return new CodexSession({
       agentId: opts.agentId,
+      mcpServers: opts.mcpServers,
       cwd: opts.cwd,
       systemPrompt: opts.systemPrompt,
       modelFamily: opts.modelFamily,
@@ -51,6 +52,7 @@ export const codexBackend: Backend = {
   resumeSession(sessionId: string, opts: CreateSessionOptions): BackendSession {
     return new CodexSession({
       agentId: opts.agentId,
+      mcpServers: opts.mcpServers,
       cwd: opts.cwd,
       systemPrompt: opts.systemPrompt,
       modelFamily: opts.modelFamily,

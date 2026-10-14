@@ -1,3 +1,4 @@
+import { resolveMcpServers } from "../../integrations/mcp.ts";
 import { cancelAutoHandoff } from "../conversation/auto-handoff.ts";
 import { ensureSessionClaudeConfigDir, getSessionClaudeConfigDir, rollSessionUsageOnResume } from "../../persistence.ts";
 import { armMemoryNotice } from "../memory-notice.ts";
@@ -234,6 +235,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   // to the CLI args verbatim (verified against SDK 0.2.116 sdk.mjs).
   const environmentId = openCodeEnvironmentId(managed.info.userId, room.id);
   const opts = {
+    mcpServers: resolveMcpServers(managed.info.userId),
     agentId: managed.info.id,
     environmentId,
     resolveEnv: () => {

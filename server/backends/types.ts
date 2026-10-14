@@ -50,6 +50,7 @@ export type BackendCapabilities = AgentCapabilities;
 // bypassPermissions/auto; Codex: gpt-5 family × sandbox × approvalPolicy).
 
 export interface CreateSessionOptions {
+  mcpServers?: import("../integrations/mcp.ts").AgentMcpServer[];
   environmentId?: string;
   resolveEnv?: () => Record<string, string | undefined> | undefined;
   agentId: string;

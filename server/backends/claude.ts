@@ -1,3 +1,4 @@
+import { registerClaudeMcp } from "./claude/mcp.ts";
 import { withCloudModelDefaults } from "./claude/cloud-defaults.ts";
 import {
   forkSession as sdkForkSession,
@@ -118,6 +119,7 @@ class ClaudeBackendSession implements BackendSession {
   // query lookup so field initialization order doesn't matter.
   private readonly subscriptionUsage = createClaudeSubscriptionUsageReader(() => this.raw.query as ClaudeUsageCapableQuery);
 
+  private readonly mcpReady: Promise<void>;
   constructor(
     private readonly opts: CreateSessionOptions,
     resumeSessionId?: string,
@@ -139,6 +141,7 @@ class ClaudeBackendSession implements BackendSession {
       ...(resumeSessionId ? { resume: resumeSessionId } : {}),
     };
     this.raw = new RawClaudeSession(options);
+    this.mcpReady = registerClaudeMcp(this.raw.query, opts.mcpServers);
   }
 
   async *stream(): AsyncIterable<NormalizedEvent> {
@@ -170,6 +173,7 @@ class ClaudeBackendSession implements BackendSession {
   }
 
   async send(text: string, attachments?: AttachmentSpec[]): Promise<void> {
+    await this.mcpReady;
     await this.raw.send(buildUserMessage(this.opts.agentId, text, attachments ?? []));
   }
 

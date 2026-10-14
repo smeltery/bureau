@@ -47,3 +47,28 @@ preserving conversation history. Deleting a member removes their integration sto
 The local proxy honors the host process's `HTTPS_PROXY` and `NO_PROXY` settings for
 company proxy chaining. Agents without secrets retain their existing environment.
 A corrupt integration store is preserved and rejected rather than overwritten.
+
+## Remote MCP connections
+
+The **MCP** tab registers a remote HTTPS MCP endpoint for an office or member.
+Give it a unique environment-style name, an optional same-scope secret, and a usage
+note. A credential-backed endpoint must use port 443 and its host must appear in
+the secret's allowlist. Office registrations are inherited; a member registration
+with the same name overrides the office one, including when its own credential is
+missing. Invalid connections are omitted with a fixed warning rather than silently
+falling back to broader office access.
+
+Claude receives registrations through its SDK control channel before the next
+message. Codex receives them in thread configuration on create and resume.
+OpenCode receives them in a private profile configuration file, with changes
+waiting for active turns. Managed names have a `bureau-` prefix to avoid collisions
+with other engine configuration. Scheduled runs also receive their owner's scoped
+connections and secret stand-ins.
+
+**Test connection** makes a read-only GitHub, Stripe or Fly identity request for
+supported secrets. For MCP, it initializes a session and lists available tools;
+it does not invoke any tools. Tests have a ten-second deadline, bounded response
+size and pagination, never follow redirects, and return a status, a sanitized
+account/server label and an MCP tool count. Raw remote responses and transport
+errors are not exposed to the UI. Usage notes are available through the agent's
+live connection reference.

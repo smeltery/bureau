@@ -76,7 +76,7 @@ describe("OpenCode backend registry", () => {
     expect(backend.capabilities).toEqual(CAPABILITIES);
     expect(backend.capabilities.skills).toBe(false);
     expect(backend.capabilities.hooks).toBe(false);
-    expect(backend.capabilities.mcp).toBe(false);
+    expect(backend.capabilities.mcp).toBe(true);
   });
 
   it("keeps AgentBackendType exhaustiveness in getBackend", () => {
