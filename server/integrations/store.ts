@@ -56,6 +56,8 @@ export function createIntegrationStore(root = BUREAU_DIR) {
         remoteMcpUrl(server.url);
         connectionNote(server.note);
         if (server.secret !== null) integrationName(server.secret);
+        if (server.oauth !== undefined && typeof server.oauth !== "boolean") throw new Error("invalid OAuth setting");
+        if (server.id !== undefined && typeof server.id !== "string") throw new Error("invalid registration id");
         if (!Number.isFinite(server.createdAt) || !Number.isFinite(server.updatedAt)) throw new Error("invalid server");
       }
       return state;
@@ -127,14 +129,18 @@ export function createIntegrationStore(root = BUREAU_DIR) {
       const state = read(scope);
       const existing = state.mcp.find((server) => server.name === name);
       const url = remoteMcpUrl(input.url ?? existing?.url);
-      const secret = input.secret === undefined ? (existing?.secret ?? null) : input.secret === null || input.secret === "" ? null : integrationName(input.secret);
+      const oauth = input.oauth === undefined ? (existing?.oauth ?? false) : input.oauth;
+      if (typeof oauth !== "boolean") throw new IntegrationValidationError("Choose whether this connection uses browser sign-in.");
+      const secret = oauth ? null : input.secret === undefined ? (existing?.secret ?? null) : input.secret === null || input.secret === "" ? null : integrationName(input.secret);
       if (secret && new URL(url).port) throw new IntegrationValidationError("Credential-backed MCP servers must use HTTPS port 443.");
       if (secret && !state.secrets.some((item) => item.name === secret && item.hosts.includes(new URL(url).hostname)))
         throw new IntegrationValidationError("Choose a secret in this scope that allows the MCP server’s host.");
       const server: RemoteMcpServer = {
+        id: existing?.id ?? crypto.randomUUID(),
         name,
         url,
         secret,
+        oauth,
         note: connectionNote(input.note === undefined ? existing?.note : input.note),
         createdAt: existing?.createdAt ?? Date.now(),
         updatedAt: Date.now(),

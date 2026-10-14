@@ -10,6 +10,8 @@ export interface SecretMetadata {
   updatedAt: number;
 }
 export interface RemoteMcpServer {
+  id?: string;
+  oauth?: boolean;
   name: string;
   url: string;
   secret: string | null;

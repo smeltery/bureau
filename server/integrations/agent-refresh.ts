@@ -1,3 +1,4 @@
+import { enableMcpOAuth } from "./oauth/runtime.ts";
 import { agents, addLogEntry } from "../agents/state.ts";
 import { createSession, replaceSession, SessionSwappedError } from "../agents/session/runtime.ts";
 import type { ManagedAgent } from "../agents/state-types.ts";
@@ -14,7 +15,8 @@ export async function enableIntegrations(): Promise<void> {
     }
     await credentialRuntime.refresh();
   });
-  await credentialRuntime.enable();
+  const started = await Promise.allSettled([credentialRuntime.enable(), enableMcpOAuth()]);
+  if (started.some((result) => result.status === "rejected")) throw new Error("Some integration services could not start.");
 }
 
 export async function refreshAgentIntegrations(managed: ManagedAgent): Promise<void> {

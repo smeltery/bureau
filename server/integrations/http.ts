@@ -1,3 +1,5 @@
+import { mcpOAuthFlows } from "./oauth/flows.ts";
+import { handleMcpOAuth } from "./oauth/http.ts";
 import { testConnection } from "./connection-test.ts";
 import { handleAgentConnections } from "./agent-connections.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
@@ -14,6 +16,8 @@ import { notifyIntegrationChange } from "./changes.ts";
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 export async function handleIntegrationsRequest(req: Request, url: URL, auth: AuthResult): Promise<Response | null> {
+  const oauth = await handleMcpOAuth(req, url, auth);
+  if (oauth) return oauth;
   const agentConnections = handleAgentConnections(req, url);
   if (agentConnections) return agentConnections;
   const match = /^\/api\/integrations\/(office|members\/([A-Za-z0-9_-]+))(?:\/(secrets|mcp|variables)(?:\/([^/]+)(?:\/(reveal|reissue|test))?)?)?$/.exec(url.pathname);
@@ -52,6 +56,7 @@ export async function handleIntegrationsRequest(req: Request, url: URL, auth: Au
     }
     if (req.method === "DELETE" && (kind === "secrets" || kind === "mcp")) {
       if (!integrationStore.remove(scope, kind, name)) return json({ error: "Integration not found." }, 404);
+      if (kind === "mcp") mcpOAuthFlows.cancel(scope, name);
       await notifyIntegrationChange(scope);
       return json({ ok: true });
     }
@@ -85,8 +90,10 @@ export async function handleIntegrationsRequest(req: Request, url: URL, auth: Au
       return json({ secret });
     }
     if (kind === "mcp") {
-      if (Object.keys(body).some((key) => !["url", "secret", "note"].includes(key))) return json({ error: "Unsupported MCP field." }, 400);
+      if (Object.keys(body).some((key) => !["url", "secret", "note", "oauth"].includes(key))) return json({ error: "Unsupported MCP field." }, 400);
+      const previous = integrationStore.list(scope).mcp.find((item) => item.name === name);
       const server = integrationStore.setMcp(scope, name, body);
+      if (previous && (previous.url !== server.url || previous.oauth !== server.oauth)) mcpOAuthFlows.cancel(scope, name);
       await notifyIntegrationChange(scope);
       return json({ server });
     }

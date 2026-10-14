@@ -1,3 +1,4 @@
+import { oauthAccessToken } from "./oauth/store.ts";
 import type { IntegrationScope } from "../../shared/integrations/connections.ts";
 import { integrationStore, type IntegrationStore } from "./store.ts";
 import { credentialHeader } from "./mcp.ts";
@@ -63,8 +64,13 @@ export async function testConnection(
     const resolved = secret ?? (server?.secret ? store.privateSecrets(scope).find((item) => item.name === server.secret) : undefined);
     if (server?.secret && (!resolved || !resolved.hosts.includes(new URL(server.url).hostname) || new URL(server.url).port))
       return { ok: false, error: "The configured credential is missing or does not allow this server." };
-    credential = resolved?.value ?? null;
-    const headers: Record<string, string> = { ...(resolved ? credentialHeader(resolved.form, resolved.value) : {}), "User-Agent": "Bureau" };
+    const oauthToken = server?.oauth ? oauthAccessToken(scope, server) : null;
+    if (server?.oauth && !oauthToken) return { ok: false, error: "Sign in to this MCP connection before testing it." };
+    credential = oauthToken ?? resolved?.value ?? null;
+    const headers: Record<string, string> = {
+      ...(oauthToken ? credentialHeader({ kind: "authorization" }, oauthToken) : resolved ? credentialHeader(resolved.form, resolved.value) : {}),
+      "User-Agent": "Bureau",
+    };
     async function request(url: string, body?: unknown, extra: Record<string, string> = {}): Promise<Response> {
       const response = await send(url, {
         method: body ? "POST" : "GET",

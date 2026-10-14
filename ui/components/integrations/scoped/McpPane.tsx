@@ -1,3 +1,4 @@
+import { McpSignIn } from "./McpSignIn.tsx";
 import { useState } from "react";
 import type { RemoteMcpServer } from "../../../../shared/integrations/connections.ts";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "../../modals/dialog-styles.ts";
@@ -8,6 +9,7 @@ export function McpPane({ path, data, reload }: { path: string; data: Integratio
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState("");
+  const [oauth, setOAuth] = useState(false);
   const [note, setNote] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +19,7 @@ export function McpPane({ path, data, reload }: { path: string; data: Integratio
     setName(server?.name ?? "");
     setUrl(server?.url ?? "");
     setSecret(server?.secret ?? "");
+    setOAuth(server?.oauth ?? false);
     setNote(server?.note ?? "");
     setError(null);
   }
@@ -24,7 +27,7 @@ export function McpPane({ path, data, reload }: { path: string; data: Integratio
     setPending(true);
     setError(null);
     try {
-      await integrationApi(`${path}/mcp/${encodeURIComponent(selected)}`, method, method === "PUT" ? { url, secret: secret || null, note } : undefined);
+      await integrationApi(`${path}/mcp/${encodeURIComponent(selected)}`, method, method === "PUT" ? { url, secret: oauth ? null : secret || null, note, oauth } : undefined);
       setEditing(null);
       setDeleting(null);
       reload();
@@ -57,8 +60,15 @@ export function McpPane({ path, data, reload }: { path: string; data: Integratio
             <input required type="url" style={dialogInput} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://tools.example.com/mcp" />
           </label>
           <label style={dialogLabel}>
+            Authentication
+            <select value={oauth ? "oauth" : "secret"} style={dialogInput} onChange={(e) => setOAuth(e.target.value === "oauth")}>
+              <option value="secret">No credential or stored secret</option>
+              <option value="oauth">Browser sign-in (OAuth)</option>
+            </select>
+          </label>
+          <label style={dialogLabel}>
             Credential
-            <select style={dialogInput} value={secret} onChange={(e) => setSecret(e.target.value)}>
+            <select disabled={oauth} style={dialogInput} value={secret} onChange={(e) => setSecret(e.target.value)}>
               <option value="">No credential</option>
               {data.secrets.map((item) => (
                 <option key={item.name} value={item.name}>
@@ -67,7 +77,11 @@ export function McpPane({ path, data, reload }: { path: string; data: Integratio
               ))}
             </select>
           </label>
-          <p style={dialogHint}>Choose a secret in this scope that allows the endpoint's exact host. Paste credentials in Secrets, not in the URL.</p>
+          <p style={dialogHint}>
+            {oauth
+              ? "Save this connection, then sign in once to authorize it across all engines."
+              : "Choose a secret in this scope that allows the endpoint's exact host. Paste credentials in Secrets, not in the URL."}
+          </p>
           <label style={dialogLabel}>
             Usage note for agents
             <textarea style={dialogInput} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -96,6 +110,7 @@ export function McpPane({ path, data, reload }: { path: string; data: Integratio
               {server.note && <p style={dialogHint}>{server.note}</p>}
               {data.canManage && (
                 <>
+                  {server.oauth && <McpSignIn path={`${path}/mcp/${encodeURIComponent(server.name)}`} />}
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button disabled={pending} style={dialogCancelBtn} onClick={() => edit(server)}>
                       Edit
