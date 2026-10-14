@@ -26,6 +26,11 @@ interface StoredConnections {
 }
 const protectedNames = /^(?:BUREAU_|GIT_CONFIG_|NODE_EXTRA_CA_CERTS$|SSL_CERT_FILE$|REQUESTS_CA_BUNDLE$|CURL_CA_BUNDLE$|HTTPS?_PROXY$|ALL_PROXY$|NO_PROXY$)/i;
 export class IntegrationStoreError extends Error {}
+export function validateSecretName(name: string): string {
+  integrationName(name);
+  if (protectedNames.test(name)) throw new IntegrationValidationError("This environment name is reserved by the runtime.");
+  return name;
+}
 
 export function integrationScopeKey(scope: IntegrationScope): string {
   if (scope.kind === "office") return "office";
@@ -103,8 +108,7 @@ export function createIntegrationStore(root = BUREAU_DIR) {
       );
     },
     setSecret(scope: IntegrationScope, name: string, input: Record<string, unknown>): SecretMetadata {
-      integrationName(name);
-      if (protectedNames.test(name)) throw new IntegrationValidationError("This environment name is reserved by the runtime.");
+      validateSecretName(name);
       const state = read(scope);
       const existing = state.secrets.find((secret) => secret.name === name);
       const value = input.value === undefined ? existing?.value : input.value;
