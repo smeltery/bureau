@@ -1,3 +1,4 @@
+import { testConnection } from "./connection-test.ts";
 import { handleAgentConnections } from "./agent-connections.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { integrationActor, canManageIntegration, canRevealIntegration } from "./access.ts";
@@ -15,7 +16,7 @@ const json = (body: unknown, status = 200) => Response.json(body, { status, head
 export async function handleIntegrationsRequest(req: Request, url: URL, auth: AuthResult): Promise<Response | null> {
   const agentConnections = handleAgentConnections(req, url);
   if (agentConnections) return agentConnections;
-  const match = /^\/api\/integrations\/(office|members\/([A-Za-z0-9_-]+))(?:\/(secrets|mcp|variables)(?:\/([^/]+)(?:\/(reveal|reissue))?)?)?$/.exec(url.pathname);
+  const match = /^\/api\/integrations\/(office|members\/([A-Za-z0-9_-]+))(?:\/(secrets|mcp|variables)(?:\/([^/]+)(?:\/(reveal|reissue|test))?)?)?$/.exec(url.pathname);
   if (!match) return null;
   const scope: IntegrationScope = match[1] === "office" ? { kind: "office" } : { kind: "member", userId: match[2]! };
   const actor = integrationActor(req, auth);
@@ -42,6 +43,13 @@ export async function handleIntegrationsRequest(req: Request, url: URL, auth: Au
       return json({ value: secret.value });
     }
     if (!canManage || !name || !kind) return json({ error: "Method not allowed." }, 405);
+    if (req.method === "POST" && match[5] === "test" && (kind === "secrets" || kind === "mcp")) {
+      recordAuditEvent(`${match[1]}/${kind}/${name}`, ["test"]);
+      const result = await testConnection(scope, kind, name);
+      const current = integrationActor(req, auth);
+      if (!current || !canManageIntegration(current, scope)) return json({ error: "Integration access changed." }, 403);
+      return json(result);
+    }
     if (req.method === "DELETE" && (kind === "secrets" || kind === "mcp")) {
       if (!integrationStore.remove(scope, kind, name)) return json({ error: "Integration not found." }, 404);
       await notifyIntegrationChange(scope);

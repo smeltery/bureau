@@ -1,9 +1,11 @@
+import { codexMcpConfig, type AgentMcpServer } from "../../integrations/mcp.ts";
 import type { InitializeParams } from "./_generated/InitializeParams.ts";
 import { CLIENT_INFO_NAME, CLIENT_INFO_VERSION } from "./backend-ops.ts";
 import type { JsonRpcLiteClient } from "./client.ts";
 import { CODEX_THREAD_CONFIG_OVERRIDES, DEFAULT_SANDBOX_MODE } from "./config.ts";
 
 export interface CodexSessionInitOpts {
+  mcpServers?: AgentMcpServer[];
   agentId: string;
   cwd: string;
   systemPrompt: string;
@@ -41,7 +43,7 @@ export async function bootstrapCodexThread(client: JsonRpcLiteClient, opts: Code
       model: opts.modelFamily,
       developerInstructions: opts.systemPrompt,
       persistExtendedHistory: false,
-      config: { ...CODEX_THREAD_CONFIG_OVERRIDES },
+      config: { ...CODEX_THREAD_CONFIG_OVERRIDES, ...codexMcpConfig(opts.mcpServers) },
     });
     return resumeResp.thread.id;
   }
@@ -59,7 +61,7 @@ function buildThreadStartParams(opts: CodexSessionInitOpts): Record<string, unkn
     approvalPolicy: opts.permissionMode,
     experimentalRawEvents: false,
     persistExtendedHistory: false,
-    config: { ...CODEX_THREAD_CONFIG_OVERRIDES },
+    config: { ...CODEX_THREAD_CONFIG_OVERRIDES, ...codexMcpConfig(opts.mcpServers) },
   };
   if (opts.ephemeral) params.ephemeral = true;
   if (opts.effort) params.reasoningEffort = opts.effort;

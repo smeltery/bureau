@@ -28,3 +28,10 @@ metadata, PUT `/secrets/NAME` with hosts/form/note to update restrictions or not
 and POST `/secrets/NAME/reissue` to revoke an old stand-in. Agents cannot reveal
 values or expand an existing secret's allowed hosts. Have the human paste secrets
 in the masked UI; never request them in chat.
+
+Remote MCP connections configured in Settings → Connections → MCP load into your
+engine automatically. Office registrations are inherited and your manager's
+registrations override matching names. The engine names them `bureau-NAME`.
+Use their tools according to the connection's usage note and your task authority.
+The Test connection action only checks identity or lists MCP tools; it does not
+invoke remote tools. Never paste access tokens into MCP URLs.

@@ -22,6 +22,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   permission mode; saved model families and permission preferences remain intact.
 - Use existing CLI authentication where available. Codex runs through Bureau's
   bundled `@openai/codex` launcher and isolated `CODEX_HOME`.
+- Settings → Connections groups provider accounts, scoped service secrets, remote MCP servers and ordinary variables. Secret stand-ins are delivered through a host-restricted HTTPS proxy; office/member scopes, masked entry, rotation, reissue, restricted reveal, usage notes and connection tests are supported. This is accidental-disclosure protection, not isolation from programs running as the same OS user. Remote MCP configuration reaches Claude, Codex, OpenCode and scheduled runs.
 - Account → Connections shows Claude/Codex connection status for the signed-in
   user, accepts API keys into personal managed env (no secret echo), and points
   office owners at host CLI login. Status probes are time-bounded so the pane never sticks on

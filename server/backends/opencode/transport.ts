@@ -1,10 +1,6 @@
+import type { AgentMcpServer } from "../../integrations/mcp.ts";
 import { OpenCodeTurnAccounting } from "./connection/turn-accounting.ts";
-// HTTP + SSE adapter for Bureau events.
-//
-// Prompt-cache stability: `systemPrompt` is bound once in the constructor and
-// sent verbatim on every `prompt_async`. The authority broker uses one stable
-// handle per session and activates it only for the live turn, so the system
-// payload remains byte-identical across turns.
+// Stable prompts and per-session authority handles preserve the prompt cache.
 
 import { buildPromptParts } from "./connection/prompt.ts";
 import { modelCatalogFor, OpenCodeModelSelection } from "./connection/model-catalog.ts";
@@ -19,6 +15,7 @@ import { fetchOpenCode, readOpenCodeEvent, OPENCODE_DEADLINE_MS } from "./connec
 type EventSink = (event: NormalizedEvent) => void;
 
 export interface OpenCodeTransportOptions {
+  mcpServers?: AgentMcpServer[];
   cwd: string;
   model: string;
   resolveEnv?: () => Record<string, string | undefined> | undefined;
@@ -36,6 +33,7 @@ export interface OpenCodeTransportOptions {
 }
 
 export class OpenCodeTransport {
+  private readonly mcpServers?: AgentMcpServer[];
   private readonly resolveEnv: OpenCodeTransportOptions["resolveEnv"];
   private announcedSession = false;
   private readonly supervisor: OpenCodeSupervisor;
@@ -61,6 +59,7 @@ export class OpenCodeTransport {
 
   constructor(options: OpenCodeTransportOptions) {
     this.supervisor = options.supervisor;
+    this.mcpServers = options.mcpServers;
     this.resolveEnv = options.resolveEnv;
     this.cwd = options.cwd;
     this.model = options.model;
@@ -94,7 +93,7 @@ export class OpenCodeTransport {
   }
 
   async initialize(sink: EventSink): Promise<string> {
-    this.lease ??= await this.supervisor.acquire(this.resolveEnv?.());
+    this.lease ??= await this.supervisor.acquire(this.resolveEnv?.(), this.mcpServers);
     if (!this.sessionId) {
       if (this.systemPrompt !== undefined) this.modelSelection.prefetch(this.lease);
       if (this.resumedSessionId) this.sessionId = this.resumedSessionId;

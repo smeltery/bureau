@@ -1,5 +1,7 @@
 # Per-Agent MCP Integration Access Control
 
+This document remains a proposal for per-agent toggles on inherited account integrations. Shipped office/member remote MCP registration is documented in [Integration secrets and variables](integration-secrets.md#remote-mcp-connections).
+
 ## Background
 
 Claude Code agents in bureau inherit all MCP integrations connected to the user's claude.ai account (Gmail, Google Calendar, Vercel, etc.). These are account-level OAuth grants stored server-side by Anthropic, not configured locally. The tools appear with the prefix `mcp__claude_ai_<IntegrationName>__`.

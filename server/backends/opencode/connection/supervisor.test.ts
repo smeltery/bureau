@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { OpenCodeSupervisor } from "../supervisor.ts";
@@ -113,4 +113,22 @@ it("recovers the same history directory after a supervisor restart", async () =>
   expect(recovered.pid).not.toBe(oldPid);
   expect((await (await fetch(`${recovered.baseUrl}/env`)).json()).home).toBe(join(first.profileDir, "home"));
   recovered.release();
+});
+
+it("writes MCP headers privately and changes configuration only between active turns", async () => {
+  const supervisor = fixture();
+  const first = await supervisor.acquire(undefined, [{ name: "bureau-docs", url: "https://example.test/mcp", headers: { Authorization: "Bearer stand-in" } }]);
+  const originalPid = first.pid;
+  const file = join(supervisor.profileDir, "opencode.json");
+  expect(JSON.parse(readFileSync(file, "utf8")).mcp["bureau-docs"].headers.Authorization).toBe("Bearer stand-in");
+  expect(statSync(file).mode & 0o777).toBe(0o600);
+  await first.beginTurn();
+  await expect(supervisor.acquire(undefined, [])).rejects.toThrow("another turn");
+  expect(JSON.parse(readFileSync(file, "utf8")).mcp["bureau-docs"]).toBeDefined();
+  first.endTurn();
+  first.release();
+  const next = await supervisor.acquire(undefined, []);
+  expect(next.pid).not.toBe(originalPid);
+  expect(JSON.parse(readFileSync(file, "utf8")).mcp).toEqual({});
+  next.release();
 });

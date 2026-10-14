@@ -1,3 +1,4 @@
+import { ConnectionTest } from "./ConnectionTest.tsx";
 import { useState } from "react";
 import type { SecretMetadata } from "../../../../shared/integrations/connections.ts";
 import { dialogCancelBtn, dialogHint, dialogSaveBtn } from "../../modals/dialog-styles.ts";
@@ -49,7 +50,7 @@ export function SecretsPane({ path, data, reload }: { path: string; data: Integr
           {!data.secrets.length && <p style={dialogHint}>No secrets in this scope. Add one to let agents use an integration without placing its value in their environment.</p>}
           {data.secrets.map((secret) => (
             <section key={secret.name} style={{ borderTop: "1px solid var(--border-subtle)", marginTop: 16, paddingTop: 12 }}>
-              <strong>{secret.name}</strong>
+              <strong style={{ overflowWrap: "anywhere" }}>{secret.name}</strong>
               <p style={dialogHint}>{secret.hosts.join(", ")}</p>
               {secret.note && <p style={dialogHint}>{secret.note}</p>}
               {revealed?.name === secret.name && <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{revealed.value}</pre>}
@@ -74,6 +75,7 @@ export function SecretsPane({ path, data, reload }: { path: string; data: Integr
                 )}
                 {data.canManage && (
                   <>
+                    <ConnectionTest path={`${path}/secrets/${encodeURIComponent(secret.name)}`} />
                     <button
                       disabled={pending}
                       style={dialogCancelBtn}

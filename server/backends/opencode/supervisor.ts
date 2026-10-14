@@ -1,3 +1,4 @@
+import { openCodeMcpConfig, type AgentMcpServer } from "../../integrations/mcp.ts";
 import { compactionThreshold } from "./connection/context-limits.ts";
 // One process per durable profile, leased by transports and idle-reaped.
 // Environment changes restart only between turns; legacy stores remain in place.
@@ -57,6 +58,7 @@ export class OpenCodeSupervisor {
   readonly profileDir: string;
   private readonly binary: string | undefined;
   private readonly config: Record<string, unknown>;
+  private currentConfig: Record<string, unknown>;
   private readonly idleShutdownMs: number;
   private launchEnv: Record<string, string | undefined>;
 
@@ -67,16 +69,19 @@ export class OpenCodeSupervisor {
     this.profileDir = options.profileDir ?? join(BUREAU_DIR, "opencode", "profiles", "default");
     this.binary = options.binary;
     this.config = { ...(options.config ?? DEFAULT_OPENCODE_CONFIG), autoupdate: false };
+    this.currentConfig = this.config;
     this.idleShutdownMs = options.idleShutdownMs ?? OPENCODE_IDLE_SHUTDOWN_MS;
     this.launchEnv = options.launchEnv ?? {};
   }
 
-  async acquire(env?: Record<string, string | undefined>): Promise<OpenCodeLease> {
+  async acquire(env?: Record<string, string | undefined>, mcpServers?: AgentMcpServer[]): Promise<OpenCodeLease> {
+    const config = mcpServers === undefined ? this.currentConfig : { ...this.config, mcp: { ...(this.config.mcp as Record<string, unknown> | undefined), ...openCodeMcpConfig(mcpServers) } };
+    this.currentConfig = config;
     const requestedEnv = { ...process.env, ...(env ?? this.launchEnv) };
-    const revision = this.revisionFor(requestedEnv);
+    const revision = this.revisionFor(requestedEnv, config);
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = null;
-    await this.ensureServer(requestedEnv);
+    await this.ensureServer(requestedEnv, config);
     this.leases++;
     let released = false;
     let turnActive = false;
@@ -102,7 +107,7 @@ export class OpenCodeSupervisor {
       },
       beginTurn: async () => {
         if (released || turnActive) return;
-        await this.validateServerForTurn(false, requestedEnv);
+        await this.validateServerForTurn(false, requestedEnv, config);
         record();
         if (released) return;
         turnActive = true;
@@ -113,7 +118,7 @@ export class OpenCodeSupervisor {
       recoverBeforePrompt: async () => {
         if (released || !turnActive) return;
         this.unresponsive = true;
-        await this.validateServerForTurn(true, requestedEnv);
+        await this.validateServerForTurn(true, requestedEnv, config);
       },
       markUnresponsive: () => {
         this.unresponsive = true;
@@ -153,39 +158,39 @@ export class OpenCodeSupervisor {
     } catch {}
   }
 
-  private async ensureServer(env: Record<string, string | undefined>): Promise<void> {
+  private async ensureServer(env: Record<string, string | undefined>, config = this.currentConfig): Promise<void> {
     if (this.starting) {
       await this.starting;
-      return this.ensureServer(env);
+      return this.ensureServer(env, config);
     }
     const record = this.record;
-    const healthy = record && this.runningRevision === this.revisionFor(env) && !this.unresponsive && (await this.healthy(record));
+    const healthy = record && this.runningRevision === this.revisionFor(env, config) && !this.unresponsive && (await this.healthy(record));
     if (healthy && record === this.record && !this.unresponsive) return;
     if (this.starting) {
       await this.starting;
-      return this.ensureServer(env);
+      return this.ensureServer(env, config);
     }
     if (this.activeTurns > 0) throw new Error("OpenCode server cannot restart while another turn is active.");
-    this.starting = this.startServer(env).finally(() => {
+    this.starting = this.startServer(env, config).finally(() => {
       this.starting = null;
     });
     await this.starting;
   }
 
-  private async validateServerForTurn(ownsTurn: boolean, env: Record<string, string | undefined>): Promise<void> {
-    const healthy = this.record && this.runningRevision === this.revisionFor(env) && !this.unresponsive && (await this.healthy(this.record));
+  private async validateServerForTurn(ownsTurn: boolean, env: Record<string, string | undefined>, config = this.currentConfig): Promise<void> {
+    const healthy = this.record && this.runningRevision === this.revisionFor(env, config) && !this.unresponsive && (await this.healthy(this.record));
     if (this.unresponsive || !healthy) {
       if (this.activeTurns > (ownsTurn ? 1 : 0)) throw new Error("OpenCode server health check failed during an active turn.");
       // Before submitting a prompt this turn may own the only active lease.
       if (!this.starting)
-        this.starting = this.startServer(env).finally(() => {
+        this.starting = this.startServer(env, config).finally(() => {
           this.starting = null;
         });
       await this.starting;
     }
   }
 
-  private async startServer(env: Record<string, string | undefined>): Promise<void> {
+  private async startServer(env: Record<string, string | undefined>, config = this.currentConfig): Promise<void> {
     if (!this.checkedPreviousProcess) {
       this.checkedPreviousProcess = true;
       const previous = previousProfileProcess(this.profileDir);
@@ -195,7 +200,7 @@ export class OpenCodeSupervisor {
     this.launchEnv = env;
     await mkdir(this.profileDir, { recursive: true });
     const configPath = join(this.profileDir, "opencode.json");
-    await writeFile(configPath, `${JSON.stringify(this.config)}\n`, { mode: 0o600 });
+    await writeFile(configPath, `${JSON.stringify(config)}\n`, { mode: 0o600 });
     await chmod(configPath, 0o600);
     const binary = this.binary ?? resolveOpenCodeBinary({ ...process.env, ...this.launchEnv });
     const password = randomBytes(32).toString("base64url");
@@ -231,7 +236,7 @@ export class OpenCodeSupervisor {
       await this.shutdown();
       throw error;
     }
-    this.runningRevision = this.revisionFor(env);
+    this.runningRevision = this.revisionFor(env, config);
     this.unresponsive = false;
   }
 
@@ -275,7 +280,7 @@ export class OpenCodeSupervisor {
     }
   }
 
-  private revisionFor(env: Record<string, string | undefined>): string {
+  private revisionFor(env: Record<string, string | undefined>, config = this.currentConfig): string {
     let credentials = "absent";
     try {
       const stat = statSync(join(this.profileDir, "data", "opencode", "auth.json"));
@@ -283,7 +288,7 @@ export class OpenCodeSupervisor {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
-    return `${environmentRevision(env)}:${credentials}`;
+    return `${environmentRevision({ ...env, BUREAU_MCP_CONFIG_REVISION: JSON.stringify(config.mcp ?? {}) })}:${credentials}`;
   }
 
   private armIdleReap(): void {
