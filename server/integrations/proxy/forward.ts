@@ -1,10 +1,8 @@
-import { request as requestHttp, type IncomingMessage, type ServerResponse } from "node:http";
-import { Agent, request as requestHttps } from "node:https";
-import { connect as tlsConnect, type TLSSocket } from "node:tls";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import type { TLSSocket } from "node:tls";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
-import { pipeline } from "node:stream";
-import type { Duplex } from "node:stream";
-import { bypassProxy, connectDestination } from "./connect.ts";
+import { Readable, pipeline } from "node:stream";
+import { bypassProxy } from "./connect.ts";
 import { injectCredentials, type ProxyCredential } from "./credentials.ts";
 import { scrubBuffer, SecretScrubber, secretPatterns } from "./scrub.ts";
 
@@ -12,41 +10,23 @@ const hopHeaders = ["connection", "proxy-connection", "proxy-authorization", "ke
 export interface ForwardOptions {
   proxyUrl?: string;
   noProxy?: string;
-  // Test-only transport routing and roots; production never disables certificate verification.
+  // Test-only transport routing and roots; production always verifies the destination certificate.
   target?: (host: string, port: number) => { host: string; port: number };
   ca?: string;
   used?: (credentials: ProxyCredential[]) => void;
 }
-class DestinationAgent extends Agent {
-  constructor(
-    private readonly host: string,
-    private readonly port: number,
-    private readonly settings: ForwardOptions,
-  ) {
-    super({ keepAlive: false });
-  }
-  override createConnection(_options: unknown, callback: (error: Error | null, stream: Duplex) => void): Duplex | null | undefined {
-    const target = this.settings.target?.(this.host, this.port) ?? { host: this.host, port: this.port };
-    void connectDestination(target.host, target.port, this.settings.proxyUrl, this.settings.noProxy)
-      .then((socket) => {
-        const secure = tlsConnect({ socket, servername: this.host, ...(this.settings.ca ? { ca: this.settings.ca } : {}) });
-        let settled = false;
-        const finish = (error: Error | null) => {
-          if (settled) return;
-          settled = true;
-          secure.setTimeout(0);
-          callback(error, secure);
-        };
-        secure.setTimeout(15_000, () => secure.destroy(new Error("Destination TLS handshake timed out.")));
-        secure.once("secureConnect", () => finish(null));
-        secure.once("error", finish);
-        socket.resume();
-      })
-      .catch((error) => callback(error, undefined as unknown as Duplex));
-    return undefined;
-  }
-}
 export function forwardRequest(req: IncomingMessage, res: ServerResponse, destination: URL, credentials: ProxyCredential[], options: ForwardOptions): void {
+  void forward(req, res, destination, credentials, options);
+}
+async function forward(req: IncomingMessage, res: ServerResponse, destination: URL, credentials: ProxyCredential[], options: ForwardOptions): Promise<void> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const activity = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => controller.abort(), 60_000);
+    timer.unref();
+  };
+  let authorized = false;
   try {
     if (req.method === "CONNECT" || req.headers.upgrade) throw new Error("Nested tunnels are unavailable.");
     const host = destination.hostname;
@@ -55,58 +35,77 @@ export function forwardRequest(req: IncomingMessage, res: ServerResponse, destin
     const sni = (req.socket as TLSSocket & { servername?: string }).servername;
     if (sni && sni !== host) throw new Error("Proxy TLS name mismatch.");
     const injected = injectCredentials(host, req.headers, credentials);
-    const headers = injected.headers;
-    const connectionNames = String(headers.connection ?? "")
+    const headers = new Headers();
+    const connectionNames = String(req.headers.connection ?? "")
       .split(",")
       .map((value) => value.trim().toLowerCase());
-    for (const name of [...hopHeaders, ...connectionNames]) delete headers[name];
-    headers.host = destination.host;
-    headers["accept-encoding"] = "identity";
-    const patterns = secretPatterns(credentials.map((credential) => credential.secret.value));
-    const agent = destination.protocol === "https:" ? new DestinationAgent(host, Number(destination.port || 443), options) : undefined;
-    const company = destination.protocol === "http:" && options.proxyUrl && !bypassProxy(host, Number(destination.port || 80), options.noProxy ?? "") ? new URL(options.proxyUrl) : null;
-    if (company && !["http:", "https:"].includes(company.protocol)) throw new Error("Unsupported company proxy protocol.");
-    if (company && (company.username || company.password))
-      headers["proxy-authorization"] = `Basic ${Buffer.from(`${decodeURIComponent(company.username)}:${decodeURIComponent(company.password)}`).toString("base64")}`;
-    const target = company ?? destination;
-    const request = target.protocol === "https:" ? requestHttps : requestHttp;
-    const upstream = request(target, { method: req.method, headers, ...(company ? { path: destination.href } : {}), ...(agent ? { agent } : {}) }, (response) => {
-      const responseHeaders = { ...response.headers };
-      const encoding = responseHeaders["content-encoding"]?.toLowerCase();
-      const decoder = encoding === "gzip" ? createGunzip() : encoding === "deflate" ? createInflate() : encoding === "br" ? createBrotliDecompress() : null;
-      if (encoding && encoding !== "identity" && !decoder) {
-        response.destroy();
-        res.writeHead(502).end("Unsupported upstream response encoding.");
-        return;
-      }
-      for (const name of [...hopHeaders, "content-length", "content-encoding"]) delete responseHeaders[name];
-      for (const [name, value] of Object.entries(responseHeaders)) {
-        if (typeof value === "string") responseHeaders[name] = scrubBuffer(Buffer.from(value), patterns).toString();
-        else if (Array.isArray(value)) responseHeaders[name] = value.map((item) => scrubBuffer(Buffer.from(item), patterns).toString());
-      }
-      res.writeHead(response.statusCode ?? 502, responseHeaders);
-      const scrubber = new SecretScrubber(patterns);
-      const done = (error: NodeJS.ErrnoException | null) => {
-        agent?.destroy();
-        if (error) res.destroy();
-      };
-      if (decoder) pipeline(response, decoder, scrubber, res, done);
-      else pipeline(response, scrubber, res, done);
-    });
-    upstream.setTimeout(60_000, () => upstream.destroy(new Error("Upstream request timed out.")));
-    upstream.on("error", () => {
-      agent?.destroy();
-      if (!res.headersSent) res.writeHead(502).end("Credential proxy could not reach the destination.");
-      else res.destroy();
-    });
-    req.on("aborted", () => upstream.destroy());
+    for (const [name, values] of Object.entries(injected.headers)) {
+      if ([...hopHeaders, ...connectionNames, "host", "content-length", "accept-encoding"].includes(name)) continue;
+      for (const value of Array.isArray(values) ? values : [values]) headers.append(name, value);
+    }
+    headers.set("host", destination.host);
+    headers.set("accept-encoding", "identity");
+    authorized = true;
+    const port = Number(destination.port || (destination.protocol === "https:" ? 443 : 80));
+    const target = options.target?.(host, port);
+    const requestUrl = new URL(destination);
+    if (target) {
+      requestUrl.hostname = target.host;
+      requestUrl.port = String(target.port);
+    }
+    const proxy = options.proxyUrl && !bypassProxy(host, port, options.noProxy ?? "") ? options.proxyUrl : "";
+    if (proxy && !["http:", "https:"].includes(new URL(proxy).protocol)) throw new Error("Unsupported company proxy protocol.");
+    req.on("aborted", () => controller.abort());
     res.on("close", () => {
-      upstream.destroy();
-      agent?.destroy();
+      clearTimeout(timer);
+      controller.abort();
     });
+    req.on("data", activity);
+    activity();
     if (injected.used.length) options.used?.(injected.used);
-    req.pipe(upstream);
+    const response = await fetch(requestUrl, {
+      method: req.method,
+      headers,
+      ...(req.method === "GET" || req.method === "HEAD" ? {} : { body: Readable.toWeb(req) as unknown as ReadableStream<Uint8Array> }),
+      proxy,
+      tls: { serverName: host, ...(options.ca ? { ca: options.ca } : {}) },
+      redirect: "manual",
+      decompress: false,
+      signal: controller.signal,
+    });
+    const patterns = secretPatterns(credentials.map((credential) => credential.secret.value));
+    const encoding = response.headers.get("content-encoding")?.toLowerCase();
+    const decoder = encoding === "gzip" ? createGunzip() : encoding === "deflate" ? createInflate() : encoding === "br" ? createBrotliDecompress() : null;
+    if (encoding && encoding !== "identity" && !decoder) throw new Error("Unsupported response encoding.");
+    const responseConnectionNames = (response.headers.get("connection") ?? "").split(",").map((value) => value.trim().toLowerCase());
+    for (const [name, value] of response.headers) {
+      if ([...hopHeaders, ...responseConnectionNames, "content-length", "content-encoding", "set-cookie"].includes(name)) continue;
+      res.setHeader(name, scrubBuffer(Buffer.from(value), patterns).toString());
+    }
+    const cookies = response.headers.getSetCookie().map((value) => scrubBuffer(Buffer.from(value), patterns).toString());
+    if (cookies.length) res.setHeader("set-cookie", cookies);
+    res.writeHead(response.status);
+    if (!response.body) {
+      clearTimeout(timer);
+      res.end();
+      return;
+    }
+    const source = Readable.fromWeb(response.body as unknown as Parameters<typeof Readable.fromWeb>[0]);
+    source.on("data", activity);
+    const scrubber = new SecretScrubber(patterns);
+    const done = (error: NodeJS.ErrnoException | null) => {
+      clearTimeout(timer);
+      if (error) {
+        controller.abort();
+        res.destroy();
+      }
+    };
+    if (decoder) pipeline(source, decoder, scrubber, res, done);
+    else pipeline(source, scrubber, res, done);
   } catch {
-    res.writeHead(403).end("Credential proxy refused this destination or credential header.");
+    clearTimeout(timer);
+    controller.abort();
+    if (res.headersSent) res.destroy();
+    else res.writeHead(authorized ? 502 : 403).end(authorized ? "Credential proxy could not reach the destination." : "Credential proxy refused this destination or credential header.");
   }
 }

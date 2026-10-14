@@ -19,10 +19,16 @@ test("credential forwarding verifies hosts and scrubs streamed compressed respon
   const material = await createProxyMaterial(root);
   const cert = await material.certificate("api.example.test");
   let received = "";
+  let requestBody = "";
   const upstream = createServer(cert, (req, res) => {
     received = req.headers.authorization ?? "";
-    res.writeHead(200, { "content-encoding": "gzip", "x-reflected": received });
-    res.end(gzipSync(JSON.stringify({ authorization: received, message: "ok" })));
+    req.on("data", (chunk) => {
+      requestBody += chunk.toString();
+    });
+    req.on("end", () => {
+      res.writeHead(200, { "content-encoding": "gzip", "x-reflected": received });
+      res.end(gzipSync(JSON.stringify({ authorization: received, message: "ok" })));
+    });
   });
   await new Promise<void>((resolve) => upstream.listen(0, "127.0.0.1", resolve));
   const upstreamAddress = upstream.address();
@@ -45,6 +51,8 @@ test("credential forwarding verifies hosts and scrubs streamed compressed respon
         "--cacert",
         material.trustPath,
         "--include",
+        "--data-binary",
+        "streamed request body",
         "-H",
         `Authorization: Bearer ${credential.placeholder}`,
         "https://api.example.test/echo",
@@ -54,7 +62,9 @@ test("credential forwarding verifies hosts and scrubs streamed compressed respon
     const [output, stderr, code] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
     expect(stderr).toBe("");
     expect(code).toBe(0);
+    expect(output).toContain("200 OK");
     expect(received).toBe(`Bearer ${secret}`);
+    expect(requestBody).toBe("streamed request body");
     expect(output).toContain("ok");
     expect(output).toContain("[redacted]");
     expect(output).not.toContain(secret);
