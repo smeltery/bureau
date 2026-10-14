@@ -286,3 +286,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - **Fresh-install checks** — automated disposable owner-claim, terminal and signed-out provider checks for native, container and Kubernetes entrypoints. See [verification scope](../contributing/fresh-install-matrix.md).
 
 - Owner audit history retains changed office, room, agent and member prompt text, including clears. Expand a history entry to recover its text and restore it through the corresponding versioned settings editor. Environment and credential fields are excluded from these snapshots.
+
+- Opt-in automatic handoff prepares a brief and starts fresh context at 85% fullness or 500,000 tokens (earlier for known engine compaction limits). Queued messages survive, Stop cancels the attempt, and an already-full fresh conversation pauses instead of looping.

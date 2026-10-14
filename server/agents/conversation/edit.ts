@@ -201,6 +201,8 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // For forks, set it now.
     managed.sessionId = isFirstMessage ? null : newSessionId;
     managed.settingsNotice = null;
+    managed.autoHandoffSpent = false;
+    managed.autoHandoffFresh = false;
     managed.topicGenerating = false;
 
     // --- Phase 2: UI/cache mutations (point of no return) ---

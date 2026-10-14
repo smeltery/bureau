@@ -24,8 +24,10 @@ entry records persistence, not a guarantee that a later provider or app process
 finished its work. Terminal and upload event recording is best-effort after the
 action succeeds; failures are reported in the server log.
 
-The audit stores metadata, not request bodies, tokens, environment values or
-full file contents. Task detail provides before/after task content and deleted
+The audit stores metadata and changed office, room, agent and member prompt text
+after successful writes. Expand a prompt entry to recover its text, then restore
+it through the normal versioned settings editor. Tokens, environment values,
+unrelated request fields and other full file contents are excluded. Task detail provides before/after task content and deleted
 recovery; the existing memory operation journal retains memory revisions.
 Audit records live in `audit/` under the office state directory and are included
 in backups. They are not tamper-proof against the machine owner. No earlier

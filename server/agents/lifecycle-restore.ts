@@ -30,6 +30,7 @@ export function buildRestoredAgentInfo(persisted: PersistedAgent, room: number):
     // agents whose persisted topic is still current.
     topicStale: false,
     customInstructions: persisted.customInstructions ?? null,
+    autoHandoff: persisted.autoHandoff === true,
     customInstructionsVersion: versionOf(persisted.customInstructions ?? ""),
     queue: Array.isArray(persisted.queue) ? persisted.queue : [],
   };

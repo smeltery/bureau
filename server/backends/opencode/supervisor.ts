@@ -1,3 +1,4 @@
+import { compactionThreshold } from "./connection/context-limits.ts";
 // One process per durable profile, leased by transports and idle-reaped.
 // Environment changes restart only between turns; legacy stores remain in place.
 
@@ -232,6 +233,10 @@ export class OpenCodeSupervisor {
     }
     this.runningRevision = this.revisionFor(env);
     this.unresponsive = false;
+  }
+
+  compactionLimit(limits: { context: number; input?: number; output?: number }): number | undefined {
+    return compactionThreshold(limits, this.config.compaction, this.launchEnv.OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX);
   }
 
   private childEnv(password: string, configPath: string): NodeJS.ProcessEnv {

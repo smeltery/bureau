@@ -41,6 +41,7 @@ Detailed subsystem documentation.
 | [OpenCode Environments](features/opencode-environments.md) | Durable manager/room profiles, credential rotation and legacy history |
 | [Skills library](features/skills-library.md) | Agent-scoped skill browsing and owner-managed prompt editing |
 | [Pager](features/pager.md)                                          | Agents and apps page their person; Discord delivery until acked or resolved  |
+| [Automatic handoff](features/automatic-handoff.md) | Continue long tasks with a brief and fresh context |
 | [Per-Agent MCP Access](features/per-agent-mcp-access.md)            | Controlling MCP integration access per agent                                 |
 | [Plugin Management](features/plugin-management-design.md)           | Plugin UI and lifecycle                                                      |
 | [Plugin System](features/plugin-system.md)                          | First-party `beforeTurn` / `afterTurn` hooks around the agent turn loop      |

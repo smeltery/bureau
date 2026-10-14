@@ -15,6 +15,7 @@ export type EditAgentFormSnapshot = {
   codexSandbox: CodexSandboxMode;
   effort: EffortLevel;
   privileged: boolean;
+  autoHandoff?: boolean;
   managerUserId: string;
 };
 
@@ -30,6 +31,7 @@ export function isFormDirty(baseline: EditAgentFormSnapshot, current: EditAgentF
     baseline.codexSandbox !== current.codexSandbox ||
     baseline.effort !== current.effort ||
     baseline.privileged !== current.privileged ||
+    baseline.autoHandoff !== current.autoHandoff ||
     baseline.managerUserId !== current.managerUserId
   );
 }

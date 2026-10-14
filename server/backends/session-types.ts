@@ -151,6 +151,7 @@ export interface NormalizedMessage {
 // doesn't expose an equivalent at v1; backends that don't support it return
 // null from getContextUsage.
 export interface ContextUsage {
+  compactAtTokens?: number;
   model: string;
   totalTokens: number;
   maxTokens: number;

@@ -183,6 +183,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
     topic: entry.topic ?? null,
     topicStale: false,
     customInstructions: entry.customInstructions ?? null,
+    autoHandoff: entry.autoHandoff === true,
     customInstructionsVersion: versionOf(entry.customInstructions ?? ""),
     queue: [],
   };

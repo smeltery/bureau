@@ -1,3 +1,4 @@
+import { observeAutoHandoff } from "../conversation/auto-handoff.ts";
 import type { AgentState } from "../../../shared/types.ts";
 import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, ensureSessionClaudeConfigDir, ensureSessionCwd, loadLogWithAncestors } from "../../persistence.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
@@ -98,7 +99,10 @@ export function showNextPermissionPrompt(agentId: string, managed: ManagedAgent)
 
 function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
   const eventManaged = agents.get(agentId);
-  if (eventManaged) eventManaged.lastNormalizedEventAt = Date.now();
+  if (eventManaged) {
+    eventManaged.lastNormalizedEventAt = Date.now();
+    observeAutoHandoff(eventManaged, ev);
+  }
   const newState = deriveStateFromEvent(ev);
   const derivesBusyState = newState === "thinking" || newState === "tool_executing";
   const eventHasLiveTurn = eventManaged?.turnStartedAt !== 0;

@@ -68,6 +68,7 @@ export interface AgentInfo {
   agentType: AgentBackendType;
   capabilities: AgentCapabilities;
   privileged?: boolean;
+  autoHandoff?: boolean;
   codexSandbox?: CodexSandboxMode;
   effort?: EffortLevel;
   state: AgentState;

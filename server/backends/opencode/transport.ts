@@ -1,6 +1,5 @@
 import { OpenCodeTurnAccounting } from "./connection/turn-accounting.ts";
-// Thin HTTP + SSE client that maps OpenCode serve events onto Bureau
-// NormalizedEvent.
+// HTTP + SSE adapter for Bureau events.
 //
 // Prompt-cache stability: `systemPrompt` is bound once in the constructor and
 // sent verbatim on every `prompt_async`. The authority broker uses one stable
@@ -80,6 +79,10 @@ export class OpenCodeTransport {
 
   contextLimit(): number | undefined {
     return this.modelSelection.contextLimit;
+  }
+
+  compactionLimit(): number | undefined {
+    return this.modelSelection.limits ? this.supervisor.compactionLimit(this.modelSelection.limits) : undefined;
   }
 
   modelId(): string {

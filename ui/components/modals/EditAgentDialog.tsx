@@ -35,6 +35,8 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     codexSandbox,
     confirmDiscard,
     customInstructions,
+    autoHandoff,
+    setAutoHandoff,
     cwd,
     cwdError,
     handleSave,
@@ -138,6 +140,14 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
 
       {!isSpawn && <EditAgentManagerField canEditManager={canEditManager} managerUserId={managerUserId} managerOptions={managerOptions} setManagerUserId={setManagerUserId} />}
 
+      {!isSpawn && (
+        <label style={{ ...labelStyle, display: "block", marginTop: 14 }}>
+          <input type="checkbox" checked={autoHandoff} onChange={(event) => setAutoHandoff(event.target.checked)} /> Automatic handoff
+          <span style={{ display: "block", fontWeight: 400 }}>
+            Continue in a fresh conversation at 85% context or 500,000 tokens, whichever comes first. Bureau writes a brief first and preserves queued messages.
+          </span>
+        </label>
+      )}
       <label style={{ ...labelStyle, marginTop: 14 }}>
         {t("dialogs.agent.customInstructions")} <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>{t("common.optional")}</span>
       </label>

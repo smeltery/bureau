@@ -51,6 +51,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
   const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(agent?.codexSandbox ?? "danger-full-access");
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string | null>(null);
+  const [autoHandoff, setAutoHandoff] = useState(agent?.autoHandoff ?? false);
   const [privileged, setPrivileged] = useState(agent?.privileged ?? false);
   const canTogglePrivileged = canToggleAgentPrivilege(isSpawn, sessionContext, agent);
   const canEditManager = !isSpawn && sessionContext?.role === "owner";
@@ -85,6 +86,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     effort,
     privileged,
     managerUserId,
+    autoHandoff,
   };
   const baselineRef = useRef(currentSnapshot);
   const isDirty = isFormDirty(baselineRef.current, currentSnapshot) || agentMemory.dirty;
@@ -202,6 +204,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
         cmd.customInstructions = trimmedInstructions;
         cmd.customInstructionsVersion = instructionsVersionAtOpen.current;
       }
+      if (autoHandoff !== (agent!.autoHandoff ?? false)) cmd.autoHandoff = autoHandoff;
       if (modelFamily !== agent!.modelFamily) cmd.modelFamily = modelFamily;
       if (agentType !== agent!.agentType) cmd.agentType = agentType;
       if (effort !== (agent!.effort ?? DEFAULT_EFFORT)) cmd.effort = effort;
@@ -214,6 +217,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
         cmd.cwd ||
         cmd.outfit ||
         cmd.customInstructions !== undefined ||
+        cmd.autoHandoff !== undefined ||
         cmd.modelFamily ||
         cmd.agentType ||
         cmd.effort ||
@@ -316,6 +320,8 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     setOutfit,
     setPermissionMode,
     setPrivileged,
+    autoHandoff,
+    setAutoHandoff,
     selectedTemplateKey,
     subtitle,
     title,

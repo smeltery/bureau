@@ -51,6 +51,7 @@ export function steerRateLimited(managed: ManagedAgent): boolean {
 }
 
 function hasPendingFlow(managed: ManagedAgent): boolean {
+  if (managed.autoHandoffAttempt) return true;
   if (managed.session && managed.providerSignInBlockedSession === managed.session) return true;
   return !!(managed.pendingPermission || (managed.queuedPermissions?.length ?? 0) > 0 || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick || managed.pendingCronjobPick);
 }
@@ -201,8 +202,7 @@ export function enqueueUserMessage(agentId: string, managed: ManagedAgent, text:
   return true;
 }
 
-// Flush queued items as one SDK send, while preserving individual
-// user_message entries in chat history.
+// Send queued items together, preserving their individual chat entries.
 export async function flushQueue(agentId: string): Promise<void> {
   const managed = agents.get(agentId);
   if (!managed) return;

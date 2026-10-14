@@ -1,3 +1,4 @@
+import type { AutoHandoffAttempt } from "./conversation/auto-handoff.ts";
 import type { AgentInfo, AgentSubscriptionUsage, ExperimentalSettings, KilledAgentSummary, LogEntry, RoomPet, RoomWire, SkillInfo, SlideFailureReason, SlideRecord } from "../../shared/types.ts";
 import type { BackendSession, NormalizedEvent } from "../backends/types.ts";
 
@@ -5,6 +6,9 @@ import type { SettingsNotice } from "./session/settings-notice.ts";
 
 // Internal agent state
 export interface ManagedAgent {
+  autoHandoffAttempt?: AutoHandoffAttempt | null;
+  autoHandoffSpent?: boolean;
+  autoHandoffFresh?: boolean;
   settingsNotice?: SettingsNotice | null;
   info: AgentInfo;
   session: BackendSession | null;

@@ -54,8 +54,9 @@ export async function getAgentContextUsage(agentId: string, managed: ManagedAgen
 
 export async function refreshContextUsage(agentId: string, managed: ManagedAgent) {
   if (!managed.session) return null;
-  const ctx = await managed.session.getContextUsage().catch(() => null);
-  if (!ctx) return null;
+  const session = managed.session;
+  const ctx = await session.getContextUsage().catch(() => null);
+  if (!ctx || managed.session !== session) return null;
   const snapshot = {
     model: ctx.model,
     totalTokens: ctx.totalTokens,
@@ -79,7 +80,7 @@ export async function refreshContextUsage(agentId: string, managed: ManagedAgent
  * are consumed.
  */
 export function maybeEmitUiContextNotice(agentId: string, managed: ManagedAgent) {
-  if (managed.info.agentType === "codex") return;
+  if (managed.info.agentType === "codex" || (managed.info.autoHandoff && (!managed.autoHandoffSpent || !!managed.autoHandoffAttempt))) return;
   const usage = managed.info.contextUsage;
   if (!usage) return;
   const chosen = pickContextThreshold(usage.percentage, usage.maxTokens, managed.firedUiThresholds);
@@ -94,7 +95,7 @@ export function maybeEmitUiContextNotice(agentId: string, managed: ManagedAgent)
 }
 
 export function maybeNudgeForContextUsage(agentId: string, managed: ManagedAgent) {
-  if (managed.info.agentType === "codex") return;
+  if (managed.info.agentType === "codex" || (managed.info.autoHandoff && (!managed.autoHandoffSpent || !!managed.autoHandoffAttempt))) return;
   const usage = managed.info.contextUsage;
   if (!usage) return;
   const threshold = pickContextThreshold(usage.percentage, usage.maxTokens, managed.contextNudgesSent);

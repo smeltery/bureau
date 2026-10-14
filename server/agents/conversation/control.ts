@@ -1,3 +1,4 @@
+import { cancelAutoHandoff } from "./auto-handoff.ts";
 import { listAgentSessions, loadLogWithAncestors, getSessionCwd, persistSessionCwd, ensureSessionCwd } from "../../persistence.ts";
 import { addLogEntry, agents, emit, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { createSession, replaceSession } from "../session/runtime.ts";
@@ -64,6 +65,7 @@ export async function abort(agentId: string) {
   // tells runAgentTurn to bail before session.send if it hasn't run yet.
   // For the post-send path the existing pendingTurn rejection (below) is
   // still the cancellation mechanism; the token bump is harmless there.
+  cancelAutoHandoff(managed);
   managed.turnCancelToken++;
   // If no turn is in flight, the SDK stream may have died (e.g. subprocess
   // exited) OR runAgentTurn may be mid-plugin-retrieval. Either way reset
@@ -162,6 +164,8 @@ export async function newConversation(agentId: string) {
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
     managed.settingsNotice = null;
+    managed.autoHandoffSpent = false;
+    managed.autoHandoffFresh = false;
     managed.memoryNotice = null;
     managed.memoryNoticeFired = false;
     managed.info.topic = null;
@@ -197,16 +201,23 @@ export function releaseQueueAfterHandoff(agentId: string, managed: ManagedAgent)
   }
 }
 
-export async function handoff(agentId: string, text: string): Promise<EnqueueResult> {
+export async function handoff(agentId: string, text: string, options?: { automatic?: boolean }): Promise<EnqueueResult> {
   const managed = agents.get(agentId);
   if (!managed) return { ok: false, error: "agent not found", status: 404 };
   if (handoffInProgress.has(agentId)) return { ok: false, error: "handoff_in_progress", status: 409 };
   handoffInProgress.add(agentId);
   holdQueueForHandoff(managed);
   try {
+    const previousSession = managed.session;
     await newConversation(agentId);
+    if (!managed.session || managed.session === previousSession || managed.info.state === "error") return { ok: false, status: 503, error: "could not start the handoff conversation" };
     const self = getAgentDisplay(agentId);
     if (!self) return { ok: false, error: "agent not found", status: 404 };
+    if (options?.automatic) {
+      managed.autoHandoffSpent = false;
+      managed.autoHandoffFresh = true;
+      addLogEntry(agentId, "system", "Automatic handoff opened a fresh conversation. The brief will arrive before queued messages.");
+    }
     managed.flushHeld = false;
     return enqueueMessage(agentId, { sender: { kind: "agent", agentId, agentName: self.name, roomName: self.roomName }, text, handoff: true }, { atHead: true });
   } finally {
@@ -243,6 +254,8 @@ export async function resume(agentId: string, sessionId: string) {
     managed.pendingContextNotices = [];
     managed.wakeNotice = null;
     managed.settingsNotice = null;
+    managed.autoHandoffSpent = false;
+    managed.autoHandoffFresh = false;
     managed.memoryNotice = null;
     managed.memoryNoticeFired = false;
     managed.info.contextUsage = null;

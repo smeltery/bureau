@@ -21,6 +21,7 @@ export interface AgentHistoryEntry {
   effort?: EffortLevel;
   agentType?: AgentInfo["agentType"];
   privileged?: boolean;
+  autoHandoff?: boolean;
   codexSandbox?: AgentInfo["codexSandbox"];
   lastSessionId?: string | null;
   topic?: string | null;
