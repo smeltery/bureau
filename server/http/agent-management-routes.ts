@@ -71,19 +71,23 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
     const modelSelection = resolveInteractiveModelSelection(agentType, typeof body.modelFamily === "string" ? body.modelFamily : undefined, typeof body.model === "string" ? body.model : undefined);
     if (modelSelection.error) return jsonError(422, modelSelection.error);
     try {
-      await AgentManager.editAgent(agentId, {
-        name: typeof body.name === "string" ? body.name : undefined,
-        cwd,
-        outfit: typeof body.outfit === "object" && body.outfit !== null && !Array.isArray(body.outfit) ? (body.outfit as AgentInfo["outfit"]) : undefined,
-        customInstructions: typeof body.customInstructions === "string" ? body.customInstructions : undefined,
-        customInstructionsVersion: typeof body.customInstructionsVersion === "string" ? body.customInstructionsVersion : undefined,
-        agentType: body.agentType === "claude" || body.agentType === "codex" || body.agentType === "opencode" ? body.agentType : undefined,
-        modelFamily: modelSelection.modelFamily,
-        permissionMode: typeof body.permissionMode === "string" ? (body.permissionMode as AgentInfo["permissionMode"]) : undefined,
-        codexSandbox: typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
-        effort: typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
-        userId: nextUserId,
-      });
+      await AgentManager.editAgent(
+        agentId,
+        {
+          name: typeof body.name === "string" ? body.name : undefined,
+          cwd,
+          outfit: typeof body.outfit === "object" && body.outfit !== null && !Array.isArray(body.outfit) ? (body.outfit as AgentInfo["outfit"]) : undefined,
+          customInstructions: typeof body.customInstructions === "string" ? body.customInstructions : undefined,
+          customInstructionsVersion: typeof body.customInstructionsVersion === "string" ? body.customInstructionsVersion : undefined,
+          agentType: body.agentType === "claude" || body.agentType === "codex" || body.agentType === "opencode" ? body.agentType : undefined,
+          modelFamily: modelSelection.modelFamily,
+          permissionMode: typeof body.permissionMode === "string" ? (body.permissionMode as AgentInfo["permissionMode"]) : undefined,
+          codexSandbox: typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
+          effort: typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
+          userId: nextUserId,
+        },
+        privilegedAgentIdentity(req)?.manager.name ?? sessionUser(auth)?.name,
+      );
     } catch (err) {
       if (err instanceof AgentEditConflictError) return jsonError(err.status, err.message);
       return jsonError(422, err instanceof Error ? err.message : "agent update failed");

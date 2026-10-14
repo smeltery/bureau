@@ -16,6 +16,10 @@ export function formatWakeNoticeBlock(note: string): string {
   return `${WAKE_NOTICE_BLOCK_OPEN}\n${note}\n${WAKE_NOTICE_BLOCK_CLOSE}`;
 }
 
+export function formatSettingsNoticeBlock(note: string): string {
+  return `--- begin bureau: settings-notice ---\n${note}\n--- end bureau: settings-notice ---`;
+}
+
 export function formatMemoryNoticeBlock(note: string): string {
   return `${MEMORY_NOTICE_BLOCK_OPEN}\n${note}\n${MEMORY_NOTICE_BLOCK_CLOSE}`;
 }
@@ -31,7 +35,14 @@ export function applyPluginPrefixes(prefixes: PluginPromptPrefix[], sdkText: str
 // (they sit ahead of the `User message:` separator), then the built-in wake
 // block, which is the first thing inside the payload.
 export function stripPluginPrefix(text: string): string {
-  return stripWakeNoticeBlock(stripPluginBlocks(text));
+  let result = stripWakeNoticeBlock(stripPluginBlocks(text));
+  const open = "--- begin bureau: settings-notice ---\n";
+  const close = "\n--- end bureau: settings-notice ---\n\n";
+  if (result.startsWith(open)) {
+    const end = result.indexOf(close);
+    if (end >= 0) result = result.slice(end + close.length);
+  }
+  return result;
 }
 
 function stripWakeNoticeBlock(text: string): string {

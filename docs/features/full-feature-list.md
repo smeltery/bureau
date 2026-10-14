@@ -7,6 +7,10 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 - Choose Claude, Codex, or OpenCode when spawning an agent.
 - Mix providers across desks in the same office.
+- When model, effort, permissions, sandbox, or working-directory changes restart
+  an existing conversation, its next turn receives a one-time notice identifying
+  the editor and changes. Repeated edits coalesce; interrupted turns warn agents
+  to check partially completed commands before retrying.
 - Agent and schedule dialogs load model choices and effort capabilities for the
   session environment (office and managing user, plus room overrides for agents).
   Unavailable catalogs show built-in choices

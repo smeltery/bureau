@@ -1,3 +1,5 @@
+import { formatSettingsNoticeBlock } from "./plugin-prefix.ts";
+import { renderSettingsNotice } from "../agents/session/settings-notice.ts";
 /**
  * Plugin hook bus + the central `runAgentTurn` helper.
  *
@@ -42,7 +44,7 @@ import { emitLoginInstructions } from "../agents/session/diagnostics.ts";
 import type { Attachment } from "../../shared/types.ts";
 import type { PluginAfterTurnInput, PluginTurnContext } from "../../shared/plugin-types.ts";
 import type { ManagedAgent } from "../agents/state.ts";
-import { beginTurn, clearLiveTurn, logCache, rooms, updateState } from "../agents/state.ts";
+import { addLogEntry, beginTurn, clearLiveTurn, logCache, rooms, updateState } from "../agents/state.ts";
 import { SessionSwappedError, createTurnDeferred } from "../agents/session/runtime.ts";
 import { getEnabledPlugins } from "./registry.ts";
 import { assistantTextFromEntries, runAfterTurn, runBeforeTurnHooks } from "./turn-hooks.ts";
@@ -101,11 +103,13 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
   // reaches the agent, since Bureau log entries never re-enter a prompt.
   // Placed FIRST: it describes the transcript the agent is about to read back,
   // so it belongs ahead of the housekeeping context notices.
+  const settingsNotice = managed.settingsNotice;
+  const settingsText = settingsNotice ? renderSettingsNotice(settingsNotice, managed.info) : "";
   const wakeNotice = managed.wakeNotice;
   const wakeNoticeBlock = wakeNotice ? formatWakeNoticeBlock(wakeNotice) : "";
   const memoryNotice = managed.memoryNotice;
   const memoryNoticeBlock = memoryNotice ? formatMemoryNoticeBlock(memoryNotice) : "";
-  const sdkTextWithNotices = [wakeNoticeBlock, memoryNoticeBlock, contextNoticeText, sdkText].filter((part) => part !== "").join("\n\n");
+  const sdkTextWithNotices = [wakeNoticeBlock, settingsText ? formatSettingsNoticeBlock(settingsText) : "", memoryNoticeBlock, contextNoticeText, sdkText].filter((part) => part !== "").join("\n\n");
 
   // 1. Claim the turn lifecycle immediately, BEFORE any await. The
   // afterTurnPromise gate (up to 10s) plus per-plugin beforeTurn (up to 5s
@@ -227,6 +231,10 @@ export async function runAgentTurn(opts: RunAgentTurnOpts): Promise<void> {
     // The identity check is the conversation-boundary guard — if a /clear (or
     // /resume, or a fresh wake) landed during the send, the slot now holds a
     // different notice, or null, and is not ours to clear.
+    if (settingsNotice && managed.settingsNotice === settingsNotice) {
+      managed.settingsNotice = null;
+      addLogEntry(agentId, "system", settingsText);
+    }
     if (wakeNotice && managed.wakeNotice === wakeNotice) managed.wakeNotice = null;
     if (memoryNotice && managed.memoryNotice === memoryNotice) {
       managed.memoryNotice = null;
