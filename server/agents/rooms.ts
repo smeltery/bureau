@@ -1,3 +1,4 @@
+import { setOfficeName } from "../auth/http-env.ts";
 import type { ExperimentalSettings, RoomDecor, RoomPet, RoomSkin, RoomWire } from "../../shared/types.ts";
 import { generateRoomId, normalizeRoomPet, parseRoomDecor, parseRoomSkin } from "../../shared/types.ts";
 import { validMemberShare } from "../../shared/member-usage/share.ts";
@@ -13,6 +14,7 @@ export function getRooms(): RoomWire[] {
 /** Content hash over the office settings PUT surface. */
 export function officeSettingsVersion(settings?: {
   prompt: string | null;
+  officeName?: string | null;
   envFile: string | null;
   experimental?: ExperimentalSettings;
   receptionistAgentId?: string | null;
@@ -21,6 +23,7 @@ export function officeSettingsVersion(settings?: {
 }): string {
   const s = settings ?? {
     prompt: officeConfig.prompt,
+    officeName: officeConfig.officeName,
     envFile: officeConfig.envFile,
     experimental: officeConfig.experimental,
     receptionistAgentId: officeConfig.receptionistAgentId ?? null,
@@ -30,6 +33,7 @@ export function officeSettingsVersion(settings?: {
   return versionOf(
     JSON.stringify([
       s.prompt ?? null,
+      s.officeName === undefined ? officeConfig.officeName : s.officeName,
       s.envFile ?? null,
       s.experimental ?? officeConfig.experimental,
       s.receptionistAgentId ?? officeConfig.receptionistAgentId ?? null,
@@ -47,11 +51,13 @@ export function setOfficeSettings(
   receptionistAgentId?: string | null,
   memberUsageCap?: boolean,
   memberUsageShare?: number,
+  officeName?: string | null,
 ) {
   const normalizedPrompt = prompt && prompt.trim() ? prompt.trim() : null;
   const nextConfig = {
     ...officeConfig,
     prompt: normalizedPrompt,
+    officeName: officeName === undefined ? officeConfig.officeName : officeName,
     envFile: envFile || null,
     experimental: experimental ?? officeConfig.experimental,
     receptionistAgentId: receptionistAgentId !== undefined ? receptionistAgentId : (officeConfig.receptionistAgentId ?? null),
@@ -60,6 +66,7 @@ export function setOfficeSettings(
   };
   setOfficeConfig(nextConfig);
   saveOfficeConfig(nextConfig);
+  setOfficeName(nextConfig.officeName);
   // System prompt is rebuilt at every createSession from current office/room/agent
   // config, so the new office prompt automatically lands on the next conversation.
   emit({

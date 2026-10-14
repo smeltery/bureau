@@ -1,3 +1,6 @@
+import { privilegedAgentIdentity } from "./agent-route-helpers.ts";
+import { readBearerToken } from "../agents/tokens.ts";
+import { resolveApiToken } from "../auth/api-tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { getUserByName } from "../users.ts";
@@ -30,24 +33,24 @@ export async function handleOfficeSettingsRequest(req: Request, url: URL, auth: 
   }
 
   if (url.pathname !== "/api/office/settings") return null;
-  // DELIBERATELY owner-session-only: no `privilegedAgentIdentity` path here. The
-  // office prompt is the top of the prompt chain injected into every agent in
-  // the office, including the privileged one asking — letting an agent rewrite
-  // it would let it rewrite its own standing instructions and every peer's.
-  // Upstream excludes `office:admin` from the privileged set for the same
-  // reason. Rooms are the boundary a privileged agent manages; the office is not.
-  if (auth.kind !== "ok") return error(401, "authenticated browser session required");
-  if (auth.session.role !== "owner") return error(403, "owner access required");
+  const bearer = readBearerToken(req);
+  const ownerAuthorized = () =>
+    bearer ? (auth.kind === "api" ? resolveApiToken(bearer)?.role === "owner" : privilegedAgentIdentity(req)?.manager.role === "owner") : auth.kind === "ok" && auth.session.role === "owner";
+  if (!ownerAuthorized()) return error(auth.kind === "ok" || bearer ? 403 : 401, auth.kind === "ok" || bearer ? "owner access required" : "authenticated browser session required");
 
   if (req.method === "GET") {
     const settings = AgentManager.getOfficeSettings();
     const memberUsageStatus = settings.memberUsageCap ? await memberUsageCap().status() : undefined;
-    return new Response(JSON.stringify({ ...settings, memberUsageStatus, version: AgentManager.officeSettingsVersion(settings) }), { headers: jsonHeaders });
+    if (!ownerAuthorized()) return error(403, "owner access required");
+    const wire = bearer ? { prompt: settings.prompt, officeName: settings.officeName, memberUsageCap: settings.memberUsageCap, memberUsageShare: settings.memberUsageShare } : settings;
+    return new Response(JSON.stringify({ ...wire, memberUsageStatus, version: AgentManager.officeSettingsVersion(settings) }), { headers: { ...jsonHeaders, "Cache-Control": "no-store" } });
   }
 
   if (req.method === "PUT") {
     const body = await readJson(req);
     if (body instanceof Response) return body;
+    if (!ownerAuthorized()) return error(403, "owner access required");
+    if (bearer && Object.keys(body).some((key) => !["version", "prompt", "officeName", "memberUsageCap", "memberUsageShare"].includes(key))) return error(400, "unsupported office settings field");
     // Version guard before field validation — stale writers re-read first.
     const version = typeof body.version === "string" ? body.version : "";
     if (!version) return error(400, "settings version is required");
@@ -56,8 +59,13 @@ export async function handleOfficeSettingsRequest(req: Request, url: URL, auth: 
     if (version !== currentVersion) {
       return error(409, "office settings changed; fetch the latest version and retry", { version: currentVersion });
     }
-    const prompt = typeof body.prompt === "string" ? body.prompt : null;
-    const envFile = typeof body.envFile === "string" && body.envFile.trim() ? body.envFile.trim() : null;
+    if (body.prompt !== undefined && body.prompt !== null && typeof body.prompt !== "string") return error(400, "prompt must be text or null");
+    if (typeof body.prompt === "string" && Buffer.byteLength(body.prompt) > 64 * 1024) return error(400, "prompt is too long");
+    if (body.officeName !== undefined && body.officeName !== null && (typeof body.officeName !== "string" || body.officeName.trim().length > 64))
+      return error(400, "officeName must be at most 64 characters or null");
+    const officeName = body.officeName === undefined ? current.officeName : typeof body.officeName === "string" ? body.officeName.trim() || null : null;
+    const prompt = body.prompt === undefined ? current.prompt : typeof body.prompt === "string" ? body.prompt : null;
+    const envFile = body.envFile === undefined ? current.envFile : typeof body.envFile === "string" && body.envFile.trim() ? body.envFile.trim() : null;
     if (envFile) {
       try {
         AgentManager.validateEnvPath(envFile);
@@ -88,7 +96,7 @@ export async function handleOfficeSettingsRequest(req: Request, url: URL, auth: 
       if (!validMemberShare(body.memberUsageShare)) return error(400, "memberUsageShare must be 10..100 in steps of 10");
       memberUsageShare = body.memberUsageShare;
     }
-    AgentManager.setOfficeSettings(prompt, envFile, experimental, receptionistAgentId, memberUsageCap, memberUsageShare);
+    AgentManager.setOfficeSettings(prompt, envFile, experimental, receptionistAgentId, memberUsageCap, memberUsageShare, officeName);
     return new Response(null, { status: 204, headers: noContentHeaders });
   }
 
@@ -168,7 +176,8 @@ export async function handleEnvSettingsRequest(req: Request, url: URL, auth: Aut
 
 async function readJson(req: Request): Promise<Record<string, unknown> | Response> {
   try {
-    return (await req.json()) as Record<string, unknown>;
+    const body = await req.json();
+    return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : error(400, "body must be an object");
   } catch {
     return error(400, "invalid JSON");
   }

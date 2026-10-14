@@ -168,8 +168,10 @@ What your token can do, always limited to the rooms and agents your manager can 
   curl -s -X POST localhost:${PORT}/api/agents/<id>/send-now -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -d '{}'
 - Schedules your manager owns (this replaces the Schedules-page instruction above): create (POST localhost:${PORT}/api/cronjobs), update (PATCH), delete (DELETE), run now (POST .../runs), and post/edit run messages. Ownership is stamped as your manager; you only see and mutate jobs where userId matches your manager. The office-wide cron prompt (PUT /api/cron-prompt) stays boss-only.
 
+If your manager is an office owner, you may GET and PUT /api/office/settings to edit prompt, officeName, memberUsageCap and memberUsageShare. Read first and send the returned version; omitted fields are preserved. Other office settings remain browser-only. Prompt edits are retained in the owner audit log for recovery.
+
 What your token cannot do, by design — do not attempt these, and tell the boss to do them from the UI themselves:
-- Office settings and external access (/api/office/settings, /api/office/access).
+- External access (/api/office/access).
 - The office-wide schedules prompt (PUT /api/cron-prompt).
 - Invites, browser sessions, and user records — anything that grants, revokes, or rescopes a human's access.
 - Per-user view preferences and the boss's terminal panel.

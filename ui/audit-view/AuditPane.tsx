@@ -51,6 +51,15 @@ export function AuditPane() {
           <div>{entry.operation}</div>
           <div>{entry.target}</div>
           <div>{entry.fields.join(", ")}</div>
+          {entry.prompts?.map((prompt) => (
+            <details key={`${prompt.scope}:${prompt.id}`} style={{ marginTop: 8 }}>
+              <summary>
+                {prompt.scope} instructions · {prompt.id}
+              </summary>
+              <p>Saved text after this change. To restore it, copy it into the corresponding settings editor and save against the current version.</p>
+              <pre style={{ whiteSpace: "pre-wrap", maxHeight: 320, overflow: "auto" }}>{prompt.text || "(Instructions cleared)"}</pre>
+            </details>
+          ))}
         </article>
       ))}
       {page && !page.entries.length && <p>No matching changes.</p>}

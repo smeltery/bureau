@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
-import { readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { atomicWriteFileSync, BUREAU_DIR } from "../persistence/paths.ts";
 import { withAuditContext } from "./context.ts";
 import { auditFileWrite, readAuditPage } from "./store.ts";
@@ -67,5 +67,28 @@ test("audit cursors traverse retained entries without duplication", () => {
     expect(second.nextCursor).toBeNull();
   } finally {
     rmSync(path, { force: true });
+  }
+});
+
+test("committed prompt history keeps recoverable text; failed writes do not", () => {
+  const actor = `audit-prompts-${crypto.randomUUID()}`;
+  const path = join(BUREAU_DIR, "office-config.json");
+  const original = existsSync(path) ? readFileSync(path, "utf8") : null;
+  try {
+    withAuditContext({ actor, operation: "prompt-edit" }, () => atomicWriteFileSync(path, JSON.stringify({ prompt: "Recover this text", credential: "never-copy-credential" })));
+    expect(() =>
+      withAuditContext({ actor, operation: "prompt-failed" }, () =>
+        auditFileWrite(path, JSON.stringify({ prompt: "Not saved" }), () => {
+          throw new Error("disk failed");
+        }),
+      ),
+    ).toThrow("disk failed");
+    const entries = readAuditPage({ actor }).entries;
+    expect(entries.find((entry) => entry.outcome === "committed")?.prompts).toEqual([{ scope: "office", id: "office", text: "Recover this text" }]);
+    expect(entries.find((entry) => entry.outcome === "failed")?.prompts).toBeUndefined();
+    expect(JSON.stringify(entries)).not.toContain("never-copy-credential");
+  } finally {
+    if (original === null) rmSync(path, { force: true });
+    else atomicWriteFileSync(path, original);
   }
 });

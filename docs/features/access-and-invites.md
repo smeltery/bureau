@@ -96,7 +96,7 @@ Personal tokens authenticate as the owning user for operational HTTP API routes,
 including visible agents, rooms, tasks, apps, logs, cron jobs, editor and file
 actions, memory, and office reads. They do not create browser sessions, cannot
 accept invites, cannot mint durable access or revoke browser sessions, cannot
-change user access or office settings, and cannot grant privileged-agent access.
+change user access, and cannot grant privileged-agent access. An owner’s personal token can read and edit versioned office prompts, names and usage caps; environment paths and external access remain browser-only.
 
 Agents can reply to the token holder by posting to the token's inbox id:
 

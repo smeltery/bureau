@@ -32,16 +32,16 @@ afterEach(() => {
   teardownPrivilegedFixture(fixture);
 });
 
-describe("privileged agent — office-wide settings stay out of reach", () => {
-  test("refuses office settings reads and writes", async () => {
+describe("privileged agent — owner-only settings and external access", () => {
+  test("refuses member-managed office settings reads and writes", async () => {
     const read = bearerRequest("/api/office/settings", fixture.privilegedToken, { method: "GET" });
     const write = bearerRequest("/api/office/settings", fixture.privilegedToken, { method: "PUT", body: JSON.stringify({ prompt: "Agent-written office prompt", envFile: null }) });
 
     const readRes = await handleOfficeSettingsRequest(read, new URL(read.url), noSession);
     const writeRes = await handleOfficeSettingsRequest(write, new URL(write.url), noSession);
 
-    expect(readRes?.status).toBe(401);
-    expect(writeRes?.status).toBe(401);
+    expect(readRes?.status).toBe(403);
+    expect(writeRes?.status).toBe(403);
     expect(AgentManager.getOfficeSettings().prompt).not.toBe("Agent-written office prompt");
   });
 
