@@ -1,3 +1,4 @@
+import { oauthAccessToken } from "./oauth/store.ts";
 import type { IntegrationScope, SecretForm } from "../../shared/integrations/connections.ts";
 import { integrationStore, type IntegrationStore } from "./store.ts";
 import { credentialRuntime } from "./proxy/runtime.ts";
@@ -24,7 +25,11 @@ export function resolveMcpServers(userId?: string | null, store: IntegrationStor
   for (const { scope, server } of selected.values()) {
     try {
       let headers = {};
-      if (server.secret) {
+      if (server.oauth) {
+        const token = oauthAccessToken(scope, server);
+        if (!token) throw new Error("Browser sign-in required.");
+        headers = credentialHeader({ kind: "authorization" }, token);
+      } else if (server.secret) {
         const secret = store.privateSecrets(scope).find((item) => item.name === server.secret);
         const standIn = placeholder(scope, server.secret);
         const url = new URL(server.url);

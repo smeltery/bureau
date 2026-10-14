@@ -35,3 +35,7 @@ registrations override matching names. The engine names them `bureau-NAME`.
 Use their tools according to the connection's usage note and your task authority.
 The Test connection action only checks identity or lists MCP tools; it does not
 invoke remote tools. Never paste access tokens into MCP URLs.
+
+For OAuth connections, your manager completes browser sign-in from the MCP card.
+Never collect authorization codes, client secrets or refresh tokens in chat. If a
+connection needs sign-in again, direct the manager to its card.

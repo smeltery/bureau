@@ -1,3 +1,4 @@
+import { oauthStore } from "./integrations/oauth/store.ts";
 import { integrationStore } from "./integrations/store.ts";
 import { notifyIntegrationChange } from "./integrations/changes.ts";
 import { instructionConflict } from "./members/instructions.ts";
@@ -125,6 +126,7 @@ export function deleteUserById(userId: string): boolean {
   persist();
   refreshBoundUser(userId, null);
   integrationStore.removeMember(userId);
+  oauthStore.removeMember(userId);
   void notifyIntegrationChange({ kind: "member", userId });
   return true;
 }

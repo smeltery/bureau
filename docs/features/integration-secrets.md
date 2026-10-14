@@ -72,3 +72,30 @@ size and pagination, never follow redirects, and return a status, a sanitized
 account/server label and an MCP tool count. Raw remote responses and transport
 errors are not exposed to the UI. Usage notes are available through the agent's
 live connection reference.
+
+### Shared browser sign-in for MCP
+
+Choose **Browser sign-in (OAuth)** when adding or editing an MCP connection. Save
+it, click **Sign in**, and follow **Continue sign-in in a new tab**. Return to Bureau
+after authorizing; status refreshes automatically. Sign-in is shared across engines
+for that registration's scope. Servers may register Bureau automatically, or you
+can supply a pre-registered client ID and optional client secret. The redirect URI
+is your Bureau origin followed by `/api/integrations/oauth/callback`.
+
+Bureau uses discovery metadata, PKCE and expiring, single-use state bound to the
+member who started the flow. It checks resource and issuer identities, requires
+HTTPS service endpoints, and refuses redirected credential requests. Deleting or
+changing a connection invalidates pending flows and removes its saved credentials.
+Deleting a member removes their saved OAuth records too.
+
+OAuth access tokens are passed through the engines' private control/configuration
+channels. Unlike manually stored integration secrets, these are **access tokens,
+not stand-ins**. Refresh tokens and client secrets remain in Bureau's owner-only
+server files and are never given to engines. They are not encrypted at rest;
+protect the host and backups. Bureau refreshes expiring access tokens and reloads
+agent connections between turns. If refresh is unavailable or a token expires,
+sign in again from the connection card.
+
+**Sign out** removes Bureau's saved tokens and invalidates pending flows. It does
+not revoke consent at the provider; use the provider's account settings when that
+is required. Browser sign-in cannot be initiated or completed by an agent bearer.
