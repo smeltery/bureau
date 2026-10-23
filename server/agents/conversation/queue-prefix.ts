@@ -27,3 +27,25 @@ export function flushPrefix(m: QueuedMessage, receiverAgentId: string): string {
   if (!m.scheduledFor) return senderPrefixText(m.sender, receiverAgentId);
   return `[Scheduled message for ${new Date(m.scheduledFor).toISOString()}.${m.scheduledSenderGone ? " The sender agent no longer exists." : ""}]\n${senderPrefixText(m.sender, receiverAgentId)}`;
 }
+
+export function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
+  switch (sender.kind) {
+    case "webhook":
+      return { sender_webhook_id: sender.webhookId, sender_webhook_name: sender.webhookName };
+    case "user":
+      return sender.username || sender.device ? { ...(sender.username ? { username: sender.username } : {}), ...(sender.device ? { device: sender.device } : {}) } : undefined;
+    case "agent":
+      return {
+        sender_agent_id: sender.agentId,
+        sender_agent_name: sender.agentName,
+        sender_agent_room: sender.roomName,
+      };
+    case "app":
+      return { sender_app_name: sender.appName };
+    case "cronjob":
+      return {
+        ...(sender.cronjobId ? { sender_cronjob_id: sender.cronjobId } : {}),
+        sender_cronjob_name: sender.cronjobName,
+      };
+  }
+}

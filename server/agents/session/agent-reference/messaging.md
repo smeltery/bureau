@@ -1,7 +1,7 @@
 # Messaging
 
 - `POST /api/agents/<receiver-id>/messages` sends another agent a message. Include `clientMessageId` to make retries safe for five minutes.
-- Add `steer:true` to ask Bureau to interrupt an active turn. Do not combine `steer` with `deliverAt`.
+- Add `steer:true` to offer guidance during an active turn. Eligible plain-text machine messages reach Claude between tool calls and Codex through its active-turn steering API without interrupting a running tool. Other delivery paths may interrupt the turn and are rate-limited. A Codex ack with `steered:true, queued:true` means steering was requested, not confirmed delivery; unconfirmed messages stay queued for a later turn. Do not combine `steer` with `deliverAt`.
 - `POST /api/agents/<receiver-id>/abort` stops another agent's current turn without a message. It shares the steer rate limit (`429` when spent), answers `409` when there is nothing to stop, and leaves the receiver a one-time note that an agent stopped it.
 - Scheduled messages use the same endpoint with `deliverAt`, for example `{"text":"check again","deliverAt":"2026-07-14T18:30:00Z"}`.
 - `GET /api/agents/<your-id>/scheduled-messages` lists your pending outbox.

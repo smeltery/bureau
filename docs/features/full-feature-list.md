@@ -65,8 +65,12 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   local file using the authenticated JSON upload form. Each app can message the agent that built it. See
   [Agent-built apps](agent-apps.md).
 - Agents can read other agents' logs and send messages to one another, choosing
-  between queueing behind the receiver's turn and steering (interrupting it,
-  rate-limited, with honest acks). Any agent can also stop another agent's
+  between queueing behind the receiver's turn and steering. Eligible plain-text
+  machine messages reach Claude between tool calls and Codex during its active
+  turn without interrupting running tools. Codex messages remain persisted
+  until a matching delivery receipt; unconfirmed messages wait for a later
+  turn. Submitted messages cannot be withdrawn. Other steering paths interrupt
+  the turn and are rate-limited. Any agent can also stop another agent's
   turn without a message, under the same rate limit; the stopped agent is told
   an agent did it.
 - Agents can schedule one-off future messages, including self-reminders.

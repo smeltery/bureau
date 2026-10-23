@@ -1,4 +1,4 @@
-import type { AgentState, Attachment, QueuedMessage, QueuedSender } from "../../../shared/types.ts";
+import type { AgentState, Attachment, QueuedMessage } from "../../../shared/types.ts";
 import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { SessionSwappedError, createSession, installSession } from "../session/runtime.ts";
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
@@ -6,8 +6,9 @@ import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { ProviderCapacityError, ProviderSignInRequiredError } from "../../internal-types.ts";
 import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
 import { getBackend } from "../../backends/index.ts";
-import { flushPrefix } from "./queue-prefix.ts";
+import { flushPrefix, senderMeta } from "./queue-prefix.ts";
 import { lookupQueueDedupe, recordQueueDedupe } from "./queue-dedupe.ts";
+import { pushBoundarySteer } from "./push-steering.ts";
 import { boundaryEligible, unclaimedQueue } from "./boundary-delivery.ts";
 // Circular with control.ts (which imports flushQueue from here); safe because
 // both modules only call across the cycle at request time, never at load time.
@@ -93,7 +94,7 @@ export function enqueueMessage(
     queuedDuringBusyTurn &&
     !hasPendingFlow(managed) &&
     getBackend(managed.info.agentType).toolBoundaryDelivery === true &&
-    boundaryEligible({ sender: msg.sender, sdkText: msg.sdkText, handoff: msg.handoff, attachments: msg.attachments });
+    boundaryEligible({ sender: msg.sender, sdkText: msg.sdkText, handoff: msg.handoff, attachments: msg.attachments, usageResume: msg.usageResume });
   managed.messageQueue[opts?.atHead ? "unshift" : "push"]({
     id,
     sender: msg.sender,
@@ -141,7 +142,8 @@ export function enqueueMessage(
       return { ok: true, queued: true, messageId: id, steered: false, steerDeclined: "multi_step_flow" };
     }
     if (boundarySteer) {
-      return { ok: true, queued: false, messageId: id, steered: true };
+      pushBoundarySteer(receiverId);
+      return { ok: true, queued: !!managed.session?.steer, messageId: id, steered: true };
     }
     if (steerRateLimited(managed)) {
       return { ok: true, queued: true, messageId: id, steered: false, steerDeclined: "rate_limited" };
@@ -159,28 +161,6 @@ export function enqueueMessage(
     return { ok: true, queued: false, messageId: id, steered: true };
   }
   return { ok: true, queued: true, messageId: id };
-}
-
-function senderMeta(sender: QueuedSender): Record<string, unknown> | undefined {
-  switch (sender.kind) {
-    case "webhook":
-      return { sender_webhook_id: sender.webhookId, sender_webhook_name: sender.webhookName };
-    case "user":
-      return sender.username || sender.device ? { ...(sender.username ? { username: sender.username } : {}), ...(sender.device ? { device: sender.device } : {}) } : undefined;
-    case "agent":
-      return {
-        sender_agent_id: sender.agentId,
-        sender_agent_name: sender.agentName,
-        sender_agent_room: sender.roomName,
-      };
-    case "app":
-      return { sender_app_name: sender.appName };
-    case "cronjob":
-      return {
-        ...(sender.cronjobId ? { sender_cronjob_id: sender.cronjobId } : {}),
-        sender_cronjob_name: sender.cronjobName,
-      };
-  }
 }
 
 export function enqueueUserMessage(agentId: string, managed: ManagedAgent, text: string, username: string | undefined, attachments: Attachment[] | undefined): boolean {
@@ -331,6 +311,7 @@ export async function flushQueue(agentId: string): Promise<void> {
 export function dequeueMessage(agentId: string, queuedId: string): boolean {
   const managed = agents.get(agentId);
   if (!managed) return false;
+  if (!unclaimedQueue(managed).some((item) => item.id === queuedId)) return false;
   const before = managed.messageQueue.length;
   managed.messageQueue = managed.messageQueue.filter((m) => m.id !== queuedId);
   if (managed.messageQueue.length === before) return false;

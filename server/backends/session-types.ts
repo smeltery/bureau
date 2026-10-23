@@ -21,6 +21,7 @@ export interface TokenUsage {
 // Single contract yielded by BackendSession.stream(); per-backend translation
 // happens at the backend boundary.
 export type NormalizedEvent =
+  | { kind: "steer_delivered"; steerId: string }
   | {
       kind: "system_init";
       sessionId?: string;
@@ -218,6 +219,8 @@ export interface BackendSession {
   getSubscriptionUsage?(): Promise<SubscriptionUsageResult>;
   /** Bounded preflight; false includes unknown, true requires explicit evidence. */
   isKnownSignedOut?(): Promise<boolean>;
+  /** False proves refusal; true means submitted, with delivery reported separately. */
+  steer?(text: string, steerId: string): Promise<boolean>;
   send(text: string, attachments?: AttachmentSpec[]): Promise<void>;
   approve(approvalId: string, decision: ApprovalDecision): Promise<void>;
   abort(): Promise<void>;
