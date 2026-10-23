@@ -19,9 +19,9 @@ UI_STAGE=$(mktemp -d ui/.build-stage.XXXXXX)
 # doesn't match the chunk shape (errors, warnings, blank lines) passes
 # through. Set BUREAU_BUILD_VERBOSE=1 to skip the filter when debugging.
 if [[ "${BUREAU_BUILD_VERBOSE:-}" == "1" ]]; then
-  bun build ui/index.tsx --outdir "$UI_STAGE" --production
+  bun build ui/index.tsx --outdir "$UI_STAGE" --production --splitting --entry-naming 'entry-[hash].[ext]' --chunk-naming 'chunk-[hash].[ext]'
 else
-  bun build ui/index.tsx --outdir "$UI_STAGE" --production 2>&1 \
+  bun build ui/index.tsx --outdir "$UI_STAGE" --production --splitting --entry-naming 'entry-[hash].[ext]' --chunk-naming 'chunk-[hash].[ext]' 2>&1 \
     | awk '!/^[[:space:]]+[^[:space:]]+\.(js|css)[[:space:]]+[0-9.]+[[:space:]]+(KB|MB|bytes)[[:space:]]+\(chunk\)[[:space:]]*$/'
 fi
 cp ui/index.html "$UI_STAGE"/index.html

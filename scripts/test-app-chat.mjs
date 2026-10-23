@@ -45,6 +45,8 @@ try {
         status: denied ? 404 : 200,
         json: denied ? { error: "not_found" } : { name: "board", hostGen: generation, appUrl: "http://app.test/", agentId: assigned, sessionExpiresAt: Date.now() + 600_000 },
       });
+    if (url.pathname === "/api/questions") return route.fulfill({ json: { questions: [] } });
+    if (url.pathname === "/api/integrations/requests") return route.fulfill({ json: { requests: [] } });
     if (url.pathname.startsWith("/api/")) return route.fulfill({ json: {} });
     if (url.pathname === "/board")
       return route.fulfill({

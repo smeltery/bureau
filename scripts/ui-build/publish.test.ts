@@ -15,6 +15,7 @@ test("UI publication is deterministic, preserves the previous entry and rolls ba
     writeFileSync(join(path, "index.html"), '<html><head></head><body><script src="./index.js"></script></body></html>');
     writeFileSync(join(path, "index.js"), script);
     writeFileSync(join(path, "style.css"), "body{}");
+    writeFileSync(join(path, `chunk-${script}.js`), `export default "${script}";`);
     return path;
   };
   try {
@@ -23,6 +24,7 @@ test("UI publication is deterministic, preserves the previous entry and rolls ba
     expect(readUiBuild(join(destination, "index.html"))).toBe(first);
     const second = publishUi(stage("second"), destination);
     expect(second).not.toBe(first);
+    expect(readdirSync(destination)).toContain("chunk-first.js.br");
     expect(readFileSync(join(destination, `index-${first}.js`), "utf8")).toBe("first");
     expect(publishUi(stage("second"), destination)).toBe(second);
     expect(readFileSync(join(destination, `index-${first}.js`), "utf8")).toBe("first");
@@ -36,6 +38,9 @@ test("UI publication is deterministic, preserves the previous entry and rolls ba
     expect(readdirSync(destination)).not.toContain("a.css");
     const third = publishUi(stage("third"), destination);
     expect(readdirSync(destination)).not.toContain(`index-${first}.js`);
+    expect(readdirSync(destination)).not.toContain("chunk-first.js");
+    expect(readdirSync(destination)).not.toContain("chunk-first.js.br");
+    expect(readdirSync(destination)).toContain("chunk-second.js");
     expect(readUiBuild(join(destination, "index.html"))).toBe(third);
     const invalid = stage("invalid");
     rmSync(join(invalid, "index.js"));
