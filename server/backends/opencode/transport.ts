@@ -1,4 +1,5 @@
-import { bureauSystemNotice } from "../session-types.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
+import { bureauSystemNotice, bureauTurnFailure } from "../session-types.ts";
 import type { AgentMcpServer } from "../../integrations/mcp.ts";
 import { OpenCodeTurnAccounting } from "./connection/turn-accounting.ts";
 // Stable prompts and per-session authority handles preserve the prompt cache.
@@ -111,11 +112,11 @@ export class OpenCodeTransport {
 
   async send(text: string, attachments: AttachmentSpec[] | undefined, agentId: string, sink: EventSink): Promise<void> {
     if (this.systemPrompt === undefined) {
-      sink({ kind: "turn_completed", status: "failed", error: "OpenCode cannot send a turn without a system prompt." });
+      sink(bureauTurnFailure(logMessage("logs.backend.missingPrompt")));
       return;
     }
     if (this.systemPrompt.includes(OPENCODE_TURN_HANDLE_PLACEHOLDER)) {
-      sink({ kind: "turn_completed", status: "failed", error: "OpenCode cannot send Bureau instructions without an authority binding." });
+      sink(bureauTurnFailure(logMessage("logs.backend.missingBinding")));
       return;
     }
     if (this.activeTurn) throw new Error("OpenCode already has an active turn.");
@@ -157,12 +158,7 @@ export class OpenCodeTransport {
       this.activeTurn = false;
       this.authorityBinding?.deactivate();
       this.lease!.endTurn();
-      if (wasActive)
-        sink({
-          kind: "turn_completed",
-          status: "failed",
-          error: error instanceof Error ? error.message : "OpenCode request failed.",
-        });
+      if (wasActive) sink(error instanceof Error ? { kind: "turn_completed", status: "failed", error: error.message } : bureauTurnFailure(logMessage("logs.backend.requestFailed")));
     }
   }
 
@@ -284,16 +280,12 @@ export class OpenCodeTransport {
         }
         if (!signal.aborted) {
           this.lease?.markUnresponsive?.();
-          settle({ kind: "turn_completed", status: "failed", error: "OpenCode event stream ended before turn completion." });
+          settle(bureauTurnFailure(logMessage("logs.backend.streamEnded")));
         }
       } catch (error) {
         if (!signal.aborted) {
           this.lease?.markUnresponsive?.();
-          settle({
-            kind: "turn_completed",
-            status: "failed",
-            error: `OpenCode event stream failed: ${error instanceof Error ? error.message : "unknown error"}`,
-          });
+          settle(bureauTurnFailure(logMessage("logs.backend.streamFailed", { error: error instanceof Error ? error.message : logMessage("logs.backend.unknownError") })));
         }
       } finally {
         await reader.cancel().catch(() => undefined);

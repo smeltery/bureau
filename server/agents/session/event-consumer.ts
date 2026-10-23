@@ -247,7 +247,8 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
             updateState(agentId, "waiting_for_response");
           } else {
             const failure = humanizeBackendFailure(raw);
-            const errorText = failure.message ?? (ev.error === undefined ? logMessage("logs.diagnostic.stopped", { status: ev.status }) : failure.text);
+            const errorText =
+              failure.message ?? (ev.bureauAuthored && ev.errorMessage ? ev.errorMessage : ev.error === undefined ? logMessage("logs.diagnostic.stopped", { status: ev.status }) : failure.text);
             addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
             const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, raw);
             if (ev.causedByAuth !== true && auth) emitLoginInstructionsImpl(agentId, managed);
@@ -284,7 +285,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       const managed = agents.get(agentId);
       if (managed?.boundaryClaim?.pending) drainToolBoundaryClaim(agentId, managed);
       const failure = humanizeBackendFailure(ev.message);
-      addLogEntry(agentId, "error", failure.message ?? failure.text, backendFailureMeta(failure));
+      addLogEntry(agentId, "error", failure.message ?? (ev.bureauAuthored && ev.errorMessage ? ev.errorMessage : failure.text), backendFailureMeta(failure));
       if (managed?.info.agentType === "claude") {
         const hints = diagnoseProcessExit(managed);
         if (hints) emitEphemeralLog(agentId, "system", hints);

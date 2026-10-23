@@ -1,3 +1,4 @@
+import { displayLogContent, logContent } from "../../../../shared/i18n/log-message.ts";
 import { afterEach, describe, expect, it } from "bun:test";
 import type { NormalizedEvent } from "../../types.ts";
 import type { OpenCodeLease, OpenCodeSupervisor } from "../supervisor.ts";
@@ -108,6 +109,12 @@ describe("OpenCode deadlines", () => {
     const completed = events.filter((e) => e.kind === "turn_completed");
     expect(completed).toHaveLength(1);
     expect(completed[0]).toMatchObject({ status: heartbeat ? "completed" : "failed" });
+    if (!heartbeat) {
+      expect(completed[0].errorMessage?.key).toBe("logs.backend.streamFailed");
+      expect(completed[0].error).toBe("OpenCode event stream failed: OpenCode event stream stopped sending heartbeats.");
+      const entry = { ...logContent(completed[0].errorMessage!), kind: "error" as const };
+      expect(displayLogContent(entry, "es")).toBe("El flujo de eventos de OpenCode falló: OpenCode event stream stopped sending heartbeats.");
+    }
     expect(prompts).toBe(1);
     expect(recoveries).toBe(stallFirstSubscription ? 1 : 0);
     expect(invalidated).toBe(heartbeat ? 0 : 1);
