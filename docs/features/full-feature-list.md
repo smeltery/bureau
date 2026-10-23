@@ -303,3 +303,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Persistent member questions with optional choices and recommendations, revision-safe edits, saved answer receipts, and a combined Inbox for questions, masked credential requests and urgent pages. Questions stay above the addressed member’s chat composer and replies use the ordinary queue. See [member questions](member-questions.md).
 
 - [Install the office and individual apps](installing-apps.md) with browser prompts or manual steps, distinct app manifests, and app title/icon metadata. Existing access checks still apply.
+
+- [Safe UI publication](ui-builds.md) stages builds before serving them and offers open tabs an explicit refresh when the interface changes.

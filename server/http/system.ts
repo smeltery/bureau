@@ -1,3 +1,4 @@
+import { readUiBuild } from "./assets/ui-build.ts";
 import type { BackupStatus } from "../backup.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import type { VersionInfo } from "../version.ts";
@@ -38,6 +39,11 @@ export function handleSystemRequest(req: Request, url: URL, auth: AuthResult | u
       destDir: status.backupDir,
     };
     return new Response(JSON.stringify(wire), { headers: JSON_HEADERS });
+  }
+
+  if (url.pathname === "/api/ui-build") {
+    if (auth?.kind !== "ok") return jsonError(401, "unauthenticated");
+    return Response.json({ build: readUiBuild() }, { headers: { "Cache-Control": "no-store" } });
   }
 
   if (url.pathname === "/api/version") {

@@ -16,3 +16,7 @@ website/dist-ssr/
 
 # Project-local MCP config can carry live credentials
 .mcp.json
+
+# Temporary production UI build state
+ui/.build-lock/
+ui/.build-stage.*/
