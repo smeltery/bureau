@@ -4,7 +4,7 @@ import { claimUserByName, deleteUserById } from "../users.ts";
 import { mintAgentToken, revokeAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 
-test("audit reads require an owner identity, including privileged agent callers", () => {
+test("audit reads require an owner identity, including privileged agent callers", async () => {
   const owner = claimUserByName(`Audit owner ${crypto.randomUUID()}`, { role: "owner", allowedRooms: [] });
   const agent = `audit-agent-${crypto.randomUUID()}`;
   const url = new URL("http://localhost/api/audit-log");
@@ -13,13 +13,13 @@ test("audit reads require an owner identity, including privileged agent callers"
     session: { userId: owner.id, username: owner.name, role: "owner", sessionIdHash: "h", sessionPrefix: "s", needsRolling: false, absoluteExpiresAt: Date.now() + 10000 },
   };
   try {
-    expect(handleAuditRequest(new Request(url), url, auth)?.status).toBe(200);
-    expect(handleAuditRequest(new Request(url), url, { ...auth, session: { ...auth.session, role: "member" } })?.status).toBe(403);
-    expect(handleAuditRequest(new Request(url), url, { kind: "loopback" })?.status).toBe(403);
+    expect((await handleAuditRequest(new Request(url), url, auth))?.status).toBe(200);
+    expect((await handleAuditRequest(new Request(url), url, { ...auth, session: { ...auth.session, role: "member" } }))?.status).toBe(403);
+    expect((await handleAuditRequest(new Request(url), url, { kind: "loopback" }))?.status).toBe(403);
     const token = mintAgentToken(agent, owner.id, false);
-    expect(handleAuditRequest(new Request(url, { headers: { Authorization: `Bearer ${token}` } }), url, auth)?.status).toBe(403);
+    expect((await handleAuditRequest(new Request(url, { headers: { Authorization: `Bearer ${token}` } }), url, auth))?.status).toBe(403);
     const privileged = mintAgentToken(agent, owner.id, true);
-    expect(handleAuditRequest(new Request(url, { headers: { Authorization: `Bearer ${privileged}` } }), url, { kind: "loopback" })?.status).toBe(200);
+    expect((await handleAuditRequest(new Request(url, { headers: { Authorization: `Bearer ${privileged}` } }), url, { kind: "loopback" }))?.status).toBe(200);
   } finally {
     revokeAgentToken(agent);
     deleteUserById(owner.id);

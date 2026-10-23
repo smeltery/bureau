@@ -219,6 +219,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 ## Developer Tools
 
+- Opt-in [terminal recording and replay](terminal-recordings.md) in Audit, with output masking, input attribution without keystrokes, live status and owner cleanup.
 - Embedded terminal per agent, inheriting the agent owner's managed
   environment and standard copy/paste shortcuts across platforms.
   Panel drags update the browser immediately and send the shell its final size

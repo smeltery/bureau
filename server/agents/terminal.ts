@@ -1,3 +1,6 @@
+import { startRecording } from "../terminal-recordings/store.ts";
+import { auditContext } from "../audit/context.ts";
+import type { RecordingStatus } from "../../shared/terminal/recordings.ts";
 import { recordAuditEvent } from "../audit/store.ts";
 import { homedir, userInfo } from "os";
 import { join } from "path";
@@ -10,6 +13,16 @@ import { createTerminalFinalizer } from "./terminal-finalizer.ts";
 
 const PTY_SIDECAR_PATH = join(import.meta.dir, "pty-sidecar.cjs");
 const MAX_PTY_BUFFER = 100_000;
+const recordings = new Map<string, ReturnType<typeof startRecording>>();
+const recordingStatuses = new Map<string, RecordingStatus>();
+export function getTerminalRecordingStatus(agentId: string): RecordingStatus {
+  return recordingStatuses.get(agentId) ?? "off";
+}
+export function stopTerminalRecording(agentId: string) {
+  recordings.get(agentId)?.close("terminal closed");
+  recordings.delete(agentId);
+  recordingStatuses.delete(agentId);
+}
 
 export function sidecarSend(managed: ManagedAgent, msg: Record<string, unknown>) {
   const stdin = managed.ptySidecar?.stdin;
@@ -53,16 +66,23 @@ export function openTerminal(agentId: string): boolean {
   managed.ptySidecar = sidecar;
   managed.ptyBuffer = "";
 
+  const recording = startRecording(agentId, rooms[managed.info.room]?.id ?? "", (status) => {
+    if (managed.ptySidecar !== sidecar) return;
+    recordingStatuses.set(agentId, status);
+    emit({ type: "terminal_recording", agentId, status });
+  });
+  recordings.set(agentId, recording);
   const finalize = createTerminalFinalizer({
     isCurrent: () => managed.ptySidecar === sidecar,
     detach: () => {
+      stopTerminalRecording(agentId);
       managed.ptySidecar = null;
     },
     emitExit: (exitCode) => emit({ type: "terminal_exit", agentId, exitCode }),
   });
 
   // Read stdout as text lines using Bun's native ReadableStream
-  (async () => {
+  const readOutput = (async () => {
     const reader = sidecar.stdout.getReader();
     const decoder = new TextDecoder();
     let partial = "";
@@ -83,6 +103,7 @@ export function openTerminal(agentId: string): boolean {
           }
           if (msg.type === "output") {
             if (managed.ptySidecar !== sidecar) continue;
+            recording?.output(msg.data);
             managed.ptyBuffer += msg.data;
             if (managed.ptyBuffer.length > MAX_PTY_BUFFER) {
               managed.ptyBuffer = managed.ptyBuffer.slice(-MAX_PTY_BUFFER);
@@ -97,7 +118,10 @@ export function openTerminal(agentId: string): boolean {
     } catch {}
   })();
 
-  sidecar.exited.then((exitCode) => finalize(exitCode));
+  sidecar.exited.then(async (exitCode) => {
+    await readOutput;
+    finalize(exitCode);
+  });
 
   // Tell sidecar to spawn the PTY
   sidecarSend(managed, {
@@ -109,7 +133,7 @@ export function openTerminal(agentId: string): boolean {
     env: ptyEnv,
   });
 
-  recordAuditEvent(`terminal:${agentId}`, ["opened"]);
+  recordAuditEvent(`terminal:${agentId}`, ["opened"], false, recording?.id);
   console.log(`[terminal] Spawned sidecar for ${agentId}: shell=${shell}, cwd=${managed.info.cwd}, pid=${sidecar.pid}`);
   return true;
 }
@@ -132,17 +156,25 @@ export function getTerminalBuffer(agentId: string): string | null {
 
 export function terminalInput(agentId: string, data: string) {
   const managed = agents.get(agentId);
-  if (managed?.ptySidecar) sidecarSend(managed, { type: "input", data });
+  if (managed?.ptySidecar) {
+    const context = auditContext.getStore();
+    recordings.get(agentId)?.input(context && !context.closed ? context.actor : "unknown member");
+    sidecarSend(managed, { type: "input", data });
+  }
 }
 
 export function terminalResize(agentId: string, cols: number, rows: number) {
   const managed = agents.get(agentId);
-  if (managed?.ptySidecar) sidecarSend(managed, { type: "resize", cols, rows });
+  if (managed?.ptySidecar) {
+    recordings.get(agentId)?.resize(cols, rows);
+    sidecarSend(managed, { type: "resize", cols, rows });
+  }
 }
 
 export function closeTerminal(agentId: string) {
   const managed = agents.get(agentId);
   if (!managed?.ptySidecar) return;
+  stopTerminalRecording(agentId);
   sidecarSend(managed, { type: "kill" });
   recordAuditEvent(`terminal:${agentId}`, ["closed"]);
   managed.ptySidecar = null;

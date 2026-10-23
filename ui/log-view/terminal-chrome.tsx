@@ -1,4 +1,16 @@
-export function TerminalHeader({ mobile, onClose, onInterrupt, onRestart }: { mobile: boolean; onClose: () => void; onInterrupt?: () => void; onRestart?: () => void }) {
+export function TerminalHeader({
+  recordingStatus,
+  mobile,
+  onClose,
+  onInterrupt,
+  onRestart,
+}: {
+  recordingStatus?: import("../../shared/terminal/recordings.ts").RecordingStatus;
+  mobile: boolean;
+  onClose: () => void;
+  onInterrupt?: () => void;
+  onRestart?: () => void;
+}) {
   return (
     <div
       style={{
@@ -23,6 +35,9 @@ export function TerminalHeader({ mobile, onClose, onInterrupt, onRestart }: { mo
       >
         {!mobile && <span style={{ color: "var(--green)", fontSize: 13 }}>&#9654;</span>}
         Terminal
+        {recordingStatus && recordingStatus !== "off" && (
+          <span role="status"> · {recordingStatus === "recording" ? "Recording" : recordingStatus === "error" ? "Recording failed" : "Recording stopped"}</span>
+        )}
       </span>
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
         <button

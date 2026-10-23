@@ -41,6 +41,7 @@ Detailed subsystem documentation.
 | [OpenCode Environments](features/opencode-environments.md) | Durable manager/room profiles, credential rotation and legacy history |
 | [Skills library](features/skills-library.md) | Agent-scoped skill browsing and owner-managed prompt editing |
 | [Member questions and Inbox](features/member-questions.md) | Persistent questions, masked credential requests and urgent pages |
+- [Terminal recordings](features/terminal-recordings.md) — opt-in output recording, owner replay and cleanup.
 | [Pager](features/pager.md)                                          | Agents and apps page their person; Discord delivery until acked or resolved  |
 | [Integration secrets](features/integration-secrets.md) | Scoped credentials, host restrictions, rotation and variables |
 | [Usage-reset continuation](features/usage-reset-continuation.md) | Continue Claude/Codex work after a reported provider reset |

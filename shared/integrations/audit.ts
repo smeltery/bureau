@@ -11,6 +11,7 @@ export interface AuditEntry {
   target: string;
   fields: string[];
   prompts?: PromptSnapshot[];
+  recordingId?: string;
   outcome: "pending" | "committed" | "failed";
 }
 export interface AuditPage {

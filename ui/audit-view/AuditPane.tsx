@@ -1,7 +1,9 @@
+import { RecordingsPane } from "./recordings/RecordingsPane.tsx";
 import { useEffect, useState } from "react";
 import type { AuditPage } from "../../shared/integrations/audit.ts";
 
 export function AuditPane() {
+  const [recordingId, setRecordingId] = useState<string | null>(null);
   const [page, setPage] = useState<AuditPage | null>(null);
   const [actor, setActor] = useState("");
   const [operation, setOperation] = useState("");
@@ -28,6 +30,7 @@ export function AuditPane() {
   return (
     <section style={{ padding: 16, overflowWrap: "anywhere" }}>
       <h2>Audit log</h2>
+      <RecordingsPane selectedId={recordingId} onClose={() => setRecordingId(null)} />
       <p>Persisted office changes, with their actor and outcome. Pending means a write was interrupted or its final audit status could not be saved.</p>
       <form
         onSubmit={(event) => {
@@ -51,6 +54,7 @@ export function AuditPane() {
           <div>{entry.operation}</div>
           <div>{entry.target}</div>
           <div>{entry.fields.join(", ")}</div>
+          {entry.recordingId && <button onClick={() => setRecordingId(entry.recordingId!)}>Replay terminal</button>}
           {entry.prompts?.map((prompt) => (
             <details key={`${prompt.scope}:${prompt.id}`} style={{ marginTop: 8 }}>
               <summary>
