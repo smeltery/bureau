@@ -1,4 +1,4 @@
-import { logContent, type LogMessage } from "../../shared/i18n/log-message.ts";
+import { logContent, logMessage, type LogMessage } from "../../shared/i18n/log-message.ts";
 import type { Attachment, CronjobRun, LogEntry } from "../../shared/types.ts";
 import type { BackendSession, NormalizedEvent } from "../backends/types.ts";
 import { accumulateRunSessionUsage, appendRunLog, appendRunSessionUsageSnapshot, ensureRunSessionClaudeConfigDir, ensureRunSessionCodexHome, prepareLogEntry, updateRun } from "../persistence.ts";
@@ -94,7 +94,7 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
         }
       }
       if (ev.status !== "completed") {
-        const errorText = ev.error ?? `Run stopped: ${ev.status}.`;
+        const errorText = ev.error ?? logMessage("logs.run.stopped", { status: ev.status });
         writeLog(active, "error", errorText, emitEvent);
       }
       break;
@@ -109,10 +109,10 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
       break;
     }
     case "compacted":
-      writeLog(active, "system", ev.summary ? `Context compacted: ${ev.summary}` : "Context compacted.", emitEvent);
+      writeLog(active, "system", ev.summary ? logMessage("logs.session.compactedSummary", { summary: ev.summary }) : logMessage("logs.session.compacted"), emitEvent);
       break;
     case "approval_request":
-      writeLog(active, "system", `Approval requested for ${ev.toolName}; cron jobs run unattended, so this run may wait until the hard timeout.`, emitEvent);
+      writeLog(active, "system", logMessage("logs.run.approval", { tool: ev.toolName }), emitEvent);
       break;
     case "error":
       writeLog(active, "error", ev.message, emitEvent);

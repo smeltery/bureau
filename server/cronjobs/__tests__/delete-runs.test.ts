@@ -12,6 +12,7 @@ test("schedule deletion stops active runs, revokes pending forks and preserves h
         "--eval",
         `
       import { expect } from "bun:test";
+      import { displayLogContent } from "./shared/i18n/log-message.ts";
       import * as Jobs from "./server/cronjobs/index.ts";
       import { getBackend } from "./server/backends/index.ts";
       import { claimUserByName } from "./server/users.ts";
@@ -49,6 +50,9 @@ test("schedule deletion stops active runs, revokes pending forks and preserves h
       const eventCount=events.length;sessions[0].late();sessions[1].late();await settle();expect(events.length).toBe(eventCount);
       expect(findRun(a.id,first.id).errorReason).toBe("schedule deleted");
       expect(loadRunLogWithAncestors(a.id,first.id,findRun(a.id,first.id).currentSessionId).some(e=>e.content.includes("Schedule deleted"))).toBe(true);
+      const deletedNotice=loadRunLogWithAncestors(a.id,first.id,findRun(a.id,first.id).currentSessionId).find(e=>e.message?.key==="logs.run.deleted");
+      expect(deletedNotice.content).toBe("Schedule deleted; this run was stopped.");
+      expect(displayLogContent(deletedNotice,"es")).toContain("Se eliminó la programación");
       expect(Jobs.deleteCronjob(a.id)).toBe(false);
       Jobs.deleteCronjob(b.id);
       // A preserved run can still be resumed deliberately after its schedule is gone.
@@ -75,6 +79,7 @@ test("schedule deletion stops active runs, revokes pending forks and preserves h
         expect(Jobs.deleteCronjob(c.id)).toBe(true);expect(resolveRunToken(token)).toBeNull();
         unblock();await pending;
         expect(sessions.length).toBe(before);expect(getRunToken(run.id)).toBeNull();expect(findRun(c.id,run.id).currentSessionId).toBe(leaf);
+        expect(loadRunLogWithAncestors(c.id,run.id,leaf).at(-1).message?.key).toBe("logs.run.pendingEditDeleted");
       }
       process.exit(0);
       `,

@@ -1,3 +1,4 @@
+import { logMessage, type LogMessage } from "../../shared/i18n/log-message.ts";
 import { cronjobRunStreamId, type CronjobRun, type LogEntry } from "../../shared/types.ts";
 import type { Backend, BackendSession, CreateSessionOptions, NormalizedMessage } from "../backends/types.ts";
 import {
@@ -19,7 +20,7 @@ export interface EditRunMessageDeps {
   isCancelled?: () => boolean;
   cronRunBackend: (run: CronjobRun) => Backend;
   buildRunResumeOptions: (run: CronjobRun, resumeSessionId: string) => CreateSessionOptions;
-  emitRunErrorEntry: (jobId: string, runId: string, message: string) => void;
+  emitRunErrorEntry: (jobId: string, runId: string, message: string | LogMessage) => void;
   installResumedActive: (run: CronjobRun, session: BackendSession, sessionId: string) => ActiveRun;
   finalizeRun: (active: ActiveRun, status: CronjobRun["status"], errorReason?: string | null) => void;
   revokeRunToken: (runId: string) => void;
@@ -33,7 +34,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
   const oldEntries = loadRunLogWithAncestors(jobId, runId, leaf);
   const targetEntry = oldEntries.find((e) => e.id === logEntryId);
   if (!targetEntry || targetEntry.kind !== "user_message") {
-    deps.emitRunErrorEntry(jobId, runId, "Cannot edit: message not found.");
+    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.action.editMissing"));
     return;
   }
 
@@ -45,7 +46,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
     sessionMessages = await backend.getSessionMessages(leaf, run.cwdSnapshot, leafAccess);
   } catch (err: any) {
     if (deps.isCancelled?.()) return;
-    deps.emitRunErrorEntry(jobId, runId, `Failed to load session messages: ${err.message || String(err)}`);
+    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.loadFailed", { error: err.message || String(err) }));
     return;
   }
 
@@ -81,7 +82,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
     }
   }
   if (targetIdx <= 0) {
-    deps.emitRunErrorEntry(jobId, runId, "Cannot edit: could not locate message in backend session.");
+    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.editLocate"));
     return;
   }
 
@@ -90,14 +91,14 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
   try {
     const forkResult = await backend.forkSessionBeforeMessage(leaf, sessionMessages[targetIdx].uuid, leafAccess);
     if (forkResult.kind === "fresh") {
-      deps.emitRunErrorEntry(jobId, runId, "Cannot edit: backend returned a fresh fork without a session id.");
+      deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.editFresh"));
       return;
     }
     newSessionId = forkResult.sessionId;
     forkFromBackendSessionId = forkResult.forkedFromSessionId;
   } catch (err: any) {
     if (deps.isCancelled?.()) return;
-    deps.emitRunErrorEntry(jobId, runId, `Fork failed: ${err.message || String(err)}`);
+    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.forkFailed", { error: err.message || String(err) }));
     return;
   }
 
@@ -114,7 +115,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
     session = backend.resumeSession(newSessionId, forkResumeOptions);
   } catch (err: any) {
     deps.revokeRunToken(runId);
-    deps.emitRunErrorEntry(jobId, runId, `Failed to start fork: ${err.message || String(err)}`);
+    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.forkStartFailed", { error: err.message || String(err) }));
     return;
   }
 
@@ -169,7 +170,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
     } catch (err: any) {
       if (active.killed) return;
       console.error(`Cronjob run ${runId} edit-send error:`, err.message);
-      writeLog(active, "error", `Failed to send edited message: ${err.message || String(err)}`, deps.emitEvent);
+      writeLog(active, "error", logMessage("logs.run.sendEditFailed", { error: err.message || String(err) }), deps.emitEvent);
       try {
         session.close();
       } catch {}

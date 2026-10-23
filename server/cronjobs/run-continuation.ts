@@ -1,7 +1,8 @@
+import { logContent, logMessage, type LogMessage } from "../../shared/i18n/log-message.ts";
 import { openCodeEnvironmentId } from "../backends/opencode/profiles/identity.ts";
 import { validateCwd } from "../agents/session/paths.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
-import { appendRunLog, findRun, getRunSessionClaudeConfigDir, getRunSessionCodexHome, updateRun } from "../persistence.ts";
+import { prepareLogEntry, appendRunLog, findRun, getRunSessionClaudeConfigDir, getRunSessionCodexHome, updateRun } from "../persistence.ts";
 import { cronjobRunStreamId, type Cronjob, type CronjobRun, type LogEntry } from "../../shared/types.ts";
 import { pinRunProviderEnvironment, buildCronjobEnv, buildRunResumeOptions as buildRunResumeOptionsWithDeps, cronRunBackend } from "./session-options.ts";
 import { mintRunToken, revokeRunToken } from "./tokens.ts";
@@ -29,18 +30,18 @@ export async function sendRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
   // activeRuns.set keeps the slot held; the `finally` below releases it.
   if (deps.activeRuns.has(runId) || deps.startingRuns.has(runId)) return;
   if (run.status === "skipped") {
-    emitRunErrorEntry(deps, jobId, runId, "Cannot resume a skipped run — it never opened a session.");
+    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.resumeSkipped"));
     return;
   }
   const leaf = run.currentSessionId ?? run.rootSessionId;
   if (leaf.startsWith("pending-") || leaf.startsWith("skipped-")) {
-    emitRunErrorEntry(deps, jobId, runId, "Cannot resume: the original run never reached backend init.");
+    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.resumeNoInit"));
     return;
   }
   try {
     validateCwd(run.cwdSnapshot);
   } catch (err: any) {
-    emitRunErrorEntry(deps, jobId, runId, `Cannot resume: cwd is invalid: ${err.message || String(err)}`);
+    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.resumeCwd", { error: err.message || String(err) }));
     return;
   }
   if (!checkCronRunSessionFile(deps, run, leaf, "resume")) return;
@@ -53,7 +54,7 @@ export async function sendRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
       session = cronRunBackend(run).resumeSession(leaf, sessionOpts);
     } catch (err: any) {
       revokeRunToken(runId);
-      emitRunErrorEntry(deps, jobId, runId, `Failed to resume: ${err.message || String(err)}`);
+      emitRunErrorEntry(deps, jobId, runId, logMessage("logs.resumeFailed", { error: err.message || String(err) }));
       return;
     }
 
@@ -68,7 +69,7 @@ export async function sendRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
       } catch (err: any) {
         if (active.killed) return;
         console.error(`Cronjob run ${runId} send error:`, err.message);
-        writeLog(active, "error", `Failed to send: ${err.message || String(err)}`, deps.emitEvent);
+        writeLog(active, "error", logMessage("logs.run.sendFailed", { error: err.message || String(err) }), deps.emitEvent);
         try {
           session.close();
         } catch {}
@@ -89,18 +90,18 @@ export async function editRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
   // concurrent submission.
   if (deps.activeRuns.has(runId) || deps.startingRuns.has(runId)) return;
   if (run.status === "skipped") {
-    emitRunErrorEntry(deps, jobId, runId, "Cannot edit a skipped run — it never opened a session.");
+    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.editSkipped"));
     return;
   }
   const leaf = run.currentSessionId ?? run.rootSessionId;
   if (leaf.startsWith("pending-") || leaf.startsWith("skipped-")) {
-    emitRunErrorEntry(deps, jobId, runId, "Cannot edit: the original run never reached backend init.");
+    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.editNoInit"));
     return;
   }
   try {
     validateCwd(run.cwdSnapshot);
   } catch (err: any) {
-    emitRunErrorEntry(deps, jobId, runId, `Cannot edit: cwd is invalid: ${err.message || String(err)}`);
+    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.editCwd", { error: err.message || String(err) }));
     return;
   }
   if (!checkCronRunSessionFile(deps, run, leaf, "edit")) return;
@@ -110,7 +111,7 @@ export async function editRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
   deps.startingRuns.add(runId);
   try {
     await editRunMessageImpl(deps, run, logEntryId, newText, leaf, username, isCancelled);
-    if (isCancelled()) emitRunErrorEntry(deps, jobId, runId, "Schedule deleted; the pending edit was cancelled.");
+    if (isCancelled()) emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.pendingEditDeleted"));
   } finally {
     deps.startingRuns.delete(runId);
     if (!deps.activeRuns.has(runId)) revokeRunToken(runId);
@@ -125,7 +126,7 @@ function checkCronRunSessionFile(deps: RunContinuationDeps, run: CronjobRun, lea
     userId = run.userIdSnapshot !== undefined ? run.userIdSnapshot : (job?.userId ?? null);
     env = pinRunProviderEnvironment(run, leaf, userId, buildCronjobEnv(userId));
   } catch (err: any) {
-    emitRunErrorEntry(deps, run.cronjobId, run.id, `Cannot ${action}: env file is invalid: ${err.message || String(err)}`);
+    emitRunErrorEntry(deps, run.cronjobId, run.id, logMessage(action === "resume" ? "logs.run.resumeEnv" : "logs.run.editEnv", { error: err.message || String(err) }));
     return false;
   }
   const error = cronRunBackend(run).checkSessionResumable(leaf, {
@@ -134,24 +135,24 @@ function checkCronRunSessionFile(deps: RunContinuationDeps, run: CronjobRun, lea
     environmentId: openCodeEnvironmentId(userId),
   });
   if (!error) return true;
-  emitRunErrorEntry(deps, run.cronjobId, run.id, action === "resume" ? error : `Cannot edit: ${error}`);
+  emitRunErrorEntry(deps, run.cronjobId, run.id, action === "resume" ? error : logMessage("logs.run.editError", { error }));
   return false;
 }
 
 // Append a one-off log entry without an active session. Used to surface
 // pre-flight errors (cwd invalid, leaf is a placeholder, etc.) so the user
 // sees them in the run transcript instead of the message vanishing.
-function emitRunErrorEntry(deps: RunContinuationDeps, jobId: string, runId: string, message: string) {
+function emitRunErrorEntry(deps: RunContinuationDeps, jobId: string, runId: string, message: string | LogMessage) {
   const run = findRun(jobId, runId);
   if (!run) return;
   const sessionId = run.currentSessionId ?? run.rootSessionId;
-  const entry: LogEntry = {
+  const entry: LogEntry = prepareLogEntry({
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     agentId: cronjobRunStreamId(runId),
     timestamp: Date.now(),
     kind: "error",
-    content: message,
-  };
+    ...logContent(message),
+  });
   appendRunLog(jobId, runId, sessionId, entry);
   deps.emitEvent({ type: "log_entry", entry });
 }

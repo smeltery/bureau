@@ -1,3 +1,4 @@
+import { logMessage, type LogMessage } from "../../shared/i18n/log-message.ts";
 import type { Attachment, CronjobRun, LogEntry } from "../../shared/types.ts";
 import { appendRunLog, updateRun } from "../persistence.ts";
 import type { CronjobEvent } from "./index.ts";
@@ -15,7 +16,7 @@ export function writeAffordanceLogWithDeps(
   deps: RunLifecycleDeps,
   active: AffordanceActiveRun,
   kind: LogEntry["kind"],
-  content: string,
+  content: string | LogMessage,
   metadata?: Record<string, unknown>,
   attachments?: Attachment[],
   extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
@@ -47,7 +48,7 @@ export async function runConsumerWithDeps(deps: RunLifecycleDeps, active: Active
   } catch (err: any) {
     if (active.killed) return; // hard timeout already handled
     console.error(`Cronjob run ${active.runId} stream error:`, err.message);
-    writeLog(active, "error", `Stream error: ${err.message}`, deps.emitEvent);
+    writeLog(active, "error", logMessage("logs.diagnostic.streamError", { error: String(err.message) }), deps.emitEvent);
     finalizeRunWithDeps(deps, active, "failed", `Stream error: ${err.message}`);
   }
 }
@@ -94,7 +95,7 @@ export function startRunHardTimeout(deps: RunLifecycleDeps, active: ActiveRun) {
     try {
       active.session.close();
     } catch {}
-    writeLog(active, "error", "Cron job run exceeded 30-minute hard timeout.", deps.emitEvent);
+    writeLog(active, "error", logMessage("logs.run.timeout"), deps.emitEvent);
     finalizeRunWithDeps(deps, active, "timed_out", "exceeded global run timeout");
   }, deps.hardTimeoutMs);
 }

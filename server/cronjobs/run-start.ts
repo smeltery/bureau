@@ -1,3 +1,4 @@
+import { logMessage } from "../../shared/i18n/log-message.ts";
 import { BUREAU_CODEX_HOME } from "../backends/codex/native-bin.ts";
 import { cronjobRunStreamId, generateCronjobRunId, type Cronjob, type CronjobRun } from "../../shared/types.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
@@ -160,7 +161,7 @@ async function sendInitialPrompt(deps: RunStartDeps, active: ActiveRun, session:
   } catch (err: any) {
     if (active.killed) return;
     console.error(`Cronjob run ${active.runId} input error:`, err.message);
-    writeLog(active, "error", `Failed to send prompt: ${err.message || String(err)}`, deps.emitEvent);
+    writeLog(active, "error", logMessage("logs.run.sendPromptFailed", { error: err.message || String(err) }), deps.emitEvent);
     try {
       session.close();
     } catch {}
