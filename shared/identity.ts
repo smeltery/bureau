@@ -19,8 +19,15 @@ export function lowercaseKey(name: string): string {
 // can apply different authority rules; the id lets the receiver POST a
 // reply directly without re-looking-up via agents-summary.json.
 // Format: `"AgentName" (agent id: agent-1774...) from Room "RoomName"`.
-export function formatAgentSenderPrefix(agentId: string, agentName: string, roomName: string): string {
-  return `"${agentName}" (agent id: ${agentId}) from Room "${roomName}"`;
+export interface AgentSenderContext {
+  manager: "same" | "different" | "unknown";
+  privileged: boolean;
+}
+export function formatAgentSenderPrefix(agentId: string, agentName: string, roomName: string, context?: AgentSenderContext): string {
+  const relationship = context
+    ? `, ${context.manager === "same" ? "same manager" : context.manager === "different" ? "different manager" : "manager unknown"}${context.privileged ? ", privileged" : ""}`
+    : "";
+  return `${JSON.stringify(agentName)} (agent id: ${agentId}${relationship}) from Room ${JSON.stringify(roomName)}`;
 }
 
 // Prefix for a message from an app the receiving agent built. Distinct from

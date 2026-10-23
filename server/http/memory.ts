@@ -99,6 +99,16 @@ export async function handleMemoryRequest(req: Request, url: URL, auth?: AuthRes
     const memory = memoryStore.read(target.scope, target.scopeId);
     return json({
       ...memory,
+      scope: target.scope,
+      scopeId: target.scopeId,
+      name:
+        target.scope === "agent"
+          ? (AgentManager.getAllAgents().find((agent) => agent.id === target.scopeId)?.name ?? null)
+          : target.scope === "room"
+            ? (AgentManager.getRooms().find((room) => room.id === target.scopeId)?.name ?? null)
+            : target.scope === "boss"
+              ? (getUserById(target.scopeId!)?.name ?? null)
+              : null,
       size: injectedSize(memory.text),
       cap: MEMORY_CAPS[target.scope],
     });

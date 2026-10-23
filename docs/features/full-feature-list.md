@@ -307,3 +307,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - [Safe UI publication](ui-builds.md) stages builds before serving them and offers open tabs an explicit refresh when the interface changes.
 
 - Large office views load on demand; Brotli/gzip static assets and private content-named JavaScript caching reduce repeat downloads.
+
+- Memory reads report their resolved scope, ID and display name. Peer-message delivery labels report the current manager relationship and privileged setting without granting additional authority.
