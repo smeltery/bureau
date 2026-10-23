@@ -1,3 +1,4 @@
+import { CodexToolCards } from "./session/tool-cards.ts";
 import { CodexSteering } from "./session/steering.ts";
 import { CodexQuotaStop, quotaResetAt } from "./session/quota-stop.ts";
 import { CodexSignInProbe } from "./session/sign-in-probe.ts";
@@ -71,6 +72,7 @@ export class CodexSession implements BackendSession {
   // Child threads spawned by this Codex thread. Known child-thread tool items
   // are surfaced as subagent tool activity; their turn lifecycle and prose are
   // still filtered out so parent bookkeeping stays isolated.
+  private toolCards = new CodexToolCards();
   private childThreads = new Map<string, SubagentOrigin>();
   // Resolves when bootstrap (initialize + thread/start) completes — success
   // or failure. send() / approve() / abort() await this so they don't race
@@ -161,6 +163,7 @@ export class CodexSession implements BackendSession {
     this.quotaStop.cancel();
     const input = buildCodexUserInput(text, attachments, this.opts.agentId);
     this.capacityRetry.resetTurn();
+    this.toolCards.clear();
     // Only flip turnInFlight after turn/start succeeds. If the request throws
     // (e.g. wire error) we don't want handleSubprocessExit to later synthesize
     // a phantom failed turn_completed for a turn that never actually started
@@ -262,6 +265,7 @@ export class CodexSession implements BackendSession {
     if (this.closed) return;
     this.closed = true;
     this.steering.clear();
+    this.toolCards.clear();
     this.quotaStop.cancel();
     this.finishCapacityBackoff("failed", "Codex session closed during provider-capacity backoff.");
     rejectPendingApprovalsOnClose(this.client, this.pendingApprovals);

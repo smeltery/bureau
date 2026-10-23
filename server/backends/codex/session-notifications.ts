@@ -1,3 +1,4 @@
+import type { CodexToolCards } from "./session/tool-cards.ts";
 import type { CodexQuotaStop } from "./session/quota-stop.ts";
 import type { AttachmentSpec, NormalizedEvent, SubagentOrigin } from "../types.ts";
 import type { JsonRpcNotification } from "./client-types.ts";
@@ -13,6 +14,7 @@ import type { ThreadTokenUsageUpdatedNotification } from "./_generated/v2/Thread
 export interface CodexNotificationDeps {
   threadId: string | null;
   childThreads: Map<string, SubagentOrigin>;
+  toolCards?: CodexToolCards;
   turnInFlight: boolean;
   turnStarting: boolean;
   lateToolResultNoticeArmed: boolean;
@@ -61,12 +63,19 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
   // ours. Sub-agent / review-mode child threads have their own ids.
   const eventThreadId = params?.threadId;
   if (eventThreadId !== undefined && deps.threadId && eventThreadId !== deps.threadId) {
-    if (n.method === "item/completed") {
+    if (n.method === "item/started" || n.method === "item/completed") {
       const origin = deps.childThreads.get(eventThreadId as string);
       const item = params?.item;
       if (origin && item) {
-        for (const ev of translateCompletedItem(item, (rawPath) => deps.attachmentFromPath(rawPath), { subagent: origin })) {
-          deps.enqueue(ev);
+        if (n.method === "item/started") {
+          const call = deps.toolCards?.started(eventThreadId as string, item, origin);
+          if (call) {
+            deps.enqueue(call);
+            if (deps.turnInFlight || deps.turnStarting) deps.noteCompletedItemForCapacity?.();
+          }
+        } else {
+          const events = translateCompletedItem(item, (rawPath) => deps.attachmentFromPath(rawPath), { subagent: origin });
+          for (const event of deps.toolCards?.completed(eventThreadId as string, events) ?? events) deps.enqueue(event);
         }
       }
     }
@@ -175,10 +184,16 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
     }
 
     // ---- Item lifecycle ----
-    case "item/started":
+    case "item/started": {
       deps.noteSteerRecorded?.(params?.item);
-      // Tool results still wait for completion.
+      const call = deps.toolCards?.started(deps.threadId ?? "", params?.item);
+      if (call) {
+        deps.enqueue(call);
+        // Visible tool activity makes replaying a capacity-refused turn unsafe.
+        if (deps.turnInFlight || deps.turnStarting) deps.noteCompletedItemForCapacity?.();
+      }
       break;
+    }
     case "thread/started": {
       const thread = params?.thread as
         | {
@@ -206,11 +221,10 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
       if (item) {
         deps.noteSteerRecorded?.(item);
         if (deps.turnInFlight || deps.turnStarting) deps.noteCompletedItemForCapacity?.();
-        for (const ev of translateCompletedItem(item, (rawPath) => deps.attachmentFromPath(rawPath), {
+        const events = translateCompletedItem(item, (rawPath) => deps.attachmentFromPath(rawPath), {
           registerChildThread: (threadId, origin) => registerChildThread(deps, threadId, origin),
-        })) {
-          deps.enqueue(ev);
-        }
+        });
+        for (const event of deps.toolCards?.completed(deps.threadId ?? "", events) ?? events) deps.enqueue(event);
         if (!deps.turnInFlight && !deps.turnStarting && deps.lateToolResultNoticeArmed && isToolActivityItem(item) && !deps.lateToolResultNoticeEmitted) {
           deps.markLateToolResultNoticeEmitted();
           deps.enqueue({
