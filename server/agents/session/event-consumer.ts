@@ -1,3 +1,4 @@
+import { pushBoundarySteer, recordSteerDelivery } from "../conversation/push-steering.ts";
 import { armUsageResume } from "../conversation/usage-resume.ts";
 import { observeAutoHandoff } from "../conversation/auto-handoff.ts";
 import type { AgentState } from "../../../shared/types.ts";
@@ -25,11 +26,12 @@ export async function runConsumer(agentId: string, managed: ManagedAgent, boundS
   try {
     for await (const ev of boundSession.stream()) {
       if (managed.session !== boundSession) continue;
-      if (managed.aborting && ev.kind !== "turn_completed" && ev.kind !== "error") continue;
+      if (managed.aborting && ev.kind !== "turn_completed" && ev.kind !== "error" && ev.kind !== "steer_delivered") continue;
       processNormalizedEvent(agentId, ev);
     }
   } catch (err: any) {
     if (managed.aborting || managed.session !== boundSession) return;
+    if (managed.boundaryClaim?.pending) drainToolBoundaryClaim(agentId, managed);
     const turn = managed.pendingTurn;
     managed.pendingTurn = null;
     clearLiveTurn(managed);
@@ -206,6 +208,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       // the agent itself. Absent for the agent's own calls, for Codex, and
       // for every entry written before this field existed.
       addLogEntry(agentId, "tool_call", ev.name, { toolId: ev.toolUseId, input: ev.input, ...(ev.subagent ? { subagent: ev.subagent } : {}) });
+      if (!ev.subagent) pushBoundarySteer(agentId);
       break;
     }
     case "tool_result": {
@@ -222,9 +225,12 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       );
       break;
     }
+    case "steer_delivered":
+      recordSteerDelivery(agentId, ev.steerId);
+      break;
     case "turn_completed": {
       const managed = agents.get(agentId);
-      if (managed && ev.status === "completed") drainToolBoundaryClaim(agentId, managed);
+      if (managed && (ev.status === "completed" || managed.boundaryClaim?.pending)) drainToolBoundaryClaim(agentId, managed);
       if (managed?.sessionId && ev.usage) {
         const cumulative = accumulateSessionUsage(agentId, managed.sessionId, ev.usage, ev.cost ?? 0, ev.costMode, ev.usageId);
         if (managed.lastWrittenEntryId) appendSessionUsageSnapshot(agentId, managed.sessionId, managed.lastWrittenEntryId, cumulative);
@@ -273,6 +279,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       break;
     case "error": {
       const managed = agents.get(agentId);
+      if (managed?.boundaryClaim?.pending) drainToolBoundaryClaim(agentId, managed);
       const failure = humanizeBackendFailure(ev.message);
       addLogEntry(agentId, "error", failure.text, backendFailureMeta(failure));
       if (managed?.info.agentType === "claude") {

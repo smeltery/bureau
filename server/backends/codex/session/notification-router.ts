@@ -19,7 +19,9 @@ export function routeCodexNotification(session: any, n: JsonRpcNotification): vo
     quotaStop: session.quotaStop,
     setActiveTurnId: (turnId) => {
       session.activeTurnId = turnId;
+      if (turnId === null) session.steering.clear();
     },
+    noteSteerRecorded: (item) => session.steering.recorded(item),
     clearTurnInFlight: () => {
       session.turnInFlight = false;
     },

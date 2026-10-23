@@ -22,6 +22,7 @@ import { codexRolloutFileExists, codexSessionsDir } from "../../agents/session/p
 
 export const codexBackend: Backend = {
   capabilities: CAPABILITIES,
+  toolBoundaryDelivery: true,
 
   getModelOptions(): ModelOption[] {
     return MODEL_OPTIONS;

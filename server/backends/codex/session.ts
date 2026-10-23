@@ -1,3 +1,4 @@
+import { CodexSteering } from "./session/steering.ts";
 import { CodexQuotaStop, quotaResetAt } from "./session/quota-stop.ts";
 import { CodexSignInProbe } from "./session/sign-in-probe.ts";
 // Codex backend session.
@@ -8,7 +9,7 @@ import { BackendNotConfiguredError } from "../../internal-types.ts";
 import type { ApprovalDecision, AttachmentSpec, BackendSession, NormalizedEvent, SubagentOrigin, SubscriptionUsageResult } from "../types.ts";
 import type { GetAccountRateLimitsResponse } from "./_generated/v2/GetAccountRateLimitsResponse.ts";
 
-import { JsonRpcLiteClient, type JsonRpcLiteClientOptions, type JsonRpcNotification, type JsonRpcRequest } from "./client.ts";
+import { JsonRpcLiteClient, type JsonRpcLiteClientOptions, type JsonRpcRequest } from "./client.ts";
 import { buildCodexUserInput } from "./user-input.ts";
 import { CodexRateLimitTracker } from "./session-rate-limits.ts";
 import { CodexUsageTracker } from "./session-usage.ts";
@@ -27,6 +28,12 @@ import { routeCodexNotification } from "./session/notification-router.ts";
 export class CodexSession implements BackendSession {
   private readonly signInProbe = new CodexSignInProbe(() => this.client.request("account/read", { refreshToken: false }));
   private client: JsonRpcLiteClient;
+  private steering = new CodexSteering(
+    () => ({ threadId: this.threadId, turnId: this.activeTurnId, closed: this.closed }),
+    (params) => this.client.request("turn/steer", params),
+    (event) => this.enqueue(event),
+  );
+  steer = (text: string, id: string) => this.steering.send(text, id);
   private threadId: string | null = null;
   private activeTurnId: string | null = null;
   private events = new CodexSessionEventBuffer();
@@ -83,8 +90,8 @@ export class CodexSession implements BackendSession {
       env: opts.env,
     };
     this.client = new JsonRpcLiteClient(clientOpts);
-    this.client.onStderr((chunk) => this.handleStderr(chunk));
-    this.client.onNotification((n) => this.handleNotification(n));
+    this.client.onStderr((chunk) => handleCodexSessionStderr(chunk, this.missingToolOutputNotices, (text) => this.enqueueAuthAwareSystemText(text)));
+    this.client.onNotification((n) => routeCodexNotification(this, n));
     this.client.onServerRequest((req) => this.handleServerRequest(req));
     this.client.onExit((code, signal) => this.handleSubprocessExit(code, signal));
     this.bootstrapPromise = this.bootstrap();
@@ -254,6 +261,7 @@ export class CodexSession implements BackendSession {
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.steering.clear();
     this.quotaStop.cancel();
     this.finishCapacityBackoff("failed", "Codex session closed during provider-capacity backoff.");
     rejectPendingApprovalsOnClose(this.client, this.pendingApprovals);
@@ -296,14 +304,6 @@ export class CodexSession implements BackendSession {
   }
 
   // -------------------------------------------------------------------------
-  // Notification routing
-  // -------------------------------------------------------------------------
-
-  private handleNotification(n: JsonRpcNotification): void {
-    routeCodexNotification(this, n);
-  }
-
-  // -------------------------------------------------------------------------
   // Server-initiated request routing
   // -------------------------------------------------------------------------
 
@@ -317,10 +317,6 @@ export class CodexSession implements BackendSession {
   }
 
   // Stderr and subprocess exit.
-
-  private handleStderr(chunk: string): void {
-    handleCodexSessionStderr(chunk, this.missingToolOutputNotices, (text) => this.enqueueAuthAwareSystemText(text));
-  }
 
   private handleSubprocessExit(code: number | null, signal: NodeJS.Signals | null): void {
     if (this.closed) return;

@@ -22,6 +22,7 @@ export interface CodexNotificationDeps {
   usage: CodexUsageTracker;
   rateLimits: CodexRateLimitTracker;
   quotaStop?: CodexQuotaStop;
+  noteSteerRecorded?(item: unknown): void;
   setActiveTurnId(turnId: string | null): void;
   clearTurnInFlight(): void;
   armLateToolResultNotice(): void;
@@ -175,7 +176,8 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
 
     // ---- Item lifecycle ----
     case "item/started":
-      // Carries the full ThreadItem but we wait for completion.
+      deps.noteSteerRecorded?.(params?.item);
+      // Tool results still wait for completion.
       break;
     case "thread/started": {
       const thread = params?.thread as
@@ -202,6 +204,7 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
     case "item/completed": {
       const item = params?.item;
       if (item) {
+        deps.noteSteerRecorded?.(item);
         if (deps.turnInFlight || deps.turnStarting) deps.noteCompletedItemForCapacity?.();
         for (const ev of translateCompletedItem(item, (rawPath) => deps.attachmentFromPath(rawPath), {
           registerChildThread: (threadId, origin) => registerChildThread(deps, threadId, origin),
