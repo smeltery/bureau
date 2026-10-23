@@ -1,3 +1,4 @@
+import { logMessage, type LogMessage } from "../../shared/i18n/log-message.ts";
 import { basename } from "path";
 import { existsSync, readFileSync, statSync } from "fs";
 import type { Attachment, LogEntry } from "../../shared/types.ts";
@@ -19,7 +20,7 @@ export type RunAffordanceResult = { ok: true } | { ok: false; status: number; er
 export type RunLogWriter = (
   active: AffordanceActiveRun,
   kind: LogEntry["kind"],
-  content: string,
+  content: string | LogMessage,
   metadata?: Record<string, unknown>,
   attachments?: Attachment[],
   extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
@@ -38,7 +39,7 @@ export function emitRunReadFileWithDeps(activeRuns: Map<string, AffordanceActive
 
   const absPath = resolved.path;
   if (!existsSync(absPath)) {
-    writeLog(active, "system", `\`${absPath}\` does not exist.`);
+    writeLog(active, "system", logMessage("logs.command.missingFile", { path: absPath }));
     return { ok: true };
   }
 
@@ -46,15 +47,19 @@ export function emitRunReadFileWithDeps(activeRuns: Map<string, AffordanceActive
   try {
     st = statSync(absPath);
   } catch (err) {
-    writeLog(active, "system", `Failed to read \`${absPath}\`: ${err instanceof Error ? err.message : String(err)}`);
+    writeLog(active, "system", logMessage("logs.action.readFailed", { path: absPath, error: err instanceof Error ? err.message : String(err) }));
     return { ok: true };
   }
   if (!st.isFile()) {
-    writeLog(active, "system", `\`${absPath}\` is not a file.`);
+    writeLog(active, "system", logMessage("logs.command.notFile", { path: absPath }));
     return { ok: true };
   }
   if (st.size > MAX_READ_FILE_BYTES) {
-    writeLog(active, "system", `\`${absPath}\` is ${(st.size / (1024 * 1024)).toFixed(1)} MB — too large to display (${MAX_READ_FILE_BYTES / (1024 * 1024)} MB limit).`);
+    writeLog(
+      active,
+      "system",
+      logMessage("logs.action.readTooLarge", { path: absPath, size: { number: st.size / (1024 * 1024), digits: 1, group: false }, limit: MAX_READ_FILE_BYTES / (1024 * 1024) }),
+    );
     return { ok: true };
   }
 
@@ -62,7 +67,7 @@ export function emitRunReadFileWithDeps(activeRuns: Map<string, AffordanceActive
   try {
     data = readFileSync(absPath);
   } catch (err) {
-    writeLog(active, "system", `Failed to read \`${absPath}\`: ${err instanceof Error ? err.message : String(err)}`);
+    writeLog(active, "system", logMessage("logs.action.readFailed", { path: absPath, error: err instanceof Error ? err.message : String(err) }));
     return { ok: true };
   }
 
@@ -70,7 +75,7 @@ export function emitRunReadFileWithDeps(activeRuns: Map<string, AffordanceActive
   const mediaType = mimeTypeForFilename(originalName);
   const att = saveFile(active.streamId, data, mediaType, originalName);
   if (!att) {
-    writeLog(active, "system", `Failed to save \`${absPath}\` for display.`);
+    writeLog(active, "system", logMessage("logs.action.saveDisplayFailed", { path: absPath }));
     return { ok: true };
   }
   writeLog(active, "file-view", originalName, undefined, [att]);
@@ -91,16 +96,16 @@ export function emitRunDiffWithDeps(activeRuns: Map<string, AffordanceActiveRun>
   const result = computeBureauDiff(resolved.cwd, { commit });
   switch (result.kind) {
     case "not_repo":
-      writeLog(active, "system", `\`${result.cwd}\` is not a git repository.`);
+      writeLog(active, "system", logMessage("logs.command.notRepository", { cwd: result.cwd }));
       break;
     case "git_error":
-      writeLog(active, "system", `Failed to run git diff in \`${result.cwd}\`:\n\n\`\`\`\n${result.message}\n\`\`\``);
+      writeLog(active, "system", logMessage("logs.command.diffFailed", { cwd: result.cwd, error: result.message }));
       break;
     case "bad_commit":
-      writeLog(active, "system", `Cannot diff \`${result.attempted}\`: ${result.message}.`);
+      writeLog(active, "system", logMessage("logs.action.badCommit", { commit: result.attempted, error: result.message }));
       break;
     case "clean":
-      writeLog(active, "system", commit ? `\`${commit}\` introduced no file changes (empty commit?).` : `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
+      writeLog(active, "system", commit ? logMessage("logs.action.emptyCommit", { commit }) : logMessage("logs.command.cleanTree", { cwd: result.cwd }));
       break;
     case "ok":
       writeLog(active, "diff", result.summary, undefined, undefined, { diff: result.payload });

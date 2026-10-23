@@ -1,3 +1,4 @@
+import { logMessage, type LogMessage } from "../../shared/i18n/log-message.ts";
 // Cronjob scheduler + per-run backend session lifecycle.
 //
 // Scheduler tick: every 60s, looks at every enabled cronjob and fires those
@@ -59,7 +60,7 @@ export function deleteCronjob(id: string): boolean {
   for (const active of [...activeRuns.values()]) {
     if (active.jobId !== id) continue;
     active.killed = true;
-    writeLog(active, "error", "Schedule deleted; this run was stopped.", emitCronjobEvent);
+    writeLog(active, "error", logMessage("logs.run.deleted"), emitCronjobEvent);
     finalizeRun(active, "failed", "schedule deleted");
   }
   emitCronjobEvent({ type: "cronjob_deleted", id });
@@ -109,7 +110,7 @@ function lifecycleDeps(): RunLifecycleDeps {
 function writeAffordanceLog(
   active: AffordanceActiveRun,
   kind: LogEntry["kind"],
-  content: string,
+  content: string | LogMessage,
   metadata?: Record<string, unknown>,
   attachments?: Attachment[],
   extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
