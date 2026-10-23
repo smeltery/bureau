@@ -1,3 +1,4 @@
+import { schedules } from "./schedules-zh.ts";
 import { logs } from "./logs-zh.ts";
 import { storage } from "./storage-zh.ts";
 import { skills } from "./skills-zh.ts";
@@ -5,6 +6,7 @@ import { skills } from "./skills-zh.ts";
 import type { Catalog } from "./en.ts";
 export const zh: Catalog = {
   ...logs,
+  ...schedules,
   ...skills,
   ...storage,
   "access.title": "Access",
@@ -42,7 +44,7 @@ export const zh: Catalog = {
   "common.continue": "继续",
   "common.copied": "已复制",
   "common.copy": "复制",
-  "common.create": "Create",
+  "common.create": "创建",
   "common.default": "Default",
   "common.delete": "删除",
   "common.details": "Details",
@@ -227,18 +229,6 @@ export const zh: Catalog = {
   "preferences.language": "语言",
   "preferences.languageDefault": "Default",
   "preferences.languageHint": "智能体回复以及语音输入和播放使用的语言。智能体会在下一次对话中采用此设置。界面的其余部分目前仍使用英语。",
-  "schedules.dialog.edit": "Edit Schedule",
-  "schedules.dialog.new": "New Schedule",
-  "schedules.empty": "还没有定时任务。点击「+ 新建」创建一个。",
-  "schedules.enabledToggle": "已启用（点击暂停）",
-  "schedules.filterLabel": "定时任务：",
-  "schedules.newButton": "+ 新建",
-  "schedules.pausedToggle": "已暂停（点击启用）",
-  "schedules.runNow": "立即运行",
-  "schedules.runsEmpty": "还没有运行记录。",
-  "schedules.tab.cronjobs": "定时任务",
-  "schedules.tab.runs": "运行记录",
-  "schedules.title": "Schedules",
   "sessions.title": "Sessions",
   "settings.profile.checking": "Checking...",
   "settings.profile.displayName": "显示名称",

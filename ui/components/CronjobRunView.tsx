@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
 import { LogEntryCard } from "../log-view/entries/index.tsx";
@@ -11,6 +12,7 @@ import { CronjobRunComposer } from "./CronjobRunComposer.tsx";
 // server-side handlers live in cronjobs/index.ts (sendRunMessage,
 // editRunMessage); see send_cronjob_run_message / edit_cronjob_run_message.
 export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: string; runId: string; username: string; onClose: () => void }) {
+  const { t } = useI18n();
   const { cronjobRunsByJob, isMobile, logs, hydrationEpoch, sessionContext } = useAppState();
   const streamId = cronjobRunStreamId(runId);
   const runs = cronjobRunsByJob.get(jobId) ?? [];
@@ -148,7 +150,7 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
       <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflowY: "auto", padding: isMobile ? "12px" : "16px 24px" }}>
         {run && <CronjobRunSummary run={run} />}
         {entries.length === 0 ? (
-          <div style={{ textAlign: "center", color: "var(--text-ghost)", padding: 40 }}>{run?.status === "skipped" ? "This run was skipped." : "No log entries."}</div>
+          <div style={{ textAlign: "center", color: "var(--text-ghost)", padding: 40 }}>{run?.status === "skipped" ? t("schedules.skippedEmpty") : t("schedules.noLogs")}</div>
         ) : (
           entries.map((entry) => {
             const td = turnData.get(entry.id);
@@ -186,7 +188,7 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
               <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--green)", animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0.2s" }} />
               <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--green)", animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0.4s" }} />
             </span>
-            <span>Running...</span>
+            <span>{t("schedules.running")}</span>
           </div>
         )}
       </div>

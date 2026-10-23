@@ -1,3 +1,4 @@
+import { schedules } from "./schedules-ca.ts";
 import { logs } from "./logs-ca.ts";
 import { storage } from "./storage-ca.ts";
 import { skills } from "./skills-ca.ts";
@@ -5,6 +6,7 @@ import type { Catalog } from "./en.ts";
 // Catalan translations for the office UI catalog.
 export const ca = {
   ...logs,
+  ...schedules,
   ...skills,
   ...storage,
   "access.title": "Accés",
@@ -227,18 +229,6 @@ export const ca = {
   "preferences.language": "Idioma",
   "preferences.languageDefault": "Per defecte",
   "preferences.languageHint": "Els agents que crees fan servir aquest idioma per defecte en respondre i en parlar. La interfície de l’oficina també el segueix.",
-  "schedules.dialog.edit": "Edita la programació",
-  "schedules.dialog.new": "Programació nova",
-  "schedules.empty": 'Encara no hi ha programacions. Fes clic a "+ Nova" per crear-ne una.',
-  "schedules.enabledToggle": "Activada (clic per pausar)",
-  "schedules.filterLabel": "Programació:",
-  "schedules.newButton": "+ Nova",
-  "schedules.pausedToggle": "En pausa (clic per activar)",
-  "schedules.runNow": "Executa ara",
-  "schedules.runsEmpty": "Encara no hi ha execucions.",
-  "schedules.tab.cronjobs": "programacions",
-  "schedules.tab.runs": "execucions",
-  "schedules.title": "Programacions",
   "sessions.title": "Sessions",
   "settings.profile.checking": "S’està comprovant...",
   "settings.profile.displayName": "Nom visible",

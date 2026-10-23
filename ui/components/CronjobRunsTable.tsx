@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+import { runDuration, runStartedAt, runTrigger } from "./schedules/format.ts";
 import { useEffect, useState, type ReactNode } from "react";
 import type { CronjobRun, CronjobRunStatus } from "../../shared/types.ts";
 import { StatusShape } from "../icons/StatusShape.tsx";
@@ -31,6 +33,8 @@ export function RunsTable({
   isMobile: boolean;
   onRowClick: (r: CronjobRun) => void;
 }) {
+  const { t, language } = useI18n();
+  const number = new Intl.NumberFormat(language);
   const cellPad = isMobile ? "8px 6px" : "10px 12px";
   const thStyle: React.CSSProperties = {
     padding: cellPad,
@@ -53,7 +57,7 @@ export function RunsTable({
   const totalPages = Math.max(1, Math.ceil(runs.length / PAGE_SIZE));
 
   if (runs.length === 0) {
-    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{loaded ? "No runs yet." : "Loading..."}</div>;
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{loaded ? t("schedules.runsEmpty") : t("common.loadingDots")}</div>;
   }
 
   return (
@@ -61,12 +65,12 @@ export function RunsTable({
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
-            <th style={{ ...thStyle, width: 30 }}>S</th>
-            <th style={{ ...thStyle, width: 30 }}>T</th>
-            <th style={thStyle}>CRONJOB</th>
-            <th style={thStyle}>STARTED</th>
-            <th style={thStyle}>PREVIEW</th>
-            {!isMobile && <th style={{ ...thStyle, width: 80 }}>DURATION</th>}
+            <th style={{ ...thStyle, width: 30 }}>{t("schedules.column.status")}</th>
+            <th style={{ ...thStyle, width: 30 }}>{t("schedules.column.trigger")}</th>
+            <th style={thStyle}>{t("schedules.column.schedule")}</th>
+            <th style={thStyle}>{t("schedules.column.started")}</th>
+            <th style={thStyle}>{t("common.preview")}</th>
+            {!isMobile && <th style={{ ...thStyle, width: 80 }}>{t("schedules.column.duration")}</th>}
           </tr>
         </thead>
         <tbody>
@@ -81,17 +85,17 @@ export function RunsTable({
               onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              <td style={{ padding: cellPad, color: STATUS_COLOR[r.status], fontSize: 14, textAlign: "center" }} title={r.status}>
+              <td style={{ padding: cellPad, color: STATUS_COLOR[r.status], fontSize: 14, textAlign: "center" }} title={t(`schedules.status.${r.status === "timed_out" ? "timedOut" : r.status}`)}>
                 {STATUS_ICON[r.status]}
               </td>
-              <td style={{ padding: cellPad, color: "var(--text-muted)", fontSize: 12, textAlign: "center" }} title={r.trigger === "manual" && r.triggeredBy ? `manual · ${r.triggeredBy}` : r.trigger}>
+              <td style={{ padding: cellPad, color: "var(--text-muted)", fontSize: 12, textAlign: "center" }} title={runTrigger(r, language)}>
                 {r.trigger === "manual" ? <StatusShape kind="triangle" /> : r.trigger === "webhook" ? "↪" : "⏲"}
               </td>
               <td style={{ padding: cellPad, fontSize: 12, fontWeight: 600 }}>
                 {r.cronjobName}
-                {!liveCronjobIds.has(r.cronjobId) && <span style={{ marginLeft: 6, color: "var(--text-ghost)", fontWeight: 400, fontStyle: "italic", fontSize: 11 }}>(deleted)</span>}
+                {!liveCronjobIds.has(r.cronjobId) && <span style={{ marginLeft: 6, color: "var(--text-ghost)", fontWeight: 400, fontStyle: "italic", fontSize: 11 }}>{t("schedules.deleted")}</span>}
               </td>
-              <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{formatStartedAt(r.startedAt)}</td>
+              <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{runStartedAt(r.startedAt, language)}</td>
               <td
                 style={{
                   padding: cellPad,
@@ -105,7 +109,7 @@ export function RunsTable({
               >
                 {r.errorReason || r.previewText || "—"}
               </td>
-              {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{formatDuration(r.startedAt, r.endedAt)}</td>}
+              {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{runDuration(r.startedAt, r.endedAt, language)}</td>}
             </tr>
           ))}
         </tbody>
@@ -113,37 +117,18 @@ export function RunsTable({
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, padding: "12px 0" }}>
           <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} style={pagerBtn(page === 0)}>
-            ← Prev
+            {t("schedules.previous")}
           </button>
           <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
-            {page + 1} / {totalPages}
+            {number.format(page + 1)} / {number.format(totalPages)}
           </span>
           <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} style={pagerBtn(page >= totalPages - 1)}>
-            Next →
+            {t("schedules.next")}
           </button>
         </div>
       )}
     </>
   );
-}
-
-function formatDuration(start: number, end: number | null): string {
-  if (!end) return "running…";
-  const sec = Math.floor((end - start) / 1000);
-  if (sec < 60) return `${sec}s`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ${sec % 60}s`;
-  const hr = Math.floor(min / 60);
-  return `${hr}h ${min % 60}m`;
-}
-
-function formatStartedAt(ts: number): string {
-  const d = new Date(ts);
-  const today = new Date();
-  const sameDay = d.toDateString() === today.toDateString();
-  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (sameDay) return time;
-  return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
 }
 
 function pagerBtn(disabled: boolean): React.CSSProperties {

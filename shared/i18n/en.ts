@@ -1,3 +1,4 @@
+import { schedules } from "./schedules-en.ts";
 import { logs } from "./logs-en.ts";
 import { storage } from "./storage-en.ts";
 import { skills } from "./skills-en.ts";
@@ -6,6 +7,7 @@ import { skills } from "./skills-en.ts";
 // text. es.ts and ca.ts are complete records over these keys.
 export const en = {
   ...logs,
+  ...schedules,
   ...skills,
   ...storage,
   "access.title": "Access",
@@ -228,18 +230,6 @@ export const en = {
   "preferences.language": "Language",
   "preferences.languageDefault": "Default",
   "preferences.languageHint": "Agents you spawn use this as your default reply and speech language. The office UI follows it too.",
-  "schedules.dialog.edit": "Edit Schedule",
-  "schedules.dialog.new": "New Schedule",
-  "schedules.empty": 'No schedules yet. Click "+ New" to create one.',
-  "schedules.enabledToggle": "Enabled (click to pause)",
-  "schedules.filterLabel": "Schedule:",
-  "schedules.newButton": "+ New",
-  "schedules.pausedToggle": "Paused (click to enable)",
-  "schedules.runNow": "Run now",
-  "schedules.runsEmpty": "No runs yet.",
-  "schedules.tab.cronjobs": "schedules",
-  "schedules.tab.runs": "runs",
-  "schedules.title": "Schedules",
   "sessions.title": "Sessions",
   "settings.profile.checking": "Checking...",
   "settings.profile.displayName": "Display name",
