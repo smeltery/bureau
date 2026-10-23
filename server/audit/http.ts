@@ -1,3 +1,4 @@
+import { handleRecordingRequest } from "../terminal-recordings/http.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { readSessionCookies, validateSession } from "../auth/auth.ts";
 import { resolveApiToken } from "../auth/api-tokens.ts";
@@ -41,7 +42,9 @@ export function auditHttpRequest<T>(req: Request, work: () => T): T {
   return withAuditContext({ actor: actor(req), operation }, work);
 }
 
-export function handleAuditRequest(req: Request, url: URL, auth: AuthResult): Response | null {
+export async function handleAuditRequest(req: Request, url: URL, auth: AuthResult): Promise<Response | null> {
+  const recording = await handleRecordingRequest(req, url, auth);
+  if (recording) return recording;
   if (url.pathname !== "/api/audit-log") return null;
   const raw = readBearerToken(req);
   const owner =

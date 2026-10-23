@@ -1,6 +1,7 @@
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
-import { broadcast } from "./broadcast.ts";
+import { sendToVisibleAgent } from "./agent-events.ts";
+import { getTerminalRecordingStatus } from "../agents/terminal.ts";
 
 export type AgentTerminalCommand = Extract<ClientCommand, { type: "terminal_open" | "terminal_input" | "terminal_resize" | "terminal_close" }>;
 
@@ -17,10 +18,11 @@ export function handleAgentTerminalCommand(cmd: AgentTerminalCommand, canUseAgen
     case "terminal_open": {
       const opened = AgentManager.openTerminal(cmd.agentId);
       if (opened) {
+        sendToVisibleAgent(cmd.agentId, { type: "terminal_recording", agentId: cmd.agentId, status: getTerminalRecordingStatus(cmd.agentId) });
         // Replay buffered output so the browser catches up.
         const buffer = AgentManager.getTerminalBuffer(cmd.agentId);
         if (buffer) {
-          broadcast({ type: "terminal_output", agentId: cmd.agentId, data: buffer, replay: true } as ServerMessage);
+          sendToVisibleAgent(cmd.agentId, { type: "terminal_output", agentId: cmd.agentId, data: buffer, replay: true } as ServerMessage);
         }
       }
       return;

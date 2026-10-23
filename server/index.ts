@@ -1,3 +1,4 @@
+import { installRecordingShutdown } from "./terminal-recordings/shutdown.ts";
 import { enableIntegrations } from "./integrations/agent-refresh.ts";
 import type { ServerMessage } from "../shared/types.ts";
 import * as AgentManager from "./agent-manager.ts";
@@ -162,6 +163,7 @@ startPagerDelivery(pagerDeliveryDeps);
 
 // Daily ~/.bureau/ backup tarball with N=7 retention. See server/backup.ts.
 startBackupScheduler();
+installRecordingShutdown();
 
 // Admin Unix socket — lets the `owner-login` CLI mint a recovery URL for
 // a stranded owner. No-op (with a logged warning) if the socket can't be

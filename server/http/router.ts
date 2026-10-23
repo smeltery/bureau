@@ -166,7 +166,7 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   const httpAuth = authenticate(req, server, { allowLoopback: !browserManagement, officeName: getOfficeName() });
   if (httpAuth.kind === "rejected") return httpAuth.response;
 
-  const auditResponse = handleAuditRequest(req, url, httpAuth);
+  const auditResponse = await handleAuditRequest(req, url, httpAuth);
   if (auditResponse) return auditResponse;
   const browserSharing = await handleBrowserSharingRequest(req, url, httpAuth);
   if (browserSharing) return browserSharing;

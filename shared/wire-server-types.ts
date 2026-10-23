@@ -98,6 +98,7 @@ export type ServerMessage =
   | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }
   | { type: "clear_logs"; agentId: string }
   | { type: "terminal_output"; agentId: string; data: string; replay?: boolean }
+  | { type: "terminal_recording"; agentId: string; status: import("./terminal/recordings.ts").RecordingStatus }
   | { type: "terminal_exit"; agentId: string; exitCode: number }
   | { type: "editor_content"; agentId: string; path: string; content: string; mtime: number; rev: number; language: string; size: number }
   | { type: "editor_save_response"; agentId: string; path: string; ok: boolean; mtime?: number; rev?: number; error?: string; reason?: "stale" | "deleted"; currentMtime?: number }

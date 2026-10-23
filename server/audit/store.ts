@@ -108,14 +108,23 @@ export function auditFileWrite(path: string, data: string | Buffer, write: () =>
   }
 }
 
-export function recordAuditEvent(target: string, fields: string[] = [], required = false): void {
+export function recordAuditEvent(target: string, fields: string[] = [], required = false, recordingId?: string): void {
   const context = auditContext.getStore();
   if (!context || context.closed) {
     if (required) throw new Error("Audit context unavailable.");
     return;
   }
   try {
-    persist({ actor: context.actor, operation: context.operation, id: `${Date.now().toString().padStart(13, "0")}-${crypto.randomUUID()}`, at: Date.now(), target, fields, outcome: "committed" });
+    persist({
+      actor: context.actor,
+      operation: context.operation,
+      id: `${Date.now().toString().padStart(13, "0")}-${crypto.randomUUID()}`,
+      at: Date.now(),
+      target,
+      fields,
+      ...(recordingId ? { recordingId } : {}),
+      outcome: "committed",
+    });
   } catch (error) {
     if (required) throw error;
     console.error("[audit] unable to record completed event", error);

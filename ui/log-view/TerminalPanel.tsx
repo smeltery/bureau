@@ -54,6 +54,7 @@ export function TerminalPanel({
   // keyboard). The function is set by the touch-handling effect.
   const scrollMovedRef = useRef<(() => boolean) | null>(null);
   const { mode } = useTheme();
+  const [recordingStatus, setRecordingStatus] = useState<import("../../shared/terminal/recordings.ts").RecordingStatus>("off");
   const [exited, setExited] = useState<number | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
 
@@ -62,6 +63,7 @@ export function TerminalPanel({
     (data: string) => {
       try {
         const msg = JSON.parse(data) as ServerMessage;
+        if (msg.type === "terminal_recording" && msg.agentId === agentId) setRecordingStatus(msg.status);
         if (msg.type === "terminal_output" && msg.agentId === agentId) {
           const term = termRef.current;
           if (!term) return;
@@ -89,6 +91,7 @@ export function TerminalPanel({
   // Initialize terminal
   useEffect(() => {
     if (!containerRef.current) return;
+    setRecordingStatus("off");
     if (mobile) ensureMobileTerminalStyle();
 
     const term = new Terminal({
@@ -233,7 +236,7 @@ export function TerminalPanel({
         position: "relative",
       }}
     >
-      <TerminalHeader mobile={mobile} onClose={onClose} onInterrupt={() => sendInput("\x03")} onRestart={handleRespawn} />
+      <TerminalHeader recordingStatus={recordingStatus} mobile={mobile} onClose={onClose} onInterrupt={() => sendInput("\x03")} onRestart={handleRespawn} />
 
       {/* Terminal body. position:relative so the exit overlay anchors to the
           body bottom (above the soft-key bar) without a hard-coded offset. */}

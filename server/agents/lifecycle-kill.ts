@@ -1,3 +1,4 @@
+import { stopTerminalRecording } from "./terminal.ts";
 import { cancelUsageResume } from "./conversation/usage-resume.ts";
 import { loadAgentHistory, saveAgentHistory } from "../persistence.ts";
 import { agents, emit, logCache, persistAll, rooms as roomList } from "./state.ts";
@@ -63,6 +64,7 @@ export async function kill(agentId: string) {
   } catch {}
   managed.session = null;
   // Remove from the map so the consumer's outer `agents.has(agentId)` guard exits.
+  stopTerminalRecording(agentId);
   agents.delete(agentId);
   revokeAgentToken(agentId);
   logCache.delete(agentId);

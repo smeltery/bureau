@@ -6,7 +6,7 @@ import { canSeeRoom, getWsUser, projectAgents, projectRooms } from "../users.ts"
 import { sendInitialPayload } from "../ws-initial-payload.ts";
 import { broadcast, browsers } from "./broadcast.ts";
 
-function sendToVisibleAgent(agentId: string, msg: ServerMessage) {
+export function sendToVisibleAgent(agentId: string, msg: ServerMessage) {
   const agent = AgentManager.getAllAgents().find((a) => a.id === agentId);
   const roomId = agent ? AgentManager.getRooms()[agent.room]?.id : null;
   for (const ws of browsers) {
@@ -35,6 +35,10 @@ export function wireAgentAndCronjobEvents() {
   // Wire AgentManager events to WebSocket broadcasts, filtering agent-scoped
   // events through each connection's room access.
   AgentManager.onEvent((event) => {
+    if (event.type === "terminal_output" || event.type === "terminal_exit" || event.type === "terminal_recording") {
+      if (AgentManager.getAllAgents().some((agent) => agent.id === event.agentId)) sendToVisibleAgent(event.agentId, event as ServerMessage);
+      return;
+    }
     if (event.type === "log_entry") {
       sendToVisibleAgent(event.entry.agentId, event as ServerMessage);
       return;

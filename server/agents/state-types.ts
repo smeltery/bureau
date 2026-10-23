@@ -225,6 +225,7 @@ export type AgentEvent =
   | { type: "slide_ready"; agentId: string; sessionId: string; entryId: string; slide: SlideRecord }
   | { type: "slide_failed"; agentId: string; sessionId: string; entryId: string; reason: SlideFailureReason }
   | { type: "terminal_output"; agentId: string; data: string }
+  | { type: "terminal_recording"; agentId: string; status: import("../../shared/terminal/recordings.ts").RecordingStatus }
   | { type: "terminal_exit"; agentId: string; exitCode: number };
 
 export type EventHandler = (event: AgentEvent) => void;
