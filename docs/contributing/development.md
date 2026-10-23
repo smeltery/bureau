@@ -25,11 +25,10 @@ pin together with the Linux runtime.
 Flox is the supported path but not required — any matching Bun works with the
 plain `bun install` / `bun run dev` flow.
 
-When updating a checkout that previously installed KaTeX 0.16 through Mermaid,
-run `bun install --force` before rebuilding the UI. An incremental install can
-leave the old nested package on disk even though the lockfile now overrides all
-KaTeX copies to the patched version. The math-renderer regression test checks
-both direct and Mermaid dependency resolution.
+The postinstall step removes obsolete nested KaTeX packages left by incremental
+installs, so Mermaid uses the patched dependency override. The math-renderer
+regression test checks both direct and Mermaid dependency resolution. After
+updating dependencies, rebuild the UI to serve the patched renderer.
 
 ## Quality gate
 
