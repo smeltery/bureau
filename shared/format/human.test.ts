@@ -38,3 +38,12 @@ describe("formatSize", () => {
     expect(formatSize(-1)).toBe("unknown size");
   });
 });
+
+test("formats byte decimals for the reader without changing precision or units", () => {
+  for (const language of ["en", "es", "ca", "zh"]) {
+    const decimal = new Intl.NumberFormat(language, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }).format(1.5);
+    expect(formatSize(1536, language)).toBe(`${decimal} KB`);
+    expect(formatSize(1024 ** 3 * 50, language)).toBe("50 GB");
+    expect(formatSize(0, language)).toBe("0 B");
+  }
+});

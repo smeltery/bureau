@@ -27,7 +27,7 @@ const UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
  * `0 B`: those inputs mean "we could not measure this", and printing a confident
  * zero would hide a bug behind a plausible number.
  */
-export function formatSize(bytes: number): string {
+export function formatSize(bytes: number, language?: string): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "unknown size";
   if (bytes === 0) return "0 B";
   let value = bytes;
@@ -37,5 +37,7 @@ export function formatSize(bytes: number): string {
     unit++;
   }
   const precision = unit === 0 || value >= 10 || Number.isInteger(value) ? 0 : 1;
-  return `${value.toFixed(precision)} ${UNITS[unit]}`;
+  const rounded = value.toFixed(precision);
+  const size = language ? new Intl.NumberFormat(language, { minimumFractionDigits: precision, maximumFractionDigits: precision, useGrouping: false }).format(Number(rounded)) : rounded;
+  return `${size} ${UNITS[unit]}`;
 }
