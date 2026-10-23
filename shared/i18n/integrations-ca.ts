@@ -130,4 +130,22 @@ export const integrations = {
   "integrations.showValues": "Mostra els valors",
   "integrations.variablesPath": "Desades a {path}. Els valors es mantenen ocults fins que els mostris.",
   "integrations.uniqueNames": "Els noms de variable han de ser únics.",
+  "browserSharing.title": "Comparteix pestanyes del navegador amb agents",
+  "browserSharing.hint":
+    "Instal·la l’extensió de Chrome, vincula-la a aquesta oficina i comparteix explícitament una pestanya amb els agents que gestiones. Les pestanyes compartides utilitzen la teva sessió del navegador. Pots deixar de compartir aquí o a l’extensió.",
+  "browserSharing.download": "Descarrega l’extensió de Chrome",
+  "browserSharing.instructions": "Instruccions de configuració",
+  "browserSharing.install":
+    "Extreu el ZIP en una carpeta permanent. A {extensions}, activa el mode de desenvolupador i tria Carrega una extensió desempaquetada. Selecciona la carpeta extreta i vincula des de la finestra de l’extensió.",
+  "browserSharing.create": "Crea un codi de vinculació",
+  "browserSharing.pairHint": "Enganxa’l a l’extensió amb l’URL d’aquesta oficina: {origin}. Aquest codi d’un sol ús caduca al cap de cinc minuts.",
+  "browserSharing.code": "Codi de vinculació",
+  "browserSharing.copy": "Copia el codi",
+  "browserSharing.dismiss": "Descarta",
+  "browserSharing.paired": "{name} · vinculat fins al {date}",
+  "browserSharing.unpair": "Desvincula",
+  "browserSharing.until": "fins a les {time}",
+  "browserSharing.revoked": "fins que es revoqui",
+  "browserSharing.stop": "Deixa de compartir",
+  "browserSharing.failed": "La sol·licitud ha fallat",
 } as const;

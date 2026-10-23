@@ -128,4 +128,22 @@ export const integrations = {
   "integrations.showValues": "Show values",
   "integrations.variablesPath": "Saved at {path}. Values stay masked until revealed.",
   "integrations.uniqueNames": "Variable names must be unique.",
+  "browserSharing.title": "Share browser tabs with agents",
+  "browserSharing.hint":
+    "Install the Chrome extension, pair it with this office, then explicitly offer a tab to selected agents you manage. Shared tabs use your signed-in browser session. You can stop sharing here or in the extension.",
+  "browserSharing.download": "Download Chrome extension",
+  "browserSharing.instructions": "Setup instructions",
+  "browserSharing.install":
+    "Extract the ZIP into a permanent folder. In {extensions}, enable Developer mode and choose Load unpacked. Select the extracted folder, then pair from the extension popup.",
+  "browserSharing.create": "Create pairing code",
+  "browserSharing.pairHint": "Paste into the extension with this office URL: {origin}. This single-use code expires after five minutes.",
+  "browserSharing.code": "Pairing code",
+  "browserSharing.copy": "Copy code",
+  "browserSharing.dismiss": "Dismiss",
+  "browserSharing.paired": "{name} · paired until {date}",
+  "browserSharing.unpair": "Unpair",
+  "browserSharing.until": "until {time}",
+  "browserSharing.revoked": "until revoked",
+  "browserSharing.stop": "Stop sharing",
+  "browserSharing.failed": "Request failed",
 } as const;
