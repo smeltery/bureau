@@ -207,6 +207,11 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
             </div>
           )}
 
+          {confirmDelete && (
+            <p role="status" style={{ fontSize: 12, color: "var(--text-secondary)", margin: "10px 0 0" }}>
+              Deleting this schedule stops its active runs and cancels pending edits. Run history is kept.
+            </p>
+          )}
           {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "10px 0 0" }}>{error}</p>}
         </div>
 

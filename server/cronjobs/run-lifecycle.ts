@@ -28,6 +28,7 @@ export function writeAffordanceLogWithDeps(
 export async function runConsumerWithDeps(deps: RunLifecycleDeps, active: ActiveRun) {
   try {
     for await (const ev of active.session.stream()) {
+      if (active.killed || deps.activeRuns.get(active.runId) !== active) return;
       processNormalizedEvent(active, ev, deps.emitEvent);
       if (ev.kind === "turn_completed") {
         const status: CronjobRun["status"] = ev.status === "completed" ? "completed" : "failed";
@@ -54,7 +55,7 @@ export async function runConsumerWithDeps(deps: RunLifecycleDeps, active: Active
 export function finalizeRunWithDeps(deps: RunLifecycleDeps, active: ActiveRun, status: CronjobRun["status"], errorReason: string | null = null) {
   // Idempotent: multiple paths can race to finalize. The first one wins;
   // later calls no-op so a late stream close cannot clobber the real result.
-  if (!deps.activeRuns.has(active.runId)) return;
+  if (deps.activeRuns.get(active.runId) !== active) return;
   deps.activeRuns.delete(active.runId);
   if (active.hardTimeoutTimer) {
     clearTimeout(active.hardTimeoutTimer);
@@ -69,11 +70,13 @@ export function finalizeRunWithDeps(deps: RunLifecycleDeps, active: ActiveRun, s
     }
     active.pendingEntries = [];
   }
+  revokeRunToken(active.runId);
   // Release the backend subprocess. Streams are persistent across turns.
   try {
     active.session.close();
-  } catch {}
-  revokeRunToken(active.runId);
+  } catch (error) {
+    console.error(`Failed to close schedule run ${active.runId}:`, error);
+  }
   const previewText = (active.lastAssistantText || "").trim().replace(/\s+/g, " ").slice(0, 120);
   const updated = updateRun(active.jobId, active.runId, {
     status,
@@ -86,7 +89,7 @@ export function finalizeRunWithDeps(deps: RunLifecycleDeps, active: ActiveRun, s
 
 export function startRunHardTimeout(deps: RunLifecycleDeps, active: ActiveRun) {
   active.hardTimeoutTimer = setTimeout(() => {
-    if (!deps.activeRuns.has(active.runId)) return;
+    if (deps.activeRuns.get(active.runId) !== active) return;
     active.killed = true;
     try {
       active.session.close();

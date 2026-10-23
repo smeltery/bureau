@@ -77,6 +77,7 @@ export async function sendRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
     })();
   } finally {
     deps.startingRuns.delete(runId);
+    if (!deps.activeRuns.has(runId)) revokeRunToken(runId);
   }
 }
 
@@ -104,11 +105,15 @@ export async function editRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
   }
   if (!checkCronRunSessionFile(deps, run, leaf, "edit")) return;
 
+  const startedWithSchedule = deps.getCronjobs().some((job) => job.id === jobId);
+  const isCancelled = () => startedWithSchedule && !deps.getCronjobs().some((job) => job.id === jobId);
   deps.startingRuns.add(runId);
   try {
-    await editRunMessageImpl(deps, run, logEntryId, newText, leaf, username);
+    await editRunMessageImpl(deps, run, logEntryId, newText, leaf, username, isCancelled);
+    if (isCancelled()) emitRunErrorEntry(deps, jobId, runId, "Schedule deleted; the pending edit was cancelled.");
   } finally {
     deps.startingRuns.delete(runId);
+    if (!deps.activeRuns.has(runId)) revokeRunToken(runId);
   }
 }
 
@@ -201,9 +206,10 @@ function installResumedActive(deps: RunContinuationDeps, run: CronjobRun, sessio
   return active;
 }
 
-async function editRunMessageImpl(deps: RunContinuationDeps, run: CronjobRun, logEntryId: string, newText: string, leaf: string, username?: string): Promise<void> {
+async function editRunMessageImpl(deps: RunContinuationDeps, run: CronjobRun, logEntryId: string, newText: string, leaf: string, username?: string, isCancelled?: () => boolean): Promise<void> {
   await editRunMessageCoreWithDeps(
     {
+      isCancelled,
       cronRunBackend,
       buildRunResumeOptions: (targetRun, resumeSessionId) => buildRunResumeOptions(deps, targetRun, resumeSessionId),
       emitRunErrorEntry: (jobId, runId, message) => emitRunErrorEntry(deps, jobId, runId, message),

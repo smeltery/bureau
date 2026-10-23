@@ -71,6 +71,5 @@ export function updateCronjob(id: string, changes: UpdateCronjobChanges): Cronjo
 
 export function deleteCronjob(id: string): boolean {
   if (!deleteCronjobDefinition(cronjobs, id)) return false;
-  emitCronjobEvent({ type: "cronjob_deleted", id });
   return true;
 }
