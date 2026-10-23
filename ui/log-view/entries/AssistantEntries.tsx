@@ -38,7 +38,14 @@ export function AssistantText({
   const canCollapse = shouldCollapseAssistantText(content);
   const [expanded, setExpanded] = useState(false);
   return (
-    <div style={{ margin: "8px 0", padding: "10px 14px", paddingRight: 40, borderRadius: 10, background: "var(--bg-subtle)", position: "relative", fontSize: isMobile ? 15 : undefined }}>
+    <div style={{ margin: "8px 0", padding: "10px 14px", borderRadius: 10, background: "var(--bg-subtle)", position: "relative", fontSize: isMobile ? 15 : undefined }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <MessageTimestamp timestamp={timestamp} />
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 4, minWidth: 0, maxWidth: "100%" }}>
+          <SpeakButton getText={getText} />
+          {isLastInTurn && turnEntries && <CopyButton getText={() => serializeEntries(turnEntries)} />}
+        </div>
+      </div>
       <div
         style={
           canCollapse && !expanded
@@ -87,13 +94,6 @@ export function AssistantText({
           {expanded ? "Show less" : "Show more"}
         </button>
       )}
-      <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 8 }}>
-        <MessageTimestamp timestamp={timestamp} />
-        <div style={{ display: "flex", gap: 4 }}>
-          <SpeakButton getText={getText} />
-          {isLastInTurn && turnEntries && <CopyButton getText={() => serializeEntries(turnEntries)} />}
-        </div>
-      </div>
     </div>
   );
 }

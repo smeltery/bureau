@@ -1,3 +1,4 @@
+import { VoiceError } from "./errors.ts";
 import { MAX_SPEAK_CHARS, type VoiceName } from "../../shared/integrations/voice.ts";
 
 export function speechChunks(text: string): string[] {
@@ -31,9 +32,9 @@ export async function playAudioBlob(blob: Blob, signal: AbortSignal): Promise<vo
       };
       const abort = () => finish(new DOMException("Playback cancelled.", "AbortError"));
       audio.onended = () => finish();
-      audio.onerror = () => finish(new Error("Could not play generated speech. Try browser speech in Integrations > Voice."));
+      audio.onerror = () => finish(new VoiceError("voice.playFailed"));
       signal.addEventListener("abort", abort, { once: true });
-      void audio.play().catch(() => finish(new Error("Audio playback was blocked. Try again or choose browser speech in Integrations > Voice.")));
+      void audio.play().catch(() => finish(new VoiceError("voice.playBlocked")));
       if (signal.aborted) abort();
     });
   } finally {
@@ -55,7 +56,7 @@ export async function readAloud(text: string, voice: VoiceName, signal: AbortSig
     });
     if (!response.ok) {
       const body = await response.json();
-      throw new Error(body.error || "Read aloud failed. Try browser speech in Integrations > Voice.");
+      throw body.error ? new Error(body.error) : new VoiceError("voice.readFailedHint");
     }
     const blob = await response.blob();
     signal.throwIfAborted();

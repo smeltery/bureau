@@ -1,3 +1,6 @@
+import type { VoiceFailure } from "./errors.ts";
+import { VoiceError, voiceFailureText } from "./errors.ts";
+import { translatorFor } from "../../shared/i18n/translate.ts";
 import { expect, test } from "bun:test";
 import { createVoiceRecorder, type RecorderState } from "./recorder.ts";
 class Recorder {
@@ -18,7 +21,7 @@ class Recorder {
 function fixture() {
   const states: RecorderState[] = [],
     transcripts: string[] = [],
-    errors: string[] = [];
+    errors: VoiceFailure[] = [];
   let stopped = 0;
   const stream = { getTracks: () => [{ stop: () => stopped++ }] } as unknown as MediaStream;
   const recorder = new Recorder();
@@ -77,9 +80,29 @@ test("recorder errors release tracks and permit a new recording", async () => {
   f.recorder.onerror!();
   expect(f.stopped()).toBeGreaterThan(0);
   expect(f.errors).toHaveLength(1);
+  expect(f.errors[0]).toEqual({ key: "voice.recordFailed" });
   expect(f.transcripts).toEqual([]);
   await f.controller.start();
   f.controller.stop();
   await Bun.sleep(0);
   expect(f.transcripts).toEqual(["hello"]);
+});
+
+test("transcription failures retain ownership for reader translation", async () => {
+  for (const failure of [new VoiceError("voice.invalidTranscript"), new Error("Original provider error {value}")]) {
+    const f = fixture();
+    f.deps.transcribe = async () => {
+      throw failure;
+    };
+    await f.controller.start();
+    f.controller.stop();
+    await Bun.sleep(0);
+    expect(f.controller.active()).toBe(false);
+    expect(f.stopped()).toBeGreaterThan(0);
+    expect(f.errors).toHaveLength(1);
+    for (const language of ["en", "es", "ca", "zh"] as const) {
+      const { t } = translatorFor(language);
+      expect(voiceFailureText(f.errors[0], t)).toBe(failure instanceof VoiceError ? t(failure.key) : failure.message);
+    }
+  }
 });

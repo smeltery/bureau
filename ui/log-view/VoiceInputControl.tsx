@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 export function VoiceInputControl({
   isListening,
   toggleListening,
@@ -13,6 +14,7 @@ export function VoiceInputControl({
   speechApiPresent: boolean;
   isSecureContext: boolean;
 }) {
+  const { t } = useI18n();
   if (speechApiPresent && isSecureContext) {
     return (
       <button
@@ -36,7 +38,7 @@ export function VoiceInputControl({
           userSelect: "none",
           WebkitUserSelect: "none",
         }}
-        title={isListening ? "Stop dictation" : "Start dictation (Ctrl+Space to hold)"}
+        title={isListening ? t("voice.stopDictation") : t("voice.startDictation")}
       >
         <MicIcon />
       </button>
@@ -63,7 +65,7 @@ export function VoiceInputControl({
             padding: 0,
             opacity: 0.4,
           }}
-          title="Voice input requires HTTPS"
+          title={t("voice.https")}
         >
           <MicIcon />
         </button>
@@ -87,6 +89,7 @@ function MicIcon() {
 }
 
 function MicHint({ onClose }: { onClose: () => void }) {
+  const { t, rich } = useI18n();
   return (
     <div
       style={{
@@ -105,10 +108,8 @@ function MicHint({ onClose }: { onClose: () => void }) {
         animation: "fadeIn 0.1s ease-out",
       }}
     >
-      <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>Voice input requires HTTPS</div>
-      <div style={{ marginBottom: 8, lineHeight: 1.5 }}>
-        Enable HTTPS in your <span style={{ color: "var(--text-primary)" }}>Tailscale admin console</span> (DNS page), then run these on the host (use the built-in terminal):
-      </div>
+      <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>{t("voice.https")}</div>
+      <div style={{ marginBottom: 8, lineHeight: 1.5 }}>{rich("voice.httpsHint", { console: (text) => <span style={{ color: "var(--text-primary)" }}>{text}</span> })}</div>
       <code
         style={{
           display: "block",
@@ -126,8 +127,9 @@ function MicHint({ onClose }: { onClose: () => void }) {
       >
         {`sudo tailscale set --operator=$USER\ntailscale serve --bg http://localhost:${typeof window !== "undefined" ? window.location.port || "4000" : "4000"}`}
       </code>
-      <div style={{ marginTop: 8, lineHeight: 1.5, color: "var(--text-muted)" }}>Restart bureau and reload this page. You'll be auto-redirected to HTTPS.</div>
+      <div style={{ marginTop: 8, lineHeight: 1.5, color: "var(--text-muted)" }}>{t("voice.httpsReload")}</div>
       <button
+        aria-label={t("common.close")}
         onClick={onClose}
         style={{
           position: "absolute",

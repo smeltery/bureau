@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useReadAloud } from "../../voice/useReadAloud.ts";
 
 const SPEAK_ICON = (
@@ -33,18 +34,19 @@ function stripMarkdown(md: string): string {
 }
 
 export function SpeakButton({ getText, size = 24 }: { getText: () => string; size?: number }) {
+  const { t } = useI18n();
   const { speaking, error, toggle, available, provider } = useReadAloud(() => stripMarkdown(getText()));
   if (!available) return null;
 
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+    <span style={{ display: "inline-flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: 4, maxWidth: "100%" }}>
       <button
         onClick={(e) => {
           toggle();
           (e.target as HTMLElement).blur();
         }}
         className="copy-btn"
-        title={speaking ? "Stop" : provider === "openai" ? "Speak with OpenAI (AI-generated voice)" : "Speak"}
+        title={speaking ? t("common.stop") : provider === "openai" ? t("voice.speakOpenai") : t("voice.speak")}
         style={{
           width: size,
           height: size,
@@ -64,7 +66,7 @@ export function SpeakButton({ getText, size = 24 }: { getText: () => string; siz
         {speaking ? STOP_ICON : SPEAK_ICON}
       </button>
       {error && (
-        <span role="alert" style={{ color: "var(--red)", fontSize: 11, maxWidth: 240 }}>
+        <span role="alert" style={{ color: "var(--red)", fontSize: 11, maxWidth: 240, overflowWrap: "anywhere" }}>
           {error}
         </span>
       )}

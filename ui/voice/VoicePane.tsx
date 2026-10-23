@@ -1,16 +1,18 @@
+import { useI18n } from "../i18n.tsx";
 import { useEffect, useState } from "react";
 import { DEFAULT_VOICE_NAME, VOICE_NAMES, type VoiceStatus } from "../../shared/integrations/voice.ts";
 import type { UserRecord } from "../../shared/types.ts";
 import { useAppState, useDispatch } from "../store.tsx";
-import { integrationApi } from "../components/integrations/scoped/api.ts";
+import { integrationApi, integrationFailure, integrationFailureText, type IntegrationFailure } from "../components/integrations/scoped/api.ts";
 import { dialogHint, dialogInput, dialogLabel, dialogCancelBtn } from "../components/modals/dialog-styles.ts";
 
 export function VoicePane() {
+  const { t } = useI18n();
   const { sessionContext, users } = useAppState();
   const dispatch = useDispatch();
   const user = sessionContext ? [...users.values()].find((member) => member.id === sessionContext.userId) : undefined;
   const [status, setStatus] = useState<VoiceStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<IntegrationFailure | null>(null);
   const [saving, setSaving] = useState(false);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
@@ -22,7 +24,7 @@ export function VoicePane() {
         if (active) setStatus(result);
       })
       .catch((caught) => {
-        if (active) setError(caught.message);
+        if (active) setError(integrationFailure(caught, "voice.checkFailed"));
       });
     return () => {
       active = false;
@@ -37,33 +39,33 @@ export function VoicePane() {
       const result = await integrationApi<{ user: UserRecord }>(`/api/users/${encodeURIComponent(user.name)}`, "PATCH", changes);
       dispatch({ type: "voice_preferences", userId: result.user.id, changes: { voiceInput: result.user.voiceInput, voiceOutput: result.user.voiceOutput, voiceName: result.user.voiceName } });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not save voice preferences.");
+      setError(integrationFailure(caught, "voice.saveFailed"));
     } finally {
       setSaving(false);
     }
   }
   return (
-    <section aria-label="Voice preferences">
-      <p style={dialogHint}>Choose the microphone and read-aloud providers for your account across devices. Browser voice stays available without an API key.</p>
+    <section aria-label={t("voice.title")}>
+      <p style={dialogHint}>{t("voice.hint")}</p>
       {(["voiceInput", "voiceOutput"] as const).map((field) => (
         <label key={field} style={dialogLabel}>
-          {field === "voiceInput" ? "Microphone" : "Read aloud"}
+          {field === "voiceInput" ? t("voice.microphone") : t("voice.readAloud")}
           <select
-            aria-label={field === "voiceInput" ? "Microphone" : "Read aloud"}
+            aria-label={field === "voiceInput" ? t("voice.microphone") : t("voice.readAloud")}
             style={dialogInput}
             disabled={saving}
             value={user[field] ?? "browser"}
             onChange={(event) => void save({ [field]: event.target.value })}
           >
-            <option value="browser">Browser</option>
+            <option value="browser">{t("voice.browser")}</option>
             <option value="openai">OpenAI</option>
           </select>
         </label>
       ))}
       <label style={dialogLabel}>
-        OpenAI voice
+        {t("voice.name")}
         <select
-          aria-label="OpenAI voice"
+          aria-label={t("voice.name")}
           style={dialogInput}
           disabled={saving}
           value={user.voiceName ?? DEFAULT_VOICE_NAME}
@@ -76,20 +78,20 @@ export function VoicePane() {
           ))}
         </select>
       </label>
-      <p style={dialogHint}>OpenAI receives recorded audio for transcription and message text for read aloud. Its voice is AI-generated, and API usage is billed to the configured account.</p>
+      <p style={dialogHint}>{t("voice.disclosure")}</p>
       <p style={dialogHint}>
         {status
           ? status.available
-            ? `Using ${status.keyName} from ${status.keySource} settings.`
+            ? t("voice.using", { key: String(status.keyName), source: status.keySource ? t(`voice.${status.keySource}`) : String(status.keySource) })
             : status.keyName
-              ? `${status.keyName} is configured but unavailable. Secrets must allow api.openai.com with Authorization authentication.`
-              : "Add OPENAI_VOICE_API_KEY under Secrets or Variables in your member scope, or ask an owner to configure it for the office. OPENAI_API_KEY is used if no dedicated voice key exists."
-          : "Checking voice configuration…"}
+              ? t("voice.unavailable", { key: status.keyName })
+              : t("voice.configure")
+          : t("voice.checking")}
       </p>
       <button style={dialogCancelBtn} onClick={() => setRevision((value) => value + 1)}>
-        Refresh key status
+        {t("voice.refresh")}
       </button>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{integrationFailureText(error, t)}</p>}
     </section>
   );
 }

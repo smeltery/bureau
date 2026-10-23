@@ -1,8 +1,10 @@
+import { useI18n } from "../../i18n.tsx";
+import type { VoiceMessageKey } from "../../voice/errors.ts";
 import { useRecordedVoice, type VoiceInputOptions } from "../../voice/useRecordedVoice.ts";
 import { useVoicePreferences } from "../../voice/useVoicePreferences.ts";
 import { useEffect, useRef, useState } from "react";
 import { advanceDictationSession, isSpokenSubmit, reconcileDictationEdit, startDictationSession, type DictationSession } from "./spoken-punctuation.ts";
-import { voiceInputErrorMessage } from "./voice-input-error.ts";
+import { voiceInputErrorKey } from "./voice-input-error.ts";
 
 /**
  * Speech-recognition input.
@@ -28,6 +30,7 @@ import { voiceInputErrorMessage } from "./voice-input-error.ts";
  * (via `showMicHint`).
  */
 function useBrowserVoiceInput({ inputRef, locale, onTranscript, onGrow, sessionKey }: VoiceInputOptions, enabled: boolean) {
+  const { t } = useI18n();
   const SpeechRecognition = (typeof window !== "undefined" && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) || null;
   const isSecureContext = typeof window !== "undefined" && window.isSecureContext;
   const speechApiPresent = !!SpeechRecognition;
@@ -36,7 +39,7 @@ function useBrowserVoiceInput({ inputRef, locale, onTranscript, onGrow, sessionK
   const [isListening, setIsListening] = useState(false);
   const isListeningRef = useRef(false);
   const [showMicHint, setShowMicHint] = useState(false);
-  const [voiceInputError, setVoiceInputError] = useState<string | null>(null);
+  const [voiceInputError, setVoiceInputError] = useState<VoiceMessageKey | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   // The draft text as it stood when the mic opened, plus every finalized
   // fragment since — kept unjoined so punctuation can be decided per fragment.
@@ -87,7 +90,7 @@ function useBrowserVoiceInput({ inputRef, locale, onTranscript, onGrow, sessionK
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       isListeningRef.current = false;
       setIsListening(false);
-      const message = voiceInputErrorMessage(event.error);
+      const message = voiceInputErrorKey(event.error);
       if (message) setVoiceInputError(message);
     };
     recognitionRef.current = recognition;
@@ -155,7 +158,7 @@ function useBrowserVoiceInput({ inputRef, locale, onTranscript, onGrow, sessionK
     setShowMicHint,
     speechApiPresent,
     isSecureContext,
-    voiceInputError,
+    voiceInputError: voiceInputError === null ? null : t(voiceInputError),
     reconcileDraftEdit,
   };
 }
