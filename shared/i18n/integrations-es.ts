@@ -132,4 +132,22 @@ export const integrations = {
   "integrations.showValues": "Mostrar valores",
   "integrations.variablesPath": "Guardadas en {path}. Los valores permanecen ocultos hasta que los muestres.",
   "integrations.uniqueNames": "Los nombres de variable deben ser únicos.",
+  "browserSharing.title": "Comparte pestañas del navegador con agentes",
+  "browserSharing.hint":
+    "Instala la extensión de Chrome, vincúlala a esta oficina y comparte explícitamente una pestaña con los agentes que gestionas. Las pestañas compartidas usan tu sesión del navegador. Puedes dejar de compartir aquí o en la extensión.",
+  "browserSharing.download": "Descargar extensión de Chrome",
+  "browserSharing.instructions": "Instrucciones de configuración",
+  "browserSharing.install":
+    "Extrae el ZIP en una carpeta permanente. En {extensions}, activa el modo de desarrollador y elige Cargar descomprimida. Selecciona la carpeta extraída y vincula desde la ventana de la extensión.",
+  "browserSharing.create": "Crear código de vinculación",
+  "browserSharing.pairHint": "Pégalo en la extensión junto con la URL de esta oficina: {origin}. Este código de un solo uso caduca a los cinco minutos.",
+  "browserSharing.code": "Código de vinculación",
+  "browserSharing.copy": "Copiar código",
+  "browserSharing.dismiss": "Descartar",
+  "browserSharing.paired": "{name} · vinculado hasta el {date}",
+  "browserSharing.unpair": "Desvincular",
+  "browserSharing.until": "hasta las {time}",
+  "browserSharing.revoked": "hasta que se revoque",
+  "browserSharing.stop": "Dejar de compartir",
+  "browserSharing.failed": "La solicitud ha fallado",
 } as const;
