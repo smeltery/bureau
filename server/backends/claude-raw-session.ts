@@ -82,10 +82,22 @@ export class RawClaudeSession {
 }
 
 // Run a single stateless prompt to completion and return the terminal result.
-export async function runClaudeOneShot(prompt: string, options: Options): Promise<{ subtype: "success" | "error"; result: string }> {
+type OneShotOptions = Omit<Options, "settings"> & { settings?: Extract<Options["settings"], object> };
+
+export async function runClaudeOneShot(prompt: string, options: OneShotOptions): Promise<{ subtype: "success" | "error"; result: string }> {
   const q = query({
     prompt,
-    options: { pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN, ...options },
+    options: {
+      pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
+      ...options,
+      // Metadata prompts must not connect tools from the host, project,
+      // plugins, account, or explicit subagent definitions.
+      tools: [],
+      mcpServers: {},
+      agents: {},
+      strictMcpConfig: true,
+      settings: { ...options.settings, disableClaudeAiConnectors: true },
+    },
   });
   let out: { subtype: "success" | "error"; result: string } = { subtype: "error", result: "" };
   for await (const msg of q) {
