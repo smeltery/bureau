@@ -8,6 +8,7 @@ export function routeCodexNotification(session: any, n: JsonRpcNotification): vo
   handleCodexNotification(n, {
     threadId: session.threadId,
     childThreads: session.childThreads,
+    toolCards: session.toolCards,
     turnInFlight: session.turnInFlight,
     turnStarting: session.turnStarting,
     lateToolResultNoticeArmed: session.lateToolResultNoticeArmed,

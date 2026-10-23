@@ -73,6 +73,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   the turn and are rate-limited. Any agent can also stop another agent's
   turn without a message, under the same rate limit; the stopped agent is told
   an agent did it.
+- Codex command, file-edit, MCP, and delegation cards appear when work starts,
+  with results attached when it finishes. Child-agent tool activity keeps its
+  attribution; web-search cards wait for the completed query.
 - Agents can schedule one-off future messages, including self-reminders.
 - Durable shared memory with office, room, person, and agent scopes. Agents can
   append attributed facts through the local API, users can curate raw memory in

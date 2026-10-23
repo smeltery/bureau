@@ -78,7 +78,11 @@ test("the Codex session wires turn steering and filters receipt notifications", 
       const session=new CodexSession({agentId:"a",cwd:process.cwd(),systemPrompt:"",modelFamily:"gpt-6.1-sol",effort:"high",permissionMode:"never"});
       const iterator=session.stream();expect((await iterator.next()).value.kind).toBe("system_init");
       expect(await session.steer("early","early")).toBe(false);
-      await session.send("work");expect(await session.steer("guidance","receipt")).toBe(true);
+      await session.send("work");
+      const command={type:"commandExecution",id:"cmd",command:"sleep 30",cwd:"/tmp"};
+      notify({method:"item/started",params:{threadId:"parent",item:command}});
+      expect((await iterator.next()).value).toMatchObject({kind:"tool_call",toolUseId:"cmd",input:{command:"sleep 30",cwd:"/tmp"}});
+      expect(await session.steer("guidance","receipt")).toBe(true);
       const item={type:"userMessage",id:"item",clientId:"receipt",content:[]};
       notify({method:"item/started",params:{threadId:"child",item}});
       notify({method:"item/started",params:{threadId:"parent",item:{...item,clientId:"unknown"}}});
@@ -89,14 +93,17 @@ test("the Codex session wires turn steering and filters receipt notifications", 
       notify({method:"turn/completed",params:{threadId:"parent",turn:{id:"turn",status:"completed"}}});
       notify({method:"item/completed",params:{threadId:"parent",item:{...item,clientId:"old"}}});
       expect(await session.steer("late","late")).toBe(false);
+      notify({method:"item/completed",params:{threadId:"parent",item:{...command,exitCode:0,aggregatedOutput:"done"}}});
       session.close();const remaining=[];for await(const event of iterator)remaining.push(event);
       expect(remaining.filter(event=>event.kind==="steer_delivered")).toHaveLength(0);
+      expect(remaining.filter(event=>event.kind==="tool_call")).toHaveLength(0);
+      expect(remaining.filter(event=>event.kind==="tool_result")).toHaveLength(1);
       expect(requests.filter(request=>request.method==="turn/interrupt")).toHaveLength(0);
       expect(requests.find(request=>request.method==="turn/steer").params).toMatchObject({threadId:"parent",expectedTurnId:"turn",clientUserMessageId:"receipt"});
       process.exit(0);
     `,
       ],
-      { env: { ...process.env, BUREAU_HOME: root }, stdout: "pipe", stderr: "pipe" },
+      { env: { ...process.env, BUREAU_HOME: root }, timeout: 10000, stdout: "pipe", stderr: "pipe" },
     );
     expect(result.exitCode, result.stderr.toString()).toBe(0);
   } finally {
