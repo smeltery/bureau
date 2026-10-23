@@ -1,3 +1,4 @@
+import type { SlashCommandInfo } from "../../shared/agent-types.ts";
 import type { AutoHandoffAttempt } from "./conversation/auto-handoff.ts";
 import type { AgentInfo, AgentSubscriptionUsage, ExperimentalSettings, KilledAgentSummary, LogEntry, RoomPet, RoomWire, SkillInfo, SlideFailureReason, SlideRecord } from "../../shared/types.ts";
 import type { BackendSession, NormalizedEvent } from "../backends/types.ts";
@@ -68,7 +69,7 @@ export interface ManagedAgent {
   // replacement). sendMessage awaits this so a follow-up message arriving in the gap
   // doesn't see session=null and amputate context by spinning up a fresh blank session.
   abortPromise: Promise<void> | null;
-  slashCommands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[];
+  slashCommands: SlashCommandInfo[];
   skills: SkillInfo[];
   sdkReportedCommands: string[]; // commands reported by SDK in system:init
   // Timing: track when phases start for duration_ms computation
@@ -219,7 +220,7 @@ export type AgentEvent =
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings; receptionistAgentId?: string | null }
   | { type: "rooms_reordered"; order: string[] }
   | { type: "clear_logs"; agentId: string }
-  | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }
+  | { type: "slash_commands"; agentId: string; commands: SlashCommandInfo[]; skills: SkillInfo[] }
   // Slide Mode outcomes for one turn. Routed like log_entry (per-session room
   // ACL) in server/ws/agent-events.ts — anyone who can see the chat can see its
   // slides. `slide_failed` is the client's only "stop waiting" signal.

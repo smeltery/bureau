@@ -4,6 +4,8 @@
 // See docs/architecture/command-skill-system.md for the full design.
 // Last updated: 2026-03-31 (Claude Code ~1.0.x)
 
+import { commandDescriptionMessage } from "../../shared/i18n/command-description.ts";
+import type { SlashCommandInfo } from "../../shared/agent-types.ts";
 import { bundledSkillCommands } from "./commands-bundled-skills.ts";
 import { unsupportedHardcodedCommands } from "./commands-unsupported.ts";
 
@@ -190,12 +192,13 @@ export const commands: Record<string, CommandConfig> = {
 // ---------------------------------------------------------------------------
 
 /** All command names that should appear in autocomplete from the config. */
-export function autocompleteCommands(): { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[] {
+export function autocompleteCommands(): SlashCommandInfo[] {
   return Object.entries(commands)
     .filter(([, cfg]) => cfg.autocomplete)
     .map(([name, cfg]) => ({
       name,
       description: cfg.description,
+      descriptionMessage: commandDescriptionMessage(name, cfg.description),
       ...(cfg.aliasFor ? { aliasFor: cfg.aliasFor } : {}),
       ...(cfg.autoRun === true ? { autoRun: true } : {}),
     }));

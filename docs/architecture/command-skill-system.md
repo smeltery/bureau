@@ -131,6 +131,14 @@ Only commands with `autocomplete: true` appear in the slash command autocomplete
 
 SDK-reported commands are excluded from autocomplete to avoid noise from MCP internals.
 
+Registry-owned commands include optional `descriptionMessage` metadata alongside their
+English `description`. Autocomplete and the Skills menu render it in the reader’s
+language; older or unknown metadata falls back to the literal description. Skill
+descriptions remain literal, including when a skill shadows a built-in command.
+Menu headings, skill-origin labels, and search text are translated too. The Skills
+menu searches the displayed description, while slash completion continues to
+match and insert command names.
+
 ## Command Handling Flow
 
 When a user types `/command`:

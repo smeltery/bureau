@@ -1,4 +1,4 @@
-import { commandDescriptions } from "../../../shared/i18n/command-descriptions-en.ts";
+import { commandDescriptionMessage } from "../../../shared/i18n/command-description.ts";
 import { en } from "../../../shared/i18n/en.ts";
 import { logMessage, logParts, type LogMessage, type LogParam } from "../../../shared/i18n/log-message.ts";
 import { commands } from "../commands.ts";
@@ -6,9 +6,7 @@ import { commands } from "../commands.ts";
 /** Match the registry text so external skills and newer descriptions stay literal. */
 export function commandDescription(name: string, description: string | undefined): LogParam | undefined {
   if (!Object.hasOwn(commands, name) || commands[name].description !== description) return description;
-  const key = `logs.description.${name.replace(/[-_]([a-z])/g, (_, letter: string) => letter.toUpperCase())}` as keyof typeof commandDescriptions;
-  if (!Object.hasOwn(commandDescriptions, key) || commandDescriptions[key] !== description) return description;
-  return logMessage(key);
+  return commandDescriptionMessage(name, description) ?? description;
 }
 
 const customMessages = {

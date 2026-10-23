@@ -1,13 +1,9 @@
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { SkillInfo } from "../../../shared/types.ts";
+import type { SkillInfo, SlashCommandInfo } from "../../../shared/types.ts";
 import { buildSkillsMenuGroups } from "./skills-grouping.ts";
 
-export interface CommandEntry {
-  name: string;
-  description?: string;
-  aliasFor?: string;
-  autoRun?: boolean;
-}
+export type CommandEntry = SlashCommandInfo;
 
 export function SkillsPopover({
   skills,
@@ -24,6 +20,7 @@ export function SkillsPopover({
   onPick: (name: string, autoRun?: boolean) => void;
   onClose: () => void;
 }) {
+  const { t, language } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState("");
@@ -53,7 +50,7 @@ export function SkillsPopover({
     if (!isMobile) filterRef.current?.focus();
   }, [isMobile]);
 
-  const groups = useMemo(() => buildSkillsMenuGroups({ skills, commands, counts: usageCounts, filter }), [commands, filter, skills, usageCounts]);
+  const groups = useMemo(() => buildSkillsMenuGroups({ skills, commands, counts: usageCounts, filter, language }), [commands, filter, skills, usageCounts, language]);
 
   return (
     <div
@@ -79,7 +76,7 @@ export function SkillsPopover({
           ref={filterRef}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter skills & commands..."
+          placeholder={t("skills.filterCommands")}
           style={{
             width: "100%",
             boxSizing: "border-box",
@@ -96,7 +93,7 @@ export function SkillsPopover({
         />
       </div>
       <div style={{ overflowY: "auto", minHeight: 0 }}>
-        {groups.length === 0 && <div style={{ padding: "10px 12px", fontSize: isMobile ? 13 : 12, color: "var(--text-ghost)" }}>No matching skills or commands</div>}
+        {groups.length === 0 && <div style={{ padding: "10px 12px", fontSize: isMobile ? 13 : 12, color: "var(--text-ghost)" }}>{t("skills.noMatchingCommands")}</div>}
         {groups.map((group) => (
           <div key={group.key}>
             <div style={{ padding: "6px 12px 2px", fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "var(--text-ghost)" }}>{group.label}</div>

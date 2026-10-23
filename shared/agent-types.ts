@@ -1,3 +1,4 @@
+import type { LogMessage } from "./i18n/log-message.ts";
 import type { AgentCapabilities, AgentPermissionMode, CodexSandboxMode, EffortLevel, ModelFamily } from "./agent-models.ts";
 import type { Attachment } from "./log-types.ts";
 
@@ -241,4 +242,13 @@ export interface SkillInfo {
    * canonicals + aliases so the user sees a single line per skill.
    */
   aliasFor?: string;
+}
+
+/** Built-in command metadata; description remains readable by older clients. */
+export interface SlashCommandInfo {
+  name: string;
+  description?: string;
+  descriptionMessage?: LogMessage;
+  aliasFor?: string;
+  autoRun?: boolean;
 }

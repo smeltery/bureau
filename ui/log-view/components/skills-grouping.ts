@@ -1,3 +1,6 @@
+import { displayLogText } from "../../../shared/i18n/log-message.ts";
+import { translatorFor, type MessageKey } from "../../../shared/i18n/translate.ts";
+import type { SupportedLanguageCode } from "../../../shared/languages.ts";
 import type { SkillInfo, SkillOrigin } from "../../../shared/types.ts";
 import type { CommandEntry } from "./SkillsPopover.tsx";
 
@@ -5,14 +8,14 @@ export type GroupKey = "most-used" | "commands" | "bundled" | "user" | "project"
 
 const GROUP_ORDER: GroupKey[] = ["most-used", "commands", "bundled", "user", "project", "plugin"];
 
-const GROUP_LABELS: Record<GroupKey, string> = {
-  "most-used": "Most Used",
-  commands: "Commands",
-  bundled: "Bundled",
-  user: "User",
-  project: "Project",
-  plugin: "Plugin",
-};
+const GROUP_LABELS = {
+  "most-used": "skills.groupMostUsed",
+  commands: "skills.groupCommands",
+  bundled: "skills.groupBundled",
+  user: "skills.groupUser",
+  project: "skills.groupProject",
+  plugin: "skills.groupPlugin",
+} as const satisfies Record<GroupKey, MessageKey>;
 
 export const MOST_USED_CAP = 8;
 
@@ -34,8 +37,9 @@ function groupForOrigin(origin: SkillOrigin): GroupKey {
   return origin;
 }
 
-export function buildSkillsMenuGroups(input: { skills: SkillInfo[]; commands: CommandEntry[]; counts: Record<string, number>; filter: string }): SkillsMenuGroup[] {
-  const { skills, commands, counts, filter } = input;
+export function buildSkillsMenuGroups(input: { skills: SkillInfo[]; commands: CommandEntry[]; counts: Record<string, number>; filter: string; language?: SupportedLanguageCode }): SkillsMenuGroup[] {
+  const { skills, commands, counts, filter, language = "en" } = input;
+  const { t } = translatorFor(language);
   const aliasTargets = new Set([...skills, ...commands].filter((entry) => entry.aliasFor).map((entry) => entry.aliasFor as string));
   const q = filter.trim().toLowerCase();
   const matches = (name: string, description?: string) => !q || name.toLowerCase().includes(q) || (description ?? "").toLowerCase().includes(q);
@@ -51,7 +55,8 @@ export function buildSkillsMenuGroups(input: { skills: SkillInfo[]; commands: Co
     entries.push({ home, entry: { name, description, ...(autoRun === true ? { autoRun: true } : {}), count: countFor(name, aliasFor) } });
   };
 
-  for (const command of commands) add("commands", command.name, command.description, command.autoRun, command.aliasFor);
+  for (const command of commands)
+    add("commands", command.name, command.description ? displayLogText(command.description, command.descriptionMessage, language) : undefined, command.autoRun, command.aliasFor);
   for (const skill of skills) add(groupForOrigin(skill.origin), skill.name, skill.description, undefined, skill.aliasFor);
 
   const mostUsed = entries
@@ -78,7 +83,7 @@ export function buildSkillsMenuGroups(input: { skills: SkillInfo[]; commands: Co
 
   return GROUP_ORDER.filter((group) => byGroup.has(group)).map((group) => ({
     key: group,
-    label: GROUP_LABELS[group],
+    label: t(GROUP_LABELS[group]),
     entries: byGroup.get(group)!,
   }));
 }
