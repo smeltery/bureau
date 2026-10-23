@@ -1,3 +1,4 @@
+import { integrations } from "./integrations-en.ts";
 import { schedules } from "./schedules-en.ts";
 import { logs } from "./logs-en.ts";
 import { storage } from "./storage-en.ts";
@@ -7,6 +8,7 @@ import { skills } from "./skills-en.ts";
 // text. es.ts and ca.ts are complete records over these keys.
 export const en = {
   ...logs,
+  ...integrations,
   ...schedules,
   ...skills,
   ...storage,
