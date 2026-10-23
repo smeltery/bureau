@@ -1,3 +1,4 @@
+import { displayLogContent } from "../../shared/i18n/log-message.ts";
 import { afterEach, describe, expect, test } from "bun:test";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../shared/types.ts";
 import { createManagedAgent } from "./managed-factory.ts";
@@ -115,6 +116,14 @@ describe("maybeEmitUiContextNotice", () => {
     expect(logs[0].content).toContain("/clear");
     expect(logs[0].content).toContain("/handoff");
     expect(logs[0].metadata?.contextAudience).toBe("ui");
+    expect(logs[0].message?.key).toBe("logs.context.warning");
+    for (const language of ["es", "ca", "zh"] as const) {
+      const text = displayLogContent(logs[0], language);
+      expect(text).not.toBe(logs[0].content);
+      expect(text).toContain("51%");
+      expect(text).toContain("/clear");
+      expect(text).toContain("/handoff");
+    }
     expect(managed.firedUiThresholds.has(50)).toBe(true);
   });
 
@@ -137,6 +146,8 @@ describe("maybeEmitUiContextNotice", () => {
     const logs = logCache.get("agent-1") ?? [];
     expect(logs).toHaveLength(2);
     expect(logs[1].metadata?.contextAudience).toBe("agent");
+    expect(logs[1].message).toBeUndefined();
+    expect(displayLogContent(logs[1], "es")).toBe(managed.pendingContextNotices[0]);
   });
 
   test("skips Codex", () => {

@@ -1,6 +1,27 @@
 import { commandDescriptions } from "./command-descriptions-es.ts";
 export const logs = {
   ...commandDescriptions,
+  "logs.login.clipboard": "Copiar al portapapeles",
+  "logs.login.copy": "Copiar al terminal",
+  "logs.login.hint": "Abrir el panel del terminal e introducir este comando (no se ejecuta automáticamente)",
+  "logs.login.openConnections": "Abrir Conexiones",
+  "logs.login.signedIn": "{provider} tiene la sesión iniciada. Escribe `/clear` para actualizar la sesión de este agente y aplicar la nueva autenticación.",
+  "logs.login.claude":
+    "Claude necesita iniciar sesión.\n\nAbre Cuenta → Conexiones para pegar una ANTHROPIC_API_KEY, o copia el comando de abajo en el terminal integrado y sigue el proceso de inicio de sesión. Bureau incluye la CLI de Claude.\n\nCuando termines, escribe `/clear` en esta conversación.",
+  "logs.login.claudeUnknown":
+    "No se pudo comprobar el inicio de sesión de Claude. Abre Ajustes de usuario → Conexiones para comprobarlo o volver a conectar y, después, usa /clear en esta conversación.",
+  "logs.login.claudeUnavailable":
+    "El ejecutable de Claude incluido no está disponible. Repara la instalación de Bureau, o abre Cuenta → Conexiones para proporcionar una ANTHROPIC_API_KEY y, después, usa /clear.",
+  "logs.login.codex":
+    "Para iniciar sesión en Codex, abre Ajustes de usuario → Conexiones para pegar una OPENAI_API_KEY, o pulsa [Copiar al terminal] en una de las tarjetas de abajo:\n\n- `~/.bureau/bin/codex login`: si ejecutas Bureau localmente\n- `~/.bureau/bin/codex login --device-auth`: para equipos remotos o sin interfaz gráfica (p. ej., un Mac mini o un equipo Linux al que accedes por VPN)\n\nPulsa Intro para ejecutarlo, sigue las indicaciones y usa `/clear` en esta conversación para aplicar la nueva autenticación. Los demás agentes Codex la aplicarán en su próximo `/clear`.\n\nSi usas envFile con un CODEX_HOME personalizado, antepón `CODEX_HOME={value}` a los comandos de inicio de sesión.",
+  "logs.login.opencode":
+    "OpenCode necesita credenciales del proveedor. Añade OPENCODE_API_KEY a tu archivo de entorno personal, o usa el comando de inicio de sesión del perfil que aparece abajo. Reinténtalo cuando terminen los turnos activos en este entorno; se conserva el historial.",
+  "logs.login.opencodeConfigured":
+    "Las credenciales de OpenCode (OPENCODE_API_KEY) están configuradas. Comprueba la clave en tu archivo de entorno personal y reinténtalo; las actualizaciones de credenciales se aplican entre turnos sin borrar el historial.",
+  "logs.login.unknown": "No se pudo comprobar el inicio de sesión del proveedor. Abre Cuenta → Conexiones para comprobarlo o volver a conectar.",
+  "logs.context.warning":
+    "El contexto está al {percentage}%. Considera empezar a cerrar el trabajo. Puedes usar /clear (para una sesión nueva) o /handoff (para continuar esta con un contexto nuevo).",
+
   "logs.interrupted": "Agente interrumpido.",
   "logs.newConversation": "Se ha iniciado una conversación nueva.",
   "logs.handoffOpened": "El traspaso automático ha abierto una conversación nueva. El resumen llegará antes que los mensajes en cola.",

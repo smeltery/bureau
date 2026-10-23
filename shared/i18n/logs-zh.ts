@@ -1,6 +1,21 @@
 import { commandDescriptions } from "./command-descriptions-zh.ts";
 export const logs = {
   ...commandDescriptions,
+  "logs.login.clipboard": "复制到剪贴板",
+  "logs.login.copy": "复制到终端",
+  "logs.login.hint": "打开终端面板并输入此命令（不会自动执行）",
+  "logs.login.openConnections": "打开连接",
+  "logs.login.signedIn": "{provider} 已登录。输入 `/clear` 以刷新此代理的会话并应用新的身份验证。",
+  "logs.login.claude": "Claude 需要登录。\n\n打开“账户 → 连接”以粘贴 ANTHROPIC_API_KEY，或将下方命令复制到内置终端并按照登录流程操作。Bureau 包含 Claude CLI。\n\n完成后，在此对话中输入 `/clear`。",
+  "logs.login.claudeUnknown": "无法检查 Claude 登录状态。打开“用户设置 → 连接”以检查或重新连接，然后在此对话中使用 /clear。",
+  "logs.login.claudeUnavailable": "内置的 Claude 可执行文件不可用。请修复 Bureau 安装，或打开“账户 → 连接”以提供 ANTHROPIC_API_KEY，然后使用 /clear。",
+  "logs.login.codex":
+    "要登录 Codex，请打开“用户设置 → 连接”以粘贴 OPENAI_API_KEY，或点击下方某张卡片上的[复制到终端]：\n\n- `~/.bureau/bin/codex login`：在本地运行 Bureau 时使用\n- `~/.bureau/bin/codex login --device-auth`：用于远程或无图形界面的主机（例如通过 VPN 访问的 Mac mini 或 Linux 主机）\n\n按回车键运行，按照提示操作，然后在此对话中使用 `/clear` 以应用新的身份验证。其他 Codex 代理将在下次 `/clear` 时应用。\n\n如果通过 envFile 使用自定义 CODEX_HOME，请先在上述登录命令前加上 `CODEX_HOME={value}`。",
+  "logs.login.opencode": "OpenCode 需要提供商凭据。请将 OPENCODE_API_KEY 添加到个人环境文件，或使用下方限定于此配置的登录命令。请等待此环境中的活动轮次结束后重试；现有历史记录会保留。",
+  "logs.login.opencodeConfigured": "已配置 OpenCode 凭据 (OPENCODE_API_KEY)。请检查个人环境文件中的密钥并重试；凭据更新会在轮次之间生效，无需清除历史记录。",
+  "logs.login.unknown": "无法检查提供商登录状态。打开“账户 → 连接”以检查或重新连接。",
+  "logs.context.warning": "上下文已使用 {percentage}%。建议开始收尾。你可以使用 /clear（开启新会话）或 /handoff（使用新上下文继续此会话）。",
+
   "logs.interrupted": "代理已中断。",
   "logs.newConversation": "已开始新对话。",
   "logs.handoffOpened": "自动交接已开启新对话。摘要将先于排队消息送达。",

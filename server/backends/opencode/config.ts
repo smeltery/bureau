@@ -1,5 +1,6 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { join } from "node:path";
-import type { BackendCapabilities, ModelOption, PermissionModeOption } from "../types.ts";
+import type { BackendCapabilities, LoginInstructions, ModelOption, PermissionModeOption } from "../types.ts";
 
 export const OPENCODE_AUTH_FAILURE = "OpenCode authentication is not configured.";
 
@@ -64,12 +65,9 @@ export function permissionAgent(permissionMode: string): string | undefined {
   return permissionMode === "bypassPermissions" ? OPENCODE_CRON_AGENT : undefined;
 }
 
-export function getOpenCodeLoginInstructions(opts?: { env?: { [key: string]: string | undefined }; profileDir?: string }): {
-  text: string;
-  commands?: string[];
-} {
+export function getOpenCodeLoginInstructions(opts?: { env?: { [key: string]: string | undefined }; profileDir?: string }): LoginInstructions {
   if (opts?.env?.OPENCODE_API_KEY?.trim()) {
-    return { text: ALREADY_AUTHED_INSTRUCTIONS };
+    return { text: ALREADY_AUTHED_INSTRUCTIONS, message: logMessage("logs.login.opencodeConfigured") };
   }
   const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
   const prefix = opts?.profileDir
@@ -77,5 +75,5 @@ export function getOpenCodeLoginInstructions(opts?: { env?: { [key: string]: str
         .map(([key, directory]) => `${key}=${quote(join(opts.profileDir!, directory))}`)
         .join(" ") + " "
     : "";
-  return { text: LOGIN_INSTRUCTIONS, commands: [`${prefix}opencode auth login`] };
+  return { text: LOGIN_INSTRUCTIONS, message: logMessage("logs.login.opencode"), commands: [`${prefix}opencode auth login`] };
 }

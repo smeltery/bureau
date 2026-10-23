@@ -1,3 +1,4 @@
+import { logMessage } from "../../shared/i18n/log-message.ts";
 import type { ManagedAgent } from "./state.ts";
 import { addLogEntry, emit, emitEphemeralLog } from "./state.ts";
 
@@ -87,7 +88,7 @@ export function maybeEmitUiContextNotice(agentId: string, managed: ManagedAgent)
   if (chosen === null) return;
   markBandsThrough(managed.firedUiThresholds, chosen);
   const pct = Math.round(usage.percentage);
-  emitEphemeralLog(agentId, "system", `Context is ${pct}% full. Consider starting to wrap up. You can use /clear (for a new session) or /handoff (to continue this one with fresh context).`, {
+  emitEphemeralLog(agentId, "system", logMessage("logs.context.warning", { percentage: pct }), {
     contextUsage: usage,
     contextThreshold: chosen,
     contextAudience: "ui",

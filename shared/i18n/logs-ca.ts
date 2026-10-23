@@ -1,6 +1,27 @@
 import { commandDescriptions } from "./command-descriptions-ca.ts";
 export const logs = {
   ...commandDescriptions,
+  "logs.login.clipboard": "Copia al porta-retalls",
+  "logs.login.copy": "Copia al terminal",
+  "logs.login.hint": "Obre el tauler del terminal i introdueix aquesta ordre (no s’executa automàticament)",
+  "logs.login.openConnections": "Obre Connexions",
+  "logs.login.signedIn": "{provider} té la sessió iniciada. Escriu `/clear` per actualitzar la sessió d’aquest agent i aplicar la nova autenticació.",
+  "logs.login.claude":
+    "Claude necessita iniciar sessió.\n\nObre Compte → Connexions per enganxar una ANTHROPIC_API_KEY, o copia l’ordre de sota al terminal integrat i segueix el procés d’inici de sessió. Bureau inclou la CLI de Claude.\n\nQuan acabis, escriu `/clear` en aquesta conversa.",
+  "logs.login.claudeUnknown":
+    "No s’ha pogut comprovar l’inici de sessió de Claude. Obre Configuració d’usuari → Connexions per comprovar-lo o tornar a connectar i, després, fes servir /clear en aquesta conversa.",
+  "logs.login.claudeUnavailable":
+    "L’executable de Claude inclòs no està disponible. Repara la instal·lació de Bureau, o obre Compte → Connexions per proporcionar una ANTHROPIC_API_KEY i, després, fes servir /clear.",
+  "logs.login.codex":
+    "Per iniciar sessió a Codex, obre Configuració d’usuari → Connexions per enganxar una OPENAI_API_KEY, o prem [Copia al terminal] en una de les targetes de sota:\n\n- `~/.bureau/bin/codex login`: si executes Bureau localment\n- `~/.bureau/bin/codex login --device-auth`: per a equips remots o sense interfície gràfica (p. ex., un Mac mini o un equip Linux al qual accedeixes per VPN)\n\nPrem Retorn per executar-ho, segueix les indicacions i fes servir `/clear` en aquesta conversa per aplicar la nova autenticació. Els altres agents Codex l’aplicaran al seu pròxim `/clear`.\n\nSi fas servir envFile amb un CODEX_HOME personalitzat, anteposa `CODEX_HOME={value}` a les ordres d’inici de sessió.",
+  "logs.login.opencode":
+    "OpenCode necessita credencials del proveïdor. Afegeix OPENCODE_API_KEY al teu fitxer d’entorn personal, o fes servir l’ordre d’inici de sessió del perfil que apareix a sota. Torna-ho a provar quan acabin els torns actius d’aquest entorn; es conserva l’historial.",
+  "logs.login.opencodeConfigured":
+    "Les credencials d’OpenCode (OPENCODE_API_KEY) estan configurades. Comprova la clau al teu fitxer d’entorn personal i torna-ho a provar; les actualitzacions de credencials s’apliquen entre torns sense esborrar l’historial.",
+  "logs.login.unknown": "No s’ha pogut comprovar l’inici de sessió del proveïdor. Obre Compte → Connexions per comprovar-lo o tornar a connectar.",
+  "logs.context.warning":
+    "El context està al {percentage}%. Considera començar a tancar la feina. Pots fer servir /clear (per a una sessió nova) o /handoff (per continuar aquesta amb un context nou).",
+
   "logs.interrupted": "Agent interromput.",
   "logs.newConversation": "S’ha iniciat una conversa nova.",
   "logs.handoffOpened": "El traspàs automàtic ha obert una conversa nova. El resum arribarà abans que els missatges en cua.",

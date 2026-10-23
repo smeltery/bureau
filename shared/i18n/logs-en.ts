@@ -1,6 +1,24 @@
 import { commandDescriptions } from "./command-descriptions-en.ts";
 export const logs = {
   ...commandDescriptions,
+  "logs.login.clipboard": "Copy to clipboard",
+  "logs.login.copy": "Copy to terminal",
+  "logs.login.hint": "Open the terminal panel and type this command at the prompt (not auto-executed)",
+  "logs.login.openConnections": "Open Connections",
+  "logs.login.signedIn": "{provider} is signed in. Type `/clear` to refresh this agent's session and pick up the new auth.",
+  "logs.login.claude":
+    "Claude needs sign-in.\n\nOpen Account → Connections to paste an ANTHROPIC_API_KEY, or copy the command below into the built-in terminal and follow the sign-in flow. Bureau includes the Claude CLI.\n\nOnce complete, type `/clear` in this conversation.",
+  "logs.login.claudeUnknown": "Claude sign-in could not be checked. Open User Settings → Connections to check or reconnect, then /clear this conversation.",
+  "logs.login.claudeUnavailable": "Claude's bundled executable is unavailable. Repair the Bureau installation, or open Account → Connections to provide an ANTHROPIC_API_KEY, then /clear.",
+  "logs.login.codex":
+    "To sign in to Codex, open User Settings → Connections to paste an OPENAI_API_KEY, or click [Copy to terminal] on one of the cards below:\n\n- `~/.bureau/bin/codex login`: if running bureau locally\n- `~/.bureau/bin/codex login --device-auth`: for remote or headless hosts (e.g. a Mac mini or Linux box you reach over a VPN)\n\nPress Enter to run, follow the prompts, then `/clear` this conversation to apply the new auth. Other codex agents apply on their next `/clear`.\n\nFor envFile users with a custom CODEX_HOME: prefix the login commands above with `CODEX_HOME={value}` first.",
+  "logs.login.opencode":
+    "OpenCode needs provider credentials. Add OPENCODE_API_KEY to your personal environment file, or use the profile-scoped login command below. Retry after active turns in this environment finish; existing history stays in place.",
+  "logs.login.opencodeConfigured":
+    "OpenCode credentials (OPENCODE_API_KEY) are configured. Check the key in your personal environment file and retry; credential updates take effect between turns without clearing history.",
+  "logs.login.unknown": "Could not check provider sign-in. Open Account → Connections to check or reconnect.",
+  "logs.context.warning": "Context is {percentage}% full. Consider starting to wrap up. You can use /clear (for a new session) or /handoff (to continue this one with fresh context).",
+
   "logs.interrupted": "Agent interrupted.",
   "logs.newConversation": "New conversation started.",
   "logs.handoffOpened": "Automatic handoff opened a fresh conversation. The brief will arrive before queued messages.",

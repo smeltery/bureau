@@ -1,4 +1,5 @@
-import type { BackendCapabilities, ModelOption, PermissionModeOption } from "../types.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
+import type { BackendCapabilities, LoginInstructions, ModelOption, PermissionModeOption } from "../types.ts";
 import { getCodexLoginCommands, isCodexAuthenticated } from "./native-bin.ts";
 
 // Bureau runs codex against its own isolated CODEX_HOME (~/.bureau/codex-home/
@@ -62,9 +63,9 @@ export const PERMISSION_MODES: PermissionModeOption[] = [
 
 export const DEFAULT_SANDBOX_MODE = "danger-full-access";
 
-export function getCodexLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): { text: string; commands?: string[] } {
+export function getCodexLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): LoginInstructions {
   if (isCodexAuthenticated(opts?.env)) {
-    return { text: ALREADY_AUTHED_INSTRUCTIONS };
+    return { text: ALREADY_AUTHED_INSTRUCTIONS, message: logMessage("logs.login.signedIn", { provider: "Codex" }) };
   }
-  return { text: LOGIN_INSTRUCTIONS, commands: getCodexLoginCommands() };
+  return { text: LOGIN_INSTRUCTIONS, message: logMessage("logs.login.codex", { value: "<your value>" }), commands: getCodexLoginCommands() };
 }
