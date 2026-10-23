@@ -242,6 +242,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Privileged agents can create/update/delete/run schedules owned by their manager; the office-wide schedules prompt stays boss-only.
 - One-off scheduled agent messages persist in `scheduled-messages.json`.
 - Per-run transcripts, manual run-now, resume, and fork from prior runs.
+- After a restart, an enabled recurring schedule with an overdue saved slot runs
+  once, then advances to its next future slot. Disabled and on-demand schedules
+  do not catch up; interrupted runs remain recorded as failed.
 - File-system persistence under `~/.bureau/` or `BUREAU_HOME`.
 - Damaged agent state is preserved for recovery before starting an empty room;
   unreadable state or failed preservation stops startup. See

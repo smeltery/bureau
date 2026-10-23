@@ -47,7 +47,8 @@ export function startCronjobSchedulerWithDeps(deps: CronjobSchedulerDeps) {
   deps.setCronjobs(cronjobs);
   deps.setCronjobsPrompt(deps.loadCronjobsPrompt());
 
-  // Recompute nextFireAt for every cronjob from current time forward.
+  // Preserve one overdue slot for enabled schedules; the first tick advances
+  // to a future slot after firing once, regardless of downtime duration.
   const now = Date.now();
   let dirty = cronjobs.length > 0;
   for (const job of cronjobs) {
@@ -60,6 +61,7 @@ export function startCronjobSchedulerWithDeps(deps: CronjobSchedulerDeps) {
     }
     const schedule = clampSchedule(job.schedule);
     const anchor = job.lastFireAt ?? job.createdAt;
+    if (job.enabled && schedule.type !== "manual" && typeof job.nextFireAt === "number" && Number.isFinite(job.nextFireAt) && job.nextFireAt <= now) continue;
     const next = computeNextFire(schedule, anchor, now);
     if (next !== job.nextFireAt) {
       job.nextFireAt = next;
