@@ -2,9 +2,11 @@ import { auditFileWrite } from "../audit/store.ts";
 import { join } from "path";
 import { homedir } from "os";
 import { mkdirSync, renameSync, writeFileSync } from "fs";
+import { assertTestStateIsolated } from "./test-state-guard.ts";
 
 export const DEFAULT_BUREAU_DIR = join(homedir(), ".bureau");
 export const BUREAU_DIR = process.env.BUREAU_HOME?.trim() || DEFAULT_BUREAU_DIR;
+assertTestStateIsolated(BUREAU_DIR, DEFAULT_BUREAU_DIR, process.env, typeof Bun !== "undefined" ? Bun.main : undefined);
 export const LOGS_DIR = join(BUREAU_DIR, "logs");
 export const AGENTS_FILE = join(BUREAU_DIR, "agents.json");
 export const OFFICE_PROMPT_FILE = join(BUREAU_DIR, "office-prompt.md");

@@ -25,7 +25,10 @@
 //
 // An explicitly-set BUREAU_HOME is respected, so a targeted run can still be
 // pointed somewhere deliberate (and so the isolated-instance patterns keep
-// working). The directory is removed on exit; a leftover on a hard kill is a
+// working). Persistence refuses test access to the default office directory,
+// including when this preload is bypassed by running from a subdirectory.
+// Explicit custom roots must still be disposable. The temporary directory is
+// removed on exit; a leftover on a hard kill is a
 // few KB in the OS temp dir.
 
 import { mkdtempSync, rmSync } from "node:fs";

@@ -69,12 +69,18 @@ That script chains `typecheck → lint → format:check → test`.
   is deterministic and battle-tested.
 - **Tests:** `bun test`. Test files live next to their subject in a
   `__tests__/` folder.
-- **Tests never touch your real office.** `bunfig.toml` preloads
+- **Run tests against disposable state.** `bunfig.toml` preloads
   `scripts/test-preload.ts`, which points `BUREAU_HOME` at a throwaway temp
   directory before the first test module loads — necessary because
   `server/persistence/paths.ts` resolves `BUREAU_DIR` once at module load, so a
-  test body cannot redirect it afterwards. Set `BUREAU_HOME` yourself to
-  override. It is ONE directory for the whole run, though: files that write
+  test body cannot redirect it afterwards. Set `BUREAU_HOME` to a disposable
+  directory to override. Persistence refuses detected test runs against
+  `~/.bureau`, its descendants, or symbolic aliases, even when running from a
+  subdirectory bypasses the preload. Detection uses `NODE_ENV=test` or a
+  `.test`/`.spec` entrypoint; keep one of these signals intact. Explicit custom
+  state directories must be disposable: the guard cannot identify an arbitrary
+  production override. Pass `env: process.env` when launching test subprocesses
+  so they inherit the isolated root. It is ONE directory for the whole run, though: files that write
   persisted state still clear and re-persist in `afterEach`, because a later
   file whose imports boot the server would otherwise restore another file's
   fixtures into the shared agents map.
