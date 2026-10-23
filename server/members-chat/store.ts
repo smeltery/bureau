@@ -47,6 +47,7 @@ type Line =
       timestamp: number;
       content: string;
     }
+  | { op: "edit"; id: string; timestamp: number; content: string }
   | { op: "delete"; id: string; timestamp: number }
   | { op: "pin"; id: string; timestamp: number; active: boolean };
 
@@ -74,6 +75,7 @@ export interface MembersChatStore {
   markRead(userId: string, id: string): MembersChatSummary;
   setPinned(id: string, active: boolean): MembersChatMessage | null;
   post(input: PostInput): MembersChatMessage;
+  edit(id: string, content: string): MembersChatMessage | null;
   delete(id: string): MembersChatMessage | null;
   get(id: string): MembersChatMessage | null;
   page(opts?: { before?: string; limit?: number }): MembersChatPage;
@@ -170,6 +172,9 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
           const { pinnedAt: _previous, ...rest } = message;
           folded.byId.set(line.id, line.active ? { ...rest, pinnedAt: line.timestamp } : rest);
         }
+      } else if (line.op === "edit") {
+        const message = folded.byId.get(line.id);
+        if (message) folded.byId.set(line.id, { ...message, content: line.content, editedAt: line.timestamp });
       } else if (line.op === "delete") {
         folded.byId.delete(line.id);
       }
@@ -215,6 +220,13 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
     if (!month) return null;
     const index = fold(month).order.indexOf(id);
     return index === -1 ? null : { month, index };
+  }
+
+  function edit(id: string, content: string): MembersChatMessage | null {
+    const existing = get(id);
+    if (!existing) return null;
+    append(monthOfId(id)!, { op: "edit", id, timestamp: Math.max(now(), (existing.editedAt ?? 0) + 1), content: validateContent(content) });
+    return get(id);
   }
 
   function setPinned(id: string, active: boolean): MembersChatMessage | null {
@@ -308,6 +320,7 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
       },
     }),
     setPinned,
+    edit,
     post,
     delete: del,
     get,

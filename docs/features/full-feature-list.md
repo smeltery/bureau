@@ -127,7 +127,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   as incident history in a disk archive, with access-filtered pagination and
   direct links to older entries. Refreshing keeps the selected history window.
   See `docs/features/pager.md`.
-- Office-wide **Team chat** (`/team-chat`) for signed-in humans — quoted replies, persistent per-member unread counts, browser-synced read positions, monthly JSONL
+- Office-wide **Team chat** (`/team-chat`) for signed-in humans — quoted replies, author-only message editing, persistent per-member unread counts, browser-synced read positions, monthly JSONL
   under `~/.bureau/members-chat/`, cookie session only (no agents / API tokens).
 - **Lobby** isometric scene (tab + Room 1 left door): warm wood lobby; click the
   receptionist chip to open Team chat. Presence uses sentinel room id `lobby`.
