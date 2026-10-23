@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { sendAbortDebounced } from "../utils/abort.ts";
 import { useMemo, type RefCallback } from "react";
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
@@ -48,6 +49,7 @@ export function LogMessagesPane({
   tasks?: TaskMap;
   onOpenTask?: (id: string) => void;
 }) {
+  const { t, language } = useI18n();
   const turnData = useLogTurnData(logs);
   const modelStyle = styleForModel(agent.modelFamily);
 
@@ -87,11 +89,11 @@ export function LogMessagesPane({
           pointerEvents: showAvatar ? "auto" : "none",
           transition: "opacity 0.2s",
         }}
-        title="Edit agent"
+        title={t("chat.editAgent")}
       >
         <Character key={agent.state} state={agent.state} outfit={agent.outfit} />
       </div>
-      {logs.length === 0 && <div style={{ color: "var(--text-ghost)", textAlign: "center", marginTop: 40 }}>{connected ? "Send a message to start a conversation." : "Loading..."}</div>}
+      {logs.length === 0 && <div style={{ color: "var(--text-ghost)", textAlign: "center", marginTop: 40 }}>{connected ? t("chat.empty") : t("common.loadingDots")}</div>}
       {logs.map((entry) => {
         const td = turnData.get(entry.id);
         const canEditMsg = canEditMessage(agent, { isUserMessage: entry.kind === "user_message", alreadyEditing: !!editingLogEntryId });
@@ -133,14 +135,14 @@ export function LogMessagesPane({
       })}
       {agent.usageResumeAt && (
         <div role="status" style={{ padding: "8px 12px", color: "var(--text-muted)", fontSize: 12 }}>
-          Usage limit reached. Continuing after {new Date(agent.usageResumeAt).toLocaleString()}.
+          {t("chat.usageResume", { time: new Date(agent.usageResumeAt).toLocaleString(language) })}
           <button
             type="button"
             onClick={() => sendAbortDebounced(agent.id)}
-            title="Cancel scheduled continuation"
+            title={t("chat.cancelResume")}
             style={{ marginLeft: 8, padding: "3px 8px", cursor: "pointer", color: "var(--red)", background: "transparent", border: "1px solid var(--red)", borderRadius: 4 }}
           >
-            Stop
+            {t("common.stop")}
           </button>
         </div>
       )}

@@ -1,3 +1,4 @@
+import { chat } from "./chat/zh.ts";
 import { tasks } from "./tasks/zh.ts";
 import { profile } from "./profile-zh.ts";
 import { integrations } from "./integrations-zh.ts";
@@ -15,6 +16,7 @@ export const zh: Catalog = {
   ...skills,
   ...storage,
   ...tasks,
+  ...chat,
   "access.title": "访问权限",
   "apiTokens.title": "API 令牌",
   "apps.confirmDelete": "删除 {name}？其数据目录将会保留。",

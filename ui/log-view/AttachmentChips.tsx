@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { StagedAttachment } from "./hooks/useAttachmentUpload.ts";
 
 interface AttachmentChipsProps {
@@ -7,6 +8,7 @@ interface AttachmentChipsProps {
 }
 
 export function AttachmentChips({ stagedAttachments, isMobile, removeStaged }: AttachmentChipsProps) {
+  const { t } = useI18n();
   if (stagedAttachments.length === 0) return null;
 
   return (
@@ -30,9 +32,18 @@ export function AttachmentChips({ stagedAttachments, isMobile, removeStaged }: A
         >
           {att.mediaType.startsWith("image/") ? "🖼️" : att.mediaType === "application/pdf" ? "📄" : "📎"}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 150 }}>{att.originalName}</span>
-          {att.uploading && <span style={{ color: "var(--text-ghost)" }}>uploading…</span>}
-          {att.error && <span style={{ fontSize: isMobile ? 11 : 9 }}>{att.error}</span>}
+          {att.uploading && <span style={{ color: "var(--text-ghost)" }}>{t("chat.uploading")}</span>}
+          {att.error && (
+            <span style={{ fontSize: isMobile ? 11 : 9 }}>
+              {typeof att.error === "string"
+                ? att.error
+                : att.error.kind === "upload"
+                  ? t("chat.uploadFailed", { status: att.error.status })
+                  : t(att.error.kind === "tooLarge" ? "chat.fileTooLarge" : "chat.uploadError")}
+            </span>
+          )}
           <button
+            aria-label={t("chat.removeAttachment", { name: att.originalName })}
             onClick={() => removeStaged(att.id)}
             style={{
               background: "none",
