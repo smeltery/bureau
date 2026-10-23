@@ -265,3 +265,12 @@ member's room access takes effect on existing browser connections as well.
 
 [Signed inbound webhooks](inbound-webhooks.md) can start runs without changing
 the schedule's timer. These runs carry a `webhook` trigger and delivery metadata.
+
+### Deleting a schedule
+
+Deleting a schedule ends its active runs, including manual follow-ups, and
+revokes their API tokens before closing backend sessions. A pending edit that
+is still reading or forking a session is cancelled rather than starting a new
+turn after deletion. Late backend events cannot overwrite the stopped result.
+Run history and transcripts remain available; a member with access can still
+resume an archived run deliberately after the schedule is gone.

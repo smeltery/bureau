@@ -16,6 +16,7 @@ import type { CronjobEvent } from "./index.ts";
 import { writeLog, type ActiveRun } from "./run-events.ts";
 
 export interface EditRunMessageDeps {
+  isCancelled?: () => boolean;
   cronRunBackend: (run: CronjobRun) => Backend;
   buildRunResumeOptions: (run: CronjobRun, resumeSessionId: string) => CreateSessionOptions;
   emitRunErrorEntry: (jobId: string, runId: string, message: string) => void;
@@ -43,9 +44,12 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
   try {
     sessionMessages = await backend.getSessionMessages(leaf, run.cwdSnapshot, leafAccess);
   } catch (err: any) {
+    if (deps.isCancelled?.()) return;
     deps.emitRunErrorEntry(jobId, runId, `Failed to load session messages: ${err.message || String(err)}`);
     return;
   }
+
+  if (deps.isCancelled?.()) return;
 
   const targetUsername = targetEntry.metadata?.username as string | undefined;
   const targetSdkText = (targetEntry.metadata?.sdkText as string | undefined) ?? targetEntry.content;
@@ -92,9 +96,12 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
     newSessionId = forkResult.sessionId;
     forkFromBackendSessionId = forkResult.forkedFromSessionId;
   } catch (err: any) {
+    if (deps.isCancelled?.()) return;
     deps.emitRunErrorEntry(jobId, runId, `Fork failed: ${err.message || String(err)}`);
     return;
   }
+
+  if (deps.isCancelled?.()) return;
 
   let session: BackendSession;
   try {

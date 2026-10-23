@@ -16,7 +16,7 @@ import { validateCwd } from "../agents/session/paths.ts";
 import type { CreateSessionOptions } from "../backends/types.ts";
 import { getUserByName } from "../users.ts";
 import { computeNextFire } from "./schedule.ts";
-import { mintRunToken, revokeRunToken } from "./tokens.ts";
+import { mintRunToken, revokeRunToken, revokeJobRunTokens } from "./tokens.ts";
 import { buildCronjobMemoryPrompt, buildCronjobSystemPrompt as buildCronjobSystemPromptWithInstructions } from "./system-prompt.ts";
 import { emitRunDiffWithDeps, emitRunReadFileWithDeps, type AffordanceActiveRun, type RunAffordanceResult } from "./run-affordances.ts";
 import { readCronjobLifetimeUsage as readCronjobLifetimeUsageFromDisk } from "./usage.ts";
@@ -29,7 +29,7 @@ import { editRunMessageWithDeps, sendRunMessageWithDeps, type RunContinuationDep
 import { fireCronjobRunWithDeps, recordSkippedRunWithDeps, type RunStartDeps } from "./run-start.ts";
 import {
   addCronjob,
-  deleteCronjob,
+  deleteCronjob as deleteCronjobRecord,
   emitCronjobEvent,
   findCronjob,
   getCronjobDefinitions,
@@ -47,10 +47,24 @@ import {
 // the public surface of this module before the refactor split it out).
 export { computeNextFire };
 export { buildCronjobMemoryPrompt };
-export { addCronjob, deleteCronjob, getAllRunsByJob, getCronjobsPrompt, getRunsForCronjob, getRunTranscript, listCronjobs, onCronjobEvent, setCronjobsPrompt, updateCronjob };
+export { addCronjob, getAllRunsByJob, getCronjobsPrompt, getRunsForCronjob, getRunTranscript, listCronjobs, onCronjobEvent, setCronjobsPrompt, updateCronjob };
 export type { CronjobEvent };
 
 const activeRuns = new Map<string, ActiveRun>(); // runId -> ActiveRun
+
+export function deleteCronjob(id: string): boolean {
+  if (!deleteCronjobRecord(id)) return false;
+  // Revoke pending forks too, before backend cleanup can fail or emit events.
+  revokeJobRunTokens(id);
+  for (const active of [...activeRuns.values()]) {
+    if (active.jobId !== id) continue;
+    active.killed = true;
+    writeLog(active, "error", "Schedule deleted; this run was stopped.", emitCronjobEvent);
+    finalizeRun(active, "failed", "schedule deleted");
+  }
+  emitCronjobEvent({ type: "cronjob_deleted", id });
+  return true;
+}
 
 // Synchronously-claimed slot for runs whose resume/fork is mid-startup but
 // hasn't reached `activeRuns.set` yet. Without this gate, a second concurrent

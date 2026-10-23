@@ -56,3 +56,9 @@ export function _testResetRunTokens(): void {
   byRunId.clear();
   runIdByHash.clear();
 }
+
+export function revokeJobRunTokens(jobId: string): void {
+  for (const [runId, token] of byRunId) {
+    if (token.cronjobId === jobId) revokeRunToken(runId);
+  }
+}
