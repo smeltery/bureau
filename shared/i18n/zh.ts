@@ -1,3 +1,4 @@
+import { profile } from "./profile-zh.ts";
 import { integrations } from "./integrations-zh.ts";
 import { schedules } from "./schedules-zh.ts";
 import { logs } from "./logs-zh.ts";
@@ -8,6 +9,7 @@ import type { Catalog } from "./en.ts";
 export const zh: Catalog = {
   ...logs,
   ...integrations,
+  ...profile,
   ...schedules,
   ...skills,
   ...storage,

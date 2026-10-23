@@ -1,4 +1,12 @@
+import { useI18n } from "../../i18n.tsx";
+import { translatorFor, type PlainMessageKey } from "../../../shared/i18n/translate.ts";
 import { useEffect, useState } from "react";
+
+class InstructionsError extends Error {
+  constructor(readonly key: PlainMessageKey) {
+    super(translatorFor("en").t(key));
+  }
+}
 
 interface Snapshot {
   memberPrompt: string | null;
@@ -6,10 +14,11 @@ interface Snapshot {
 }
 
 export function useMemberInstructions(username: string, initial: string | null) {
+  const { t } = useI18n();
   const [content, setContent] = useState(initial ?? "");
   const [baseline, setBaseline] = useState(initial ?? "");
   const [version, setVersion] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | { key: PlainMessageKey } | null>(null);
   const [current, setCurrent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const path = `/api/users/${encodeURIComponent(username)}/member-prompt`;
@@ -18,16 +27,16 @@ export function useMemberInstructions(username: string, initial: string | null) 
     void fetch(path)
       .then(async (response) => {
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error ?? "Unable to read instructions");
+        if (!response.ok) throw data.error == null ? new InstructionsError("profile.readInstructions") : new Error(data.error);
         if (cancelled) return;
         setVersion(data.memberPromptVersion);
         if ((data.memberPrompt ?? "") !== (initial ?? "")) {
           setCurrent(data.memberPrompt ?? "");
-          setError("Instructions changed elsewhere. Review the current text before saving your draft.");
+          setError({ key: "profile.instructionsChanged" });
         }
       })
       .catch((err) => {
-        if (!cancelled) setError(String(err));
+        if (!cancelled) setError(err instanceof InstructionsError ? { key: err.key } : String(err));
       });
     return () => {
       cancelled = true;
@@ -48,10 +57,10 @@ export function useMemberInstructions(username: string, initial: string | null) 
       if (response.status === 409) {
         setVersion(data.memberPromptVersion);
         setCurrent(data.memberPrompt ?? "");
-        setError("Instructions changed elsewhere. Your draft is preserved. Review the current text, then save again.");
+        setError({ key: "profile.instructionsConflict" });
         return false;
       }
-      if (!response.ok) throw new Error(data.error ?? "Unable to save instructions");
+      if (!response.ok) throw data.error == null ? new InstructionsError("profile.saveInstructions") : new Error(data.error);
       const saved = data as Snapshot;
       setVersion(saved.memberPromptVersion);
       setContent(saved.memberPrompt ?? "");
@@ -60,11 +69,11 @@ export function useMemberInstructions(username: string, initial: string | null) 
       setError(null);
       return true;
     } catch (err) {
-      setError(String(err));
+      setError(err instanceof InstructionsError ? { key: err.key } : String(err));
       return false;
     } finally {
       setBusy(false);
     }
   }
-  return { content, setContent, dirty: content !== baseline, busy, ready: version !== null, error, current, save };
+  return { content, setContent, dirty: content !== baseline, busy, ready: version !== null, error: error === null ? null : typeof error === "string" ? error : t(error.key), current, save };
 }

@@ -1,3 +1,4 @@
+import { profile } from "./profile-ca.ts";
 import { integrations } from "./integrations-ca.ts";
 import { schedules } from "./schedules-ca.ts";
 import { logs } from "./logs-ca.ts";
@@ -8,6 +9,7 @@ import type { Catalog } from "./en.ts";
 export const ca = {
   ...logs,
   ...integrations,
+  ...profile,
   ...schedules,
   ...skills,
   ...storage,

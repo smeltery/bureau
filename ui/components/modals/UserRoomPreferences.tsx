@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useState, type Dispatch, type SetStateAction } from "react";
 import type { UserRole } from "../../../shared/types.ts";
 import { notificationPermission, requestNotificationPermission, type NotifPermission } from "../../notifications.ts";
@@ -34,6 +35,7 @@ export function UserRoomPreferences({
   notifRooms,
   setNotifRooms,
 }: UserRoomPreferencesProps) {
+  const { t } = useI18n();
   const allAllowed = allowedRooms.size === rooms.length;
   const shownRooms = rooms.filter((r) => allowedRooms.has(r.id) && !hiddenRooms.has(r.id));
 
@@ -41,14 +43,14 @@ export function UserRoomPreferences({
     <>
       {canEditAccess && (
         <>
-          <label style={{ ...dialogLabel, marginTop: 12 }}>Role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value as UserRole)} style={dialogInput}>
-            <option value="owner">Owner</option>
-            <option value="member">Member</option>
+          <label style={{ ...dialogLabel, marginTop: 12 }}>{t("profile.role")}</label>
+          <select aria-label={t("profile.role")} value={role} onChange={(e) => setRole(e.target.value as UserRole)} style={dialogInput}>
+            <option value="owner">{t("settings.role.owner")}</option>
+            <option value="member">{t("settings.role.member")}</option>
           </select>
-          <label style={{ ...dialogLabel, marginTop: 12 }}>Allowed rooms</label>
+          <label style={{ ...dialogLabel, marginTop: 12 }}>{t("profile.allowedRooms")}</label>
           <button type="button" style={smallBtn} onClick={() => setAllowedRooms(allAllowed ? new Set() : new Set(rooms.map((r) => r.id)))}>
-            {allAllowed ? "Clear all" : "Allow all"}
+            {allAllowed ? t("profile.clearAll") : t("profile.allowAll")}
           </button>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 6, marginTop: 8 }}>
             {rooms.map((room) => (
@@ -80,7 +82,7 @@ export function UserRoomPreferences({
           </div>
         </>
       )}
-      <label style={{ ...dialogLabel, marginTop: 12 }}>Shown rooms</label>
+      <label style={{ ...dialogLabel, marginTop: 12 }}>{t("profile.shownRooms")}</label>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 6, marginTop: 8 }}>
         {rooms
           .filter((room) => allowedRooms.has(room.id))
@@ -109,8 +111,8 @@ export function UserRoomPreferences({
             </label>
           ))}
       </div>
-      <label style={{ ...dialogLabel, marginTop: 12 }}>Default room</label>
-      <select value={defaultRoomId ?? ""} onChange={(e) => setDefaultRoomId(e.target.value || null)} style={dialogInput}>
+      <label style={{ ...dialogLabel, marginTop: 12 }}>{t("profile.defaultRoom")}</label>
+      <select aria-label={t("profile.defaultRoom")} value={defaultRoomId ?? ""} onChange={(e) => setDefaultRoomId(e.target.value || null)} style={dialogInput}>
         {[...allowedRooms]
           .filter((id) => !hiddenRooms.has(id))
           .map((id) => {
@@ -128,6 +130,7 @@ export function UserRoomPreferences({
 }
 
 function NotificationPrefs({ rooms, notifRooms, onChange }: { rooms: RoomOption[]; notifRooms: Set<string>; onChange: (next: Set<string>) => void }) {
+  const { t } = useI18n();
   const [perm, setPerm] = useState<NotifPermission>(() => notificationPermission());
   const allOn = rooms.length > 0 && rooms.every((r) => notifRooms.has(r.id));
 
@@ -144,16 +147,14 @@ function NotificationPrefs({ rooms, notifRooms, onChange }: { rooms: RoomOption[
 
   return (
     <>
-      <label style={{ ...dialogLabel, marginTop: 12 }}>Notify me about</label>
-      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "0 0 6px", lineHeight: 1.4 }}>
-        Play a sound and (if enabled) show a desktop alert when an agent in these rooms finishes while this tab is in the background.
-      </p>
+      <label style={{ ...dialogLabel, marginTop: 12 }}>{t("profile.notify")}</label>
+      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "0 0 6px", lineHeight: 1.4 }}>{t("profile.notifyHint")}</p>
       {rooms.length === 0 ? (
-        <div style={{ fontSize: 11, color: "var(--text-hint)" }}>No rooms available.</div>
+        <div style={{ fontSize: 11, color: "var(--text-hint)" }}>{t("profile.noRoomsAvailable")}</div>
       ) : (
         <>
           <button type="button" style={smallBtn} onClick={() => onChange(allOn ? new Set() : new Set(rooms.map((r) => r.id)))}>
-            {allOn ? "Mute all" : "Notify for all"}
+            {allOn ? t("profile.muteAll") : t("profile.notifyAll")}
           </button>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 6, marginTop: 8 }}>
             {rooms.map((room) => (
@@ -167,14 +168,14 @@ function NotificationPrefs({ rooms, notifRooms, onChange }: { rooms: RoomOption[
       )}
       <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-ghost)" }}>
         {perm === "unsupported" ? (
-          "Desktop notifications aren't supported in this browser."
+          t("profile.notificationsUnsupported")
         ) : perm === "granted" ? (
-          "Desktop notifications enabled."
+          t("profile.notificationsEnabled")
         ) : perm === "denied" ? (
-          "Desktop notifications blocked — re-enable them in your browser's site settings."
+          t("profile.notificationsDenied")
         ) : (
           <button type="button" style={smallBtn} onClick={enableDesktop}>
-            Enable desktop notifications
+            {t("profile.enableNotifications")}
           </button>
         )}
       </div>

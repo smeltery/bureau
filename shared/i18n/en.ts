@@ -1,3 +1,4 @@
+import { profile } from "./profile-en.ts";
 import { integrations } from "./integrations-en.ts";
 import { schedules } from "./schedules-en.ts";
 import { logs } from "./logs-en.ts";
@@ -9,6 +10,7 @@ import { skills } from "./skills-en.ts";
 export const en = {
   ...logs,
   ...integrations,
+  ...profile,
   ...schedules,
   ...skills,
   ...storage,
