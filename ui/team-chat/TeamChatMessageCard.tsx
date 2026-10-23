@@ -1,3 +1,4 @@
+import { TeamChatQuote } from "./TeamChatQuote.tsx";
 import type { MembersChatMessage } from "../../shared/members-chat.ts";
 import { useI18n } from "../i18n.tsx";
 
@@ -20,17 +21,24 @@ export function TeamChatMessageCard({
   myUserId,
   onPin,
   onDelete,
+  onReply,
+  onJump,
+  replyingDisabled,
 }: {
   message: MembersChatMessage;
   isOwner: boolean;
   myUserId: string | null;
   onPin: (id: string, active: boolean) => void;
   onDelete: (id: string) => void;
+  onReply: () => void;
+  onJump?: () => void;
+  replyingDisabled: boolean;
 }) {
   const { t } = useI18n();
   const canDelete = isOwner || message.userId === myUserId;
   return (
     <div
+      id={"team-message-" + message.id}
       style={{
         marginBottom: 14,
         padding: "10px 12px",
@@ -47,24 +55,26 @@ export function TeamChatMessageCard({
         </div>
         <div style={{ fontSize: 10, color: "var(--text-ghost)" }}>{formatTime(message.timestamp)}</div>
       </div>
+      {message.replyTo && <TeamChatQuote reply={message.replyTo} onJump={onJump} />}
       <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{message.content}</div>
-      {(canDelete || isOwner) && (
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          {isOwner && (
-            <button
-              onClick={() => onPin(message.id, message.pinnedAt === undefined)}
-              style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}
-            >
-              {message.pinnedAt === undefined ? t("teamChat.pin") : t("teamChat.unpin")}
-            </button>
-          )}
-          {canDelete && (
-            <button onClick={() => onDelete(message.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}>
-              {t("common.delete")}
-            </button>
-          )}
-        </div>
-      )}
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button type="button" disabled={replyingDisabled} onClick={onReply} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}>
+          {t("teamChat.reply")}
+        </button>
+        {isOwner && (
+          <button
+            onClick={() => onPin(message.id, message.pinnedAt === undefined)}
+            style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}
+          >
+            {message.pinnedAt === undefined ? t("teamChat.pin") : t("teamChat.unpin")}
+          </button>
+        )}
+        {canDelete && (
+          <button onClick={() => onDelete(message.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}>
+            {t("common.delete")}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

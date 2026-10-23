@@ -50,3 +50,9 @@ The composer grows with the draft, then scrolls after eight lines on mobile
 (200 pixels on desktop). Mobile Enter inserts a newline; use Send to post.
 IME composition never sends a message. Desktop Enter sends; Shift+Enter
 inserts a newline, while Ctrl+Enter and Command+Enter do not send.
+
+Use **Reply** on a message to quote its author and excerpt above your draft.
+Canceling a reply keeps the draft text. Posted quotes remain readable after
+the original is deleted; click a quote to jump to its original when loaded.
+A failed send preserves the draft and reply selection. If the target was
+deleted before posting, cancel the reply to send the text as a new message.

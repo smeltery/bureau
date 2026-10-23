@@ -1,4 +1,4 @@
-import { composerHeightLimit, useComposerResize } from "../hooks/useComposerResize.ts";
+import { TeamChatComposer } from "./TeamChatComposer.tsx";
 import { useTeamChatRead } from "./useTeamChatRead.ts";
 import { TeamChatUnread } from "./TeamChatUnread.tsx";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -6,8 +6,8 @@ import { useAppState } from "../store.tsx";
 import { addRawListener, removeRawListener } from "../ws.ts";
 import { getDevice } from "../device-settings.ts";
 import { useI18n } from "../i18n.tsx";
-import type { MembersChatMessage } from "../../shared/members-chat.ts";
-import { MEMBERS_CHAT_MAX_CHARS } from "../../shared/members-chat.ts";
+import type { MembersChatMessage, MembersChatReply } from "../../shared/members-chat.ts";
+import { membersChatExcerpt } from "../../shared/members-chat.ts";
 import { TeamChatMessageCard } from "./TeamChatMessageCard.tsx";
 
 interface PageResponse {
@@ -24,10 +24,10 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
   const [hasMore, setHasMore] = useState(false);
   const [draft, setDraft] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
-  useComposerResize(composerRef, draft, isMobile, 18);
+  const [reply, setReply] = useState<MembersChatReply | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | { key: "teamChat.loadFailed" | "teamChat.sendFailed" | "teamChat.deleteFailed" | "teamChat.pinFailed" } | null>(null);
+  const [error, setError] = useState<string | { key: "teamChat.loadFailed" | "teamChat.sendFailed" | "teamChat.deleteFailed" | "teamChat.pinFailed" | "teamChat.replyMissing" } | null>(null);
   const read = useTeamChatRead(messages, loading);
   const revision = useRef(0);
   const loadSequence = useRef(0);
@@ -123,16 +123,19 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
       const res = await fetch("/api/members-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, device: getDevice() }),
+        body: JSON.stringify({ text, device: getDevice(), ...(reply ? { replyTo: reply.id } : {}) }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? { key: "teamChat.sendFailed" });
+        const body = (await res.json().catch(() => null)) as { error?: string; code?: string } | null;
+        setError(body?.code === "reply_not_found" ? { key: "teamChat.replyMissing" } : (body?.error ?? { key: "teamChat.sendFailed" }));
         return;
       }
-      setDraft("");
       const message = (await res.json()) as MembersChatMessage;
       setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      setDraft((current) => (current === draft ? "" : current));
+      setReply(null);
+    } catch {
+      setError({ key: "teamChat.sendFailed" });
     } finally {
       setSending(false);
     }
@@ -229,7 +232,24 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
           <div style={{ color: "var(--text-muted)", fontSize: 13 }}>{t("teamChat.empty")}</div>
         ) : (
           messages.map((m) => (
-            <TeamChatMessageCard key={m.id} message={m} isOwner={!!isOwner} myUserId={myUserId} onPin={(id, active) => void togglePin(id, active)} onDelete={(id) => void remove(id)} />
+            <TeamChatMessageCard
+              key={m.id}
+              message={m}
+              isOwner={!!isOwner}
+              myUserId={myUserId}
+              onPin={(id, active) => void togglePin(id, active)}
+              onDelete={(id) => void remove(id)}
+              replyingDisabled={sending}
+              onReply={() => {
+                setReply({ id: m.id, userName: m.userName, excerpt: membersChatExcerpt(m.content) });
+                composerRef.current?.focus({ preventScroll: true });
+              }}
+              onJump={
+                m.replyTo && messages.some((target) => target.id === m.replyTo?.id)
+                  ? () => document.getElementById("team-message-" + m.replyTo!.id)?.scrollIntoView({ block: "center", behavior: "smooth" })
+                  : undefined
+              }
+            />
           ))
         )}
       </div>
@@ -256,60 +276,19 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
       )}
       {error && <div style={{ padding: "6px 16px", color: "var(--red)", fontSize: 12, borderTop: "1px solid var(--border-subtle)" }}>{typeof error === "string" ? error : t(error.key)}</div>}
 
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          padding: isMobile ? "10px 12px calc(10px + env(safe-area-inset-bottom, 0px))" : "12px 20px",
-          borderTop: "1px solid var(--border-subtle)",
-          background: "var(--bg-hud)",
-          flexShrink: 0,
+      <TeamChatComposer
+        draft={draft}
+        setDraft={setDraft}
+        sending={sending}
+        isMobile={isMobile}
+        composerRef={composerRef}
+        reply={reply}
+        onCancelReply={() => {
+          setReply(null);
+          setError((previous) => (typeof previous === "object" && previous?.key === "teamChat.replyMissing" ? null : previous));
         }}
-      >
-        <textarea
-          ref={composerRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value.slice(0, MEMBERS_CHAT_MAX_CHARS))}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !isMobile && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              void send();
-            }
-          }}
-          placeholder={t("teamChat.placeholder")}
-          rows={2}
-          style={{
-            flex: 1,
-            resize: "none",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "var(--bg-surface)",
-            color: "var(--text-primary)",
-            padding: "8px 10px",
-            fontSize: isMobile ? 16 : 13,
-            lineHeight: "20px",
-            maxHeight: composerHeightLimit(isMobile, 18),
-            overflowY: "auto",
-            fontFamily: "inherit",
-          }}
-        />
-        <button
-          onClick={() => void send()}
-          disabled={sending || !draft.trim()}
-          style={{
-            padding: "0 16px",
-            borderRadius: 8,
-            border: "none",
-            background: draft.trim() ? "var(--accent)" : "var(--btn-surface)",
-            color: draft.trim() ? "var(--bg-base)" : "var(--text-muted)",
-            fontWeight: 600,
-            fontSize: 13,
-            cursor: draft.trim() ? "pointer" : "default",
-          }}
-        >
-          {t("teamChat.post")}
-        </button>
-      </div>
+        onSend={() => void send()}
+      />
     </div>
   );
 }
