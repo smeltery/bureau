@@ -221,6 +221,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 - Embedded terminal per agent, inheriting the agent owner's managed
   environment and standard copy/paste shortcuts across platforms.
+  Panel drags update the browser immediately and send the shell its final size
+  after settling, avoiding repeated command redraws. Restarted shells receive
+  the current panel dimensions.
 - Built-in file editor with tabs, syntax highlighting, empty-state guidance,
   dirty-buffer tracking,
   and external-change detection. On desktop, selecting code shows a Cite pill
