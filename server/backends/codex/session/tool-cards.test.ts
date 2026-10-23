@@ -111,7 +111,7 @@ test("visible tool work prevents capacity replay and late results reuse their ca
   world.notify("item/completed", { ...item, aggregatedOutput: "finished", exitCode: 0 });
   expect(world.events.filter((event) => event.kind === "tool_call")).toHaveLength(1);
   expect(world.events.filter((event) => event.kind === "tool_result")).toHaveLength(1);
-  expect(world.events).toContainEqual({ kind: "system_text", text: "Turn ended before this tool result arrived.", bureauAuthored: true });
+  expect(world.events).toContainEqual({ kind: "system_text", text: "Turn ended before this tool result arrived.", bureauAuthored: true, message: { key: "logs.backend.lateTool" } });
 });
 
 test("a new turn can show a reused tool id", () => {

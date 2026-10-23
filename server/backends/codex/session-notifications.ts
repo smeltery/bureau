@@ -1,3 +1,5 @@
+import { bureauSystemNotice } from "../session-types.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { CodexToolCards } from "./session/tool-cards.ts";
 import type { CodexQuotaStop } from "./session/quota-stop.ts";
 import type { AttachmentSpec, NormalizedEvent, SubagentOrigin } from "../types.ts";
@@ -114,10 +116,7 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
       // most commonly it'll fire when the user's auth tier changed since
       // the agent was created. Re-opening settings reloads the list.
       if (rawError && /model.*not supported|not supported.*model/i.test(rawError)) {
-        deps.enqueue({
-          kind: "system_text",
-          text: "This Codex model isn't available on your current login. Open the agent's settings to refresh the model list and pick one that is.",
-        });
+        deps.enqueue(bureauSystemNotice(logMessage("logs.backend.modelUnavailable")));
       }
       // If we self-interrupted to short-circuit a doomed-by-auth turn,
       // remap status="interrupted" → "failed" so the user sees a clear
@@ -227,11 +226,7 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
         for (const event of deps.toolCards?.completed(deps.threadId ?? "", events) ?? events) deps.enqueue(event);
         if (!deps.turnInFlight && !deps.turnStarting && deps.lateToolResultNoticeArmed && isToolActivityItem(item) && !deps.lateToolResultNoticeEmitted) {
           deps.markLateToolResultNoticeEmitted();
-          deps.enqueue({
-            kind: "system_text",
-            text: "Turn ended before this tool result arrived.",
-            bureauAuthored: true,
-          });
+          deps.enqueue(bureauSystemNotice(logMessage("logs.backend.lateTool")));
         }
       }
       break;

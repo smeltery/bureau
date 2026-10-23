@@ -1,3 +1,5 @@
+import { bureauSystemNotice } from "../session-types.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { NormalizedEvent } from "../types.ts";
 import { filterMissingToolOutputRepeats } from "../../../shared/log-types.ts";
 
@@ -28,8 +30,7 @@ export function codexSubprocessExitEvent({ code, signal, turnInFlight }: { code:
       error: `codex subprocess exited${code != null ? ` (code ${code})` : ""}${signal ? ` (signal ${signal})` : ""} mid-turn`,
     };
   }
-  return {
-    kind: "system_text",
-    text: `Codex subprocess exited${code != null ? ` (code ${code})` : ""}${signal ? ` (signal ${signal})` : ""}.`,
-  };
+  return bureauSystemNotice(
+    logMessage("logs.backend.processExit", { code: code != null ? logMessage("logs.backend.exitCode", { code }) : "", signal: signal ? logMessage("logs.backend.exitSignal", { signal }) : "" }),
+  );
 }

@@ -1,5 +1,7 @@
+import { bureauSystemNotice } from "../session-types.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { NormalizedEvent } from "../types.ts";
-import { providerFailure } from "./connection/failures.ts";
+import { providerFailure, providerFailureMessage } from "./connection/failures.ts";
 import type { OpenCodeTurnAccounting } from "./connection/turn-accounting.ts";
 import type { AllowedEvent, SafeOpenCodeError } from "./parse.ts";
 
@@ -85,7 +87,7 @@ export function applyOpenCodeEvent(
       ctx.assistantMessages.delete(event.messageId);
     } else ctx.assistantMessages.add(event.messageId);
   }
-  if (event.kind === "retry") ctx.sink({ kind: "system_text", text: `${providerFailure({ message: event.message })} OpenCode retry ${event.attempt}.`, bureauAuthored: true });
+  if (event.kind === "retry") ctx.sink(bureauSystemNotice(logMessage("logs.backend.retry", { error: providerFailureMessage({ message: event.message }), attempt: event.attempt })));
   if (event.kind === "text" && ctx.assistantMessages.has(event.messageId)) {
     const prior = ctx.textByPart.get(event.partId) ?? "";
     if (event.text.startsWith(prior)) {
@@ -129,7 +131,7 @@ export function applyOpenCodeEvent(
   }
   if (event.kind === "permission_fault") {
     const msg = "OpenCode asked to use a tool but sent no permission id.";
-    ctx.sink({ kind: "system_text", text: msg, bureauAuthored: true });
+    ctx.sink(bureauSystemNotice(logMessage("logs.backend.permissionFault")));
     ctx.settle({ kind: "turn_completed", status: "failed", error: msg });
   }
   if (event.kind === "step_finish") {
@@ -151,7 +153,7 @@ export function applyOpenCodeEvent(
     if (ctx.abortRequested) return;
     if (event.error.name === "ContextOverflowError") {
       ctx.accounting.overflowPending = true;
-      ctx.sink({ kind: "system_text", text: "OpenCode is compacting the conversation to fit the model.", bureauAuthored: true });
+      ctx.sink(bureauSystemNotice(logMessage("logs.backend.compacting")));
       return;
     }
     ctx.settle({

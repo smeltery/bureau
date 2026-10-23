@@ -1,3 +1,4 @@
+import { logMessage, type LogMessage } from "../../../../shared/i18n/log-message.ts";
 import { EFFORT_LEVELS } from "../../../../shared/types.ts";
 import { allowDiscoveredModels, type DiscoveredOpenCodeModel } from "../parse.ts";
 import type { OpenCodeLease, OpenCodeSupervisor } from "../supervisor.ts";
@@ -82,7 +83,7 @@ export class OpenCodeModelSelection {
     this.prefetchLoad = { identity: catalogIdentity(lease), load };
   }
 
-  async resolve(lease: OpenCodeLease): Promise<{ variant?: string; notice?: string }> {
+  async resolve(lease: OpenCodeLease): Promise<{ variant?: string; notice?: string; noticeMessage?: LogMessage }> {
     const identity = catalogIdentity(lease);
     const pending = this.prefetchLoad;
     this.prefetchLoad = null;
@@ -92,7 +93,7 @@ export class OpenCodeModelSelection {
     } catch {
       this.contextLimit = undefined;
       this.limits = undefined;
-      return { notice: "OpenCode's model catalog is unavailable. This turn uses the model's default effort." };
+      return { notice: "OpenCode's model catalog is unavailable. This turn uses the model's default effort.", noticeMessage: logMessage("logs.backend.catalogUnavailable") };
     }
     if (catalogIdentity(lease) !== identity) return this.resolve(lease);
     const model = models.find((model) => model.id === this.model);
@@ -101,7 +102,11 @@ export class OpenCodeModelSelection {
     const levels = model?.supportedEfforts ?? [];
     if (this.effort && levels.some((option) => option.level === this.effort)) return { variant: this.effort };
     if (!this.effort || levels.length === 0) return {};
-    const label = EFFORT_LEVELS.find((option) => option.level === this.effort)?.label ?? this.effort;
-    return { notice: `OpenCode does not offer ${label} effort for this model. This turn uses the model's default effort.` };
+    const effort = EFFORT_LEVELS.find((option) => option.level === this.effort);
+    const label = effort?.label ?? this.effort;
+    return {
+      notice: `OpenCode does not offer ${label} effort for this model. This turn uses the model's default effort.`,
+      noticeMessage: logMessage("logs.backend.effortUnavailable", { effort: effort ? logMessage(`logs.effort.${effort.level}`) : label }),
+    };
   }
 }

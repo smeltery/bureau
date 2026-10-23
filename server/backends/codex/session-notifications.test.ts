@@ -245,6 +245,7 @@ describe("handleCodexNotification - late tool items", () => {
     expect(world.events[3]).toEqual({
       kind: "system_text",
       text: "Turn ended before this tool result arrived.",
+      message: { key: "logs.backend.lateTool" },
       bureauAuthored: true,
     });
   });

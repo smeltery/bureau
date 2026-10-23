@@ -169,7 +169,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         emitLoginInstructionsImpl(agentId, managed);
         break;
       }
-      addLogEntry(agentId, "system", ev.text);
+      addLogEntry(agentId, "system", ev.bureauAuthored && ev.message ? ev.message : ev.text);
       break;
     }
     case "task_lifecycle":

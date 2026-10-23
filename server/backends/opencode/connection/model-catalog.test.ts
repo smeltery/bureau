@@ -1,3 +1,4 @@
+import { displayLogContent, logContent } from "../../../../shared/i18n/log-message.ts";
 import { afterEach, describe, expect, it } from "bun:test";
 import type { OpenCodeLease } from "../supervisor.ts";
 import { OpenCodeModelCatalog, OpenCodeModelSelection, waitForCatalog } from "./model-catalog.ts";
@@ -80,7 +81,12 @@ describe("OpenCode model catalog", () => {
     const lease = fixture(() => Response.json(payload));
     const catalog = new OpenCodeModelCatalog();
     const unsupported = new OpenCodeModelSelection(catalog, "/one", "test/model", "max");
-    expect(await unsupported.resolve(lease)).toMatchObject({ notice: expect.stringContaining("default effort") });
+    const result = await unsupported.resolve(lease);
+    expect(result.notice).toContain("default effort");
+    const entry = { kind: "system" as const, ...logContent(result.noticeMessage!) };
+    expect(entry.content).toBe(result.notice!);
+    expect(displayLogContent(entry, "es")).toContain("Máximo");
+    expect(displayLogContent(entry, "zh")).toContain("最高");
     const missing = new OpenCodeModelSelection(catalog, "/one", "test/other", "high");
     expect(await missing.resolve(lease)).toEqual({});
     expect(missing.contextLimit).toBeUndefined();

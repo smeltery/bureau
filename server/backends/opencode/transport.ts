@@ -1,3 +1,4 @@
+import { bureauSystemNotice } from "../session-types.ts";
 import type { AgentMcpServer } from "../../integrations/mcp.ts";
 import { OpenCodeTurnAccounting } from "./connection/turn-accounting.ts";
 // Stable prompts and per-session authority handles preserve the prompt cache.
@@ -135,9 +136,9 @@ export class OpenCodeTransport {
         await this.consumeEvents(sessionId, sink, this.abortController.signal);
       }
       const [providerID, modelID] = splitModel(this.model);
-      const { variant, notice } = await this.modelSelection.resolve(this.lease!);
+      const { variant, notice, noticeMessage } = await this.modelSelection.resolve(this.lease!);
       this.abortController.signal.throwIfAborted();
-      if (notice) sink({ kind: "system_text", text: notice, bureauAuthored: true });
+      if (notice) sink(noticeMessage ? bureauSystemNotice(noticeMessage) : { kind: "system_text", text: notice, bureauAuthored: true });
       const parts = buildPromptParts(text, attachments, agentId);
       await this.request(`/session/${encodeURIComponent(sessionId)}/prompt_async`, {
         method: "POST",

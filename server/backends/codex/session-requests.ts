@@ -1,9 +1,11 @@
+import { bureauSystemNotice } from "../session-types.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { NormalizedEvent } from "../types.ts";
 import { PASS, type JsonRpcId, type JsonRpcRequest } from "./client-types.ts";
 import { extractApprovalInput, inferApprovalDescription, inferApprovalTitle, inferToolNameFromApproval, mapApprovalDecision } from "./approvals.ts";
 import { LOGIN_INSTRUCTIONS } from "./config.ts";
 import { approvalCwd, commandTokensForPrefixMatch, isExecApprovalMethod, offerablePrefix, type SessionPrefixRules } from "./prefix-rules.ts";
-import { AUTO_APPROVED_BY_PREFIX_RULE, type AllowPrefixContext } from "./prefix-rule-notices.ts";
+import type { AllowPrefixContext } from "./prefix-rule-notices.ts";
 
 export interface PendingApproval extends AllowPrefixContext {
   jsonRpcId: JsonRpcId;
@@ -56,11 +58,7 @@ export async function handleCodexServerRequest(req: JsonRpcRequest, deps: CodexS
       // suggests just ["mkdir","-p","g"]), so trusting it here would let a
       // chained command ride in on a rule the user set for its harmless head.
       if (deps.prefixRules.matches(req.method, params)) {
-        deps.enqueue({
-          kind: "system_text",
-          bureauAuthored: true,
-          text: AUTO_APPROVED_BY_PREFIX_RULE,
-        });
+        deps.enqueue(bureauSystemNotice(logMessage("logs.backend.prefixAuto")));
         return { decision: mapApprovalDecision(req.method, { kind: "allow_once" }) };
       }
 
@@ -100,10 +98,7 @@ export async function handleCodexServerRequest(req: JsonRpcRequest, deps: CodexS
 
     // ---- Permissions request: auto-decline with JSON-RPC error ----
     case "item/permissions/requestApproval":
-      deps.enqueue({
-        kind: "system_text",
-        text: `Auto-declined permissions request from codex (v1 doesn't expose permission-profile changes — use the spawn dialog to pick a different sandbox/approval policy).`,
-      });
+      deps.enqueue(bureauSystemNotice(logMessage("logs.backend.permissionProfile")));
       throw new Error("Permissions profile changes are not supported in Bureau v1.");
 
     // ---- Auto-decline (correct response shapes per server schema) ----
@@ -111,18 +106,12 @@ export async function handleCodexServerRequest(req: JsonRpcRequest, deps: CodexS
       // ToolRequestUserInputResponse shape is { answers: HashMap<...> }, no
       // canceled/decline field. Sending a JSON-RPC error is the correct
       // way to say "the client can't answer this."
-      deps.enqueue({
-        kind: "system_text",
-        text: `Auto-declined structured tool-input request from codex (v1 doesn't support agent-issued Q&A).`,
-      });
+      deps.enqueue(bureauSystemNotice(logMessage("logs.backend.structuredInput")));
       throw new Error("Bureau v1 does not implement item/tool/requestUserInput.");
 
     case "mcpServer/elicitation/request":
       // Confirmed against the schema: { action: "accept" | "decline" | "cancel" }.
-      deps.enqueue({
-        kind: "system_text",
-        text: `Auto-declined MCP elicitation request (v1 doesn't surface MCP elicitation UX).`,
-      });
+      deps.enqueue(bureauSystemNotice(logMessage("logs.backend.elicitation")));
       return { action: "decline" };
 
     case "item/tool/call":
@@ -131,10 +120,7 @@ export async function handleCodexServerRequest(req: JsonRpcRequest, deps: CodexS
       // failure response, but a JSON-RPC error is clearer for v1: the
       // agent sees the tool call failed at the protocol level rather than
       // as an opaque "tool returned this" reply.
-      deps.enqueue({
-        kind: "system_text",
-        text: `Auto-declined dynamic tool call from codex (v1 doesn't expose dynamic tools).`,
-      });
+      deps.enqueue(bureauSystemNotice(logMessage("logs.backend.dynamicTool")));
       throw new Error("Bureau v1 does not implement item/tool/call (dynamic tools).");
 
     // ---- Auth token refresh ----

@@ -1,3 +1,4 @@
+import { logContent, type LogMessage } from "../../shared/i18n/log-message.ts";
 import type { Attachment, SubagentOrigin } from "../../shared/types.ts";
 // Re-exported so backend code can name it without reaching into shared/. The
 // wire/disk shape lives there because it travels as LogEntry.metadata.subagent.
@@ -106,6 +107,7 @@ export type NormalizedEvent =
       kind: "system_text";
       text: string;
       bureauAuthored?: true;
+      message?: LogMessage;
       // Claude SDK assistant error `oauth_org_not_allowed`: a signed-in
       // account exists, but Claude Code access is unavailable for it.
       claudeAccessDenied?: true;
@@ -226,4 +228,9 @@ export interface BackendSession {
   abort(): Promise<void>;
   canAbortInPlace(): boolean;
   close(): void;
+}
+
+/** Canonical English stays available to backend consumers and older clients. */
+export function bureauSystemNotice(message: LogMessage): Extract<NormalizedEvent, { kind: "system_text" }> {
+  return { kind: "system_text", text: logContent(message).content, bureauAuthored: true, message };
 }
