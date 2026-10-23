@@ -1,9 +1,9 @@
 import { openCodeEnvironmentId } from "../backends/opencode/profiles/identity.ts";
 import { validateCwd } from "../agents/session/paths.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
-import { appendRunLog, findRun, getRunSessionClaudeConfigDir, updateRun } from "../persistence.ts";
+import { appendRunLog, findRun, getRunSessionClaudeConfigDir, getRunSessionCodexHome, updateRun } from "../persistence.ts";
 import { cronjobRunStreamId, type Cronjob, type CronjobRun, type LogEntry } from "../../shared/types.ts";
-import { buildCronjobEnv, buildRunResumeOptions as buildRunResumeOptionsWithDeps, cronRunBackend } from "./session-options.ts";
+import { pinRunProviderEnvironment, buildCronjobEnv, buildRunResumeOptions as buildRunResumeOptionsWithDeps, cronRunBackend } from "./session-options.ts";
 import { mintRunToken, revokeRunToken } from "./tokens.ts";
 import { editRunMessageWithDeps as editRunMessageCoreWithDeps } from "./run-edit.ts";
 import { startRunHardTimeout, type RunLifecycleDeps } from "./run-lifecycle.ts";
@@ -118,7 +118,7 @@ function checkCronRunSessionFile(deps: RunContinuationDeps, run: CronjobRun, lea
   try {
     const job = deps.getCronjobs().find((c) => c.id === run.cronjobId);
     userId = run.userIdSnapshot !== undefined ? run.userIdSnapshot : (job?.userId ?? null);
-    env = buildCronjobEnv(userId);
+    env = pinRunProviderEnvironment(run, leaf, userId, buildCronjobEnv(userId));
   } catch (err: any) {
     emitRunErrorEntry(deps, run.cronjobId, run.id, `Cannot ${action}: env file is invalid: ${err.message || String(err)}`);
     return false;
@@ -189,6 +189,7 @@ function installResumedActive(deps: RunContinuationDeps, run: CronjobRun, sessio
     killed: false,
     pendingEntries: [],
     isResume: true,
+    launchedCodexHome: run.agentTypeSnapshot === "codex" ? (getRunSessionCodexHome(run.cronjobId, run.id, sessionId) ?? undefined) : undefined,
     launchedClaudeConfigDir: (run.agentTypeSnapshot ?? "claude") === "claude" ? (getRunSessionClaudeConfigDir(run.cronjobId, run.id, sessionId) ?? undefined) : undefined,
   };
   deps.activeRuns.set(run.id, active);

@@ -1,6 +1,17 @@
 import { cronjobRunStreamId, type CronjobRun, type LogEntry } from "../../shared/types.ts";
 import type { Backend, BackendSession, CreateSessionOptions, NormalizedMessage } from "../backends/types.ts";
-import { findUsageAtForkRun, getRunSessionClaudeConfigDir, loadRunLog, loadRunLogWithAncestors, loadRunSessionsMap, persistRunSessionFork, updateRun } from "../persistence.ts";
+import {
+  ensureRunSessionClaudeConfigDir,
+  ensureRunSessionCodexHome,
+  getRunSessionCodexHome,
+  findUsageAtForkRun,
+  getRunSessionClaudeConfigDir,
+  loadRunLog,
+  loadRunLogWithAncestors,
+  loadRunSessionsMap,
+  persistRunSessionFork,
+  updateRun,
+} from "../persistence.ts";
 import type { CronjobEvent } from "./index.ts";
 import { writeLog, type ActiveRun } from "./run-events.ts";
 
@@ -87,6 +98,11 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
 
   let session: BackendSession;
   try {
+    // The fork belongs to the same provider store as the session it was read from.
+    const claudeRoot = getRunSessionClaudeConfigDir(jobId, runId, leaf);
+    const codexRoot = getRunSessionCodexHome(jobId, runId, leaf);
+    if (claudeRoot) ensureRunSessionClaudeConfigDir(jobId, runId, newSessionId, claudeRoot);
+    if (codexRoot) ensureRunSessionCodexHome(jobId, runId, newSessionId, codexRoot);
     const forkResumeOptions = deps.buildRunResumeOptions(run, newSessionId);
     session = backend.resumeSession(newSessionId, forkResumeOptions);
   } catch (err: any) {
@@ -113,7 +129,16 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
   }
 
   const parentBase = findUsageAtForkRun(jobId, runId, forkFromSessionId, logEntryId);
-  persistRunSessionFork(jobId, runId, newSessionId, forkFromSessionId, logEntryId, getRunSessionClaudeConfigDir(jobId, runId, leaf) ?? undefined, parentBase);
+  persistRunSessionFork(
+    jobId,
+    runId,
+    newSessionId,
+    forkFromSessionId,
+    logEntryId,
+    getRunSessionClaudeConfigDir(jobId, runId, leaf) ?? undefined,
+    parentBase,
+    getRunSessionCodexHome(jobId, runId, leaf) ?? undefined,
+  );
   const updatedRun = updateRun(jobId, runId, { currentSessionId: newSessionId });
   if (updatedRun) deps.emitEvent({ type: "cronjob_run_updated", run: updatedRun });
 

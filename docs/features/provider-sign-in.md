@@ -25,9 +25,9 @@ Unsupported Claude versions retain the terminal login fallback.
 
 ## Which account do agents use?
 
-Successful personal sign-in selects the private directory for new desk conversations.
-Scheduled runs currently use explicit member directory settings or office defaults.
-Explicit member directory
+Successful personal sign-in selects the private directory for new desk conversations
+and scheduled runs belonging to that member. Existing runs retain their original
+directory when resumed or edited. Explicit member directory
 settings take precedence over automatically managed homes. A personal sign-in
 cannot target the office directory, another member's managed directory, or an
 explicit directory shared by another member. Canonical paths are used so a

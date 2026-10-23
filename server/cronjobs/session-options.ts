@@ -1,7 +1,9 @@
+import { activeProviderEnvironment } from "../provider-accounts/homes.ts";
+import { BUREAU_CODEX_HOME } from "../backends/codex/native-bin.ts";
 import { resolveMcpServers } from "../integrations/mcp.ts";
 import { credentialRuntime, appendGitCredentialHelpers } from "../integrations/proxy/runtime.ts";
 import { cronjobRunStreamId, type Cronjob, type CronjobRun } from "../../shared/types.ts";
-import { ensureRunSessionClaudeConfigDir, getRunSessionClaudeConfigDir, readEnvFile, rollRunSessionUsageOnResume } from "../persistence.ts";
+import { ensureRunSessionClaudeConfigDir, getRunSessionClaudeConfigDir, ensureRunSessionCodexHome, getRunSessionCodexHome, readEnvFile, rollRunSessionUsageOnResume } from "../persistence.ts";
 import { claudeConfigRoot } from "../agents/session/paths.ts";
 import { officeConfig } from "../agents/state.ts";
 import { openCodeEnvironmentId } from "../backends/opencode/profiles/identity.ts";
@@ -10,19 +12,22 @@ import type { Backend, CreateSessionOptions } from "../backends/types.ts";
 import { getUserById } from "../users.ts";
 import { buildCronjobMemoryPrompt } from "./system-prompt.ts";
 
-export function buildCronjobEnv(userId?: string | null): { [key: string]: string | undefined } | undefined {
+export function buildCronjobEnv(userId?: string | null, personalHomes = true): { [key: string]: string | undefined } | undefined {
   const officeEnvFile = officeConfig.envFile;
   const userEnvFile = userId ? (getUserById(userId)?.envFile ?? null) : null;
   const credentials = credentialRuntime.environment(userId);
-  if (!officeEnvFile && !userEnvFile && !credentials) return undefined;
+  const userEnv = userEnvFile ? readEnvFile(userEnvFile) : {};
+  const personal = personalHomes ? activeProviderEnvironment(userId, userEnv) : {};
+  if (!Object.keys(personal).length && !officeEnvFile && !userEnvFile && !credentials) return undefined;
   const merged: { [key: string]: string | undefined } = { ...process.env };
   if (officeEnvFile) Object.assign(merged, readEnvFile(officeEnvFile));
   if (credentials) Object.assign(merged, credentials.office);
-  if (userEnvFile) Object.assign(merged, readEnvFile(userEnvFile));
+  if (userEnvFile) Object.assign(merged, userEnv);
   if (credentials) {
     Object.assign(merged, credentials.member, credentials.fixed);
     appendGitCredentialHelpers(merged, credentials.gitCredentials);
   }
+  Object.assign(merged, personal);
   return merged;
 }
 
@@ -89,13 +94,7 @@ export function buildRunResumeOptions({
   // empty append instead of synthesizing a partial prompt.
   const job = cronjobs.find((c) => c.id === run.cronjobId);
   const userId = run.userIdSnapshot !== undefined ? run.userIdSnapshot : (job?.userId ?? null);
-  const baseEnv = buildCronjobEnv(userId);
-  let env = withRunTokenEnv(baseEnv, runToken);
-  if ((run.agentTypeSnapshot ?? "claude") === "claude") {
-    const pinnedRoot = getRunSessionClaudeConfigDir(run.cronjobId, run.id, resumeSessionId);
-    if (pinnedRoot) env = { ...env, CLAUDE_CONFIG_DIR: pinnedRoot };
-    else ensureRunSessionClaudeConfigDir(run.cronjobId, run.id, resumeSessionId, claudeConfigRoot(env));
-  }
+  const env = withRunTokenEnv(pinRunProviderEnvironment(run, resumeSessionId, userId, buildCronjobEnv(userId)), runToken);
   return {
     agentId: cronjobRunStreamId(run.id),
     mcpServers: resolveMcpServers(userId),
@@ -109,4 +108,18 @@ export function buildRunResumeOptions({
     systemPrompt: job ? buildSystemPrompt({ ...job, agentType: run.agentTypeSnapshot ?? "claude" }, run.cronjobId, run.id, buildCronjobMemoryPrompt()) : "",
     cwd: run.cwdSnapshot,
   };
+}
+
+/** Pin legacy runs before applying newly activated personal accounts. */
+export function pinRunProviderEnvironment(run: CronjobRun, sessionId: string, userId: string | null | undefined, env: Record<string, string | undefined> | undefined) {
+  if ((run.agentTypeSnapshot ?? "claude") === "claude") {
+    const root = getRunSessionClaudeConfigDir(run.cronjobId, run.id, sessionId) ?? ensureRunSessionClaudeConfigDir(run.cronjobId, run.id, sessionId, claudeConfigRoot(buildCronjobEnv(userId, false)));
+    return { ...(env ?? process.env), CLAUDE_CONFIG_DIR: root };
+  }
+  if (run.agentTypeSnapshot === "codex") {
+    const root =
+      getRunSessionCodexHome(run.cronjobId, run.id, sessionId) ?? ensureRunSessionCodexHome(run.cronjobId, run.id, sessionId, buildCronjobEnv(userId, false)?.CODEX_HOME || BUREAU_CODEX_HOME);
+    return { ...(env ?? process.env), CODEX_HOME: root };
+  }
+  return env;
 }

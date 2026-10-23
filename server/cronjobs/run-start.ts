@@ -1,3 +1,4 @@
+import { BUREAU_CODEX_HOME } from "../backends/codex/native-bin.ts";
 import { cronjobRunStreamId, generateCronjobRunId, type Cronjob, type CronjobRun } from "../../shared/types.ts";
 import type { BackendSession, CreateSessionOptions } from "../backends/types.ts";
 import type { CronjobEvent } from "./index.ts";
@@ -113,6 +114,7 @@ export function fireCronjobRunWithDeps(deps: RunStartDeps, job: Cronjob, trigger
     killed: false,
     pendingEntries: [],
     isResume: false,
+    launchedCodexHome: job.agentType === "codex" ? opts.env?.CODEX_HOME || BUREAU_CODEX_HOME : undefined,
     launchedClaudeConfigDir: job.agentType === "claude" ? claudeConfigRoot(opts.env) : undefined,
   };
   deps.activeRuns.set(runId, active);
