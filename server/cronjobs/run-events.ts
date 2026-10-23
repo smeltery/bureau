@@ -1,3 +1,4 @@
+import { logContent, type LogMessage } from "../../shared/i18n/log-message.ts";
 import type { Attachment, CronjobRun, LogEntry } from "../../shared/types.ts";
 import type { BackendSession, NormalizedEvent } from "../backends/types.ts";
 import { accumulateRunSessionUsage, appendRunLog, appendRunSessionUsageSnapshot, ensureRunSessionClaudeConfigDir, ensureRunSessionCodexHome, prepareLogEntry, updateRun } from "../persistence.ts";
@@ -53,7 +54,7 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
       writeLog(active, "text", ev.text, emitEvent);
       break;
     case "system_text":
-      writeLog(active, "system", ev.text, emitEvent);
+      writeLog(active, "system", ev.bureauAuthored && ev.message ? ev.message : ev.text, emitEvent);
       break;
     case "task_lifecycle":
       writeLog(active, "system", ev.label, emitEvent, { taskEvent: { phase: ev.phase, taskId: ev.taskId } });
@@ -122,7 +123,7 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
 export function writeLog(
   active: ActiveRun,
   kind: LogEntry["kind"],
-  content: string,
+  content: string | LogMessage,
   emitEvent: (e: CronjobEvent) => void,
   metadata?: Record<string, unknown>,
   attachments?: Attachment[],
@@ -133,7 +134,7 @@ export function writeLog(
     agentId: active.streamId,
     timestamp: Date.now(),
     kind,
-    content,
+    ...logContent(content),
     ...(metadata ? { metadata } : {}),
     ...(attachments && attachments.length > 0 ? { attachments } : {}),
     ...(extra ?? {}),

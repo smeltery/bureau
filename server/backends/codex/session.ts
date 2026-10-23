@@ -1,3 +1,5 @@
+import { bureauSystemNotice } from "../session-types.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { CodexToolCards } from "./session/tool-cards.ts";
 import { CodexSteering } from "./session/steering.ts";
 import { CodexQuotaStop, quotaResetAt } from "./session/quota-stop.ts";
@@ -249,10 +251,7 @@ export class CodexSession implements BackendSession {
         turnId: this.activeTurnId,
       });
     } catch (err) {
-      this.enqueue({
-        kind: "system_text",
-        text: `Codex interrupt failed: ${errMessage(err)}`,
-      });
+      this.enqueue(bureauSystemNotice(logMessage("logs.backend.interruptFailed", { error: errMessage(err) })));
     }
     resolvePendingApprovalsOnAbort(this.pendingApprovals);
   }

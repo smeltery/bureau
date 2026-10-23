@@ -1,3 +1,5 @@
+import { bureauSystemNotice } from "../session-types.ts";
+import { logContent, logMessage } from "../../../shared/i18n/log-message.ts";
 // User-facing half of the session-scoped prefix rules: turning an
 // "allow, and stop asking" decision into an actual rule, and saying out loud
 // what was remembered. These breadcrumbs are the only report the user gets,
@@ -72,8 +74,14 @@ export function markdownInlineCode(text: string): string {
 // whatever path codex sent, and a directory holding a backtick could close the
 // code span early and forge the rest of the sentence.
 export function grantedPrefixText(prefix: string[], cwd: string | null): string {
-  const where = cwd ? ` in ${markdownInlineCode(cwd)}` : "";
-  return `Allowing any command starting with \`${prefix.join(" ")}\`${where} for the rest of this session.`;
+  return logContent(grantedPrefixMessage(prefix, cwd)).content;
+}
+
+export function grantedPrefixMessage(prefix: string[], cwd: string | null) {
+  return logMessage("logs.backend.prefixGranted", {
+    prefix: prefix.join(" "),
+    where: cwd ? logMessage("logs.backend.prefixWhere", { directory: markdownInlineCode(cwd) }) : "",
+  });
 }
 
 // Resolve an "allow, and stop asking" decision into an actual rule and report
@@ -100,31 +108,15 @@ export function applyAllowPrefix(rules: SessionPrefixRules, pending: AllowPrefix
       // The user typed something that isn't a plain command, so there is no
       // honest rule to store. Say which failure this is — otherwise they
       // retype a prefix that looks obviously correct and it fails again.
-      enqueue({
-        kind: "system_text",
-        bureauAuthored: true,
-        text: `No session rule was added: Bureau only matches rules against plain commands (no quoting, chaining, redirection, globbing or expansion). Allowed once.`,
-      });
+      enqueue(bureauSystemNotice(logMessage("logs.backend.prefixInvalid")));
     } else if (tokensStartWith(pending.commandTokens, typed)) {
       rules.remember(typed, pending.cwd);
-      enqueue({
-        kind: "system_text",
-        bureauAuthored: true,
-        text: grantedPrefixText(typed, pending.cwd),
-      });
+      enqueue(bureauSystemNotice(grantedPrefixMessage(typed, pending.cwd)));
     } else {
-      enqueue({
-        kind: "system_text",
-        bureauAuthored: true,
-        text: `\`${typed.join(" ")}\` is not the start of the command being approved, so no session rule was added — this command was allowed once.`,
-      });
+      enqueue(bureauSystemNotice(logMessage("logs.backend.prefixMismatch", { prefix: typed.join(" ") })));
     }
     return;
   }
   rules.remember(pending.suggestedPrefix, pending.cwd);
-  enqueue({
-    kind: "system_text",
-    bureauAuthored: true,
-    text: grantedPrefixText(pending.suggestedPrefix, pending.cwd),
-  });
+  enqueue(bureauSystemNotice(grantedPrefixMessage(pending.suggestedPrefix, pending.cwd)));
 }

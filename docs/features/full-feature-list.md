@@ -139,7 +139,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   Simplified Chinese; UI chrome follows the same preference), and roster
   online/session summaries.
 - Permission prompts and replies, lifecycle, recovery, queue, compaction, capacity,
-  usage-limit, handoff, sign-in, context, and diagnostic notices follow each reader’s language. Older notices retain
+  usage-limit, handoff, sign-in, context, and diagnostic notices follow each reader’s language. Backend system notices also translate in conversations and scheduled runs. Older notices retain
   their original text. Stored logs and API responses keep English content;
   user, model, and tool output stays unchanged. Model, effort, resume, and
   scheduled-prompt choice cards also follow the reader’s language, including

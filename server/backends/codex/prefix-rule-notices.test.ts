@@ -1,3 +1,4 @@
+import { displayLogContent, logContent } from "../../../shared/i18n/log-message.ts";
 // T0 unit tier for the user-facing half of the prefix rules.
 //
 // markdownInlineCode exists because Bureau writes chat lines that quote values
@@ -98,6 +99,7 @@ describe("applyAllowPrefix", () => {
         kind: "system_text",
         bureauAuthored: true,
         text: "Allowing any command starting with `rg --files` in `/work` for the rest of this session.",
+        message: expect.objectContaining({ key: "logs.backend.prefixGranted" }),
       },
     ]);
     expect(rules.matches(V2, approvalFor("rg --files sub"))).toBe(true);
@@ -113,6 +115,7 @@ describe("applyAllowPrefix", () => {
       kind: "system_text",
       bureauAuthored: true,
       text: "Allowing any command starting with `rg --files` in `/work` for the rest of this session.",
+      message: expect.objectContaining({ key: "logs.backend.prefixGranted" }),
     });
     // A different directory argument now runs without asking — the case that
     // made this whole feature worth building.
@@ -129,6 +132,7 @@ describe("applyAllowPrefix", () => {
         kind: "system_text",
         bureauAuthored: true,
         text: "`rm -rf` is not the start of the command being approved, so no session rule was added — this command was allowed once.",
+        message: expect.objectContaining({ key: "logs.backend.prefixMismatch" }),
       },
     ]);
     // Nothing was stored: neither the rejected rule nor the command itself.
@@ -146,6 +150,7 @@ describe("applyAllowPrefix", () => {
           kind: "system_text",
           bureauAuthored: true,
           text: "No session rule was added: Bureau only matches rules against plain commands (no quoting, chaining, redirection, globbing or expansion). Allowed once.",
+          message: expect.objectContaining({ key: "logs.backend.prefixInvalid" }),
         },
       ]);
       expect(rules.matches(V2, approvalFor("rg --files sub"))).toBe(false);
@@ -183,4 +188,24 @@ describe("applyAllowPrefix", () => {
     expect((events[0] as { text: string }).text).toContain("401");
     for (const ev of events) expect(ev).toMatchObject({ kind: "system_text", bureauAuthored: true });
   });
+});
+
+it("translated rule confirmations preserve literal prefixes and safely fenced directories", () => {
+  const directory = "/tmp/project` with {prefix}";
+  const rules = new SessionPrefixRules();
+  const { events, enqueue } = collect();
+  applyAllowPrefix(rules, context("grep 401 authentication", ["grep", "401"], directory), undefined, enqueue);
+  const event = events[0];
+  expect(event.kind).toBe("system_text");
+  if (event.kind !== "system_text") throw new Error("Missing rule notice");
+  const entry = { kind: "system" as const, ...logContent(event.message!) };
+  expect(entry.content).toBe(event.text);
+  for (const language of ["es", "ca", "zh"] as const) {
+    const text = displayLogContent(entry, language);
+    expect(text).not.toBe(event.text);
+    expect(text).toContain("`grep 401`");
+    expect(text).toContain(markdownInlineCode(directory));
+  }
+  expect(rules.matches(V2, approvalFor("grep 401 other", directory))).toBe(true);
+  expect(rules.matches(V2, approvalFor("grep 401 other", "/another"))).toBe(false);
 });

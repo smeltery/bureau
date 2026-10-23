@@ -1,3 +1,5 @@
+import { bureauSystemNotice } from "../session-types.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { AttachmentSpec, NormalizedEvent, SubagentOrigin } from "../types.ts";
 import { formatPatchChangeKind, formatWebSearchAction } from "./protocol-format.ts";
 
@@ -155,7 +157,7 @@ export function translateCompletedItem(rawItem: unknown, attachmentFromPath: (ra
     }
     case "imageView": {
       const att = attachmentFromPath(item.path);
-      return att ? [{ kind: "file_view", title: att.originalName, attachments: [att] }] : [{ kind: "system_text", text: `Codex viewed an image, but Bureau could not display it.` }];
+      return att ? [{ kind: "file_view", title: att.originalName, attachments: [att] }] : [bureauSystemNotice(logMessage("logs.backend.imageView"))];
     }
     case "imageGeneration": {
       const att = attachmentFromPath(item.savedPath);
@@ -165,9 +167,9 @@ export function translateCompletedItem(rawItem: unknown, attachmentFromPath: (ra
       }
       if (item.status === "failed") {
         const result = typeof item.result === "string" ? item.result : "";
-        return [{ kind: "system_text", text: result ? `Codex image generation failed: ${result}` : `Codex image generation failed.` }];
+        return [bureauSystemNotice(result ? logMessage("logs.backend.imageFailedDetail", { error: result }) : logMessage("logs.backend.imageFailed"))];
       }
-      return [{ kind: "system_text", text: `Codex generated an image, but Bureau could not display it.` }];
+      return [bureauSystemNotice(logMessage("logs.backend.imageGeneration"))];
     }
     case "contextCompaction":
       return [{ kind: "compacted" }];
