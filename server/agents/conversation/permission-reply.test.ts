@@ -1,3 +1,4 @@
+import { displayLogText, logContent } from "../../../shared/i18n/log-message.ts";
 // T0 unit tier: the permission prompt's option-4 reply parser.
 //
 // The prompt is answered in plain chat, and every reply that isn't a
@@ -7,7 +8,13 @@
 // or "4x" must NOT be, or a typo would silently widen what an agent may run.
 import { describe, expect, it } from "bun:test";
 
-import { parsePrefixAllowReply, resolvePermissionReply } from "./permission-reply.ts";
+import { parsePrefixAllowReply, resolvePermissionReply as resolveStructuredPermissionReply } from "./permission-reply.ts";
+
+// Keep the established decision/state/English wording assertions below intact.
+function resolvePermissionReply(text: string, prefix: string | undefined) {
+  const outcome = resolveStructuredPermissionReply(text, prefix);
+  return { ...outcome, note: outcome.note ? logContent(outcome.note).content : null };
+}
 
 describe("parsePrefixAllowReply", () => {
   it("bare 4 means 'take the rule the backend proposed'", () => {
@@ -89,4 +96,16 @@ describe("resolvePermissionReply", () => {
     });
     expect(resolvePermissionReply("  no thanks\n", "rg --files").decision).toEqual({ kind: "deny", reason: "  no thanks\n" });
   });
+});
+
+it("permission confirmations translate without changing decisions or forwarded text", () => {
+  for (const text of ["1", "2", "3", "4 rg --files", "42", "4x", "No, keep {original}"]) {
+    const outcome = resolveStructuredPermissionReply(text, "rg --files");
+    if (outcome.note)
+      for (const language of ["es", "ca", "zh"] as const) {
+        expect(displayLogText("fallback", outcome.note, language)).not.toBe("fallback");
+        expect(displayLogText("fallback", outcome.note, language)).not.toBe(logContent(outcome.note).content);
+      }
+    if (!["1", "2", "3", "4 rg --files"].includes(text)) expect(outcome.decision).toEqual({ kind: "deny", reason: text });
+  }
 });

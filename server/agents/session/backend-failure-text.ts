@@ -1,3 +1,4 @@
+import { logContent, logMessage, type LogMessage } from "../../../shared/i18n/log-message.ts";
 // User-visible wording for a backend that died.
 //
 // Several orchestrator sites used to paste the raw string the backend threw:
@@ -20,6 +21,7 @@ export type BackendFailureId = `sigterm:${number}` | `sigkill:${number}` | `sign
 export type BackendFailureText = {
   /** What the user reads in chat. */
   text: string;
+  message?: LogMessage;
   /** Original string when `text` differs; kept for diagnostics metadata. */
   raw?: string;
   /** Language-independent identity for de-duplicating the same death. */
@@ -46,25 +48,13 @@ export function humanizeBackendFailure(raw: string): BackendFailureText {
   if (exitMatch) {
     const code = Number(exitMatch[1]);
     if (code === SIGTERM_EXIT) {
-      return {
-        text: `The agent backend was terminated by SIGTERM (exit code ${SIGTERM_EXIT}). The likely cause is the out-of-memory protection on this machine. The conversation is saved and can be resumed.`,
-        raw,
-        id: `sigterm:${SIGTERM_EXIT}`,
-      };
+      return translatedFailure(raw, `sigterm:${SIGTERM_EXIT}`, logMessage("logs.diagnostic.terminated", { code: SIGTERM_EXIT }));
     }
     if (code === SIGKILL_EXIT) {
-      return {
-        text: `The agent backend was killed by SIGKILL (exit code ${SIGKILL_EXIT}). The likely cause is the out-of-memory protection on this machine. The conversation is saved and can be resumed.`,
-        raw,
-        id: `sigkill:${SIGKILL_EXIT}`,
-      };
+      return translatedFailure(raw, `sigkill:${SIGKILL_EXIT}`, logMessage("logs.diagnostic.killed", { code: SIGKILL_EXIT }));
     }
     if (code >= SIGNAL_EXIT_MIN && code <= SIGNAL_EXIT_MAX) {
-      return {
-        text: `The agent backend was stopped by signal ${code - 128} (exit code ${code}). The conversation is saved and can be resumed.`,
-        raw,
-        id: `signal:${code}`,
-      };
+      return translatedFailure(raw, `signal:${code}`, logMessage("logs.diagnostic.signal", { signal: code - 128, code }));
     }
     // Ordinary non-signal exit: leave for diagnoseProcessExit / other hints.
     return { text: raw, id: "unclassified" };
@@ -72,11 +62,7 @@ export function humanizeBackendFailure(raw: string): BackendFailureText {
 
   // Harness-internal error_during_execution blobs are not useful to a human.
   if (raw.includes("error_during_execution")) {
-    return {
-      text: BACKEND_STOPPED_DURING_TURN,
-      raw,
-      id: "stopped-during-turn",
-    };
+    return translatedFailure(raw, "stopped-during-turn", logMessage("logs.diagnostic.stoppedDuringTurn"));
   }
 
   return { text: raw, id: "unclassified" };
@@ -85,4 +71,8 @@ export function humanizeBackendFailure(raw: string): BackendFailureText {
 /** Metadata blob for rewritten failures; undefined when text was unchanged. */
 export function backendFailureMeta(failure: BackendFailureText): Record<string, unknown> | undefined {
   return failure.raw === undefined ? undefined : { backendFailureRaw: failure.raw };
+}
+
+function translatedFailure(raw: string, id: BackendFailureId, message: LogMessage): BackendFailureText {
+  return { text: logContent(message).content, message, raw, id };
 }

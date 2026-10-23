@@ -1,3 +1,4 @@
+import { logMessage, type LogMessage } from "../../../shared/i18n/log-message.ts";
 // Reading a reply to the auto-mode permission prompt.
 //
 // The prompt is answered in plain chat, and every reply that isn't a
@@ -18,7 +19,7 @@ export interface PermissionReplyOutcome {
   // Ephemeral system line to log before the decision is sent, or null when the
   // backend is the one that reports what happened (option 4: only the backend
   // knows which rule it actually stored, or why it refused one).
-  note: string | null;
+  note: LogMessage | null;
 }
 
 // Read a reply to option 4 of the permission prompt: bare "4" (take the rule
@@ -42,10 +43,10 @@ export function resolvePermissionReply(text: string, allowPrefixLabel: string | 
   // free text (which would deny with that as the reason).
   const prefixReply = parsePrefixAllowReply(trimmed);
   if (trimmed === "1") {
-    return { decision: { kind: "allow_persistent" }, resumeState: "tool_executing", note: "Permission granted (rule added for this session)." };
+    return { decision: { kind: "allow_persistent" }, resumeState: "tool_executing", note: logMessage("logs.permission.grantedSession") };
   }
   if (trimmed === "2") {
-    return { decision: { kind: "allow_once" }, resumeState: "tool_executing", note: "Permission granted (once)." };
+    return { decision: { kind: "allow_once" }, resumeState: "tool_executing", note: logMessage("logs.permission.grantedOnce") };
   }
   if (prefixReply && allowPrefixLabel) {
     // Guarded on allowPrefixLabel: when no 4th option was offered, "4" is not a
@@ -64,7 +65,7 @@ export function resolvePermissionReply(text: string, allowPrefixLabel: string | 
     };
   }
   if (trimmed === "3") {
-    return { decision: { kind: "deny", reason: "User denied." }, resumeState: "thinking", note: "Permission denied." };
+    return { decision: { kind: "deny", reason: "User denied." }, resumeState: "thinking", note: logMessage("logs.permission.denied") };
   }
-  return { decision: { kind: "deny", reason: text }, resumeState: "thinking", note: "Permission denied with reason forwarded to agent." };
+  return { decision: { kind: "deny", reason: text }, resumeState: "thinking", note: logMessage("logs.permission.deniedReason") };
 }

@@ -185,3 +185,53 @@ test("capacity and compaction notices translate while provider content stays lit
   expect(entries[4].message).toBeUndefined();
   expect(displayLogContent(entries[5], "zh")).toBe("Provider text");
 });
+
+test("approval prompts translate instructions and preserve provider titles and prefix syntax", async () => {
+  const agentId = `approval-${crypto.randomUUID()}`;
+  const session = eventSession([
+    {
+      kind: "approval_request",
+      approvalId: "approve-original",
+      toolName: "Bash",
+      title: "Original title {literal}",
+      description: "Original description",
+      input: { command: "rg --files" },
+      allowPrefixLabel: "rg --files",
+      allowPrefixExample: "rg",
+    },
+  ]);
+  const managed = createManagedAgent({ info: agentInfo(agentId, "codex"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+  managed.session = session;
+  agents.set(agentId, managed);
+  await runConsumer(agentId, managed, session);
+  const entry = logCache.get(agentId)!.at(-1)!;
+  expect(entry.content).toContain("1. Allow — and don't ask again for similar calls this session");
+  for (const language of ["es", "ca", "zh"] as const) {
+    const text = displayLogContent(entry, language);
+    for (const literal of ["Original title {literal}", "Original description", "rg --files", "4 <prefix>", "4 rg"]) expect(text).toContain(literal);
+    expect(text).not.toBe(entry.content);
+  }
+  expect(managed.pendingPermission).toEqual({ approvalId: "approve-original", toolName: "Bash", allowPrefixLabel: "rg --files" });
+});
+
+test("event and stream failures render translated diagnoses while retaining metadata", async () => {
+  for (const streamFailure of [false, true]) {
+    const agentId = `failure-${crypto.randomUUID()}`;
+    const raw = "process exited with code 143";
+    const session = eventSession([{ kind: "error", message: raw }]);
+    if (streamFailure)
+      session.stream = async function* () {
+        yield { kind: "system_text", text: "Before failure" };
+        throw new Error(raw);
+      };
+    const managed = createManagedAgent({ info: agentInfo(agentId, "codex"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+    managed.session = session;
+    agents.set(agentId, managed);
+    await runConsumer(agentId, managed, session);
+    const entry = logCache.get(agentId)!.find((entry) => entry.kind === "error")!;
+    expect(entry.metadata?.backendFailureRaw).toBe(raw);
+    expect(displayLogContent(entry, "es")).toContain("SIGTERM (código 143)");
+    expect(displayLogContent(entry, "es").startsWith("Error de flujo:")).toBe(streamFailure);
+    expect(managed.info.state).toBe("error");
+  }
+});

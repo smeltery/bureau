@@ -203,4 +203,28 @@ export const logs = {
   "logs.action.handoffNoBrief": "Automatic handoff could not produce a brief. This conversation and its queued messages are preserved; use /handoff when ready.",
   "logs.action.handoffIncomplete": "Automatic handoff did not complete: {error}",
   "logs.action.handoffFailed": "Automatic handoff failed. The conversation is preserved; check the connection and use /handoff when ready.",
+  "logs.permission.title": "Wants to use {tool}",
+  "logs.permission.reply": "Reply:",
+  "logs.permission.allowSession": "  1. Allow — and don't ask again for similar calls this session",
+  "logs.permission.allowOnce": "  2. Allow — just this time",
+  "logs.permission.deny": "  3. Deny",
+  "logs.permission.allowPrefix": "  4. Allow — and don't ask again this session for any command starting with `{prefix}`",
+  "logs.permission.prefixExample": "     Reply `{syntax}` to choose how much to allow, e.g. `4 {example}`.",
+  "logs.permission.otherReply": "Or type any other message to deny with that as the reason.",
+  "logs.permission.grantedSession": "Permission granted (rule added for this session).",
+  "logs.permission.grantedOnce": "Permission granted (once).",
+  "logs.permission.denied": "Permission denied.",
+  "logs.permission.deniedReason": "Permission denied with reason forwarded to agent.",
+  "logs.diagnostic.terminated":
+    "The agent backend was terminated by SIGTERM (exit code {code}). The likely cause is the out-of-memory protection on this machine. The conversation is saved and can be resumed.",
+  "logs.diagnostic.killed":
+    "The agent backend was killed by SIGKILL (exit code {code}). The likely cause is the out-of-memory protection on this machine. The conversation is saved and can be resumed.",
+  "logs.diagnostic.signal": "The agent backend was stopped by signal {signal} (exit code {code}). The conversation is saved and can be resumed.",
+  "logs.diagnostic.stoppedDuringTurn": "The agent backend stopped during the turn. The conversation is saved and can be resumed.",
+  "logs.diagnostic.streamError": "Stream error: {error}",
+  "logs.diagnostic.stopped": "Agent stopped: {status}.",
+  "logs.diagnostic.missingCwd": "Likely cause: cwd `{cwd}` no longer exists. Click the agent name in the log view header to point it at a valid directory.",
+  "logs.diagnostic.missingSession":
+    "Likely cause: session `{session}` was not found in `{directory}`. This usually happens after cwd was moved/renamed — the Claude CLI locates session files by a path derived from cwd. Use /resume to pick another session, or move the session .jsonl into the new project dir.",
+  "logs.permission.resolveFailed": "Failed to resolve permission: {error}",
 } as const;
