@@ -1,3 +1,4 @@
+import { handoffTokens } from "../../shared/agents/handoff.ts";
 import { homedir } from "os";
 import { join } from "path";
 import { statSync } from "fs";
@@ -184,6 +185,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
     topicStale: false,
     customInstructions: entry.customInstructions ?? null,
     autoHandoff: entry.autoHandoff === true,
+    autoHandoffTokens: handoffTokens(entry.autoHandoffTokens),
     resumeAfterUsageLimit: entry.resumeAfterUsageLimit !== false,
     customInstructionsVersion: versionOf(entry.customInstructions ?? ""),
     queue: [],

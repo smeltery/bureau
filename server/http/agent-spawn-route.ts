@@ -1,3 +1,4 @@
+import { handoffSettingsError } from "../../shared/agents/handoff.ts";
 import * as AgentManager from "../agent-manager.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { saveRecentCwd } from "../persistence.ts";
@@ -18,6 +19,8 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
   }
   const body = await readJsonBody(req);
   if (!body) return jsonError(400, "invalid JSON body");
+  const handoffError = handoffSettingsError(body);
+  if (handoffError) return jsonError(422, handoffError);
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const cwd = typeof body.cwd === "string" ? body.cwd : "";
   const roomId = typeof body.roomId === "string" ? body.roomId : "";
@@ -57,6 +60,7 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
     agentType === "codex" ? (permissions.codexSandbox ?? requestedSandbox) : undefined,
     typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
     operator ? operator.manager.id : auth?.kind === "ok" ? auth.session.userId : null,
+    { autoHandoff: body.autoHandoff as boolean | undefined, autoHandoffTokens: body.autoHandoffTokens as number | undefined },
   );
   if (!agent) return jsonError(409, "agent name is taken or desk is unavailable");
   return new Response(JSON.stringify({ agent }), { status: 201, headers: JSON_HEADERS });

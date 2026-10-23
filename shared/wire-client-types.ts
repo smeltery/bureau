@@ -9,6 +9,8 @@ import type { RoomPet, RoomSkin, UserRecord, UserRole, ExperimentalSettings } fr
 export type ClientCommand =
   | {
       type: "spawn";
+      autoHandoff?: boolean;
+      autoHandoffTokens?: number;
       requestId?: string;
       name: string;
       cwd: string;
@@ -49,6 +51,7 @@ export type ClientCommand =
       customInstructions?: string;
       customInstructionsVersion?: string;
       autoHandoff?: boolean;
+      autoHandoffTokens?: number;
       resumeAfterUsageLimit?: boolean;
       agentType?: AgentInfo["agentType"];
       modelFamily?: string;

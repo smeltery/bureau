@@ -1,11 +1,18 @@
 # Automatic handoff
 
-Open an existing agent’s settings and enable **Automatic handoff**. The preference
-survives restarts and reviving the agent. It is off by default and can also be
-changed with `PATCH /api/agents/:id` using `{ "autoHandoff": true }`.
+Enable **Automatic handoff** when creating an agent or in its settings. Set its
+**Token limit** to a whole number from 50,000 to 10,000,000 (default: 500,000).
+The switch and limit survive restarts and reviving the agent. Turning the switch
+off preserves the saved limit. Automatic handoff is off by default.
 
-After a successful turn, Bureau checks the context window. At 85% full or 500,000
-tokens, whichever comes first, it asks the agent for one concise handoff brief in
+The spawn API (`POST /api/agents`) and edit API (`PATCH /api/agents/:id`) accept
+`{ "autoHandoff": true, "autoHandoffTokens": 250000 }`. Omitted fields retain
+existing settings; invalid values return HTTP 422 before changing the agent.
+Changing the limit takes effect at the next context check; it does not restart
+the current conversation.
+
+After a successful turn, Bureau checks the context window. At 85% full or the agent’s token
+limit, whichever comes first, it asks the agent for one concise handoff brief in
 the old conversation. When OpenCode reports an earlier compaction point, Bureau
 reserves another 5% of the context window before that point for writing the brief.
 The brief includes the goal, next steps, working state, decisions, open questions

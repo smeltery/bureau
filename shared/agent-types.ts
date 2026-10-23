@@ -69,6 +69,7 @@ export interface AgentInfo {
   capabilities: AgentCapabilities;
   privileged?: boolean;
   autoHandoff?: boolean;
+  autoHandoffTokens?: number;
   resumeAfterUsageLimit?: boolean;
   usageResumeAt?: number | null;
   codexSandbox?: CodexSandboxMode;
