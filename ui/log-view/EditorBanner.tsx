@@ -1,4 +1,6 @@
-import type { Tab } from "./editor-model.ts";
+import type { Translator } from "../../shared/i18n/translate.ts";
+import { useI18n } from "../i18n.tsx";
+import type { Tab, EditorOpenError } from "./editor-model.ts";
 
 export function EditorBanner({
   activeTab,
@@ -11,7 +13,7 @@ export function EditorBanner({
   onDismissError,
 }: {
   activeTab: Tab | null;
-  pendingError: string | null;
+  pendingError: EditorOpenError | null;
   onOverwrite: () => void;
   onReload: () => void;
   onRecreate: () => void;
@@ -19,6 +21,8 @@ export function EditorBanner({
   onDismissBanner: () => void;
   onDismissError: () => void;
 }) {
+  const translator = useI18n();
+  const { t } = translator;
   return (
     <>
       {activeTab?.banner && (
@@ -37,42 +41,42 @@ export function EditorBanner({
         >
           {activeTab.banner.kind === "stale" && (
             <>
-              <span style={{ flex: 1 }}>File changed on disk since you opened it.</span>
+              <span style={{ flex: 1 }}>{t("editor.stale")}</span>
               <button onClick={onOverwrite} style={bannerBtn("var(--orange)")}>
-                Overwrite
+                {t("editor.overwrite")}
               </button>
               <button onClick={onReload} style={bannerBtn("var(--text-secondary)")}>
-                Reload
+                {t("editor.reload")}
               </button>
             </>
           )}
           {activeTab.banner.kind === "external" && (
             <>
-              <span style={{ flex: 1 }}>File changed externally — your edits will be lost if you reload.</span>
+              <span style={{ flex: 1 }}>{t("editor.external")}</span>
               <button onClick={onReload} style={bannerBtn("var(--orange)")}>
-                Reload
+                {t("editor.reload")}
               </button>
               <button onClick={onDismissBanner} style={bannerBtn("var(--text-secondary)")}>
-                Dismiss
+                {t("editor.dismiss")}
               </button>
             </>
           )}
           {activeTab.banner.kind === "deleted" && (
             <>
-              <span style={{ flex: 1 }}>File was deleted on disk. Saving will recreate it from this buffer.</span>
+              <span style={{ flex: 1 }}>{t("editor.deleted")}</span>
               <button onClick={onRecreate} style={bannerBtn("var(--orange)")}>
-                Save to recreate
+                {t("editor.recreate")}
               </button>
               <button onClick={onCloseTab} style={bannerBtn("var(--text-secondary)")}>
-                Close tab
+                {t("editor.closeTab")}
               </button>
             </>
           )}
           {activeTab.banner.kind === "save_error" && (
             <>
-              <span style={{ flex: 1 }}>Save failed: {activeTab.banner.message}</span>
+              <span style={{ flex: 1 }}>{activeTab.banner.message ? t("editor.saveFailed", { error: activeTab.banner.message }) : t("editor.saveFailedUnknown")}</span>
               <button onClick={onDismissBanner} style={bannerBtn("var(--red)")}>
-                Dismiss
+                {t("editor.dismiss")}
               </button>
             </>
           )}
@@ -92,9 +96,11 @@ export function EditorBanner({
             gap: 8,
           }}
         >
-          <span style={{ flex: 1 }}>{pendingError}</span>
+          <span style={{ flex: 1 }}>
+            {pendingError.path}: {describeOpenError(pendingError, translator)}
+          </span>
           <button onClick={onDismissError} style={bannerBtn("var(--red)")}>
-            Dismiss
+            {t("editor.dismiss")}
           </button>
         </div>
       )}
@@ -113,4 +119,23 @@ function bannerBtn(color: string): React.CSSProperties {
     fontFamily: "'JetBrains Mono',monospace",
     cursor: "pointer",
   };
+}
+
+function describeOpenError(error: EditorOpenError, { t, language }: Translator): string {
+  switch (error.reason) {
+    case "not_found":
+      return t("editor.notFound");
+    case "not_file":
+      return t("editor.notFile");
+    case "binary":
+      return t("editor.binary");
+    case "too_large":
+      return typeof error.size === "number"
+        ? t("editor.tooLarge", { size: (error.size / 1024).toLocaleString(language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })
+        : t("editor.tooLargeUnknown");
+    case "io_error":
+      return t("editor.ioError", { error: error.message ?? t("editor.unknownError") });
+    case "bad_path":
+      return t("editor.badPath");
+  }
 }

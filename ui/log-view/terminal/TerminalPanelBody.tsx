@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import type { RefObject } from "react";
 import { MobileInputProxy } from "../terminal-mobile.tsx";
 import { TerminalExitOverlay } from "../terminal-chrome.tsx";
@@ -23,6 +24,7 @@ export function TerminalPanelBody({
   onSendToChat?: () => void;
   onSendInput: (data: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       ref={bodyRef}
@@ -51,7 +53,7 @@ export function TerminalPanelBody({
             e.stopPropagation();
             if (e.detail === 0) onSendToChat();
           }}
-          title="Insert selected terminal output into the chat input"
+          title={t("terminal.sendHint")}
           style={{
             position: "absolute",
             top: 8,
@@ -70,7 +72,7 @@ export function TerminalPanelBody({
             WebkitTapHighlightColor: "transparent",
           }}
         >
-          Send to chat
+          {t("terminal.send")}
         </button>
       )}
       {exited !== null && <TerminalExitOverlay exitCode={exited} onRestart={onRespawn} />}

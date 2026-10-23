@@ -2,7 +2,7 @@ import { useCallback, useEffect, type Dispatch, type MutableRefObject, type RefO
 import type { EditorView } from "@codemirror/view";
 import { send } from "../../ws.ts";
 import { getEditorState, setEditorState, type PersistedTab } from "../editor-state.ts";
-import { readTabs, type Tab } from "../editor-model.ts";
+import { readTabs, type Tab, type EditorOpenError } from "../editor-model.ts";
 
 export function useEditorPanelLifecycle({
   activePath,
@@ -26,7 +26,7 @@ export function useEditorPanelLifecycle({
   onPathOpened?: (path: string) => void;
   saveActiveTab: () => void;
   setActivePath: Dispatch<SetStateAction<string | null>>;
-  setPendingError: (value: string | null) => void;
+  setPendingError: (value: EditorOpenError | null) => void;
   setTabMenuOpen: Dispatch<SetStateAction<boolean>>;
   tabMenuButtonRef: RefObject<HTMLButtonElement | null>;
   tabMenuOpen: boolean;

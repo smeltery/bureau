@@ -1,3 +1,4 @@
+import { panels } from "./panels/ca.ts";
 import { chat } from "./chat/ca.ts";
 import { tasks } from "./tasks/ca.ts";
 import { profile } from "./profile-ca.ts";
@@ -17,6 +18,7 @@ export const ca = {
   ...storage,
   ...tasks,
   ...chat,
+  ...panels,
   "access.title": "Accés",
   "apiTokens.title": "Tokens d’API",
   "apps.confirmDelete": "Vols eliminar {name}? Se’n conservarà el directori de dades.",

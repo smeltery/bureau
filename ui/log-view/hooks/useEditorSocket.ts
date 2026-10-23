@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { ServerMessage } from "../../../shared/types.ts";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
-import { rememberRecentFile, type Tab } from "../editor-model.ts";
+import { rememberRecentFile, type Tab, type EditorOpenError } from "../editor-model.ts";
 
 export function useEditorSocket({
   agentId,
@@ -12,7 +12,7 @@ export function useEditorSocket({
   tabsRef,
 }: {
   agentId: string;
-  setPendingError: (value: string | null) => void;
+  setPendingError: (value: EditorOpenError | null) => void;
   setActivePath: (updater: (prev: string | null) => string | null) => void;
   setTabsAndPersist: (updater: (prev: Tab[]) => Tab[]) => void;
   setRecentPaths: (paths: string[]) => void;
@@ -74,19 +74,7 @@ export function useEditorSocket({
         setActivePath((prev) => prev ?? m.path);
       } else if (msg.type === "editor_open_error" && msg.agentId === agentId) {
         const m = msg;
-        const reason =
-          m.reason === "not_found"
-            ? "not found"
-            : m.reason === "not_file"
-              ? "not a file"
-              : m.reason === "binary"
-                ? "binary file (text only)"
-                : m.reason === "too_large"
-                  ? `too large (${m.size ? (m.size / 1024).toFixed(1) + " KB" : ""}, 1 MB limit)`
-                  : m.reason === "io_error"
-                    ? `error: ${m.message ?? "unknown"}`
-                    : "bad path";
-        setPendingError(`${m.path}: ${reason}`);
+        setPendingError(m);
       } else if (msg.type === "editor_save_response" && msg.agentId === agentId) {
         const m = msg;
         setTabsAndPersist((prev) =>
@@ -101,7 +89,7 @@ export function useEditorSocket({
             if (m.reason === "deleted") {
               return { ...t, banner: { kind: "deleted" } };
             }
-            return { ...t, banner: { kind: "save_error", message: m.error ?? "save failed" } };
+            return { ...t, banner: { kind: "save_error", message: m.error } };
           }),
         );
       } else if (msg.type === "editor_external_change" && msg.agentId === agentId) {

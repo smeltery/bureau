@@ -1,3 +1,4 @@
+import type { ServerMessage } from "../../shared/types.ts";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { markdown } from "@codemirror/lang-markdown";
@@ -8,6 +9,8 @@ import { rust } from "@codemirror/lang-rust";
 import { go } from "@codemirror/lang-go";
 import { storageGetItem, storageSetItem } from "../browser-storage.ts";
 
+export type EditorOpenError = Extract<ServerMessage, { type: "editor_open_error" }>;
+
 export interface Tab {
   path: string;
   content: string;
@@ -16,7 +19,7 @@ export interface Tab {
   language: string;
   size: number;
   dirty: boolean;
-  banner: null | { kind: "stale"; currentMtime: number } | { kind: "external"; mtime: number } | { kind: "deleted" } | { kind: "save_error"; message: string };
+  banner: null | { kind: "stale"; currentMtime: number } | { kind: "external"; mtime: number } | { kind: "deleted" } | { kind: "save_error"; message?: string };
 }
 
 const TABS_KEY = (agentId: string) => `bureau:editor:tabs:${agentId}`;

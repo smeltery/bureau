@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { RefObject } from "react";
 import { basename, type Tab } from "./editor-model.ts";
 import { StatusShape } from "../icons/StatusShape.tsx";
@@ -27,6 +28,7 @@ export function EditorTabsMobileHeader({
   onSave: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -51,7 +53,7 @@ export function EditorTabsMobileHeader({
             whiteSpace: "nowrap",
           }}
         >
-          No file open
+          {t("editor.empty")}
         </div>
       ) : (
         <button
@@ -83,7 +85,7 @@ export function EditorTabsMobileHeader({
               minWidth: 0,
             }}
           >
-            {activeTab ? basename(activeTab.path) + (activeTab.dirty ? "*" : "") : "Select file"}
+            {activeTab ? basename(activeTab.path) + (activeTab.dirty ? "*" : "") : t("editor.select")}
           </span>
           <span
             style={{
@@ -113,9 +115,9 @@ export function EditorTabsMobileHeader({
             fontWeight: 500,
             cursor: "pointer",
           }}
-          title="Save"
+          title={t("common.save")}
         >
-          Save
+          {t("common.save")}
         </button>
       )}
       <CloseEditorButton onClose={onClose} mobile />
@@ -136,12 +138,12 @@ export function EditorTabsMobileHeader({
             boxShadow: "0 4px 12px var(--shadow)",
           }}
         >
-          {tabs.map((t) => {
-            const isActive = t.path === activePath;
+          {tabs.map((tab) => {
+            const isActive = tab.path === activePath;
             return (
               <div
-                key={t.path}
-                onClick={() => onSelectTab(t.path)}
+                key={tab.path}
+                onClick={() => onSelectTab(tab.path)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -155,7 +157,7 @@ export function EditorTabsMobileHeader({
                   borderBottom: "1px solid var(--border)",
                   cursor: "pointer",
                 }}
-                title={t.path}
+                title={tab.path}
               >
                 <span
                   style={{
@@ -166,13 +168,13 @@ export function EditorTabsMobileHeader({
                     minWidth: 0,
                   }}
                 >
-                  {basename(t.path)}
-                  {t.dirty ? "*" : ""}
+                  {basename(tab.path)}
+                  {tab.dirty ? "*" : ""}
                 </span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onCloseTab(t.path);
+                    onCloseTab(tab.path);
                   }}
                   style={{
                     background: "none",
@@ -189,7 +191,8 @@ export function EditorTabsMobileHeader({
                     lineHeight: 1,
                     flexShrink: 0,
                   }}
-                  title="Close tab"
+                  title={t("editor.closeTab")}
+                  aria-label={t("editor.closeTab")}
                 >
                   &times;
                 </button>
@@ -203,6 +206,7 @@ export function EditorTabsMobileHeader({
 }
 
 function CloseEditorButton({ onClose, mobile = false }: { onClose: () => void; mobile?: boolean }) {
+  const { t } = useI18n();
   return (
     <button
       onClick={onClose}
@@ -216,7 +220,8 @@ function CloseEditorButton({ onClose, mobile = false }: { onClose: () => void; m
         lineHeight: 1,
         flexShrink: 0,
       }}
-      title="Close editor"
+      title={t("editor.close")}
+      aria-label={t("editor.close")}
     >
       &times;
     </button>

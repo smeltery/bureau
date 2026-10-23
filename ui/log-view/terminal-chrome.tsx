@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 export function TerminalHeader({
   recordingStatus,
   mobile,
@@ -11,14 +12,17 @@ export function TerminalHeader({
   onInterrupt?: () => void;
   onRestart?: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 12px",
-        height: mobile ? 44 : 36,
+        padding: "4px 12px",
+        minHeight: mobile ? 44 : 36,
+        flexWrap: "wrap",
+        gap: 6,
         borderBottom: "1px solid var(--border-strong)",
         background: "var(--bg-surface)",
         flexShrink: 0,
@@ -34,9 +38,9 @@ export function TerminalHeader({
         }}
       >
         {!mobile && <span style={{ color: "var(--green)", fontSize: 13 }}>&#9654;</span>}
-        Terminal
+        {t("terminal.title")}
         {recordingStatus && recordingStatus !== "off" && (
-          <span role="status"> · {recordingStatus === "recording" ? "Recording" : recordingStatus === "error" ? "Recording failed" : "Recording stopped"}</span>
+          <span role="status"> · {t(recordingStatus === "recording" ? "terminal.recording" : recordingStatus === "error" ? "terminal.recordingError" : "terminal.recordingStopped")}</span>
         )}
       </span>
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -51,9 +55,9 @@ export function TerminalHeader({
             fontSize: mobile ? 11 : 10,
             cursor: "pointer",
           }}
-          title="Interrupt the foreground command"
+          title={t("terminal.interruptHint")}
         >
-          Interrupt
+          {t("terminal.interrupt")}
         </button>
         <button
           onClick={onRestart}
@@ -66,9 +70,9 @@ export function TerminalHeader({
             fontSize: mobile ? 11 : 10,
             cursor: "pointer",
           }}
-          title="Restart terminal"
+          title={t("terminal.restartHint")}
         >
-          Restart
+          {t("terminal.restart")}
         </button>
         <button
           onClick={onClose}
@@ -81,7 +85,8 @@ export function TerminalHeader({
             padding: mobile ? "4px 10px" : "0 4px",
             lineHeight: 1,
           }}
-          title="Close terminal"
+          title={t("terminal.close")}
+          aria-label={t("terminal.close")}
         >
           &times;
         </button>
@@ -91,6 +96,7 @@ export function TerminalHeader({
 }
 
 export function TerminalExitOverlay({ exitCode, onRestart }: { exitCode: number; onRestart: () => void }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -110,7 +116,7 @@ export function TerminalExitOverlay({ exitCode, onRestart }: { exitCode: number;
         boxShadow: "0 4px 12px var(--shadow)",
       }}
     >
-      <span>Shell exited ({exitCode})</span>
+      <span>{t("terminal.exited", { code: exitCode })}</span>
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -126,7 +132,7 @@ export function TerminalExitOverlay({ exitCode, onRestart }: { exitCode: number;
           cursor: "pointer",
         }}
       >
-        Restart
+        {t("terminal.restart")}
       </button>
     </div>
   );
