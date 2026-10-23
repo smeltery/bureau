@@ -94,7 +94,7 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
         }
       }
       if (ev.status !== "completed") {
-        const errorText = ev.error ?? logMessage("logs.run.stopped", { status: ev.status });
+        const errorText = ev.bureauAuthored && ev.errorMessage ? ev.errorMessage : (ev.error ?? logMessage("logs.run.stopped", { status: ev.status }));
         writeLog(active, "error", errorText, emitEvent);
       }
       break;
@@ -115,7 +115,7 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
       writeLog(active, "system", logMessage("logs.run.approval", { tool: ev.toolName }), emitEvent);
       break;
     case "error":
-      writeLog(active, "error", ev.message, emitEvent);
+      writeLog(active, "error", ev.bureauAuthored && ev.errorMessage ? ev.errorMessage : ev.message, emitEvent);
       break;
   }
 }

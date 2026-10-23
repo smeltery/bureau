@@ -1,4 +1,4 @@
-import { bureauSystemNotice } from "../session-types.ts";
+import { bureauSystemNotice, bureauError } from "../session-types.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { NormalizedEvent } from "../types.ts";
 import { PASS, type JsonRpcId, type JsonRpcRequest } from "./client-types.ts";
@@ -127,10 +127,7 @@ export async function handleCodexServerRequest(req: JsonRpcRequest, deps: CodexS
     case "account/chatgptAuthTokens/refresh":
       // We don't have a token store; respond with an error so codex falls
       // back to user-facing login flow.
-      deps.enqueue({
-        kind: "error",
-        message: `Codex requested a ChatGPT auth token refresh, but Bureau has no token store. ${LOGIN_INSTRUCTIONS}`,
-      });
+      deps.enqueue(bureauError(logMessage("logs.backend.tokenRefresh", { instructions: logMessage("logs.login.codex", { value: "<your value>" }) })));
       throw new Error(`No token store: ${LOGIN_INSTRUCTIONS}`);
 
     // Untested at v1: attestation/generate (codex requests an attestation

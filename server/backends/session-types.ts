@@ -87,6 +87,9 @@ export type NormalizedEvent =
       costMode?: "turn";
       usageId?: string;
       error?: string;
+      /** Display metadata for errors composed by Bureau, never relayed provider text. */
+      bureauAuthored?: true;
+      errorMessage?: LogMessage;
       causedByAuth?: boolean;
       causedByProviderCapacity?: boolean;
       usageLimitResetAt?: number;
@@ -94,7 +97,7 @@ export type NormalizedEvent =
   | { kind: "provider_capacity_retry"; attempt: number; maxAttempts: number; delayMs: number }
   | { kind: "usage_update"; tokenUsage: TokenUsage }
   | { kind: "compacted"; summary?: string }
-  | { kind: "error"; message: string; code?: string }
+  | { kind: "error"; message: string; code?: string; bureauAuthored?: true; errorMessage?: LogMessage }
   // Free-text system breadcrumb (e.g. Codex's auto-decline notices).
   //
   // The orchestrator sniffs every system_text for auth trouble, because most
@@ -233,4 +236,12 @@ export interface BackendSession {
 /** Canonical English stays available to backend consumers and older clients. */
 export function bureauSystemNotice(message: LogMessage): Extract<NormalizedEvent, { kind: "system_text" }> {
   return { kind: "system_text", text: logContent(message).content, bureauAuthored: true, message };
+}
+
+export function bureauTurnFailure(errorMessage: LogMessage): Extract<NormalizedEvent, { kind: "turn_completed" }> {
+  return { kind: "turn_completed", status: "failed", error: logContent(errorMessage).content, bureauAuthored: true, errorMessage };
+}
+
+export function bureauError(errorMessage: LogMessage): Extract<NormalizedEvent, { kind: "error" }> {
+  return { kind: "error", message: logContent(errorMessage).content, bureauAuthored: true, errorMessage };
 }

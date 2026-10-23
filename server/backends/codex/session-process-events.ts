@@ -1,4 +1,4 @@
-import { bureauSystemNotice } from "../session-types.ts";
+import { bureauSystemNotice, bureauTurnFailure } from "../session-types.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { NormalizedEvent } from "../types.ts";
 import { filterMissingToolOutputRepeats } from "../../../shared/log-types.ts";
@@ -24,11 +24,9 @@ export function handleCodexSessionStderr(chunk: string, seenMissingToolOutputs: 
 
 export function codexSubprocessExitEvent({ code, signal, turnInFlight }: { code: number | null; signal: NodeJS.Signals | null; turnInFlight: boolean }): NormalizedEvent {
   if (turnInFlight) {
-    return {
-      kind: "turn_completed",
-      status: "failed",
-      error: `codex subprocess exited${code != null ? ` (code ${code})` : ""}${signal ? ` (signal ${signal})` : ""} mid-turn`,
-    };
+    return bureauTurnFailure(
+      logMessage("logs.backend.processMidExit", { code: code != null ? logMessage("logs.backend.exitCode", { code }) : "", signal: signal ? logMessage("logs.backend.exitSignal", { signal }) : "" }),
+    );
   }
   return bureauSystemNotice(
     logMessage("logs.backend.processExit", { code: code != null ? logMessage("logs.backend.exitCode", { code }) : "", signal: signal ? logMessage("logs.backend.exitSignal", { signal }) : "" }),

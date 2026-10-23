@@ -2,7 +2,8 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, rmSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { displayLogContent, logContent, type LogMessage } from "../../../shared/i18n/log-message.ts";
+import { bureauError, bureauTurnFailure } from "../../backends/session-types.ts";
+import { displayLogContent, logMessage, logContent, type LogMessage } from "../../../shared/i18n/log-message.ts";
 import { cronjobRunStreamId, type CronjobRun, type LogEntry } from "../../../shared/types.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { getBackend } from "../../backends/index.ts";
@@ -241,4 +242,29 @@ test("preflight errors redact both English text and translated parameters before
   expect(entry.content).toContain("sk-proj-...REDACTED");
   expect(displayLogContent(entry, "es")).toContain("sk-proj-...REDACTED");
   expect(loadRunLog(f.id, f.id, "actual-session")[0]).toEqual(entry);
+});
+
+test("backend failure metadata survives scheduled-run persistence without changing status or error reason", async () => {
+  for (const terminal of [bureauTurnFailure(logMessage("logs.provider.rateLimit")), bureauError(logMessage("logs.backend.streamFailed", { error: "Original detail {value}" }))]) {
+    const f = fixture();
+    f.active.session.stream = async function* () {
+      yield { kind: "system_init", sessionId: "original-session" } as const;
+      yield terminal;
+    };
+    await runConsumerWithDeps(f.deps, f.active);
+    const errors = f.entries.filter((entry) => entry.kind === "error");
+    expect(errors).toHaveLength(1);
+    expectTranslated(errors[0], terminal.errorMessage!.key, terminal.kind === "error" ? "Original detail {value}" : undefined);
+    expect(findRun(f.id, f.id)).toMatchObject({ status: "failed", errorReason: terminal.kind === "error" ? terminal.message : terminal.error });
+    expect(loadRunLog(f.id, f.id, "original-session").filter((entry) => entry.kind === "error")).toEqual(errors);
+  }
+});
+
+test("scheduled provider errors ignore untrusted translation metadata", () => {
+  const f = fixture();
+  const errorMessage = logMessage("logs.provider.auth");
+  processNormalizedEvent(f.active, { kind: "error", message: "Original failure", errorMessage }, f.deps.emitEvent);
+  processNormalizedEvent(f.active, { kind: "turn_completed", status: "failed", error: "Original completion", errorMessage }, f.deps.emitEvent);
+  expect(f.entries.map((entry) => displayLogContent(entry, "zh"))).toEqual(["Original failure", "Original completion"]);
+  expect(f.entries.every((entry) => entry.message === undefined)).toBe(true);
 });

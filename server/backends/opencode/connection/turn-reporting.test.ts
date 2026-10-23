@@ -1,3 +1,4 @@
+import { displayLogContent, logContent } from "../../../../shared/i18n/log-message.ts";
 import { expect, test } from "bun:test";
 import { OpenCodeTurnAccounting } from "./turn-accounting.ts";
 import { providerFailure } from "./failures.ts";
@@ -73,4 +74,33 @@ test("provider retries explain the cause without echoing provider secrets", () =
   expect(JSON.stringify(f.events)).not.toContain("secret-token");
   expect(providerFailure({ statusCode: 503 })).toContain("503");
   expect(providerFailure({ message: "ECONNREFUSED secret-token" })).toContain("connect");
+});
+
+test("terminal provider failures keep canonical errors and translated safe explanations", () => {
+  for (const error of [{ statusCode: 401 }, { statusCode: 429 }, { statusCode: 503 }, { message: "ECONNREFUSED secret-token" }]) {
+    const f = fixture();
+    f.wire("session.error", { sessionID: "s", error: { name: "APIError", data: error } });
+    const event = f.events.at(-1)!;
+    expect(event.kind).toBe("turn_completed");
+    if (event.kind !== "turn_completed") throw new Error("Expected completion");
+    expect(event.error).toBe(providerFailure(error));
+    expect(event.bureauAuthored).toBe(true);
+    expect(event.errorMessage).toBeDefined();
+    expect(event.causedByAuth).toBe("statusCode" in error && error.statusCode === 401 ? true : undefined);
+    const entry = { ...logContent(event.errorMessage!), kind: "error" as const };
+    for (const language of ["es", "ca", "zh"] as const) expect(displayLogContent(entry, language)).not.toBe(event.error);
+    expect(JSON.stringify(event)).not.toContain("secret-token");
+  }
+});
+
+test("incomplete idle and permission faults carry translated terminal errors", () => {
+  for (const overflow of [false, true]) {
+    const f = fixture();
+    if (overflow) f.wire("session.error", { sessionID: "s", error: { name: "ContextOverflowError" } });
+    f.wire("session.idle", { sessionID: "s" });
+    expect(f.events.at(-1)).toMatchObject({ kind: "turn_completed", status: "failed", errorMessage: { key: overflow ? "logs.provider.context" : "logs.backend.idleIncomplete" } });
+  }
+  const f = fixture();
+  applyOpenCodeEvent({ kind: "permission_fault", sessionId: "s" }, f.context);
+  expect(f.events.at(-1)).toMatchObject({ error: "OpenCode asked to use a tool but sent no permission id.", errorMessage: { key: "logs.backend.permissionFault" } });
 });

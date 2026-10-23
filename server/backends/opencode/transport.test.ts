@@ -1,3 +1,4 @@
+import { OPENCODE_TURN_HANDLE_PLACEHOLDER } from "./office-proxy-shared.ts";
 import { afterEach, describe, expect, it } from "bun:test";
 import type { NormalizedEvent } from "../types.ts";
 import type { OpenCodeLease, OpenCodeSupervisor } from "./supervisor.ts";
@@ -174,4 +175,30 @@ describe("OpenCode catalog-backed prompt settings", () => {
       transport.close();
     }
   });
+});
+
+it("missing prompt and authority fail before acquiring a process", async () => {
+  for (const [systemPrompt, key] of [
+    [undefined, "logs.backend.missingPrompt"],
+    [OPENCODE_TURN_HANDLE_PLACEHOLDER, "logs.backend.missingBinding"],
+  ] as const) {
+    let acquired = false;
+    const transport = new OpenCodeTransport({
+      cwd: "/tmp",
+      model: "test/model",
+      systemPrompt,
+      supervisor: {
+        acquire: async () => {
+          acquired = true;
+          throw new Error("Unexpected acquire");
+        },
+      } as unknown as OpenCodeSupervisor,
+    });
+    const events: NormalizedEvent[] = [];
+    await transport.send("original prompt", undefined, "agent", (event) => events.push(event));
+    expect(acquired).toBe(false);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: "turn_completed", status: "failed", bureauAuthored: true, errorMessage: { key } });
+    transport.close();
+  }
 });

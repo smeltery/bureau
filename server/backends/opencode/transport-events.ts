@@ -1,4 +1,4 @@
-import { bureauSystemNotice } from "../session-types.ts";
+import { bureauSystemNotice, bureauTurnFailure } from "../session-types.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { NormalizedEvent } from "../types.ts";
 import { providerFailure, providerFailureMessage } from "./connection/failures.ts";
@@ -130,9 +130,8 @@ export function applyOpenCodeEvent(
     });
   }
   if (event.kind === "permission_fault") {
-    const msg = "OpenCode asked to use a tool but sent no permission id.";
     ctx.sink(bureauSystemNotice(logMessage("logs.backend.permissionFault")));
-    ctx.settle({ kind: "turn_completed", status: "failed", error: msg });
+    ctx.settle(bureauTurnFailure(logMessage("logs.backend.permissionFault")));
   }
   if (event.kind === "step_finish") {
     if (ctx.accounting.record(event) && event.contextBreakdown) ctx.onContext(event.contextBreakdown);
@@ -142,11 +141,11 @@ export function applyOpenCodeEvent(
       for (const result of interruptedToolResults(ctx.tools.values())) ctx.sink(result);
       ctx.settle({ kind: "turn_completed", status: "interrupted" });
     } else if (ctx.accounting.overflowPending) {
-      ctx.settle({ kind: "turn_completed", status: "failed", error: providerFailure({ name: "ContextOverflowError" }) });
+      ctx.settle(bureauTurnFailure(providerFailureMessage({ name: "ContextOverflowError" })));
     } else if (ctx.accounting.completed) {
       ctx.settle({ kind: "turn_completed", status: "completed" });
     } else {
-      ctx.settle({ kind: "turn_completed", status: "failed", error: "OpenCode became idle without a recorded completion." });
+      ctx.settle(bureauTurnFailure(logMessage("logs.backend.idleIncomplete")));
     }
   }
   if (event.kind === "error") {
@@ -157,9 +156,7 @@ export function applyOpenCodeEvent(
       return;
     }
     ctx.settle({
-      kind: "turn_completed",
-      status: "failed",
-      error: classifyFailure(event.error),
+      ...bureauTurnFailure(providerFailureMessage(event.error)),
       ...(event.error.statusCode === 401 || event.error.statusCode === 403 ? { causedByAuth: true } : {}),
     });
   }

@@ -1,4 +1,6 @@
-import { displayLogContent } from "../../../shared/i18n/log-message.ts";
+import { bureauError, bureauTurnFailure } from "../../backends/session-types.ts";
+import { codexSubprocessExitEvent } from "../../backends/codex/session-process-events.ts";
+import { logMessage, displayLogContent } from "../../../shared/i18n/log-message.ts";
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
@@ -234,4 +236,45 @@ test("event and stream failures render translated diagnoses while retaining meta
     expect(displayLogContent(entry, "es").startsWith("Error de flujo:")).toBe(streamFailure);
     expect(managed.info.state).toBe("error");
   }
+});
+
+test("auth and failure state use original errors while Bureau explanations translate", async () => {
+  for (const event of [
+    bureauTurnFailure(logMessage("logs.provider.rateLimit")),
+    bureauError(logMessage("logs.backend.streamFailed", { error: "Original detail {value}" })),
+    { ...bureauTurnFailure(logMessage("logs.provider.auth")), causedByAuth: true },
+    codexSubprocessExitEvent({ code: 143, signal: null, turnInFlight: true }),
+  ]) {
+    const agentId = crypto.randomUUID();
+    const session = eventSession([event]);
+    const managed = createManagedAgent({ info: agentInfo(agentId, "opencode"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+    managed.session = session;
+    agents.set(agentId, managed);
+    await runConsumer(agentId, managed, session);
+    const entry = logCache.get(agentId)!.find((entry) => entry.kind === "error")!;
+    for (const language of ["es", "ca", "zh"] as const) expect(displayLogContent(entry, language)).not.toBe(entry.content);
+    expect(managed.info.state).toBe("causedByAuth" in event && event.causedByAuth ? "waiting_for_response" : "error");
+    if (event.kind === "error") expect(displayLogContent(entry, "zh")).toContain("Original detail {value}");
+    if (event.kind === "turn_completed" && event.error?.includes("143")) {
+      expect(entry.message?.key).toBe("logs.diagnostic.terminated");
+      expect(entry.metadata?.backendFailureRaw).toBe(event.error);
+    }
+  }
+});
+
+test("provider errors cannot supply translation metadata without Bureau authorship", async () => {
+  const agentId = crypto.randomUUID();
+  const errorMessage = logMessage("logs.provider.auth");
+  const session = eventSession([
+    { kind: "turn_completed", status: "failed", error: "Original completion", errorMessage },
+    { kind: "error", message: "Original failure", errorMessage },
+  ]);
+  const managed = createManagedAgent({ info: agentInfo(agentId, "opencode"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+  managed.session = session;
+  agents.set(agentId, managed);
+  await runConsumer(agentId, managed, session);
+  const entries = logCache.get(agentId)!;
+  expect(entries.map((entry) => displayLogContent(entry, "zh"))).toEqual(["Original completion", "Original failure"]);
+  expect(entries.every((entry) => entry.message === undefined)).toBe(true);
+  expect(managed.info.state).toBe("error");
 });
