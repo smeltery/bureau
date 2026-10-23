@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { STORAGE_CATEGORY_ORDER } from "../../shared/storage-labels.ts";
 import type { StorageUsageWire } from "../../shared/storage-types.ts";
-import { renderStorageReport } from "./report.ts";
+import { displayLogText } from "../../shared/i18n/log-message.ts";
+import { renderStorageReport, storageReportMessage } from "./report.ts";
 
 describe("storage report rendering", () => {
   test("summarizes categories and biggest agents", () => {
@@ -83,4 +84,23 @@ describe("storage report rendering", () => {
 
     expect(report).toContain("| Backups | unavailable | - |");
   });
+});
+
+test("localized storage payload preserves visible data and excludes filesystem roots", () => {
+  const message = storageReportMessage({
+    measuredAt: 0,
+    stateRoot: "/private/state",
+    stateRootBytes: 1536,
+    categories: [{ id: "backups", path: "/private/backups", available: false, bytes: 0, files: 0 }],
+    agents: Array.from({ length: 12 }, (_, index) => ({ agentId: `agent-${index}`, transcriptBytes: index * 1024, attachmentBytes: 0, sessions: index, lastActivityAt: null })),
+  });
+  expect(JSON.stringify(message)).not.toContain("/private/");
+  const report = displayLogText("fallback", message, "es");
+  expect(report).toContain("1,5 KB");
+  expect(report).not.toBe("fallback");
+  expect(report).toContain("`agent-11`");
+  expect(report).toContain("`agent-2`");
+  expect(report).not.toContain("`agent-1`");
+  expect(report).not.toContain("`agent-0`");
+  expect(report).toContain(new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" }).format(0));
 });

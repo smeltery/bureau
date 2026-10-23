@@ -58,7 +58,7 @@ export function formatTokenCount(n: number): string {
 // Hide the (N% hit) suffix above 80% since typical usage hovers 92-100% and the
 // clutter drowns out the signal. Showing only low hit rates turns absence into
 // the default and presence into a cache-thrash canary.
-const CACHE_HIT_WARN_THRESHOLD = 80;
+export const CACHE_HIT_WARN_THRESHOLD = 80;
 
 export function formatInCell(b: UsageBucket): string {
   if (b.totalIn === 0) return "—";

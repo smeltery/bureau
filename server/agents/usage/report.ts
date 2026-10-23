@@ -1,7 +1,9 @@
+import { logContent, logMessage, logParts, type LogMessage, type LogParam } from "../../../shared/i18n/log-message.ts";
+import { reportName, reportRow } from "./report-format.ts";
 import { listAllAgentIdsOnDisk, listAllCronjobIdsOnDisk, loadAgentHistory, loadCronjobHistory, loadRuns } from "../../persistence.ts";
 import { listCronjobs, readCronjobLifetimeUsage } from "../../cronjobs/index.ts";
 import { agents, rooms } from "../state.ts";
-import { addBucket, emptyBucket, formatInCell, formatTokenCount, formatUsd, type UsageBucket } from "../usage-format.ts";
+import { addBucket, emptyBucket, type UsageBucket } from "../usage-format.ts";
 import { readAgentUsage } from "./data.ts";
 import type { CronjobUsageWire, RoomUsageWire, UsageReportWire, UserRecord } from "../../../shared/types.ts";
 
@@ -106,8 +108,8 @@ export function buildUsageReportData(audience: UsageAudience = { kind: "owner" }
 // /usage renderer — assembles the markdown report
 // ---------------------------------------------------------------------------
 
-export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): string {
-  const lines: string[] = [];
+export function usageReportMessage(audience: UsageAudience = { kind: "owner" }): LogMessage {
+  const lines: LogParam[] = [];
   const visibleRooms = audience.kind === "owner" ? rooms : rooms.filter((room) => audience.roomIds.has(room.id));
 
   // Office-wide table: per-agent session and lifetime usage. "In" is all
@@ -115,9 +117,9 @@ export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): 
   // hit" is cache hit rate over cacheable input. Markdown only supports a
   // single header row, so session/lifetime groupings are encoded as
   // parenthesised suffixes on each column.
-  lines.push(`## Agent usage`);
+  lines.push(logMessage("logs.report.agentUsage"));
   lines.push("");
-  lines.push(`| Agent | Room | In (sess) | Out (sess) | $ (sess) | In (life) | Out (life) | $ (life) |`);
+  lines.push(logMessage("logs.report.agentUsageColumns"));
   lines.push(`| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |`);
   const rows = [...agents.values()]
     .filter((a) => audienceCanSeeRoom(audience, rooms[a.info.room]?.id))
@@ -128,9 +130,7 @@ export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): 
     });
   rows.sort((a, b) => b.life.costUSD - a.life.costUSD);
   for (const r of rows) {
-    lines.push(
-      `| ${r.name} | ${r.room} | ${formatInCell(r.sess)} | ${formatTokenCount(r.sess.totalOut)} | ${formatUsd(r.sess.costUSD)} | ${formatInCell(r.life)} | ${formatTokenCount(r.life.totalOut)} | ${formatUsd(r.life.costUSD)} |`,
-    );
+    lines.push(reportRow([reportName(r.name), reportName(r.room)], r.sess, r.life));
   }
 
   // Per-room totals + grand total. Each agent (live or killed) contributes to
@@ -141,12 +141,12 @@ export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): 
   // names so renames are reflected immediately.
   const liveAgentIds = new Set([...agents.values()].map((a) => a.info.id));
   const history = loadAgentHistory();
-  type RoomBucket = { id: string; name: string; deleted: boolean; sess: UsageBucket; life: UsageBucket };
+  type RoomBucket = { id: string; name: string; unknown: boolean; deleted: boolean; sess: UsageBucket; life: UsageBucket };
   const roomBuckets = new Map<string, RoomBucket>();
-  const getBucket = (id: string, name: string, deleted: boolean): RoomBucket => {
+  const getBucket = (id: string, name: string, deleted: boolean, unknown = false): RoomBucket => {
     let b = roomBuckets.get(id);
     if (!b) {
-      b = { id, name, deleted, sess: emptyBucket(), life: emptyBucket() };
+      b = { id, name, unknown, deleted, sess: emptyBucket(), life: emptyBucket() };
       roomBuckets.set(id, b);
     }
     return b;
@@ -173,7 +173,7 @@ export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): 
     const name = currentRoom?.name ?? h?.lastRoomName ?? "(unknown room)";
     const deleted = !currentRoom;
     const usage = readAgentUsage(id, null);
-    const b = getBucket(roomId, name, deleted);
+    const b = getBucket(roomId, name, deleted, !currentRoom && h?.lastRoomName == null);
     addBucket(b.life, usage.lifetime);
   }
 
@@ -186,17 +186,16 @@ export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): 
   const sortedBuckets = [...roomBuckets.values()].sort((a, b) => b.life.costUSD - a.life.costUSD);
 
   lines.push("");
-  lines.push(`## Per-room usage`);
+  lines.push(logMessage("logs.report.roomUsage"));
   lines.push("");
-  lines.push(`_Agents contribute to the room they were last in (killed agents included)._`);
+  lines.push(logMessage("logs.report.roomUsageNote"));
   lines.push("");
-  lines.push(`| Room | In (sess) | Out (sess) | $ (sess) | In (life) | Out (life) | $ (life) |`);
+  lines.push(logMessage("logs.report.roomUsageColumns"));
   lines.push(`| --- | ---: | ---: | ---: | ---: | ---: | ---: |`);
   for (const r of sortedBuckets) {
-    const label = r.deleted ? `${r.name} _(deleted)_` : r.name;
-    lines.push(
-      `| ${label} | ${formatInCell(r.sess)} | ${formatTokenCount(r.sess.totalOut)} | ${formatUsd(r.sess.costUSD)} | ${formatInCell(r.life)} | ${formatTokenCount(r.life.totalOut)} | ${formatUsd(r.life.costUSD)} |`,
-    );
+    const name = r.unknown ? logMessage("logs.report.unknownRoom") : reportName(r.name);
+    const label = r.deleted ? logMessage("logs.report.deleted", { name }) : name;
+    lines.push(reportRow([label], r.sess, r.life));
   }
 
   // Per-cronjob lifetime usage (no per-session column — every run is its own
@@ -211,15 +210,15 @@ export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): 
 
   if (cronjobRows.length > 0) {
     lines.push("");
-    lines.push(`## Per-cron job usage`);
+    lines.push(logMessage("logs.report.cronjobUsage"));
     lines.push("");
-    lines.push(`_Lifetime totals across every run of each cron job._`);
+    lines.push(logMessage("logs.report.cronjobUsageNote"));
     lines.push("");
-    lines.push(`| Cron job | In (life) | Out (life) | $ (life) |`);
+    lines.push(logMessage("logs.report.cronjobUsageColumns"));
     lines.push(`| --- | ---: | ---: | ---: |`);
     for (const r of cronjobRows) {
-      const label = r.deleted ? `${r.name} _(deleted)_` : r.name;
-      lines.push(`| ${label} | ${formatInCell(r.life)} | ${formatTokenCount(r.life.totalOut)} | ${formatUsd(r.life.costUSD)} |`);
+      const label = r.deleted ? logMessage("logs.report.deleted", { name: reportName(r.name) }) : reportName(r.name);
+      lines.push(reportRow([label], r.life));
     }
   }
 
@@ -229,10 +228,14 @@ export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): 
   addBucket(officeTotalLife, total.life);
   addBucket(officeTotalLife, cronjobTotal);
 
-  const totalLabel = audience.kind === "owner" ? "Office total" : "Total";
-  lines.push(
-    `| **${totalLabel}** | ${formatInCell(total.sess)} | ${formatTokenCount(total.sess.totalOut)} | ${formatUsd(total.sess.costUSD)} | ${formatInCell(officeTotalLife)} | ${formatTokenCount(officeTotalLife.totalOut)} | ${formatUsd(officeTotalLife.costUSD)} |`,
-  );
+  const totalLabel = logMessage(audience.kind === "owner" ? "logs.report.officeTotal" : "logs.report.total");
+  if (cronjobRows.length > 0) {
+    lines.push("", logMessage("logs.report.totalUsage"), "", logMessage("logs.report.totalUsageColumns"), "| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  }
+  lines.push(reportRow([{ parts: ["**", totalLabel, "**"] }], total.sess, officeTotalLife));
+  return logParts(lines.flatMap((line, index) => (index ? ["\n", line] : [line])));
+}
 
-  return lines.join("\n");
+export function renderUsageReport(audience: UsageAudience = { kind: "owner" }): string {
+  return logContent(usageReportMessage(audience)).content;
 }

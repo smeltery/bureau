@@ -6,12 +6,12 @@ import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import { agentModelLabel } from "../../../shared/types.ts";
 import { getBackupStatus } from "../../backup.ts";
 import { BUREAU_DIR } from "../../persistence.ts";
-import { renderStorageReport } from "../../storage/report.ts";
+import { storageReportMessage } from "../../storage/report.ts";
 import { measureStorage } from "../../storage-usage.ts";
 import { addLogEntry, agents, emit, emitEphemeralLog, logCache, persistAll, rooms, updateState, type ManagedAgent } from "../state.ts";
 import { createSession, emitLoginInstructions, replaceSession, SessionSwappedError } from "../session/runtime.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
-import { renderUsageReport } from "../usage.ts";
+import { usageReportMessage } from "../usage.ts";
 import { usageAudienceForUser } from "../usage/report.ts";
 import { getUserById } from "../../users.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
@@ -255,7 +255,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
   async bureauUsage(agentId, managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
     addLogEntry(agentId, "user_message", rawText, userMeta);
-    addLogEntry(agentId, "system", renderUsageReport(usageAudienceForUser(managed.info.userId ? getUserById(managed.info.userId) : null)));
+    addLogEntry(agentId, "system", usageReportMessage(usageAudienceForUser(managed.info.userId ? getUserById(managed.info.userId) : null)));
     updateState(agentId, "waiting_for_response");
     return true;
   },
@@ -272,7 +272,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     }
 
     const backup = getBackupStatus();
-    addLogEntry(agentId, "system", renderStorageReport(measureStorage({ stateRoot: BUREAU_DIR, backupDir: backup.backupDir })));
+    addLogEntry(agentId, "system", storageReportMessage(measureStorage({ stateRoot: BUREAU_DIR, backupDir: backup.backupDir })));
     updateState(agentId, "waiting_for_response");
     return true;
   },
