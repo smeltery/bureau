@@ -204,4 +204,28 @@ export const logs = {
   "logs.action.handoffNoBrief": "El traspaso automático no pudo generar un resumen. Se conservan esta conversación y sus mensajes en cola; usa /handoff cuando estés listo.",
   "logs.action.handoffIncomplete": "El traspaso automático no se completó: {error}",
   "logs.action.handoffFailed": "El traspaso automático falló. La conversación se conserva; comprueba la conexión y usa /handoff cuando estés listo.",
+  "logs.permission.title": "Quiere usar {tool}",
+  "logs.permission.reply": "Responde:",
+  "logs.permission.allowSession": "  1. Permitir — y no volver a preguntar por llamadas similares en esta sesión",
+  "logs.permission.allowOnce": "  2. Permitir — solo esta vez",
+  "logs.permission.deny": "  3. Denegar",
+  "logs.permission.allowPrefix": "  4. Permitir — y no volver a preguntar en esta sesión por comandos que empiecen por `{prefix}`",
+  "logs.permission.prefixExample": "     Responde `{syntax}` para elegir qué permitir, p. ej. `4 {example}`.",
+  "logs.permission.otherReply": "O escribe otro mensaje para denegar y enviarlo como motivo.",
+  "logs.permission.grantedSession": "Permiso concedido (regla añadida para esta sesión).",
+  "logs.permission.grantedOnce": "Permiso concedido (una vez).",
+  "logs.permission.denied": "Permiso denegado.",
+  "logs.permission.deniedReason": "Permiso denegado y motivo enviado al agente.",
+  "logs.diagnostic.terminated":
+    "El backend del agente terminó por SIGTERM (código {code}). La causa probable es la protección contra falta de memoria de esta máquina. La conversación está guardada y se puede reanudar.",
+  "logs.diagnostic.killed":
+    "El backend del agente se cerró por SIGKILL (código {code}). La causa probable es la protección contra falta de memoria de esta máquina. La conversación está guardada y se puede reanudar.",
+  "logs.diagnostic.signal": "El backend del agente se detuvo por la señal {signal} (código {code}). La conversación está guardada y se puede reanudar.",
+  "logs.diagnostic.stoppedDuringTurn": "El backend del agente se detuvo durante el turno. La conversación está guardada y se puede reanudar.",
+  "logs.diagnostic.streamError": "Error de flujo: {error}",
+  "logs.diagnostic.stopped": "El agente se detuvo: {status}.",
+  "logs.diagnostic.missingCwd": "Causa probable: el directorio `{cwd}` ya no existe. Haz clic en el nombre del agente en la cabecera del registro para indicar un directorio válido.",
+  "logs.diagnostic.missingSession":
+    "Causa probable: no se encontró la sesión `{session}` en `{directory}`. Suele ocurrir al mover o renombrar el directorio de trabajo: la CLI de Claude busca sesiones mediante una ruta derivada de él. Usa /resume para elegir otra sesión o mueve su archivo .jsonl al nuevo directorio del proyecto.",
+  "logs.permission.resolveFailed": "No se pudo resolver el permiso: {error}",
 } as const;

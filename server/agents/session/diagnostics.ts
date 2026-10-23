@@ -1,23 +1,20 @@
+import { logMessage, type LogMessage } from "../../../shared/i18n/log-message.ts";
 import { addLogEntry, emitEphemeralLog, rooms, type ManagedAgent } from "../state.ts";
 import { openCodeEnvironmentId } from "../../backends/opencode/profiles/identity.ts";
 import { getBackend } from "../../backends/index.ts";
 import { buildSessionEnv } from "./session-env.ts";
 import { claudeProjectDir, claudeSessionFileExists, validateCwd } from "./paths.ts";
 
-export function diagnoseProcessExit(managed: ManagedAgent): string | null {
+export function diagnoseProcessExit(managed: ManagedAgent): LogMessage | null {
   const cwd = managed.info.cwd;
   try {
     validateCwd(cwd);
   } catch {
-    return `Likely cause: cwd \`${cwd}\` no longer exists. Click the agent name in the log view header to point it at a valid directory.`;
+    return logMessage("logs.diagnostic.missingCwd", { cwd });
   }
   const env = envForHints(managed);
   if (managed.sessionId && !claudeSessionFileExists(cwd, managed.sessionId, env)) {
-    return (
-      `Likely cause: session \`${managed.sessionId.slice(0, 8)}…\` was not found in \`${claudeProjectDir(cwd, env)}\`. ` +
-      `This usually happens after cwd was moved/renamed — the Claude CLI locates session files by a path derived from cwd. ` +
-      `Use /resume to pick another session, or move the session .jsonl into the new project dir.`
-    );
+    return logMessage("logs.diagnostic.missingSession", { session: managed.sessionId.slice(0, 8) + "…", directory: claudeProjectDir(cwd, env) });
   }
   return null;
 }

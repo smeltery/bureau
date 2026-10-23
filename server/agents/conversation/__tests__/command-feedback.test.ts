@@ -1,3 +1,6 @@
+import { diagnoseProcessExit } from "../../session/diagnostics.ts";
+import { showPermissionPrompt } from "../../session/event-consumer.ts";
+import type { ApprovalDecision } from "../../../backends/types.ts";
 import { emitAgentReadFile, emitAgentDiff } from "../../affordances.ts";
 import { sendMessage } from "../send.ts";
 import { QUEUE_MAX } from "../message-queue.ts";
@@ -6,7 +9,7 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync, truncateSync } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../../shared/types.ts";
-import { displayLogContent } from "../../../../shared/i18n/log-message.ts";
+import { displayLogContent, displayLogText } from "../../../../shared/i18n/log-message.ts";
 import { createManagedAgent } from "../../managed-factory.ts";
 import { agents, logCache, persistAll, type ManagedAgent } from "../../state.ts";
 import * as runtime from "../../session/runtime.ts";
@@ -254,4 +257,54 @@ test("diff actions retain API behavior, working directories and commit reference
   emitAgentDiff(managed.info.id, undefined, "missing-reference");
   expect(last(managed).message?.key).toBe("logs.action.badCommit");
   expect(displayLogContent(last(managed), "zh")).toContain("missing-reference");
+});
+
+test("translated permission prompts keep numbered decisions and denial text intact", async () => {
+  const managed = install();
+  const calls: { id: string; decision: ApprovalDecision }[] = [];
+  managed.session = {
+    async *stream() {},
+    async send() {},
+    async abort() {},
+    close() {},
+    canAbortInPlace() {
+      return false;
+    },
+    async getContextUsage() {
+      return null;
+    },
+    async approve(id, decision) {
+      calls.push({ id, decision });
+    },
+  };
+  for (const [reply, decision] of [
+    ["1", { kind: "allow_persistent" }],
+    ["2", { kind: "allow_once" }],
+    ["3", { kind: "deny", reason: "User denied." }],
+    ["4 rg --files", { kind: "allow_prefix", prefixText: "rg --files" }],
+    ["42", { kind: "deny", reason: "42" }],
+    ["No, keep {original}", { kind: "deny", reason: "No, keep {original}" }],
+  ] as const) {
+    showPermissionPrompt(managed.info.id, managed, { kind: "approval_request", approvalId: "original-id", toolName: "Bash", input: {}, allowPrefixLabel: "rg" });
+    expect(displayLogContent(last(managed), "es")).toContain("1. Permitir");
+    expect(displayLogContent(last(managed), "es")).toContain("Quiere usar Bash");
+    await sendMessage(managed.info.id, reply, "Boss");
+    expect(calls.at(-1)).toEqual({ id: "original-id", decision });
+    if (reply !== "4 rg --files") expect(displayLogContent(last(managed), "zh")).not.toBe(last(managed).content);
+    expect(managed.pendingPermission).toBeNull();
+  }
+});
+
+test("diagnostic hints preserve missing paths, session identifiers and recovery syntax", () => {
+  const managed = install();
+  expect(diagnoseProcessExit(managed)).toBeNull();
+  managed.sessionId = "missing-session-original";
+  const missingSession = diagnoseProcessExit(managed)!;
+  const text = displayLogText("fallback", missingSession, "es");
+  expect(text).toContain("missing-…");
+  expect(text).toContain("/resume");
+  expect(text).toContain(".jsonl");
+  managed.info.cwd = join(managed.info.cwd, "missing-directory");
+  const missingDirectory = diagnoseProcessExit(managed)!;
+  expect(displayLogText("fallback", missingDirectory, "zh")).toContain(managed.info.cwd);
 });

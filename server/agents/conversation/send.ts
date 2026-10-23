@@ -119,7 +119,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     try {
       await managed.session?.approve(pending.approvalId, decision);
     } catch (err: any) {
-      emitEphemeralLog(agentId, "error", `Failed to resolve permission: ${err?.message ?? String(err)}`);
+      emitEphemeralLog(agentId, "error", logMessage("logs.permission.resolveFailed", { error: errMessage(err) }));
       updateState(agentId, "error");
     }
     showNextPermissionPrompt(agentId, managed);

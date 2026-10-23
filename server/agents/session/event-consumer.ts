@@ -1,4 +1,4 @@
-import { logMessage } from "../../../shared/i18n/log-message.ts";
+import { logMessage, logParts, type LogParam } from "../../../shared/i18n/log-message.ts";
 import { pushBoundarySteer, recordSteerDelivery } from "../conversation/push-steering.ts";
 import { armUsageResume } from "../conversation/usage-resume.ts";
 import { observeAutoHandoff } from "../conversation/auto-handoff.ts";
@@ -39,7 +39,7 @@ export async function runConsumer(agentId: string, managed: ManagedAgent, boundS
     if (turn) turn.reject(err);
     const raw = err.message ?? String(err);
     const failure = humanizeBackendFailure(raw);
-    const errorText = failure.text.startsWith("Stream error:") ? failure.text : `Stream error: ${failure.text}`;
+    const errorText = failure.text.startsWith("Stream error:") ? failure.text : logMessage("logs.diagnostic.streamError", { error: failure.message ?? failure.text });
     addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
     if (managed.info.agentType === "claude") {
       const hints = diagnoseProcessExit(managed);
@@ -66,22 +66,20 @@ function deriveStateFromEvent(ev: NormalizedEvent): AgentState | null {
 
 type ApprovalRequestEvent = Extract<NormalizedEvent, { kind: "approval_request" }>;
 
-function approvalPromptLines(ev: ApprovalRequestEvent): string[] {
-  const lines = [`**${ev.title ?? `Wants to use ${ev.toolName}`}**`];
+function approvalPromptMessage(ev: ApprovalRequestEvent) {
+  const lines: LogParam[] = [{ parts: ["**", ev.title ?? logMessage("logs.permission.title", { tool: ev.toolName }), "**"] }];
   if (ev.description) lines.push(ev.description);
-  lines.push("", "Reply:", "  1. Allow \u2014 and don't ask again for similar calls this session", "  2. Allow \u2014 just this time", "  3. Deny");
+  lines.push("", logMessage("logs.permission.reply"), logMessage("logs.permission.allowSession"), logMessage("logs.permission.allowOnce"), logMessage("logs.permission.deny"));
   if (ev.allowPrefixLabel) {
-    lines.push(`  4. Allow \u2014 and don't ask again this session for any command starting with \`${ev.allowPrefixLabel}\``);
-    if (ev.allowPrefixExample) {
-      lines.push(`     Reply \`4 <prefix>\` to choose how much to allow, e.g. \`4 ${ev.allowPrefixExample}\`.`);
-    }
+    lines.push(logMessage("logs.permission.allowPrefix", { prefix: ev.allowPrefixLabel }));
+    if (ev.allowPrefixExample) lines.push(logMessage("logs.permission.prefixExample", { syntax: "4 <prefix>", example: ev.allowPrefixExample }));
   }
-  lines.push("", "Or type any other message to deny with that as the reason.");
-  return lines;
+  lines.push("", logMessage("logs.permission.otherReply"));
+  return logParts(lines.flatMap((line, index) => (index ? ["\n", line] : [line])));
 }
 
 export function showPermissionPrompt(agentId: string, managed: ManagedAgent, ev: ApprovalRequestEvent) {
-  emitEphemeralLog(agentId, "system", approvalPromptLines(ev).join("\n"));
+  emitEphemeralLog(agentId, "system", approvalPromptMessage(ev));
   managed.pendingPermission = { approvalId: ev.approvalId, toolName: ev.toolName, ...(ev.allowPrefixLabel ? { allowPrefixLabel: ev.allowPrefixLabel } : {}) };
   updateState(agentId, "waiting_for_response");
 }
@@ -249,7 +247,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
             updateState(agentId, "waiting_for_response");
           } else {
             const failure = humanizeBackendFailure(raw);
-            const errorText = failure.text;
+            const errorText = failure.message ?? (ev.error === undefined ? logMessage("logs.diagnostic.stopped", { status: ev.status }) : failure.text);
             addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
             const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, raw);
             if (ev.causedByAuth !== true && auth) emitLoginInstructionsImpl(agentId, managed);
@@ -286,7 +284,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       const managed = agents.get(agentId);
       if (managed?.boundaryClaim?.pending) drainToolBoundaryClaim(agentId, managed);
       const failure = humanizeBackendFailure(ev.message);
-      addLogEntry(agentId, "error", failure.text, backendFailureMeta(failure));
+      addLogEntry(agentId, "error", failure.message ?? failure.text, backendFailureMeta(failure));
       if (managed?.info.agentType === "claude") {
         const hints = diagnoseProcessExit(managed);
         if (hints) emitEphemeralLog(agentId, "system", hints);

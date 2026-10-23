@@ -204,4 +204,28 @@ export const logs = {
   "logs.action.handoffNoBrief": "El traspàs automàtic no ha pogut generar un resum. Es conserven aquesta conversa i els missatges en cua; fes servir /handoff quan estiguis a punt.",
   "logs.action.handoffIncomplete": "El traspàs automàtic no s’ha completat: {error}",
   "logs.action.handoffFailed": "El traspàs automàtic ha fallat. Es conserva la conversa; comprova la connexió i fes servir /handoff quan estiguis a punt.",
+  "logs.permission.title": "Vol fer servir {tool}",
+  "logs.permission.reply": "Respon:",
+  "logs.permission.allowSession": "  1. Permet — i no tornis a preguntar per crides similars en aquesta sessió",
+  "logs.permission.allowOnce": "  2. Permet — només aquesta vegada",
+  "logs.permission.deny": "  3. Denega",
+  "logs.permission.allowPrefix": "  4. Permet — i no tornis a preguntar en aquesta sessió per ordres que comencin per `{prefix}`",
+  "logs.permission.prefixExample": "     Respon `{syntax}` per triar què permets, p. ex. `4 {example}`.",
+  "logs.permission.otherReply": "O escriu un altre missatge per denegar i enviar-lo com a motiu.",
+  "logs.permission.grantedSession": "Permís concedit (regla afegida per a aquesta sessió).",
+  "logs.permission.grantedOnce": "Permís concedit (una vegada).",
+  "logs.permission.denied": "Permís denegat.",
+  "logs.permission.deniedReason": "Permís denegat i motiu enviat a l’agent.",
+  "logs.diagnostic.terminated":
+    "El backend de l’agent ha acabat per SIGTERM (codi {code}). La causa probable és la protecció contra manca de memòria d’aquesta màquina. La conversa està desada i es pot reprendre.",
+  "logs.diagnostic.killed":
+    "El backend de l’agent s’ha aturat per SIGKILL (codi {code}). La causa probable és la protecció contra manca de memòria d’aquesta màquina. La conversa està desada i es pot reprendre.",
+  "logs.diagnostic.signal": "El backend de l’agent s’ha aturat pel senyal {signal} (codi {code}). La conversa està desada i es pot reprendre.",
+  "logs.diagnostic.stoppedDuringTurn": "El backend de l’agent s’ha aturat durant el torn. La conversa està desada i es pot reprendre.",
+  "logs.diagnostic.streamError": "Error de flux: {error}",
+  "logs.diagnostic.stopped": "L’agent s’ha aturat: {status}.",
+  "logs.diagnostic.missingCwd": "Causa probable: el directori `{cwd}` ja no existeix. Fes clic al nom de l’agent a la capçalera del registre per indicar un directori vàlid.",
+  "logs.diagnostic.missingSession":
+    "Causa probable: no s’ha trobat la sessió `{session}` a `{directory}`. Sol passar en moure o reanomenar el directori de treball: la CLI de Claude cerca sessions amb una ruta derivada d’aquest directori. Fes servir /resume per triar una altra sessió o mou-ne el fitxer .jsonl al nou directori del projecte.",
+  "logs.permission.resolveFailed": "No s’ha pogut resoldre el permís: {error}",
 } as const;

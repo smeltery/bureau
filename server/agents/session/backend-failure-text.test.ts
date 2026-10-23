@@ -1,3 +1,4 @@
+import { displayLogText } from "../../../shared/i18n/log-message.ts";
 import { describe, expect, test } from "bun:test";
 import { BACKEND_STOPPED_DURING_TURN, backendFailureMeta, backendStoppedDuringTurn, humanizeBackendFailure } from "./backend-failure-text.ts";
 
@@ -70,4 +71,16 @@ describe("failure identity", () => {
     expect(b.id).toBe("signal:131");
     expect(a.id).not.toBe(b.id);
   });
+});
+
+test("known diagnostics translate without losing raw text or failure identity", () => {
+  for (const raw of ["process exited with code 143", "process exited with code 137", "process exited with code 130", "error_during_execution original diagnostic"]) {
+    const result = humanizeBackendFailure(raw);
+    expect(result.message).toBeDefined();
+    for (const language of ["es", "ca", "zh"] as const) {
+      expect(displayLogText(result.text, result.message, language)).not.toBe(result.text);
+      expect(result.raw).toBe(raw);
+      expect(result.id).not.toBe("unclassified");
+    }
+  }
 });
