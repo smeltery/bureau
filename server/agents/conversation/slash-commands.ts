@@ -1,6 +1,7 @@
+import { unsupportedLogMessage } from "./command-messages.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
-import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
+import { commands, type CommandConfig } from "../commands.ts";
 import { addLogEntry, emitEphemeralLog, isAgentBusy, updateState, type ManagedAgent } from "../state.ts";
 import { enqueueMessage } from "./message-queue.ts";
 import { contextPrompt } from "../../skills/catalog.ts";
@@ -36,7 +37,7 @@ export async function handleSlashCommand(agentId: string, managed: ManagedAgent,
     }
     // Unsupported non-overridable command — show message
     emitEphemeralLog(agentId, "user_message", rawText, userMeta);
-    emitEphemeralLog(agentId, "system", unsupportedMessage(cmd));
+    emitEphemeralLog(agentId, "system", unsupportedLogMessage(cmd));
     return true;
   }
 
@@ -55,7 +56,7 @@ export async function handleSlashCommand(agentId: string, managed: ManagedAgent,
     }
     // Unsupported overridable command with no skill override
     emitEphemeralLog(agentId, "user_message", rawText, userMeta);
-    emitEphemeralLog(agentId, "system", unsupportedMessage(cmd));
+    emitEphemeralLog(agentId, "system", unsupportedLogMessage(cmd));
     return true;
   }
 

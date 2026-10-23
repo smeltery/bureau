@@ -92,3 +92,11 @@ test("composed log parts fall back atomically on malformed nested data", () => {
     expect(displayLogContent({ ...entry, message } as unknown as LogEntry, "es")).toBe(entry.content);
   }
 });
+
+test("lowercase parameters localize text and reject recursive values", () => {
+  const entry = { kind: "system" as const, ...logContent(logParts([{ lowercase: logMessage("logs.description.help") }])) };
+  expect(displayLogContent(entry, "es")).toBe("listar todos los comandos disponibles");
+  const cycle: { lowercase?: unknown } = {};
+  cycle.lowercase = cycle;
+  expect(displayLogContent({ ...entry, message: { key: "logs.parts", params: { parts: cycle } } } as unknown as LogEntry, "ca")).toBe(entry.content);
+});

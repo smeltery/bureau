@@ -8,7 +8,7 @@ export type LogMessageKey = keyof typeof logs;
 export type LogPluralKey = {
   [K in LogMessageKey]: K extends `${infer Base}.one` ? (`${Base}.other` extends LogMessageKey ? Base : never) : never;
 }[LogMessageKey];
-export type LogParam = string | number | LogMessage | { timestamp: number } | { parts: LogParam[] };
+export type LogParam = string | number | LogMessage | { timestamp: number } | { parts: LogParam[] } | { lowercase: LogParam };
 export interface LogMessage {
   key: LogMessageKey | LogPluralKey;
   count?: number;
@@ -36,6 +36,10 @@ function renderParam(value: unknown, language: SupportedLanguageCode, depth: num
   if (depth > 8) return;
   if (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))) return value;
   if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  if (Object.hasOwn(value, "lowercase")) {
+    const text = renderParam((value as { lowercase: unknown }).lowercase, language, depth + 1);
+    return text === undefined ? undefined : String(text).toLocaleLowerCase(language);
+  }
   if (Object.hasOwn(value, "parts")) {
     const parts = (value as { parts: unknown }).parts;
     if (!Array.isArray(parts)) return;

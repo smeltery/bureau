@@ -1,4 +1,6 @@
+import { commandDescriptions } from "./command-descriptions-es.ts";
 export const logs = {
+  ...commandDescriptions,
   "logs.interrupted": "Agente interrumpido.",
   "logs.newConversation": "Se ha iniciado una conversación nueva.",
   "logs.handoffOpened": "El traspaso automático ha abierto una conversación nueva. El resumen llegará antes que los mensajes en cola.",
@@ -79,4 +81,31 @@ export const logs = {
   "logs.command.rosterTip": "Pregunta a tu agente si quieres saber más sobre cualquier agente o conversación.",
   "logs.command.subscriptionUsage":
     "**Los límites del plan de suscripción no se muestran aquí.**\n\nPara consultar la cuota de tu suscripción de Claude o ChatGPT, abre el terminal integrado y:\n\n- inicia `claude` y escribe `/usage`\n- inicia `codex` y escribe `/status`\n\nPara ver el gasto de tokens de la oficina de Bureau (por agente, sala o tarea programada), consulta `/bureau-usage`.",
+  "logs.help.header": "**Ayuda**",
+  "logs.help.title": "Ayuda",
+  "logs.help.show": "Mostrar ayuda",
+  "logs.help.docs": "**Documentación:** {url}",
+  "logs.help.tips": "**Consejos:**",
+  "logs.help.peers":
+    "  • Los agentes pueden revisarse y enviarse mensajes entre sí. Pídelo con lenguaje natural o usa `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`. Usa `{command}` para enviar un mensaje al chat de otro agente.",
+  "logs.help.queue": '  • Escribe mientras el agente está ocupado: los mensajes se encolan y se envían cuando queda libre. Pulsa "Enviar ahora" para interrumpir y enviarlos inmediatamente.',
+  "logs.help.voice": "  • Atajo de voz a texto: ctrl+espacio.",
+  "logs.help.tools": "  • `/bureau-diff` muestra una tarjeta de diferencias, `{editCommand}` abre el editor, `/bureau-usage` muestra costes y `/bureau-storage` muestra el almacenamiento persistido.",
+  "logs.help.commands": "\n## Comandos que puedes escribir",
+  "logs.help.skills": "\n[Biblioteca de habilidades](/skills) — explora y gestiona las habilidades disponibles.",
+  "logs.help.aliases": "{primary} (o {others})",
+  "logs.help.commandRow": "  {names} — {description}",
+  "logs.help.commandOnly": "  {names}",
+  "logs.help.fullPromptHeader": "**Prompt del sistema completo** *(refleja los ajustes actuales; se aplica en la próxima conversación)*",
+  "logs.help.unavailable": "`/{command}` no está disponible en Bureau.",
+  "logs.help.unsupportedCommand": "`/{command}`{description} es un comando de Claude Code, pero no está admitido en Bureau.",
+  "logs.help.unsupportedSkill": "`/{command}`{description} es una habilidad incluida en Claude Code, pero no está admitida en Bureau. Puedes sustituirla creando tu propio archivo de habilidad.",
+  "logs.help.logout": "Para cerrar sesión:\n1. Abre el terminal integrado\n2. Ejecuta `claude logout`",
+  "logs.help.compact": "`/compact` aún no está admitido en Bureau. El SDK comprime el contexto automáticamente.",
+  "logs.help.cost": "Usa `/usage` para consultar cómo ver la cuota de suscripción o `/bureau-usage` para el gasto de tokens de la oficina.",
+  "logs.help.reloadPlugins": "Para recargar plugins, abre el terminal integrado (icono de terminal en el escritorio del agente), ejecuta `claude` y escribe `/reload-plugins`.",
+  "logs.help.exit": "Usa la interfaz de Bureau para gestionar agentes. `/exit` solo funciona en la CLI de Claude Code.",
+  "logs.help.plugins":
+    "Los plugins se gestionan en el panel Plugins: pulsa **Plugins** en la barra de la oficina para explorar, instalar, activar, desactivar o eliminar plugins y mercados de Claude Code.\n\nLos plugins nuevos se activan al comenzar la siguiente sesión de un agente (reinicia o usa `/resume` en los agentes activos para cargarlos).",
+  "logs.help.loop": "no está admitido de forma nativa; comprueba si la pestaña de tareas programadas o los mensajes programados cubren tu caso de uso",
 } as const;

@@ -1,4 +1,6 @@
+import { commandDescriptions } from "./command-descriptions-ca.ts";
 export const logs = {
+  ...commandDescriptions,
   "logs.interrupted": "Agent interromput.",
   "logs.newConversation": "S’ha iniciat una conversa nova.",
   "logs.handoffOpened": "El traspàs automàtic ha obert una conversa nova. El resum arribarà abans que els missatges en cua.",
@@ -79,4 +81,31 @@ export const logs = {
   "logs.command.rosterTip": "Pregunta al teu agent si vols saber més sobre qualsevol agent o conversa.",
   "logs.command.subscriptionUsage":
     "**Els límits del pla de subscripció no es mostren aquí.**\n\nPer consultar la quota de la teva subscripció de Claude o ChatGPT, obre el terminal integrat i:\n\n- inicia `claude` i escriu `/usage`\n- inicia `codex` i escriu `/status`\n\nPer veure la despesa de tokens de l’oficina de Bureau (per agent, sala o tasca programada), consulta `/bureau-usage`.",
+  "logs.help.header": "**Ajuda**",
+  "logs.help.title": "Ajuda",
+  "logs.help.show": "Mostra l’ajuda",
+  "logs.help.docs": "**Documentació:** {url}",
+  "logs.help.tips": "**Consells:**",
+  "logs.help.peers":
+    "  • Els agents poden revisar-se i enviar-se missatges entre si. Demana-ho amb llenguatge natural o utilitza `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`. Utilitza `{command}` per enviar un missatge al xat d’un altre agent.",
+  "logs.help.queue": '  • Escriu mentre l’agent està ocupat: els missatges es posen en cua i s’envien quan queda lliure. Prem "Envia ara" per interrompre i enviar-los immediatament.',
+  "logs.help.voice": "  • Drecera de veu a text: ctrl+espai.",
+  "logs.help.tools": "  • `/bureau-diff` mostra una targeta de diferències, `{editCommand}` obre l’editor, `/bureau-usage` mostra costos i `/bureau-storage` mostra l’emmagatzematge desat.",
+  "logs.help.commands": "\n## Ordres que pots escriure",
+  "logs.help.skills": "\n[Biblioteca d’habilitats](/skills) — explora i gestiona les habilitats disponibles.",
+  "logs.help.aliases": "{primary} (o {others})",
+  "logs.help.commandRow": "  {names} — {description}",
+  "logs.help.commandOnly": "  {names}",
+  "logs.help.fullPromptHeader": "**Prompt del sistema complet** *(reflecteix la configuració actual; s’aplica a la conversa següent)*",
+  "logs.help.unavailable": "`/{command}` no està disponible a Bureau.",
+  "logs.help.unsupportedCommand": "`/{command}`{description} és una ordre de Claude Code, però no està admesa a Bureau.",
+  "logs.help.unsupportedSkill": "`/{command}`{description} és una habilitat inclosa a Claude Code, però no està admesa a Bureau. Pots substituir-la creant el teu propi fitxer d’habilitat.",
+  "logs.help.logout": "Per tancar la sessió:\n1. Obre el terminal integrat\n2. Executa `claude logout`",
+  "logs.help.compact": "`/compact` encara no està admès a Bureau. L’SDK comprimeix el context automàticament.",
+  "logs.help.cost": "Utilitza `/usage` per consultar com veure la quota de subscripció o `/bureau-usage` per a la despesa de tokens de l’oficina.",
+  "logs.help.reloadPlugins": "Per recarregar connectors, obre el terminal integrat (icona de terminal a l’escriptori de l’agent), executa `claude` i escriu `/reload-plugins`.",
+  "logs.help.exit": "Utilitza la interfície de Bureau per gestionar agents. `/exit` només funciona a la CLI de Claude Code.",
+  "logs.help.plugins":
+    "Els connectors es gestionen al panell Plugins: prem **Plugins** a la barra de l’oficina per explorar, instal·lar, activar, desactivar o eliminar connectors i mercats de Claude Code.\n\nEls connectors nous s’activen en començar la sessió següent d’un agent (reinicia o utilitza `/resume` als agents actius per carregar-los).",
+  "logs.help.loop": "no està admès de manera nativa; comprova si la pestanya de tasques programades o els missatges programats cobreixen el teu cas d’ús",
 } as const;

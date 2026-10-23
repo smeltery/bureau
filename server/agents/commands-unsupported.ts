@@ -25,7 +25,7 @@ export const unsupportedHardcodedCommands: Record<string, CommandConfig> = {
   advisor: { ...UNSUPPORTED_HARDCODED, description: "Toggle advisor mode" },
 
   // --- Cost & usage ---
-  cost: { ...UNSUPPORTED_HARDCODED, description: "Token usage and cost estimate", message: "`/cost` is a Claude Code command for API users. Bureau uses subscription-based billing." },
+  cost: { ...UNSUPPORTED_HARDCODED, description: "Token usage and cost estimate", message: "Use `/usage` for subscription quota guidance or `/bureau-usage` for office token spend." },
   usage: {
     type: "hardcoded",
     supported: true,

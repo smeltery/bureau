@@ -1,4 +1,6 @@
+import { commandDescriptions } from "./command-descriptions-zh.ts";
 export const logs = {
+  ...commandDescriptions,
   "logs.interrupted": "代理已中断。",
   "logs.newConversation": "已开始新对话。",
   "logs.handoffOpened": "自动交接已开启新对话。摘要将先于排队消息送达。",
@@ -79,4 +81,31 @@ export const logs = {
   "logs.command.rosterTip": "如需了解任意代理或对话的更多信息，请询问你的代理。",
   "logs.command.subscriptionUsage":
     "**此处不显示订阅方案限额。**\n\n要查看 Claude 或 ChatGPT 的订阅配额，请打开内嵌终端，然后：\n\n- 启动 `claude`，再输入 `/usage`\n- 启动 `codex`，再输入 `/status`\n\n要查看 Bureau 办公室的 token 用量（按代理、房间或定时任务统计），请使用 `/bureau-usage`。",
+  "logs.help.header": "**帮助**",
+  "logs.help.title": "帮助",
+  "logs.help.show": "显示帮助",
+  "logs.help.docs": "**文档：** {url}",
+  "logs.help.tips": "**提示：**",
+  "logs.help.peers":
+    "  • 代理可以相互检查并发送消息。可以直接提出要求，或使用 `/bureau-peer-review`、`/bureau-pair-programming`、`/bureau-second-opinion`、`/bureau-soft-handoff`。使用 `{command}` 向其他代理的聊天发送消息。",
+  "logs.help.queue": "  • 代理忙碌时也可以输入：消息会排队并在空闲时发送。点击“立即发送”以中断并立即发送。",
+  "logs.help.voice": "  • 语音转文字快捷键：ctrl+空格。",
+  "logs.help.tools": "  • `/bureau-diff` 显示差异卡片，`{editCommand}` 打开编辑器面板，`/bureau-usage` 查看费用，`/bureau-storage` 查看持久化存储用量。",
+  "logs.help.commands": "\n## 可输入的命令",
+  "logs.help.skills": "\n[技能库](/skills) — 浏览和管理可用技能。",
+  "logs.help.aliases": "{primary}（或 {others}）",
+  "logs.help.commandRow": "  {names} — {description}",
+  "logs.help.commandOnly": "  {names}",
+  "logs.help.fullPromptHeader": "**完整系统提示词** *（反映当前设置；在下一次对话生效）*",
+  "logs.help.unavailable": "`/{command}` 在 Bureau 中不可用。",
+  "logs.help.unsupportedCommand": "`/{command}`{description} 是 Claude Code 命令，但 Bureau 不支持它。",
+  "logs.help.unsupportedSkill": "`/{command}`{description} 是 Claude Code 内置技能，但 Bureau 不支持它。你可以创建自己的技能文件来覆盖它。",
+  "logs.help.logout": "退出登录：\n1. 打开内嵌终端\n2. 运行 `claude logout`",
+  "logs.help.compact": "Bureau 尚不支持 `/compact`。SDK 会自动压缩上下文。",
+  "logs.help.cost": "使用 `/usage` 了解订阅配额的查看方式，或使用 `/bureau-usage` 查看办公室 token 用量。",
+  "logs.help.reloadPlugins": "要重新加载插件，请打开内嵌终端（点击代理工位上的终端图标），运行 `claude`，然后输入 `/reload-plugins`。",
+  "logs.help.exit": "请使用 Bureau 界面管理代理。`/exit` 仅适用于 Claude Code CLI。",
+  "logs.help.plugins":
+    "插件在插件面板中管理：点击办公室工具栏中的 **Plugins**，即可浏览、安装、启用、禁用或移除 Claude Code 插件和市场。\n\n新安装的插件会在代理的下一次会话开始时启用（重启正在运行的代理或使用 `/resume` 以加载它们）。",
+  "logs.help.loop": "不提供原生支持；请查看定时任务标签页或定时消息是否满足你的需求",
 } as const;

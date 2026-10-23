@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useState } from "react";
 import { Portal } from "../../components/Portal.tsx";
 import { cardActionBtn, dialogCancelBtn, dialogSaveBtn } from "../../components/modals/dialog-styles.ts";
@@ -5,7 +6,8 @@ import { copyText } from "../../utils/clipboard.ts";
 import { Markdown } from "../Markdown.tsx";
 
 export function HelpCard({ header, helpContent }: { header: string; helpContent: string }) {
-  return <PromptInspectCard header={header} content={helpContent} actionLabel="Show help" modalTitle="Help" renderAs="markdown" />;
+  const { t } = useI18n();
+  return <PromptInspectCard header={header} content={helpContent} actionLabel={t("logs.help.show")} modalTitle={t("logs.help.title")} renderAs="markdown" />;
 }
 
 export function PromptInspectCard({
@@ -79,6 +81,7 @@ function PromptInspectModal({
   onCopy: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
@@ -131,6 +134,7 @@ function PromptInspectModal({
               minHeight: 220,
               margin: 0,
               overflow: "auto",
+              overflowWrap: "anywhere",
               color: "var(--text-primary)",
               fontSize: 13,
               lineHeight: 1.5,
@@ -144,10 +148,10 @@ function PromptInspectModal({
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <button type="button" onClick={onCopy} style={dialogSaveBtn}>
-              {copied ? "Copied" : "Copy"}
+              {copied ? t("common.copied") : t("common.copy")}
             </button>
             <button type="button" onClick={onClose} style={dialogCancelBtn}>
-              Close
+              {t("common.close")}
             </button>
           </div>
         </section>
