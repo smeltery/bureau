@@ -1,8 +1,10 @@
+import { logs } from "./logs-zh.ts";
 import { storage } from "./storage-zh.ts";
 import { skills } from "./skills-zh.ts";
 // Simplified Chinese translations for the office UI catalog.
 import type { Catalog } from "./en.ts";
 export const zh: Catalog = {
+  ...logs,
   ...skills,
   ...storage,
   "access.title": "Access",

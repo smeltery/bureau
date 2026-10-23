@@ -90,7 +90,7 @@ describe("handoff", () => {
 
     const result = await handoff("agent-1", "Finish wiring the widget.");
     expect(result).toEqual({ ok: true, queued: false, messageId: expect.any(String) });
-    expect(logCache.get("agent-1")?.some((entry) => entry.kind === "system" && entry.content === "New conversation started.")).toBe(true);
+    expect(logCache.get("agent-1")?.some((entry) => entry.kind === "system" && entry.content === "New conversation started." && entry.message?.key === "logs.newConversation")).toBe(true);
   });
 
   test("keeps queued messages and delivers the brief ahead of them", async () => {
