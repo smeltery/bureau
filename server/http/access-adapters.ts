@@ -163,9 +163,17 @@ export async function deleteUserForApi(actorUserId: string, actorRole: "owner" |
   if (!target) return { ok: false, status: 404, error: "user not found" };
   if (actorRole !== "owner" && actorUserId !== target.id) return { ok: false, status: 403, error: "forbidden" };
   if (actorRole === "owner" && actorUserId === target.id) return { ok: false, status: 409, error: "owners cannot delete their own user record" };
-  if (wouldDeleteLeaveNoOwner(target.id)) return { ok: false, status: 409, error: "would leave office without an owner" };
+  if (wouldDeleteLeaveNoOwner(target.id)) return { ok: false, status: 409, error: "would leave office without an owner or active owner session" };
   const successor = firstOfficeOwner(target.id);
   if (successor) await AgentManager.reassignAgentsOwnedBy(target.id, successor.id);
+  // Reassignment can await backend work; recheck current authority and access.
+  const actor = getUserById(actorUserId);
+  if (!actor || (actor.role !== "owner" && actor.id !== target.id)) return { ok: false, status: 403, error: "forbidden" };
+  if (actor.role === "owner" && actor.id === target.id) return { ok: false, status: 409, error: "owners cannot delete their own user record" };
+  if (wouldDeleteLeaveNoOwner(target.id)) {
+    for (const browser of browsers) sendInitialPayload(browser);
+    return { ok: false, status: 409, error: "would leave office without an owner or active owner session" };
+  }
   if (!deleteUserById(target.id)) return { ok: false, status: 404, error: "user not found" };
   await revokeInvitesForUser(target.id, target.name);
   for (const browser of browsers) sendInitialPayload(browser);

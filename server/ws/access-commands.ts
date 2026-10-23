@@ -10,7 +10,6 @@ import {
   revokeInviteByPrefix,
   revokeOutstandingInviteByPrefixForUsername,
   revokeSessionByPrefix,
-  wouldRevokeLeaveOfficeUnreachable,
 } from "../auth/auth.ts";
 import { handleAccessSettingsCommand } from "./access-settings-commands.ts";
 import { broadcastToOwners, pushInvitesListToEachWs, pushSessionsListToEachWs, sendInvitesListToWs, sendSessionsListToWs } from "../access-broadcasts.ts";
@@ -31,8 +30,8 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
       if (!user) return true;
       const lockoutReason = "Refused: this is the last active owner session in the office. " + "Mint an additional invite for an owner first, accept it on " + "another device, then retry.";
       if (user.role === "owner") {
-        const targetHash = resolveSessionHashByPrefix(cmd.sessionPrefix);
-        if (targetHash && wouldRevokeLeaveOfficeUnreachable(targetHash)) {
+        const result = await revokeSessionByPrefix(cmd.sessionPrefix);
+        if (result === "would_strand_office") {
           ws.send(
             JSON.stringify({
               type: "revoke_blocked",
@@ -42,7 +41,6 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
           );
           return true;
         }
-        const result = await revokeSessionByPrefix(cmd.sessionPrefix);
         if (result === "ok") {
           broadcastToOwners({ type: "session_revoked", sessionPrefix: cmd.sessionPrefix });
           pushSessionsListToEachWs();
@@ -68,9 +66,9 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
       return true;
     }
     case "logout": {
-      const user = getWsUser(ws);
       const sessionHash = getSessionContext(ws)?.currentSessionPrefix ? resolveSessionHashByPrefix(getSessionContext(ws)!.currentSessionPrefix) : null;
-      if (user && sessionHash && wouldRevokeLeaveOfficeUnreachable(sessionHash)) {
+      const result = sessionHash ? await logoutBySessionHash(sessionHash) : "not_found";
+      if (result === "would_strand_office") {
         ws.send(
           JSON.stringify({
             type: "revoke_blocked",
@@ -80,7 +78,6 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
         );
         return true;
       }
-      if (sessionHash) await logoutBySessionHash(sessionHash);
       ws.send(JSON.stringify({ type: "session_context", context: null } as ServerMessage));
       return true;
     }

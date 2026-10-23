@@ -120,6 +120,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 - Invite-link authentication with owner and member roles.
 - Active session revocation and one-time invite management.
+- Logout, session revocation, owner demotion, and owner deletion preserve a
+  signed-in owner, including concurrent requests.
 - Live user/device presence in the office.
 - **Pager**: agents (`POST /api/pager`) and apps (`POST /api/app/page`) page
   the member responsible for them. Pages live in User Settings > Pager

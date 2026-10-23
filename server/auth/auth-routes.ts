@@ -1,6 +1,6 @@
 import type { Server } from "bun";
 import { getUserByName } from "../users.ts";
-import { acceptInvite, clearCookieHeaders, logoutBySessionHash, peekInvite, readSessionCookie, setCookieHeader, validateSession, wouldRevokeLeaveOfficeUnreachable, type InvitePeek } from "./auth.ts";
+import { acceptInvite, clearCookieHeaders, logoutBySessionHash, peekInvite, readSessionCookie, setCookieHeader, validateSession, type InvitePeek } from "./auth.ts";
 import { renderAcceptPage, renderInviteError, renderInviteIdentityConflict, renderLockoutBlocked, securityHeaders } from "./auth-pages.ts";
 import { handleClaim, handleClaimForm, shouldShowClaimForm } from "./auth-claim-routes.ts";
 import { checkAuthRateLimit } from "./auth-rate-limit.ts";
@@ -142,7 +142,8 @@ export async function handleLogout(req: Request, officeName: string | null): Pro
   }
   const cookie = readSessionCookie(req);
   const lookup = validateSession(cookie);
-  if (lookup && wouldRevokeLeaveOfficeUnreachable(lookup.sessionIdHash)) {
+  const result = lookup ? await logoutBySessionHash(lookup.sessionIdHash) : "not_found";
+  if (result === "would_strand_office") {
     return new Response(
       renderLockoutBlocked(
         "Sign out refused: this is the last active owner session in the " + "office. Mint an additional invite for yourself and accept it " + "on another device first, then retry.",
@@ -156,9 +157,6 @@ export async function handleLogout(req: Request, officeName: string | null): Pro
         },
       },
     );
-  }
-  if (lookup) {
-    await logoutBySessionHash(lookup.sessionIdHash);
   }
   // Both names, as independent Set-Cookie lines (an object literal can only
   // carry one). Clearing the name that did NOT authenticate this request is
