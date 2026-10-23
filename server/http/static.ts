@@ -35,3 +35,12 @@ export async function handleStaticRequest(_req: Request, url: URL): Promise<Resp
     headers: { "Cache-Control": "no-cache" },
   });
 }
+
+const INSTALL_ASSETS = new Set(["/manifest.json", "/sw.js", "/icons/icon.svg", "/icons/icon-180.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-512-maskable.png"]);
+/** Install services may fetch these bundled, non-personal assets without cookies. */
+export async function handlePublicInstallAsset(req: Request, url: URL): Promise<Response | null> {
+  if (!INSTALL_ASSETS.has(url.pathname) || (req.method !== "GET" && req.method !== "HEAD")) return null;
+  const file = Bun.file(join(UI_DIST, url.pathname));
+  if (!(await file.exists())) return new Response(null, { status: 404 });
+  return new Response(req.method === "HEAD" ? null : file, { headers: { "Content-Type": file.type, "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff" } });
+}

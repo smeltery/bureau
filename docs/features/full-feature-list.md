@@ -312,3 +312,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - **Resume after usage limit** — Claude and Codex agents continue the same conversation one minute after a reported quota reset. Pending schedules survive restarts; Stop, new work, and conversation changes cancel them. Toggle it in agent settings. [Details](usage-reset-continuation.md).
 
 - Persistent member questions with optional choices and recommendations, revision-safe edits, saved answer receipts, and a combined Inbox for questions, masked credential requests and urgent pages. Questions stay above the addressed member’s chat composer and replies use the ordinary queue. See [member questions](member-questions.md).
+
+- [Install the office and individual apps](installing-apps.md) with browser prompts or manual steps, distinct app manifests, and app title/icon metadata. Existing access checks still apply.
