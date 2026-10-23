@@ -138,7 +138,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   ghost appearance, saved language preference (English / Spanish / Catalan /
   Simplified Chinese; UI chrome follows the same preference), and roster
   online/session summaries.
-- Conversation start, interruption, resume, directory fallback, and automatic
+- Conversation lifecycle, recovery, queue, compaction, capacity, usage-limit, and
   handoff notices follow each reader’s language preference. Older notices retain
   their original text. Stored logs and API responses keep English content;
   user, model, and tool output stays unchanged. Model, effort, resume, and

@@ -20,7 +20,7 @@ import { handleBureauDiffCommand, handleBureauEditCommand, handleBureauMessageCo
 import { handleContextCommand } from "./slash-context.ts";
 import { handleEffortCommand, handleModelCommand } from "./slash-model-effort.ts";
 import { handleBureauCronjobSystemPromptCommand, handleBureauSystemPromptCommand } from "./slash-prompt-commands.ts";
-import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
+import { UsageCapError, usageCapMessage } from "../../usage-cap/member-usage-cap.ts";
 import { holdQueueForHandoff, releaseQueueAfterHandoff } from "./control.ts";
 
 type HandlerFn = (agentId: string, managed: ManagedAgent, args: string[], rawText: string, username?: string) => Promise<boolean>;
@@ -111,7 +111,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     } catch (err: any) {
       if (err instanceof SessionSwappedError || err instanceof ProviderSignInRequiredError) return true;
       if (err instanceof UsageCapError) {
-        addLogEntry(agentId, "error", usageCapText(err));
+        addLogEntry(agentId, "error", usageCapMessage(err));
         updateState(agentId, "waiting_for_response");
         return true;
       }
@@ -176,7 +176,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     } catch (err: any) {
       if (err instanceof SessionSwappedError || err instanceof ProviderSignInRequiredError) return true;
       if (err instanceof UsageCapError) {
-        addLogEntry(agentId, "error", usageCapText(err));
+        addLogEntry(agentId, "error", usageCapMessage(err));
         updateState(agentId, "waiting_for_response");
         return true;
       }

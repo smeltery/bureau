@@ -1,3 +1,4 @@
+import { logContent, logPlural, type LogMessage } from "../../shared/i18n/log-message.ts";
 import { pinProviderEnvironment } from "../agents/session/provider-environment.ts";
 import { resolve } from "node:path";
 import type { AgentBackendType } from "../../shared/types.ts";
@@ -54,10 +55,13 @@ export function billingAccountFor(agentType: AgentBackendType, env: Record<strin
   return null;
 }
 
-export function usageCapText(err: Pick<UsageCapError, "retryAtMs">, now = Date.now()): string {
+export function usageCapMessage(err: Pick<UsageCapError, "retryAtMs">, now = Date.now()): LogMessage {
   const minutes = Math.max(1, Math.ceil((err.retryAtMs - now) / 60_000));
-  const when = minutes < 90 ? `${minutes} minute${minutes === 1 ? "" : "s"}` : `${Math.ceil(minutes / 60)} hours`;
-  return `Member usage is ahead of the office pace. Try again in about ${when}.`;
+  return minutes < 90 ? logPlural("logs.session.memberMinutes", minutes) : logPlural("logs.session.memberHours", Math.ceil(minutes / 60));
+}
+
+export function usageCapText(err: Pick<UsageCapError, "retryAtMs">, now = Date.now()): string {
+  return logContent(usageCapMessage(err, now)).content;
 }
 
 export interface MemberUsageCap {

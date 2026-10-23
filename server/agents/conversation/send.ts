@@ -1,3 +1,4 @@
+import { errMessage } from "../../../shared/errors.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import type { Attachment } from "../../../shared/types.ts";
@@ -13,7 +14,7 @@ import { enqueueUserMessage, QUEUE_MAX } from "./message-queue.ts";
 import { handlePendingCronjobPick, handlePendingEffortPick, handlePendingModelPick } from "./pending-picks.ts";
 import { resolvePermissionReply } from "./permission-reply.ts";
 import { showNextPermissionPrompt } from "../session/event-consumer.ts";
-import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
+import { UsageCapError, usageCapMessage, usageCapText } from "../../usage-cap/member-usage-cap.ts";
 
 export type UserSendAcceptance = { ok: true } | { ok: false; error: string };
 
@@ -34,7 +35,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
   ) {
     const queued = enqueueUserMessage(agentId, managed, text, username, attachments);
     if (!queued) {
-      addLogEntry(agentId, "error", `Message queue is full (limit ${QUEUE_MAX}). Try again after the agent finishes.`);
+      addLogEntry(agentId, "error", logMessage("logs.session.queueFull", { limit: { number: QUEUE_MAX } }));
       return { ok: false, error: `Message queue is full (limit ${QUEUE_MAX}). Try again after the agent finishes.` };
     }
     return { ok: true };
@@ -62,7 +63,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     // the model's transcript on resume.
     const tail = (logCache.get(agentId) ?? []).at(-1);
     if (tail?.kind === "user_message") {
-      addLogEntry(agentId, "system", "Previous response was interrupted.");
+      addLogEntry(agentId, "system", logMessage("logs.session.previousInterrupted"));
     }
     // Try to create a fresh session so the user's next message doesn't silently vanish.
     // Pass managed.sessionId so the new session resumes from the prior transcript when
@@ -77,12 +78,12 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       installSession(agentId, managed, sessionId ? createSession(managed, sessionId) : createSession(managed));
       // armDormantWakeNotice also arms managed.wakeNotice as a side effect: the
       // send below is the very one that carries it to the agent.
-      addLogEntry(agentId, "system", sessionId ? armDormantWakeNotice(managed, wakeReason, sessionId) : "Started a fresh session (previous one could not be restored).");
+      addLogEntry(agentId, "system", sessionId ? armDormantWakeNotice(managed, wakeReason, sessionId) : logMessage("logs.session.freshRecovery"));
       updateState(agentId, "waiting_for_response");
       // Fall through so the message is actually sent on the new session.
     } catch (err: any) {
       addLogEntry(agentId, "user_message", text, username ? { username } : undefined, attachments);
-      addLogEntry(agentId, "error", `Cannot start session: ${err.message}\nType /clear to start fresh, or /resume to pick another session.`);
+      addLogEntry(agentId, "error", logMessage("logs.session.cannotStart", { error: errMessage(err) }));
       updateState(agentId, "error");
       return { ok: false, error: `Cannot start session: ${err.message}` };
     }
@@ -240,12 +241,12 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       return { ok: false, error: err.message };
     }
     if (err instanceof UsageCapError) {
-      addLogEntry(agentId, "error", usageCapText(err));
+      addLogEntry(agentId, "error", usageCapMessage(err));
       updateState(agentId, "waiting_for_response");
       return { ok: false, error: usageCapText(err) };
     }
     console.error(`Agent ${agentId} send error:`, err.message);
-    addLogEntry(agentId, "error", `Error: ${err.message}`);
+    addLogEntry(agentId, "error", logMessage("logs.session.error", { error: errMessage(err) }));
     updateState(agentId, "error");
     return { ok: false, error: err.message ?? "Send failed" };
   }

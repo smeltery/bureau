@@ -13,12 +13,13 @@ function isolated(script: string) {
         `
       import { expect, spyOn } from "bun:test";
       import { setupPrivilegedFixture, TARGET_AGENT } from "./server/http/__tests__/privileged-agent-fixture.ts";
-      import { agents, beginTurn } from "./server/agents/state.ts";
+      import { agents, beginTurn, logCache } from "./server/agents/state.ts";
       import { armUsageResume, cancelUsageResume, restoreUsageResume } from "./server/agents/conversation/usage-resume.ts";
       import * as queue from "./server/agents/conversation/message-queue.ts";
       import { abort } from "./server/agents/conversation/control.ts";
       import { editAgent } from "./server/agents/settings.ts";
       import { replaceSession } from "./server/agents/session/runtime.ts";
+      import { displayLogContent } from "./shared/i18n/log-message.ts";
       import { loadAgents } from "./server/persistence.ts";
       setupPrivilegedFixture();
       const managed = agents.get(TARGET_AGENT);
@@ -55,6 +56,9 @@ test("quota continuation persists and sends once after the reset grace period", 
   isolated(`
     armUsageResume(managed, now + 1000, clock);
     expect(loadAgents().flatMap(r => r.agents).find(a => a.id === TARGET_AGENT).usageResumePlan).toEqual({ sessionId: "saved-conversation", dueAt: now + 61000 });
+    const notice = logCache.get(TARGET_AGENT).find(entry => entry.message?.key === "logs.session.usageResume");
+    expect(notice).toBeDefined();
+    expect(displayLogContent(notice, "es")).toContain(new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" }).format(now + 61000));
     advance(60999);
     expect(sent).toHaveLength(0);
     advance(1);

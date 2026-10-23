@@ -168,6 +168,7 @@ export function ErrorBlock({ content, isLastInTurn, turnEntries, isMobile, times
       style={{
         margin: "8px 0",
         padding: "10px 14px",
+        paddingTop: timestamp != null || (isLastInTurn && turnEntries) ? 36 : 10,
         borderRadius: 8,
         background: "var(--red-bg)",
         borderLeft: "3px solid var(--red)",

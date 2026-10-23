@@ -1,10 +1,12 @@
+import { errMessage } from "../../../shared/errors.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { AgentState, Attachment, QueuedMessage } from "../../../shared/types.ts";
 import { addLogEntry, agents, emitQueueUpdate, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
 import { SessionSwappedError, createSession, installSession } from "../session/runtime.ts";
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { ProviderCapacityError, ProviderSignInRequiredError } from "../../internal-types.ts";
-import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
+import { UsageCapError, usageCapMessage } from "../../usage-cap/member-usage-cap.ts";
 import { getBackend } from "../../backends/index.ts";
 import { flushPrefix, senderMeta } from "./queue-prefix.ts";
 import { lookupQueueDedupe, recordQueueDedupe } from "./queue-dedupe.ts";
@@ -213,7 +215,7 @@ export async function flushQueue(agentId: string): Promise<void> {
     if (!managed.session) {
       const tail = (logCache.get(agentId) ?? []).at(-1);
       if (tail?.kind === "user_message") {
-        addLogEntry(agentId, "system", "Previous response was interrupted.");
+        addLogEntry(agentId, "system", logMessage("logs.session.previousInterrupted"));
       }
       try {
         const sessionId = managed.sessionId;
@@ -222,9 +224,9 @@ export async function flushQueue(agentId: string): Promise<void> {
         // the send that carries it to the agent.
         const wakeReason = managed.dormantReason === "idle" ? "idle" : "session-ended";
         installSession(agentId, managed, sessionId ? createSession(managed, sessionId) : createSession(managed));
-        addLogEntry(agentId, "system", sessionId ? armDormantWakeNotice(managed, wakeReason, sessionId) : "Started a fresh session before flushing queued messages.");
+        addLogEntry(agentId, "system", sessionId ? armDormantWakeNotice(managed, wakeReason, sessionId) : logMessage("logs.session.freshQueue"));
       } catch (err: any) {
-        addLogEntry(agentId, "error", `Cannot start session to flush queue: ${err.message}`);
+        addLogEntry(agentId, "error", logMessage("logs.session.queueStartFailed", { error: errMessage(err) }));
         updateState(agentId, "error");
         return;
       }
@@ -293,8 +295,8 @@ export async function flushQueue(agentId: string): Promise<void> {
         updateState(agentId, "waiting_for_response");
         return;
       }
-      if (err instanceof UsageCapError) return void (addLogEntry(agentId, "error", usageCapText(err)), updateState(agentId, "waiting_for_response"));
-      addLogEntry(agentId, "error", `Error flushing queue: ${err.message}`);
+      if (err instanceof UsageCapError) return void (addLogEntry(agentId, "error", usageCapMessage(err)), updateState(agentId, "waiting_for_response"));
+      addLogEntry(agentId, "error", logMessage("logs.session.queueFlushFailed", { error: errMessage(err) }));
       updateState(agentId, "error");
     }
   } finally {
