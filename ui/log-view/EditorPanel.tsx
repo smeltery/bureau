@@ -1,8 +1,9 @@
+import { useI18n } from "../i18n.tsx";
 import { useRef, useCallback, useState, useMemo } from "react";
 import { send } from "../ws.ts";
 import { useTheme } from "../store.tsx";
 import { getEditorState } from "./editor-state.ts";
-import { basename, dirname, readRecentFiles, writeTabs, type Tab } from "./editor-model.ts";
+import { basename, dirname, readRecentFiles, writeTabs, type Tab, type EditorOpenError } from "./editor-model.ts";
 import { EditorBanner } from "./EditorBanner.tsx";
 import { EditorFooter } from "./EditorFooter.tsx";
 import { EditorTabsHeader } from "./EditorTabsHeader.tsx";
@@ -31,6 +32,7 @@ export function EditorPanel({
   // that disable iOS autocorrect/autocapitalize on the editable surface.
   mobile?: boolean;
 }) {
+  const { t } = useI18n();
   const { mode } = useTheme();
 
   // Restore from the module-level store on mount so tabs and dirty buffers
@@ -56,12 +58,13 @@ export function EditorPanel({
   const [activePath, setActivePath] = useState<string | null>(() => {
     return getEditorState(agentId)?.activePath ?? null;
   });
-  const [pendingError, setPendingError] = useState<string | null>(null);
+  const [pendingError, setPendingError] = useState<EditorOpenError | null>(null);
   const [tabMenuOpen, setTabMenuOpen] = useState(false);
   const [recentPaths, setRecentPaths] = useState<string[]>(() => readRecentFiles(agentId));
   const tabMenuRef = useRef<HTMLDivElement>(null);
   const tabMenuButtonRef = useRef<HTMLButtonElement>(null);
 
+  const reloadsRef = useRef(new Map<string, string>());
   const tabsRef = useRef<Tab[]>([]);
   tabsRef.current = tabs;
 
@@ -81,7 +84,7 @@ export function EditorPanel({
   const { containerRef, viewRef, activePathRef } = useCodeMirrorEditor({ mode, mobile, tabs, activePath, setTabsAndPersist });
   const { cite, clearCite } = useEditorSelectionCite(viewRef, containerRef, activePath, !mobile && !!onCite);
 
-  useEditorSocket({ agentId, setPendingError, setActivePath, setTabsAndPersist, setRecentPaths, tabsRef });
+  useEditorSocket({ agentId, setPendingError, setActivePath, setTabsAndPersist, setRecentPaths, tabsRef, reloadsRef });
 
   const saveActiveTab = useCallback(() => {
     const path = activePathRef.current;
@@ -119,6 +122,7 @@ export function EditorPanel({
 
   const closeTab = useCallback(
     (path: string) => {
+      reloadsRef.current.delete(path);
       send({ type: "editor_close", agentId, path });
       setTabsAndPersist((prev) => prev.filter((t) => t.path !== path));
       setActivePath((prev) => {
@@ -158,6 +162,7 @@ export function EditorPanel({
 
   const reloadFromDisk = useCallback(() => {
     if (!activeTab) return;
+    reloadsRef.current.set(activeTab.path, activeTab.content);
     send({ type: "editor_open", agentId, path: activeTab.path });
   }, [activeTab, agentId]);
 
@@ -257,7 +262,7 @@ export function EditorPanel({
               marginBottom: 6,
             }}
           >
-            Recently opened
+            {t("editor.recent")}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {recentPaths.map((path) => (
@@ -323,7 +328,7 @@ export function EditorPanel({
             borderTop: "1px solid var(--border-subtle)",
           }}
         >
-          No file open
+          {t("editor.empty")}
         </div>
       )}
 

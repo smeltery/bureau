@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { RefObject } from "react";
 import { basename, type Tab } from "./editor-model.ts";
 import { EditorTabsMobileHeader } from "./EditorTabsMobileHeader.tsx";
@@ -29,6 +30,7 @@ export function EditorTabsHeader({
   onSave: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   if (mobile) {
     return (
       <EditorTabsMobileHeader
@@ -70,13 +72,13 @@ export function EditorTabsHeader({
               alignItems: "center",
             }}
           >
-            No file open. Use <code style={{ margin: "0 4px", color: "var(--text-secondary)" }}>/bureau-edit &lt;path&gt;</code> or have the agent send one.
+            {t("editor.emptyHint", { command: "/bureau-edit <path>" })}
           </div>
         )}
-        {tabs.map((t) => (
+        {tabs.map((tab) => (
           <div
-            key={t.path}
-            onClick={() => onSelectTab(t.path)}
+            key={tab.path}
+            onClick={() => onSelectTab(tab.path)}
             style={{
               display: "flex",
               alignItems: "center",
@@ -84,16 +86,16 @@ export function EditorTabsHeader({
               padding: "0 8px 0 12px",
               fontFamily: "'JetBrains Mono',monospace",
               fontSize: 11,
-              color: t.path === activePath ? "var(--text-secondary)" : "var(--text-muted)",
-              background: t.path === activePath ? "var(--bg-base)" : "transparent",
+              color: tab.path === activePath ? "var(--text-secondary)" : "var(--text-muted)",
+              background: tab.path === activePath ? "var(--bg-base)" : "transparent",
               borderRight: "1px solid var(--border)",
               cursor: "pointer",
               flexShrink: 0,
               maxWidth: 200,
               position: "relative",
-              ...(t.path === activePath ? { borderTop: "2px solid var(--green)" } : {}),
+              ...(tab.path === activePath ? { borderTop: "2px solid var(--green)" } : {}),
             }}
-            title={t.path}
+            title={tab.path}
           >
             <span
               style={{
@@ -102,13 +104,13 @@ export function EditorTabsHeader({
                 whiteSpace: "nowrap",
               }}
             >
-              {basename(t.path)}
-              {t.dirty ? "*" : ""}
+              {basename(tab.path)}
+              {tab.dirty ? "*" : ""}
             </span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onCloseTab(t.path);
+                onCloseTab(tab.path);
               }}
               style={{
                 background: "none",
@@ -119,7 +121,8 @@ export function EditorTabsHeader({
                 padding: "0 2px",
                 lineHeight: 1,
               }}
-              title="Close tab"
+              title={t("editor.closeTab")}
+              aria-label={t("editor.closeTab")}
             >
               &times;
             </button>
@@ -132,6 +135,7 @@ export function EditorTabsHeader({
 }
 
 function CloseEditorButton({ onClose, mobile = false }: { onClose: () => void; mobile?: boolean }) {
+  const { t } = useI18n();
   return (
     <button
       onClick={onClose}
@@ -145,7 +149,8 @@ function CloseEditorButton({ onClose, mobile = false }: { onClose: () => void; m
         lineHeight: 1,
         flexShrink: 0,
       }}
-      title="Close editor"
+      title={t("editor.close")}
+      aria-label={t("editor.close")}
     >
       &times;
     </button>
