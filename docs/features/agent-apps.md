@@ -250,6 +250,10 @@ not running** — a stopped app's port is just a free port, and any local proces
 could be sitting on it — checked before a permit and before a socket, through the
 injected supervisor rather than the production singleton.
 
+WebSocket handshakes preserve horizontal tabs in forwarded field values.
+Header names, hosts, request paths and subprotocol tokens remain strict, and
+line breaks, NUL and other unsafe controls are refused.
+
 For WebSocket the relay decides what the app cannot: the Origin check happens
 before anything dials, and a subprotocol is matched exactly or the upgrade is
 refused, with the app's own pick riding the 101 rather than a guess at the first

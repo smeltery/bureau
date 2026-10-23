@@ -74,6 +74,10 @@ describe("host-ws-handshake: the upgrade request", () => {
     expect(buildHandshakeRequest({ ...base, headers: { "X A": "fine" } })).toBeNull();
     expect(buildHandshakeRequest({ ...base, headers: { "X:A": "fine" } })).toBeNull();
     expect(buildHandshakeRequest({ ...base, host: "host\r\nX: 1" })).toBeNull();
+    expect(buildHandshakeRequest({ ...base, host: "host\tname" })).toBeNull();
+    expect(buildHandshakeRequest({ ...base, target: "/a\tb" })).toBeNull();
+    expect(buildHandshakeRequest({ ...base, protocols: ["a\tb"] })).toBeNull();
+    expect(buildHandshakeRequest({ ...base, headers: { "X\tName": "value" } })).toBeNull();
     expect(buildHandshakeRequest({ ...base, host: "" })).toBeNull();
     expect(buildHandshakeRequest({ ...base, target: "not-a-path" })).toBeNull();
     expect(buildHandshakeRequest({ ...base, target: "/a b" })).toBeNull();
@@ -86,10 +90,20 @@ describe("host-ws-handshake: the upgrade request", () => {
     expect(isSafeHeaderName("X-Forwarded-For")).toBe(true);
     expect(isSafeHeaderName("bad name")).toBe(false);
     expect(isSafeHeaderValue("plain")).toBe(true);
-    expect(isSafeHeaderValue("with\ttab")).toBe(false);
+    expect(isSafeHeaderValue("with\ttab")).toBe(true);
     expect(isSafeHeaderValue("del\x7f")).toBe(false);
     expect(isSafeRequestTarget("/ok?q=1")).toBe(true);
     expect(isSafeRequestTarget("relative")).toBe(false);
+  });
+
+  it("preserves field tabs while rejecting every other control byte", () => {
+    const base = { target: "/", host: "hello.office.example", key: "K", protocols: [], headers: {} };
+    const request = buildHandshakeRequest({ ...base, headers: { "X-Context": "left\tright" } });
+    expect(request?.toString()).toContain("X-Context: left\tright\r\n");
+    for (let code = 0; code < 32; code++) {
+      if (code === 9) continue;
+      expect(buildHandshakeRequest({ ...base, headers: { "X-Context": `left${String.fromCharCode(code)}right` } })).toBeNull();
+    }
   });
 
   it("computes the accept value the RFC specifies", () => {
