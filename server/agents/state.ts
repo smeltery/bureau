@@ -1,3 +1,4 @@
+import { logContent, type LogMessage } from "../../shared/i18n/log-message.ts";
 import { cancelUsageResume } from "./conversation/usage-resume.ts";
 import type { AgentState, Attachment, LogEntry, OfficeSettings, RoomWire } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES, generateRoomId, normalizeRoomPet } from "../../shared/types.ts";
@@ -162,7 +163,7 @@ export function updateState(agentId: string, state: AgentState) {
 export function addLogEntry(
   agentId: string,
   kind: LogEntry["kind"],
-  content: string,
+  content: string | LogMessage,
   metadata?: Record<string, unknown>,
   attachments?: Attachment[],
   extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
@@ -172,7 +173,7 @@ export function addLogEntry(
     agentId,
     timestamp: Date.now(),
     kind,
-    content,
+    ...logContent(content),
     metadata,
     ...(attachments && attachments.length > 0 ? { attachments } : {}),
     ...(extra ?? {}),
@@ -220,13 +221,19 @@ export function addLogEntry(
 // Note: entries are still added to logCache for UI display. If sessionId is null when this is
 // called, the backfill logic in processMessage (system/init) would write them to disk. In practice
 // this doesn't happen because /resume requires existing sessions (sessionId already set).
-export function emitEphemeralLog(agentId: string, kind: LogEntry["kind"], content: string, metadata?: Record<string, unknown>, extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>) {
+export function emitEphemeralLog(
+  agentId: string,
+  kind: LogEntry["kind"],
+  content: string | LogMessage,
+  metadata?: Record<string, unknown>,
+  extra?: Partial<Pick<LogEntry, "diff" | "file" | "terminal">>,
+) {
   const entry = prepareLogEntry({
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     agentId,
     timestamp: Date.now(),
     kind,
-    content,
+    ...logContent(content),
     metadata,
     ephemeral: true,
     ...(extra ?? {}),

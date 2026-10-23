@@ -1,3 +1,5 @@
+import { displayLogContent } from "../../../shared/i18n/log-message.ts";
+import { useI18n } from "../../i18n.tsx";
 import { SecretRequestCard } from "../integrations/SecretRequestCard.tsx";
 import type { ChoicePromptPayload, LogEntry } from "../../../shared/types.ts";
 import { UserMessage, EditableUserMessage } from "./UserMessage.tsx";
@@ -55,6 +57,8 @@ export function LogEntryCard({
   tasks?: TaskMap;
   onOpenTask?: (id: string) => void;
 }) {
+  const { language } = useI18n();
+  const content = displayLogContent(entry, language);
   switch (entry.kind) {
     case "user_message": {
       const username = entry.metadata?.username as string | undefined;
@@ -66,11 +70,11 @@ export function LogEntryCard({
       // Agent-sent messages aren't editable: "edit & branch" rewrites the
       // human's own prompt, not a peer-attributed message.
       if (isEditing && !agentName && !cronjobName && !isProgrammaticUser) {
-        return <EditableUserMessage content={entry.content} entryId={entry.id} isMobile={isMobile} username={username} onCancel={onCancelEdit} onSubmit={onSubmitEdit} />;
+        return <EditableUserMessage content={content} entryId={entry.id} isMobile={isMobile} username={username} onCancel={onCancelEdit} onSubmit={onSubmitEdit} />;
       }
       return (
         <UserMessage
-          content={entry.content}
+          content={content}
           isMobile={isMobile}
           username={username}
           device={device}
@@ -92,7 +96,7 @@ export function LogEntryCard({
       const recipient = entry.metadata?.recipient_api_token_name;
       return (
         <UserMessage
-          content={entry.content}
+          content={content}
           isMobile={isMobile}
           device={typeof recipient === "string" ? `To remote boss "${recipient}"` : "To remote boss"}
           fromNonHuman
@@ -106,10 +110,10 @@ export function LogEntryCard({
       );
     }
     case "text":
-      return <AssistantText content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} tasks={tasks} onOpenTask={onOpenTask} />;
+      return <AssistantText content={content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} tasks={tasks} onOpenTask={onOpenTask} />;
     case "thinking": {
       const durationMs = entry.metadata?.duration_ms as number | undefined;
-      return <ThinkingBlock content={entry.content} durationMs={durationMs} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
+      return <ThinkingBlock content={content} durationMs={durationMs} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
     }
     case "tool_call": {
       const matchingResult = findMatchingToolResult(entry, turnEntries);
@@ -135,21 +139,21 @@ export function LogEntryCard({
       return <ToolResult entry={entry} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} />;
     }
     case "error":
-      return <ErrorBlock content={entry.content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
+      return <ErrorBlock content={content} isLastInTurn={isLastInTurn} turnEntries={turnEntries} isMobile={isMobile} timestamp={entry.timestamp} />;
     case "system":
       if (entry.metadata?.secretRequest) return <SecretRequestCard card={entry.metadata.secretRequest} />;
       if (typeof entry.metadata?.helpContent === "string") {
-        return <HelpCard header={entry.content} helpContent={entry.metadata.helpContent} />;
+        return <HelpCard header={content} helpContent={entry.metadata.helpContent} />;
       }
       if (typeof entry.metadata?.cronjobPromptContent === "string") {
         const cronjobName = typeof entry.metadata.cronjobName === "string" ? entry.metadata.cronjobName : "Cron job prompt";
-        return <PromptInspectCard header={entry.content} content={entry.metadata.cronjobPromptContent} actionLabel="Show prompt" modalTitle={cronjobName} renderAs="plaintext" />;
+        return <PromptInspectCard header={content} content={entry.metadata.cronjobPromptContent} actionLabel="Show prompt" modalTitle={cronjobName} renderAs="plaintext" />;
       }
       if (entry.metadata?.permissionDenied && typeof entry.metadata.permissionDenied === "object") {
         return <PermissionDeniedCard denial={entry.metadata.permissionDenied as { toolName?: string; message?: string; decisionReason?: string }} isMobile={isMobile} />;
       }
       if (entry.metadata?.taskEvent && typeof entry.metadata.taskEvent === "object") {
-        return <TaskBreadcrumb content={entry.content} phase={(entry.metadata.taskEvent as { phase?: unknown }).phase} isMobile={isMobile} />;
+        return <TaskBreadcrumb content={content} phase={(entry.metadata.taskEvent as { phase?: unknown }).phase} isMobile={isMobile} />;
       }
       if (entry.metadata?.choicePrompt) {
         const prompt = entry.metadata.choicePrompt;
@@ -157,26 +161,26 @@ export function LogEntryCard({
       }
       return (
         <SystemMessage
-          content={entry.content}
+          content={content}
           isMobile={isMobile}
           openConnections={entry.metadata?.openConnections === true}
           onOpenConnections={entry.metadata?.openConnections === true ? onOpenConnections : undefined}
         />
       );
     case "diff": {
-      if (!entry.diff) return <SystemMessage content={entry.content} isMobile={isMobile} />;
+      if (!entry.diff) return <SystemMessage content={content} isMobile={isMobile} />;
       return <DiffCard payload={entry.diff} />;
     }
     case "edit-request": {
-      if (!entry.file || !onOpenInEditor) return <SystemMessage content={entry.content} isMobile={isMobile} />;
+      if (!entry.file || !onOpenInEditor) return <SystemMessage content={content} isMobile={isMobile} />;
       return <EditRequestCard payload={entry.file} onOpen={onOpenInEditor} />;
     }
     case "terminal-command": {
-      if (!entry.terminal || !onCopyToTerminal) return <SystemMessage content={entry.content} isMobile={isMobile} />;
+      if (!entry.terminal || !onCopyToTerminal) return <SystemMessage content={content} isMobile={isMobile} />;
       return <TerminalCommandCard payload={entry.terminal} onCopy={onCopyToTerminal} />;
     }
     case "file-view": {
-      if (!entry.attachments || entry.attachments.length === 0) return <SystemMessage content={entry.content} isMobile={isMobile} />;
+      if (!entry.attachments || entry.attachments.length === 0) return <SystemMessage content={content} isMobile={isMobile} />;
       return <FileViewCard attachments={entry.attachments} agentId={entry.agentId} isMobile={isMobile} />;
     }
     default:

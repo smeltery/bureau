@@ -1,8 +1,10 @@
+import { logs } from "./logs-es.ts";
 import { storage } from "./storage-es.ts";
 import { skills } from "./skills-es.ts";
 import type { Catalog } from "./en.ts";
 // Spanish translations for the office UI catalog.
 export const es = {
+  ...logs,
   ...skills,
   ...storage,
   "access.title": "Acceso",

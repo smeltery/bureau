@@ -1,3 +1,4 @@
+import type { LogMessage } from "./i18n/log-message.ts";
 import type { SecretRequestCard } from "./integrations/secret-requests.ts";
 // File attachment metadata
 export interface Attachment {
@@ -82,6 +83,8 @@ export interface SubagentOrigin {
 
 // Log entry in the conversation view
 export interface LogEntry {
+  /** Optional reader translation; content remains the canonical English text. */
+  message?: LogMessage;
   id: string;
   agentId: string;
   timestamp: number;

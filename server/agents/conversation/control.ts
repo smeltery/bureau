@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { cancelUsageResume } from "./usage-resume.ts";
 import { cancelAutoHandoff } from "./auto-handoff.ts";
 import { listAgentSessions, loadLogWithAncestors, getSessionCwd, persistSessionCwd, ensureSessionCwd } from "../../persistence.ts";
@@ -35,7 +36,7 @@ function applySessionCwdForResume(agentId: string, managed: ManagedAgent, sessio
     // Stored cwd is gone/invalid — resume in the current mirror cwd instead of
     // failing, and tell the user. createSession's own preflight still validates
     // cwd and (for Claude) the session file's presence.
-    addLogEntry(agentId, "system", `Session's saved directory \`${storedCwd}\` is unavailable (${errMessage(err)}); resuming in \`${prevCwd}\`.`);
+    addLogEntry(agentId, "system", logMessage("logs.directoryUnavailable", { storedCwd, error: errMessage(err), cwd: prevCwd }));
     return { prevCwd, switched: false, storedCwdInvalid: true };
   }
 }
@@ -75,7 +76,7 @@ export async function abort(agentId: string) {
   if (!managed.pendingTurn) {
     if (managed.info.state === "thinking" || managed.info.state === "tool_executing") {
       updateState(agentId, "waiting_for_response");
-      addLogEntry(agentId, "system", "Agent interrupted.");
+      addLogEntry(agentId, "system", logMessage("logs.interrupted"));
     }
     return;
   }
@@ -92,13 +93,13 @@ export async function abort(agentId: string) {
   // from the user's perspective the agent stops on Ctrl+C, matching the
   // Claude Code interactive behavior.
   updateState(agentId, "waiting_for_response");
-  addLogEntry(agentId, "system", "Agent interrupted.");
+  addLogEntry(agentId, "system", logMessage("logs.interrupted"));
 
   try {
     const newSession = sessionId ? createSession(managed, sessionId) : createSession(managed);
     await replaceSession(agentId, managed, newSession);
   } catch (err: any) {
-    addLogEntry(agentId, "error", `Failed to resume after interrupt: ${err.message}`);
+    addLogEntry(agentId, "error", logMessage("logs.interruptResumeFailed", { error: errMessage(err) }));
     updateState(agentId, "error");
   } finally {
     managed.aborting = false;
@@ -180,10 +181,10 @@ export async function newConversation(agentId: string) {
     logCache.set(agentId, []);
     emit({ type: "clear_logs", agentId });
     updateState(agentId, "idle");
-    addLogEntry(agentId, "system", "New conversation started.");
+    addLogEntry(agentId, "system", logMessage("logs.newConversation"));
     persistAll();
   } catch (err: any) {
-    addLogEntry(agentId, "error", `Failed to start new conversation: ${err.message}`);
+    addLogEntry(agentId, "error", logMessage("logs.newFailed", { error: errMessage(err) }));
     updateState(agentId, "error");
   }
 }
@@ -218,7 +219,7 @@ export async function handoff(agentId: string, text: string, options?: { automat
     if (options?.automatic) {
       managed.autoHandoffSpent = false;
       managed.autoHandoffFresh = true;
-      addLogEntry(agentId, "system", "Automatic handoff opened a fresh conversation. The brief will arrive before queued messages.");
+      addLogEntry(agentId, "system", logMessage("logs.handoffOpened"));
     }
     managed.flushHeld = false;
     return enqueueMessage(agentId, { sender: { kind: "agent", agentId, agentName: self.name, roomName: self.roomName }, text, handoff: true }, { atHead: true });
@@ -291,7 +292,7 @@ export async function resume(agentId: string, sessionId: string) {
     emit({ type: "agent_updated", agentId, changes: { topic: managed.info.topic, topicStale: drift > 0, contextUsage: null } });
 
     updateState(agentId, "waiting_for_response");
-    addLogEntry(agentId, "system", `Resumed session: ${restoredTopic || sessionId.slice(0, 8) + "..."}`);
+    addLogEntry(agentId, "system", logMessage("logs.resumed", { topic: restoredTopic || sessionId.slice(0, 8) + "..." }));
     persistAll();
 
     // Regenerate now (rather than waiting for the next user_message) if the
@@ -301,7 +302,7 @@ export async function resume(agentId: string, sessionId: string) {
       generateTopic(agentId);
     }
   } catch (err: any) {
-    addLogEntry(agentId, "error", `Failed to resume: ${err.message}`);
+    addLogEntry(agentId, "error", logMessage("logs.resumeFailed", { error: errMessage(err) }));
     updateState(agentId, "error");
   }
 }

@@ -1,8 +1,10 @@
+import { logs } from "./logs-ca.ts";
 import { storage } from "./storage-ca.ts";
 import { skills } from "./skills-ca.ts";
 import type { Catalog } from "./en.ts";
 // Catalan translations for the office UI catalog.
 export const ca = {
+  ...logs,
   ...skills,
   ...storage,
   "access.title": "Accés",
