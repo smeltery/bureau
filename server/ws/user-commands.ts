@@ -19,6 +19,10 @@ export async function handleUserCommand(cmd: ClientCommand, ws: ServerWebSocket<
     }
     case "update_user": {
       const target = getUserById(cmd.userId);
+      if (getWsUser(ws)?.role === "owner" && cmd.changes.role === "member" && wouldDeleteLeaveNoOwner(cmd.userId)) {
+        ws.send(JSON.stringify({ type: "error", message: "Keep another owner signed in before removing this owner's role." }));
+        return true;
+      }
       const conflict = target ? instructionConflict(target, cmd.changes) : null;
       if (conflict) {
         ws.send(JSON.stringify({ type: "error", message: conflict }));
@@ -46,17 +50,24 @@ export async function handleUserCommand(cmd: ClientCommand, ws: ServerWebSocket<
     case "delete_user": {
       const actor = getWsUser(ws);
       if (!actor || actor.role !== "owner") return true;
-      // Lockout-prevention: refuse deletion that would leave the office
-      // without any owner record on disk. Defense in depth: same invariant
-      // as the session-revoke check, applied to user records.
+      if (actor.id === cmd.userId) {
+        ws.send(JSON.stringify({ type: "error", message: "Owners cannot delete their own user record." }));
+        return true;
+      }
+      // Check before agent reassignment, then again at the synchronous delete.
       if (wouldDeleteLeaveNoOwner(cmd.userId)) {
-        console.warn(`[auth] delete_user "${cmd.userId}" refused: would leave office with no owners`);
+        ws.send(JSON.stringify({ type: "error", message: "Keep another owner signed in before deleting this owner." }));
         return true;
       }
       const successor = firstOfficeOwner(cmd.userId);
       if (successor) await AgentManager.reassignAgentsOwnedBy(cmd.userId, successor.id);
       const target = getUserById(cmd.userId);
-      if (deleteUser(actor, cmd.userId) && target) await revokeInvitesForUser(target.id, target.name);
+      if (!deleteUser(getWsUser(ws), cmd.userId)) {
+        ws.send(JSON.stringify({ type: "error", message: "User deletion refused; check owner access and retry." }));
+        for (const browser of browsers) sendInitialPayload(browser);
+        return true;
+      }
+      if (target) await revokeInvitesForUser(target.id, target.name);
       for (const browser of browsers) {
         sendInitialPayload(browser);
       }

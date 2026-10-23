@@ -5,7 +5,7 @@ import { ensureLoaded, mutate, persistSessions, sessionStore } from "./store.ts"
 export { setOnSessionsChanged };
 export { revalidateByHash, sessionContextFor, validateSession, type SessionLookup } from "./session-validation.ts";
 
-export type SessionRevokeResult = "ok" | "not_found" | "ambiguous";
+export type SessionRevokeResult = "ok" | "not_found" | "ambiguous" | "would_strand_office";
 
 export async function revokeSessionByPrefix(prefix: string): Promise<SessionRevokeResult> {
   return mutate(() => {
@@ -19,6 +19,7 @@ export async function revokeSessionByPrefix(prefix: string): Promise<SessionRevo
     if (matches.length > 1) return "ambiguous";
     const hash = matches[0];
     const prev = sessionStore().get(hash)!;
+    if (wouldRevokeLeaveOfficeUnreachable(hash)) return "would_strand_office";
     sessionStore().delete(hash);
     try {
       persistSessions();
@@ -32,11 +33,12 @@ export async function revokeSessionByPrefix(prefix: string): Promise<SessionRevo
   });
 }
 
-export async function logoutBySessionHash(sessionIdHash: string): Promise<boolean> {
+export async function logoutBySessionHash(sessionIdHash: string): Promise<"ok" | "not_found" | "would_strand_office"> {
   return mutate(() => {
     ensureLoaded();
     const prev = sessionStore().get(sessionIdHash);
-    if (!prev) return false;
+    if (!prev) return "not_found";
+    if (wouldRevokeLeaveOfficeUnreachable(sessionIdHash)) return "would_strand_office";
     sessionStore().delete(sessionIdHash);
     try {
       persistSessions();
@@ -46,7 +48,7 @@ export async function logoutBySessionHash(sessionIdHash: string): Promise<boolea
     }
     forceExpireSocketsForSession(sessionIdHash);
     fireSessionsChangedHook();
-    return true;
+    return "ok";
   });
 }
 
@@ -153,4 +155,19 @@ export function resolveSessionHashByPrefix(prefix: string): string | null {
     }
   }
   return found;
+}
+
+// Called in the same synchronous turn as the user-record write. Session
+// removals also check inside their serialized mutation before changing state.
+export function wouldRemovingOwnerStrandOffice(userId: string): boolean {
+  if (getUserById(userId)?.role !== "owner") return false;
+  const now = Date.now();
+  let targetSignedIn = false;
+  for (const session of sessionStore().values()) {
+    if (session.expiresAt < now || session.absoluteExpiresAt < now) continue;
+    if (getUserById(session.userId)?.role !== "owner") continue;
+    if (session.userId !== userId) return false;
+    targetSignedIn = true;
+  }
+  return targetSignedIn;
 }

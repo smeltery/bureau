@@ -1,3 +1,4 @@
+import { wouldRemovingOwnerStrandOffice } from "./auth/session-lifecycle.ts";
 import { oauthStore } from "./integrations/oauth/store.ts";
 import { integrationStore } from "./integrations/store.ts";
 import { notifyIntegrationChange } from "./integrations/changes.ts";
@@ -43,13 +44,11 @@ export function countOwners(): number {
   return n;
 }
 
-// True if deleting `userId` would leave the office without any owner record
-// on disk. Used by the delete_user pre-check so a misclick can't lock the
-// office out.
+// A user removal must preserve both an owner record and browser access.
 export function wouldDeleteLeaveNoOwner(userId: string): boolean {
   const target = getUserById(userId);
   if (!target || target.role !== "owner") return false;
-  return countOwners() <= 1;
+  return countOwners() <= 1 || wouldRemovingOwnerStrandOffice(userId);
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +180,7 @@ export function updateUser(actor: UserRecord | null, userId: string, changes: Us
   if (!canEdit || instructionConflict(target, changes)) return null;
   const allRoomIds = rooms.map((r) => r.id);
   const next = applyInteractiveUserChanges(target, actor, changes, allRoomIds);
+  if (target.role === "owner" && next.role !== "owner" && wouldDeleteLeaveNoOwner(userId)) return null;
   users.delete(normalizeUserKey(target.name));
   users.set(normalizeUserKey(next.name), next);
   persist();
@@ -189,7 +189,7 @@ export function updateUser(actor: UserRecord | null, userId: string, changes: Us
 }
 
 export function deleteUser(actor: UserRecord | null, userId: string): boolean {
-  if (!actor || actor.role !== "owner" || actor.id === userId) return false;
+  if (!actor || actor.role !== "owner" || actor.id === userId || wouldDeleteLeaveNoOwner(userId)) return false;
   const target = [...users.values()].find((u) => u.id === userId);
   if (!target) return false;
   users.delete(normalizeUserKey(target.name));

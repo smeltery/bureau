@@ -129,6 +129,12 @@ same body replays with `Idempotency-Replayed: true`; same key + different body
 
 `User Settings` → `Sign out` revokes the current device's session and reloads. Other devices for the same user stay signed in. If you're the office's last active owner session, sign-out is refused with a lockout-prevention message — mint another owner invite first, accept it on a second device, then retry.
 
+Session revocation, owner demotion, and owner deletion also preserve an active
+owner session. A second owner record or an expired session is not sufficient:
+sign in as another owner first. Concurrent logout and revocation requests check
+access when they remove the session, so they cannot both remove the last two
+owner sessions. User deletion rechecks access after transferring agents.
+
 Do not sign out to accept an invite for a different user. A sole owner's last active session cannot sign out, and replacing it would lose the browser's reachable owner credential. Use a private window or a different browser profile for the invite.
 
 ## Reachability
