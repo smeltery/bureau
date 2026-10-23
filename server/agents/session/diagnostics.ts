@@ -1,3 +1,4 @@
+import type { LoginInstructions } from "../../backends/types.ts";
 import { logMessage, type LogMessage } from "../../../shared/i18n/log-message.ts";
 import { addLogEntry, emitEphemeralLog, rooms, type ManagedAgent } from "../state.ts";
 import { openCodeEnvironmentId } from "../../backends/opencode/profiles/identity.ts";
@@ -43,7 +44,7 @@ export async function emitLoginInstructions(agentId: string, managed: ManagedAge
   if (!managed) return;
   const provider = managed.info.agentType === "codex" ? "codex" : managed.info.agentType === "claude" ? "claude" : null;
   const session = managed.session;
-  let instructions: { text: string; commands?: string[] };
+  let instructions: LoginInstructions;
   try {
     instructions = await getBackend(managed.info.agentType).getLoginInstructions({
       env: envForHints(managed),
@@ -51,12 +52,12 @@ export async function emitLoginInstructions(agentId: string, managed: ManagedAge
       sessionId: managed.sessionId ?? undefined,
     });
   } catch {
-    instructions = { text: "Could not check provider sign-in. Open Account → Connections to check or reconnect." };
+    instructions = { text: "Could not check provider sign-in. Open Account → Connections to check or reconnect.", message: logMessage("logs.login.unknown") };
   }
   if (managed.session !== session) return;
   // Connections deep-link: system notice carries providerLogin so the log card
   // can open Account → Connections without embedding secrets or OAuth state.
-  emitEphemeralLog(agentId, "system", instructions.text, provider ? { providerLogin: provider, openConnections: true } : undefined);
+  emitEphemeralLog(agentId, "system", instructions.message ?? instructions.text, provider ? { providerLogin: provider, openConnections: true } : undefined);
   for (const command of instructions.commands ?? []) {
     addLogEntry(agentId, "terminal-command", command, undefined, undefined, { terminal: { command } });
   }

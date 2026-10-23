@@ -1,8 +1,10 @@
+import { useI18n } from "../i18n.tsx";
 import { useCallback } from "react";
 import type { TerminalCommandPayload } from "../../shared/types.ts";
 import { copyText } from "../utils/clipboard.ts";
 
 export function TerminalCommandCard({ payload, onCopy }: { payload: TerminalCommandPayload; onCopy: (command: string) => void }) {
+  const { t } = useI18n();
   const handleCopyClipboard = useCallback(async () => {
     await copyText(payload.command);
   }, [payload.command]);
@@ -25,7 +27,7 @@ export function TerminalCommandCard({ payload, onCopy }: { payload: TerminalComm
             color: "var(--text-secondary)",
             whiteSpace: "pre-wrap",
             wordBreak: "break-all",
-            flex: 1,
+            flex: "1 1 220px",
             minWidth: 0,
           }}
           title={payload.command}
@@ -35,7 +37,7 @@ export function TerminalCommandCard({ payload, onCopy }: { payload: TerminalComm
         </span>
         <button
           onClick={handleCopyClipboard}
-          title="Copy to clipboard"
+          title={t("logs.login.clipboard")}
           style={{
             padding: "4px 10px",
             borderRadius: 6,
@@ -48,7 +50,7 @@ export function TerminalCommandCard({ payload, onCopy }: { payload: TerminalComm
             flexShrink: 0,
           }}
         >
-          Copy
+          {t("common.copy")}
         </button>
         <button
           onClick={() => onCopy(payload.command)}
@@ -63,9 +65,9 @@ export function TerminalCommandCard({ payload, onCopy }: { payload: TerminalComm
             cursor: "pointer",
             flexShrink: 0,
           }}
-          title="Open the terminal panel and type this command at the prompt (not auto-executed)"
+          title={t("logs.login.hint")}
         >
-          Copy to terminal
+          {t("logs.login.copy")}
         </button>
       </div>
     </div>

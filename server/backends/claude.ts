@@ -1,3 +1,4 @@
+import { logMessage } from "../../shared/i18n/log-message.ts";
 import { ClaudeQuotaStop } from "./claude/usage-limit.ts";
 import { registerClaudeMcp } from "./claude/mcp.ts";
 import { withCloudModelDefaults } from "./claude/cloud-defaults.ts";
@@ -296,12 +297,16 @@ export const claudeBackend: Backend = {
   },
   async getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }) {
     const signIn = await claudeSignInStatus(opts?.env, true);
-    if (signIn === "unknown") return { text: "Claude sign-in could not be checked. Open User Settings → Connections to check or reconnect, then /clear this conversation." };
+    if (signIn === "unknown")
+      return { text: "Claude sign-in could not be checked. Open User Settings → Connections to check or reconnect, then /clear this conversation.", message: logMessage("logs.login.claudeUnknown") };
     if (signIn === "signed_in") {
-      return { text: ALREADY_AUTHED_INSTRUCTIONS };
+      return { text: ALREADY_AUTHED_INSTRUCTIONS, message: logMessage("logs.login.signedIn", { provider: "Claude Code" }) };
     }
     const command = claudeLoginCommand(opts?.env);
-    if (command) return { text: LOGIN_INSTRUCTIONS, commands: [command] };
-    return { text: "Claude's bundled executable is unavailable. Repair the Bureau installation, or open Account → Connections to provide an ANTHROPIC_API_KEY, then /clear." };
+    if (command) return { text: LOGIN_INSTRUCTIONS, message: logMessage("logs.login.claude"), commands: [command] };
+    return {
+      text: "Claude's bundled executable is unavailable. Repair the Bureau installation, or open Account → Connections to provide an ANTHROPIC_API_KEY, then /clear.",
+      message: logMessage("logs.login.claudeUnavailable"),
+    };
   },
 };

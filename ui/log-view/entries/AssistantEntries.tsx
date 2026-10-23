@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 export { ChoicePromptCard } from "./ChoicePromptCard.tsx";
 import { useCallback, useState } from "react";
 import type { LogEntry } from "../../../shared/types.ts";
@@ -189,6 +190,7 @@ export function ErrorBlock({ content, isLastInTurn, turnEntries, isMobile, times
 }
 
 export function SystemMessage({ content, isMobile, openConnections, onOpenConnections }: { content: string; isMobile?: boolean; openConnections?: boolean; onOpenConnections?: () => void }) {
+  const { t } = useI18n();
   const isMultiline = content.includes("\n");
   return (
     <div
@@ -219,7 +221,7 @@ export function SystemMessage({ content, isMobile, openConnections, onOpenConnec
               cursor: "pointer",
             }}
           >
-            Open Connections
+            {t("logs.login.openConnections")}
           </button>
         </div>
       )}

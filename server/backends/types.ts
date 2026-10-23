@@ -1,3 +1,5 @@
+import type { LogMessage } from "../../shared/i18n/log-message.ts";
+
 // Backend abstraction shared by Claude (claude-agent-sdk), Codex (App Server),
 // and OpenCode (local `opencode serve` HTTP/SSE).
 //
@@ -138,6 +140,12 @@ export interface BackendModel {
 // persistSessionFork; fresh → createSession(managed) + skip fork metadata.
 export type ForkSessionBeforeMessageResult = { kind: "fork"; sessionId: string; forkedFromSessionId: string } | { kind: "fresh" };
 
+export interface LoginInstructions {
+  text: string;
+  message?: LogMessage;
+  commands?: string[];
+}
+
 export interface Backend {
   readonly capabilities: BackendCapabilities;
   readonly toolBoundaryDelivery?: boolean;
@@ -184,9 +192,5 @@ export interface Backend {
   // envFile + user envFile, in that override order). Backends that detect
   // env-var auth (e.g. Codex's OPENAI_API_KEY) check it to avoid telling a
   // user to "sign in" when their envFile already authenticates them.
-  getLoginInstructions(opts?: {
-    env?: { [key: string]: string | undefined };
-    environmentId?: string;
-    sessionId?: string;
-  }): { text: string; commands?: string[] } | Promise<{ text: string; commands?: string[] }>;
+  getLoginInstructions(opts?: { env?: { [key: string]: string | undefined }; environmentId?: string; sessionId?: string }): LoginInstructions | Promise<LoginInstructions>;
 }

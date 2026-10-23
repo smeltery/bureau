@@ -10,6 +10,7 @@ import type {
   CreateSessionOptions,
   ForkSessionBeforeMessageResult,
   ListModelsOptions,
+  LoginInstructions,
   ModelOption,
   NormalizedMessage,
   OneShotOptions,
@@ -90,7 +91,7 @@ export const codexBackend: Backend = {
     return AUTH_ERROR_PATTERNS.test(text);
   },
 
-  getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): { text: string; commands?: string[] } {
+  getLoginInstructions(opts?: { env?: { [key: string]: string | undefined } }): LoginInstructions {
     return getCodexLoginInstructions(opts);
   },
 };
