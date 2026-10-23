@@ -160,3 +160,5 @@ graph TB
 
 **Setting up for development?**
 → See [CLAUDE.md](../CLAUDE.md)
+
+- [UI build publication and refresh notices](features/ui-builds.md)

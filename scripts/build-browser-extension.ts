@@ -48,5 +48,6 @@ end.writeUInt16LE(directory.length / 2, 8);
 end.writeUInt16LE(directory.length / 2, 10);
 end.writeUInt32LE(index.length, 12);
 end.writeUInt32LE(offset, 16);
-await mkdir(join(root, "ui/dist"), { recursive: true });
-await writeFile(join(root, "ui/dist/bureau-browser.zip"), Buffer.concat([...chunks, index, end]));
+const outputDirectory = process.argv[2] || join(root, "ui/dist");
+await mkdir(outputDirectory, { recursive: true });
+await writeFile(join(outputDirectory, "bureau-browser.zip"), Buffer.concat([...chunks, index, end]));

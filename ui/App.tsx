@@ -1,3 +1,4 @@
+import { UiBuildNotice } from "./components/overlays/UiBuildNotice.tsx";
 import { useEffect, useRef, useState } from "react";
 import { useAppState, useDispatch } from "./store.tsx";
 import { OfficeView } from "./office/OfficeView.tsx";
@@ -329,6 +330,7 @@ export function App() {
       )}
       {editingDeviceSettings && <DeviceSettingsModal onClose={() => setEditingDeviceSettings(false)} />}
       {editingRoomSettings && <RoomSettingsModal roomId={editingRoomSettings} onClose={() => setEditingRoomSettings(null)} />}
+      <UiBuildNotice />
       {updateOpen && <UpdateModal onClose={() => setUpdateOpen(false)} />}
     </>
   );
