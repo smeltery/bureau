@@ -71,20 +71,38 @@ For the default state directory:
 
 ```sh
 mv ~/.bureau ~/.bureau.before-restore
-mkdir -p ~/.bureau
-tar -xzf ~/bureau-backups/bureau-YYYY-MM-DD.tar.gz -C ~/.bureau
+tar -xzf ~/bureau-backups/bureau-YYYY-MM-DD.tar.gz -C ~
 ```
 
 For a custom state directory:
 
 ```sh
 mv "$BUREAU_HOME" "$BUREAU_HOME.before-restore"
-mkdir -p "$BUREAU_HOME"
-tar -xzf /path/to/backups/bureau-YYYY-MM-DD.tar.gz -C "$BUREAU_HOME"
+tar -xzf /path/to/backups/bureau-YYYY-MM-DD.tar.gz -C "$(dirname "$BUREAU_HOME")"
 ```
 
 Start Bureau again and verify the office in the UI. If the restore is wrong,
 stop Bureau and move the `.before-restore` directory back into place.
+
+Archives contain the state directory itself. Extract into its parent, and check
+the archive's root name with `tar -tzf` when restoring to a different location.
+
+## Recover Damaged Agent State
+
+If `agents.json` contains invalid JSON or an invalid room/agent structure,
+Bureau preserves its exact contents in a sibling
+`agents.json.corrupt-<timestamp>-<unique-id>` file and logs that path before
+starting with an empty room. Later saves leave the recovery copy intact. A
+missing file or an empty array starts an empty room normally. Read errors or a
+failed recovery copy stop startup instead of risking replacement of the state.
+
+Stop Bureau before repairing state. Keep both the recovery copy and any new
+`agents.json` created since the failure. Repair a separate copy, validate the
+JSON, and restore it as `agents.json` in the active state directory. Preserve
+room and agent IDs so existing logs and room access still match. Alternatively,
+extract a verified backup into a temporary directory and restore its
+`agents.json`; use the full restore procedure above if other state also needs
+recovery. Restart and check the rooms and agents before removing any copies.
 
 ## Limitation
 

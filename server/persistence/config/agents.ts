@@ -1,5 +1,6 @@
 import { join } from "path";
-import { readFileSync, existsSync } from "fs";
+import { constants, copyFileSync, readFileSync, unlinkSync } from "fs";
+import { randomUUID } from "crypto";
 import type { AgentCapabilities, AgentInfo, ClaudeModel, KilledAgentSummary, QueuedMessage } from "../../../shared/types.ts";
 import { familyFromLegacyModel, generateRoomId, normalizeRoomPet, parseRoomDecor, parseRoomSkin } from "../../../shared/types.ts";
 import type { RoomDecor, RoomPet, RoomSkin } from "../../../shared/types.ts";
@@ -52,11 +53,17 @@ export interface Room {
 export function loadAgents(): Room[] {
   const defaultRoom = (): Room => ({ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, decor: null, agents: [] });
   let rooms: any[];
+  let content: string;
   try {
-    if (!existsSync(AGENTS_FILE)) return [defaultRoom()];
-    const content = readFileSync(AGENTS_FILE, "utf-8");
+    content = readFileSync(AGENTS_FILE, "utf-8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [defaultRoom()];
+    throw new Error("Cannot read agents.json; refusing to start an empty office", { cause: error });
+  }
+  try {
     const parsed = JSON.parse(content);
-    if (!Array.isArray(parsed) || parsed.length === 0) return [defaultRoom()];
+    if (!Array.isArray(parsed)) throw new Error("Expected an array of rooms or agents");
+    if (parsed.length === 0) return [defaultRoom()];
 
     const first = parsed[0];
 
@@ -75,7 +82,23 @@ export function loadAgents(): Room[] {
     } else {
       rooms = [{ id: generateRoomId(), name: "Room 1", prompt: null, envFile: null, pet: null, decor: null, agents: parsed as PersistedAgent[] }];
     }
+    for (const room of rooms) {
+      if (!room || typeof room.name !== "string" || !Array.isArray(room.agents)) throw new Error("Invalid room record");
+      for (const agent of room.agents) {
+        if (!agent || typeof agent !== "object" || Array.isArray(agent) || typeof agent.id !== "string" || typeof agent.name !== "string") throw new Error("Invalid agent record");
+      }
+    }
   } catch {
+    const quarantinePath = `${AGENTS_FILE}.corrupt-${Date.now()}-${randomUUID()}`;
+    try {
+      // Never replace an earlier recovery copy, even after repeated failures.
+      copyFileSync(AGENTS_FILE, quarantinePath, constants.COPYFILE_EXCL);
+      unlinkSync(AGENTS_FILE);
+    } catch (error) {
+      throw new Error("Cannot preserve damaged agents.json; refusing to start an empty office", { cause: error });
+    }
+    // Parse errors can contain private prompt text; log only the recovery path.
+    console.error(`[agents] Preserved damaged state at ${quarantinePath}. See docs/contributing/backup-restore.md for recovery.`);
     return [defaultRoom()];
   }
 

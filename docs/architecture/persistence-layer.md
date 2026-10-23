@@ -59,6 +59,11 @@ The loader handles multiple legacy formats:
 - Missing `modelFamily` → migrated from legacy `model` field (e.g., `"claude-opus-4-6"` → `"opus"`)
 - Missing room `id`/`prompt`/`envFile` → filled with defaults
 
+Malformed JSON or invalid room/agent structures are preserved in a unique
+`agents.json.corrupt-*` sibling before the loader starts an empty room. Read
+errors and failures to preserve damaged state stop startup. See
+[recovery instructions](../contributing/backup-restore.md#recover-damaged-agent-state).
+
 ## Agent Summary Manifest (`agents-summary.json`)
 
 A lightweight version of agent info injected into every agent's system prompt for peer discovery:
