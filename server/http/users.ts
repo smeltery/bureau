@@ -1,3 +1,4 @@
+import { isVoiceName, isVoiceProvider } from "../../shared/integrations/voice.ts";
 import { handleMemberInstructions } from "../members/instructions-http.ts";
 import { instructionConflict } from "../members/instructions.ts";
 import { getUserByName } from "../users.ts";
@@ -17,7 +18,9 @@ export interface UsersHttpDeps {
   delete(actorUserId: string, role: "owner" | "member", username: string): Promise<UserDeleteResult>;
 }
 
-export type UserRecordChanges = Partial<Pick<UserRecord, "name" | "envFile" | "memberPrompt" | "language" | "slideMode" | "avatarColor" | "avatarVariant">> & { memberPromptVersion?: string };
+export type UserRecordChanges = Partial<
+  Pick<UserRecord, "name" | "envFile" | "memberPrompt" | "language" | "slideMode" | "voiceInput" | "voiceOutput" | "voiceName" | "avatarColor" | "avatarVariant">
+> & { memberPromptVersion?: string };
 
 export async function handleUsersRequest(req: Request, url: URL, auth: AuthResult | undefined, deps: UsersHttpDeps): Promise<Response | null> {
   const parts = usersRouteParts(url.pathname);
@@ -72,6 +75,9 @@ function malformedUserUpdate(body: Record<string, unknown>): string | null {
   if (body.memberPrompt !== undefined && body.memberPrompt !== null && typeof body.memberPrompt !== "string") return "memberPrompt must be a string or null";
   if (body.language !== undefined && body.language !== null && typeof body.language !== "string") return "language must be a string or null";
   if (typeof body.language === "string" && !isSupportedLanguage(body.language)) return "language must be supported or null";
+  if (body.voiceInput !== undefined && !isVoiceProvider(body.voiceInput)) return "voiceInput must be browser or openai";
+  if (body.voiceOutput !== undefined && !isVoiceProvider(body.voiceOutput)) return "voiceOutput must be browser or openai";
+  if (body.voiceName !== undefined && !isVoiceName(body.voiceName)) return "voiceName must be a supported voice";
   if (body.slideMode !== undefined && typeof body.slideMode !== "boolean") return "slideMode must be a boolean";
   if (body.avatarColor !== undefined && typeof body.avatarColor !== "string") return "avatarColor must be a string";
   if (body.avatarVariant !== undefined && typeof body.avatarVariant !== "string") return "avatarVariant must be a string";
@@ -85,6 +91,9 @@ function pickUserChanges(body: Record<string, unknown>): UserRecordChanges {
   if (body.envFile !== undefined) changes.envFile = body.envFile as string | null;
   if (body.memberPrompt !== undefined) changes.memberPrompt = body.memberPrompt as string | null;
   if (body.language !== undefined) changes.language = body.language as UserRecord["language"];
+  if (isVoiceProvider(body.voiceInput)) changes.voiceInput = body.voiceInput;
+  if (isVoiceProvider(body.voiceOutput)) changes.voiceOutput = body.voiceOutput;
+  if (isVoiceName(body.voiceName)) changes.voiceName = body.voiceName;
   if (body.slideMode !== undefined) changes.slideMode = body.slideMode as boolean;
   if (body.avatarColor !== undefined) changes.avatarColor = body.avatarColor as string;
   if (body.avatarVariant !== undefined) changes.avatarVariant = body.avatarVariant as UserRecord["avatarVariant"];

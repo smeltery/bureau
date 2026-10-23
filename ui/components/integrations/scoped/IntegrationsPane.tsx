@@ -1,3 +1,4 @@
+import { VoicePane } from "../../../voice/VoicePane.tsx";
 import { McpPane } from "./McpPane.tsx";
 import { useEffect, useState } from "react";
 import { useAppState } from "../../../store.tsx";
@@ -7,7 +8,7 @@ import { integrationApi, type IntegrationListing } from "./api.ts";
 import { SecretsPane } from "./SecretsPane.tsx";
 import { VariablesPane } from "./VariablesPane.tsx";
 
-type Tab = "Providers" | "MCP" | "Secrets" | "Variables";
+type Tab = "Providers" | "Voice" | "MCP" | "Secrets" | "Variables";
 export function IntegrationsPane() {
   const { sessionContext, users } = useAppState();
   const [tab, setTab] = useState<Tab>("Providers");
@@ -20,7 +21,7 @@ export function IntegrationsPane() {
     let active = true;
     setData(null);
     setError(null);
-    if (tab !== "Providers")
+    if (tab !== "Providers" && tab !== "Voice")
       void integrationApi<IntegrationListing>(path)
         .then((result) => {
           if (active) setData(result);
@@ -39,7 +40,7 @@ export function IntegrationsPane() {
       <h3>Integrations</h3>
       <p style={dialogHint}>Manage provider accounts, scoped credentials and environment variables. Member values override office values with the same name.</p>
       <nav aria-label="Integration categories" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-        {(["Providers", "MCP", "Secrets", "Variables"] as const).map((item) => (
+        {(["Providers", "Voice", "MCP", "Secrets", "Variables"] as const).map((item) => (
           <button key={item} aria-pressed={tab === item} style={{ ...dialogCancelBtn, ...(tab === item ? { borderColor: "var(--accent)", color: "var(--accent)" } : {}) }} onClick={() => setTab(item)}>
             {item}
           </button>
@@ -47,6 +48,8 @@ export function IntegrationsPane() {
       </nav>
       {tab === "Providers" ? (
         <ConnectionsPane username={sessionContext.username} />
+      ) : tab === "Voice" ? (
+        <VoicePane key={sessionContext.userId} />
       ) : (
         <>
           <label style={dialogLabel}>

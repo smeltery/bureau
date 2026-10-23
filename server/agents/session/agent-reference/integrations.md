@@ -56,3 +56,10 @@ You cannot answer it with your agent bearer. Wait for the saved/declined outcome
 and continue within the approved scope. A declined request is not permission to
 search for another credential. A 409 means the credential or a request already
 exists; use the configured connection or ask the member to rotate it in Settings.
+
+Members choose microphone and read-aloud providers in **Integrations → Voice**.
+OpenAI voice uses `OPENAI_VOICE_API_KEY` (or `OPENAI_API_KEY` as fallback), resolved
+from member, office and server settings. A secret must allow `api.openai.com`
+with Authorization authentication. Direct members to the masked Secrets editor;
+never request a key in chat. Voice spending routes require a browser session and
+are unavailable to agent or personal API tokens.

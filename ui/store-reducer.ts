@@ -48,6 +48,8 @@ export function reducer(state: AppState, action: Action): AppState {
         drafts: previousUser !== nextUser ? new Map() : state.drafts,
       };
     }
+    case "voice_preferences":
+      return { ...state, users: new Map([...state.users].map(([name, user]) => [name, user.id === action.userId ? { ...user, ...action.changes } : user])) };
     case "users_list":
       return { ...state, users: new Map(action.users.map((u) => [u.name.trim().toLocaleLowerCase(), u])) };
     case "sessions_active_list":

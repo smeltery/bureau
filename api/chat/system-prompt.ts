@@ -234,7 +234,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Pager: agents and apps can page the person responsible for them (the agent's manager or the app's owner) when something needs a human. Pages show in User Settings > Inbox (also at /inbox and /pager), with a count on the settings vent in the office, and can be delivered to the member's Discord channel through an incoming webhook, @mentioning them and repeating until they ack or resolve it. A dedupe key turns repeated raises into one page per incident. Resolved pages are retained in a disk archive with access-filtered history pagination and working links to old incidents. Discord is the only push channel; there is no Slack, email, SMS, or browser push for pages.
 
 ### Other
-- Voice-to-text prompting and text-to-speech responses (works locally; requires HTTPS via Tailscale for remote)
+- Voice input and read aloud: member-selectable Browser or OpenAI in Integrations → Voice. OpenAI uses a server-held OPENAI_VOICE_API_KEY (or OPENAI_API_KEY fallback), with selectable generated voices. Microphone access requires a secure context.
 - The entire frontend uses a Redux-like store where server WebSocket messages are dispatched directly as actions
 
 ## Guidelines

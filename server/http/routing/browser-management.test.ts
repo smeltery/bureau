@@ -11,7 +11,17 @@ test("local settings requests retain browser identity while explicit operators k
 });
 
 test("owner storage and personal inbox routes always retain browser identity", () => {
-  for (const path of ["/api/storage/usage", "/api/storage/compress", "/api/storage/prune", "/api/backup/settings", "/api/backup/status", "/api/questions"]) {
+  for (const path of [
+    "/api/storage/usage",
+    "/api/storage/compress",
+    "/api/storage/prune",
+    "/api/backup/settings",
+    "/api/backup/status",
+    "/api/questions",
+    "/api/voice",
+    "/api/voice/transcribe",
+    "/api/voice/speak",
+  ]) {
     const request = new Request(`http://localhost:4000${path}`);
     expect(requiresBrowserSession(request, new URL(request.url))).toBe(true);
   }
