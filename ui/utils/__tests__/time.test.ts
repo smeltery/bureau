@@ -59,6 +59,17 @@ describe("timeAgo", () => {
     expect(timeAgo(FROZEN - 23 * HOUR)).toBe("23h ago");
   });
 
+  test("uses the reader's locale at age boundaries without changing legacy callers", () => {
+    for (const language of ["en", "es", "ca", "zh"]) {
+      const relative = new Intl.RelativeTimeFormat(language, { numeric: "auto", style: "short" });
+      expect(timeAgo(FROZEN + MIN, language)).toBe(relative.format(0, "second"));
+      expect(timeAgo(FROZEN - 59_999, language)).toBe(relative.format(0, "second"));
+      expect(timeAgo(FROZEN - MIN, language)).toBe(relative.format(-1, "minute"));
+      expect(timeAgo(FROZEN - HOUR, language)).toBe(relative.format(-1, "hour"));
+      expect(timeAgo(FROZEN - DAY, language)).toBe(relative.format(-1, "day"));
+    }
+  });
+
   test("formats days beyond a day", () => {
     expect(timeAgo(FROZEN - 1 * DAY)).toBe("1d ago");
     expect(timeAgo(FROZEN - 7 * DAY)).toBe("7d ago");

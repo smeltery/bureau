@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+
 export function TaskDetailFooter({
   confirmDelete,
   confirmDiscard,
@@ -21,6 +23,7 @@ export function TaskDetailFooter({
   onSave: () => void;
   setConfirmDelete: (value: boolean) => void;
 }) {
+  const { t } = useI18n();
   const canSave = !!title.trim();
 
   return (
@@ -36,7 +39,7 @@ export function TaskDetailFooter({
     >
       {confirmDiscard && (
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", flex: 1 }}>Discard unsaved changes?</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", flex: 1 }}>{t("common.discardPrompt")}</span>
           <button
             onClick={onClose}
             style={{
@@ -50,7 +53,7 @@ export function TaskDetailFooter({
               cursor: "pointer",
             }}
           >
-            Discard
+            {t("common.discard")}
           </button>
           <button
             onClick={onCancelDiscard}
@@ -65,7 +68,7 @@ export function TaskDetailFooter({
               cursor: "pointer",
             }}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       )}
@@ -86,7 +89,7 @@ export function TaskDetailFooter({
             cursor: canSave ? "pointer" : "default",
           }}
         >
-          {mode === "create" ? "Create" : "Save"}
+          {mode === "create" ? t("common.create") : t("common.save")}
         </button>
         {mode === "edit" && (
           <button
@@ -103,7 +106,7 @@ export function TaskDetailFooter({
               cursor: "pointer",
             }}
           >
-            {confirmDelete ? "Confirm?" : "Delete"}
+            {confirmDelete ? t("common.confirmQuestion") : t("common.delete")}
           </button>
         )}
       </div>

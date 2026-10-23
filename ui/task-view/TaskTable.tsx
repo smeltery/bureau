@@ -31,35 +31,42 @@ export function TaskTable({
   renderName: (name: string | undefined) => ReactNode;
   roomNameById: (roomId: string | undefined) => string;
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   return (
     <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: isMobile ? "fixed" : undefined }}>
       <thead>
         <tr>
-          <th style={{ ...thStyle, width: isMobile ? 24 : 36 }} onClick={() => onSort("status")}>
-            S{sortField === "status" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
+          <th aria-label={t("tasks.field.status")} title={t("tasks.field.status")} style={{ ...thStyle, width: isMobile ? 32 : 36 }} onClick={() => onSort("status")}>
+            {t("tasks.field.status").slice(0, 1)}
+            {sortField === "status" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
           </th>
-          <th style={{ ...thStyle, width: isMobile ? 24 : 36 }} onClick={() => onSort("priority")}>
-            P{sortField === "priority" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
+          <th aria-label={t("tasks.priority")} title={t("tasks.priority")} style={{ ...thStyle, width: isMobile ? 32 : 36 }} onClick={() => onSort("priority")}>
+            {t("tasks.priority").slice(0, 1)}
+            {sortField === "priority" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
           </th>
           <th style={thStyle} onClick={() => onSort("title")}>
-            TITLE{sortField === "title" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
+            {t("tasks.field.title")}
+            {sortField === "title" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
           </th>
           {!isMobile && (
             <th style={{ ...thStyle, width: 120 }} onClick={() => onSort("room")}>
-              ROOM{sortField === "room" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
+              {t("common.room")}
+              {sortField === "room" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
             </th>
           )}
-          <th style={{ ...thStyle, width: isMobile ? 60 : 100 }} onClick={() => onSort("assignee")}>
-            ASSIGNEE{sortField === "assignee" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
+          <th style={{ ...thStyle, width: 100 }} onClick={() => onSort("assignee")}>
+            {t("tasks.field.assignee")}
+            {sortField === "assignee" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
           </th>
           {!isMobile && (
             <th style={{ ...thStyle, width: 90 }} onClick={() => onSort("createdBy")}>
-              BY{sortField === "createdBy" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
+              {t("tasks.field.createdBy")}
+              {sortField === "createdBy" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
             </th>
           )}
-          <th style={{ ...thStyle, width: 70 }} onClick={() => onSort("createdAt")}>
-            AGE{sortField === "createdAt" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
+          <th style={{ ...thStyle, width: 100 }} onClick={() => onSort("createdAt")}>
+            {t("tasks.field.createdAt")}
+            {sortField === "createdAt" ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : ""}
           </th>
         </tr>
       </thead>
@@ -67,7 +74,7 @@ export function TaskTable({
         {tasks.length === 0 ? (
           <tr>
             <td colSpan={isMobile ? 5 : 7} style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
-              {tasksLoaded ? "No tasks" : "Loading..."}
+              {tasksLoaded ? t("tasks.noTasks") : t("common.loading")}
             </td>
           </tr>
         ) : (
@@ -115,6 +122,20 @@ export function TaskTable({
                   </span>
                 )}
               </td>
+              <td
+                style={{
+                  padding: cellPad,
+                  fontSize: 13,
+                  textDecoration: task.status === "done" || task.status === "obsolete" ? "line-through" : "none",
+                  maxWidth: isMobile ? 0 : 300,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {task.title}
+                {task.description && <span style={{ color: "var(--text-hint)", fontWeight: 400 }}> | {task.description}</span>}
+              </td>
               {!isMobile && (
                 <td
                   style={{
@@ -132,20 +153,6 @@ export function TaskTable({
               <td
                 style={{
                   padding: cellPad,
-                  fontSize: 13,
-                  textDecoration: task.status === "done" || task.status === "obsolete" ? "line-through" : "none",
-                  maxWidth: isMobile ? 0 : 300,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {task.title}
-                {task.description && <span style={{ color: "var(--text-hint)", fontWeight: 400 }}> | {task.description}</span>}
-              </td>
-              <td
-                style={{
-                  padding: cellPad,
                   fontSize: 11,
                   color: "var(--text-dim)",
                   fontFamily: "'JetBrains Mono',monospace",
@@ -157,7 +164,7 @@ export function TaskTable({
                 {renderName(task.assignee)}
               </td>
               {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace" }}>{renderName(task.createdBy)}</td>}
-              <td style={{ padding: cellPad, fontSize: 10, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{timeAgo(task.createdAt)}</td>
+              <td style={{ padding: cellPad, fontSize: 10, color: "var(--text-hint)", fontFamily: "'JetBrains Mono',monospace", whiteSpace: "nowrap" }}>{timeAgo(task.createdAt, language)}</td>
             </tr>
           ))
         )}

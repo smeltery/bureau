@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { TaskStatus } from "../../shared/tasks.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { shouldHostCloseOnEscape } from "../components/modals/expandedEditorState.ts";
@@ -15,6 +16,7 @@ export function useTaskViewController({
   /** When set (e.g. from a chat task chip), select that task once tasks are loaded. */
   openTaskId?: string | null;
 }) {
+  const { t } = useI18n();
   const { tasks, tasksLoaded, agents, isMobile, rooms, currentRoom } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<TaskStatus[]>(["open", "in_progress"]);
@@ -109,8 +111,8 @@ export function useTaskViewController({
   }
 
   function roomNameById(roomId: string | undefined) {
-    if (!roomId) return "Office-wide";
-    return rooms.find((room) => room.id === roomId)?.name ?? "Unknown room";
+    if (!roomId) return t("tasks.officeWide");
+    return rooms.find((room) => room.id === roomId)?.name ?? t("tasks.unknownRoom");
   }
 
   function handleSort(field: SortField) {
