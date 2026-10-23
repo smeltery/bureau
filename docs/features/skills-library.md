@@ -43,3 +43,13 @@ and preservation of neighboring assets.
 
 The agent chat `/help` card links to this library instead of repeating skill
 inventories; command aliases remain grouped in the help card.
+
+## Recap and wrap up
+
+Use `/loose-ends` to review live work, member decisions and verified results while
+keeping the conversation open. Use `/wrap-session` when preparing to close it.
+Both workflows reconcile member-only follow-ups with existing persistent
+questions in Inbox, without duplicating questions or turning running jobs into
+member requests. Neither command grants permission to commit or deploy.
+Unanswered questions retain their original conversation binding; a reply after
+starting a different conversation may need manual follow-up.

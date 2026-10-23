@@ -102,6 +102,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   review, pair programming, soft handoff, subagent review, and guided Bureau bug
   reports. `/help` opens a compact chat card with a read-only modal (docs +
   short tips; Bureau Skills / User Skills).
+- `/loose-ends` recaps live work without ending the conversation; `/wrap-session` prepares to close it. Both preserve member-only follow-ups as persistent questions without duplicating existing ones.
 - Composer skills browser with filterable commands and skills, plus per-user
   most-used counts for quick access to go-to workflows across devices.
 
