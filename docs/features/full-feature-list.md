@@ -154,7 +154,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   descriptions and inspected system-prompt text retain their original content.
   Autocomplete and the Skills menu translate built-in descriptions, origins,
   headings, and search text. Menu search includes translated descriptions.
-- PWA-friendly mobile UI.
+- PWA-friendly mobile UI. Agent, scheduled-run, and team-chat drafts grow to eight lines on mobile before scrolling, keeping the conversation visible.
 - WebSocket sync across all connected browsers. Large transcript replays stream
   in order as each browser drains, followed by live events. Slow connections have
   bounded queues and reconnect if they fall too far behind or access changes.

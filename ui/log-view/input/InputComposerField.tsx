@@ -1,3 +1,4 @@
+import { composerHeightLimit } from "../../hooks/useComposerResize.ts";
 import { useI18n } from "../../i18n.tsx";
 import type { ClipboardEvent, RefObject } from "react";
 import { sendAbortDebounced } from "../../utils/abort.ts";
@@ -155,7 +156,7 @@ export function InputComposerField({
           resize: "none",
           padding: "0 0 4px",
           lineHeight: "20px",
-          maxHeight: 200,
+          maxHeight: composerHeightLimit(isMobile),
           overflowY: "auto",
         }}
       />

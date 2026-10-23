@@ -45,3 +45,8 @@ and open chat header. A visible chat marks through its newest displayed
 message only while scrolled to the bottom. Reading older messages or hiding
 the browser tab keeps incoming messages unread. Read updates sync across
 the member’s tabs; failed updates show a retry action.
+
+The composer grows with the draft, then scrolls after eight lines on mobile
+(200 pixels on desktop). Mobile Enter inserts a newline; use Send to post.
+IME composition never sends a message. Desktop Enter sends; Shift+Enter
+inserts a newline, while Ctrl+Enter and Command+Enter do not send.
