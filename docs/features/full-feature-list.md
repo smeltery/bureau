@@ -187,8 +187,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Markdown, syntax highlighting, Mermaid diagrams, LaTeX math, citations, and rich cards.
 - Collapsible thinking/tool-call cards with timing.
 - File attachments via path notices, inline image display, and PDF handling.
-- Voice input and speech synthesis where supported by the browser, using the
-  signed-in user's saved language preference when set (en / es / ca / zh).
+- [Voice input and read aloud](voice-providers.md): per-member browser or OpenAI providers, server-held credentials, selectable voices, cancellable recording and playback, and saved speech language (en / es / ca / zh).
 - Office UI localization (English, Spanish, Catalan, Simplified Chinese) via typed catalogs and
   `LanguageProvider` — header/nav, settings shell, Connections, panel titles,
   spawn/edit agent dialogs, and related empty states.

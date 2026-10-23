@@ -1,3 +1,4 @@
+import { isVoiceName, isVoiceProvider } from "../../../shared/integrations/voice.ts";
 import { existsSync, readFileSync } from "fs";
 import type { UserRecord } from "../../../shared/types.ts";
 import { generateRoomId } from "../../../shared/types.ts";
@@ -35,6 +36,9 @@ export function loadUsers(): UserRecord[] {
           envFile: typeof u.envFile === "string" && u.envFile ? u.envFile : null,
           memberPrompt: typeof u.memberPrompt === "string" && u.memberPrompt.trim() ? u.memberPrompt.trim() : null,
           language: isSupportedLanguage(u.language) ? u.language : null,
+          ...(isVoiceProvider(u.voiceInput) ? { voiceInput: u.voiceInput } : {}),
+          ...(isVoiceProvider(u.voiceOutput) ? { voiceOutput: u.voiceOutput } : {}),
+          ...(isVoiceName(u.voiceName) ? { voiceName: u.voiceName } : {}),
           slideMode: u.slideMode === true,
           allowedRooms,
           hidden,

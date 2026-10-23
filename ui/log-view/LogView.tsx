@@ -125,6 +125,7 @@ export function LogView({
   const handleTerminalSendToChat = useCallback((text: string) => handleCite(text, "Terminal output"), [handleCite]);
   const autocomplete = useSlashAutocomplete(input, slashCommands.get(agent.id));
   const voice = useVoiceInput({
+    sessionKey: agent.id,
     inputRef,
     locale: speechLocale,
     onTranscript: (text) => dispatch({ type: "set_draft", agentId: agent.id, text }),
@@ -207,6 +208,7 @@ export function LogView({
       speechApiPresent={voice.speechApiPresent}
       isSecureContext={voice.isSecureContext}
       voiceInputError={voice.voiceInputError}
+      voiceStatus={voice.voiceStatus}
       onOutboxRejected={setOutboxError}
       showAutocomplete={autocomplete.showAutocomplete}
       filteredCommands={autocomplete.filteredCommands}

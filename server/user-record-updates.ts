@@ -1,10 +1,29 @@
+import { isVoiceName, isVoiceProvider } from "../shared/integrations/voice.ts";
 import type { UserRecord } from "../shared/types.ts";
 import { defaultGhostColorForUserId, isGhostVariant, isHexColor, normalizeHexColor } from "../shared/avatar.ts";
 import { isSupportedLanguage } from "../shared/languages.ts";
 import { normalizeAllowedRooms } from "./user-room-projection.ts";
 
 export type UserRecordChanges = Partial<
-  Pick<UserRecord, "name" | "role" | "envFile" | "memberPrompt" | "language" | "slideMode" | "allowedRooms" | "hidden" | "order" | "defaultRoomId" | "notifRooms" | "avatarColor" | "avatarVariant">
+  Pick<
+    UserRecord,
+    | "name"
+    | "role"
+    | "envFile"
+    | "memberPrompt"
+    | "language"
+    | "slideMode"
+    | "voiceInput"
+    | "voiceOutput"
+    | "voiceName"
+    | "allowedRooms"
+    | "hidden"
+    | "order"
+    | "defaultRoomId"
+    | "notifRooms"
+    | "avatarColor"
+    | "avatarVariant"
+  >
 > & { memberPromptVersion?: string };
 
 export function createUserRecord({ id, name, role, allowedRooms }: Pick<UserRecord, "id" | "name" | "role" | "allowedRooms">): UserRecord {
@@ -41,6 +60,9 @@ function applyProfileFields(next: UserRecord, changes: UserRecordChanges): void 
     next.memberPrompt = memberPrompt || null;
   }
   if (changes.language !== undefined) next.language = isSupportedLanguage(changes.language) ? changes.language : null;
+  if (isVoiceProvider(changes.voiceInput)) next.voiceInput = changes.voiceInput;
+  if (isVoiceProvider(changes.voiceOutput)) next.voiceOutput = changes.voiceOutput;
+  if (isVoiceName(changes.voiceName)) next.voiceName = changes.voiceName;
   if (typeof changes.slideMode === "boolean") next.slideMode = changes.slideMode;
   if (changes.avatarColor !== undefined && isHexColor(changes.avatarColor)) next.avatarColor = normalizeHexColor(changes.avatarColor);
   if (changes.avatarVariant !== undefined && isGhostVariant(changes.avatarVariant)) next.avatarVariant = changes.avatarVariant;

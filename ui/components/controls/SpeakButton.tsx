@@ -1,5 +1,4 @@
-import { useState, useCallback } from "react";
-import { useSpeechLocale } from "../../hooks/useSpeechLocale.ts";
+import { useReadAloud } from "../../voice/useReadAloud.ts";
 
 const SPEAK_ICON = (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -33,70 +32,42 @@ function stripMarkdown(md: string): string {
     .trim();
 }
 
-function baseLanguage(locale: string): string {
-  return locale.split("-")[0]?.toLowerCase() ?? locale.toLowerCase();
-}
-
-function pickVoice(locale: string): SpeechSynthesisVoice | undefined {
-  const voices = speechSynthesis.getVoices();
-  const exact = voices.filter((v) => v.lang.replace("_", "-").toLowerCase() === locale.toLowerCase());
-  const sameLanguage = voices.filter((v) => baseLanguage(v.lang.replace("_", "-")) === baseLanguage(locale));
-  const candidates = exact.length ? exact : sameLanguage;
-  return candidates.find((v) => /google/i.test(v.name)) ?? candidates.find((v) => v.default) ?? candidates[0] ?? voices.find((v) => v.default) ?? voices[0];
-}
-
 export function SpeakButton({ getText, size = 24 }: { getText: () => string; size?: number }) {
-  const [speaking, setSpeaking] = useState(false);
-  const locale = useSpeechLocale();
-
-  const handleClick = useCallback(() => {
-    if (speaking) {
-      speechSynthesis.cancel();
-      setSpeaking(false);
-      return;
-    }
-
-    const text = stripMarkdown(getText());
-    if (!text) return;
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voice = pickVoice(locale);
-    if (voice) utterance.voice = voice;
-    utterance.lang = locale;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-
-    setSpeaking(true);
-    speechSynthesis.speak(utterance);
-  }, [getText, locale, speaking]);
-
-  if (typeof speechSynthesis === "undefined") return null;
+  const { speaking, error, toggle, available, provider } = useReadAloud(() => stripMarkdown(getText()));
+  if (!available) return null;
 
   return (
-    <button
-      onClick={(e) => {
-        handleClick();
-        (e.target as HTMLElement).blur();
-      }}
-      className="copy-btn"
-      title={speaking ? "Stop" : "Speak"}
-      style={{
-        width: size,
-        height: size,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        border: "1px solid var(--border-medium)",
-        borderRadius: 6,
-        background: speaking ? "var(--accent-bg, var(--green-bg))" : "var(--btn-surface)",
-        color: speaking ? "var(--accent)" : "var(--text-dim)",
-        cursor: "pointer",
-        padding: 0,
-        flexShrink: 0,
-        transition: "color 0.15s, background 0.15s, border-color 0.15s",
-      }}
-    >
-      {speaking ? STOP_ICON : SPEAK_ICON}
-    </button>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <button
+        onClick={(e) => {
+          toggle();
+          (e.target as HTMLElement).blur();
+        }}
+        className="copy-btn"
+        title={speaking ? "Stop" : provider === "openai" ? "Speak with OpenAI (AI-generated voice)" : "Speak"}
+        style={{
+          width: size,
+          height: size,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          border: "1px solid var(--border-medium)",
+          borderRadius: 6,
+          background: speaking ? "var(--accent-bg, var(--green-bg))" : "var(--btn-surface)",
+          color: speaking ? "var(--accent)" : "var(--text-dim)",
+          cursor: "pointer",
+          padding: 0,
+          flexShrink: 0,
+          transition: "color 0.15s, background 0.15s, border-color 0.15s",
+        }}
+      >
+        {speaking ? STOP_ICON : SPEAK_ICON}
+      </button>
+      {error && (
+        <span role="alert" style={{ color: "var(--red)", fontSize: 11, maxWidth: 240 }}>
+          {error}
+        </span>
+      )}
+    </span>
   );
 }

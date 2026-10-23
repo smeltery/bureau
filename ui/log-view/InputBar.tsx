@@ -44,6 +44,7 @@ export function InputBar({
   speechApiPresent,
   isSecureContext,
   voiceInputError,
+  voiceStatus,
   onOutboxRejected,
   // Autocomplete props
   showAutocomplete,
@@ -82,6 +83,7 @@ export function InputBar({
   speechApiPresent: boolean;
   isSecureContext: boolean;
   voiceInputError: string | null;
+  voiceStatus?: string | null;
   onOutboxRejected: (message: string) => void;
   showAutocomplete: boolean;
   filteredCommands: string[];
@@ -161,6 +163,11 @@ export function InputBar({
           if (fileInputRef.current) fileInputRef.current.value = "";
         }}
       />
+      {voiceStatus && (
+        <div role="status" style={{ marginBottom: 8, color: "var(--text-muted)", fontSize: 12 }}>
+          {voiceStatus}
+        </div>
+      )}
       {voiceInputError && (
         <div role="alert" style={{ marginBottom: 8, color: "var(--red)", fontSize: isMobile ? 12 : 11 }}>
           {voiceInputError}

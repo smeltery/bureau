@@ -1,3 +1,4 @@
+import type { VoiceName, VoiceProvider } from "./integrations/voice.ts";
 import type { GhostVariant } from "./avatar.ts";
 import type { SupportedLanguageCode } from "./languages.ts";
 import type { ProviderAccountProvider } from "./provider-accounts.ts";
@@ -62,6 +63,9 @@ export interface UserRecord {
   language: SupportedLanguageCode | null;
   // Enables the per-agent slide view toggle for this user across devices.
   slideMode: boolean;
+  voiceInput?: VoiceProvider;
+  voiceOutput?: VoiceProvider;
+  voiceName?: VoiceName;
   // Strict list of room IDs this user can see and act in. Owners can edit it.
   allowedRooms: string[];
   // Per-user view preferences layered on top of access. Hidden rooms remain

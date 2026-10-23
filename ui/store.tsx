@@ -115,6 +115,7 @@ export type Action =
   | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[]; killedAgents: KilledAgentSummary[] }
   | { type: "session_context"; context: SessionContext | null }
   | { type: "presence_list"; entries: PresenceInfo[]; totalOnlineUsers: number }
+  | { type: "voice_preferences"; userId: string; changes: Pick<UserRecord, "voiceInput" | "voiceOutput" | "voiceName"> }
   | { type: "users_list"; users: UserRecord[] }
   | { type: "sessions_active_list"; sessions: SessionWire[] }
   | { type: "invites_list"; invites: InviteWire[] }

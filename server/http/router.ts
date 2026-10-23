@@ -1,3 +1,4 @@
+import { handleVoiceRequest } from "../voice/http.ts";
 import { handleOfficeMcp } from "../mcp/http.ts";
 import { requiresBrowserSession } from "./routing/browser-management.ts";
 import { handleIntegrationsRequest } from "../integrations/http.ts";
@@ -157,13 +158,14 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
     });
   }
 
-  // Task / cronjob / files / agents HTTP APIs. Loopback-allowed because
-  // local agents legitimately hit them; non-loopback callers need a
-  // session cookie.
+  // Browser management requires a session even on loopback.
   const browserManagement = requiresBrowserSession(req, url);
   const httpAuth = authenticate(req, server, { allowLoopback: !browserManagement, officeName: getOfficeName() });
   if (httpAuth.kind === "rejected") return httpAuth.response;
 
+  if (url.pathname.startsWith("/api/voice/")) server.timeout(req, 0);
+  const voiceResponse = await handleVoiceRequest(req, url, () => authenticate(req, server, { allowLoopback: false }));
+  if (voiceResponse) return voiceResponse;
   const auditResponse = await handleAuditRequest(req, url, httpAuth);
   if (auditResponse) return auditResponse;
   const browserSharing = await handleBrowserSharingRequest(req, url, httpAuth);

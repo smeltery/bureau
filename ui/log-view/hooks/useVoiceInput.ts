@@ -1,3 +1,5 @@
+import { useRecordedVoice, type VoiceInputOptions } from "../../voice/useRecordedVoice.ts";
+import { useVoicePreferences } from "../../voice/useVoicePreferences.ts";
 import { useEffect, useRef, useState } from "react";
 import { advanceDictationSession, isSpokenSubmit, reconcileDictationEdit, startDictationSession, type DictationSession } from "./spoken-punctuation.ts";
 import { voiceInputErrorMessage } from "./voice-input-error.ts";
@@ -25,7 +27,7 @@ import { voiceInputErrorMessage } from "./voice-input-error.ts";
  * the mic button should still appear disabled so the user can be told why
  * (via `showMicHint`).
  */
-export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inputRef: React.MutableRefObject<string>; locale: string; onTranscript: (text: string) => void; onGrow: () => void }) {
+function useBrowserVoiceInput({ inputRef, locale, onTranscript, onGrow, sessionKey }: VoiceInputOptions, enabled: boolean) {
   const SpeechRecognition = (typeof window !== "undefined" && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) || null;
   const isSecureContext = typeof window !== "undefined" && window.isSecureContext;
   const speechApiPresent = !!SpeechRecognition;
@@ -44,7 +46,7 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
   const dictationRef = useRef<DictationSession>(startDictationSession("", "en"));
 
   function startListening() {
-    if (isListeningRef.current || !SpeechRecognition) return;
+    if (!enabled || isListeningRef.current || !SpeechRecognition) return;
     setVoiceInputError(null);
     isListeningRef.current = true;
     setIsListening(true);
@@ -118,7 +120,7 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
 
   // Ctrl+Space push-to-talk
   useEffect(() => {
-    if (!speechAvailable) return;
+    if (!enabled || !speechAvailable) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.code === "Space" && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && !e.repeat) {
         e.preventDefault();
@@ -135,9 +137,14 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      recognitionRef.current?.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.abort();
+      }
+      isListeningRef.current = false;
+      setIsListening(false);
     };
-  }, [speechAvailable, locale]);
+  }, [enabled, speechAvailable, locale, sessionKey]);
 
   return {
     isListening,
@@ -151,4 +158,12 @@ export function useVoiceInput({ inputRef, locale, onTranscript, onGrow }: { inpu
     voiceInputError,
     reconcileDraftEdit,
   };
+}
+
+export function useVoiceInput(options: VoiceInputOptions) {
+  const preferences = useVoicePreferences();
+  const scoped = { ...options, sessionKey: `${preferences.userId}/${options.sessionKey}` };
+  const browser = useBrowserVoiceInput(scoped, preferences.input === "browser");
+  const recorded = useRecordedVoice(scoped, preferences.input === "openai");
+  return preferences.input === "openai" ? recorded : { ...browser, voiceStatus: null };
 }
