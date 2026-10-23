@@ -88,7 +88,7 @@ describe("editMessage ephemeral slash rewrite", () => {
 
     await editMessage("agent-codex", echo.id, "/help");
 
-    expect(errors("agent-codex").some((e) => e.includes("does not support forking"))).toBe(false);
+    expect(errors("agent-codex").some((e) => e.includes("does not support editing"))).toBe(false);
     expect(contents("agent-codex").some((c) => c.includes("/hepl"))).toBe(false);
   });
 
@@ -131,8 +131,9 @@ describe("editMessage ephemeral slash rewrite", () => {
     expect(errors("agent-1")[0]).toContain("not sent");
   });
 
-  test("non-ephemeral edits still hit the fork capability gate", async () => {
-    install("agent-codex", { fork: false });
+  test("non-ephemeral edits still hit the edit capability gate", async () => {
+    const managed = install("agent-codex", { fork: false });
+    managed.info.capabilities!.edit = false;
     const durable: LogEntry = {
       id: "durable-1",
       agentId: "agent-codex",
@@ -144,6 +145,6 @@ describe("editMessage ephemeral slash rewrite", () => {
 
     await editMessage("agent-codex", durable.id, "hello again");
 
-    expect(errors("agent-codex")[0]).toContain("does not support forking");
+    expect(errors("agent-codex")[0]).toContain("does not support editing");
   });
 });

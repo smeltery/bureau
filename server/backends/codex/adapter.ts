@@ -14,6 +14,7 @@ import type {
   NormalizedMessage,
   OneShotOptions,
   PermissionModeOption,
+  SessionAccessOptions,
 } from "../types.ts";
 import { forkCodexSessionBeforeMessage, getCodexSessionMessages, listCodexModels, oneShotCodexPrompt } from "./backend-ops.ts";
 import { AUTH_ERROR_PATTERNS, CAPABILITIES, MODEL_OPTIONS, PERMISSION_MODES, getCodexLoginInstructions } from "./config.ts";
@@ -73,12 +74,12 @@ export const codexBackend: Backend = {
     );
   },
 
-  async forkSessionBeforeMessage(sessionId: string, targetMessageId: string): Promise<ForkSessionBeforeMessageResult> {
-    return forkCodexSessionBeforeMessage(sessionId, targetMessageId);
+  async forkSessionBeforeMessage(sessionId: string, targetMessageId: string | null, access?: SessionAccessOptions): Promise<ForkSessionBeforeMessageResult> {
+    return forkCodexSessionBeforeMessage(sessionId, targetMessageId, access);
   },
 
-  async getSessionMessages(sessionId: string): Promise<NormalizedMessage[]> {
-    return getCodexSessionMessages(sessionId);
+  async getSessionMessages(sessionId: string, cwd: string, access?: SessionAccessOptions): Promise<NormalizedMessage[]> {
+    return getCodexSessionMessages(sessionId, { ...access, cwd: access?.cwd ?? cwd });
   },
 
   async oneShotPrompt(prompt: string, opts: OneShotOptions): Promise<string> {

@@ -122,11 +122,13 @@ export function LogMessagesPane({
           />
         );
         return isUserMsg ? (
-          <div key={entry.id} ref={getUserMsgRefCb(entry.id)}>
+          <div key={entry.id} ref={getUserMsgRefCb(entry.id)} style={{ marginRight: showAvatar ? 74 : 0 }}>
             {card}
           </div>
         ) : (
-          <div key={entry.id}>{card}</div>
+          <div key={entry.id} style={{ marginRight: showAvatar ? 74 : 0 }}>
+            {card}
+          </div>
         );
       })}
       {agent.usageResumeAt && (

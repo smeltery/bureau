@@ -1,4 +1,4 @@
-import type { BackendEffortOption, BackendModel, ForkSessionBeforeMessageResult, ListModelsOptions, NormalizedMessage, OneShotOptions } from "../types.ts";
+import type { BackendEffortOption, BackendModel, ForkSessionBeforeMessageResult, ListModelsOptions, NormalizedMessage, OneShotOptions, SessionAccessOptions } from "../types.ts";
 
 import { JsonRpcLiteClient } from "./client.ts";
 import { CODEX_THREAD_CONFIG_OVERRIDES } from "./config.ts";
@@ -67,22 +67,22 @@ export async function listCodexModels(opts: ListModelsOptions): Promise<BackendM
   }
 }
 
-export async function forkCodexSessionBeforeMessage(sessionId: string, targetMessageId: string): Promise<ForkSessionBeforeMessageResult> {
-  const client = new JsonRpcLiteClient();
+export async function forkCodexSessionBeforeMessage(sessionId: string, targetMessageId: string | null, access?: SessionAccessOptions): Promise<ForkSessionBeforeMessageResult> {
+  const client = new JsonRpcLiteClient({ cwd: access?.cwd, env: access?.env });
   try {
     client.start();
     await initializeCodexClient(client);
 
-    const turns = await readThreadTurns(client, sessionId);
-    const targetTurnIndex = findTurnIndexContainingItemId(turns, targetMessageId);
-    if (targetTurnIndex === -1) {
-      throw new Error("forkSessionBeforeMessage: target message not found in thread turns");
+    let beforeTurnId: string | undefined;
+    if (targetMessageId !== null) {
+      const turns = await readThreadTurns(client, sessionId);
+      const targetTurnIndex = findTurnIndexContainingItemId(turns, targetMessageId);
+      if (targetTurnIndex === -1) throw new Error("Cannot edit: target message not found in the conversation.");
+      beforeTurnId = turns[targetTurnIndex]!.id;
     }
-    // The child ends before the turn holding the target message. Codex 0.160
-    // has no thread/rollback, so the cut is made by the fork itself.
     const forkParams: ThreadForkParams = {
       threadId: sessionId,
-      beforeTurnId: turns[targetTurnIndex]!.id,
+      ...(beforeTurnId ? { beforeTurnId } : {}),
       excludeTurns: true,
     };
     const forkResp = await client.request<{ thread: { id: string } }>("thread/fork", forkParams);
@@ -98,8 +98,8 @@ export async function forkCodexSessionBeforeMessage(sessionId: string, targetMes
   }
 }
 
-export async function getCodexSessionMessages(sessionId: string): Promise<NormalizedMessage[]> {
-  const client = new JsonRpcLiteClient();
+export async function getCodexSessionMessages(sessionId: string, access?: SessionAccessOptions): Promise<NormalizedMessage[]> {
+  const client = new JsonRpcLiteClient({ cwd: access?.cwd, env: access?.env });
   try {
     client.start();
     await initializeCodexClient(client);

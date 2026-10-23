@@ -193,11 +193,11 @@ export class OpenCodeTransport {
     return allowMessages(await response.json());
   }
 
-  async forkAtMessage(messageId: string): Promise<string> {
+  async forkAtMessage(messageId: string | null): Promise<string> {
     const sessionId = await this.initialize(() => undefined);
     const response = await this.request(`/session/${encodeURIComponent(sessionId)}/fork`, {
       method: "POST",
-      body: JSON.stringify({ messageID: messageId }),
+      body: JSON.stringify(messageId === null ? {} : { messageID: messageId }),
     });
     return allowSession(await response.json()).id;
   }

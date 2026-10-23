@@ -4,27 +4,28 @@ import { canEditMessage } from "./canEditMessage.ts";
 
 const opts = { isUserMessage: true, alreadyEditing: false };
 
-function agent(over: { state?: string; fork?: boolean } = {}) {
+function agent(over: { state?: string; edit?: boolean } = {}) {
   return {
     state: (over.state ?? "waiting_for_response") as never,
-    capabilities: over.fork === undefined ? DEFAULT_AGENT_CAPABILITIES : { ...DEFAULT_AGENT_CAPABILITIES, fork: over.fork },
+    capabilities: over.edit === undefined ? DEFAULT_AGENT_CAPABILITIES : { ...DEFAULT_AGENT_CAPABILITIES, edit: over.edit },
   };
 }
 
 describe("canEditMessage", () => {
-  test("a settled user message on a forking backend is editable", () => {
+  test("a settled user message on a backend supporting edits is editable", () => {
     expect(canEditMessage(agent(), opts)).toBe(true);
   });
 
-  test("a stopped forking agent can edit the interrupted message", () => {
+  test("a stopped agent can edit the interrupted message", () => {
     expect(canEditMessage(agent({ state: "stopped" }), opts)).toBe(true);
   });
 
-  test("a backend that declares it cannot fork gets no edit affordance", () => {
-    // The Codex backend declares fork: false, because editing is implemented as
-    // a Claude SDK forkSession — offering it there is an affordance that cannot
-    // work.
-    expect(canEditMessage(agent({ fork: false }), opts)).toBe(false);
+  test("a backend that declares it cannot edit gets no edit affordance", () => {
+    expect(canEditMessage(agent({ edit: false }), opts)).toBe(false);
+  });
+
+  test("editing does not require unrestricted forking", () => {
+    expect(canEditMessage({ ...agent(), capabilities: { ...DEFAULT_AGENT_CAPABILITIES, fork: false, edit: true } }, opts)).toBe(true);
   });
 
   test("only settled agents, only user messages, never mid-edit", () => {
@@ -36,7 +37,7 @@ describe("canEditMessage", () => {
 
   test("an agent record with no capabilities keeps working", () => {
     // Persisted before the field existed. Allowed here and refused server-side
-    // if the backend really cannot fork, so the permissive default costs a
+    // if the backend really cannot edit, so the permissive default costs a
     // round trip rather than correctness.
     expect(canEditMessage({ state: "waiting_for_response" as never, capabilities: undefined as never }, opts)).toBe(true);
   });
