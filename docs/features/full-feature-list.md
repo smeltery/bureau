@@ -139,7 +139,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   Simplified Chinese; UI chrome follows the same preference), and roster
   online/session summaries.
 - Permission prompts and replies, lifecycle, recovery, queue, compaction, capacity,
-  usage-limit, handoff, sign-in, context, and diagnostic notices follow each reader’s language. Backend system and failure notices, schedule tables/dialogs/run controls, provider sign-in controls, integration forms, connection tests, browser-sharing, voice, profile, room, notification, API-token, storage summaries, cleanup, backup-settings and transcript-compression controls, and scheduled-run feedback also translate. Older notices retain
+  usage-limit, handoff, sign-in, context, and diagnostic notices follow each reader’s language. Backend system and failure notices, schedule tables/dialogs/run controls, provider sign-in controls, integration forms, connection tests, browser-sharing, voice, profile, room, notification, API-token, task controls/history, storage summaries, cleanup, backup-settings and transcript-compression controls, and scheduled-run feedback also translate. Older notices retain
   their original text. Stored logs and API responses keep English content;
   user, model, and tool output stays unchanged. Model, effort, resume, and
   scheduled-prompt choice cards also follow the reader’s language, including
@@ -195,7 +195,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 ## Conversation
 
 - Sticky last-human ask banner in chat: pins the most recent human composer message above the viewport (skips agent / app / cron / API-token user messages).
-- Task ids in chat become chips that open the task board on that task; the description field expands to a near-fullscreen editor.
+- Task ids in chat become chips that open the task board on that task; the description field expands to a near-fullscreen editor, and task drafts survive desktop/mobile layout changes. Edits can clear descriptions, assignees, and room assignments.
 - Room settings saves require the version from a preceding GET (HTTP and the settings dialog), matching office settings optimistic concurrency.
 - Markdown, syntax highlighting, Mermaid diagrams, LaTeX math, citations, and rich cards.
 - Collapsible thinking/tool-call cards with timing.

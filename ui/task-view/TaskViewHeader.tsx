@@ -38,7 +38,7 @@ export function TaskViewHeader({
   onClose,
   onCreate,
 }: TaskViewHeaderProps) {
-  const { t } = useI18n();
+  const { t, tn, language } = useI18n();
   return (
     <div
       style={{
@@ -60,6 +60,7 @@ export function TaskViewHeader({
       <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: isMobile ? "space-between" : undefined }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
           <button
+            aria-label={t("common.back")}
             onClick={onClose}
             style={{
               background: "none",
@@ -73,7 +74,7 @@ export function TaskViewHeader({
             &larr;
           </button>
           <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>{t("tasks.title")}</span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{t("tasks.shown", { count: shownCount })}</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{tn("tasks.shown", shownCount, { total: shownCount.toLocaleString(language) })}</span>
         </div>
         <button
           onClick={onCreate}
@@ -92,7 +93,13 @@ export function TaskViewHeader({
         </button>
       </div>
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <select value={roomScope} onChange={(event) => setRoomScope(event.target.value)} title={t("tasks.filterTitle")} style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}>
+        <select
+          value={roomScope}
+          onChange={(event) => setRoomScope(event.target.value)}
+          aria-label={t("tasks.filterTitle")}
+          title={t("tasks.filterTitle")}
+          style={isMobile ? { ...selectStyle, flex: 1 } : selectStyle}
+        >
           <option value="all">{t("tasks.allRooms")}</option>
           <option value="global">{t("tasks.officeWide")}</option>
           {rooms.map((room) => (
@@ -106,7 +113,8 @@ export function TaskViewHeader({
           <input
             value={filterAssignee}
             onChange={(event) => setFilterAssignee(event.target.value)}
-            placeholder="Filter assignee..."
+            aria-label={t("tasks.filterAssignee")}
+            placeholder={t("tasks.filterAssignee")}
             style={{ ...selectStyle, width: 130 }}
             onKeyDown={(event) => event.stopPropagation()}
           />

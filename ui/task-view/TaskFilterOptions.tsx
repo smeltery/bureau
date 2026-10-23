@@ -16,12 +16,12 @@ export function TaskFilterOptions({
   onPriorities: (value: TaskPriorityFilter[]) => void;
   counts: ReturnType<typeof taskFilterCounts>;
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   function group<T extends string>(label: string, options: T[], selected: T[], change: (value: T[]) => void, name: (value: T) => string, count: Partial<Record<T, number>>) {
     return (
       <details style={{ position: "relative" }}>
         <summary style={{ cursor: "pointer", padding: "8px", whiteSpace: "nowrap" }}>
-          {label} ({selected.length})
+          {label} ({selected.length.toLocaleString(language)})
         </summary>
         <fieldset
           style={{
@@ -41,7 +41,7 @@ export function TaskFilterOptions({
           {options.map((value) => (
             <label key={value} style={{ display: "flex", alignItems: "center", gap: 8, padding: 5, whiteSpace: "nowrap" }}>
               <input type="checkbox" checked={selected.includes(value)} onChange={() => change(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value])} />
-              {name(value)} <span style={{ marginLeft: "auto", color: "var(--text-muted)" }}>{count[value] ?? 0}</span>
+              {name(value)} <span style={{ marginLeft: "auto", color: "var(--text-muted)" }}>{(count[value] ?? 0).toLocaleString(language)}</span>
             </label>
           ))}
         </fieldset>

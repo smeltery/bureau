@@ -18,6 +18,7 @@
 // stand down while one is open; the overlay's own handler closes just itself.
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useI18n } from "../../i18n.tsx";
 import { Portal } from "../Portal.tsx";
 import { closeExpandedEditor, openExpandedEditor } from "./expandedEditorState.ts";
 
@@ -59,6 +60,7 @@ export function ExpandableTextarea({
   style?: CSSProperties;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
 }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const labelId = useId();
   const expandBtnRef = useRef<HTMLButtonElement>(null);
@@ -66,6 +68,7 @@ export function ExpandableTextarea({
   return (
     <div style={{ position: "relative" }}>
       <textarea
+        aria-label={title}
         ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -80,8 +83,8 @@ export function ExpandableTextarea({
         type="button"
         onClick={() => setExpanded(true)}
         disabled={disabled}
-        title={`Expand ${title}`}
-        aria-label={`Expand ${title}`}
+        title={t("editor.expand", { title })}
+        aria-label={t("editor.expand", { title })}
         style={disabled ? { ...expandBtnStyle, cursor: "default", opacity: 0.4 } : expandBtnStyle}
       >
         {EXPAND_ICON}
@@ -127,6 +130,7 @@ function ExpandedEditor({
   placeholder?: string;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLTextAreaElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -207,13 +211,14 @@ function ExpandedEditor({
             {title}
           </span>
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 11, color: "var(--text-ghost)" }}>Esc to collapse</span>
+          <span style={{ fontSize: 11, color: "var(--text-ghost)" }}>{t("editor.collapseHint")}</span>
           <button type="button" onClick={onClose} style={doneBtnStyle}>
-            Done
+            {t("editor.done")}
           </button>
         </div>
         {hint && <p style={{ margin: 0, padding: "8px 16px 0", fontSize: 11, color: "var(--text-ghost)", lineHeight: 1.4, flexShrink: 0 }}>{hint}</p>}
         <textarea
+          aria-label={title}
           ref={ref}
           value={value}
           onChange={(e) => onChange(e.target.value)}

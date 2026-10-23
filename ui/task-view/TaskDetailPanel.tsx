@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { TaskHistory } from "./TaskHistory.tsx";
 import { useEffect, useState } from "react";
 import { send } from "../ws.ts";
@@ -29,6 +30,7 @@ export function TaskDetailPanel({
   closeRef?: React.MutableRefObject<(() => void) | null>;
   fullScreen?: boolean;
 }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState(task?.title || "");
   const [description, setDescription] = useState(task?.description || "");
   const [priority, setPriority] = useState<TaskPriority | "">(task?.priority || "");
@@ -109,11 +111,11 @@ export function TaskDetailPanel({
         id: task.id,
         changes: {
           title: title.trim(),
-          description: description.trim() || undefined,
+          description: description.trim(),
           priority: priority === "" ? null : priority,
           status,
-          assignee: assignee.trim() || undefined,
-          roomId: roomId || undefined,
+          assignee: assignee.trim(),
+          roomId,
         },
       });
     }
@@ -167,7 +169,7 @@ export function TaskDetailPanel({
         }}
       >
         {mode === "create" ? (
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>New Task</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{t("tasks.newTask")}</span>
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontFamily: "'JetBrains Mono',monospace" }}>#{task!.id}</span>
@@ -175,6 +177,7 @@ export function TaskDetailPanel({
           </div>
         )}
         <button
+          aria-label={t("common.close")}
           onClick={requestClose}
           style={{
             background: "none",
