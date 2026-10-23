@@ -1,3 +1,4 @@
+import { VoiceError, voiceFailure, type VoiceFailure } from "./errors.ts";
 import { MAX_VOICE_AUDIO_BYTES, MAX_VOICE_RECORDING_MS } from "../../shared/integrations/voice.ts";
 
 export type RecorderState = "idle" | "requesting" | "recording" | "transcribing";
@@ -7,7 +8,7 @@ export interface RecorderDeps {
   transcribe(blob: Blob, signal: AbortSignal): Promise<string>;
 }
 type RecordingRun = { recorder?: MediaRecorder; stream?: MediaStream; abort: AbortController; timer?: ReturnType<typeof setTimeout>; phase: RecorderState };
-export function createVoiceRecorder(callbacks: { state(value: RecorderState): void; transcript(value: string): void; error(value: string): void }, deps: RecorderDeps) {
+export function createVoiceRecorder(callbacks: { state(value: RecorderState): void; transcript(value: string): void; error(value: VoiceFailure): void }, deps: RecorderDeps) {
   let current: RecordingRun | null = null;
   function release(run: RecordingRun) {
     clearTimeout(run.timer);
@@ -22,7 +23,7 @@ export function createVoiceRecorder(callbacks: { state(value: RecorderState): vo
     release(run);
     callbacks.state("idle");
   }
-  function fail(run: RecordingRun, message: string) {
+  function fail(run: RecordingRun, message: VoiceFailure) {
     if (current !== run) return;
     cancel();
     callbacks.error(message);
@@ -57,12 +58,12 @@ export function createVoiceRecorder(callbacks: { state(value: RecorderState): vo
         if (current !== run || !event.data.size) return;
         size += event.data.size;
         if (size > MAX_VOICE_AUDIO_BYTES) {
-          fail(run, "Recording is too large. Try a shorter clip.");
+          fail(run, { key: "voice.tooLarge" });
           return;
         }
         chunks.push(event.data);
       };
-      recorder.onerror = () => fail(run, "Microphone recording failed. Please try again.");
+      recorder.onerror = () => fail(run, { key: "voice.recordFailed" });
       recorder.onstop = async () => {
         release(run);
         if (current !== run) return;
@@ -71,7 +72,7 @@ export function createVoiceRecorder(callbacks: { state(value: RecorderState): vo
         try {
           const blob = new Blob(chunks, { type: recorder.mimeType || chunks[0]?.type });
           if (!blob.size) {
-            fail(run, "No audio was recorded. Try speaking for longer.");
+            fail(run, { key: "voice.empty" });
             return;
           }
           const transcript = await deps.transcribe(blob, run.abort.signal);
@@ -80,7 +81,7 @@ export function createVoiceRecorder(callbacks: { state(value: RecorderState): vo
           current = null;
           callbacks.state("idle");
         } catch (error) {
-          fail(run, error instanceof Error ? error.message : "Transcription failed.");
+          fail(run, voiceFailure(error, "voice.transcribeFailed"));
         }
       };
       recorder.start(250);
@@ -89,14 +90,7 @@ export function createVoiceRecorder(callbacks: { state(value: RecorderState): vo
       run.timer = setTimeout(stop, MAX_VOICE_RECORDING_MS);
     } catch (error) {
       const name = error instanceof Error ? error.name : "";
-      fail(
-        run,
-        name === "NotAllowedError"
-          ? "Microphone permission was denied. Allow microphone access and try again."
-          : name === "NotFoundError"
-            ? "No microphone was found."
-            : "Could not start microphone recording.",
-      );
+      fail(run, name === "NotAllowedError" ? { key: "voice.denied" } : name === "NotFoundError" ? { key: "voice.noMicrophone" } : { key: "voice.startFailed" });
     }
   }
   return { start, stop, cancel, active: () => current !== null };
@@ -105,14 +99,14 @@ export const browserRecorderDeps: RecorderDeps = {
   getStream: () => navigator.mediaDevices.getUserMedia({ audio: true }),
   createRecorder: (stream) => {
     const mimeType = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((type) => MediaRecorder.isTypeSupported(type));
-    if (!mimeType) throw new Error("No supported recording format.");
+    if (!mimeType) throw new VoiceError("voice.format");
     return new MediaRecorder(stream, { mimeType });
   },
   transcribe: async (blob, signal) => {
     const response = await fetch("/api/voice/transcribe", { method: "POST", body: blob, signal, credentials: "same-origin" });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Transcription failed.");
-    if (typeof data.text !== "string") throw new Error("Invalid transcription response.");
+    if (!response.ok) throw data.error ? new Error(data.error) : new VoiceError("voice.transcribeFailed");
+    if (typeof data.text !== "string") throw new VoiceError("voice.invalidTranscript");
     return data.text;
   },
 };

@@ -1,11 +1,19 @@
-const VOICE_INPUT_ERROR_MESSAGES: Record<string, string> = {
-  "not-allowed": "Voice input is blocked. Check this site's microphone permission in your browser.",
-  "service-not-allowed": "Voice input is blocked. Check this site's microphone permission in your browser.",
-  "audio-capture": "No microphone was found.",
-  network: "Voice input could not reach the speech service.",
+import { translatorFor } from "../../../shared/i18n/translate.ts";
+import type { VoiceMessageKey } from "../../voice/errors.ts";
+
+const VOICE_INPUT_ERROR_KEYS: Record<string, VoiceMessageKey> = {
+  "not-allowed": "voice.blocked",
+  "service-not-allowed": "voice.blocked",
+  "audio-capture": "voice.noMicrophone",
+  network: "voice.network",
 };
 
-export function voiceInputErrorMessage(code: string): string | null {
+export function voiceInputErrorKey(code: string): VoiceMessageKey | null {
   if (code === "no-speech" || code === "aborted") return null;
-  return VOICE_INPUT_ERROR_MESSAGES[code] ?? "Voice input failed.";
+  return Object.hasOwn(VOICE_INPUT_ERROR_KEYS, code) ? VOICE_INPUT_ERROR_KEYS[code] : "voice.inputFailed";
+}
+
+export function voiceInputErrorMessage(code: string): string | null {
+  const key = voiceInputErrorKey(code);
+  return key === null ? null : translatorFor("en").t(key);
 }

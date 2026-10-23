@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+import { voiceFailure, voiceFailureText, type VoiceFailure } from "./errors.ts";
 import { useEffect, useRef, useState } from "react";
 import { useSpeechLocale } from "../hooks/useSpeechLocale.ts";
 import { useVoicePreferences } from "./useVoicePreferences.ts";
@@ -5,10 +7,11 @@ import { readAloud } from "./playback.ts";
 
 let stopActive: (() => void) | null = null;
 export function useReadAloud(getText: () => string) {
+  const { t } = useI18n();
   const preferences = useVoicePreferences();
   const locale = useSpeechLocale();
   const [speaking, setSpeaking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<VoiceFailure | null>(null);
   const run = useRef<{ stop(): void } | null>(null);
   function stop() {
     run.current?.stop();
@@ -46,7 +49,7 @@ export function useReadAloud(getText: () => string) {
     if (preferences.output === "openai") {
       void readAloud(text, preferences.voice, abort.signal)
         .catch((caught) => {
-          if (!abort.signal.aborted) setError(caught instanceof Error ? caught.message : "Read aloud failed.");
+          if (!abort.signal.aborted) setError(voiceFailure(caught, "voice.readFailed"));
         })
         .finally(() => {
           if (run.current === entry) entry.stop();
@@ -68,15 +71,21 @@ export function useReadAloud(getText: () => string) {
         utterance.lang = locale;
         utterance.onend = entry.stop;
         utterance.onerror = () => {
-          setError("Browser speech failed. Try another voice provider in Integrations > Voice.");
+          setError({ key: "voice.browserFailed" });
           entry.stop();
         };
         speechSynthesis.speak(utterance);
       } catch {
-        setError("Browser speech is unavailable.");
+        setError({ key: "voice.browserUnavailable" });
         entry.stop();
       }
     }
   }
-  return { speaking, error, toggle, available: preferences.output === "openai" || typeof speechSynthesis !== "undefined", provider: preferences.output };
+  return {
+    speaking,
+    error: error === null ? null : voiceFailureText(error, t),
+    toggle,
+    available: preferences.output === "openai" || typeof speechSynthesis !== "undefined",
+    provider: preferences.output,
+  };
 }

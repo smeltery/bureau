@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+import { voiceFailureText, type VoiceFailure } from "./errors.ts";
 import { useEffect, useRef, useState } from "react";
 import { advanceDictationSession, isSpokenSubmit, reconcileDictationEdit, startDictationSession } from "../log-view/hooks/spoken-punctuation.ts";
 import { browserRecorderDeps, createVoiceRecorder, type RecorderState } from "./recorder.ts";
@@ -10,10 +12,11 @@ export interface VoiceInputOptions {
   sessionKey?: string;
 }
 export function useRecordedVoice(options: VoiceInputOptions, enabled: boolean) {
+  const { t } = useI18n();
   const latest = useRef(options);
   latest.current = options;
   const [state, setState] = useState<RecorderState>("idle");
-  const [voiceInputError, setError] = useState<string | null>(null);
+  const [voiceInputError, setError] = useState<VoiceFailure | null>(null);
   const [showMicHint, setShowMicHint] = useState(false);
   const session = useRef(startDictationSession("", options.locale));
   const controller = useRef<ReturnType<typeof createVoiceRecorder> | null>(null);
@@ -79,10 +82,10 @@ export function useRecordedVoice(options: VoiceInputOptions, enabled: boolean) {
     setShowMicHint,
     speechApiPresent,
     isSecureContext,
-    voiceInputError,
+    voiceInputError: voiceInputError === null ? null : voiceFailureText(voiceInputError, t),
     reconcileDraftEdit: (text: string) => {
       if (controller.current!.active()) session.current = reconcileDictationEdit(session.current, text);
     },
-    voiceStatus: state === "transcribing" ? "Transcribing…" : state === "requesting" ? "Waiting for microphone…" : null,
+    voiceStatus: state === "transcribing" ? t("voice.transcribing") : state === "requesting" ? t("voice.requesting") : null,
   };
 }
