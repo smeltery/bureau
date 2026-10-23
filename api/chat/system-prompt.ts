@@ -147,9 +147,11 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Optional directory argument (\`/bureau-diff ~/some/worktree\`) to peek at a worktree without spawning a fresh agent there
 - Agents can surface the same card themselves via POST localhost:4000/api/agents/:id/diff — they learn the curl recipe from their system prompt, so "show me what you've changed" just works in plain English
 
-### Daily Backups
+### Backups
 - Server-managed scheduler tarballs ~/.bureau/ to ~/bureau-backups/bureau-YYYY-MM-DD.tar.gz once a day
-- Keeps the last 7 archives; destination overridable via \$BUREAU_BACKUP_DIR
+- Defaults to 24 hours and 7 verified archives. Owners can change interval (1–720 hours), retention (1–100), and destination in User Settings > Storage without restarting
+- BUREAU_BACKUP_DIR overrides the saved destination. Destinations must be outside office state; changing folders leaves old backups untouched
+- Changes apply at the next hourly check; in-progress backups keep their original settings. Retention runs only after a new archive is verified
 - Live tar — JSON config writes use atomic write-then-rename so the snapshot can't capture a half-written file
 - Status (last run timestamp, ok/error, retention) at GET /backup/status
 

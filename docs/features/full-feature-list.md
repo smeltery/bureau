@@ -256,7 +256,11 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Damaged agent state is preserved for recovery before starting an empty room;
   unreadable state or failed preservation stops startup. See
   [recovery instructions](../contributing/backup-restore.md#recover-damaged-agent-state).
-- Daily backup tarballs with retention.
+- Verified backup tarballs with owner-configurable interval (1–720 hours),
+  retention (1–100 archives), and destination in User Settings → Storage.
+  Settings apply without a restart; environment destination overrides stay
+  authoritative and previous directories are left untouched. See
+  [backup configuration](../contributing/backup-restore.md#configure-backups).
 - Owner storage reports via `/bureau-storage` and `GET /api/storage/usage`,
   covering transcripts, attachments, Codex home, memory, cron jobs, backups,
   and per-agent stored data.

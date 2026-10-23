@@ -1,4 +1,4 @@
-// Daily backup of ~/.bureau to a verified local tarball.
+// Scheduled backup of office state to a verified local tarball.
 //
 // A backup is published in three steps: write a uniquely named partial file,
 // walk the whole archive with `tar -tzf`, then rename it and write a verification
@@ -12,8 +12,7 @@
 // docs/contributing/backup-restore.md.
 
 import { basename, dirname, join } from "path";
-import { homedir } from "os";
-import { mkdirSync, renameSync, statfsSync, unlinkSync } from "fs";
+import { renameSync, statfsSync, unlinkSync } from "fs";
 import { errMessage } from "../shared/errors.ts";
 import { BUREAU_DIR } from "./persistence/paths.ts";
 import {
@@ -37,31 +36,34 @@ import {
 } from "./backup/files.ts";
 import { removeBackupStaging, stageBackupRoot } from "./backup/exclusions.ts";
 
+import { readBackupSettings, prepareBackupDestination } from "./backup/settings.ts";
+
 export type { BackupStatus } from "./backup/files.ts";
 
-const HOME = homedir();
 const BUREAU_DIR_PARENT = dirname(BUREAU_DIR);
 const BUREAU_DIR_NAME = basename(BUREAU_DIR);
-const BACKUP_DIR = process.env.BUREAU_BACKUP_DIR || join(HOME, "bureau-backups");
-const RETENTION = 7;
-const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1h
-const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
+const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const FIRST_BACKUP_MIN_FREE_BYTES = 2 * 1024 * 1024 * 1024; // 2 GiB
 const MIN_HEADROOM_BYTES = 256 * 1024 * 1024; // 256 MiB
 
 let lastAttemptAt: number | null = null;
 let lastAttemptError: string | null = null;
 let running = false;
-let startupPrepared = false;
+const preparedDirectories = new Set<string>();
+let lastAttemptDirectory: string | null = null;
 
-const DEFAULT_CONFIG: BackupConfig = {
-  backupDir: BACKUP_DIR,
-  stateRootParent: BUREAU_DIR_PARENT,
-  stateRootName: BUREAU_DIR_NAME,
-  retention: RETENTION,
-  firstBackupMinFreeBytes: FIRST_BACKUP_MIN_FREE_BYTES,
-  minHeadroomBytes: MIN_HEADROOM_BYTES,
-};
+export function currentBackupConfig(): BackupConfig {
+  const { settings, effectiveDir } = readBackupSettings();
+  return {
+    backupDir: effectiveDir,
+    stateRootParent: BUREAU_DIR_PARENT,
+    stateRootName: BUREAU_DIR_NAME,
+    retention: settings.retention,
+    intervalHours: settings.intervalHours,
+    firstBackupMinFreeBytes: FIRST_BACKUP_MIN_FREE_BYTES,
+    minHeadroomBytes: MIN_HEADROOM_BYTES,
+  };
+}
 
 const DEFAULT_DEPS: BackupDeps = {
   now: () => Date.now(),
@@ -93,23 +95,25 @@ async function detectTarFlavor(): Promise<TarFlavor> {
 }
 
 export function getBackupStatus(): BackupStatus {
-  return statusFromDisk(DEFAULT_CONFIG, Date.now(), lastAttemptAt, lastAttemptError, running);
+  const config = currentBackupConfig();
+  const sameDirectory = config.backupDir === lastAttemptDirectory;
+  return statusFromDisk(config, Date.now(), sameDirectory ? lastAttemptAt : null, sameDirectory ? lastAttemptError : null, running);
 }
 
 export async function runBackupOnceForTest(overrides: Partial<BackupConfig>, deps: BackupDeps): Promise<string> {
-  return runBackup({ ...DEFAULT_CONFIG, ...overrides }, deps);
+  return runBackup({ ...currentBackupConfig(), ...overrides }, deps);
 }
 
 export function backupStatusForTest(overrides: Partial<BackupConfig>, now: number): BackupStatus {
-  return statusFromDisk({ ...DEFAULT_CONFIG, ...overrides }, now, null, null, false);
+  return statusFromDisk({ ...currentBackupConfig(), ...overrides }, now, null, null, false);
 }
 
 export function prepareBackupDirectoryForTest(dir: string): void {
   prepareBackupDirectory(dir);
 }
 
-async function runBackup(config: BackupConfig = DEFAULT_CONFIG, deps: BackupDeps = DEFAULT_DEPS): Promise<string> {
-  mkdirSync(config.backupDir, { recursive: true });
+async function runBackup(config: BackupConfig = currentBackupConfig(), deps: BackupDeps = DEFAULT_DEPS): Promise<string> {
+  prepareBackupDestination(config.backupDir, join(config.stateRootParent, config.stateRootName));
   await certifyUnmarkedArchives(config, deps);
   const newest = newestVerifiedBackup(config.backupDir);
   const required = requiredFreeBytes(newest, config);
@@ -151,23 +155,25 @@ async function tick() {
   if (running) return;
   running = true;
   try {
-    if (!startupPrepared) {
+    const config = currentBackupConfig();
+    lastAttemptDirectory = config.backupDir;
+    prepareBackupDestination(config.backupDir, BUREAU_DIR);
+    if (!preparedDirectories.has(config.backupDir)) {
       lastAttemptAt = Date.now();
-      prepareBackupDirectory(BACKUP_DIR);
-      startupPrepared = true;
+      prepareBackupDirectory(config.backupDir);
+      preparedDirectories.add(config.backupDir);
       lastAttemptError = null;
     }
-    // On the first run after this feature ships, certify a legacy archive
-    // before deciding it is due. Otherwise an upgrade would read the newest
-    // archive once to verify it and immediately write a duplicate.
-    await certifyUnmarkedArchives(DEFAULT_CONFIG, DEFAULT_DEPS);
-    const newest = newestVerifiedBackup(BACKUP_DIR);
-    if (newest && Date.now() - newest.mtimeMs < BACKUP_INTERVAL_MS) return;
+    // Certify legacy archives before deciding whether another run is due.
+    await certifyUnmarkedArchives(config, DEFAULT_DEPS);
+    const newest = newestVerifiedBackup(config.backupDir);
+    if (newest && Date.now() - newest.mtimeMs < (config.intervalHours ?? 24) * 3_600_000) return;
     lastAttemptAt = Date.now();
-    const file = await runBackup();
+    const file = await runBackup(config);
     lastAttemptError = null;
     console.log(`[backup] wrote and verified ${file}`);
   } catch (err) {
+    lastAttemptAt = Date.now();
     lastAttemptError = errMessage(err);
     console.error("[backup] failed; existing verified backups were kept:", err);
   } finally {

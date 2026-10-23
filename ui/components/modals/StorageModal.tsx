@@ -1,3 +1,4 @@
+import { BackupSettingsForm } from "./storage/BackupSettingsForm.tsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PrunePlanWire, PruneTarget, StoragePruneWire, StorageUsageWire } from "../../../shared/storage-types.ts";
 import { applyRequest, planMatchesForm, previewRequest, type PolicyForm } from "../../storage-prune-form.ts";
@@ -121,6 +122,14 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{t("storage.title")}</h3>
       <UsageBlock usage={usage} error={loadError} />
       <BackupBlock backup={backup} />
+      <BackupSettingsForm
+        onSaved={() => {
+          loadUsage();
+          apiFetch<BackupStatusWire>("GET", "/api/backup/status")
+            .then(setBackup)
+            .catch(() => setBackup("unavailable"));
+        }}
+      />
 
       <SectionLabel>Delete old files</SectionLabel>
       <div style={warningBox}>

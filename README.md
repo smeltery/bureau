@@ -84,7 +84,7 @@ bureau/
 
 Signed [inbound webhooks](docs/features/inbound-webhooks.md) can queue agent work or
 start room-scoped schedules. The [Chrome extension](docs/features/browser-sharing.md)
-shares explicitly offered tabs with selected agents, including bounded file uploads. Agents can opt into automatic handoff for long tasks, preserving a brief and queued messages across fresh conversations. Claude and Codex can [continue after provider usage resets](docs/features/usage-reset-continuation.md), with a per-agent opt-out. Owners can review a filterable audit log of office changes. Tasks retain per-change history and support owner recovery after deletion. Personal API tokens and privileged agents can edit versioned member instructions within their member permissions. Apps supports short links with an agent chat view, agent handoffs, thumbnails and
+shares explicitly offered tabs with selected agents, including bounded file uploads. Agents can opt into automatic handoff for long tasks, preserving a brief and queued messages across fresh conversations. Claude and Codex can [continue after provider usage resets](docs/features/usage-reset-continuation.md), with a per-agent opt-out. Owners can review a filterable audit log of office changes and [configure backup schedules, retention and destinations](docs/contributing/backup-restore.md#configure-backups) in User Settings → Storage. Tasks retain per-change history and support owner recovery after deletion. Personal API tokens and privileged agents can edit versioned member instructions within their member permissions. Apps supports short links with an agent chat view, agent handoffs, thumbnails and
 reversible archive, and room tabs support personal ordering and tucked rooms.
 
 ## License

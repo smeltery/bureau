@@ -1,3 +1,4 @@
+import { handleBackupSettingsRequest } from "../backup/http.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { agents } from "../agents/state.ts";
 import { getBackupStatus } from "../backup.ts";
@@ -33,11 +34,13 @@ function defaultDeps(): StorageRouteDeps {
   };
 }
 
-export async function handleStorageRequest(req: Request, url: URL, auth: AuthResult | undefined, routeDeps: StorageRouteDeps = defaultDeps()): Promise<Response | null> {
+export async function handleStorageRequest(req: Request, url: URL, auth: AuthResult | undefined, routeDeps?: StorageRouteDeps): Promise<Response | null> {
+  if (url.pathname === "/api/backup/settings") return handleBackupSettingsRequest(req, auth);
   if (url.pathname !== "/api/storage/usage" && url.pathname !== "/api/storage/prune") return null;
   if (auth?.kind !== "ok") return jsonError(401, "unauthenticated");
   if (auth.session.role !== "owner") return jsonError(403, "owner access required");
 
+  routeDeps ??= defaultDeps();
   if (url.pathname === "/api/storage/usage") {
     if (req.method !== "GET") return jsonError(405, "method not allowed");
     return json(measureStorage({ stateRoot: routeDeps.stateRoot, backupDir: routeDeps.backupDir }));
