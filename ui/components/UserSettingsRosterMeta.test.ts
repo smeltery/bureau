@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { summarizeRosterUser } from "./UserSettingsRosterMeta.tsx";
 import type { UserRecord } from "../../shared/types.ts";
+import { translatorFor } from "../../shared/i18n/translate.ts";
 
 const rooms = [
   { id: "room-a", name: "Alpha" },
@@ -50,5 +51,20 @@ describe("summarizeRosterUser", () => {
   test("flags a member who has never signed in", () => {
     expect(summarizeRosterUser(user({ pendingSignIn: true }), rooms, [], [], true)).toBe("Never signed in • All rooms");
     expect(summarizeRosterUser(user({ pendingSignIn: true }), rooms, [{ userId: "user-1" }], [], false)).toBe("Online • All rooms");
+  });
+
+  test("localizes roster state and time without exposing hidden session details", () => {
+    for (const language of ["en", "es", "ca", "zh"] as const) {
+      const translator = translatorFor(language);
+      const { t, tn } = translator;
+      const member = user({ allowedRooms: ["room-b"] });
+      const sessions = [{ userId: member.id, lastSeenAt: Date.now() - 62_000 }];
+      expect(summarizeRosterUser(member, rooms, [], sessions, false, translator)).toBe("Beta");
+      expect(summarizeRosterUser(member, rooms, [], sessions, true, translator)).toBe(t("profile.lastSeen", { time: t("profile.minutesAgo", { count: 1 }), rooms: "Beta" }));
+      expect(summarizeRosterUser(member, rooms, [{ userId: member.id }], [], true, translator)).toBe(tn("profile.active", 1, { rooms: "Beta" }));
+      expect(summarizeRosterUser(member, rooms, [{ userId: member.id }], [...sessions, ...sessions], true, translator)).toBe(tn("profile.active", 2, { rooms: "Beta" }));
+      expect(summarizeRosterUser(user({ pendingSignIn: true }), rooms, [], [], true, translator)).toBe(t("profile.neverSignedIn", { rooms: t("profile.allRooms") }));
+      expect(summarizeRosterUser(user({ allowedRooms: [] }), rooms, [], [], true, translator)).toBe(t("profile.offline", { rooms: t("profile.noRooms") }));
+    }
   });
 });

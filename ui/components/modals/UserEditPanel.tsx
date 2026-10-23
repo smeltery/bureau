@@ -11,7 +11,7 @@ import { UserRoomPreferences } from "./UserRoomPreferences.tsx";
 import { UnsavedChangesPrompt, useUnsavedChangesPrompt } from "./UnsavedChangesPrompt.tsx";
 import { useI18n } from "../../i18n.tsx";
 
-type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
+type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string | null };
 
 export function UserEditPanel({
   user,
@@ -119,7 +119,7 @@ export function UserEditPanel({
         const msg = JSON.parse(data);
         if (msg.type === "settings_validation" && msg.requestId === reqId) {
           if (msg.ok) setEnvStatus({ kind: "ok", keyCount: msg.keyCount });
-          else setEnvStatus({ kind: "error", message: msg.error || t("settings.profile.envInvalid") });
+          else setEnvStatus({ kind: "error", message: msg.error || null });
           removeRawListener(listener);
         }
       } catch {}
@@ -204,7 +204,7 @@ export function UserEditPanel({
       )}
       {instructions.current !== null && (
         <label style={dialogLabel}>
-          Current instructions
+          {t("profile.currentInstructions")}
           <textarea readOnly value={instructions.current} style={dialogInput} />
         </label>
       )}
@@ -229,7 +229,7 @@ function ValidationLine({ status }: { status: ValidationStatus }) {
     if (status.keyCount === undefined) return <p style={{ fontSize: 10, color: "var(--accent)", margin: "4px 0 0" }}>{t("settings.profile.noEnvFile")}</p>;
     return <p style={{ fontSize: 10, color: "var(--accent)", margin: "4px 0 0" }}>{tn("settings.profile.loadedVariables", status.keyCount)}</p>;
   }
-  return <p style={{ fontSize: 10, color: "#ff6b6b", margin: "4px 0 0" }}>{status.message}</p>;
+  return <p style={{ fontSize: 10, color: "#ff6b6b", margin: "4px 0 0" }}>{status.message ?? t("settings.profile.envInvalid")}</p>;
 }
 
 const smallBtn: React.CSSProperties = {

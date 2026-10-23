@@ -1,3 +1,4 @@
+import { profile } from "./profile-es.ts";
 import { integrations } from "./integrations-es.ts";
 import { schedules } from "./schedules-es.ts";
 import { logs } from "./logs-es.ts";
@@ -8,6 +9,7 @@ import type { Catalog } from "./en.ts";
 export const es = {
   ...logs,
   ...integrations,
+  ...profile,
   ...schedules,
   ...skills,
   ...storage,
