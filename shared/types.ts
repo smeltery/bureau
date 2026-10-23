@@ -49,7 +49,7 @@ export { cronjobRunStreamId, humanizeSchedule, parseStreamId } from "./cronjobs.
 export type { Cronjob, CronjobPermissionMode, CronjobRun, CronjobRunStatus, CronjobRunTrigger, Schedule } from "./cronjobs.ts";
 export type { CCAvailablePlugin, CCInstalledPlugin, CCMarketplace, CCPluginScope, CCPluginsState } from "./cc-plugin-types.ts";
 export type { Attachment, ChoicePromptChoice, ChoicePromptPayload, DiffFileSummary, DiffPayload, FilePayload, LogEntry, SubagentOrigin, TerminalCommandPayload } from "./log-types.ts";
-export type { MembersChatMessage, MembersChatReply } from "./members-chat.ts";
+export type { MembersChatMessage, MembersChatReply, MembersChatSummary } from "./members-chat.ts";
 export { MEMBERS_CHAT_MAX_CHARS, membersChatExcerpt, recentMembersChatPins } from "./members-chat.ts";
 export type {
   ProviderAccountProvider,

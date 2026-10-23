@@ -1,3 +1,4 @@
+import type { MembersChatSummary } from "../shared/members-chat.ts";
 import type { SlashCommandInfo } from "../shared/agent-types.ts";
 import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from "react";
 import type {
@@ -31,6 +32,7 @@ import { reducer } from "./store-reducer.ts";
 export { FeaturesProvider, ThemeProvider, useFeatures, useTheme } from "./themes/theme-context.tsx";
 
 export interface AppState {
+  membersChat: MembersChatSummary | null;
   agents: AgentInfo[];
   logs: Map<string, LogEntry[]>; // agentId → entries
   // Reconnect replay window, or null outside one. While this is set, incoming
@@ -113,7 +115,17 @@ export interface AppState {
 }
 
 export type Action =
-  | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[]; killedAgents: KilledAgentSummary[] }
+  | {
+      type: "full_state";
+      membersChat?: MembersChatSummary;
+      agents: AgentInfo[];
+      recentCwds: string[];
+      office: OfficeSettings;
+      rooms: RoomWire[];
+      allRooms?: RoomWire[];
+      killedAgents: KilledAgentSummary[];
+    }
+  | { type: "members_chat_summary"; summary: MembersChatSummary }
   | { type: "session_context"; context: SessionContext | null }
   | { type: "presence_list"; entries: PresenceInfo[]; totalOnlineUsers: number }
   | { type: "voice_preferences"; userId: string; changes: Pick<UserRecord, "voiceInput" | "voiceOutput" | "voiceName"> }

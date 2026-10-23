@@ -19,6 +19,7 @@ export function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         agents: action.agents,
+        membersChat: action.membersChat ?? state.membersChat,
         recentCwds: action.recentCwds,
         office: action.office,
         rooms: action.rooms,
@@ -43,11 +44,14 @@ export function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         sessionContext: action.context,
+        membersChat: state.membersChat?.userId === action.context?.userId ? state.membersChat : null,
         activeSessionsLoaded: false,
         invitesLoaded: false,
         drafts: previousUser !== nextUser ? new Map() : state.drafts,
       };
     }
+    case "members_chat_summary":
+      return action.summary.userId === state.sessionContext?.userId ? { ...state, membersChat: action.summary } : state;
     case "voice_preferences":
       return { ...state, users: new Map([...state.users].map(([name, user]) => [name, user.id === action.userId ? { ...user, ...action.changes } : user])) };
     case "users_list":

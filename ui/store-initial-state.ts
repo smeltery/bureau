@@ -3,6 +3,7 @@ import { storageGetItem } from "./browser-storage.ts";
 import { readSidePanels } from "./store-side-panels.ts";
 
 export const initialState: AppState = {
+  membersChat: null,
   agents: [],
   logs: new Map(),
   logsReplay: null,

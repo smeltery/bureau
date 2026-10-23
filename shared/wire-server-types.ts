@@ -1,3 +1,4 @@
+import type { MembersChatSummary } from "./members-chat.ts";
 import type { SlashCommandInfo } from "./agent-types.ts";
 import type { AgentInfo, KilledAgentSummary, SessionInfo, SkillInfo } from "./agent-types.ts";
 import type { AppListWire } from "./apps.ts";
@@ -13,7 +14,17 @@ import type { UpdateStatusWire } from "./update-types.ts";
 
 // Server -> Browser messages
 export type ServerMessage =
-  | { type: "full_state"; agents: AgentInfo[]; recentCwds: string[]; office: OfficeSettings; rooms: RoomWire[]; allRooms?: RoomWire[]; killedAgents: KilledAgentSummary[] }
+  | {
+      type: "full_state";
+      membersChat?: MembersChatSummary;
+      agents: AgentInfo[];
+      recentCwds: string[];
+      office: OfficeSettings;
+      rooms: RoomWire[];
+      allRooms?: RoomWire[];
+      killedAgents: KilledAgentSummary[];
+    }
+  | { type: "members_chat_summary"; summary: MembersChatSummary }
   | { type: "session_context"; context: SessionContext | null }
   | { type: "presence_list"; entries: PresenceInfo[]; totalOnlineUsers: number }
   | { type: "users_list"; users: UserRecord[] }

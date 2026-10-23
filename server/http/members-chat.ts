@@ -1,3 +1,4 @@
+import { broadcastChatSummary } from "../members-chat/broadcast.ts";
 // Humans-only team chat REST surface. Cookie session required — API tokens,
 // loopback agent callers, and agent bearer tokens are refused. Owners may
 // pin or delete any message; authors may delete their own.
@@ -71,7 +72,7 @@ export async function handleMembersChatRequest(req: Request, url: URL, auth: Aut
       before,
       limit: Number.isFinite(limit) ? limit : undefined,
     });
-    return json(page);
+    return json({ ...page, summary: store.summary(session.session.userId) });
   }
 
   if (url.pathname === ROOT && req.method === "POST") {
@@ -109,7 +110,21 @@ export async function handleMembersChatRequest(req: Request, url: URL, auth: Aut
       return storeError(err);
     }
     emitMessage(message);
+    broadcastChatSummary(store);
     return json(message, 201);
+  }
+
+  if (url.pathname === ROOT + "/read" && req.method === "POST") {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return error(400, "invalid_json", "invalid JSON");
+    }
+    if (!body || typeof body !== "object" || !("lastReadId" in body) || typeof body.lastReadId !== "string") return error(400, "invalid_request", "lastReadId must be a message id");
+    const summary = store.markRead(session.session.userId, body.lastReadId);
+    broadcastChatSummary(store, session.session.userId);
+    return json(summary);
   }
 
   const parsed = parseIdPath(url.pathname);
@@ -140,6 +155,7 @@ export async function handleMembersChatRequest(req: Request, url: URL, auth: Aut
     }
     store.delete(parsed.id);
     emitDeleted(parsed.id);
+    broadcastChatSummary(store);
     return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*" } });
   }
 
