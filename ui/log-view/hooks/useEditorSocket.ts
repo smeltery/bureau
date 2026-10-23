@@ -10,6 +10,7 @@ export function useEditorSocket({
   setTabsAndPersist,
   setRecentPaths,
   tabsRef,
+  reloadsRef,
 }: {
   agentId: string;
   setPendingError: (value: EditorOpenError | null) => void;
@@ -17,6 +18,7 @@ export function useEditorSocket({
   setTabsAndPersist: (updater: (prev: Tab[]) => Tab[]) => void;
   setRecentPaths: (paths: string[]) => void;
   tabsRef: React.MutableRefObject<Tab[]>;
+  reloadsRef: React.MutableRefObject<Map<string, string>>;
 }) {
   useEffect(() => {
     const handler = (data: string) => {
@@ -29,13 +31,17 @@ export function useEditorSocket({
       if (!msg) return;
       if (msg.type === "editor_content" && msg.agentId === agentId) {
         const m = msg;
+        const reloadContent = reloadsRef.current.get(m.path);
+        reloadsRef.current.delete(m.path);
         setRecentPaths(rememberRecentFile(agentId, m.path));
         setTabsAndPersist((prev) => {
           const idx = prev.findIndex((t) => t.path === m.path);
           if (idx >= 0) {
             const existing = prev[idx]!;
             const next = prev.slice();
-            if (existing.dirty) {
+            // Only an explicit reload may replace a dirty buffer, and edits made
+            // while the read was in flight still win over its response.
+            if (existing.dirty && existing.content !== reloadContent) {
               next[idx] = {
                 ...existing,
                 mtime: m.mtime,
@@ -74,6 +80,7 @@ export function useEditorSocket({
         setActivePath((prev) => prev ?? m.path);
       } else if (msg.type === "editor_open_error" && msg.agentId === agentId) {
         const m = msg;
+        reloadsRef.current.delete(m.path);
         setPendingError(m);
       } else if (msg.type === "editor_save_response" && msg.agentId === agentId) {
         const m = msg;
@@ -110,5 +117,5 @@ export function useEditorSocket({
     };
     addRawListener(handler);
     return () => removeRawListener(handler);
-  }, [agentId, setActivePath, setPendingError, setRecentPaths, setTabsAndPersist, tabsRef]);
+  }, [agentId, setActivePath, setPendingError, setRecentPaths, setTabsAndPersist, tabsRef, reloadsRef]);
 }
