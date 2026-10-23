@@ -180,6 +180,7 @@ function planAttachments(deps: PruneDeps, options: PruneOptions, ledger: SkipLed
 }
 
 function planDetailed(target: PruneTarget, options: PruneOptions, deps: PruneDeps): { plan: PrunePlanWire; sparedBy: Map<string, PruneSkipReason> } {
+  if (target !== "transcripts" && target !== "attachments") throw new Error("Unsupported transcript cleanup target");
   const ledger = newLedger();
   const plan = target === "transcripts" ? planTranscripts(deps, options, ledger) : planAttachments(deps, options, ledger);
   return { plan, sparedBy: ledger.byPath };

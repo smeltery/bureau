@@ -62,6 +62,8 @@ describe("storage report rendering", () => {
         if (line.includes("Codex home")) return "codex-home";
         if (line.includes("Cron jobs")) return "cronjobs";
         if (line.includes("Memory")) return "memory";
+        if (line.includes("API token conversations")) return "token-logs";
+        if (line.includes("Terminal recordings")) return "terminal-recordings";
         if (line.includes("Other office state")) return "other-state";
         if (line.includes("Backups")) return "backups";
         return "unknown";

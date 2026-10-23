@@ -34,6 +34,6 @@ Files live in `terminal-recordings/` under the office state directory, with priv
 file permissions. Settings live in `terminal-recording-settings.json`. Each
 recording is capped at 20 MiB. Writes flush every 250 ms or 64 KiB; disk errors stop
 recording without stopping the terminal. Recordings remain until an owner removes
-them in Audit; active recordings cannot be removed. Removal leaves the audit entry
+them in Audit or uses age-based cleanup in User Settings → Storage; active recordings cannot be removed. Removal leaves the audit entry
 intact, and its replay link reports that the recording is no longer available.
 Backups include saved recordings as part of office state.

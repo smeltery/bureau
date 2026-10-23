@@ -121,6 +121,12 @@ curl -s -X POST http://<office>/api/me/api-token-inbox/drain \
   -d '{"after":0}'
 ```
 
+Owners can preview or delete old token conversation files in **User Settings →
+Storage → API token logs**. Cleanup uses the file's last write time and includes
+revoked tokens' logs. Reading alone never deletes entries. Sequence counters are
+preserved across cleanup and restart: subsequent entries continue increasing,
+while old cursors may point into history that has been removed.
+
 Mutating token routes accept an optional `Idempotency-Key` header (same key +
 same body replays with `Idempotency-Replayed: true`; same key + different body
 → 409). Prefer that over `clientMessageId`, which API token senders cannot use.

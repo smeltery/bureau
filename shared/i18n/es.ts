@@ -1,8 +1,10 @@
+import { storage } from "./storage-es.ts";
 import { skills } from "./skills-es.ts";
 import type { Catalog } from "./en.ts";
 // Spanish translations for the office UI catalog.
 export const es = {
   ...skills,
+  ...storage,
   "access.title": "Acceso",
   "apiTokens.title": "Tokens de API",
   "apps.confirmDelete": "¿Eliminar {name}? Se conservará su directorio de datos.",
@@ -277,12 +279,6 @@ export const es = {
   "settings.you": "(tú)",
   "signOut.hint": "Terminar la sesión de este dispositivo",
   "signOut.title": "Cerrar sesión",
-  "storage.loadFailed": "No se pudo cargar el almacenamiento.",
-  "storage.leave": "Salir",
-  "storage.leaveConfirm": "Una limpieza sigue en curso. Si sales ahora pierdes el único informe de lo eliminado. ¿Salir de todos modos?",
-  "storage.target.attachments": "Adjuntos huérfanos",
-  "storage.target.transcripts": "Conversaciones",
-  "storage.title": "Almacenamiento de la oficina",
   "tasks.allRooms": "Todas las salas",
   "tasks.assignee.any": "Cualquier asignado",
   "tasks.empty": "Aún no hay tareas.",

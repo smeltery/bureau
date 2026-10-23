@@ -26,6 +26,10 @@ interface LogHint {
 
 const logHints = new Map<string, LogHint>();
 
+export function forgetTokenLog(id: string): void {
+  logHints.delete(id);
+}
+
 export function _testResetApiTokenLogs(): void {
   logHints.clear();
 }

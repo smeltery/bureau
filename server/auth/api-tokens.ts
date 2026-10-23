@@ -315,3 +315,15 @@ export function _testResetApiTokens(): void {
   mutexTail = Promise.resolve();
   _testResetApiTokenLogs();
 }
+
+/** Persist the recovery counter before removing the log that could reconstruct it. */
+export function preserveApiTokenSequence(id: string): void {
+  const stored = existsSync(API_TOKENS_FILE) ? JSON.parse(readFileSync(API_TOKENS_FILE, "utf8")) : {};
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) throw new Error("Invalid API token metadata");
+  ensureLoaded();
+  const record = tokens!.get(id);
+  if (!record && stored[id]) throw new Error("API token metadata could not be loaded");
+  if (!record) return;
+  record.lastSequence = Math.max(record.lastSequence, refreshTokenLog(id).tailSequence);
+  persist();
+}
