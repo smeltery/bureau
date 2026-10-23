@@ -1,7 +1,7 @@
 import { armUsageResume } from "../conversation/usage-resume.ts";
 import { observeAutoHandoff } from "../conversation/auto-handoff.ts";
 import type { AgentState } from "../../../shared/types.ts";
-import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, ensureSessionClaudeConfigDir, ensureSessionCwd, loadLogWithAncestors } from "../../persistence.ts";
+import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, ensureSessionClaudeConfigDir, ensureSessionCodexHome, ensureSessionCwd, loadLogWithAncestors } from "../../persistence.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
 import { ProviderCapacityError } from "../../internal-types.ts";
 import { autocompleteCommands } from "../commands.ts";
@@ -131,6 +131,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         // persistSessionFork so this no-ops there; a plain fresh session
         // (spawn / new conversation) gets the agent's current mirror cwd here.
         ensureSessionCwd(agentId, ev.sessionId, managed.info.cwd);
+        if (managed.info.agentType === "codex" && managed.launchedCodexHome) ensureSessionCodexHome(agentId, ev.sessionId, managed.launchedCodexHome);
         if (managed.info.agentType === "claude" && managed.launchedClaudeConfigDir) {
           ensureSessionClaudeConfigDir(agentId, ev.sessionId, managed.launchedClaudeConfigDir);
         }

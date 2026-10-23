@@ -1,3 +1,4 @@
+import { pinProviderEnvironment } from "../agents/session/provider-environment.ts";
 import { resolve } from "node:path";
 import type { AgentBackendType } from "../../shared/types.ts";
 import type { ProviderAccountProvider } from "../../shared/provider-accounts.ts";
@@ -167,7 +168,7 @@ export function setMemberUsageCapForTests(next: MemberUsageCap | null): MemberUs
 export async function admitMemberTurn(managed: ManagedAgent, username: string | null, humanInput: boolean): Promise<void> {
   const capped = humanInput ? directInputCapped(username ?? undefined) : managerCapped(managed.info.userId);
   if (!capped) return;
-  const env = buildSessionEnv(managed);
+  const env = pinProviderEnvironment(managed, managed.sessionId, buildSessionEnv(managed));
   const admission = await memberUsageCap().admit(billingAccountFor(managed.info.agentType, env));
   if (admission.kind === "refused") throw new UsageCapError(admission.retryAtMs);
 }

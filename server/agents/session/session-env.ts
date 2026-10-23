@@ -1,3 +1,4 @@
+import { activeProviderEnvironment } from "../../provider-accounts/homes.ts";
 import { credentialRuntime, appendGitCredentialHelpers } from "../../integrations/proxy/runtime.ts";
 import { readEnvFile } from "../../persistence.ts";
 import { getUserById } from "../../users.ts";
@@ -8,14 +9,16 @@ import { officeConfig, rooms, type ManagedAgent } from "../state.ts";
 // User overrides room, room overrides office, office overrides process.env.
 // Spawn-time failure mode: if a configured env file is missing or fails to
 // parse, throw; callers surface the error to the agent log.
-export function buildSessionEnv(managed: Pick<ManagedAgent, "info">): { [key: string]: string | undefined } | undefined {
+export function buildSessionEnv(managed: Pick<ManagedAgent, "info">, personalHomes = true): { [key: string]: string | undefined } | undefined {
   const room = rooms[managed.info.room];
   const roomEnvFile = room?.envFile ?? null;
   const officeEnvFile = officeConfig.envFile;
   const userEnvFile = managed.info.userId ? (getUserById(managed.info.userId)?.envFile ?? null) : null;
   const agentToken = getAgentToken(managed.info.id);
   const credentials = credentialRuntime.environment(managed.info.userId);
-  if (!roomEnvFile && !officeEnvFile && !userEnvFile && !agentToken && !credentials) return undefined;
+  const userEnv = userEnvFile ? readEnvFile(userEnvFile) : {};
+  const personal = personalHomes ? activeProviderEnvironment(managed.info.userId, userEnv) : {};
+  if (!Object.keys(personal).length && !roomEnvFile && !officeEnvFile && !userEnvFile && !agentToken && !credentials) return undefined;
 
   // Intentional: inherit parent process.env so agents see HOME/PATH/etc.
   // Office, room, and user files override individual keys but cannot unset
@@ -31,13 +34,13 @@ export function buildSessionEnv(managed: Pick<ManagedAgent, "info">): { [key: st
     Object.assign(merged, roomEnv);
   }
   if (userEnvFile) {
-    const userEnv = readEnvFile(userEnvFile);
     Object.assign(merged, userEnv);
   }
   if (credentials) {
     Object.assign(merged, credentials.member, credentials.fixed);
     appendGitCredentialHelpers(merged, credentials.gitCredentials);
   }
+  Object.assign(merged, personal);
   if (agentToken) merged.BUREAU_AGENT_TOKEN = agentToken;
   return merged;
 }

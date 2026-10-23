@@ -1,3 +1,4 @@
+import { handleProviderLogin } from "../provider-accounts/login/http.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { updateUserForApi } from "./access-adapters.ts";
 import { acquireSignInSlot, listProviderAccounts, releaseSignInSlot, setProviderKeys } from "../provider-accounts/index.ts";
@@ -7,7 +8,9 @@ const jsonHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "appli
 
 const PROVIDERS = new Set<ProviderAccountProvider>(["claude", "codex"]);
 
-export async function handleProviderAccountsRequest(req: Request, url: URL, auth: AuthResult): Promise<Response | null> {
+export async function handleProviderAccountsRequest(req: Request, url: URL, auth: AuthResult, authenticate = () => auth): Promise<Response | null> {
+  const login = await handleProviderLogin(req, url, authenticate);
+  if (login) return login;
   if (!url.pathname.startsWith("/api/me/provider-accounts")) return null;
 
   if (req.method === "OPTIONS") {

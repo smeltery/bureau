@@ -48,6 +48,7 @@ export type SessionsMap = Record<
     // reading the account/config directory it started under even if the user's
     // current Connections setting later changes.
     claudeConfigDir?: string;
+    codexHome?: string;
     forkedFrom?: string;
     forkMessageId?: string;
     usage?: PersistedUsage;
@@ -131,6 +132,18 @@ export function ensureSessionClaudeConfigDir(agentId: string, sessionId: string,
   return fallbackDir;
 }
 
+export function getSessionCodexHome(agentId: string, sessionId: string): string | null {
+  return loadSessionsMap(agentId)[sessionId]?.codexHome ?? null;
+}
+export function ensureSessionCodexHome(agentId: string, sessionId: string, fallback: string): string {
+  const map = loadSessionsMap(agentId);
+  const existing = map[sessionId];
+  if (existing?.codexHome) return existing.codexHome;
+  map[sessionId] = { ...(existing ?? { topic: null, lastModified: Date.now() }), codexHome: fallback };
+  saveSessionsMap(agentId, map);
+  return fallback;
+}
+
 export function persistSessionFork(
   agentId: string,
   sessionId: string,
@@ -141,6 +154,7 @@ export function persistSessionFork(
   cwd: string,
   claudeConfigDir?: string,
   forkBaseUsage?: PersistedUsage,
+  codexHome?: string,
 ) {
   const map = loadSessionsMap(agentId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
@@ -150,6 +164,7 @@ export function persistSessionFork(
     topicMessageCount,
     cwd,
     ...(claudeConfigDir ? { claudeConfigDir } : {}),
+    ...(codexHome ? { codexHome } : {}),
     lastModified: Date.now(),
     forkedFrom,
     forkMessageId,

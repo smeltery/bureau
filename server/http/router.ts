@@ -220,7 +220,7 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   const officeSettingsResp = await handleOfficeSettingsRequest(req, url, httpAuth);
   if (officeSettingsResp) return officeSettingsResp;
 
-  const providerAccountsResp = await handleProviderAccountsRequest(req, url, httpAuth);
+  const providerAccountsResp = await handleProviderAccountsRequest(req, url, httpAuth, () => authenticate(req, server, { allowLoopback: false }));
   if (providerAccountsResp) return providerAccountsResp;
 
   const validateResp = await handleValidateRequest(req, url, httpAuth);

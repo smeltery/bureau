@@ -44,6 +44,7 @@ Detailed subsystem documentation.
 - [Terminal recordings](features/terminal-recordings.md) — opt-in output recording, owner replay and cleanup.
 - [Install the office and apps](features/installing-apps.md) — browser prompts, mobile steps and separate app identities.
 - [Voice providers](features/voice-providers.md) — microphone transcription, read aloud, credentials and playback.
+- [Provider sign-in](features/provider-sign-in.md) — personal and office browser/device login, private account homes and disconnect.
 | [Pager](features/pager.md)                                          | Agents and apps page their person; Discord delivery until acked or resolved  |
 | [Integration secrets](features/integration-secrets.md) | Scoped credentials, host restrictions, rotation and variables |
 | [Usage-reset continuation](features/usage-reset-continuation.md) | Continue Claude/Codex work after a reported provider reset |

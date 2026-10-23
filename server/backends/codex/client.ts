@@ -158,6 +158,17 @@ export class JsonRpcLiteClient {
     this.pending.failAll("client closed");
   }
 
+  /** Immediate teardown for account processes during host exit. */
+  forceClose(): void {
+    const child = this.child;
+    if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
+    try {
+      process.kill(-child.pid, "SIGKILL");
+    } catch {
+      child.kill("SIGKILL");
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Outbound: requests and notifications
   // -------------------------------------------------------------------------

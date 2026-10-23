@@ -1,7 +1,9 @@
+import { pinProviderEnvironment } from "./provider-environment.ts";
+import { BUREAU_CODEX_HOME } from "../../backends/codex/native-bin.ts";
 import { cancelUsageResume } from "../conversation/usage-resume.ts";
 import { resolveMcpServers } from "../../integrations/mcp.ts";
 import { cancelAutoHandoff } from "../conversation/auto-handoff.ts";
-import { ensureSessionClaudeConfigDir, getSessionClaudeConfigDir, rollSessionUsageOnResume } from "../../persistence.ts";
+import { rollSessionUsageOnResume } from "../../persistence.ts";
 import { armMemoryNotice } from "../memory-notice.ts";
 import { agents, clearLiveTurn, emit, officeConfig, rooms, syncPendingPrompt, type ManagedAgent } from "../state.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
@@ -196,14 +198,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
   // auth/config paths.
   let env = buildSessionEnv(managed);
   const backend = getBackend(managed.info.agentType);
-  if (managed.info.agentType === "claude" && resumeSessionId) {
-    const pinnedRoot = getSessionClaudeConfigDir(managed.info.id, resumeSessionId);
-    if (pinnedRoot) {
-      env = { ...(env ?? process.env), CLAUDE_CONFIG_DIR: pinnedRoot };
-    } else {
-      ensureSessionClaudeConfigDir(managed.info.id, resumeSessionId, claudeConfigRoot(env));
-    }
-  }
+  env = pinProviderEnvironment(managed, resumeSessionId, env);
   if (resumeSessionId) {
     const resumableError = backend.checkSessionResumable(resumeSessionId, {
       cwd: managed.info.cwd,
@@ -260,6 +255,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
     // prior-runs accumulator so lifetime cost survives the reset.
     rollSessionUsageOnResume(managed.info.id, resumeSessionId);
   }
+  managed.launchedCodexHome = managed.info.agentType === "codex" ? env?.CODEX_HOME || BUREAU_CODEX_HOME : undefined;
   managed.launchedClaudeConfigDir = managed.info.agentType === "claude" ? claudeConfigRoot(env) : undefined;
   const session = resumeSessionId ? backend.resumeSession(resumeSessionId, opts) : backend.createSession(opts);
   if (!resumeSessionId) {
