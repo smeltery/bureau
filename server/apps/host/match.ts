@@ -36,8 +36,7 @@ function isPrintableAscii(value: string): boolean {
 
 // The `Host` request header, reduced to something comparable with the office
 // host. Returns null when the header is absent or cannot be a hostname we route
-// on — which for the dispatcher means "not ours", i.e. today's office behavior,
-// never a refusal.
+// on. The dispatcher separately contains malformed children of the app domain.
 export function normalizeRequestHost(raw: string | null | undefined): string | null {
   if (typeof raw !== "string" || raw.length === 0) return null;
   if (!isPrintableAscii(raw)) return null;
@@ -59,6 +58,16 @@ export function normalizeRequestHost(raw: string | null | undefined): string | n
   // is rejected by isHostname.
   if (host.endsWith(".")) host = host.slice(0, -1);
   return isHostname(host) ? host : null;
+}
+
+/** Identify the app namespace even when a Host cannot name a routable app. */
+export function isAppDomainChild(raw: string | null, domain: string): boolean {
+  if (!raw || raw.startsWith("[")) return false;
+  const name = raw.split(":", 1)[0].toLowerCase();
+  let end = name.length;
+  // A bounded scan avoids repeated suffix matching on untrusted long inputs.
+  while (end > 0 && name[end - 1] === ".") end--;
+  return name.slice(0, end).endsWith(`.${domain}`);
 }
 
 export type AppHostMatch =

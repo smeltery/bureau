@@ -200,6 +200,10 @@ server, and none of those names may reach the office's own surface. The office's
 own host can never match a child test, so there is no exemption for it — worth
 knowing before anyone adds one back assuming it is load-bearing.
 
+Malformed children of the app domain also receive the neutral 404, including
+invalid labels, repeated dots, and invalid ports. They cannot fall through to
+office routes or reach app authentication, registry reads, or proxying.
+
 **The handshake** (`server/apps/host/auth*.ts`) is how a browser holding an
 office session comes to hold one for an app. An app origin must never be handed
 the credential that opens the office, so the two are separate cookies: the app

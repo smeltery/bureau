@@ -86,6 +86,43 @@ describe("app-host dispatch: what falls through to the office", () => {
 });
 
 describe("app-host dispatch: what is diverted", () => {
+  test("malformed app children cannot reach office routes or the app registry", async () => {
+    let registryReads = 0;
+    const noRegistry = deps([], {
+      registry: {
+        list: () => {
+          registryReads++;
+          throw new Error("must not read registry");
+        },
+      } as unknown as AppRegistry,
+    });
+    for (const host of [
+      "bad_label.office.example",
+      "a..office.example",
+      "a.office.example..",
+      "a.office.example:bad",
+      "a.office.example:",
+      "a.office.example:80:90",
+      "é.office.example",
+      ".office.example",
+      "a.OFFICE.EXAMPLE...",
+    ]) {
+      for (const path of ["/", "/api/agents", "/ws"]) {
+        const request = new Request(`http://localhost${path}`, { headers: { host, ...(path === "/ws" ? { upgrade: "websocket" } : {}) } });
+        const result = await handleAppHostRequest(request, noRegistry);
+        expect(result?.status).toBe(404);
+        expect(result?.headers.get("set-cookie")).toBeNull();
+      }
+    }
+    expect(registryReads).toBe(0);
+  });
+
+  test("malformed unrelated hosts and the office apex still fall through", () => {
+    for (const host of ["office.example:bad", "office.example..", "a.office.example.evil.test", "notoffice.example:bad", "[::1]:4000"]) {
+      expect(handleAppHostRequest(new Request("http://localhost/", { headers: { host } }), deps([]))).toBeNull();
+    }
+  });
+
   test("serves a distinct app favicon without requiring a session", async () => {
     const first = await handleAppHostRequest(req("hello.office.example", "/favicon.ico"), deps([record()]));
     const second = await handleAppHostRequest(req("habits.office.example", "/favicon.ico"), deps([record(), record({ name: "habits", hostLabel: "habits", port: 21002 })]));
