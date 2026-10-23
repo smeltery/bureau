@@ -1,6 +1,8 @@
-import { STORAGE_CATEGORY_LABELS, STORAGE_CATEGORY_ORDER } from "../../../shared/storage-labels.ts";
+import { STORAGE_CATEGORY_ORDER } from "../../../shared/storage-labels.ts";
 import type { PruneApplyWire, PrunePlanWire, PruneSkipReason, PruneTarget, StorageCategoryId, StorageCategoryWire, StorageUsageWire } from "../../../shared/storage-types.ts";
 import { dialogCancelBtn, dialogInput } from "./dialog-styles.ts";
+import { useI18n } from "../../i18n.tsx";
+import type { PlainMessageKey } from "../../../shared/i18n/translate.ts";
 import { formatSize } from "../../../shared/format/human.ts";
 
 export type StoragePhase =
@@ -19,34 +21,48 @@ export interface BackupStatusWire {
   destDir: string;
 }
 
-const TARGET_LABELS: Record<PruneTarget, string> = {
-  transcripts: "Conversations",
-  attachments: "Orphaned attachments",
-  "token-logs": "API token logs",
-  "terminal-recordings": "Terminal recordings",
+const TARGET_LABELS: Record<PruneTarget, PlainMessageKey> = {
+  transcripts: "storage.target.transcripts",
+  attachments: "storage.target.attachments",
+  "token-logs": "storage.target.tokenLogs",
+  "terminal-recordings": "storage.target.recordings",
 };
 
-const SKIP_LABELS: Record<PruneSkipReason, string> = {
-  "active-session": "active sessions",
-  "active-recording": "active recordings",
-  "keep-newest": "newest conversations kept per agent",
-  "fork-ancestor": "fork ancestors",
-  referenced: "attachments still referenced by conversations or queues",
-  "too-recent": "too recent",
+const SKIP_LABELS: Record<PruneSkipReason, PlainMessageKey> = {
+  "active-session": "storage.skip.activeSession",
+  "active-recording": "storage.skip.activeRecording",
+  "keep-newest": "storage.skip.keepNewest",
+  "fork-ancestor": "storage.skip.forkAncestor",
+  referenced: "storage.skip.referenced",
+  "too-recent": "storage.skip.tooRecent",
+};
+
+const CATEGORY_LABELS: Record<StorageCategoryId, PlainMessageKey> = {
+  transcripts: "logs.report.transcripts",
+  attachments: "logs.report.attachments",
+  metadata: "logs.report.metadata",
+  "codex-home": "logs.report.codexHome",
+  cronjobs: "logs.report.cronjobs",
+  memory: "logs.report.memory",
+  "other-state": "logs.report.otherState",
+  backups: "logs.report.backups",
+  "token-logs": "logs.report.tokenLogs",
+  "terminal-recordings": "logs.report.recordings",
 };
 
 const SAMPLE_ROWS = 4;
 
 export function UsageBlock({ usage, error }: { usage: StorageUsageWire | null; error: string | null }) {
+  const { t, language } = useI18n();
   if (error) return <ErrorLine>{error}</ErrorLine>;
-  if (!usage) return <p style={{ fontSize: 11, color: "var(--text-ghost)", marginTop: 16 }}>Measuring...</p>;
+  if (!usage) return <p style={{ fontSize: 11, color: "var(--text-ghost)", marginTop: 16 }}>{t("storage.measuring")}</p>;
 
   const byId = new Map<StorageCategoryId, StorageCategoryWire>(usage.categories.map((category) => [category.id, category]));
   return (
     <>
-      <SectionLabel>What is on disk</SectionLabel>
+      <SectionLabel>{t("storage.diskTitle")}</SectionLabel>
       <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
-        <strong>{formatSize(usage.stateRootBytes)} office state</strong>
+        <strong>{t("storage.officeState", { size: formatSize(usage.stateRootBytes, language) })}</strong>
       </p>
       <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, fontSize: 11 }}>
         <tbody>
@@ -60,23 +76,25 @@ export function UsageBlock({ usage, error }: { usage: StorageUsageWire | null; e
 }
 
 function CategoryRow({ category, id }: { category: StorageCategoryWire | undefined; id: StorageCategoryId }) {
+  const { t, language } = useI18n();
   if (!category) return null;
   return (
     <tr>
-      <td style={cell}>{STORAGE_CATEGORY_LABELS[id]}</td>
-      <td style={cellRight}>{category.available ? formatSize(category.bytes) : "none"}</td>
-      <td style={{ ...cellRight, color: "var(--text-ghost)" }}>{category.available ? category.files.toLocaleString() : "-"}</td>
+      <td style={cell}>{t(CATEGORY_LABELS[id])}</td>
+      <td style={cellRight}>{category.available ? formatSize(category.bytes, language) : t("common.none")}</td>
+      <td style={{ ...cellRight, color: "var(--text-ghost)" }}>{category.available ? category.files.toLocaleString(language) : "-"}</td>
     </tr>
   );
 }
 
 export function BackupBlock({ backup }: { backup: BackupStatusWire | "unavailable" | null }) {
+  const { t, rich, language } = useI18n();
   if (backup === null) return null;
   if (backup === "unavailable") {
     return (
       <>
-        <SectionLabel>Backups</SectionLabel>
-        <p style={{ fontSize: 11, color: "var(--text-ghost)", margin: 0 }}>Backup status unavailable.</p>
+        <SectionLabel>{t("logs.report.backups")}</SectionLabel>
+        <p style={{ fontSize: 11, color: "var(--text-ghost)", margin: 0 }}>{t("storage.backup.unavailable")}</p>
       </>
     );
   }
@@ -84,17 +102,24 @@ export function BackupBlock({ backup }: { backup: BackupStatusWire | "unavailabl
   const failed = backup.lastRunAt !== null && !backup.ok;
   const status =
     backup.lastRunAt === null
-      ? "No backup has run yet."
+      ? t("storage.backup.never")
       : backup.ok
-        ? `Last backup ${formatAge(backup.lastRunAt)}, successful.`
-        : `Last backup ${formatAge(backup.lastRunAt)} failed${backup.error ? `: ${backup.error}` : "."}`;
+        ? t("storage.backup.success", { age: formatAge(backup.lastRunAt, language) })
+        : backup.error
+          ? t("storage.backup.failedReason", { age: formatAge(backup.lastRunAt, language), reason: backup.error })
+          : t("storage.backup.failed", { age: formatAge(backup.lastRunAt, language) });
   return (
     <>
-      <SectionLabel>Backups</SectionLabel>
+      <SectionLabel>{t("logs.report.backups")}</SectionLabel>
       <p style={{ fontSize: 11, color: failed ? "#ff6b6b" : "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
-        {status} <span style={{ color: "var(--text-ghost)" }}>Keeping {backup.retention} in </span>
-        <code style={{ fontFamily: "'JetBrains Mono',monospace", color: "var(--text-ghost)" }}>{backup.destDir}</code>
-        <span style={{ color: "var(--text-ghost)" }}>.</span>
+        {status}{" "}
+        <span style={{ color: "var(--text-ghost)" }}>
+          {rich("storage.backup.keeping", {
+            total: backup.retention.toLocaleString(language),
+            directory: backup.destDir,
+            path: (text) => <code style={{ fontFamily: "'JetBrains Mono',monospace" }}>{text}</code>,
+          })}
+        </span>
       </p>
     </>
   );
@@ -117,54 +142,60 @@ export function PlanBlock({
   onCancelConfirm: () => void;
   onApply: () => void;
 }) {
+  const { t, tn, rich, language } = useI18n();
   const count = plan.candidates.length;
-  const targetWord = TARGET_LABELS[plan.target].toLowerCase();
+  const targetWord = t(TARGET_LABELS[plan.target]);
   return (
     <div style={planBox}>
       <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: count > 0 ? "var(--text-primary)" : "var(--text-dim)" }}>
-        {count > 0 ? `${count.toLocaleString()} ${targetWord} would be deleted, freeing ${formatSize(plan.bytes)}.` : `Nothing matches. No ${targetWord} are old enough to delete.`}
+        {count > 0 ? t("storage.plan.summary", { total: count.toLocaleString(language), target: targetWord, size: formatSize(plan.bytes, language) }) : t("storage.plan.empty", { target: targetWord })}
       </p>
-      <p style={{ margin: "4px 0 0", fontSize: 10, color: "var(--text-ghost)" }}>Nothing has been deleted yet.</p>
+      <p style={{ margin: "4px 0 0", fontSize: 10, color: "var(--text-ghost)" }}>{t("storage.plan.notDeleted")}</p>
 
       {plan.skipped.length > 0 && (
         <ul style={{ margin: "8px 0 0", paddingLeft: 16, fontSize: 11, color: "var(--text-dim)", lineHeight: 1.6 }}>
           {plan.skipped.map((skip) => (
-            <li key={skip.reason}>
-              {skip.count.toLocaleString()} kept ({formatSize(skip.bytes)}): {SKIP_LABELS[skip.reason]}
-            </li>
+            <li key={skip.reason}>{t("storage.plan.kept", { total: skip.count.toLocaleString(language), size: formatSize(skip.bytes, language), reason: t(SKIP_LABELS[skip.reason]) })}</li>
           ))}
         </ul>
       )}
 
       {plan.candidates.slice(0, SAMPLE_ROWS).map((candidate) => (
         <div key={candidate.path} style={sampleRow}>
-          {candidate.path} - {formatSize(candidate.bytes)}, {candidate.ageDays}d old
+          {tn("storage.plan.sample", candidate.ageDays, { path: candidate.path, size: formatSize(candidate.bytes, language), days: candidate.ageDays.toLocaleString(language) })}
         </div>
       ))}
-      {count > SAMPLE_ROWS && <div style={sampleRow}>...and {(count - SAMPLE_ROWS).toLocaleString()} more.</div>}
+      {count > SAMPLE_ROWS && <div style={sampleRow}>{t("storage.plan.more", { total: (count - SAMPLE_ROWS).toLocaleString(language) })}</div>}
 
       {count > 0 && phase.kind === "previewed" && (
         <button onClick={onAskConfirm} style={dangerBtn}>
-          Delete {count.toLocaleString()} {targetWord} permanently
+          {t("storage.plan.askDelete", { total: count.toLocaleString(language), target: targetWord })}
         </button>
       )}
 
       {(phase.kind === "confirming" || phase.kind === "applying") && (
         <div style={{ marginTop: 12 }}>
           <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: "var(--text-secondary)" }}>
-            <strong style={{ color: "#ff6b6b" }}>This cannot be undone.</strong> Bureau scans again before deleting, so the final count may differ from the preview.
+            {rich("storage.plan.warning", { strong: (text) => <strong style={{ color: "#ff6b6b" }}>{text}</strong> })}
           </p>
-          <input value={confirmText} onChange={(event) => onConfirmText(event.target.value)} placeholder="Type DELETE to confirm" autoFocus style={{ ...dialogInput, marginTop: 8 }} />
+          <input
+            value={confirmText}
+            onChange={(event) => onConfirmText(event.target.value)}
+            aria-label={t("storage.plan.confirm")}
+            placeholder={t("storage.plan.confirm")}
+            autoFocus
+            style={{ ...dialogInput, marginTop: 8 }}
+          />
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <button onClick={onCancelConfirm} style={{ ...dialogCancelBtn, flex: 1 }} disabled={phase.kind === "applying"}>
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               onClick={onApply}
               disabled={confirmText !== "DELETE" || phase.kind === "applying"}
               style={{ ...dangerBtn, marginTop: 0, flex: 1, opacity: confirmText === "DELETE" ? 1 : 0.5, cursor: confirmText === "DELETE" ? "pointer" : "not-allowed" }}
             >
-              {phase.kind === "applying" ? "Deleting..." : "Delete permanently"}
+              {phase.kind === "applying" ? t("storage.deleting") : t("storage.plan.delete")}
             </button>
           </div>
         </div>
@@ -174,16 +205,19 @@ export function PlanBlock({
 }
 
 export function ResultBlock({ result }: { result: PruneApplyWire }) {
+  const { t, language } = useI18n();
   return (
     <div style={planBox}>
       {result.aborted ? (
-        <p style={{ margin: 0, fontSize: 12, color: "#ff6b6b" }}>Stopped before deleting anything: {result.aborted}</p>
+        <p style={{ margin: 0, fontSize: 12, color: "#ff6b6b" }}>{t("storage.result.aborted", { reason: result.aborted })}</p>
       ) : (
         <p style={{ margin: 0, fontSize: 12, color: "var(--text-primary)" }}>
-          Deleted {result.deleted.toLocaleString()} files, freeing {formatSize(result.bytes)}.
+          {t("storage.result.deleted", { total: result.deleted.toLocaleString(language), size: formatSize(result.bytes, language) })}
         </p>
       )}
-      {result.refused.length > 0 && <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-dim)" }}>{result.refused.length.toLocaleString()} could not be removed and were left alone.</p>}
+      {result.refused.length > 0 && (
+        <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-dim)" }}>{t("storage.result.refused", { total: result.refused.length.toLocaleString(language) })}</p>
+      )}
     </div>
   );
 }
@@ -197,18 +231,21 @@ export function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function ErrorLine({ children }: { children: React.ReactNode }) {
-  return <p style={{ fontSize: 11, color: "#ff6b6b", margin: "8px 0 0", lineHeight: 1.5 }}>{children}</p>;
+  return (
+    <p role="alert" style={{ fontSize: 11, color: "#ff6b6b", margin: "8px 0 0", lineHeight: 1.5 }}>
+      {children}
+    </p>
+  );
 }
 
-function formatAge(timestamp: number): string {
-  const ageMs = Math.max(0, Date.now() - timestamp);
-  const minutes = Math.floor(ageMs / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
+function formatAge(timestamp: number, language: string): string {
+  const minutes = Math.floor(Math.max(0, Date.now() - timestamp) / 60000);
+  const relative = new Intl.RelativeTimeFormat(language, { numeric: "auto" });
+  if (minutes < 1) return relative.format(0, "second");
+  if (minutes < 60) return relative.format(-minutes, "minute");
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  if (hours < 24) return relative.format(-hours, "hour");
+  return relative.format(-Math.floor(hours / 24), "day");
 }
 
 const planBox: React.CSSProperties = { marginTop: 14, border: "1px solid var(--border)", borderRadius: 8, padding: "12px 14px", background: "var(--bg-input)" };

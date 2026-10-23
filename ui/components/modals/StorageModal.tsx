@@ -7,6 +7,7 @@ import { dialogCancelBtn, dialogInput } from "./dialog-styles.ts";
 import { Modal } from "./Modal.tsx";
 import { BackupBlock, ErrorLine, FieldLabel, PlanBlock, ResultBlock, SectionLabel, UsageBlock, type BackupStatusWire, type StoragePhase } from "./StorageModalParts.tsx";
 import { useI18n } from "../../i18n.tsx";
+import { storageRequest, storageFailure, type StorageFailure } from "./storage/request.ts";
 
 const TARGET_LABELS = {
   transcripts: "storage.target.transcripts",
@@ -15,49 +16,29 @@ const TARGET_LABELS = {
   "terminal-recordings": "storage.target.recordings",
 } as const;
 
-class ApiError extends Error {}
-
-async function apiFetch<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method,
-    credentials: "same-origin",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    let message = `${method} ${path} failed (${res.status})`;
-    try {
-      const parsed = (await res.json()) as { error?: unknown };
-      if (typeof parsed.error === "string") message = parsed.error;
-    } catch {}
-    throw new ApiError(message);
-  }
-  return (await res.json()) as T;
-}
-
 export function StorageModal({ onBack, embedded = false, onDeletingChange }: { onBack?: () => void; embedded?: boolean; onDeletingChange?: (deleting: boolean) => void }) {
-  const { t } = useI18n();
+  const { t, rich } = useI18n();
   const [usage, setUsage] = useState<StorageUsageWire | null>(null);
   const [backup, setBackup] = useState<BackupStatusWire | "unavailable" | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<StorageFailure | null>(null);
   const [target, setTarget] = useState<PruneTarget>("transcripts");
   const [olderThanDays, setOlderThanDays] = useState("90");
   const [keepPerAgent, setKeepPerAgent] = useState("5");
   const [phase, setPhase] = useState<StoragePhase>({ kind: "idle" });
   const [confirmText, setConfirmText] = useState("");
-  const [pruneError, setPruneError] = useState<string | null>(null);
+  const [pruneError, setPruneError] = useState<StorageFailure | null>(null);
   const requestTicket = useRef(0);
 
   const loadUsage = useCallback(() => {
     setLoadError(null);
-    apiFetch<StorageUsageWire>("GET", "/api/storage/usage")
+    storageRequest<StorageUsageWire>("/api/storage/usage", "storage.measureFailed")
       .then(setUsage)
-      .catch((error: unknown) => setLoadError(error instanceof ApiError ? error.message : "Could not measure storage."));
+      .catch((error: unknown) => setLoadError(storageFailure(error, "storage.measureFailed")));
   }, []);
 
   useEffect(() => {
     loadUsage();
-    apiFetch<BackupStatusWire>("GET", "/api/backup/status")
+    storageRequest<BackupStatusWire>("/api/backup/status", "storage.backup.unavailable")
       .then(setBackup)
       .catch(() => setBackup("unavailable"));
   }, [loadUsage]);
@@ -88,13 +69,17 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
     setPruneError(null);
     setPhase({ kind: "previewing" });
     try {
-      const result = await apiFetch<StoragePruneWire>("POST", "/api/storage/prune", body);
+      const result = await storageRequest<StoragePruneWire>("/api/storage/prune", "storage.pruneFailed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       if (ticket !== requestTicket.current || !planMatchesForm(result.plan, form)) return;
       setPhase({ kind: "previewed", plan: result.plan });
     } catch (error) {
       if (ticket !== requestTicket.current) return;
       setPhase({ kind: "idle" });
-      setPruneError(error instanceof ApiError ? error.message : "The prune request failed.");
+      setPruneError(storageFailure(error, "storage.pruneFailed"));
     }
   }
 
@@ -103,11 +88,15 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
     setPruneError(null);
     setPhase({ kind: "applying", plan: appliedPlan });
     try {
-      const result = await apiFetch<StoragePruneWire>("POST", "/api/storage/prune", applyRequest(appliedPlan));
+      const result = await storageRequest<StoragePruneWire>("/api/storage/prune", "storage.deleteFailed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(applyRequest(appliedPlan)),
+      });
       if (ticket !== requestTicket.current) return;
       if (!result.applied) {
         setPhase({ kind: "idle" });
-        setPruneError("The delete did not run. Nothing was removed.");
+        setPruneError({ key: "storage.deleteNotRun" });
         return;
       }
       setPhase({ kind: "done", result: result.applied });
@@ -116,31 +105,29 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
     } catch (error) {
       if (ticket !== requestTicket.current) return;
       setPhase({ kind: "idle" });
-      setPruneError(error instanceof ApiError ? error.message : "The delete request failed.");
+      setPruneError(storageFailure(error, "storage.deleteFailed"));
     }
   }
 
   const body = (
     <>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{t("storage.title")}</h3>
-      <UsageBlock usage={usage} error={loadError} />
+      <UsageBlock usage={usage} error={loadError === null ? null : typeof loadError === "string" ? loadError : t(loadError.key)} />
       <BackupBlock backup={backup} />
       <BackupSettingsForm
         onSaved={() => {
           loadUsage();
-          apiFetch<BackupStatusWire>("GET", "/api/backup/status")
+          storageRequest<BackupStatusWire>("/api/backup/status", "storage.backup.unavailable")
             .then(setBackup)
             .catch(() => setBackup("unavailable"));
         }}
       />
 
       <CompressionForm onApplied={loadUsage} />
-      <SectionLabel>Delete old files</SectionLabel>
-      <div style={warningBox}>
-        <strong style={{ color: "#ff6b6b" }}>This permanently deletes files from this machine.</strong> Preview first, then type DELETE before Bureau removes anything.
-      </div>
+      <SectionLabel>{t("storage.deleteTitle")}</SectionLabel>
+      <div style={warningBox}>{rich("storage.deleteWarning", { strong: (text) => <strong style={{ color: "#ff6b6b" }}>{text}</strong> })}</div>
 
-      <FieldLabel>What to delete</FieldLabel>
+      <FieldLabel>{t("storage.targetLabel")}</FieldLabel>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {(Object.keys(TARGET_LABELS) as PruneTarget[]).map((item) => (
           <button key={item} onClick={() => editForm(() => setTarget(item))} disabled={busy} style={toggleStyle(target === item, busy)}>
@@ -149,36 +136,36 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
         ))}
       </div>
 
-      {(target === "token-logs" || target === "terminal-recordings") && (
-        <p style={hint}>Whole files are removed based on their last write. Active recordings are kept, and token sequence counters are preserved.</p>
-      )}
-      <FieldLabel>Older than</FieldLabel>
+      {(target === "token-logs" || target === "terminal-recordings") && <p style={hint}>{t("storage.wholeFilesHint")}</p>}
+      <FieldLabel>{t("storage.olderThan")}</FieldLabel>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input
           type="number"
           min={1}
           max={36500}
+          aria-label={t("storage.olderThan")}
           value={olderThanDays}
           disabled={busy}
           onChange={(event) => editForm(() => setOlderThanDays(event.target.value))}
           style={{ ...dialogInput, width: 90, opacity: busy ? 0.5 : 1 }}
         />
-        <span style={hint}>days. Anything newer is kept.</span>
+        <span style={hint}>{t("storage.daysHint")}</span>
       </div>
 
       {target === "transcripts" && (
         <>
-          <FieldLabel>Always keep, per agent</FieldLabel>
+          <FieldLabel>{t("storage.keepPerAgent")}</FieldLabel>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input
               type="number"
               min={0}
+              aria-label={t("storage.keepPerAgent")}
               value={keepPerAgent}
               disabled={busy}
               onChange={(event) => editForm(() => setKeepPerAgent(event.target.value))}
               style={{ ...dialogInput, width: 90, opacity: busy ? 0.5 : 1 }}
             />
-            <span style={hint}>newest conversations, even when older.</span>
+            <span style={hint}>{t("storage.keepHint")}</span>
           </div>
         </>
       )}
@@ -188,10 +175,10 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
         disabled={!formValid || busy}
         style={{ ...dialogCancelBtn, marginTop: 14, width: "100%", opacity: formValid && !busy ? 1 : 0.5, cursor: formValid && !busy ? "pointer" : "not-allowed" }}
       >
-        {phase.kind === "previewing" ? "Checking..." : "Preview what would be deleted"}
+        {phase.kind === "previewing" ? t("storage.checking") : t("storage.preview")}
       </button>
 
-      {pruneError && <ErrorLine>{pruneError}</ErrorLine>}
+      {pruneError && <ErrorLine>{typeof pruneError === "string" ? pruneError : t(pruneError.key)}</ErrorLine>}
       {plan && (
         <PlanBlock
           plan={plan}
@@ -208,7 +195,7 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
       {!embedded && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
           <button onClick={onBack} disabled={deleting} style={{ ...dialogCancelBtn, opacity: deleting ? 0.5 : 1, cursor: deleting ? "not-allowed" : "pointer" }}>
-            {deleting ? "Deleting..." : "Back to settings"}
+            {deleting ? t("storage.deleting") : t("storage.back")}
           </button>
         </div>
       )}
