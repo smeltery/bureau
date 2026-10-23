@@ -1,3 +1,4 @@
+import { displayLogContent } from "../../../../shared/i18n/log-message.ts";
 import { claimUserByName, deleteUserById } from "../../../users.ts";
 const fixtureUserIds: string[] = [];
 import { afterEach, describe, expect, test } from "bun:test";
@@ -5,7 +6,7 @@ import { CODEX_MODELS, DEFAULT_AGENT_CAPABILITIES, knownModelFamiliesFor, type C
 import { setCronjobDefinitions } from "../../../cronjobs/cronjob-store.ts";
 import { createManagedAgent } from "../../managed-factory.ts";
 import { agents, logCache } from "../../state.ts";
-import { handlePendingCronjobPick, handlePendingModelPick } from "../pending-picks.ts";
+import { handlePendingCronjobPick, handlePendingEffortPick, handlePendingModelPick } from "../pending-picks.ts";
 
 function managedFor(agentType: "claude" | "codex", modelFamily: string) {
   const info = {
@@ -110,4 +111,18 @@ describe("handlePendingCronjobPick", () => {
     expect(managed.pendingCronjobPick).toBe(false);
     expect((logCache.get(managed.info.id) ?? []).some((e) => e.content === "Cron job prompt selection cancelled.")).toBe(true);
   });
+});
+
+test("effort replies localize the label without changing the selected setting", async () => {
+  const managed = managedFor("claude", "opus");
+  managed.pendingModelPick = false;
+  managed.pendingEffortPick = true;
+  await handlePendingEffortPick(managed.info.id, managed, "4");
+  expect(managed.info.effort).toBe("high");
+  const entry = logCache.get(managed.info.id)!.at(-1)!;
+  expect(entry.content).toBe("Already using High.");
+  expect(displayLogContent(entry, "es")).toBe("Ya se está usando Alto.");
+  managed.pendingEffortPick = true;
+  expect(await handlePendingEffortPick(managed.info.id, managed, "cancel")).toBe(false);
+  expect(displayLogContent(logCache.get(managed.info.id)!.at(-1)!, "zh")).toBe("已取消思考强度选择。");
 });

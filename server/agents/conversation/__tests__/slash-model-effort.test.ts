@@ -1,8 +1,12 @@
+import { appendLog } from "../../../persistence/logs/logs.ts";
+import { saveSessionsMap } from "../../../persistence/logs/sessions.ts";
+import { commandHandlers } from "../slash-command-handlers.ts";
+import { displayLogText } from "../../../../shared/i18n/log-message.ts";
 import { afterEach, describe, expect, test } from "bun:test";
 import { CODEX_MODELS, DEFAULT_AGENT_CAPABILITIES, MODEL_FAMILIES } from "../../../../shared/types.ts";
 import { createManagedAgent } from "../../managed-factory.ts";
 import { agents, logCache } from "../../state.ts";
-import { handleModelCommand } from "../slash-model-effort.ts";
+import { handleEffortCommand, handleModelCommand } from "../slash-model-effort.ts";
 
 function managedFor(agentType: "claude" | "codex" | "opencode", modelFamily: string) {
   const info = {
@@ -69,4 +73,45 @@ test("the in-chat picker uses the session's cloud model labels", async () => {
   expect(content).toContain("Sonnet 4.5");
   expect(content).toContain("Haiku custom-route");
   expect(content).not.toContain("Sonnet 5.5");
+});
+
+test("model and effort cards retain command values while translating reader labels", async () => {
+  const managed = managedFor("claude", "opus");
+  await handleModelCommand(managed.info.id, managed, [], "/model");
+  const model = logCache.get(managed.info.id)!.at(-1)!.metadata!.choicePrompt!;
+  expect(displayLogText(model.title, model.titleMessage, "es")).toBe("Cambiar modelo");
+  expect(model.choices[0].value).toBe("opus");
+  expect(model.choices[0].labelMessage).toBeUndefined();
+  await handleEffortCommand(managed.info.id, managed, [], "/effort");
+  const effort = logCache.get(managed.info.id)!.at(-1)!.metadata!.choicePrompt!;
+  const high = effort.choices.find((choice) => choice.value === "high")!;
+  expect(displayLogText(effort.title, effort.titleMessage, "zh")).toBe("切换思考强度");
+  expect(high.current).toBe(true);
+  expect(high.label).toBe("High");
+  expect(displayLogText(high.label, high.labelMessage, "ca")).toBe("Alt");
+  expect(displayLogText(effort.instruction, effort.instructionMessage, "es")).toContain("Responde con un número");
+});
+
+test("resume choices localize saved dates while keeping session order and identifiers", async () => {
+  const managed = managedFor("claude", "opus");
+  managed.info.id = `resume-choice-${crypto.randomUUID()}`;
+  agents.set(managed.info.id, managed);
+  managed.sessionId = "current";
+  const timestamp = Date.UTC(2026, 9, 23, 13, 45);
+  for (const sessionId of ["current", "parent", "child"]) {
+    appendLog(managed.info.id, sessionId, { id: sessionId, agentId: managed.info.id, timestamp, kind: "text", content: "Original" });
+  }
+  saveSessionsMap(managed.info.id, {
+    current: { topic: "Current topic", lastModified: timestamp + 2 },
+    parent: { topic: "Original topic", lastModified: timestamp + 1, cwd: "/tmp/project" },
+    child: { topic: "Child topic", lastModified: timestamp, forkedFrom: "parent" },
+  });
+  await commandHandlers.resume(managed.info.id, managed, [], "/resume");
+  const prompt = logCache.get(managed.info.id)!.at(-1)!.metadata!.choicePrompt!;
+  expect(prompt.choices.map((choice) => choice.value)).toEqual(["parent", "child"]);
+  expect(managed.pendingResumeSessions.map((session) => session.sessionId)).toEqual(["parent", "child"]);
+  expect(displayLogText(prompt.title, prompt.titleMessage, "es")).toBe("Reanudar una conversación anterior");
+  expect(prompt.choices[0].label).toBe("Original topic");
+  const date = new Intl.DateTimeFormat("ca", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(timestamp + 1);
+  expect(displayLogText(prompt.choices[0].description!, prompt.choices[0].descriptionMessage, "ca")).toBe(`${date}  /tmp/project  (ramificada)`);
 });

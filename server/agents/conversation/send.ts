@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import type { Attachment } from "../../../shared/types.ts";
 import { loadLogWithAncestors } from "../../persistence.ts";
@@ -171,7 +172,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         managed.info.topic = picked.topic;
         managed.info.topicStale = drift > 0;
         emit({ type: "agent_updated", agentId, changes: { topic: picked.topic, topicStale: drift > 0, contextUsage: null } });
-        emitEphemeralLog(agentId, "system", `Resumed session: ${picked.topic || picked.sessionId.slice(0, 8) + "..."}`);
+        emitEphemeralLog(agentId, "system", logMessage("logs.resumed", { topic: picked.topic || picked.sessionId.slice(0, 8) + "..." }));
         updateState(agentId, "waiting_for_response");
         persistAll();
         // Regenerate immediately if there's no topic at all, or if the
@@ -183,14 +184,14 @@ export async function sendMessage(agentId: string, text: string, username?: stri
           generateTopic(agentId);
         }
       } catch (err: any) {
-        emitEphemeralLog(agentId, "error", `Failed to resume: ${err.message}`);
+        emitEphemeralLog(agentId, "error", logMessage("logs.resumeFailed", { error: String(err?.message ?? err) }));
         updateState(agentId, "error");
       }
       return { ok: true };
     } else {
       // Not a valid number — cancel pendingResume, process as normal
       managed.pendingResumeSessions = [];
-      emitEphemeralLog(agentId, "system", "Resume cancelled.");
+      emitEphemeralLog(agentId, "system", logMessage("logs.choice.resumeCancelled"));
     }
   }
 

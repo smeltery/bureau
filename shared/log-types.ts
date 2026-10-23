@@ -53,14 +53,18 @@ export interface TerminalCommandPayload {
 export interface ChoicePromptChoice {
   value: string;
   label: string;
+  labelMessage?: LogMessage;
   description?: string;
+  descriptionMessage?: LogMessage;
   current?: boolean;
 }
 
 export interface ChoicePromptPayload {
   kind: "resume" | "model" | "effort" | "cronjob";
   title: string;
+  titleMessage?: LogMessage;
   instruction: string;
+  instructionMessage?: LogMessage;
   choices: ChoicePromptChoice[];
 }
 

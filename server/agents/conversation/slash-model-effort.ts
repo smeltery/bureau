@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { EFFORT_LEVELS, effortDisplayLabel, familyDisplayLabel, knownModelFamiliesFor } from "../../../shared/types.ts";
 import { emitEphemeralLog, updateState, type ManagedAgent } from "../state.ts";
 
@@ -5,7 +6,7 @@ export async function handleModelCommand(agentId: string, managed: ManagedAgent,
   const userMeta = username ? { username } : undefined;
   emitEphemeralLog(agentId, "user_message", rawText, userMeta);
   if (managed.info.agentType === "opencode") {
-    emitEphemeralLog(agentId, "system", "Open agent settings to select a connected OpenCode model.");
+    emitEphemeralLog(agentId, "system", logMessage("logs.choice.openModelSettings"));
     updateState(agentId, "waiting_for_response");
     return true;
   }
@@ -24,7 +25,9 @@ export async function handleModelCommand(agentId: string, managed: ManagedAgent,
     choicePrompt: {
       kind: "model",
       title: "Switch model",
+      titleMessage: logMessage("logs.choice.model"),
       instruction: instruction.trim(),
+      instructionMessage: logMessage("logs.choice.switchInstruction"),
       choices,
     },
   });
@@ -41,6 +44,7 @@ export async function handleEffortCommand(agentId: string, managed: ManagedAgent
   const choices = EFFORT_LEVELS.map((effort) => ({
     value: effort.level,
     label: effortDisplayLabel(effort.level),
+    labelMessage: logMessage(`logs.effort.${effort.level}`),
     current: effort.level === managed.info.effort,
   }));
   lines.push(...choices.map((choice, index) => `  ${index + 1}. ${choice.label}${choice.current ? " (current)" : ""}`));
@@ -50,7 +54,9 @@ export async function handleEffortCommand(agentId: string, managed: ManagedAgent
     choicePrompt: {
       kind: "effort",
       title: "Switch thinking effort",
+      titleMessage: logMessage("logs.choice.effort"),
       instruction: instruction.trim(),
+      instructionMessage: logMessage("logs.choice.switchInstruction"),
       choices,
     },
   });

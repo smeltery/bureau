@@ -32,3 +32,20 @@ test("ephemeral replies carry the same reader translation payload", () => {
   expect(entry.content).toBe("Resumed session: Widget");
   expect(displayLogContent(entry, "zh")).toBe("已恢复会话：Widget");
 });
+
+test("nested choice translation parameters are redacted before persistence", () => {
+  const secret = "sk-proj-" + "R".repeat(24);
+  addLogEntry("translation-agent", "system", "Choices", {
+    choicePrompt: {
+      kind: "resume",
+      title: "Resume",
+      instruction: "Choose",
+      choices: [{ value: "session", label: "Topic", description: secret, descriptionMessage: logMessage("logs.choice.alreadyUsing", { label: logMessage("logs.resumed", { topic: secret }) }) }],
+    },
+  });
+  const entry = logCache.get("translation-agent")![0];
+  appendLog("translation-agent", "nested-choice", entry);
+  const restored = loadLog("translation-agent", "nested-choice")[0];
+  expect(JSON.stringify(restored)).not.toContain(secret);
+  expect(JSON.stringify(restored)).toContain("sk-proj-...REDACTED");
+});
