@@ -49,6 +49,10 @@ test("PTY close and replacement keep output and input attribution in their own r
       expect(visibleMessages.some(event => event.type === "terminal_output")).toBe(true);
       expect(visibleMessages.some(event => event.type === "terminal_recording")).toBe(true);
       expect(hiddenMessages.filter(event => event.type.startsWith("terminal_"))).toEqual([]);
+      const { sendToVisibleAgent } = await import("./server/ws/agent-events.ts");
+      const beforeMissing = visibleMessages.length;
+      sendToVisibleAgent("missing-agent", { type: "terminal_output", agentId: "missing-agent", data: "hidden" });
+      expect(visibleMessages.length).toBe(beforeMissing);
       const text = JSON.stringify(recordings);
       expect(text).toContain("member:typer");
       expect(text).not.toContain("never-save-input-password");

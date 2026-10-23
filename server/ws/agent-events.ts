@@ -9,6 +9,7 @@ import { broadcast, browsers } from "./broadcast.ts";
 export function sendToVisibleAgent(agentId: string, msg: ServerMessage) {
   const agent = AgentManager.getAllAgents().find((a) => a.id === agentId);
   const roomId = agent ? AgentManager.getRooms()[agent.room]?.id : null;
+  if (msg.type.startsWith("terminal_") && !roomId) return;
   for (const ws of browsers) {
     const user = getWsUser(ws);
     if (!roomId || canSeeRoom(user, roomId)) {
