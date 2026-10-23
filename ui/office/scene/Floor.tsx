@@ -218,7 +218,7 @@ export function Walls({
         transform="translate(500, 60) skewY(27)"
         role={onOpenSettings ? "button" : undefined}
         tabIndex={onOpenSettings ? 0 : undefined}
-        aria-label={onOpenSettings ? (pageCount > 0 ? `Settings, ${pageCount} open page${pageCount === 1 ? "" : "s"}` : "Settings") : undefined}
+        aria-label={onOpenSettings ? (pageCount > 0 ? `Settings, ${pageCount} inbox item${pageCount === 1 ? "" : "s"}` : "Settings") : undefined}
         onClick={onOpenSettings}
         onKeyDown={
           onOpenSettings

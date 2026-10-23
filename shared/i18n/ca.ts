@@ -257,7 +257,7 @@ export const ca = {
   "settings.sidebar.access": "Accés",
   "settings.sidebar.account": "Compte",
   "settings.sidebar.apiTokens": "Tokens d’API",
-  "settings.sidebar.pager": "Cercapersones",
+  "settings.sidebar.pager": "Safata d’entrada",
   "settings.sidebar.connections": "Connexions",
   "settings.sidebar.createClaim": "Crea o reclama un usuari",
   "settings.sidebar.devices": "Els meus dispositius",

@@ -1,3 +1,4 @@
+import { QuestionsPane } from "../questions/QuestionsPane.tsx";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefCallback } from "react";
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
 import { useAppState, useDispatch, useFeatures } from "../store.tsx";
@@ -310,6 +311,7 @@ export function LogView({
             )}
             <QueueChips queue={agent.queue ?? []} agentId={agent.id} isMobile={isMobile} />
             <OutboxRows agentId={agent.id} isMobile={isMobile} onEdit={editOutboxAttempt} />
+            <QuestionsPane agentId={agent.id} />
             {inputBar}
           </>
         )}

@@ -22,9 +22,18 @@ test("agent bearers can request but cannot answer, and owners cannot answer anot
     expect((await call(fixture.plainToken, `/${id}`, "POST", { decline: true })).status).toBe(403);
     expect((await call(owner.token, `/${id}`, "POST", { decline: true })).status).toBe(403);
     expect(await (await call(fixture.plainToken, `/${id}`, "GET")).json()).toEqual({ status: "pending", canAnswer: false });
+    const listFor = async (user: typeof fixture.manager) => {
+      const req = new Request("http://localhost/api/integrations/requests");
+      const auth = { kind: "ok", session: { userId: user.id } } as AuthResult;
+      return (await (await handleSecretRequests(req, new URL(req.url), auth))!.json()).requests;
+    };
+    expect((await listFor(fixture.manager)).map((card: { id: string }) => card.id)).toContain(id);
+    expect((await listFor(fixture.ownerManager)).map((card: { id: string }) => card.id)).not.toContain(id);
+    expect((await call(manager.token, "", "GET")).status).toBe(401);
     const result = await call(manager.token, `/${id}`, "POST", { value: "private-value-never-in-transcript" });
     expect(result.status).toBe(200);
     expect(await result.json()).toEqual({ status: "saved", delivered: false });
+    expect((await listFor(fixture.manager)).map((card: { id: string }) => card.id)).not.toContain(id);
     expect(JSON.stringify(logCache.get(PLAIN_AGENT))).not.toContain("private-value-never-in-transcript");
   } finally {
     await revokeApiToken(fixture.manager.id, manager.apiToken.id);

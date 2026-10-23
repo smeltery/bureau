@@ -11,6 +11,7 @@ export const AGENT_REFERENCE_TOPICS = {
   affordances: "Files, diffs, previews, and terminal cards",
   apps: "Registered apps",
   pager: "Paging your manager",
+  questions: "Persistent questions for members",
   messaging: "Agent, remote boss, and scheduled messages",
   memory: "Durable memory",
   "conversation-lifecycle": "New conversations and handoffs",

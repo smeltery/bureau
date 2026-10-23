@@ -1,3 +1,4 @@
+import { QuestionsPane } from "../questions/QuestionsPane.tsx";
 import { useState } from "react";
 import type { PagerEntry } from "../../shared/types.ts";
 import { useAppState } from "../store.tsx";
@@ -26,7 +27,7 @@ function age(ms: number): string {
   return hours < 48 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`;
 }
 
-export function PagerPane() {
+export function PagerPane({ onOpenAgent }: { onOpenAgent?: (id: string) => void }) {
   const { rooms, currentRoom, lobbyOpen } = useAppState();
   const [showResolved, setShowResolved] = useState(false);
   const [roomId, setRoomId] = useState(() => (linkedPageId || lobbyOpen ? "" : (rooms[currentRoom]?.id ?? "")));
@@ -48,7 +49,9 @@ export function PagerPane() {
 
   return (
     <div style={{ marginTop: 24 }}>
-      <h4 style={sectionHeader}>Pager</h4>
+      <h3 style={sectionHeader}>Inbox</h3>
+      <QuestionsPane onOpenAgent={onOpenAgent} />
+      <h4 style={sectionHeader}>Urgent pages</h4>
       <p style={hint}>Agents and apps page you here when something needs a person. Ack a page to stop the repeats; resolve it when it is dealt with. Resolved pages remain in your history.</p>
       <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "12px 0" }}>
         <select

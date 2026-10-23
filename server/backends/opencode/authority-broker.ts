@@ -62,6 +62,7 @@ export const OFFICE_AGENT_ROUTES: ReadonlyArray<{ method: string; path: RegExp }
   { method: "GET", path: /^\/api\/agent-reference(?:\/[^/]+)?$/ },
   { method: "GET", path: /^\/api\/agents\/[^/]+\/shared-browser$/ },
   { method: "POST", path: /^\/api\/agents\/[^/]+\/shared-browser$/ },
+  ...["GET", "POST", "PATCH", "DELETE"].map((method) => ({ method, path: /^\/api\/agents\/[^/]+\/questions(?:\/[a-f0-9-]{36})?$/ })),
   { method: "POST", path: /^\/api\/pager(?:\/resolve)?$/ },
   { method: "GET", path: /^\/api\/agents$/ },
   { method: "GET", path: /^\/api\/tasks(?:\/[^/]+(?:\/history)?)?$/ },

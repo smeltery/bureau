@@ -1,3 +1,4 @@
+import { useQuestions } from "../questions/useQuestions.ts";
 import { useCallback, useEffect, useState } from "react";
 import { useAppState, useDispatch, useTheme, useFeatures } from "../store.tsx";
 import { Floor, Walls } from "./scene/Floor.tsx";
@@ -84,6 +85,7 @@ export function OfficeView({
   const { cycleTheme } = useTheme();
   const { embed } = useFeatures();
   const { pages } = usePager(!embed && !!sessionContext);
+  const { questions, credentials } = useQuestions(embed ? undefined : sessionContext?.userId);
   const skinVars = useRoomSkinVars();
   const mobileScale = isMobile ? screen.width / (SCENE_W - 200) : 1;
   // layoutKey changes whenever the centered-scene static transform changes,
@@ -220,7 +222,7 @@ export function OfficeView({
                   onOpenSettings={embed ? undefined : onEditUsername}
                   onOpenApps={embed ? undefined : onOpenApps}
                   taskCount={tasks.filter((t) => t.status === "open" || t.status === "in_progress").length}
-                  pageCount={openPagesFor(pages, sessionContext?.userId)}
+                  pageCount={openPagesFor(pages, sessionContext?.userId) + questions.filter((question) => question.status !== "delivered").length + credentials.length}
                   leftDoor={
                     currentRoom > 0
                       ? {
