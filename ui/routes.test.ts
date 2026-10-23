@@ -23,6 +23,7 @@ describe("pageForPath", () => {
     expect(pageForPath("/cronjobs")).toBe("schedules");
     expect(pageForPath("/users")).toBe("settings");
     expect(pageForPath("/pager")).toBe("settings");
+    expect(pageForPath("/inbox")).toBe("settings");
     expect(pageForPath("/chat")).toBe("team-chat");
     expect(pathForPage("schedules")).toBe("/schedules");
     expect(pathForPage("settings")).toBe("/settings");

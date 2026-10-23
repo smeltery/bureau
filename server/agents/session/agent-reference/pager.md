@@ -14,3 +14,7 @@ Apps page the same way with their own token: `POST /api/app/page` and `POST /api
 curl -s -X POST localhost:$PORT/api/pager -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"title":"Checkout API is returning 500s","body":"Error rate 38% since 03:12. Rollback needs your approval.","key":"checkout-500s"}'
 curl -s -X POST localhost:$PORT/api/pager/resolve -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"key":"checkout-500s"}'
 ```
+
+For a question that can wait, use the `questions` reference topic instead of
+raising a repeating urgent page. Ordinary questions remain in the member's
+Inbox and above this conversation's composer until answered or dismissed.

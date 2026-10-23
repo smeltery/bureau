@@ -21,7 +21,7 @@ Active pages are stored in `~/.bureau/pager/pages.json`; resolved entries live i
 
 ## Delivery
 
-Members configure delivery in **User Settings > Pager**:
+Members configure delivery in **User Settings > Inbox**:
 
 - **Discord webhook URL**: an incoming webhook for a channel. It is a credential, so it is write-only in the UI, stored 0600 in `~/.bureau/pager/discord-webhooks.json`, and omitted from backups (the restore report tells members to paste it again). Only `discord.com`/`discordapp.com` webhook URLs are accepted.
 - **Discord user id** to @mention, so the phone pings. `allowed_mentions` is limited to that one user.
@@ -36,7 +36,7 @@ Each message holds the title, body, source and room, the raise count, and a link
 
 `GET /api/pager` lists active pages and up to 50 resolved entries a member can see: pages addressed to them, plus pages whose source room they can see (owners see all). `POST /api/pager/<id>/ack` and `/resolve` act on one. `GET /api/pager/<id>` also opens retained history directly. These accept a browser session or a personal API token; delivery settings (`GET/PUT /api/pager/settings`, `POST /api/pager/settings/test`) are browser-session only. A browser on the office machine itself, which authenticates as loopback, is identified by its session cookie.
 
-The UI lists pages in **User Settings > Pager** with a room filter and a resolved toggle, open pages first. `/pager?page=<id>` (the Discord link) opens the section with that page highlighted. The settings vent on the office wall shows a count of the member's open pages. Browsers refetch when the server broadcasts `pager_changed`.
+The UI lists pages in **User Settings > Inbox** with a room filter and a resolved toggle, open pages first. `/pager?page=<id>` (the Discord link) opens the section with that page highlighted. The settings vent on the office wall shows a count of the member's open pages. Browsers refetch when the server broadcasts `pager_changed`.
 
 ## Not in v0
 
@@ -61,3 +61,6 @@ memory. Query time grows with the archive's file count, while routine raises,
 acknowledgments, and delivery updates no longer rewrite resolved history. The
 archive directory belongs in backups alongside `pages.json`; webhook credentials
 remain excluded as before.
+
+For nonurgent questions, use [member questions](member-questions.md). Inbox keeps
+those separate from repeating urgent pages.

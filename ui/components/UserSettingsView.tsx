@@ -2,7 +2,7 @@ import { headerStyle, sidebarStyle, detailStyle, backBtn, sidebarLabel, rowButto
 import { AuditPane } from "../audit-view/AuditPane.tsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { storageSetItem } from "../browser-storage.ts";
-import { useAppState } from "../store.tsx";
+import { useAppState, useDispatch } from "../store.tsx";
 import { roomsInViewerOrder } from "../roomSelection.ts";
 import { send } from "../ws.ts";
 import type { UserRole } from "../../shared/types.ts";
@@ -40,7 +40,8 @@ export function UserSettingsView({
   onClose: () => void;
 }) {
   const { t } = useI18n();
-  const { users, rooms, allRooms, sessionContext, activeSessions, activeSessionsLoaded, presences, isMobile } = useAppState();
+  const dispatch = useDispatch();
+  const { agents, users, rooms, allRooms, sessionContext, activeSessions, activeSessionsLoaded, presences, isMobile } = useAppState();
   const isOwner = sessionContext?.role === "owner";
   const userList = useMemo(() => [...users.values()].sort((a, b) => a.name.localeCompare(b.name)), [users]);
   const editorRooms = useMemo(() => roomsInViewerOrder(allRooms.length ? allRooms : rooms, rooms), [allRooms, rooms]);
@@ -247,7 +248,16 @@ export function UserSettingsView({
             ) : selection?.kind === "section" && selection.section === "api-tokens" ? (
               <ApiTokensPane />
             ) : selection?.kind === "section" && selection.section === "pager" ? (
-              <PagerPane />
+              <PagerPane
+                onOpenAgent={(id) => {
+                  const agent = agents.find((item) => item.id === id);
+                  if (agent) {
+                    dispatch({ type: "set_current_room", room: agent.room });
+                    dispatch({ type: "focus", agentId: id });
+                    onClose();
+                  }
+                }}
+              />
             ) : selection?.kind === "section" && selection.section === "audit" && isOwner ? (
               <AuditPane />
             ) : selection?.kind === "section" && selection.section === "signout" ? (

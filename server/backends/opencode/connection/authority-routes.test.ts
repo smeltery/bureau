@@ -34,6 +34,10 @@ test("office proxy forwards scoped integrations and preserves binary responses",
     binding.activate(42);
     for (const [method, path, body] of [
       ["GET", "/api/agent-reference/browser"],
+      ["GET", "/api/agents/agent/questions"],
+      ["POST", "/api/agents/agent/questions", { prompt: "Which release?" }],
+      ["PATCH", "/api/agents/agent/questions/00000000-0000-0000-0000-000000000001", { revision: 1, prompt: "Updated?" }],
+      ["DELETE", "/api/agents/agent/questions/00000000-0000-0000-0000-000000000001", { revision: 1 }],
       ["GET", "/api/agents/agent/shared-browser"],
       ["POST", "/api/agents/agent/shared-browser", { action: "upload", path: "report.txt", selector: "#file" }],
       ["PUT", "/api/apps/report/thumbnail", { path: "image.png" }],
@@ -59,6 +63,7 @@ test("office proxy forwards scoped integrations and preserves binary responses",
     expect(Buffer.from(await response.arrayBuffer())).toEqual(image);
     const before = requests.length;
     expect((await request("PUT", "/api/pager/settings", {})).status).toBe(403);
+    expect((await request("POST", "/api/questions/00000000-0000-0000-0000-000000000001/answer", { text: "yes" })).status).toBe(403);
     expect((await request("POST", "/api/browser-sharing/pairing", {})).status).toBe(403);
     expect((await request("PUT", "/api/apps/report/thumbnail", { path: "image.png" }, "wrong")).status).toBe(403);
     binding.deactivate();

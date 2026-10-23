@@ -7,6 +7,9 @@ export function requiresBrowserSession(req: Request, url: URL): boolean {
       url.pathname.startsWith("/api/me/provider-accounts") ||
       url.pathname === "/api/office/settings") &&
       !req.headers.has("authorization")) ||
+    url.pathname.startsWith("/api/questions") ||
+    url.pathname.startsWith("/api/storage/") ||
+    url.pathname.startsWith("/api/backup/") ||
     url.pathname.startsWith("/api/skills") ||
     url.pathname.startsWith("/api/webhooks") ||
     url.pathname.startsWith("/api/browser-sharing/") ||

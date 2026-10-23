@@ -258,7 +258,7 @@ export const en = {
   "settings.sidebar.access": "Access",
   "settings.sidebar.account": "Account",
   "settings.sidebar.apiTokens": "API tokens",
-  "settings.sidebar.pager": "Pager",
+  "settings.sidebar.pager": "Inbox",
   "settings.sidebar.connections": "Connections",
   "settings.sidebar.createClaim": "Create or claim user",
   "settings.sidebar.devices": "My devices",

@@ -46,6 +46,15 @@ export async function handleSecretRequests(req: Request, url: URL, auth: AuthRes
       recordAuditEvent(`integrations/requests/${card.id}`, ["request"]);
       return json({ requestId: card.id });
     }
+    if (!match[1] && req.method === "GET") {
+      if (auth.kind !== "ok" || !actor || actor.agent) return json({ error: "A browser session is required." }, 401);
+      const requests = secretRequests.listPending().filter((card) => {
+        const agent = agents.get(card.agentId),
+          room = agent && rooms[agent.info.room];
+        return !!room && canSeeRoom(actor.user, room.id) && (card.scope.kind === "office" ? actor.user.role === "owner" : card.scope.userId === actor.user.id);
+      });
+      return json({ requests });
+    }
     if (!match[1]) return json({ error: "Method not allowed." }, 405);
     const { card, status } = secretRequests.get(match[1]);
     const agent = agents.get(card.agentId);

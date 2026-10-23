@@ -72,6 +72,12 @@ export function createSecretRequests(deps: SecretRequestDeps) {
       }
       return card;
     },
+    listPending() {
+      return [...records.keys()]
+        .map((id) => read(id))
+        .filter((record) => record.status === "pending")
+        .map((record) => structuredClone(record.card));
+    },
     get(id: string) {
       const record = read(id);
       return { card: record.card, status: record.status };

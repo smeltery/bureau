@@ -26,6 +26,7 @@ export function pageForPath(pathname: string): Page | null {
     case "/settings":
     case "/users":
     case "/pager":
+    case "/inbox":
       return "settings";
     case "/team-chat":
     case "/chat":

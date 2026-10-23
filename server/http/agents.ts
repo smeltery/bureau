@@ -1,3 +1,4 @@
+import { handleQuestionsRequest } from "../questions/http.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
@@ -31,6 +32,8 @@ import { AGENT_REFERENCE_VERSION, agentReferenceContent, agentReferenceTopics, r
  * Returns null for any other URL so the caller can fall through.
  */
 export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthResult): Promise<Response | null> {
+  const questionResponse = await handleQuestionsRequest(req, url, auth);
+  if (questionResponse) return questionResponse;
   const parts = agentRouteParts(url.pathname);
   if (!parts) return null;
   if (isRetiredLegacyAgentAffordance(url.pathname, parts, req.method)) return null;

@@ -44,6 +44,7 @@ const routeLabels: Array<[RegExp, string | ((path: string) => string)]> = [
   [/^\/api\/cronjobs(?:\/.*)?$/, "Bureau API: schedules"],
   [/^\/api\/cron-runs$/, "Bureau API: recent cron runs"],
   [/^\/api\/rooms\/[^/]+\/settings$/, "Bureau API: room settings"],
+  [/^\/api\/agents\/[^/]+\/questions(?:\/[^/]+)?$/, "Bureau API: member questions"],
   [/^\/api\/pager$/, "Bureau API: page manager"],
   [/^\/api\/pager\/resolve$/, "Bureau API: resolve page"],
   [/^\/api\/app\/page$/, "Bureau API: app page"],
