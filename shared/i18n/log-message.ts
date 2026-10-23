@@ -5,9 +5,13 @@ import { CATALOGS, interpolate, type EnglishText, type Params, type Placeholders
 import type { logs } from "./logs-en.ts";
 
 export type LogMessageKey = keyof typeof logs;
-export type LogParam = string | number | LogMessage | { timestamp: number };
+export type LogPluralKey = {
+  [K in LogMessageKey]: K extends `${infer Base}.one` ? (`${Base}.other` extends LogMessageKey ? Base : never) : never;
+}[LogMessageKey];
+export type LogParam = string | number | LogMessage | { timestamp: number } | { parts: LogParam[] };
 export interface LogMessage {
-  key: LogMessageKey;
+  key: LogMessageKey | LogPluralKey;
+  count?: number;
   params?: Record<string, LogParam>;
 }
 
@@ -18,9 +22,27 @@ export function logMessage<K extends LogMessageKey>(key: K, ...params: LogParams
   return { key, ...(params.length ? { params: params[0] } : {}) };
 }
 
+type CountParams<K extends LogPluralKey> = Exclude<Placeholders<EnglishText<`${K}.other` & LogMessageKey>>, "count">;
+
+export function logPlural<K extends LogPluralKey>(key: K, count: number, ...params: [CountParams<K>] extends [never] ? [] : [Record<CountParams<K>, LogParam>]): LogMessage {
+  return { key, count, ...(params.length ? { params: params[0] } : {}) };
+}
+
+export function logParts(parts: LogParam[]): LogMessage {
+  return logMessage("logs.parts", { parts: { parts } });
+}
+
 function renderParam(value: unknown, language: SupportedLanguageCode, depth: number): string | number | undefined {
+  if (depth > 8) return;
   if (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))) return value;
   if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  if (Object.hasOwn(value, "parts")) {
+    const parts = (value as { parts: unknown }).parts;
+    if (!Array.isArray(parts)) return;
+    const texts = parts.map((part) => renderParam(part, language, depth + 1));
+    if (texts.some((text) => text === undefined)) return;
+    return texts.join("");
+  }
   if (Object.hasOwn(value, "timestamp")) {
     const timestamp = (value as { timestamp: unknown }).timestamp;
     if (typeof timestamp !== "number" || !Number.isFinite(timestamp) || !Number.isFinite(new Date(timestamp).getTime())) return;
@@ -32,8 +54,15 @@ function renderParam(value: unknown, language: SupportedLanguageCode, depth: num
 /** Validate wire/disk data and bound recursive parameters, including cycles. */
 function renderMessage(value: unknown, language: SupportedLanguageCode, depth = 0): string | undefined {
   if (depth > 8 || !value || typeof value !== "object" || Array.isArray(value)) return;
-  const { key, params } = value as Record<string, unknown>;
-  if (!Object.hasOwn(value, "key") || typeof key !== "string" || !key.startsWith("logs.") || !Object.hasOwn(en, key)) return;
+  const { key, params, count } = value as Record<string, unknown>;
+  if (!Object.hasOwn(value, "key") || typeof key !== "string" || !key.startsWith("logs.")) return;
+  let selected = key;
+  if (count !== undefined) {
+    if (typeof count !== "number" || !Number.isFinite(count) || !Object.hasOwn(en, `${key}.one`) || !Object.hasOwn(en, `${key}.other`)) return;
+    const category = new Intl.PluralRules(language).select(count);
+    selected = `${key}.${category === "one" ? "one" : "other"}`;
+  }
+  if (!Object.hasOwn(en, selected)) return;
   if (params !== undefined && (!params || typeof params !== "object" || Array.isArray(params))) return;
   const values = params as Record<string, unknown> | undefined;
   const rendered: Params = Object.create(null);
@@ -42,11 +71,12 @@ function renderMessage(value: unknown, language: SupportedLanguageCode, depth = 
     if (text === undefined) return;
     rendered[name] = text;
   }
-  const template = en[key as LogMessageKey];
+  if (count !== undefined) rendered.count = count as number;
+  const template = en[selected as LogMessageKey];
   for (const [, name] of template.matchAll(/\{(\w+)\}/g)) {
     if (!Object.hasOwn(rendered, name)) return;
   }
-  return interpolate(CATALOGS[language]?.[key as LogMessageKey] ?? template, rendered);
+  return interpolate(CATALOGS[language]?.[selected as LogMessageKey] ?? template, rendered);
 }
 
 /** English content is retained for APIs, search, agents, and older clients. */

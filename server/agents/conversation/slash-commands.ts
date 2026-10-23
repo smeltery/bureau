@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import { commands, type CommandConfig, unsupportedMessage } from "../commands.ts";
 import { addLogEntry, emitEphemeralLog, isAgentBusy, updateState, type ManagedAgent } from "../state.ts";
@@ -66,7 +67,7 @@ export async function handleSlashCommand(agentId: string, managed: ManagedAgent,
 
   // Step 5: Unknown command
   emitEphemeralLog(agentId, "user_message", rawText, userMeta);
-  emitEphemeralLog(agentId, "system", `Unknown command \`/${cmd}\`. Type \`/help\` to see available commands.`);
+  emitEphemeralLog(agentId, "system", logMessage("logs.command.unknown", { command: cmd }));
   return true;
 }
 

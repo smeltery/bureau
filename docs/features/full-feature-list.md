@@ -144,6 +144,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   user, model, and tool output stays unchanged. Model, effort, resume, and
   scheduled-prompt choice cards also follow the reader’s language, including
   effort labels, resume dates, selection confirmations, and cancellations.
+  Clear and handoff feedback, file/diff and peer-message replies, the agent
+  roster, and subscription-usage guidance also follow the reader’s language.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers. Large transcript replays stream
   in order as each browser drains, followed by live events. Slow connections have
