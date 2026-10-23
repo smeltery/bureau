@@ -43,6 +43,7 @@ Detailed subsystem documentation.
 | [Pager](features/pager.md)                                          | Agents and apps page their person; Discord delivery until acked or resolved  |
 | [Integration secrets](features/integration-secrets.md) | Scoped credentials, host restrictions, rotation and variables |
 | [Automatic handoff](features/automatic-handoff.md) | Continue long tasks with a brief and fresh context |
+| [Office MCP endpoint](features/office-mcp.md) | Reach agents from external clients with a personal API token |
 | [Per-Agent MCP Access](features/per-agent-mcp-access.md)            | Controlling MCP integration access per agent                                 |
 | [Plugin Management](features/plugin-management-design.md)           | Plugin UI and lifecycle                                                      |
 | [Plugin System](features/plugin-system.md)                          | First-party `beforeTurn` / `afterTurn` hooks around the agent turn loop      |

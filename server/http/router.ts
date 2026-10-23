@@ -1,3 +1,4 @@
+import { handleOfficeMcp } from "../mcp/http.ts";
 import { requiresBrowserSession } from "./routing/browser-management.ts";
 import { handleIntegrationsRequest } from "../integrations/http.ts";
 import { handleAppChatRequest } from "../apps/chat-http.ts";
@@ -84,13 +85,15 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
   const offBoxToken = refuseOffBoxMachineToken(req, requestIsOnBox(req, server));
   if (offBoxToken) return offBoxToken;
-  if (url.pathname.startsWith("/browser-sharing/extension/")) {
+  if (url.pathname === "/mcp" || url.pathname.startsWith("/browser-sharing/extension/") || url.pathname.startsWith("/hooks/github/")) {
     if (!requestIsOnBox(req, server) && isOutsideReachabilityBlocked()) return new Response(null, { status: 403 });
+  }
+  if (url.pathname === "/mcp") return handleOfficeMcp(req, server);
+  if (url.pathname.startsWith("/browser-sharing/extension/")) {
     const extension = await handleExtensionRequest(req, url);
     if (extension) return extension;
   }
   if (url.pathname.startsWith("/hooks/github/")) {
-    if (!requestIsOnBox(req, server) && isOutsideReachabilityBlocked()) return new Response(null, { status: 403 });
     const webhook = await handleWebhookIngress(req, url);
     if (webhook) return webhook;
   }

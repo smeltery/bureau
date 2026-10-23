@@ -30,7 +30,7 @@ export function auditHttpRequest<T>(req: Request, work: () => T): T {
   const path = new URL(req.url).pathname;
   // Record route structure, never query strings, invite tokens or arbitrary path values.
   const words = new Set(
-    "api auth claim accept logout users agents tasks apps rooms schedules cronjobs memory office settings env access invites sessions tokens me browser-sharing extension pair grants webhooks ingress history restore delete member-prompt message messages pager resolve terminal start stop restart thumbnail archive skills audit-log".split(
+    "mcp api auth claim accept logout users agents tasks apps rooms schedules cronjobs memory office settings env access invites sessions tokens me browser-sharing extension pair grants webhooks ingress history restore delete member-prompt message messages pager resolve terminal start stop restart thumbnail archive skills audit-log".split(
       " ",
     ),
   );
