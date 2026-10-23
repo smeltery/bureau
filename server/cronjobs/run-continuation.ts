@@ -41,7 +41,7 @@ export async function sendRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
   try {
     validateCwd(run.cwdSnapshot);
   } catch (err: any) {
-    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.resumeCwd", { error: err.message || String(err) }));
+    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.resumeCwd", { error: String(err.message || String(err)) }));
     return;
   }
   if (!checkCronRunSessionFile(deps, run, leaf, "resume")) return;
@@ -54,7 +54,7 @@ export async function sendRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
       session = cronRunBackend(run).resumeSession(leaf, sessionOpts);
     } catch (err: any) {
       revokeRunToken(runId);
-      emitRunErrorEntry(deps, jobId, runId, logMessage("logs.resumeFailed", { error: err.message || String(err) }));
+      emitRunErrorEntry(deps, jobId, runId, logMessage("logs.resumeFailed", { error: String(err.message || String(err)) }));
       return;
     }
 
@@ -69,7 +69,7 @@ export async function sendRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
       } catch (err: any) {
         if (active.killed) return;
         console.error(`Cronjob run ${runId} send error:`, err.message);
-        writeLog(active, "error", logMessage("logs.run.sendFailed", { error: err.message || String(err) }), deps.emitEvent);
+        writeLog(active, "error", logMessage("logs.run.sendFailed", { error: String(err.message || String(err)) }), deps.emitEvent);
         try {
           session.close();
         } catch {}
@@ -101,7 +101,7 @@ export async function editRunMessageWithDeps(deps: RunContinuationDeps, jobId: s
   try {
     validateCwd(run.cwdSnapshot);
   } catch (err: any) {
-    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.editCwd", { error: err.message || String(err) }));
+    emitRunErrorEntry(deps, jobId, runId, logMessage("logs.run.editCwd", { error: String(err.message || String(err)) }));
     return;
   }
   if (!checkCronRunSessionFile(deps, run, leaf, "edit")) return;
@@ -126,7 +126,7 @@ function checkCronRunSessionFile(deps: RunContinuationDeps, run: CronjobRun, lea
     userId = run.userIdSnapshot !== undefined ? run.userIdSnapshot : (job?.userId ?? null);
     env = pinRunProviderEnvironment(run, leaf, userId, buildCronjobEnv(userId));
   } catch (err: any) {
-    emitRunErrorEntry(deps, run.cronjobId, run.id, logMessage(action === "resume" ? "logs.run.resumeEnv" : "logs.run.editEnv", { error: err.message || String(err) }));
+    emitRunErrorEntry(deps, run.cronjobId, run.id, logMessage(action === "resume" ? "logs.run.resumeEnv" : "logs.run.editEnv", { error: String(err.message || String(err)) }));
     return false;
   }
   const error = cronRunBackend(run).checkSessionResumable(leaf, {

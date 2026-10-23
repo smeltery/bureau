@@ -161,7 +161,7 @@ async function sendInitialPrompt(deps: RunStartDeps, active: ActiveRun, session:
   } catch (err: any) {
     if (active.killed) return;
     console.error(`Cronjob run ${active.runId} input error:`, err.message);
-    writeLog(active, "error", logMessage("logs.run.sendPromptFailed", { error: err.message || String(err) }), deps.emitEvent);
+    writeLog(active, "error", logMessage("logs.run.sendPromptFailed", { error: String(err.message || String(err)) }), deps.emitEvent);
     try {
       session.close();
     } catch {}

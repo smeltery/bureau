@@ -221,6 +221,14 @@ test("edit history failures preserve provider details in translated feedback", a
   appendRunLog(f.id, f.id, f.run.rootSessionId, { id: "message", agentId: f.active.streamId, timestamp: Date.now(), kind: "user_message", content: "Original message" });
   await editCore(deps, f.run, "message", "edited", f.run.rootSessionId);
   expectTranslated({ kind: "error", ...logContent(messages[1]) } as LogEntry, "logs.run.loadFailed", "Original history failure");
+  deps.cronRunBackend = () => ({
+    ...getBackend("codex"),
+    getSessionMessages: async () => {
+      throw { message: { detail: "Original provider detail" } };
+    },
+  });
+  await editCore(deps, f.run, "message", "edited", f.run.rootSessionId);
+  expect(logContent(messages[2]).content).toBe("Failed to load session messages: [object Object]");
 });
 
 test("preflight errors redact both English text and translated parameters before emission", async () => {

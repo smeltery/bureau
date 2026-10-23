@@ -46,7 +46,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
     sessionMessages = await backend.getSessionMessages(leaf, run.cwdSnapshot, leafAccess);
   } catch (err: any) {
     if (deps.isCancelled?.()) return;
-    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.loadFailed", { error: err.message || String(err) }));
+    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.loadFailed", { error: String(err.message || String(err)) }));
     return;
   }
 
@@ -98,7 +98,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
     forkFromBackendSessionId = forkResult.forkedFromSessionId;
   } catch (err: any) {
     if (deps.isCancelled?.()) return;
-    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.forkFailed", { error: err.message || String(err) }));
+    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.forkFailed", { error: String(err.message || String(err)) }));
     return;
   }
 
@@ -115,7 +115,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
     session = backend.resumeSession(newSessionId, forkResumeOptions);
   } catch (err: any) {
     deps.revokeRunToken(runId);
-    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.forkStartFailed", { error: err.message || String(err) }));
+    deps.emitRunErrorEntry(jobId, runId, logMessage("logs.run.forkStartFailed", { error: String(err.message || String(err)) }));
     return;
   }
 
@@ -170,7 +170,7 @@ export async function editRunMessageWithDeps(deps: EditRunMessageDeps, run: Cron
     } catch (err: any) {
       if (active.killed) return;
       console.error(`Cronjob run ${runId} edit-send error:`, err.message);
-      writeLog(active, "error", logMessage("logs.run.sendEditFailed", { error: err.message || String(err) }), deps.emitEvent);
+      writeLog(active, "error", logMessage("logs.run.sendEditFailed", { error: String(err.message || String(err)) }), deps.emitEvent);
       try {
         session.close();
       } catch {}
