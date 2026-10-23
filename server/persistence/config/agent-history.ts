@@ -22,6 +22,7 @@ export interface AgentHistoryEntry {
   agentType?: AgentInfo["agentType"];
   privileged?: boolean;
   autoHandoff?: boolean;
+  autoHandoffTokens?: number;
   resumeAfterUsageLimit?: boolean;
   codexSandbox?: AgentInfo["codexSandbox"];
   lastSessionId?: string | null;

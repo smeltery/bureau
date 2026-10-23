@@ -35,6 +35,7 @@ export async function kill(agentId: string) {
         privileged: managed.info.privileged ?? false,
         codexSandbox: managed.info.codexSandbox,
         autoHandoff: managed.info.autoHandoff,
+        autoHandoffTokens: managed.info.autoHandoffTokens,
         resumeAfterUsageLimit: managed.info.resumeAfterUsageLimit,
         lastSessionId: managed.sessionId,
         topic: managed.info.topic,

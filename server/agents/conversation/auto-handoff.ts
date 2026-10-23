@@ -1,3 +1,4 @@
+import { handoffTokens } from "../../../shared/agents/handoff.ts";
 import { withAuditContext } from "../../audit/context.ts";
 import { recordAuditEvent } from "../../audit/store.ts";
 import type { BackendSession, NormalizedEvent } from "../../backends/types.ts";
@@ -14,8 +15,8 @@ export interface AutoHandoffAttempt {
   status: "completed" | "interrupted" | "failed" | null;
 }
 
-export function handoffThreshold(sample: { maxTokens: number; compactAtTokens?: number }): number {
-  const limits = [500_000, sample.maxTokens * 0.85];
+export function handoffThreshold(sample: { maxTokens: number; compactAtTokens?: number }, tokens?: number): number {
+  const limits = [handoffTokens(tokens), sample.maxTokens * 0.85];
   if (sample.compactAtTokens && sample.compactAtTokens > 0) limits.push(sample.compactAtTokens - sample.maxTokens * 0.05);
   return Math.max(1, Math.min(...limits));
 }
@@ -73,7 +74,7 @@ async function attemptHandoff(managed: ManagedAgent, attempt: AutoHandoffAttempt
     if (pending) await pending.catch(() => {});
     if (!current() || !managed.info.autoHandoff) return;
     if (!sample || !Number.isFinite(sample.maxTokens) || sample.maxTokens <= 0) return;
-    if (sample.totalTokens < handoffThreshold(sample)) {
+    if (sample.totalTokens < handoffThreshold(sample, managed.info.autoHandoffTokens)) {
       managed.autoHandoffFresh = false;
       return;
     }

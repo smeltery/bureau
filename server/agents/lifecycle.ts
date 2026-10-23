@@ -1,3 +1,4 @@
+import { handoffSettingsError } from "../../shared/agents/handoff.ts";
 import { restoreUsageResume } from "./conversation/usage-resume.ts";
 import { join } from "path";
 import { rmSync } from "fs";
@@ -137,7 +138,10 @@ export async function spawn(
   codexSandbox?: AgentInfo["codexSandbox"],
   effort?: AgentInfo["effort"],
   userId?: string | null,
+  handoff: Pick<AgentInfo, "autoHandoff" | "autoHandoffTokens"> = {},
 ): Promise<AgentInfo | null> {
+  const handoffError = handoffSettingsError(handoff);
+  if (handoffError) throw new Error(handoffError);
   const draft = buildSpawnAgentDraft({
     name,
     desk,
@@ -157,6 +161,7 @@ export async function spawn(
   if (!draft) return null;
 
   const { info, resolvedCwd } = draft;
+  Object.assign(info, handoff);
   const managed = createManagedAgent({ info, skillCwd: resolvedCwd });
   agents.set(info.id, managed);
   mintAgentToken(info.id, info.userId ?? null, info.privileged ?? false);

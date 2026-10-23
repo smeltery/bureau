@@ -1,3 +1,5 @@
+import { useDiscardGuard } from "./agent-form/useDiscardGuard.ts";
+import { handoffTokens, handoffSettingsError } from "../../../shared/agents/handoff.ts";
 import { useEffect, useRef, useState } from "react";
 import type { AgentBackendType, AgentInfo, AgentOutfit, ClientCommand, CodexSandboxMode, EffortLevel } from "../../../shared/types.ts";
 import { CODEX_MODELS, DEFAULT_EFFORT, familyAllowsAutoPermission, MODEL_FAMILIES, OPENCODE_MODELS } from "../../../shared/types.ts";
@@ -51,6 +53,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const [permissionMode, setPermissionMode] = useState<AgentInfo["permissionMode"]>(initialPermissionMode);
   const [codexSandbox, setCodexSandbox] = useState<CodexSandboxMode>(agent?.codexSandbox ?? "danger-full-access");
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string | null>(null);
+  const [autoHandoffTokens, setAutoHandoffTokens] = useState(String(handoffTokens(agent?.autoHandoffTokens)));
   const [autoHandoff, setAutoHandoff] = useState(agent?.autoHandoff ?? false);
   const [resumeAfterUsageLimit, setResumeAfterUsageLimit] = useState(agent?.resumeAfterUsageLimit ?? true);
   const [privileged, setPrivileged] = useState(agent?.privileged ?? false);
@@ -88,29 +91,13 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     privileged,
     managerUserId,
     autoHandoff,
+    autoHandoffTokens,
     resumeAfterUsageLimit,
   };
   const baselineRef = useRef(currentSnapshot);
   const isDirty = isFormDirty(baselineRef.current, currentSnapshot) || agentMemory.dirty;
 
-  function confirmDiscard(): boolean {
-    if (saving) return false;
-    return !isDirty || window.confirm("Discard unsaved changes?");
-  }
-
-  function requestClose() {
-    if (confirmDiscard()) onClose();
-  }
-
-  // Tab close / reload with unsaved edits gets the browser's native prompt.
-  useEffect(() => {
-    if (!isDirty) return;
-    const guard = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", guard);
-    return () => window.removeEventListener("beforeunload", guard);
-  }, [isDirty]);
+  const { confirmDiscard, requestClose } = useDiscardGuard(isDirty, saving, onClose);
 
   useEffect(() => {
     return () => {
@@ -144,6 +131,12 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   }, [agentType, isSpawn, modelFamily]);
 
   async function handleSave() {
+    const tokenLimit = autoHandoff ? Number(autoHandoffTokens) : handoffTokens(agent?.autoHandoffTokens);
+    const handoffError = handoffSettingsError({ autoHandoff, autoHandoffTokens: tokenLimit });
+    if (handoffError) {
+      setCwdError(handoffError);
+      return;
+    }
     if (!isSpawn) {
       const memoryResult = await agentMemory.save();
       if (!memoryResult.ok) {
@@ -183,6 +176,8 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       pendingListener.current = listener;
       send({
         type: "spawn",
+        autoHandoff,
+        autoHandoffTokens: tokenLimit,
         requestId: reqId,
         name: name || `Agent ${props.deskIndex! + 1}`,
         cwd,
@@ -206,6 +201,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
         cmd.customInstructions = trimmedInstructions;
         cmd.customInstructionsVersion = instructionsVersionAtOpen.current;
       }
+      if (autoHandoff && tokenLimit !== handoffTokens(agent!.autoHandoffTokens)) cmd.autoHandoffTokens = tokenLimit;
       if (autoHandoff !== (agent!.autoHandoff ?? false)) cmd.autoHandoff = autoHandoff;
       if (resumeAfterUsageLimit !== (agent!.resumeAfterUsageLimit ?? true)) cmd.resumeAfterUsageLimit = resumeAfterUsageLimit;
       if (modelFamily !== agent!.modelFamily) cmd.modelFamily = modelFamily;
@@ -221,6 +217,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
         cmd.outfit ||
         cmd.customInstructions !== undefined ||
         cmd.autoHandoff !== undefined ||
+        cmd.autoHandoffTokens !== undefined ||
         cmd.resumeAfterUsageLimit !== undefined ||
         cmd.modelFamily ||
         cmd.agentType ||
@@ -234,7 +231,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
         return;
       }
       setCwdError(null);
-      if (privilegedChanged || cmd.userId || cmd.cwd) {
+      if (privilegedChanged || cmd.userId || cmd.cwd || cmd.autoHandoff !== undefined || cmd.autoHandoffTokens !== undefined) {
         // Round-trip when cwd validation, manager reassignment, or privilege
         // toggle needs a server ack before closing.
         setSaving(true);
@@ -325,8 +322,10 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     setPermissionMode,
     setPrivileged,
     autoHandoff,
+    autoHandoffTokens,
     resumeAfterUsageLimit,
     setAutoHandoff,
+    setAutoHandoffTokens,
     setResumeAfterUsageLimit,
     selectedTemplateKey,
     subtitle,

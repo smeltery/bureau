@@ -163,7 +163,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - The search box in the task view matches task IDs, titles, and descriptions — paste a partial ID from a log entry to jump straight to it
 
 ### Slash Commands & Autocomplete
-- Automatic handoff is an opt-in setting for existing agents. At 85% context or 500,000 tokens, whichever comes first (earlier for known engine compaction limits), Bureau asks for a brief and starts fresh context ahead of queued messages. Stop cancels it; failures preserve the conversation, and an already-full fresh conversation pauses instead of looping.
+- Automatic handoff is an opt-in setting at spawn or in agent settings, with a per-agent token limit from 50,000 to 10,000,000 (default 500,000). At 85% context or that limit, whichever comes first (earlier for known engine compaction limits), Bureau asks for a brief and starts fresh context ahead of queued messages. Stop cancels it; failures preserve the conversation, and an already-full fresh conversation pauses instead of looping.
 - Built-in commands: /clear, /help, /cost, /context, /resume, /model, /effort (switch thinking effort level)
 - Bureau-specific: /bureau-diff (rich diff card), /bureau-edit (open a file in the editor side panel), /bureau-system-prompt (inspect your effective system prompt), /bureau-cronjob-system-prompt (inspect a cron job's system prompt by name or id), /bureau-usage (per-agent + per-room + per-cron-job cost report), /bureau-storage (persisted office footprint — transcripts, attachments, Codex home, memory, cronjobs, backups, per-agent data — with an opt-in prune that only deletes when explicitly applied), /bureau-message (send a message to another agent)
 - User skills from ~/.claude/skills/ and project commands

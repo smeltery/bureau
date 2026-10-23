@@ -1,3 +1,4 @@
+import { handoffSettingsError } from "../../shared/agents/handoff.ts";
 import { cancelUsageResume } from "./conversation/usage-resume.ts";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../shared/types.ts";
 import { getBackend } from "../backends/index.ts";
@@ -33,12 +34,16 @@ export async function editAgent(
     effort?: AgentInfo["effort"];
     userId?: string | null;
     autoHandoff?: boolean;
+    autoHandoffTokens?: number;
     resumeAfterUsageLimit?: boolean;
   },
   actor = "an office member",
 ) {
   const managed = agents.get(agentId);
   if (!managed) return;
+
+  const handoffError = handoffSettingsError(changes);
+  if (handoffError) throw new Error(handoffError);
 
   const before = { ...managed.info };
   const interrupted = managed.info.state === "thinking" || managed.info.state === "tool_executing" || managed.pendingTurn !== null;
@@ -126,6 +131,11 @@ export async function editAgent(
   if (changes.effort && changes.effort !== managed.info.effort) {
     managed.info.effort = changes.effort;
     updated.effort = changes.effort;
+  }
+
+  if (changes.autoHandoffTokens !== undefined && changes.autoHandoffTokens !== managed.info.autoHandoffTokens) {
+    managed.info.autoHandoffTokens = changes.autoHandoffTokens;
+    updated.autoHandoffTokens = changes.autoHandoffTokens;
   }
 
   if (typeof changes.autoHandoff === "boolean" && changes.autoHandoff !== managed.info.autoHandoff) {

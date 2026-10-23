@@ -19,6 +19,7 @@ export interface PersistedAgent {
   agentType?: AgentInfo["agentType"];
   privileged?: boolean;
   autoHandoff?: boolean;
+  autoHandoffTokens?: number;
   resumeAfterUsageLimit?: boolean;
   usageResumePlan?: { sessionId: string; dueAt: number };
   codexSandbox?: AgentInfo["codexSandbox"];

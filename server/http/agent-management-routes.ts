@@ -1,3 +1,4 @@
+import { handoffSettingsError } from "../../shared/agents/handoff.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { AgentEditConflictError } from "../agents/settings.ts";
 import { agents } from "../agents/state.ts";
@@ -41,6 +42,8 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
     if (denied) return denied;
     const body = await readJsonBody(req);
     if (!body) return jsonError(400, "invalid JSON body");
+    const handoffError = handoffSettingsError(body);
+    if (handoffError) return jsonError(422, handoffError);
     const cwd = typeof body.cwd === "string" ? body.cwd : undefined;
     if (cwd) {
       try {
@@ -85,6 +88,7 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
           codexSandbox: typeof body.codexSandbox === "string" ? (body.codexSandbox as AgentInfo["codexSandbox"]) : undefined,
           effort: typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
           userId: nextUserId,
+          autoHandoffTokens: body.autoHandoffTokens as number | undefined,
           autoHandoff: typeof body.autoHandoff === "boolean" ? body.autoHandoff : undefined,
           resumeAfterUsageLimit: typeof body.resumeAfterUsageLimit === "boolean" ? body.resumeAfterUsageLimit : undefined,
         },

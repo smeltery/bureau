@@ -1,3 +1,4 @@
+import { handoffSettingsError } from "../../shared/agents/handoff.ts";
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
@@ -40,6 +41,13 @@ function validateManagerReassignment(agentId: string, nextUserId: string): strin
 }
 
 export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket<unknown>): Promise<boolean> {
+  if (cmd.type === "spawn" || cmd.type === "edit_agent") {
+    const error = handoffSettingsError(cmd);
+    if (error) {
+      if (cmd.requestId) ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error } as ServerMessage));
+      return true;
+    }
+  }
   switch (cmd.type) {
     case "ping":
       ws.send(JSON.stringify({ type: "pong" } as ServerMessage));
@@ -76,6 +84,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
         cmd.codexSandbox,
         cmd.effort,
         getWsUser(ws)?.id ?? null,
+        { autoHandoff: cmd.autoHandoff, autoHandoffTokens: cmd.autoHandoffTokens },
       );
       if (cmd.requestId) {
         ws.send(
@@ -170,6 +179,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
             customInstructions: cmd.customInstructions,
             customInstructionsVersion: cmd.customInstructionsVersion,
             autoHandoff: cmd.autoHandoff,
+            autoHandoffTokens: cmd.autoHandoffTokens,
             resumeAfterUsageLimit: cmd.resumeAfterUsageLimit,
             agentType: cmd.agentType,
             modelFamily: modelSelection.modelFamily,

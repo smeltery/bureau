@@ -1,3 +1,4 @@
+import { HandoffFields } from "./agent-form/HandoffFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { AgentBackendType, AgentInfo, KilledAgentSummary } from "../../../shared/types.ts";
 import { AgentDialogFrame } from "./AgentDialogFrame.tsx";
@@ -36,6 +37,8 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     confirmDiscard,
     customInstructions,
     autoHandoff,
+    autoHandoffTokens,
+    setAutoHandoffTokens,
     setAutoHandoff,
     resumeAfterUsageLimit,
     setResumeAfterUsageLimit,
@@ -151,14 +154,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
           </span>
         </label>
       )}
-      {!isSpawn && (
-        <label style={{ ...labelStyle, display: "block", marginTop: 14 }}>
-          <input type="checkbox" checked={autoHandoff} onChange={(event) => setAutoHandoff(event.target.checked)} /> Automatic handoff
-          <span style={{ display: "block", fontWeight: 400 }}>
-            Continue in a fresh conversation at 85% context or 500,000 tokens, whichever comes first. Bureau writes a brief first and preserves queued messages.
-          </span>
-        </label>
-      )}
+      <HandoffFields labelStyle={labelStyle} inputStyle={inputStyle} enabled={autoHandoff} tokens={autoHandoffTokens} onEnabled={setAutoHandoff} onTokens={setAutoHandoffTokens} />
       <label style={{ ...labelStyle, marginTop: 14 }}>
         {t("dialogs.agent.customInstructions")} <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>{t("common.optional")}</span>
       </label>

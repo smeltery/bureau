@@ -127,3 +127,19 @@ test("a fresh conversation already over threshold pauses instead of looping", as
   expect(managed.autoHandoffSpent).toBe(true);
   expect(logCache.get(managed.info.id)?.some((entry) => entry.content.includes("Automatic handoff paused"))).toBe(true);
 });
+
+test("per-agent token thresholds trigger early without bypassing context safety limits", async () => {
+  expect(handoffThreshold({ maxTokens: 1000000 }, 250000)).toBe(250000);
+  expect(handoffThreshold({ maxTokens: 200000 }, 900000)).toBe(170000);
+  expect(handoffThreshold({ maxTokens: 200000, compactAtTokens: 160000 }, 900000)).toBe(150000);
+  const { managed, sent } = fixture();
+  managed.info.autoHandoffTokens = 50000;
+  managed.session!.getContextUsage = async () => ({ model: "sonnet", totalTokens: 49999, maxTokens: 200000, percentage: 25, categories: [] });
+  observeAutoHandoff(managed, { kind: "turn_completed", status: "completed" });
+  await settle();
+  expect(sent).toHaveLength(0);
+  managed.session!.getContextUsage = async () => ({ model: "sonnet", totalTokens: 50000, maxTokens: 200000, percentage: 25, categories: [] });
+  observeAutoHandoff(managed, { kind: "turn_completed", status: "completed" });
+  await settle();
+  expect(sent[0]).toContain("Reply only with a concise handoff brief");
+});

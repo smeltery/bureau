@@ -1,3 +1,4 @@
+import { handoffTokens } from "../../shared/agents/handoff.ts";
 import type { AgentInfo } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES } from "../../shared/types.ts";
 import { getBackend } from "../backends/index.ts";
@@ -31,6 +32,7 @@ export function buildRestoredAgentInfo(persisted: PersistedAgent, room: number):
     topicStale: false,
     customInstructions: persisted.customInstructions ?? null,
     autoHandoff: persisted.autoHandoff === true,
+    autoHandoffTokens: handoffTokens(persisted.autoHandoffTokens),
     resumeAfterUsageLimit: persisted.resumeAfterUsageLimit !== false,
     customInstructionsVersion: versionOf(persisted.customInstructions ?? ""),
     queue: Array.isArray(persisted.queue) ? persisted.queue : [],
