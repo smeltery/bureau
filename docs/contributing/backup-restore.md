@@ -18,7 +18,9 @@ curl -X POST http://localhost:4000/api/storage/prune \
   -d '{"target":"transcripts","olderThanDays":90,"keepPerAgent":3}'
 ```
 
-Bureau snapshots its state directory once per day into local tarballs.
+Bureau snapshots its state directory into verified local tarballs, every 24 hours
+by default. Owners can change the interval, retention and destination in
+**User Settings → Storage** without restarting the server.
 
 Generated app runtime credentials are excluded, including container app tokens
 and their temporary files. App readiness and exit records remain in the backup.
@@ -54,14 +56,42 @@ Default backup directory:
 ~/bureau-backups
 ```
 
-Override it with:
+For a custom state directory, the default is a sibling directory named
+`<state-directory-name>-backups` (with a leading dot removed from the name).
+Older installations using a custom state directory previously defaulted to
+`~/bureau-backups`; those archives are left untouched. Set that path in Storage
+or `BUREAU_BACKUP_DIR` to continue using it. The destination must be outside the
+state directory, including through symlinks.
+
+Override the saved directory with:
 
 ```sh
 BUREAU_BACKUP_DIR=/path/to/backups bun run server
 ```
 
-Backups are named `bureau-YYYY-MM-DD.tar.gz`. Bureau keeps the seven newest
-tarballs.
+Backups are named `bureau-YYYY-MM-DD.tar.gz`, with a numeric suffix for additional
+runs on the same day. Bureau keeps the seven newest verified tarballs by default.
+
+## Configure Backups
+
+In **User Settings → Storage**, owners can set an interval of 1–720 hours,
+retention of 1–100 verified archives, and an absolute destination path. Leave the
+path empty to restore the default. `BUREAU_BACKUP_DIR` takes precedence and locks
+the directory field while allowing interval and retention changes.
+
+Settings are persisted atomically in `backup-settings.json` inside the state
+directory. The owner browser API is `GET /api/backup/settings` and
+`PATCH /api/backup/settings`; PATCH accepts any subset of `intervalHours`,
+`retention`, and `dir` (an absolute path, or `null` for the default). Personal
+API tokens, agent tokens and loopback access cannot change these settings.
+
+The scheduler checks hourly. A saved change applies at the next check; an
+in-progress backup keeps the settings it started with. Health becomes stale
+after the configured interval plus two hours. Retention runs only after a new
+archive passes verification. Changing destinations leaves all archives in the
+previous directory untouched; move or remove them manually when appropriate.
+Invalid saved settings stop backups with a logged error instead of silently
+falling back or overwriting the file.
 
 ## Restore
 

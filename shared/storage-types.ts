@@ -72,3 +72,19 @@ export interface StoragePruneWire {
   plan: PrunePlanWire;
   applied: PruneApplyWire | null;
 }
+
+export interface BackupSettings {
+  intervalHours: number;
+  retention: number;
+  dir: string | null;
+}
+
+export interface BackupSettingsView {
+  settings: BackupSettings;
+  effectiveDir: string;
+  directoryFromEnvironment: boolean;
+}
+
+export interface BackupSettingsSaved extends BackupSettingsView {
+  previousDir: string | null;
+}

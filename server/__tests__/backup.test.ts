@@ -184,6 +184,24 @@ describe("verified backup publication", () => {
     expect(stale.lastBackupError).toMatch(/more than 26 hours old/);
   });
 
+  test("health follows the configured interval and an in-flight run keeps its snapshot", async () => {
+    const f = fixture();
+    const cfg = { ...config(f), intervalHours: 48, retention: 2 };
+    await runBackupOnceForTest(cfg, deps([{ exitCode: 0, writeArchive: true }, { exitCode: 0 }]).impl);
+    const writtenAt = fs.statSync(path.join(f.backupDir, "bureau-2026-08-13.tar.gz")).mtimeMs;
+    expect(backupStatusForTest(cfg, writtenAt + 49 * 3_600_000).lastBackupOk).toBe(true);
+    expect(backupStatusForTest(cfg, writtenAt + 50 * 3_600_000).lastBackupOk).toBe(false);
+    const running = runBackupOnceForTest(cfg, deps([{ exitCode: 0, writeArchive: true }, { exitCode: 0 }]).impl);
+    cfg.retention = 1;
+    cfg.backupDir = path.join(f.root, "new-destination");
+    await running;
+    expect(finals(f.backupDir)).toHaveLength(2);
+    expect(fs.existsSync(cfg.backupDir)).toBe(false);
+    await runBackupOnceForTest(cfg, deps([{ exitCode: 0, writeArchive: true }, { exitCode: 0 }]).impl);
+    expect(finals(cfg.backupDir)).toHaveLength(1);
+    expect(finals(f.backupDir)).toHaveLength(2);
+  });
+
   test("scheduler startup removes a partial orphaned by a dead process", () => {
     const f = fixture();
     fs.mkdirSync(f.backupDir);

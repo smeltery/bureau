@@ -2,7 +2,6 @@ import { basename, join } from "path";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { errMessage } from "../../shared/errors.ts";
 
-const BACKUP_HEALTH_MAX_AGE_MS = 26 * 60 * 60 * 1000; // 26h
 const FILENAME_PATTERN = /^bureau-(\d{4}-\d{2}-\d{2})(?:-(\d+))?\.tar\.gz$/;
 const PARTIAL_PATTERN = /^\.bureau-backup-.*\.partial$/;
 
@@ -10,6 +9,7 @@ export interface BackupStatus {
   stateDir: string;
   backupDir: string;
   retention: number;
+  intervalHours?: number;
   lastBackupAt: number | null;
   lastBackupOk: boolean | null;
   lastBackupError: string | null;
@@ -22,6 +22,7 @@ export interface BackupConfig {
   stateRootParent: string;
   stateRootName: string;
   retention: number;
+  intervalHours?: number;
   firstBackupMinFreeBytes: number;
   minHeadroomBytes: number;
 }
@@ -57,15 +58,16 @@ interface VerificationMarker {
 export function statusFromDisk(config: BackupConfig, now: number, attemptAt: number | null, attemptError: string | null, isRunning: boolean): BackupStatus {
   const newest = newestVerifiedBackup(config.backupDir);
   const newestAt = newest?.mtimeMs ?? null;
-  const stale = newestAt !== null && now - newestAt >= BACKUP_HEALTH_MAX_AGE_MS;
+  const stale = newestAt !== null && now - newestAt >= ((config.intervalHours ?? 24) + 2) * 3_600_000;
   const failedAfterNewest = attemptError !== null && attemptAt !== null && (newestAt === null || attemptAt > newestAt);
   return {
     stateDir: join(config.stateRootParent, config.stateRootName),
     backupDir: config.backupDir,
     retention: config.retention,
+    intervalHours: config.intervalHours ?? 24,
     lastBackupAt: failedAfterNewest ? attemptAt : newestAt,
     lastBackupOk: newestAt === null ? (failedAfterNewest ? false : null) : !failedAfterNewest && !stale,
-    lastBackupError: failedAfterNewest ? attemptError : stale ? "newest verified backup is more than 26 hours old" : null,
+    lastBackupError: failedAfterNewest ? attemptError : stale ? `newest verified backup is more than ${(config.intervalHours ?? 24) + 2} hours old` : null,
     lastBackupFile: newest?.file ?? null,
     running: isRunning,
   };
