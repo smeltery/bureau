@@ -1,5 +1,6 @@
+import { listTranscripts, readTranscript, deleteTranscript } from "../persistence/logs/transcript-files.ts";
 import { dirname, join, resolve, sep } from "path";
-import { lstatSync, readdirSync, readFileSync, realpathSync, unlinkSync } from "fs";
+import { lstatSync, readdirSync, realpathSync, unlinkSync } from "fs";
 import type { PruneCandidateWire, PrunePlanWire, PruneSkipReason, PruneSkipWire, PruneTarget } from "../../shared/storage-types.ts";
 
 export interface PruneOptions {
@@ -36,7 +37,7 @@ function addSkip(ledger: SkipLedger, path: string, reason: PruneSkipReason, byte
   ledger.byPath.set(path, reason);
 }
 
-function listAgentDirs(logsDir: string): string[] {
+export function listAgentDirs(logsDir: string): string[] {
   try {
     return readdirSync(logsDir, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && entry.name.startsWith("agent-"))
@@ -71,24 +72,12 @@ function planTranscripts(deps: PruneDeps, options: PruneOptions, ledger: SkipLed
 
   for (const agentId of listAgentDirs(deps.logsDir)) {
     const agentDir = join(deps.logsDir, agentId);
-    let entries;
+    let files;
     try {
-      entries = readdirSync(agentDir, { withFileTypes: true });
+      files = listTranscripts(agentDir).sort((a, b) => b.mtimeMs - a.mtimeMs);
     } catch {
       continue;
     }
-
-    const files = entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".jsonl"))
-      .flatMap((entry) => {
-        try {
-          const stat = lstatSync(join(agentDir, entry.name));
-          return [{ sessionId: entry.name.slice(0, -".jsonl".length), bytes: stat.size, mtimeMs: stat.mtimeMs }];
-        } catch {
-          return [];
-        }
-      })
-      .sort((a, b) => b.mtimeMs - a.mtimeMs);
 
     const forkAncestors = new Set<string>();
     for (const meta of Object.values(deps.loadSessionsMap(agentId))) {
@@ -96,7 +85,7 @@ function planTranscripts(deps: PruneDeps, options: PruneOptions, ledger: SkipLed
     }
 
     files.forEach((file, index) => {
-      const path = join(agentId, `${file.sessionId}.jsonl`);
+      const path = join(agentId, file.name);
       if (deps.activeSessionIds.has(file.sessionId)) return addSkip(ledger, path, "active-session", file.bytes);
       if (index < options.keepPerAgent) return addSkip(ledger, path, "keep-newest", file.bytes);
       if (forkAncestors.has(file.sessionId)) return addSkip(ledger, path, "fork-ancestor", file.bytes);
@@ -117,15 +106,8 @@ function planTranscripts(deps: PruneDeps, options: PruneOptions, ledger: SkipLed
 
 function referencedAttachments(agentDir: string): Set<string> {
   const referenced = new Set<string>();
-  let entries;
-  try {
-    entries = readdirSync(agentDir, { withFileTypes: true });
-  } catch {
-    return referenced;
-  }
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".jsonl")) continue;
-    const raw = readFileSync(join(agentDir, entry.name), "utf8");
+  for (const file of listTranscripts(agentDir)) {
+    const raw = readTranscript(agentDir, file.sessionId).toString("utf8");
     for (const match of raw.matchAll(FILENAME_REF)) {
       referenced.add(match[1]);
       try {
@@ -269,7 +251,7 @@ export function applyPrune(plan: PrunePlanWire, deps: PruneDeps): { deleted: num
       refused.push({ path: candidate.path, reason: reason ? `became-${reason}` : "missing" });
       continue;
     }
-    if (live.mtimeMs !== candidate.mtimeMs) {
+    if (live.mtimeMs !== candidate.mtimeMs || live.bytes !== candidate.bytes) {
       refused.push({ path: candidate.path, reason: "modified-since-plan" });
       continue;
     }
@@ -282,9 +264,12 @@ export function applyPrune(plan: PrunePlanWire, deps: PruneDeps): { deleted: num
         refused.push({ path: candidate.path, reason: "not-a-regular-file" });
         continue;
       }
-      unlinkSync(abs);
+      if (plan.target === "transcripts") bytes += deleteTranscript(abs);
+      else {
+        unlinkSync(abs);
+        bytes += live.bytes;
+      }
       deleted += 1;
-      bytes += live.bytes;
     } catch (err) {
       refused.push({ path: candidate.path, reason: err instanceof Error ? err.message : "unlink-failed" });
     }

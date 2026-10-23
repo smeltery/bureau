@@ -1,5 +1,6 @@
 import { lstatSync, readdirSync } from "fs";
 import { join } from "path";
+import { transcriptName } from "./persistence/logs/transcript-files.ts";
 import type { AgentStorageWire, StorageCategoryId, StorageCategoryWire, StorageUsageWire } from "../shared/storage-types.ts";
 
 interface DirUsage {
@@ -82,7 +83,7 @@ function measureLogs(logsDir: string): LogsBreakdown {
     const agentDir = join(logsDir, agentId);
     let transcriptBytes = 0;
     let attachmentBytes = 0;
-    let sessions = 0;
+    const sessionIds = new Set<string>();
     let lastActivityAt: number | null = null;
 
     let entries;
@@ -110,9 +111,10 @@ function measureLogs(logsDir: string): LogsBreakdown {
         continue;
       }
 
-      if (entry.name.endsWith(".jsonl")) {
+      const transcript = transcriptName(entry.name);
+      if (transcript) {
         transcriptBytes += stat.size;
-        sessions++;
+        sessionIds.add(transcript.sessionId);
         transcripts.bytes += stat.size;
         transcripts.files++;
         lastActivityAt = Math.max(lastActivityAt ?? 0, stat.mtimeMs);
@@ -122,7 +124,7 @@ function measureLogs(logsDir: string): LogsBreakdown {
       }
     }
 
-    agents.push({ agentId, transcriptBytes, attachmentBytes, sessions, lastActivityAt });
+    agents.push({ agentId, transcriptBytes, attachmentBytes, sessions: sessionIds.size, lastActivityAt });
   }
 
   agents.sort((a, b) => b.transcriptBytes + b.attachmentBytes - (a.transcriptBytes + a.attachmentBytes));

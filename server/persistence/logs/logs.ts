@@ -1,5 +1,6 @@
 import { join } from "path";
-import { mkdirSync, appendFileSync, readFileSync, existsSync } from "fs";
+import { appendTranscript, readTranscript } from "./transcript-files.ts";
+import { mkdirSync } from "fs";
 import type { LogEntry } from "../../../shared/types.ts";
 import { LOGS_DIR } from "../paths.ts";
 import { EXTENSION_TO_MIME } from "../files.ts";
@@ -15,8 +16,7 @@ export function appendLog(agentId: string, sessionId: string, entry: LogEntry) {
   try {
     const agentDir = join(LOGS_DIR, agentId);
     mkdirSync(agentDir, { recursive: true });
-    const logFile = join(agentDir, `${sessionId}.jsonl`);
-    appendFileSync(logFile, JSON.stringify(entry) + "\n");
+    appendTranscript(agentDir, sessionId, JSON.stringify(entry) + "\n");
   } catch (err) {
     console.error("Failed to write log:", err);
   }
@@ -25,9 +25,7 @@ export function appendLog(agentId: string, sessionId: string, entry: LogEntry) {
 // Load log entries from a session's JSONL file
 export function loadLog(agentId: string, sessionId: string): LogEntry[] {
   try {
-    const logFile = join(LOGS_DIR, agentId, `${sessionId}.jsonl`);
-    if (!existsSync(logFile)) return [];
-    const content = readFileSync(logFile, "utf-8").trim();
+    const content = readTranscript(join(LOGS_DIR, agentId), sessionId).toString("utf8").trim();
     if (!content) return [];
     return content.split("\n").map((line) => {
       const entry = JSON.parse(line) as LogEntry & { images?: string[] };
@@ -43,7 +41,7 @@ export function loadLog(agentId: string, sessionId: string): LogEntry[] {
       return entry as LogEntry;
     });
   } catch (err) {
-    console.error("Failed to load log:", err);
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") console.error("Failed to load log:", err);
     return [];
   }
 }

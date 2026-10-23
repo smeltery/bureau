@@ -88,3 +88,22 @@ export interface BackupSettingsView {
 export interface BackupSettingsSaved extends BackupSettingsView {
   previousDir: string | null;
 }
+
+export interface CompressionPlan {
+  olderThanDays: number;
+  candidates: { path: string; agentId: string; sessionId: string; bytes: number; mtimeMs: number }[];
+  bytes: number;
+  skipped: { reason: "active-session" | "too-recent"; count: number; bytes: number }[];
+}
+
+export interface CompressionResult {
+  compressed: number;
+  bytesBefore: number;
+  bytesAfter: number;
+  refused: { path: string; reason: string }[];
+}
+
+export interface StorageCompressionWire {
+  plan: CompressionPlan;
+  applied: CompressionResult | null;
+}

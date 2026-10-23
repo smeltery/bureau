@@ -1,3 +1,4 @@
+import { handleCompressionRequest } from "../storage/compress-http.ts";
 import { handleBackupSettingsRequest } from "../backup/http.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { agents } from "../agents/state.ts";
@@ -35,6 +36,7 @@ function defaultDeps(): StorageRouteDeps {
 }
 
 export async function handleStorageRequest(req: Request, url: URL, auth: AuthResult | undefined, routeDeps?: StorageRouteDeps): Promise<Response | null> {
+  if (url.pathname === "/api/storage/compress") return handleCompressionRequest(req, auth);
   if (url.pathname === "/api/backup/settings") return handleBackupSettingsRequest(req, auth);
   if (url.pathname !== "/api/storage/usage" && url.pathname !== "/api/storage/prune") return null;
   if (auth?.kind !== "ok") return jsonError(401, "unauthenticated");
