@@ -11,8 +11,8 @@ const WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 // --- request building (pure) -------------------------------------------------
 
-// A header name must be an RFC 7230 token, and a value must carry no control
-// character. This is not pedantry: the request below is BYTES, assembled with
+// A header name must be a token; field values may include horizontal tabs
+// (RFC 9110 section 5.5). The request below is bytes assembled with
 // CRLFs, and these names and values come from a browser's request. A value
 // holding a CRLF would let a visitor write extra headers — or a whole extra
 // request — into what the app receives.
@@ -25,9 +25,8 @@ export function isSafeHeaderName(name: string): boolean {
 export function isSafeHeaderValue(value: string): boolean {
   for (let i = 0; i < value.length; i++) {
     const code = value.charCodeAt(i);
-    // No CR, LF, NUL or any other C0 control; no DEL. A leading or trailing
-    // space is legal in a field value and harmless.
-    if (code < 0x20 || code === 0x7f) return false;
+    // Permit HTAB field whitespace, but never CR, LF, NUL or DEL.
+    if ((code < 0x20 && code !== 0x09) || code === 0x7f) return false;
   }
   return true;
 }
@@ -76,7 +75,7 @@ const CLIENT_OWNED_HEADERS = new Set([
 
 export function buildHandshakeRequest(req: HandshakeRequest): Buffer | null {
   if (!isSafeRequestTarget(req.target)) return null;
-  if (!isSafeHeaderValue(req.host) || req.host.length === 0) return null;
+  if (!isSafeHeaderValue(req.host) || /[\t ]/.test(req.host) || req.host.length === 0) return null;
   if (!req.protocols.every(isSafeProtocolToken)) return null;
   const lines = [`GET ${req.target} HTTP/1.1`, `Host: ${req.host}`, "Upgrade: websocket", "Connection: Upgrade", "Sec-WebSocket-Version: 13", `Sec-WebSocket-Key: ${req.key}`];
   if (req.protocols.length > 0) {

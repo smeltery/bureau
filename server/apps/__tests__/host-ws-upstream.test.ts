@@ -50,7 +50,7 @@ describe("host-ws-upstream: a real app", () => {
     const got = collector();
     const dialed = await dialApp(portOf(app), got, {
       target: "/socket?room=1",
-      headers: { "X-Forwarded-For": "203.0.113.5", Cookie: "app_pref=blue" },
+      headers: { "X-Forwarded-For": "203.0.113.5", Cookie: "app_pref=blue", "X-Context": "left\tright" },
       protocols: ["graphql-ws"],
     });
     expect(dialed.ok).toBe(true);
@@ -59,6 +59,7 @@ describe("host-ws-upstream: a real app", () => {
     expect(headers.host).toBe("hello.office.example");
     expect(headers["x-forwarded-for"]).toBe("203.0.113.5");
     expect(headers.cookie).toBe("app_pref=blue");
+    expect(headers["x-context"]).toBe("left\tright");
     expect(headers["sec-websocket-protocol"]).toBe("graphql-ws");
   });
 
