@@ -25,6 +25,11 @@ pin together with the Linux runtime.
 Flox is the supported path but not required — any matching Bun works with the
 plain `bun install` / `bun run dev` flow.
 
+The postinstall step removes obsolete nested KaTeX packages left by incremental
+installs, so Mermaid uses the patched dependency override. The math-renderer
+regression test checks both direct and Mermaid dependency resolution. After
+updating dependencies, rebuild the UI to serve the patched renderer.
+
 ## Quality gate
 
 App PRs run `.github/workflows/ci.yml`, which activates the Flox environment,
