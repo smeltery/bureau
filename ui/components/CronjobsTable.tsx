@@ -1,31 +1,9 @@
+import { useI18n } from "../i18n.tsx";
+import { scheduleDescription, lastRunTime, nextRunTime } from "./schedules/format.ts";
 import { useAppState } from "../store.tsx";
 import { useState, type CSSProperties } from "react";
-import { humanizeSchedule, type Cronjob, type CronjobRun } from "../../shared/types.ts";
+import { type Cronjob, type CronjobRun } from "../../shared/types.ts";
 import { StatusShape } from "../icons/StatusShape.tsx";
-
-function timeAgo(ts: number | null): string {
-  if (!ts) return "—";
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function timeUntil(ts: number): string {
-  const diff = ts - Date.now();
-  if (diff <= 0) return "any moment";
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "<1m";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h${mins % 60 ? ` ${mins % 60}m` : ""}`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ${hours % 24}h`;
-}
 
 export function CronjobsTable({
   cronjobs,
@@ -46,6 +24,8 @@ export function CronjobsTable({
   onToggleEnabled: (c: Cronjob) => void;
   onRunNow: (c: Cronjob) => void;
 }) {
+  const { t, language } = useI18n();
+  const number = new Intl.NumberFormat(language);
   const { sessionContext } = useAppState();
   const canManage = (job: Cronjob) => sessionContext?.role === "owner" || (!!sessionContext?.userId && job.userId === sessionContext.userId);
   // Brief visual ack after clicking Run. Cleared after 1.8s so subsequent
@@ -77,7 +57,7 @@ export function CronjobsTable({
   };
 
   if (cronjobs.length === 0) {
-    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{loaded ? `No schedules yet. Click "+ New" to create one.` : "Loading..."}</div>;
+    return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{loaded ? t("schedules.empty") : t("common.loadingDots")}</div>;
   }
 
   return (
@@ -85,12 +65,12 @@ export function CronjobsTable({
       <thead>
         <tr>
           <th style={{ ...thStyle, width: 30 }}></th>
-          <th style={thStyle}>NAME</th>
-          {!isMobile && <th style={thStyle}>SCHEDULE</th>}
-          {!isMobile && <th style={thStyle}>LAST RUN</th>}
-          <th style={thStyle}>NEXT RUN</th>
-          <th style={{ ...thStyle, width: 80 }}>RUNS</th>
-          {!isMobile && <th style={thStyle}>BY</th>}
+          <th style={thStyle}>{t("common.name")}</th>
+          {!isMobile && <th style={thStyle}>{t("schedules.column.schedule")}</th>}
+          {!isMobile && <th style={thStyle}>{t("schedules.column.last")}</th>}
+          <th style={thStyle}>{t("schedules.column.next")}</th>
+          <th style={{ ...thStyle, width: 80 }}>{t("schedules.column.runs")}</th>
+          {!isMobile && <th style={thStyle}>{t("schedules.column.by")}</th>}
           <th style={{ ...thStyle, width: 130 }}></th>
         </tr>
       </thead>
@@ -117,7 +97,7 @@ export function CronjobsTable({
                 }}
               >
                 <span
-                  title={c.enabled ? "Enabled (click to pause)" : "Paused (click to enable)"}
+                  title={c.enabled ? t("schedules.enabledToggle") : t("schedules.pausedToggle")}
                   style={{
                     display: "inline-block",
                     width: 10,
@@ -148,20 +128,21 @@ export function CronjobsTable({
                         verticalAlign: "middle",
                       }}
                     >
-                      <StatusShape kind="dot" /> running{inFlight > 1 ? ` ×${inFlight}` : ""}
+                      <StatusShape kind="dot" /> {t("schedules.running")}
+                      {inFlight > 1 ? ` ×${number.format(inFlight)}` : ""}
                     </span>
                   );
                 })()}
               </td>
-              {!isMobile && <td style={{ padding: cellPad, fontSize: 12, color: "var(--text-secondary)", fontFamily: "'JetBrains Mono',monospace" }}>{humanizeSchedule(c.schedule)}</td>}
-              {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{timeAgo(c.lastFireAt)}</td>}
+              {!isMobile && <td style={{ padding: cellPad, fontSize: 12, color: "var(--text-secondary)", fontFamily: "'JetBrains Mono',monospace" }}>{scheduleDescription(c.schedule, language)}</td>}
+              {!isMobile && <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{lastRunTime(c.lastFireAt, language)}</td>}
               <td style={{ padding: cellPad, fontSize: 11, color: c.enabled ? "var(--text-secondary)" : "var(--text-ghost)", fontFamily: "'JetBrains Mono',monospace" }}>
-                {c.schedule.type === "manual" ? "On demand" : !c.enabled ? "paused" : c.nextFireAt === null ? "—" : `in ${timeUntil(c.nextFireAt)}`}
+                {c.schedule.type === "manual" ? t("schedules.manual") : !c.enabled ? t("common.paused") : c.nextFireAt === null ? "—" : nextRunTime(c.nextFireAt, language)}
               </td>
-              <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{runs.length}</td>
+              <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{number.format(runs.length)}</td>
               {!isMobile && (
                 <td style={{ padding: cellPad, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
-                  {c.username && c.username !== c.createdBy ? `${c.createdBy} · for ${c.username}` : c.createdBy}
+                  {c.username && c.username !== c.createdBy ? t("schedules.forMember", { creator: c.createdBy, member: c.username }) : c.createdBy}
                   {c.device && c.device !== c.createdBy && c.device !== c.username ? ` (${c.device})` : ""}
                 </td>
               )}
@@ -170,7 +151,7 @@ export function CronjobsTable({
                   <button
                     disabled={!canManage(c)}
                     onClick={() => handleRunClick(c)}
-                    title="Run now"
+                    title={t("schedules.runNow")}
                     style={{
                       padding: "3px 10px",
                       borderRadius: 4,
@@ -183,12 +164,12 @@ export function CronjobsTable({
                       transition: "background 0.2s, color 0.2s, border-color 0.2s",
                     }}
                   >
-                    Run
+                    {t("schedules.run")}
                   </button>
                   <button
                     disabled={!canManage(c)}
                     onClick={() => onEdit(c)}
-                    title="Edit"
+                    title={t("common.edit")}
                     style={{
                       padding: "3px 10px",
                       borderRadius: 4,
@@ -200,7 +181,7 @@ export function CronjobsTable({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Edit
+                    {t("common.edit")}
                   </button>
                 </div>
               </td>

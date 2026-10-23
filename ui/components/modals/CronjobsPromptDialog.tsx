@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../../store.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
@@ -5,10 +6,11 @@ import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 import { shouldHostCloseOnEscape } from "./expandedEditorState.ts";
 
 export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
   const { cronjobsPrompt, isMobile } = useAppState();
   const [text, setText] = useState(cronjobsPrompt ?? "");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | { key: "schedules.saveFailed" } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
           removeRawListener(listener);
           setSaving(false);
           if (msg.ok) onClose();
-          else setError(msg.error || "Save failed");
+          else setError(msg.error || { key: "schedules.saveFailed" });
         }
       } catch {}
     };
@@ -87,18 +89,18 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
           animation: "hudIn 0.2s ease-out",
         }}
       >
-        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Schedules Settings</h3>
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{t("schedules.settingsTitle")}</h3>
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>
-          Rules <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(system prompt for all schedules)</span>
+          {t("schedules.rules")} <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>{t("schedules.rulesScope")}</span>
         </label>
         <ExpandableTextarea
           textareaRef={textareaRef}
-          title="Schedule Rules"
-          hint="System prompt for all schedules. Applied to the next run; in-flight runs use their captured snapshot."
+          title={t("schedules.rulesTitle")}
+          hint={t("schedules.rulesHint")}
           value={text}
           onChange={setText}
-          placeholder="e.g. Always write findings to a markdown file. Be terse."
+          placeholder={t("schedules.rulesExample")}
           rows={8}
           style={{
             width: "100%",
@@ -114,9 +116,9 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
             resize: "vertical",
           }}
         />
-        <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Applied to the next run; in-flight runs use their captured snapshot.</p>
+        <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>{t("schedules.nextRunHint")}</p>
 
-        {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "10px 0 0" }}>{error}</p>}
+        {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "10px 0 0" }}>{typeof error === "string" ? error : t(error.key)}</p>}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
           <button
@@ -132,7 +134,7 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
               cursor: "pointer",
             }}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={handleSave}
@@ -148,7 +150,7 @@ export function CronjobsPromptDialog({ onClose }: { onClose: () => void }) {
               cursor: "pointer",
             }}
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("common.saving") : t("common.save")}
           </button>
         </div>
       </div>

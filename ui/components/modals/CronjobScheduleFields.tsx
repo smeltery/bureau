@@ -1,14 +1,6 @@
+import { useI18n } from "../../i18n.tsx";
+import { weekdayLabel } from "../schedules/format.ts";
 import type { Schedule } from "../../../shared/types.ts";
-
-const WEEKDAYS: { value: 0 | 1 | 2 | 3 | 4 | 5 | 6; label: string }[] = [
-  { value: 0, label: "Sunday" },
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-];
 
 export type ScheduleType = Schedule["type"];
 
@@ -70,14 +62,15 @@ export function CronjobScheduleFields({
   labelStyle: React.CSSProperties;
   inputStyle: React.CSSProperties;
 }) {
+  const { t, language } = useI18n();
   return (
     <>
-      <label style={{ ...labelStyle, marginTop: 14 }}>Schedule</label>
+      <label style={{ ...labelStyle, marginTop: 14 }}>{t("schedules.column.schedule")}</label>
       <select value={scheduleType} onChange={(e) => setScheduleType(e.target.value as ScheduleType)} style={{ ...inputStyle, appearance: "none", cursor: "pointer", marginBottom: 6 }}>
-        <option value="manual">On demand</option>
-        <option value="daily">Daily</option>
-        <option value="weekly">Weekly</option>
-        <option value="interval">Every N minutes</option>
+        <option value="manual">{t("schedules.manual")}</option>
+        <option value="daily">{t("schedules.daily")}</option>
+        <option value="weekly">{t("schedules.weekly")}</option>
+        <option value="interval">{t("schedules.interval")}</option>
       </select>
       {scheduleType === "weekly" && (
         <select
@@ -85,9 +78,9 @@ export function CronjobScheduleFields({
           onChange={(e) => setWeekday(parseInt(e.target.value, 10) as 0 | 1 | 2 | 3 | 4 | 5 | 6)}
           style={{ ...inputStyle, appearance: "none", cursor: "pointer", marginBottom: 6 }}
         >
-          {WEEKDAYS.map((d) => (
-            <option key={d.value} value={d.value}>
-              {d.label}
+          {([0, 1, 2, 3, 4, 5, 6] as const).map((day) => (
+            <option key={day} value={day}>
+              {weekdayLabel(day, language, "long")}
             </option>
           ))}
         </select>
@@ -95,7 +88,7 @@ export function CronjobScheduleFields({
       {(scheduleType === "daily" || scheduleType === "weekly") && (
         <div style={{ display: "flex", gap: 8 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Hour (0-23)</div>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{t("schedules.hour")}</div>
             <input
               type="number"
               min={0}
@@ -107,7 +100,7 @@ export function CronjobScheduleFields({
             />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Minute (0-59)</div>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{t("schedules.minute")}</div>
             <input
               type="number"
               min={0}
@@ -122,7 +115,7 @@ export function CronjobScheduleFields({
       )}
       {scheduleType === "interval" && (
         <div>
-          <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>Interval (minutes, min 5)</div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{t("schedules.intervalMinutes")}</div>
           <input
             type="number"
             min={5}
@@ -133,7 +126,7 @@ export function CronjobScheduleFields({
           />
         </div>
       )}
-      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "6px 0 0" }}>{scheduleType === "manual" ? "Runs only when you choose Run now." : "Times are server-local."}</p>
+      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "6px 0 0" }}>{scheduleType === "manual" ? t("schedules.manualHint") : t("schedules.serverLocal")}</p>
     </>
   );
 }

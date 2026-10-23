@@ -92,12 +92,12 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{isEdit ? t("schedules.dialog.edit") : t("schedules.dialog.new")}</h3>
           {isEdit && <p style={{ fontSize: 11, color: "var(--text-faint)", margin: "2px 0 18px", fontFamily: "'JetBrains Mono',monospace" }}>#{cronjob!.id}</p>}
 
-          <label style={labelStyle}>Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Daily summary" autoFocus={!isEdit} style={inputStyle} />
+          <label style={labelStyle}>{t("common.name")}</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("schedules.nameExample")} autoFocus={!isEdit} style={inputStyle} />
 
-          <label style={labelStyle}>Room</label>
+          <label style={labelStyle}>{t("schedules.room")}</label>
           <select value={roomId} onChange={(event) => setRoomId(event.target.value)} style={inputStyle}>
-            {!roomId && <option value="">Creator only (legacy)</option>}
+            {!roomId && <option value="">{t("schedules.legacyRoom")}</option>}
             {roomOptions.map((room) => (
               <option key={room.id} value={room.id}>
                 {room.name}
@@ -119,18 +119,18 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
             inputStyle={inputStyle}
           />
 
-          <label style={{ ...labelStyle, marginTop: 14 }}>Prompt</label>
+          <label style={{ ...labelStyle, marginTop: 14 }}>{t("schedules.prompt")}</label>
           <ExpandableTextarea
-            title={isEdit ? `${name || "Schedule"} · Prompt` : "Schedule Prompt"}
-            hint="Sent to the agent at every scheduled run."
+            title={isEdit ? t("schedules.promptTitle", { name: name || t("schedules.column.schedule") }) : t("schedules.schedulePrompt")}
+            hint={t("schedules.promptHint")}
             value={prompt}
             onChange={setPrompt}
-            placeholder='e.g. "Summarize what every agent accomplished yesterday."'
+            placeholder={t("schedules.promptExample")}
             rows={4}
             style={{ ...inputStyle, resize: "vertical" }}
           />
 
-          <label style={{ ...labelStyle, marginTop: 14 }}>Working Directory</label>
+          <label style={{ ...labelStyle, marginTop: 14 }}>{t("schedules.cwd")}</label>
           <input value={cwd} onChange={(e) => setCwd(e.target.value)} style={inputStyle} />
           {recentCwdsFiltered.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
@@ -142,14 +142,14 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
             </div>
           )}
 
-          <label style={{ ...labelStyle, marginTop: 14 }}>Backend</label>
+          <label style={{ ...labelStyle, marginTop: 14 }}>{t("schedules.backend")}</label>
           <select value={agentType} onChange={(e) => selectAgentType(e.target.value as AgentBackendType)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
             <option value="claude">Claude</option>
             <option value="codex">Codex</option>
             <option value="opencode">OpenCode</option>
           </select>
 
-          <label style={{ ...labelStyle, marginTop: 14 }}>Model</label>
+          <label style={{ ...labelStyle, marginTop: 14 }}>{t("schedules.model")}</label>
           <select value={modelFamily} onChange={(e) => selectModelFamily(e.target.value)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
             {modelOptions.map((m) => (
               <option key={m.family} value={m.family}>
@@ -165,16 +165,16 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
           )}
           {effortOptions.length > 0 && (
             <>
-              <label style={{ ...labelStyle, marginTop: 14 }}>Effort</label>
+              <label style={{ ...labelStyle, marginTop: 14 }}>{t("schedules.effort")}</label>
               <select value={effort} onChange={(e) => setEffort(e.target.value as EffortLevel)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
                 {!effortOptions.some((option) => option.level === effort) && (
                   <option value={effort} disabled>
-                    {effort} (unsupported)
+                    {t("schedules.unsupportedEffort", { effort })}
                   </option>
                 )}
                 {effortOptions.map((e) => (
                   <option key={e.level} value={e.level}>
-                    {e.label}
+                    {t(`logs.effort.${e.level}`)}
                   </option>
                 ))}
               </select>
@@ -183,33 +183,33 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
 
           {agentType === "codex" && (
             <>
-              <label style={{ ...labelStyle, marginTop: 14 }}>Sandbox</label>
+              <label style={{ ...labelStyle, marginTop: 14 }}>{t("schedules.sandbox")}</label>
               <select value={codexSandbox} onChange={(e) => setCodexSandbox(e.target.value as CodexSandboxMode)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-                <option value="workspace-write">Workspace write</option>
-                <option value="read-only">Read only</option>
-                <option value="danger-full-access">Danger full access</option>
+                <option value="workspace-write">{t("schedules.workspaceWrite")}</option>
+                <option value="read-only">{t("schedules.readOnly")}</option>
+                <option value="danger-full-access">{t("schedules.fullAccess")}</option>
               </select>
             </>
           )}
 
-          <label style={{ ...labelStyle, marginTop: 14 }}>Permission Mode</label>
+          <label style={{ ...labelStyle, marginTop: 14 }}>{t("schedules.permission")}</label>
           <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value as CronjobPermissionMode)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
-            {agentType === "codex" ? <option value="never">Never ask (unattended)</option> : <option value="bypassPermissions">Bypass (auto-approve all)</option>}
+            {agentType === "codex" ? <option value="never">{t("schedules.neverAsk")}</option> : <option value="bypassPermissions">{t("schedules.bypass")}</option>}
           </select>
-          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Schedules run unattended — modes that require human approval are not available.</p>
+          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>{t("schedules.unattended")}</p>
 
           {isEdit && (
             <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8 }}>
               <input type="checkbox" id="cronjob-enabled" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} style={{ width: 16, height: 16, cursor: "pointer" }} />
               <label htmlFor="cronjob-enabled" style={{ fontSize: 12, color: "var(--text-secondary)", cursor: "pointer" }}>
-                Enabled (uncheck to pause without deleting)
+                {t("schedules.enabledHint")}
               </label>
             </div>
           )}
 
           {confirmDelete && (
             <p role="status" style={{ fontSize: 12, color: "var(--text-secondary)", margin: "10px 0 0" }}>
-              Deleting this schedule stops its active runs and cancels pending edits. Run history is kept.
+              {t("schedules.deleteHint")}
             </p>
           )}
           {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "10px 0 0" }}>{error}</p>}
@@ -241,15 +241,15 @@ export function CronjobDialog({ cronjob, username, onClose }: { cronjob?: Cronjo
               }}
               disabled={saving}
             >
-              {confirmDelete ? "Confirm?" : "Delete"}
+              {confirmDelete ? t("common.confirmQuestion") : t("common.delete")}
             </button>
           )}
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={onClose} style={cancelBtnStyle} disabled={saving}>
-              Cancel
+              {t("common.cancel")}
             </button>
             <button onClick={handleSave} style={saveBtnStyle} disabled={saving}>
-              {saving ? "Saving…" : isEdit ? "Save" : "Create"}
+              {saving ? t("common.saving") : isEdit ? t("common.save") : t("common.create")}
             </button>
           </div>
         </div>

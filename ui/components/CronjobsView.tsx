@@ -49,9 +49,9 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
       }}
     >
       <label hidden={tab === "webhooks"} style={{ padding: "6px 12px" }}>
-        Room{" "}
+        {t("schedules.room")}{" "}
         <select value={roomFilter} onChange={(event) => setRoomFilter(event.target.value)}>
-          <option value="">All accessible rooms</option>
+          <option value="">{t("schedules.allRooms")}</option>
           {(allRooms.length ? allRooms : rooms).map((room) => (
             <option key={room.id} value={room.id}>
               {room.name}

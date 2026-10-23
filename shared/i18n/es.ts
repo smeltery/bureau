@@ -1,3 +1,4 @@
+import { schedules } from "./schedules-es.ts";
 import { logs } from "./logs-es.ts";
 import { storage } from "./storage-es.ts";
 import { skills } from "./skills-es.ts";
@@ -5,6 +6,7 @@ import type { Catalog } from "./en.ts";
 // Spanish translations for the office UI catalog.
 export const es = {
   ...logs,
+  ...schedules,
   ...skills,
   ...storage,
   "access.title": "Acceso",
@@ -227,18 +229,6 @@ export const es = {
   "preferences.language": "Idioma",
   "preferences.languageDefault": "Predeterminado",
   "preferences.languageHint": "Los agentes que creas usan este idioma por defecto al responder y al hablar. La interfaz de la oficina también lo sigue.",
-  "schedules.dialog.edit": "Editar programación",
-  "schedules.dialog.new": "Nueva programación",
-  "schedules.empty": 'Aún no hay programaciones. Pulsa "+ Nueva" para crear una.',
-  "schedules.enabledToggle": "Activada (clic para pausar)",
-  "schedules.filterLabel": "Programación:",
-  "schedules.newButton": "+ Nueva",
-  "schedules.pausedToggle": "En pausa (clic para activar)",
-  "schedules.runNow": "Ejecutar ahora",
-  "schedules.runsEmpty": "Aún no hay ejecuciones.",
-  "schedules.tab.cronjobs": "programaciones",
-  "schedules.tab.runs": "ejecuciones",
-  "schedules.title": "Programaciones",
   "sessions.title": "Sesiones",
   "settings.profile.checking": "Comprobando...",
   "settings.profile.displayName": "Nombre visible",

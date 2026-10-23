@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { RefObject } from "react";
 import type { CronjobRunStatus } from "../../shared/types.ts";
 import { StatusShape } from "../icons/StatusShape.tsx";
@@ -23,6 +24,7 @@ export function CronjobRunComposer({
   onInputChange: (value: string, textarea: HTMLTextAreaElement) => void;
   onSend: () => void;
 }) {
+  const { t } = useI18n();
   if (!canResume) {
     return (
       <div
@@ -35,11 +37,7 @@ export function CronjobRunComposer({
           textAlign: "center",
         }}
       >
-        {isRunning
-          ? "Run in progress - wait for it to finish before sending a follow-up."
-          : runStatus === "skipped"
-            ? "Skipped runs have no session to resume."
-            : "This run can't be resumed (no session was established)."}
+        {isRunning ? t("schedules.wait") : runStatus === "skipped" ? t("schedules.skippedSession") : t("schedules.noSession")}
       </div>
     );
   }
@@ -69,7 +67,7 @@ export function CronjobRunComposer({
                 onSend();
               }
             }}
-            placeholder={editingLogEntryId ? "Editing message above..." : "Send a follow-up"}
+            placeholder={editingLogEntryId ? t("schedules.editing") : t("schedules.followUp")}
             autoFocus={!isMobile}
             rows={1}
             disabled={!!editingLogEntryId}
@@ -110,7 +108,7 @@ export function CronjobRunComposer({
               justifyContent: "center",
               lineHeight: 1,
             }}
-            title="Send"
+            title={t("schedules.send")}
           >
             <StatusShape kind="triangle" rotate={-90} />
           </button>

@@ -1,13 +1,7 @@
+import { useI18n } from "../i18n.tsx";
+import { runStartedAt, runTrigger } from "./schedules/format.ts";
 import type { CronjobRun } from "../../shared/types.ts";
 import { shortenCwd } from "../cwd-display.ts";
-
-const STATUS_LABEL: Record<CronjobRun["status"], string> = {
-  running: "Running",
-  completed: "Completed",
-  failed: "Failed",
-  timed_out: "Timed out",
-  skipped: "Skipped",
-};
 
 const STATUS_COLOR: Record<CronjobRun["status"], string> = {
   running: "var(--green)",
@@ -18,6 +12,7 @@ const STATUS_COLOR: Record<CronjobRun["status"], string> = {
 };
 
 export function CronjobRunHeader({ run, runId, isMobile, onClose }: { run: CronjobRun | undefined; runId: string; isMobile: boolean; onClose: () => void }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -45,25 +40,23 @@ export function CronjobRunHeader({ run, runId, isMobile, onClose }: { run: Cronj
       >
         &larr;
       </button>
-      {run ? <RunTitle run={run} isMobile={isMobile} /> : <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Run #{runId}</span>}
+      {run ? <RunTitle run={run} isMobile={isMobile} /> : <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{t("schedules.runTitle", { id: runId })}</span>}
     </div>
   );
 }
 
 function RunTitle({ run, isMobile }: { run: CronjobRun; isMobile: boolean }) {
-  const timestamp = new Date(run.startedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  const trigger =
-    run.trigger === "manual"
-      ? `manual${run.triggeredBy ? ` \u00b7 ${run.triggeredBy}` : ""}`
-      : run.trigger === "webhook"
-        ? `webhook · ${run.webhook?.deliveryId ?? run.triggeredBy ?? ""}`
-        : "scheduled";
+  const { t, language } = useI18n();
+  const timestamp = runStartedAt(run.startedAt, language, true);
+  const trigger = runTrigger(run, language);
   if (isMobile) {
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, padding: "6px 0", gap: 2 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{run.cronjobName}</span>
-          <span style={{ fontSize: 11, color: STATUS_COLOR[run.status], fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, flexShrink: 0 }}>{STATUS_LABEL[run.status]}</span>
+          <span style={{ fontSize: 11, color: STATUS_COLOR[run.status], fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, flexShrink: 0 }}>
+            {t(`schedules.status.${run.status === "timed_out" ? "timedOut" : run.status}`)}
+          </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
           <span>{timestamp}</span>
@@ -75,7 +68,9 @@ function RunTitle({ run, isMobile }: { run: CronjobRun; isMobile: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
       <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{run.cronjobName}</span>
-      <span style={{ fontSize: 11, color: STATUS_COLOR[run.status], fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>{STATUS_LABEL[run.status]}</span>
+      <span style={{ fontSize: 11, color: STATUS_COLOR[run.status], fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>
+        {t(`schedules.status.${run.status === "timed_out" ? "timedOut" : run.status}`)}
+      </span>
       <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{timestamp}</span>
       <span style={{ fontSize: 11, color: "var(--text-ghost)", fontFamily: "'JetBrains Mono',monospace" }}>{trigger}</span>
     </div>
@@ -83,6 +78,7 @@ function RunTitle({ run, isMobile }: { run: CronjobRun; isMobile: boolean }) {
 }
 
 export function CronjobRunSummary({ run }: { run: CronjobRun }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -96,14 +92,14 @@ export function CronjobRunSummary({ run }: { run: CronjobRun }) {
         fontFamily: "'JetBrains Mono',monospace",
       }}
     >
-      <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>PROMPT</div>
+      <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>{t("schedules.prompt")}</div>
       <div style={{ whiteSpace: "pre-wrap" }}>{run.promptSnapshot}</div>
       <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-ghost)" }}>
-        cwd: {shortenCwd(run.cwdSnapshot)} {"\u00b7"} backend: {run.agentTypeSnapshot} {"\u00b7"} model: {run.modelFamilySnapshot} {"\u00b7"} effort: {run.effortSnapshot} {"\u00b7"} permission:{" "}
-        {run.permissionModeSnapshot}
-        {run.codexSandboxSnapshot ? ` \u00b7 sandbox: ${run.codexSandboxSnapshot}` : ""}
+        {t("schedules.cwd")}: {shortenCwd(run.cwdSnapshot)} {"\u00b7"} {t("schedules.backend")}: {run.agentTypeSnapshot} {"\u00b7"} {t("schedules.model")}: {run.modelFamilySnapshot} {"\u00b7"}{" "}
+        {t("schedules.effort")}: {run.effortSnapshot} {"\u00b7"} {t("schedules.permission")}: {run.permissionModeSnapshot}
+        {run.codexSandboxSnapshot ? ` · ${t("schedules.sandbox")}: ${run.codexSandboxSnapshot}` : ""}
       </div>
-      {run.errorReason && <div style={{ marginTop: 8, fontSize: 11, color: "var(--red)" }}>Error: {run.errorReason}</div>}
+      {run.errorReason && <div style={{ marginTop: 8, fontSize: 11, color: "var(--red)" }}>{t("schedules.error", { error: run.errorReason })}</div>}
     </div>
   );
 }

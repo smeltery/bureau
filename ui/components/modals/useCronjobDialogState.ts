@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useModelOptions } from "../../hooks/models/useModelOptions.ts";
 import { modelEfforts } from "../../hooks/models/model-options.ts";
 import { useAppState } from "../../store.tsx";
@@ -24,6 +25,7 @@ export function defaultCronjobCodexSandboxForTest(): CodexSandboxMode {
 }
 
 export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?: Cronjob; username: string; onClose: () => void }) {
+  const { t } = useI18n();
   const { rooms, currentRoom, allRooms, sessionContext } = useAppState();
   const [roomId, setRoomId] = useState(cronjob?.roomId ?? rooms[currentRoom]?.id ?? rooms[0]?.id ?? "");
   const isEdit = !!cronjob;
@@ -56,7 +58,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
   const effortOptions = modelEfforts(agentType, modelFamily, modelOptions);
   const [enabled, setEnabled] = useState(cronjob?.enabled ?? true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | { key: "schedules.promptEmpty" | "schedules.saveFailed" } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const pendingListener = useRef<((data: string) => void) | null>(null);
 
@@ -81,7 +83,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
 
   function handleSave() {
     if (!prompt.trim()) {
-      setError("Prompt cannot be empty.");
+      setError({ key: "schedules.promptEmpty" });
       return;
     }
     const reqId = `cronjob-save-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -95,7 +97,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
           pendingListener.current = null;
           setSaving(false);
           if (msg.ok) onClose();
-          else setError(msg.error || "Save failed");
+          else setError(msg.error || { key: "schedules.saveFailed" });
         }
       } catch {}
     };
@@ -175,7 +177,7 @@ export function useCronjobDialogState({ cronjob, username, onClose }: { cronjob?
     effort,
     effortOptions,
     enabled,
-    error,
+    error: error && typeof error !== "string" ? t(error.key) : error,
     handleDelete,
     handleSave,
     hourStr,
