@@ -1,5 +1,6 @@
+import { displayLogContent } from "../../../shared/i18n/log-message.ts";
 import { afterEach, expect, spyOn, test } from "bun:test";
-import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
+import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo, type LogEntry } from "../../../shared/types.ts";
 import type { BackendSession } from "../../backends/types.ts";
 import { claudeBackend } from "../../backends/claude.ts";
 import { createManagedAgent } from "../managed-factory.ts";
@@ -35,6 +36,7 @@ function fixture(freshIsFull = false) {
   };
   const managed = createManagedAgent({ info, skillCwd: process.cwd(), slashCommands: [], skills: [] });
   const sent: string[] = [];
+  const notices: LogEntry[] = [];
   function session(brief = "Continue in src/widget.ts", full = true): BackendSession {
     return {
       async *stream() {},
@@ -43,6 +45,7 @@ function fixture(freshIsFull = false) {
       },
       async send(text) {
         sent.push(text);
+        notices.push(...(logCache.get(info.id) ?? []));
         observeAutoHandoff(managed, { kind: "assistant_text", text: brief });
         observeAutoHandoff(managed, { kind: "turn_completed", status: "completed" });
         const pending = managed.pendingTurn;
@@ -61,7 +64,7 @@ function fixture(freshIsFull = false) {
   managed.session = session();
   agents.set(info.id, managed);
   spies.push(spyOn(claudeBackend, "createSession").mockImplementation(() => session("Next task", freshIsFull)));
-  return { managed, sent, session };
+  return { managed, sent, session, notices };
 }
 
 async function settle() {
@@ -97,6 +100,9 @@ test("an empty brief preserves the old session and spends only one attempt", asy
   observeAutoHandoff(managed, { kind: "turn_completed", status: "completed" });
   await settle();
   expect(sent).toHaveLength(1);
+  const notice = logCache.get(managed.info.id)!.find((entry) => entry.message?.key === "logs.action.handoffNoBrief")!;
+  expect(displayLogContent(notice, "es")).toContain("/handoff");
+  expect(displayLogContent(notice, "es")).not.toBe(notice.content);
 });
 
 test("Stop during measurement cancels the automatic handoff", async () => {
@@ -132,7 +138,7 @@ test("per-agent token thresholds trigger early without bypassing context safety 
   expect(handoffThreshold({ maxTokens: 1000000 }, 250000)).toBe(250000);
   expect(handoffThreshold({ maxTokens: 200000 }, 900000)).toBe(170000);
   expect(handoffThreshold({ maxTokens: 200000, compactAtTokens: 160000 }, 900000)).toBe(150000);
-  const { managed, sent } = fixture();
+  const { managed, sent, notices } = fixture();
   managed.info.autoHandoffTokens = 50000;
   managed.session!.getContextUsage = async () => ({ model: "sonnet", totalTokens: 49999, maxTokens: 200000, percentage: 25, categories: [] });
   observeAutoHandoff(managed, { kind: "turn_completed", status: "completed" });
@@ -142,4 +148,7 @@ test("per-agent token thresholds trigger early without bypassing context safety 
   observeAutoHandoff(managed, { kind: "turn_completed", status: "completed" });
   await settle();
   expect(sent[0]).toContain("Reply only with a concise handoff brief");
+  const notice = notices.find((entry) => entry.message?.key === "logs.action.handoffPreparing")!;
+  expect(notice.content).toBe("Context reached 25% (50,000 tokens). Writing an automatic handoff brief.");
+  expect(displayLogContent(notice, "es")).toContain("50.000 tokens");
 });

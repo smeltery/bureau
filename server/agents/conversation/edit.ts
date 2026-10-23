@@ -1,3 +1,5 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
+import { errMessage } from "../../../shared/errors.ts";
 import { pinProviderEnvironment } from "../session/provider-environment.ts";
 import { openCodeEnvironmentId } from "../../backends/opencode/profiles/identity.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
@@ -28,7 +30,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
   const managed = agents.get(agentId);
   if (!managed) return;
   if (managed.info.state !== "waiting_for_response" && managed.info.state !== "stopped") {
-    addLogEntry(agentId, "error", "Cannot edit while agent is busy.");
+    addLogEntry(agentId, "error", logMessage("logs.action.editBusy"));
     return;
   }
 
@@ -37,7 +39,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
   // error can return before the fork pipeline runs.
   const targetEntry = oldLogCache.find((e) => e.id === logEntryId);
   if (!targetEntry || targetEntry.kind !== "user_message") {
-    addLogEntry(agentId, "error", "Cannot edit: message not found.");
+    addLogEntry(agentId, "error", logMessage("logs.action.editMissing"));
     return;
   }
 
@@ -54,7 +56,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     // via sendMessage would be consumed by that pending handler rather than
     // treated as a replacement. Force the user to answer or cancel first.
     if (inMultiStepFlow(managed)) {
-      addLogEntry(agentId, "error", "Cannot edit: finish or cancel the pending prompt first.");
+      addLogEntry(agentId, "error", logMessage("logs.action.editPending"));
       return;
     }
     const targetPos = oldLogCache.findIndex((e) => e.id === logEntryId);
@@ -62,7 +64,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     const hasRealAfter = afterTarget.some((e) => !e.ephemeral);
     const hasUserAfter = afterTarget.some((e) => e.kind === "user_message");
     if (hasRealAfter || hasUserAfter) {
-      addLogEntry(agentId, "error", "Cannot edit: this message was not sent to the agent (later messages follow).");
+      addLogEntry(agentId, "error", logMessage("logs.action.editLaterMessages"));
       return;
     }
     const trimmed = oldLogCache.slice(0, targetPos);
@@ -80,11 +82,11 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
   // can still fix a failed slash command in a session-less / first-message
   // state where sessionId is unset.
   if (!managed.sessionId) {
-    addLogEntry(agentId, "error", "Cannot edit: no active session.");
+    addLogEntry(agentId, "error", logMessage("logs.action.editNoSession"));
     return;
   }
   if (managed.info.capabilities?.edit === false) {
-    addLogEntry(agentId, "error", "Cannot edit: this agent's backend does not support editing a conversation. Send a new message instead.");
+    addLogEntry(agentId, "error", logMessage("logs.action.editUnsupported"));
     return;
   }
 
@@ -128,7 +130,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       // session — e.g. ContextMenu "New conversation" or message edits that
       // branched the timeline can leave entries from a prior session in view.
       const ownerHint = findOwnerSessionHint(agentId, oldSessionId, logEntryId);
-      addLogEntry(agentId, "error", `Cannot edit: could not locate message in SDK session.${ownerHint}`);
+      addLogEntry(agentId, "error", logMessage("logs.action.editNotRecorded", { hint: ownerHint }));
       return;
     }
 
@@ -204,7 +206,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     }
 
     // 8. Add system log entry at branch point
-    addLogEntry(agentId, "system", `Branched from: ${oldTopic || oldSessionId.slice(0, 8) + "..."}`);
+    addLogEntry(agentId, "system", logMessage("logs.action.branched", { session: oldTopic || oldSessionId.slice(0, 8) + "..." }));
 
     // 9. Inherit topic (marked stale so it regenerates after first exchange)
     managed.info.topic = oldTopic;
@@ -281,7 +283,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       await emitLoginInstructions(agentId, managed);
       return;
     }
-    addLogEntry(agentId, "error", `Failed to branch conversation: ${err.message}`);
+    addLogEntry(agentId, "error", logMessage("logs.action.branchFailed", { error: errMessage(err) }));
     updateState(agentId, "error");
   }
 }

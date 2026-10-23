@@ -1,3 +1,4 @@
+import { logMessage, type LogParam } from "../../../shared/i18n/log-message.ts";
 import type { LogEntry } from "../../../shared/types.ts";
 import { stripAttachmentNotices } from "../../attachment-prompt.ts";
 import type { NormalizedMessage } from "../../backends/types.ts";
@@ -99,13 +100,13 @@ export function findForkSourceSession(agentId: string, oldSessionId: string, log
   return forkFromSessionId;
 }
 
-export function findOwnerSessionHint(agentId: string, oldSessionId: string, logEntryId: string): string {
+export function findOwnerSessionHint(agentId: string, oldSessionId: string, logEntryId: string): LogParam {
   try {
     for (const session of listAgentSessions(agentId)) {
       if (session.sessionId === oldSessionId) continue;
       if (loadLog(agentId, session.sessionId).some((entry) => entry.id === logEntryId)) {
         const label = session.topic ?? session.sessionId.slice(0, 8) + "...";
-        return ` This message lives in a different session ("${label}"). Use /resume to switch to it first, then edit.`;
+        return logMessage("logs.action.editOwnerHint", { session: label });
       }
     }
   } catch {}

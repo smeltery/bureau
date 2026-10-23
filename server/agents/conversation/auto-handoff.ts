@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { handoffTokens } from "../../../shared/agents/handoff.ts";
 import { withAuditContext } from "../../audit/context.ts";
 import { recordAuditEvent } from "../../audit/store.ts";
@@ -81,7 +82,7 @@ async function attemptHandoff(managed: ManagedAgent, attempt: AutoHandoffAttempt
     managed.autoHandoffSpent = true;
     if (managed.autoHandoffFresh) {
       managed.autoHandoffFresh = false;
-      addLogEntry(id, "system", "Automatic handoff paused: the fresh conversation already exceeds its context threshold. Reduce persistent instructions or use a larger context window.");
+      addLogEntry(id, "system", logMessage("logs.action.handoffPaused"));
       return;
     }
     if (
@@ -96,14 +97,14 @@ async function attemptHandoff(managed: ManagedAgent, attempt: AutoHandoffAttempt
     )
       return;
     attempt.capturing = true;
-    addLogEntry(id, "system", `Context reached ${Math.round(sample.percentage)}% (${sample.totalTokens.toLocaleString("en-US")} tokens). Writing an automatic handoff brief.`);
+    addLogEntry(id, "system", logMessage("logs.action.handoffPreparing", { percent: { number: Math.round(sample.percentage) }, tokens: { number: sample.totalTokens } }));
     const prompt =
       "Bureau is preparing a fresh conversation because this context is nearly full. Reply only with a concise handoff brief: the current goal, next concrete steps, important working state, decisions, open questions, and file or task pointers. Omit a session recap and material already in memory or persistent instructions. Do not call a handoff route.";
     await runAgentTurn({ managed, visibleText: prompt, originalText: prompt, sdkText: prompt, origin: "queued", humanInput: false, username: null });
     if (!current()) return;
     const brief = attempt.chunks.join(managed.info.agentType === "opencode" ? "" : "\n\n").trim();
     if (attempt.status !== "completed" || !brief) {
-      addLogEntry(id, "system", "Automatic handoff could not produce a brief. This conversation and its queued messages are preserved; use /handoff when ready.");
+      addLogEntry(id, "system", logMessage("logs.action.handoffNoBrief"));
       return;
     }
     managed.autoHandoffAttempt = null;
@@ -111,12 +112,12 @@ async function attemptHandoff(managed: ManagedAgent, attempt: AutoHandoffAttempt
     if (result.ok) withAuditContext({ actor: `automatic-handoff:${id}`, operation: "agents.handoff" }, () => recordAuditEvent(id, ["conversation"]));
     if (!result.ok) {
       managed.autoHandoffSpent = true;
-      addLogEntry(id, "system", `Automatic handoff did not complete: ${result.error}`);
+      addLogEntry(id, "system", logMessage("logs.action.handoffIncomplete", { error: result.error }));
     }
   } catch (error) {
     if (current()) {
       managed.autoHandoffSpent = true;
-      addLogEntry(id, "system", "Automatic handoff failed. The conversation is preserved; check the connection and use /handoff when ready.");
+      addLogEntry(id, "system", logMessage("logs.action.handoffFailed"));
       console.error(`[auto-handoff] ${id}:`, error instanceof Error ? error.message : "unknown failure");
       if (managed.info.state === "thinking") updateState(id, "waiting_for_response");
     }

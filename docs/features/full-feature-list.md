@@ -144,7 +144,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   user, model, and tool output stays unchanged. Model, effort, resume, and
   scheduled-prompt choice cards also follow the reader’s language, including
   effort labels, resume dates, selection confirmations, and cancellations.
-  Clear and handoff feedback, file/diff and peer-message replies, the agent
+  Editing and handoff feedback, file/diff and peer-message replies, the agent
   roster, and subscription-usage guidance also follow the reader’s language.
   `/context`, `/bureau-storage`, and `/bureau-usage` reports translate their
   labels and format counts, sizes, and dates for each reader while preserving
