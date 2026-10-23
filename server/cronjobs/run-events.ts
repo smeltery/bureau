@@ -1,6 +1,6 @@
 import type { Attachment, CronjobRun, LogEntry } from "../../shared/types.ts";
 import type { BackendSession, NormalizedEvent } from "../backends/types.ts";
-import { accumulateRunSessionUsage, appendRunLog, appendRunSessionUsageSnapshot, ensureRunSessionClaudeConfigDir, prepareLogEntry, updateRun } from "../persistence.ts";
+import { accumulateRunSessionUsage, appendRunLog, appendRunSessionUsageSnapshot, ensureRunSessionClaudeConfigDir, ensureRunSessionCodexHome, prepareLogEntry, updateRun } from "../persistence.ts";
 import type { CronjobEvent } from "./index.ts";
 
 export interface ActiveRun {
@@ -19,6 +19,7 @@ export interface ActiveRun {
   pendingEntries: LogEntry[];
   isResume: boolean;
   launchedClaudeConfigDir?: string;
+  launchedCodexHome?: string;
 }
 
 export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, emitEvent: (e: CronjobEvent) => void) {
@@ -30,6 +31,7 @@ export function processNormalizedEvent(active: ActiveRun, ev: NormalizedEvent, e
         if (active.launchedClaudeConfigDir) {
           ensureRunSessionClaudeConfigDir(active.jobId, active.runId, sessionId, active.launchedClaudeConfigDir);
         }
+        if (active.launchedCodexHome) ensureRunSessionCodexHome(active.jobId, active.runId, sessionId, active.launchedCodexHome);
         if (sessionId !== active.rootSessionId) {
           const patch: Partial<CronjobRun> = active.isResume ? { currentSessionId: sessionId } : { rootSessionId: sessionId, currentSessionId: sessionId };
           const updated = updateRun(active.jobId, active.runId, patch);

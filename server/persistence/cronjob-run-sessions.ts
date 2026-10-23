@@ -35,6 +35,7 @@ type RunSessionsMap = Record<
     forkedFrom?: string;
     forkMessageId?: string;
     claudeConfigDir?: string;
+    codexHome?: string;
     usage?: PersistedUsage;
     lastUsageId?: string;
     priorRunsUsage?: PersistedUsage;
@@ -65,7 +66,16 @@ function saveRunSessionsMap(jobId: string, runId: string, map: RunSessionsMap) {
 // Mirror of persistSessionFork (agent side) for cronjob runs. Records that
 // `sessionId` was forked from `forkedFrom` at log entry `forkMessageId`, so
 // loadRunLogWithAncestors can walk back through the chain when rendering.
-export function persistRunSessionFork(jobId: string, runId: string, sessionId: string, forkedFrom: string, forkMessageId: string, claudeConfigDir?: string, forkBaseUsage?: PersistedUsage) {
+export function persistRunSessionFork(
+  jobId: string,
+  runId: string,
+  sessionId: string,
+  forkedFrom: string,
+  forkMessageId: string,
+  claudeConfigDir?: string,
+  forkBaseUsage?: PersistedUsage,
+  codexHome?: string,
+) {
   const map = loadRunSessionsMap(jobId, runId);
   const existing = map[sessionId] ?? { topic: null, lastModified: 0 };
   map[sessionId] = {
@@ -75,6 +85,7 @@ export function persistRunSessionFork(jobId: string, runId: string, sessionId: s
     forkedFrom,
     forkMessageId,
     ...(claudeConfigDir ? { claudeConfigDir } : {}),
+    ...(codexHome ? { codexHome } : {}),
     ...(forkBaseUsage ? { forkBaseUsage } : {}),
   };
   saveRunSessionsMap(jobId, runId, map);
@@ -247,4 +258,16 @@ export function loadRunLogWithAncestors(jobId: string, runId: string, sessionId:
     }
   }
   return result;
+}
+
+export function getRunSessionCodexHome(jobId: string, runId: string, sessionId: string): string | null {
+  return loadRunSessionsMap(jobId, runId)[sessionId]?.codexHome ?? null;
+}
+export function ensureRunSessionCodexHome(jobId: string, runId: string, sessionId: string, fallback: string): string {
+  const map = loadRunSessionsMap(jobId, runId);
+  const existing = map[sessionId];
+  if (existing?.codexHome) return existing.codexHome;
+  map[sessionId] = { ...(existing ?? { topic: null, lastModified: 0 }), codexHome: fallback, lastModified: existing?.lastModified ?? Date.now() };
+  saveRunSessionsMap(jobId, runId, map);
+  return fallback;
 }
