@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { canViewSchedule } from "../../cronjobs/access.ts";
 import { getUserById } from "../../users.ts";
 import type { Cronjob } from "../../../shared/types.ts";
@@ -36,7 +37,7 @@ export async function handleBureauCronjobSystemPromptCommand(agentId: string, ma
 
   if (!query) {
     if (all.length === 0) {
-      addLogEntry(agentId, "system", "No cron jobs are configured.");
+      addLogEntry(agentId, "system", logMessage("logs.choice.noCronjobs"));
       updateState(agentId, "waiting_for_response");
       return true;
     }
@@ -47,7 +48,9 @@ export async function handleBureauCronjobSystemPromptCommand(agentId: string, ma
       choicePrompt: {
         kind: "cronjob",
         title: "Inspect cron job prompt",
+        titleMessage: logMessage("logs.choice.cronjob"),
         instruction: instruction.trim(),
+        instructionMessage: logMessage("logs.choice.inspectInstruction"),
         choices,
       },
     });
@@ -62,11 +65,10 @@ export async function handleBureauCronjobSystemPromptCommand(agentId: string, ma
 
   if (!target) {
     if (byNameMatches.length > 1) {
-      const lines = [`Multiple cron jobs are named "${query}". Re-run with the id:`];
-      for (const c of byNameMatches) lines.push(`  \`${c.id}\``);
-      addLogEntry(agentId, "system", lines.join("\n"));
+      const ids = byNameMatches.map((c) => `  \`${c.id}\``).join("\n");
+      addLogEntry(agentId, "system", logMessage("logs.choice.duplicateCronjobs", { query, ids }));
     } else {
-      addLogEntry(agentId, "system", `No cron job matches \`${query}\`. Try \`/bureau-cronjob-system-prompt\` with no argument to list cron jobs.`);
+      addLogEntry(agentId, "system", logMessage("logs.choice.noCronjobMatch", { query }));
     }
     updateState(agentId, "waiting_for_response");
     return true;
@@ -80,7 +82,7 @@ export async function handleBureauCronjobSystemPromptCommand(agentId: string, ma
 export function emitCronjobPromptCard(agentId: string, target: Cronjob): void {
   const systemPrompt = buildCronjobSystemPrompt(target, target.id, "", buildCronjobMemoryPrompt());
   const combined = `${systemPrompt}\n\n----\nFirst user message:\n\n${target.prompt}`;
-  addLogEntry(agentId, "system", `**System prompt for "${target.name}"**`, {
+  addLogEntry(agentId, "system", logMessage("logs.choice.promptTitle", { name: target.name }), {
     cronjobPromptContent: combined,
     cronjobName: target.name,
   });

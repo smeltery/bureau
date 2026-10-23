@@ -48,3 +48,22 @@ test("human, model and tool text cannot opt into translation", () => {
 test("invalid producer payloads fail explicitly", () => {
   expect(() => logContent({ key: "logs.resumed" })).toThrow("Invalid structured log message");
 });
+
+test("nested labels and timestamps render in the reader's language", () => {
+  const entry = { kind: "system" as const, ...logContent(logMessage("logs.choice.effortSwitched", { label: logMessage("logs.effort.high") })) };
+  expect(entry.content).toBe("Thinking effort set to High. The agent will be notified on its next turn.");
+  expect(displayLogContent(entry, "es")).toBe("Esfuerzo de razonamiento establecido en Alto. Se notificará al agente en su próximo turno.");
+  const timestamp = Date.UTC(2026, 9, 23, 13, 45);
+  const details = { kind: "system" as const, ...logContent(logMessage("logs.choice.sessionDetails", { date: { timestamp }, cwd: "  /tmp/project", branch: logMessage("logs.choice.branchSuffix") })) };
+  const date = new Intl.DateTimeFormat("zh", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(timestamp);
+  expect(displayLogContent(details, "zh")).toBe(`${date}  /tmp/project  （已分支）`);
+});
+
+test("invalid nested values, dates and cycles fall back without partial translation", () => {
+  const cycle: Record<string, unknown> = { key: "logs.choice.alreadyUsing" };
+  cycle.params = { label: cycle };
+  for (const label of [cycle, { timestamp: NaN }, { timestamp: 9e15 }, { timestamp: "yesterday" }, { key: "logs.future" }, Object.create({ key: "logs.interrupted" })]) {
+    const entry = { kind: "system", id: "bad", agentId: "test", timestamp: 0, content: "Original", message: { key: "logs.choice.alreadyUsing", params: { label } } } as LogEntry;
+    expect(displayLogContent(entry, "ca")).toBe("Original");
+  }
+});

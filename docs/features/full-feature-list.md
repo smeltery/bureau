@@ -141,7 +141,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Conversation start, interruption, resume, directory fallback, and automatic
   handoff notices follow each reader’s language preference. Older notices retain
   their original text. Stored logs and API responses keep English content;
-  user, model, and tool output stays unchanged.
+  user, model, and tool output stays unchanged. Model, effort, resume, and
+  scheduled-prompt choice cards also follow the reader’s language, including
+  effort labels, resume dates, selection confirmations, and cancellations.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers. Large transcript replays stream
   in order as each browser drains, followed by live events. Slow connections have

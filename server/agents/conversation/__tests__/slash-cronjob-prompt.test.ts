@@ -1,3 +1,4 @@
+import { displayLogContent, displayLogText } from "../../../../shared/i18n/log-message.ts";
 import { claimUserByName, deleteUserById } from "../../../users.ts";
 const fixtureUserIds: string[] = [];
 import { afterEach, describe, expect, test } from "bun:test";
@@ -68,8 +69,9 @@ describe("handleBureauCronjobSystemPromptCommand", () => {
     setCronjobDefinitions([stubCronjob(), stubCronjob({ id: "efgh5678", name: "Weekly digest" })]);
     const managed = managedFor();
     await handleBureauCronjobSystemPromptCommand(managed.info.id, managed, [], "/bureau-cronjob-system-prompt");
-    const prompt = (logCache.get(managed.info.id) ?? []).find((e) => e.metadata?.choicePrompt)?.metadata?.choicePrompt as { kind: string; choices: { value: string; label: string }[] } | undefined;
+    const prompt = (logCache.get(managed.info.id) ?? []).find((e) => e.metadata?.choicePrompt)?.metadata?.choicePrompt;
     expect(prompt?.kind).toBe("cronjob");
+    expect(displayLogText(prompt!.title, prompt!.titleMessage, "zh")).toBe("查看定时任务提示词");
     expect(prompt?.choices.map((c) => c.label)).toEqual(["Nightly check", "Weekly digest"]);
     expect(managed.pendingCronjobPick).toBe(true);
   });
@@ -87,6 +89,7 @@ describe("handleBureauCronjobSystemPromptCommand", () => {
     await handleBureauCronjobSystemPromptCommand(managed.info.id, managed, ["Nightly check"], "/bureau-cronjob-system-prompt Nightly check");
     const entry = (logCache.get(managed.info.id) ?? []).find((e) => typeof e.metadata?.cronjobPromptContent === "string");
     expect(entry?.content).toContain("Nightly check");
+    expect(displayLogContent(entry!, "es")).toBe('**Prompt del sistema para "Nightly check"**');
     expect(entry?.metadata?.cronjobName).toBe("Nightly check");
     expect(String(entry?.metadata?.cronjobPromptContent)).toContain("First user message:");
     expect(String(entry?.metadata?.cronjobPromptContent)).toContain("Check the office");

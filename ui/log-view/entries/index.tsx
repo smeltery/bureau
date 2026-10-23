@@ -57,7 +57,7 @@ export function LogEntryCard({
   tasks?: TaskMap;
   onOpenTask?: (id: string) => void;
 }) {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const content = displayLogContent(entry, language);
   switch (entry.kind) {
     case "user_message": {
@@ -147,7 +147,7 @@ export function LogEntryCard({
       }
       if (typeof entry.metadata?.cronjobPromptContent === "string") {
         const cronjobName = typeof entry.metadata.cronjobName === "string" ? entry.metadata.cronjobName : "Cron job prompt";
-        return <PromptInspectCard header={content} content={entry.metadata.cronjobPromptContent} actionLabel="Show prompt" modalTitle={cronjobName} renderAs="plaintext" />;
+        return <PromptInspectCard header={content} content={entry.metadata.cronjobPromptContent} actionLabel={t("logs.choice.showPrompt")} modalTitle={cronjobName} renderAs="plaintext" />;
       }
       if (entry.metadata?.permissionDenied && typeof entry.metadata.permissionDenied === "object") {
         return <PermissionDeniedCard denial={entry.metadata.permissionDenied as { toolName?: string; message?: string; decisionReason?: string }} isMobile={isMobile} />;
