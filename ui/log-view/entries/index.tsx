@@ -1,4 +1,4 @@
-import { displayLogContent } from "../../../shared/i18n/log-message.ts";
+import { displayLogContent, displayLogText } from "../../../shared/i18n/log-message.ts";
 import { useI18n } from "../../i18n.tsx";
 import { SecretRequestCard } from "../integrations/SecretRequestCard.tsx";
 import type { ChoicePromptPayload, LogEntry } from "../../../shared/types.ts";
@@ -143,7 +143,7 @@ export function LogEntryCard({
     case "system":
       if (entry.metadata?.secretRequest) return <SecretRequestCard card={entry.metadata.secretRequest} />;
       if (typeof entry.metadata?.helpContent === "string") {
-        return <HelpCard header={content} helpContent={entry.metadata.helpContent} />;
+        return <HelpCard header={content} helpContent={displayLogText(entry.metadata.helpContent, entry.metadata.helpMessage, language)} />;
       }
       if (typeof entry.metadata?.cronjobPromptContent === "string") {
         const cronjobName = typeof entry.metadata.cronjobName === "string" ? entry.metadata.cronjobName : "Cron job prompt";

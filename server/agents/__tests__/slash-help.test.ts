@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { displayLogContent, displayLogText } from "../../../shared/i18n/log-message.ts";
+import { commands } from "../commands.ts";
+import { afterEach, describe, expect, test } from "bun:test";
 import { handleHelpCommand } from "../conversation/slash-help.ts";
 import { agents, logCache } from "../state.ts";
 import type { ManagedAgent } from "../state.ts";
@@ -61,4 +63,38 @@ describe("handleHelpCommand", () => {
     expect(helpContent).not.toContain("**User skills:**");
     expect(helpContent).not.toContain("**Project skills:**");
   });
+});
+
+afterEach(() => {
+  agents.clear();
+  logCache.clear();
+});
+
+test("help translates built-ins and aliases while keeping overrides and custom text", async () => {
+  const managed = managedWithSkills();
+  managed.slashCommands = [
+    { name: "help", description: commands.help.description },
+    { name: "diff", description: commands.diff.description, aliasFor: "bureau-diff" },
+    { name: "bureau-diff", description: commands["bureau-diff"].description },
+    { name: "review", description: commands.review.description },
+    { name: "clear", description: "Custom clear description" },
+    { name: "custom", description: "Custom skill description" },
+  ];
+  managed.skills.push({ name: "review", description: commands.review.description, origin: "user" });
+  agents.set("agent-1", managed);
+  await handleHelpCommand("agent-1", managed, "/help", "Boss");
+  const original = logCache.get("agent-1")!.at(-1)!;
+  const entry = JSON.parse(JSON.stringify(original));
+  const spanish = displayLogText(entry.metadata.helpContent, entry.metadata.helpMessage, "es");
+  expect(displayLogContent(entry, "es")).toBe("**Ayuda**");
+  expect(spanish).toContain("**Documentación:**");
+  expect(spanish).toContain("`/help` — Listar todos los comandos disponibles");
+  expect(spanish).toContain("`/diff` (o `/bureau-diff`) — Ver cambios sin confirmar");
+  expect(spanish).toContain(`\`/review\` — ${commands.review.description}`);
+  expect(spanish).toContain("Custom clear description");
+  expect(spanish).toContain("Custom skill description");
+  expect(spanish).toContain("`/bureau-message <agent> <text>`");
+  expect(spanish).toContain("`/bureau-edit <path>`");
+  expect(entry.metadata.helpContent).toContain("**Docs:**");
+  expect(displayLogText("Legacy help", { key: "logs.futureHelp" }, "zh")).toBe("Legacy help");
 });

@@ -146,6 +146,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   effort labels, resume dates, selection confirmations, and cancellations.
   Clear and handoff feedback, file/diff and peer-message replies, the agent
   roster, and subscription-usage guidance also follow the reader’s language.
+  Help (including built-in command descriptions) and unavailable-command replies
+  are translated too. Help copies in the reader’s language; skill-provided
+  descriptions and inspected system-prompt text retain their original content.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers. Large transcript replays stream
   in order as each browser drains, followed by live events. Slow connections have

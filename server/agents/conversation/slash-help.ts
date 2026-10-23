@@ -1,3 +1,6 @@
+import { logContent, logMessage, logParts, type LogParam } from "../../../shared/i18n/log-message.ts";
+import { commandDescription } from "./command-messages.ts";
+import { commands } from "../commands.ts";
 import { addLogEntry, updateState, type ManagedAgent } from "../state.ts";
 
 const DOCS_URL = "https://github.com/smeltery/bureau/tree/master/docs";
@@ -6,8 +9,8 @@ const DOCS_URL = "https://github.com/smeltery/bureau/tree/master/docs";
 // carries the full name list (canonical + aliases) and a shared description.
 // Used by /help to render e.g. `/diff (or /bureau-diff)` instead of two
 // separate lines for the same handler.
-type AliasItem = { name: string; description?: string; aliasFor?: string };
-type AliasGroup = { names: string[]; description?: string };
+type AliasItem = { name: string; description?: LogParam; aliasFor?: string };
+type AliasGroup = { names: string[]; description?: LogParam };
 
 function groupByAlias(items: AliasItem[]): AliasGroup[] {
   const canonicalIndex = new Map<string, AliasGroup>();
@@ -29,12 +32,12 @@ function groupByAlias(items: AliasItem[]): AliasGroup[] {
 
 // Render one alias group as a single bullet line. Shortest name leads
 // (friendlier shorthand reads first); the rest go in parens.
-function formatAliasGroup(names: string[], description?: string): string {
+function formatAliasGroup(names: string[], description?: LogParam): LogParam {
   const sorted = [...names].sort((a, b) => a.length - b.length);
   const primary = `\`/${sorted[0]}\``;
   const others = sorted.slice(1).map((n) => `\`/${n}\``);
-  const head = others.length > 0 ? `${primary} (or ${others.join(", ")})` : primary;
-  return description ? `  ${head} — ${description}` : `  ${head}`;
+  const head = others.length > 0 ? logMessage("logs.help.aliases", { primary, others: others.join(", ") }) : primary;
+  return description ? logMessage("logs.help.commandRow", { names: head, description }) : logMessage("logs.help.commandOnly", { names: head });
 }
 
 export async function handleHelpCommand(agentId: string, managed: ManagedAgent, rawText: string, username?: string): Promise<boolean> {
@@ -43,26 +46,30 @@ export async function handleHelpCommand(agentId: string, managed: ManagedAgent, 
 
   // Docs + a few short tips lead. The command inventory and skills link follow.
   // Phone/device and invite sprawl belong in the docs, not this pane.
-  const lines: string[] = [
-    `**Docs:** ${DOCS_URL}`,
+  const lines: LogParam[] = [
+    logMessage("logs.help.docs", { url: DOCS_URL }),
     "",
-    "**Tips:**",
-    "  • Agents can check on each other and message each other. Ask naturally, or use `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`. Use `/bureau-message <agent> <text>` to drop a message into another agent's chat.",
-    '  • Type ahead while an agent is busy: messages queue and flush when it\'s idle. Hit "Send now" to interrupt and flush immediately.',
-    "  • Voice-to-text shortcut: ctrl+space.",
-    "  • `/bureau-diff` for a styled diff card, `/bureau-edit <path>` for the editor panel, `/bureau-usage` for cost, `/bureau-storage` for persisted footprint.",
+    logMessage("logs.help.tips"),
+    logMessage("logs.help.peers", { command: "/bureau-message <agent> <text>" }),
+    logMessage("logs.help.queue"),
+    logMessage("logs.help.voice"),
+    logMessage("logs.help.tools", { editCommand: "/bureau-edit <path>" }),
   ];
 
-  // Collapse aliased entries (e.g. `/diff` aliasFor `/bureau-diff`) into one line.
-  const cmdGroups = groupByAlias(managed.slashCommands.map((c) => ({ name: c.name, description: c.description, aliasFor: c.aliasFor })));
-  const cmdList = cmdGroups.map((g) => formatAliasGroup(g.names, g.description)).join("\n");
-  lines.push(`\n## Commands you can type\n${cmdList}`);
-
-  lines.push("\n[Skills library](/skills) — browse and manage available skills.");
+  const cmdGroups = groupByAlias(
+    managed.slashCommands.map((command) => {
+      const overridden = commands[command.name]?.overridable && managed.skills.some((skill) => skill.name === command.name);
+      return { name: command.name, aliasFor: command.aliasFor, description: overridden ? command.description : commandDescription(command.name, command.description) };
+    }),
+  );
+  lines.push(logMessage("logs.help.commands"));
+  lines.push(...cmdGroups.map((group) => formatAliasGroup(group.names, group.description)));
+  lines.push(logMessage("logs.help.skills"));
+  const body = logParts(lines.flatMap((line, index) => (index ? ["\n", line] : [line])));
 
   // Compact card header in the transcript; full body rides in metadata so it
   // stays out of the model context and doesn't clobber the chat.
-  addLogEntry(agentId, "system", "**Help**", { helpContent: lines.join("\n") });
+  addLogEntry(agentId, "system", logMessage("logs.help.header"), { helpContent: logContent(body).content, helpMessage: body });
   updateState(agentId, "waiting_for_response");
   return true;
 }

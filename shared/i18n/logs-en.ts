@@ -1,4 +1,6 @@
+import { commandDescriptions } from "./command-descriptions-en.ts";
 export const logs = {
+  ...commandDescriptions,
   "logs.interrupted": "Agent interrupted.",
   "logs.newConversation": "New conversation started.",
   "logs.handoffOpened": "Automatic handoff opened a fresh conversation. The brief will arrive before queued messages.",
@@ -79,4 +81,31 @@ export const logs = {
   "logs.command.rosterTip": "Ask your agent if you'd like to know more about any agent or conversation.",
   "logs.command.subscriptionUsage":
     "**Subscription plan limits aren't shown here.**\n\nTo check your Claude or ChatGPT subscription quota, open the embedded terminal and:\n\n- launch `claude`, then type `/usage`\n- launch `codex`, then type `/status`\n\nFor Bureau office-level token spend (per-agent / per-room / per-cron-job), see `/bureau-usage`.",
+  "logs.help.header": "**Help**",
+  "logs.help.title": "Help",
+  "logs.help.show": "Show help",
+  "logs.help.docs": "**Docs:** {url}",
+  "logs.help.tips": "**Tips:**",
+  "logs.help.peers":
+    "  • Agents can check on each other and message each other. Ask naturally, or use `/bureau-peer-review`, `/bureau-pair-programming`, `/bureau-second-opinion`, `/bureau-soft-handoff`. Use `{command}` to drop a message into another agent's chat.",
+  "logs.help.queue": '  • Type ahead while an agent is busy: messages queue and flush when it\'s idle. Hit "Send now" to interrupt and flush immediately.',
+  "logs.help.voice": "  • Voice-to-text shortcut: ctrl+space.",
+  "logs.help.tools": "  • `/bureau-diff` for a styled diff card, `{editCommand}` for the editor panel, `/bureau-usage` for cost, `/bureau-storage` for persisted footprint.",
+  "logs.help.commands": "\n## Commands you can type",
+  "logs.help.skills": "\n[Skills library](/skills) — browse and manage available skills.",
+  "logs.help.aliases": "{primary} (or {others})",
+  "logs.help.commandRow": "  {names} — {description}",
+  "logs.help.commandOnly": "  {names}",
+  "logs.help.fullPromptHeader": "**Full system prompt** *(reflects current settings; takes effect on next conversation)*",
+  "logs.help.unavailable": "`/{command}` is not available in Bureau.",
+  "logs.help.unsupportedCommand": "`/{command}`{description} is a Claude Code command, but it's not supported in Bureau.",
+  "logs.help.unsupportedSkill": "`/{command}`{description} is a Claude Code bundled skill, but it's not supported in Bureau. You can override it by creating your own skill file.",
+  "logs.help.logout": "To log out:\n1. Open the built-in terminal\n2. Run `claude logout`",
+  "logs.help.compact": "`/compact` is not yet supported in Bureau. Context is auto-compacted by the SDK.",
+  "logs.help.cost": "Use `/usage` for subscription quota guidance or `/bureau-usage` for office token spend.",
+  "logs.help.reloadPlugins": "To reload plugins, open the built-in terminal (click the terminal icon on the agent's desk), run `claude`, and type `/reload-plugins`.",
+  "logs.help.exit": "Use the Bureau UI to manage agents. `/exit` only works in the Claude Code CLI.",
+  "logs.help.plugins":
+    "Plugin management lives in the Plugins panel — click **Plugins** in the office toolbar to browse, install, enable, disable, or remove Claude Code plugins and marketplaces.\n\nNewly installed plugins activate when an agent's next session starts (restart or `/resume` running agents to pick them up).",
+  "logs.help.loop": "not supported natively; see if the Cronjobs tab or scheduled messages satisfy your use case",
 } as const;

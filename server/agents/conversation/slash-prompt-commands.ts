@@ -1,4 +1,4 @@
-import { logMessage } from "../../../shared/i18n/log-message.ts";
+import { logMessage, logParts } from "../../../shared/i18n/log-message.ts";
 import { canViewSchedule } from "../../cronjobs/access.ts";
 import { getUserById } from "../../users.ts";
 import type { Cronjob } from "../../../shared/types.ts";
@@ -23,7 +23,7 @@ export async function handleBureauSystemPromptCommand(agentId: string, managed: 
     null,
     managed.info.privileged ?? false,
   );
-  addLogEntry(agentId, "system", fencedPrompt("**Full system prompt** *(reflects current settings; takes effect on next conversation)*", prompt));
+  addLogEntry(agentId, "system", logParts([logMessage("logs.help.fullPromptHeader"), fencedPrompt("", prompt)]));
   updateState(agentId, "waiting_for_response");
   return true;
 }
