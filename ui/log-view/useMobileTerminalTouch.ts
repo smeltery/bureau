@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from "react";
 import type { FitAddon } from "@xterm/addon-fit";
 import type { Terminal } from "@xterm/xterm";
-import { send } from "../ws.ts";
+import type { TerminalResizer } from "./terminal/terminal-resize.ts";
 
 interface MobileTerminalTouchOptions {
   mobile: boolean;
@@ -9,10 +9,11 @@ interface MobileTerminalTouchOptions {
   bodyRef: RefObject<HTMLDivElement | null>;
   termRef: RefObject<Terminal | null>;
   fitRef: RefObject<FitAddon | null>;
+  resizerRef: RefObject<TerminalResizer | null>;
   scrollMovedRef: RefObject<(() => boolean) | null>;
 }
 
-export function useMobileTerminalTouch({ mobile, agentId, bodyRef, termRef, fitRef, scrollMovedRef }: MobileTerminalTouchOptions) {
+export function useMobileTerminalTouch({ mobile, agentId, bodyRef, termRef, fitRef, resizerRef, scrollMovedRef }: MobileTerminalTouchOptions) {
   // Mobile touch handling: single-finger pan scrolls the scrollback buffer,
   // two-finger pinch scales font size between 10-22px. xterm's canvas
   // renderer hijacks single-finger drag for selection, so the .xterm-viewport
@@ -89,7 +90,7 @@ export function useMobileTerminalTouch({ mobile, agentId, bodyRef, termRef, fitR
         pinching = false;
         fitRef.current?.fit();
         if (termRef.current) {
-          send({ type: "terminal_resize", agentId, cols: termRef.current.cols, rows: termRef.current.rows });
+          resizerRef.current?.sendNow(termRef.current.cols, termRef.current.rows);
         }
       }
       scrollLastY = null;
@@ -109,5 +110,5 @@ export function useMobileTerminalTouch({ mobile, agentId, bodyRef, termRef, fitR
       el.removeEventListener("touchcancel", onEnd);
       scrollMovedRef.current = null;
     };
-  }, [mobile, agentId, bodyRef, termRef, fitRef, scrollMovedRef]);
+  }, [mobile, agentId, bodyRef, termRef, fitRef, resizerRef, scrollMovedRef]);
 }

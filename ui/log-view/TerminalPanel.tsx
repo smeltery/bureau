@@ -11,6 +11,7 @@ import { DARK_TERMINAL_THEME, LIGHT_TERMINAL_THEME } from "./terminal-themes.ts"
 import { TerminalHeader } from "./terminal-chrome.tsx";
 import { TerminalPanelBody } from "./terminal/TerminalPanelBody.tsx";
 import { installReplayGuard, type ReplayGuard } from "./terminal/terminal-replay-guard.ts";
+import { createTerminalResizer, type TerminalResizer } from "./terminal/terminal-resize.ts";
 
 export function resetTerminalForRespawn(terminal: Pick<Terminal, "reset">): void {
   terminal.reset();
@@ -46,6 +47,8 @@ export function TerminalPanel({
   const termRef = useRef<Terminal | null>(null);
   const replayGuardRef = useRef<ReplayGuard | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const resizerRef = useRef<TerminalResizer | null>(null);
+  const respawnTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Lets handleBodyTap query whether the just-completed touch was a scroll
   // gesture (in which case we should NOT focus the input proxy and pop the
   // keyboard). The function is set by the touch-handling effect.
@@ -111,18 +114,15 @@ export function TerminalPanel({
       });
     }
     term.open(containerRef.current);
+    const resizer = createTerminalResizer((cols, rows) => send({ type: "terminal_resize", agentId, cols, rows }));
+    resizerRef.current = resizer;
 
     // Fit and (optionally) focus after open. requestAnimationFrame so the
     // container has measurable size before fitAddon runs.
-    requestAnimationFrame(() => {
+    const initialFrame = requestAnimationFrame(() => {
       fitAddon.fit();
       if (autoFocus && !mobile) term.focus();
-      send({
-        type: "terminal_resize",
-        agentId,
-        cols: term.cols,
-        rows: term.rows,
-      });
+      resizer.sendNow(term.cols, term.rows);
       if (mobile) {
         // Trick xterm into rendering its focused cursor (block + blink) even
         // though we route input via our own proxy and the helper textarea is
@@ -161,17 +161,16 @@ export function TerminalPanel({
     // Resize observer
     const observer = new ResizeObserver(() => {
       fitAddon.fit();
-      send({
-        type: "terminal_resize",
-        agentId,
-        cols: term.cols,
-        rows: term.rows,
-      });
+      resizer.request(term.cols, term.rows);
     });
     observer.observe(containerRef.current);
 
     return () => {
       observer.disconnect();
+      cancelAnimationFrame(initialFrame);
+      clearTimeout(respawnTimerRef.current);
+      resizer.dispose();
+      resizerRef.current = null;
       removeRawListener(handleRawMessage);
       replayGuardRef.current?.dispose();
       replayGuardRef.current = null;
@@ -188,7 +187,7 @@ export function TerminalPanel({
     }
   }, [mode]);
 
-  useMobileTerminalTouch({ mobile, agentId, bodyRef, termRef, fitRef, scrollMovedRef });
+  useMobileTerminalTouch({ mobile, agentId, bodyRef, termRef, fitRef, resizerRef, scrollMovedRef });
 
   // Tap on the terminal body focuses our input proxy so the soft keyboard
   // opens. Mobile only — desktop relies on xterm's built-in click-to-focus.
@@ -213,7 +212,12 @@ export function TerminalPanel({
     if (termRef.current) resetTerminalForRespawn(termRef.current);
     // Close old PTY (if still around) and open a new one
     send({ type: "terminal_close", agentId });
-    setTimeout(() => send({ type: "terminal_open", agentId }), 100);
+    clearTimeout(respawnTimerRef.current);
+    respawnTimerRef.current = setTimeout(() => {
+      send({ type: "terminal_open", agentId });
+      const term = termRef.current;
+      if (term) resizerRef.current?.sendNow(term.cols, term.rows, true);
+    }, 100);
   }
 
   return (
