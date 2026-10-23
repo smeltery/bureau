@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { TeamChatEdit } from "./TeamChatEdit.tsx";
 import { TeamChatQuote } from "./TeamChatQuote.tsx";
 import type { MembersChatMessage } from "../../shared/members-chat.ts";
 import { useI18n } from "../i18n.tsx";
@@ -24,6 +26,7 @@ export function TeamChatMessageCard({
   onReply,
   onJump,
   replyingDisabled,
+  onEdited,
 }: {
   message: MembersChatMessage;
   isOwner: boolean;
@@ -33,8 +36,10 @@ export function TeamChatMessageCard({
   onReply: () => void;
   onJump?: () => void;
   replyingDisabled: boolean;
+  onEdited: (message: MembersChatMessage) => void;
 }) {
   const { t } = useI18n();
+  const [editing, setEditing] = useState(false);
   const canDelete = isOwner || message.userId === myUserId;
   return (
     <div
@@ -53,28 +58,42 @@ export function TeamChatMessageCard({
           {message.device ? <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> · {message.device}</span> : null}
           {message.pinnedAt !== undefined ? <span style={{ marginLeft: 6, color: "var(--accent)", fontSize: 10, fontWeight: 600 }}>{t("teamChat.pinnedBadge")}</span> : null}
         </div>
-        <div style={{ fontSize: 10, color: "var(--text-ghost)" }}>{formatTime(message.timestamp)}</div>
+        <div style={{ fontSize: 10, color: "var(--text-ghost)" }}>
+          {formatTime(message.timestamp)}
+          {message.editedAt !== undefined && <> · {t("teamChat.edited")}</>}
+        </div>
       </div>
       {message.replyTo && <TeamChatQuote reply={message.replyTo} onJump={onJump} />}
-      <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{message.content}</div>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button type="button" disabled={replyingDisabled} onClick={onReply} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}>
-          {t("teamChat.reply")}
-        </button>
-        {isOwner && (
-          <button
-            onClick={() => onPin(message.id, message.pinnedAt === undefined)}
-            style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}
-          >
-            {message.pinnedAt === undefined ? t("teamChat.pin") : t("teamChat.unpin")}
+      {editing ? (
+        <TeamChatEdit message={message} onClose={() => setEditing(false)} onSaved={onEdited} />
+      ) : (
+        <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{message.content}</div>
+      )}
+      {!editing && (
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          {message.userId === myUserId && (
+            <button type="button" onClick={() => setEditing(true)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}>
+              {t("common.edit")}
+            </button>
+          )}
+          <button type="button" disabled={replyingDisabled} onClick={onReply} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}>
+            {t("teamChat.reply")}
           </button>
-        )}
-        {canDelete && (
-          <button onClick={() => onDelete(message.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}>
-            {t("common.delete")}
-          </button>
-        )}
-      </div>
+          {isOwner && (
+            <button
+              onClick={() => onPin(message.id, message.pinnedAt === undefined)}
+              style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}
+            >
+              {message.pinnedAt === undefined ? t("teamChat.pin") : t("teamChat.unpin")}
+            </button>
+          )}
+          {canDelete && (
+            <button onClick={() => onDelete(message.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 11, cursor: "pointer", padding: 0 }}>
+              {t("common.delete")}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

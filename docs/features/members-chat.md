@@ -22,13 +22,14 @@ bearers are refused.
 | `POST` | `/api/members-chat` | Body `{ text, replyTo?, device? }` → `201` message |
 | `POST` | `/api/members-chat/read` | Body `{ lastReadId }`; marks through that message for the caller only |
 | `PUT` | `/api/members-chat/:id/pin` | Owner only; body `{ active?: boolean }` |
+| `PUT` | `/api/members-chat/:id` | Author only; body `{ text }`; edits in place |
 | `DELETE` | `/api/members-chat/:id` | Author or owner |
 
 ## WebSocket
 
 Connected browsers receive:
 
-- `members_chat_message` — new post, or pin/unpin with `updateOnly: true`
+- `members_chat_message` — new post, edit, or pin/unpin with `updateOnly: true`
 - `members_chat_deleted` — `{ id }`
 - `members_chat_summary` — `{ summary: { userId, readPointer, unread, latestId } }`, sent only to that member’s sockets after a read update. Posts and deletions refresh each connected member’s own summary.
 
@@ -56,3 +57,8 @@ Canceling a reply keeps the draft text. Posted quotes remain readable after
 the original is deleted; click a quote to jump to its original when loaded.
 A failed send preserves the draft and reply selection. If the target was
 deleted before posting, cancel the reply to send the text as a new message.
+
+Authors can edit their own messages in place. Saving updates connected tabs,
+preserves pins and existing reply quotes, and does not add unread messages.
+Owners cannot edit someone else’s text. Failed saves keep the editing draft;
+Cancel discards it without changing the posted message.

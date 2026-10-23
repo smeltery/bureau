@@ -240,6 +240,11 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
               onPin={(id, active) => void togglePin(id, active)}
               onDelete={(id) => void remove(id)}
               replyingDisabled={sending}
+              onEdited={(edited) => {
+                const update = (items: MembersChatMessage[]) => items.map((item) => (item.id === edited.id && (item.editedAt ?? 0) <= (edited.editedAt ?? 0) ? edited : item));
+                setMessages(update);
+                setPinned(update);
+              }}
               onReply={() => {
                 setReply({ id: m.id, userName: m.userName, excerpt: membersChatExcerpt(m.content) });
                 composerRef.current?.focus({ preventScroll: true });

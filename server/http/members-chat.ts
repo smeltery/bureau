@@ -147,6 +147,27 @@ export async function handleMembersChatRequest(req: Request, url: URL, auth: Aut
     return json(message);
   }
 
+  if (parsed.action === "message" && req.method === "PUT") {
+    const existing = store.get(parsed.id);
+    if (!existing) return error(404, "not_found");
+    if (existing.userId !== session.session.userId) return error(403, "forbidden", "can only edit your own messages");
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return error(400, "invalid_json", "invalid JSON");
+    }
+    if (!body || typeof body !== "object" || !("text" in body) || typeof body.text !== "string") return error(400, "invalid_request", "text must be a string");
+    try {
+      const message = store.edit(parsed.id, body.text);
+      if (!message) return error(404, "not_found");
+      emitMessage(message, true);
+      return json(message);
+    } catch (err) {
+      return storeError(err);
+    }
+  }
+
   if (parsed.action === "message" && req.method === "DELETE") {
     const existing = store.get(parsed.id);
     if (!existing) return error(404, "not_found");
