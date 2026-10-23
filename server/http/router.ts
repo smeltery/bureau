@@ -232,6 +232,7 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   const systemResp = handleSystemRequest(req, url, httpAuth, { getBackupStatus, getVersion: getVersionInfo });
   if (systemResp) return systemResp;
 
+  if (url.pathname === "/api/storage/compress") server.timeout(req, 0);
   const storageResp = await handleStorageRequest(req, url, httpAuth);
   if (storageResp) return storageResp;
 

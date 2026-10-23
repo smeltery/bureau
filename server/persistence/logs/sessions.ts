@@ -1,4 +1,5 @@
 import { join } from "path";
+import { listTranscripts } from "./transcript-files.ts";
 import { mkdirSync, readFileSync, existsSync, readdirSync } from "fs";
 import { atomicWriteFileSync, LOGS_DIR } from "../paths.ts";
 
@@ -172,14 +173,13 @@ export function listAgentSessions(
       if (entry.forkedFrom) branchedFromIds.add(entry.forkedFrom);
     }
 
-    return readdirSync(agentDir)
-      .filter((f) => f.endsWith(".jsonl"))
-      .map((f) => {
-        const sid = f.replace(".jsonl", "");
+    return listTranscripts(agentDir)
+      .map((file) => {
+        const sid = file.sessionId;
         const entry = sessionsMap[sid];
         return {
           sessionId: sid,
-          lastModified: entry?.lastModified ?? Bun.file(join(agentDir, f)).lastModified,
+          lastModified: entry?.lastModified ?? file.mtimeMs,
           topic: entry?.topic ?? null,
           topicMessageCount: entry?.topicMessageCount ?? 0,
           cwd: entry?.cwd ?? null,
@@ -212,11 +212,10 @@ export function findLatestSession(agentId: string): string | null {
   try {
     const agentDir = join(LOGS_DIR, agentId);
     if (!existsSync(agentDir)) return null;
-    const files = readdirSync(agentDir)
-      .filter((f) => f.endsWith(".jsonl"))
-      .map((f) => ({
-        name: f.replace(".jsonl", ""),
-        mtime: Bun.file(join(agentDir, f)).lastModified,
+    const files = listTranscripts(agentDir)
+      .map((file) => ({
+        name: file.sessionId,
+        mtime: file.mtimeMs,
       }))
       .sort((a, b) => b.mtime - a.mtime);
     return files[0]?.name ?? null;

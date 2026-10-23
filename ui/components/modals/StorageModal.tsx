@@ -1,3 +1,4 @@
+import { CompressionForm } from "./storage/CompressionForm.tsx";
 import { BackupSettingsForm } from "./storage/BackupSettingsForm.tsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PrunePlanWire, PruneTarget, StoragePruneWire, StorageUsageWire } from "../../../shared/storage-types.ts";
@@ -131,6 +132,7 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
         }}
       />
 
+      <CompressionForm onApplied={loadUsage} />
       <SectionLabel>Delete old files</SectionLabel>
       <div style={warningBox}>
         <strong style={{ color: "#ff6b6b" }}>This permanently deletes files from this machine.</strong> Preview first, then type DELETE before Bureau removes anything.

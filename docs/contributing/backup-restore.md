@@ -93,6 +93,36 @@ previous directory untouched; move or remove them manually when appropriate.
 Invalid saved settings stop backups with a logged error instead of silently
 falling back or overwriting the file.
 
+## Compress Old Transcripts
+
+Owners can preview and apply lossless transcript compression in **User Settings →
+Storage**. Choose an age in days, preview eligible files, then apply. This is
+manual and never runs on a schedule. Active and recent sessions are skipped;
+files that changed or became active during compression are also skipped.
+Compression that would not save space leaves the original file untouched.
+
+Conversation history, session lists, fork ancestry and attachment references
+continue to work with compressed transcripts. Resuming a compressed session
+restores the complete transcript before appending. Existing transcript pruning
+also handles compressed histories, retaining its active-session, newest-session
+and fork-ancestor safeguards. A corrupt compressed transcript prevents appending
+and makes attachment cleanup conservative; check the server log and restore a
+verified backup before retrying.
+
+The owner browser API is `POST /api/storage/compress` with
+`{"olderThanDays":30}` for a read-only preview, or
+`{"olderThanDays":30,"apply":true}` to apply. Ages must be integers from 1 to
+36500. The server recomputes eligibility, checks current ownership before each
+publication, and allows only one application at a time. The response includes
+candidate bytes, compressed counts, before/after bytes, and any refused files.
+
+This covers Bureau agent transcripts under `logs/<agentId>/`. Provider-owned
+session files, cronjob logs and other state are unchanged. On disk, compressed
+transcripts use `.jsonl.gz`; use `gzip -cd <file>.jsonl.gz` to inspect them
+manually. The plain `.jsonl` is authoritative if an interrupted operation leaves
+both versions. Modification times are preserved so compression does not reset
+history ordering or retention age.
+
 ## Restore
 
 Stop Bureau first, then restore into the same state directory it was using.

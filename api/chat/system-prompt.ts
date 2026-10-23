@@ -154,6 +154,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Changes apply at the next hourly check; in-progress backups keep their original settings. Retention runs only after a new archive is verified
 - Live tar — JSON config writes use atomic write-then-rename so the snapshot can't capture a half-written file
 - Status (last run timestamp, ok/error, retention) at GET /backup/status
+- Owners can preview and compress old agent transcripts in User Settings > Storage to save space without deleting history. Compressed sessions remain readable and resumable; active sessions are skipped. This is manual, never scheduled
 
 ### Task Board
 - Statuses: open, in_progress, backlog, done. Backlog tasks are hidden from the default "active" filter and the office desk badge so deferred work doesn't clutter the working set
