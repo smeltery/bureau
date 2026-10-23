@@ -1,3 +1,4 @@
+import { membersChatStore } from "./members-chat/index.ts";
 import { replayOfficeFrames } from "./ws/outbox/sockets.ts";
 import type { KilledAgentSummary, PresenceInfo, ServerMessage, UserRecord } from "../shared/types.ts";
 import { KILLED_AGENT_CHIP_CAP, LOBBY_ROOM_ID } from "../shared/types.ts";
@@ -78,6 +79,7 @@ export function sendInitialPayload(ws: import("bun").ServerWebSocket<unknown>) {
   const frames = (function* () {
     yield JSON.stringify({
       type: "full_state",
+      membersChat: user ? membersChatStore.summary(user.id) : undefined,
       agents: projectedAgents,
       recentCwds: loadRecentCwds(),
       office: AgentManager.getOfficeSettings(),

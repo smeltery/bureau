@@ -1,3 +1,5 @@
+import { useTeamChatRead } from "./useTeamChatRead.ts";
+import { TeamChatUnread } from "./TeamChatUnread.tsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
 import { addRawListener, removeRawListener } from "../ws.ts";
@@ -15,15 +17,17 @@ interface PageResponse {
 
 export function TeamChatView({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
-  const { sessionContext, isMobile } = useAppState();
+  const { sessionContext, isMobile, hydrationEpoch } = useAppState();
   const [messages, setMessages] = useState<MembersChatMessage[]>([]);
   const [pinned, setPinned] = useState<MembersChatMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [error, setError] = useState<string | { key: "teamChat.loadFailed" | "teamChat.sendFailed" | "teamChat.deleteFailed" | "teamChat.pinFailed" } | null>(null);
+  const read = useTeamChatRead(messages, loading);
+  const revision = useRef(0);
+  const loadSequence = useRef(0);
   const isOwner = sessionContext?.role === "owner";
   const myUserId = sessionContext?.userId ?? null;
 
@@ -38,24 +42,36 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
   }, []);
 
   const loadPage = useCallback(
-    async (before?: string) => {
-      const qs = new URLSearchParams();
-      if (before) qs.set("before", before);
-      qs.set("limit", "50");
-      const res = await fetch(`/api/members-chat?${qs}`);
-      if (!res.ok) {
-        setError(t("teamChat.loadFailed"));
-        return;
+    async (before?: string): Promise<void> => {
+      const sequence = ++loadSequence.current;
+      const startedRevision = revision.current;
+      try {
+        const qs = new URLSearchParams();
+        if (before) qs.set("before", before);
+        qs.set("limit", "50");
+        const res = await fetch(`/api/members-chat?${qs}`);
+        if (sequence !== loadSequence.current) return;
+        if (!res.ok) {
+          setError({ key: "teamChat.loadFailed" });
+          return;
+        }
+        const page = (await res.json()) as PageResponse;
+        if (sequence !== loadSequence.current) return;
+        if (startedRevision !== revision.current) return loadPage(before);
+        applyPage(page, before ? "prepend" : "replace");
+        setError((previous) => (typeof previous === "object" && previous?.key === "teamChat.loadFailed" ? null : previous));
+      } catch {
+        if (sequence === loadSequence.current) setError({ key: "teamChat.loadFailed" });
+      } finally {
+        if (sequence === loadSequence.current) setLoading(false);
       }
-      applyPage((await res.json()) as PageResponse, before ? "prepend" : "replace");
-      setLoading(false);
     },
-    [applyPage, t],
+    [applyPage],
   );
 
   useEffect(() => {
     void loadPage();
-  }, [loadPage]);
+  }, [loadPage, hydrationEpoch]);
 
   useEffect(() => {
     function onRaw(data: string) {
@@ -66,6 +82,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
         return;
       }
       if (msg.type === "members_chat_message" && msg.message) {
+        revision.current++;
         const next = msg.message;
         setPinned((prev) => {
           const without = prev.filter((m) => m.id !== next.id);
@@ -84,6 +101,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
         return;
       }
       if (msg.type === "members_chat_deleted" && typeof msg.id === "string") {
+        revision.current++;
         const id = msg.id;
         setMessages((prev) => prev.filter((m) => m.id !== id));
         setPinned((prev) => prev.filter((m) => m.id !== id));
@@ -92,11 +110,6 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
     addRawListener(onRaw);
     return () => removeRawListener(onRaw);
   }, []);
-
-  useEffect(() => {
-    if (loading) return;
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, loading]);
 
   async function send() {
     const text = draft.trim();
@@ -111,7 +124,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(body?.error ?? t("teamChat.sendFailed"));
+        setError(body?.error ?? { key: "teamChat.sendFailed" });
         return;
       }
       setDraft("");
@@ -124,7 +137,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
 
   async function remove(id: string) {
     const res = await fetch(`/api/members-chat/${encodeURIComponent(id)}`, { method: "DELETE" });
-    if (!res.ok && res.status !== 204) setError(t("teamChat.deleteFailed"));
+    if (!res.ok && res.status !== 204) setError({ key: "teamChat.deleteFailed" });
   }
 
   async function togglePin(id: string, active: boolean) {
@@ -133,7 +146,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ active }),
     });
-    if (!res.ok) setError(t("teamChat.pinFailed"));
+    if (!res.ok) setError({ key: "teamChat.pinFailed" });
   }
 
   return (
@@ -166,7 +179,10 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer", padding: "2px 8px" }}>
             ←
           </button>
-          <span style={{ fontSize: 15, fontWeight: 700 }}>{t("common.teamChat")}</span>
+          <span style={{ fontSize: 15, fontWeight: 700 }}>
+            {t("common.teamChat")}
+            <TeamChatUnread />
+          </span>
         </div>
         <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{t("teamChat.humansOnly")}</span>
       </div>
@@ -182,7 +198,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "12px" : "16px 20px" }}>
+      <div ref={read.viewportRef} onScroll={read.onScroll} data-team-chat-messages style={{ flex: 1, overflowY: "auto", padding: isMobile ? "12px" : "16px 20px" }}>
         {hasMore && (
           <button
             onClick={() => {
@@ -213,10 +229,29 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
             <TeamChatMessageCard key={m.id} message={m} isOwner={!!isOwner} myUserId={myUserId} onPin={(id, active) => void togglePin(id, active)} onDelete={(id) => void remove(id)} />
           ))
         )}
-        <div ref={bottomRef} />
       </div>
 
-      {error && <div style={{ padding: "6px 16px", color: "var(--red)", fontSize: 12, borderTop: "1px solid var(--border-subtle)" }}>{error}</div>}
+      {read.failed && (
+        <div role="alert" style={{ padding: "6px 16px", color: "var(--red)", fontSize: 12 }}>
+          {t("teamChat.readFailed")}{" "}
+          <button
+            onClick={() => void read.retry()}
+            style={{
+              marginLeft: 8,
+              padding: "4px 10px",
+              borderRadius: 6,
+              border: "1px solid var(--border)",
+              background: "var(--btn-surface)",
+              color: "var(--text-primary)",
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            {t("common.retry")}
+          </button>
+        </div>
+      )}
+      {error && <div style={{ padding: "6px 16px", color: "var(--red)", fontSize: 12, borderTop: "1px solid var(--border-subtle)" }}>{typeof error === "string" ? error : t(error.key)}</div>}
 
       <div
         style={{

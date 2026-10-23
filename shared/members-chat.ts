@@ -37,3 +37,10 @@ export function recentMembersChatPins(messages: Iterable<MembersChatMessage>): M
     .sort((a, b) => b.pinnedAt! - a.pinnedAt!)
     .slice(0, MEMBERS_CHAT_PIN_LIMIT);
 }
+
+export interface MembersChatSummary {
+  userId: string;
+  readPointer: string | null;
+  unread: number;
+  latestId: string | null;
+}

@@ -1,3 +1,4 @@
+import { TeamChatUnread } from "../team-chat/TeamChatUnread.tsx";
 import { InstallButton } from "../install/InstallButton.tsx";
 import type { ReactNode } from "react";
 import { SunIcon, MoonIcon } from "../components/controls/Icons.tsx";
@@ -128,7 +129,19 @@ export function DesktopOfficeHeader({
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifySelf: "end" }}>
         <HeaderButton icon={<TasksIcon />} label={t("common.tasks")} onClick={onOpenTasks} />
-        {onOpenTeamChat && <HeaderButton icon={<ChatIcon />} label={t("common.teamChat")} title={t("common.teamChat")} onClick={onOpenTeamChat} />}
+        {onOpenTeamChat && (
+          <HeaderButton
+            icon={
+              <>
+                <ChatIcon />
+                <TeamChatUnread />
+              </>
+            }
+            label={t("common.teamChat")}
+            title={t("common.teamChat")}
+            onClick={onOpenTeamChat}
+          />
+        )}
         {onOpenCronjobs && <HeaderButton icon={<ClockIcon />} label={t("common.schedules")} title={t("common.schedules")} onClick={onOpenCronjobs} />}
         {onOpenApps && <HeaderButton icon={<AppsIcon />} label={t("common.apps")} title={t("office.header.appsTitle")} onClick={onOpenApps} />}
         {onOpenSkills && <HeaderButton icon={<span>▤</span>} label={t("skills.title")} title={t("skills.title")} onClick={onOpenSkills} />}

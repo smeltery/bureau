@@ -1,3 +1,4 @@
+import { createChatReadState } from "./read-state.ts";
 // Monthly JSONL members-chat store. One office-wide stream for signed-in
 // humans. A chat between people has no natural end, so history is cut by
 // calendar month (`YYYY-MM.jsonl`). Ordering is FILE ORDER (append order),
@@ -7,7 +8,15 @@
 
 import { appendFileSync, mkdirSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
-import { MEMBERS_CHAT_DEFAULT_PAGE, MEMBERS_CHAT_MAX_CHARS, MEMBERS_CHAT_MAX_PAGE, membersChatExcerpt, recentMembersChatPins, type MembersChatMessage } from "../../shared/members-chat.ts";
+import {
+  MEMBERS_CHAT_DEFAULT_PAGE,
+  MEMBERS_CHAT_MAX_CHARS,
+  MEMBERS_CHAT_MAX_PAGE,
+  membersChatExcerpt,
+  recentMembersChatPins,
+  type MembersChatMessage,
+  type MembersChatSummary,
+} from "../../shared/members-chat.ts";
 
 export { MEMBERS_CHAT_DEFAULT_PAGE, MEMBERS_CHAT_MAX_CHARS, MEMBERS_CHAT_MAX_PAGE };
 
@@ -61,6 +70,8 @@ export interface PostInput {
 }
 
 export interface MembersChatStore {
+  summary(userId: string): MembersChatSummary;
+  markRead(userId: string, id: string): MembersChatSummary;
   setPinned(id: string, active: boolean): MembersChatMessage | null;
   post(input: PostInput): MembersChatMessage;
   delete(id: string): MembersChatMessage | null;
@@ -286,6 +297,16 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
   }
 
   return {
+    ...createChatReadState(dir, {
+      positionOf,
+      visitMonths(visit) {
+        for (const month of listMonths()) {
+          const cached = cache.has(month);
+          visit(month, fold(month));
+          if (!cached) cache.delete(month);
+        }
+      },
+    }),
     setPinned,
     post,
     delete: del,

@@ -1,3 +1,5 @@
+import { TeamChatUnread } from "../../team-chat/TeamChatUnread.tsx";
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "../../store.tsx";
 import { SunIcon, MoonIcon } from "../controls/Icons.tsx";
@@ -56,6 +58,7 @@ export function MobileHeaderMenu({
   onOpenTeamChat?: () => void;
 }) {
   const { mode } = useTheme();
+  const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -88,6 +91,7 @@ export function MobileHeaderMenu({
           }}
         >
           &#8943;
+          {!menuOpen && onOpenTeamChat && <TeamChatUnread />}
         </button>
         {menuOpen && (
           <div
@@ -106,7 +110,20 @@ export function MobileHeaderMenu({
           >
             {[
               { icon: TASKS_ICON, label: "Tasks", action: onOpenTasks },
-              ...(onOpenTeamChat ? [{ icon: CHAT_ICON, label: "Team chat", action: onOpenTeamChat }] : []),
+              ...(onOpenTeamChat
+                ? [
+                    {
+                      icon: CHAT_ICON,
+                      label: (
+                        <>
+                          {t("common.teamChat")}
+                          <TeamChatUnread />
+                        </>
+                      ),
+                      action: onOpenTeamChat,
+                    },
+                  ]
+                : []),
               ...(onEditUsername ? [{ icon: BUILDING_ICON, label: "User settings", action: onEditUsername }] : []),
               ...(onOpenDeviceSettings ? [{ icon: DEVICE_ICON, label: "Device settings", action: onOpenDeviceSettings }] : []),
               { icon: BUILDING_ICON, label: "Office settings", action: onEditOfficePrompt },

@@ -7,7 +7,9 @@ Office-wide chat for signed-in humans. Agents never post here.
 Messages live under `~/.bureau/members-chat/` as monthly JSONL files
 (`YYYY-MM.jsonl`). Ordering is append order within each month; edits, deletes,
 and pins append new ops to the month that owns the message id (ids embed
-`YYYYMM`).
+`YYYYMM`). Per-member read positions are atomically saved in `reads.json`.
+Positions advance through message order and survive deletion of the anchor
+message; delayed updates cannot move them backward.
 
 ## HTTP
 
@@ -16,8 +18,9 @@ bearers are refused.
 
 | Method | Path | Notes |
 | ------ | ---- | ----- |
-| `GET` | `/api/members-chat?before=&limit=` | Page of messages (oldest→newest in the page) plus pinned |
+| `GET` | `/api/members-chat?before=&limit=` | Page of messages (oldest→newest in the page) plus pinned and the caller’s unread summary |
 | `POST` | `/api/members-chat` | Body `{ text, replyTo?, device? }` → `201` message |
+| `POST` | `/api/members-chat/read` | Body `{ lastReadId }`; marks through that message for the caller only |
 | `PUT` | `/api/members-chat/:id/pin` | Owner only; body `{ active?: boolean }` |
 | `DELETE` | `/api/members-chat/:id` | Author or owner |
 
@@ -27,8 +30,18 @@ Connected browsers receive:
 
 - `members_chat_message` — new post, or pin/unpin with `updateOnly: true`
 - `members_chat_deleted` — `{ id }`
+- `members_chat_summary` — `{ summary: { userId, readPointer, unread, latestId } }`, sent only to that member’s sockets after a read update. Posts and deletions refresh each connected member’s own summary.
+
+`full_state.membersChat` supplies the recipient’s summary on connect or reconnect.
+The closed chat does not fetch history to show an unread badge.
 
 ## UI
 
 Full-page panel at `/team-chat` (alias `/chat`). Header **Team chat** on
 desktop; mobile overflow menu. Humans only — no agent composer.
+
+Unread counts appear on the desktop entry, lobby receptionist, mobile menu,
+and open chat header. A visible chat marks through its newest displayed
+message only while scrolled to the bottom. Reading older messages or hiding
+the browser tab keeps incoming messages unread. Read updates sync across
+the member’s tabs; failed updates show a retry action.

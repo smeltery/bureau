@@ -1,3 +1,5 @@
+import { TeamChatUnread } from "../team-chat/TeamChatUnread.tsx";
+import { useI18n } from "../i18n.tsx";
 import type { AgentOutfit } from "../../shared/types.ts";
 import { Character } from "./scene/Character.tsx";
 
@@ -27,7 +29,8 @@ export function LobbyReceptionist({
   /** Living agent the viewer can access; when set, click opens their chat. */
   agent?: { id: string; name: string; outfit: AgentOutfit } | null;
 }) {
-  const label = agent ? agent.name : "Team chat";
+  const { t } = useI18n();
+  const label = agent ? agent.name : t("common.teamChat");
   const outfit = agent?.outfit ?? HOST_OUTFIT;
   const onClick = agent && onOpenAgent ? () => onOpenAgent(agent.id) : onOpenTeamChat;
   return (
@@ -53,6 +56,7 @@ export function LobbyReceptionist({
             }}
           >
             {label}
+            {!agent && <TeamChatUnread />}
           </div>
         </div>
       </foreignObject>
