@@ -26,7 +26,7 @@
 import { appRegistry as productionRegistry, type AppRegistry } from "../registry.ts";
 import { appSupervisor as productionSupervisor, type AppSupervisor } from "../supervisor.ts";
 import { appHostDomain } from "../domain.ts";
-import { matchAppHost, normalizeRequestHost } from "./match.ts";
+import { isAppDomainChild, matchAppHost, normalizeRequestHost } from "./match.ts";
 import { APP_AUTH_PATH, APP_RESERVED_PATH } from "./auth-cookie.ts";
 import { appHostAuthGate, appHostWsAuthGate, handleAppAuthRedeem } from "./auth.ts";
 import { APP_FAVICON_PATH, appFavicon } from "./favicon.ts";
@@ -72,8 +72,9 @@ export function handleAppHostRequest(req: Request, deps: AppHostDeps = {}): Resp
   const domain = deps.domain !== undefined ? deps.domain : appHostDomain();
   if (domain === null) return null;
 
-  const host = normalizeRequestHost(req.headers.get("host"));
-  if (host === null) return null;
+  const rawHost = req.headers.get("host");
+  const host = normalizeRequestHost(rawHost);
+  if (host === null) return isAppDomainChild(rawHost, domain) ? neutralNotFound() : null;
 
   const match = matchAppHost(host, domain);
   if (match === null) return null;
