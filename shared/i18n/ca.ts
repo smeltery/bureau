@@ -1,3 +1,4 @@
+import { integrations } from "./integrations-ca.ts";
 import { schedules } from "./schedules-ca.ts";
 import { logs } from "./logs-ca.ts";
 import { storage } from "./storage-ca.ts";
@@ -6,6 +7,7 @@ import type { Catalog } from "./en.ts";
 // Catalan translations for the office UI catalog.
 export const ca = {
   ...logs,
+  ...integrations,
   ...schedules,
   ...skills,
   ...storage,

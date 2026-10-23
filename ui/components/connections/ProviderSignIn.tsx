@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { ProviderAccountProvider, ProviderAccountScope, ProviderSignInStatus } from "../../../shared/provider-accounts.ts";
 import { useAppState } from "../../store.tsx";
@@ -5,10 +6,11 @@ import { integrationApi } from "../integrations/scoped/api.ts";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "../modals/dialog-styles.ts";
 
 export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAccountProvider; onChanged(): void }) {
+  const { t } = useI18n();
   const { sessionContext } = useAppState();
   const [scope, setScope] = useState<ProviderAccountScope>("personal");
   const [status, setStatus] = useState<ProviderSignInStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | { key: "providerSignIn.checkFailed" | "providerSignIn.failed" } | null>(null);
   const [pending, setPending] = useState(false);
   const [code, setCode] = useState("");
   const [confirm, setConfirm] = useState(false);
@@ -36,7 +38,7 @@ export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAcco
         currentStatus.current = next;
         setStatus(next);
       } catch (caught) {
-        if (generation.current === ticket) setError(caught instanceof Error ? caught.message : "Could not check provider sign-in.");
+        if (generation.current === ticket) setError(caught instanceof Error ? caught.message : { key: "providerSignIn.checkFailed" });
       }
       if (generation.current === ticket) timer = setTimeout(poll, 2000);
     }
@@ -60,54 +62,62 @@ export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAcco
       setConfirm(false);
       if (next.phase === "idle") changed.current();
     } catch (caught) {
-      if (generation.current === ticket) setError(caught instanceof Error ? caught.message : "Provider sign-in failed.");
+      if (generation.current === ticket) setError(caught instanceof Error ? caught.message : { key: "providerSignIn.failed" });
     } finally {
       if (generation.current === ticket) setPending(false);
     }
   }
   const active = status && status.phase !== "idle";
   return (
-    <section aria-label={`${title} browser sign-in`} style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+    <section aria-label={t("providerSignIn.title", { provider: title })} style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
       <label style={dialogLabel}>
-        Account scope
-        <select aria-label={`${title} account scope`} style={dialogInput} value={scope} disabled={pending} onChange={(event) => setScope(event.target.value as ProviderAccountScope)}>
-          <option value="personal">Personal · your agents</option>
-          <option value="office">Office · shared account</option>
+        {t("providerSignIn.scope")}
+        <select
+          aria-label={t("providerSignIn.providerScope", { provider: title })}
+          style={dialogInput}
+          value={scope}
+          disabled={pending}
+          onChange={(event) => setScope(event.target.value as ProviderAccountScope)}
+        >
+          <option value="personal">{t("providerSignIn.personal")}</option>
+          <option value="office">{t("providerSignIn.office")}</option>
         </select>
       </label>
       <p style={dialogHint}>
-        {status ? (status.connected ? `Signed in${status.label ? ` as ${status.label}` : ""}.` : "No saved subscription sign-in in this scope.") : "Checking subscription sign-in…"}
+        {status
+          ? status.connected
+            ? status.label
+              ? t("providerSignIn.signedInAs", { label: status.label })
+              : t("providerSignIn.signedIn")
+            : t("providerSignIn.noAccount")
+          : t("providerSignIn.checking")}
       </p>
-      {scope === "personal" && (
-        <p style={dialogHint}>
-          A private account directory becomes active after sign-in is verified. Existing conversations keep their original account directory; start a new conversation to use this account.
-        </p>
-      )}
-      {scope === "personal" && status?.connected && !status.activePersonal && status.managed && <p style={dialogHint}>This saved account is not active. Sign in again to verify and activate it.</p>}
-      {status?.apiKeyPresent && <p style={dialogHint}>An API key is also configured. Provider credential precedence still applies; signing in does not remove that key.</p>}
-      {!canManage && <p style={dialogHint}>Only an owner can change the shared office account.</p>}
+      {scope === "personal" && <p style={dialogHint}>{t("providerSignIn.personalHint")}</p>}
+      {scope === "personal" && status?.connected && !status.activePersonal && status.managed && <p style={dialogHint}>{t("providerSignIn.inactive")}</p>}
+      {status?.apiKeyPresent && <p style={dialogHint}>{t("providerSignIn.apiKeyHint")}</p>}
+      {!canManage && <p style={dialogHint}>{t("providerSignIn.ownerOnly")}</p>}
       {active ? (
         <>
           <p role="status" style={dialogHint}>
             {status.holderName ? `${status.holderName}: ` : ""}
             {status.phase === "waiting"
-              ? "Waiting for provider sign-in."
+              ? t("providerSignIn.waiting")
               : status.phase === "verifying"
-                ? "Verifying saved account…"
+                ? t("providerSignIn.verifying")
                 : status.phase === "cancelling"
-                  ? "Cancelling sign-in…"
-                  : "Starting sign-in…"}
+                  ? t("providerSignIn.cancelling")
+                  : t("providerSignIn.starting")}
           </p>
           {status.authUrl && (
             <p>
               <a href={status.authUrl} target="_blank" rel="noopener noreferrer">
-                Continue {title} sign-in
+                {t("providerSignIn.continue", { provider: title })}
               </a>
             </p>
           )}
           {status.userCode && (
             <p style={dialogHint}>
-              Enter this device code: <code style={{ userSelect: "all" }}>{status.userCode}</code>
+              {t("providerSignIn.deviceCode")} <code style={{ userSelect: "all" }}>{status.userCode}</code>
             </p>
           )}
           {provider === "claude" && status.authUrl && status.phase === "waiting" && (
@@ -118,17 +128,17 @@ export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAcco
               }}
             >
               <label style={dialogLabel}>
-                Paste the code from the provider tab
-                <input aria-label="Claude sign-in code" type="password" autoComplete="off" style={dialogInput} value={code} onChange={(event) => setCode(event.target.value)} />
+                {t("providerSignIn.pasteCode")}
+                <input aria-label={t("providerSignIn.codeLabel")} type="password" autoComplete="off" style={dialogInput} value={code} onChange={(event) => setCode(event.target.value)} />
               </label>
               <button style={dialogSaveBtn} disabled={pending || !code.trim()}>
-                Complete sign-in
+                {t("providerSignIn.complete")}
               </button>
             </form>
           )}
           {canManage && (
             <button style={dialogCancelBtn} disabled={pending || status.phase === "cancelling"} onClick={() => void action("DELETE", { operationId: status.operationId })}>
-              Cancel sign-in
+              {t("providerSignIn.cancel")}
             </button>
           )}
         </>
@@ -136,40 +146,36 @@ export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAcco
         canManage && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             <button style={dialogSaveBtn} disabled={pending} onClick={() => void action("POST", { method: provider === "codex" ? "device" : "browser" })}>
-              {pending ? "Working…" : provider === "codex" ? "Sign in with device code" : "Sign in with browser"}
+              {pending ? t("providerSignIn.working") : provider === "codex" ? t("providerSignIn.device") : t("providerSignIn.browser")}
             </button>
             {provider === "codex" && (
               <button style={dialogCancelBtn} disabled={pending} onClick={() => void action("POST", { method: "browser" })}>
-                Browser sign-in on this host
+                {t("providerSignIn.hostBrowser")}
               </button>
             )}
             {(status?.connected || status?.activePersonal) && (
               <button style={dialogCancelBtn} disabled={pending} onClick={() => setConfirm(true)}>
-                Disconnect
+                {t("providerSignIn.disconnect")}
               </button>
             )}
           </div>
         )
       )}
-      {provider === "codex" && <p style={dialogHint}>Device codes work from another computer or phone. Browser sign-in requires the browser to reach the Bureau host’s localhost callback.</p>}
+      {provider === "codex" && <p style={dialogHint}>{t("providerSignIn.deviceHint")}</p>}
       {confirm && (
-        <div role="group" aria-label="Confirm provider disconnect">
-          <p style={dialogHint}>
-            Disconnect the {scope} {title} subscription?{" "}
-            {scope === "office" ? "Agents using the shared account may need a new sign-in." : "New conversations will return to office defaults. Existing conversations keep their directory."} API keys
-            remain configured.
-          </p>
+        <div role="group" aria-label={t("providerSignIn.confirmLabel")}>
+          <p style={dialogHint}>{t(scope === "office" ? "providerSignIn.disconnectOffice" : "providerSignIn.disconnectPersonal", { provider: title })}</p>
           <button style={dialogCancelBtn} disabled={pending} onClick={() => setConfirm(false)}>
-            Keep connected
+            {t("providerSignIn.keep")}
           </button>
           <button style={dialogSaveBtn} disabled={pending} onClick={() => void action("POST", { confirm: "DISCONNECT" }, true)}>
-            Confirm disconnect
+            {t("providerSignIn.confirm")}
           </button>
         </div>
       )}
       {(error || status?.error) && (
         <p role="alert" style={{ color: "var(--red)", fontSize: 12 }}>
-          {error || status?.error}
+          {error ? (typeof error === "string" ? error : t(error.key)) : status?.error}
         </p>
       )}
     </section>
