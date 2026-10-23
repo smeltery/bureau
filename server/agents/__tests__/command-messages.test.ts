@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { commands, unsupportedMessage } from "../commands.ts";
+import { commands, unsupportedMessage, autocompleteCommands } from "../commands.ts";
 import { commandDescription, unsupportedLogMessage } from "../conversation/command-messages.ts";
 import { displayLogContent, logContent } from "../../../shared/i18n/log-message.ts";
 
@@ -32,4 +32,15 @@ test("unknown and changed descriptions remain literal", () => {
   expect(commandDescription("bureauDiff", commands["bureau-diff"].description)).toBe(commands["bureau-diff"].description);
   const entry = { kind: "system" as const, ...logContent(unsupportedLogMessage("unknown")) };
   expect(displayLogContent(entry, "es")).toBe("`/unknown` no está disponible en Bureau.");
+});
+
+test("autocomplete carries translated descriptions without changing command behavior", () => {
+  const entries = autocompleteCommands();
+  expect(entries.map((entry) => entry.name)).toEqual(Object.keys(commands).filter((name) => commands[name].autocomplete));
+  for (const entry of entries) {
+    expect(entry.description).toBe(commands[entry.name].description);
+    expect(JSON.stringify(entry.descriptionMessage)).toBe(JSON.stringify(commandDescription(entry.name, entry.description)));
+    expect(entry.aliasFor).toBe(commands[entry.name].aliasFor);
+    expect(entry.autoRun).toBe(commands[entry.name].autoRun === true ? true : undefined);
+  }
 });

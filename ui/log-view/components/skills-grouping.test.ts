@@ -86,3 +86,18 @@ describe("buildSkillsMenuGroups", () => {
     expect(groups.find((group) => group.key === "user")?.entries).toEqual([expect.not.objectContaining({ autoRun: true })]);
   });
 });
+
+test("menu searches translated descriptions and preserves names, aliases and auto-run", () => {
+  const commands: CommandEntry[] = [{ name: "help", description: "List available commands", descriptionMessage: { key: "logs.description.help" }, autoRun: true }];
+  const spanish = buildSkillsMenuGroups({ commands, skills: [{ name: "custom", origin: "user", description: "Original description" }], counts: {}, filter: "", language: "es" });
+  const builtIn = spanish.find((group) => group.key === "commands")!;
+  expect(builtIn.label).toBe("Comandos");
+  expect(builtIn.entries[0].name).toBe("help");
+  expect(builtIn.entries[0].autoRun).toBe(true);
+  expect(builtIn.entries[0].description).not.toBe(commands[0].description);
+  expect(spanish.find((group) => group.key === "user")!.entries[0].description).toBe("Original description");
+  const filtered = buildSkillsMenuGroups({ commands, skills: [], counts: { help: 2 }, filter: builtIn.entries[0].description!, language: "es" });
+  expect(filtered[0].key).toBe("most-used");
+  expect(filtered[0].label).toBe("Más usados");
+  expect(filtered[0].entries[0].name).toBe("help");
+});

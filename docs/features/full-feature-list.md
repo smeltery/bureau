@@ -152,6 +152,8 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   Help (including built-in command descriptions) and unavailable-command replies
   are translated too. Help copies in the reader’s language; skill-provided
   descriptions and inspected system-prompt text retain their original content.
+  Autocomplete and the Skills menu translate built-in descriptions, origins,
+  headings, and search text. Menu search includes translated descriptions.
 - PWA-friendly mobile UI.
 - WebSocket sync across all connected browsers. Large transcript replays stream
   in order as each browser drains, followed by live events. Slow connections have

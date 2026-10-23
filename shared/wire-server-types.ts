@@ -1,3 +1,4 @@
+import type { SlashCommandInfo } from "./agent-types.ts";
 import type { AgentInfo, KilledAgentSummary, SessionInfo, SkillInfo } from "./agent-types.ts";
 import type { AppListWire } from "./apps.ts";
 import type { CCPluginsState } from "./cc-plugin-types.ts";
@@ -95,7 +96,7 @@ export type ServerMessage =
   // slide_ready.
   | { type: "slide_failed"; agentId: string; sessionId: string; entryId: string; reason: SlideFailureReason }
   | { type: "sessions_list"; agentId: string; sessions: SessionInfo[]; currentSessionId: string | null }
-  | { type: "slash_commands"; agentId: string; commands: { name: string; description?: string; aliasFor?: string; autoRun?: boolean }[]; skills: SkillInfo[] }
+  | { type: "slash_commands"; agentId: string; commands: SlashCommandInfo[]; skills: SkillInfo[] }
   | { type: "clear_logs"; agentId: string }
   | { type: "terminal_output"; agentId: string; data: string; replay?: boolean }
   | { type: "terminal_recording"; agentId: string; status: import("./terminal/recordings.ts").RecordingStatus }

@@ -39,6 +39,7 @@ export type {
   ScheduledMessageEntry,
   SessionInfo,
   SkillInfo,
+  SlashCommandInfo,
   SkillOrigin,
 } from "./agent-types.ts";
 export { KILLED_AGENT_CHIP_CAP } from "./agent-types.ts";
