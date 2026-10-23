@@ -248,6 +248,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - One-off scheduled agent messages persist in `scheduled-messages.json`.
 - Per-run transcripts, manual run-now, resume, and fork from prior runs.
 - File-system persistence under `~/.bureau/` or `BUREAU_HOME`.
+- Damaged agent state is preserved for recovery before starting an empty room;
+  unreadable state or failed preservation stops startup. See
+  [recovery instructions](../contributing/backup-restore.md#recover-damaged-agent-state).
 - Daily backup tarballs with retention.
 - Owner storage reports via `/bureau-storage` and `GET /api/storage/usage`,
   covering transcripts, attachments, Codex home, memory, cron jobs, backups,
