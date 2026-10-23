@@ -1,7 +1,8 @@
+import { emitAgentReadFile, emitAgentDiff } from "../../affordances.ts";
 import { sendMessage } from "../send.ts";
 import { QUEUE_MAX } from "../message-queue.ts";
 import { afterEach, expect, spyOn, test } from "bun:test";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync, truncateSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../../shared/types.ts";
@@ -219,4 +220,38 @@ test("session startup errors retain provider details and recovery commands", asy
   } finally {
     create.mockRestore();
   }
+});
+
+test("file actions translate diagnostics without changing paths or file payloads", () => {
+  const managed = install();
+  const missing = join(managed.info.cwd, "original-name.txt");
+  expect(emitAgentReadFile(managed.info.id, missing)).toEqual({ ok: true });
+  expect(displayLogContent(last(managed), "es")).toBe(`\`${missing}\` no existe.`);
+  emitAgentReadFile(managed.info.id, managed.info.cwd);
+  expect(last(managed).message?.key).toBe("logs.command.notFile");
+  const large = join(managed.info.cwd, "large.dat");
+  writeFileSync(large, "");
+  truncateSync(large, 21.5 * 1024 * 1024);
+  emitAgentReadFile(managed.info.id, large);
+  expect(last(managed).content).toContain("21.5 MB");
+  expect(displayLogContent(last(managed), "es")).toContain("21,5 MB");
+  writeFileSync(missing, "Original file contents");
+  emitAgentReadFile(managed.info.id, missing);
+  expect(last(managed).kind).toBe("file-view");
+  expect(last(managed).content).toBe("original-name.txt");
+  expect(last(managed).message).toBeUndefined();
+});
+
+test("diff actions retain API behavior, working directories and commit references", () => {
+  const managed = install();
+  expect(emitAgentDiff(managed.info.id)).toEqual({ ok: true });
+  expect(last(managed).message?.key).toBe("logs.command.notRepository");
+  expect(displayLogContent(last(managed), "ca")).toContain(managed.info.cwd);
+  const init = Bun.spawnSync(["git", "init", "--quiet"], { cwd: managed.info.cwd, env: process.env });
+  expect(init.exitCode).toBe(0);
+  emitAgentDiff(managed.info.id);
+  expect(last(managed).message?.key).toBe("logs.command.cleanTree");
+  emitAgentDiff(managed.info.id, undefined, "missing-reference");
+  expect(last(managed).message?.key).toBe("logs.action.badCommit");
+  expect(displayLogContent(last(managed), "zh")).toContain("missing-reference");
 });

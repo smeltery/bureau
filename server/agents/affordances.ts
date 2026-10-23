@@ -1,3 +1,5 @@
+import { logMessage } from "../../shared/i18n/log-message.ts";
+import { errMessage } from "../../shared/errors.ts";
 import type { BrowserDialog } from "../browser/params.ts";
 import { homedir } from "os";
 import { basename, resolve as resolvePath } from "path";
@@ -74,36 +76,44 @@ export function emitAgentReadFile(agentId: string, rawPath: string): { ok: true 
   }
   const absPath = resolved.path;
   if (!existsSync(absPath)) {
-    addLogEntry(agentId, "system", `\`${absPath}\` does not exist.`);
+    addLogEntry(agentId, "system", logMessage("logs.command.missingFile", { path: absPath }));
     return { ok: true };
   }
   let st;
   try {
     st = statSync(absPath);
   } catch (err) {
-    addLogEntry(agentId, "system", `Failed to read \`${absPath}\`: ${err instanceof Error ? err.message : String(err)}`);
+    addLogEntry(agentId, "system", logMessage("logs.action.readFailed", { path: absPath, error: errMessage(err) }));
     return { ok: true };
   }
   if (!st.isFile()) {
-    addLogEntry(agentId, "system", `\`${absPath}\` is not a file.`);
+    addLogEntry(agentId, "system", logMessage("logs.command.notFile", { path: absPath }));
     return { ok: true };
   }
   if (st.size > MAX_READ_FILE_BYTES) {
-    addLogEntry(agentId, "system", `\`${absPath}\` is ${(st.size / (1024 * 1024)).toFixed(1)} MB — too large to display (${MAX_READ_FILE_BYTES / (1024 * 1024)} MB limit).`);
+    addLogEntry(
+      agentId,
+      "system",
+      logMessage("logs.action.readTooLarge", {
+        path: absPath,
+        size: { number: Number((st.size / (1024 * 1024)).toFixed(1)), digits: 1, group: false },
+        limit: { number: MAX_READ_FILE_BYTES / (1024 * 1024) },
+      }),
+    );
     return { ok: true };
   }
   let data: Buffer;
   try {
     data = readFileSync(absPath);
   } catch (err) {
-    addLogEntry(agentId, "system", `Failed to read \`${absPath}\`: ${err instanceof Error ? err.message : String(err)}`);
+    addLogEntry(agentId, "system", logMessage("logs.action.readFailed", { path: absPath, error: errMessage(err) }));
     return { ok: true };
   }
   const originalName = basename(absPath);
   const mediaType = mimeTypeForFilename(originalName);
   const att = savePersistedFile(agentId, data, mediaType, originalName);
   if (!att) {
-    addLogEntry(agentId, "system", `Failed to save \`${absPath}\` for display.`);
+    addLogEntry(agentId, "system", logMessage("logs.action.saveDisplayFailed", { path: absPath }));
     return { ok: true };
   }
   addLogEntry(agentId, "file-view", originalName, undefined, [att]);
@@ -154,16 +164,16 @@ export function emitAgentDiff(agentId: string, dir?: string, commit?: string): {
   const result = computeBureauDiff(resolved.cwd, { commit });
   switch (result.kind) {
     case "not_repo":
-      emitEphemeralLog(agentId, "system", `\`${result.cwd}\` is not a git repository.`);
+      emitEphemeralLog(agentId, "system", logMessage("logs.command.notRepository", { cwd: result.cwd }));
       break;
     case "git_error":
-      emitEphemeralLog(agentId, "system", `Failed to run git diff in \`${result.cwd}\`:\n\n\`\`\`\n${result.message}\n\`\`\``);
+      emitEphemeralLog(agentId, "system", logMessage("logs.command.diffFailed", { cwd: result.cwd, error: result.message }));
       break;
     case "bad_commit":
-      emitEphemeralLog(agentId, "system", `Cannot diff \`${result.attempted}\`: ${result.message}.`);
+      emitEphemeralLog(agentId, "system", logMessage("logs.action.badCommit", { commit: result.attempted, error: result.message }));
       break;
     case "clean":
-      emitEphemeralLog(agentId, "system", commit ? `\`${commit}\` introduced no file changes (empty commit?).` : `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
+      emitEphemeralLog(agentId, "system", commit ? logMessage("logs.action.emptyCommit", { commit }) : logMessage("logs.command.cleanTree", { cwd: result.cwd }));
       break;
     case "ok":
       emitEphemeralLog(agentId, "diff", result.summary, undefined, { diff: result.payload });

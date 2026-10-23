@@ -1,3 +1,5 @@
+import { displayLogContent } from "../../../shared/i18n/log-message.ts";
+import { appendLog, saveSessionsMap } from "../../persistence.ts";
 import { claudeBackend } from "../../backends/claude.ts";
 import { afterEach, describe, expect, test, spyOn } from "bun:test";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
@@ -106,4 +108,29 @@ describe("editMessage edit capability", () => {
 
     expect(errors("agent-stopped").some((e) => e.includes("Cannot edit while agent is busy"))).toBe(false);
   });
+});
+
+test("edit failure locates another saved session and translates only its wrapper", async () => {
+  const id = `edit-owner-${crypto.randomUUID()}`;
+  install(id, true);
+  seedDurableUser(id, "original-entry");
+  const original = logCache.get(id)![0];
+  appendLog(id, "other-session", original);
+  saveSessionsMap(id, { "other-session": { topic: "Original topic {literal}", lastModified: Date.now() } });
+  const history = spyOn(claudeBackend, "getSessionMessages").mockResolvedValue([{ uuid: "different", role: "user", text: "Other request" }]);
+  try {
+    await editMessage(id, "original-entry", "New text");
+    const entry = logCache.get(id)!.at(-1)!;
+    expect(entry.message?.key).toBe("logs.action.editNotRecorded");
+    for (const language of ["es", "ca", "zh"] as const) {
+      const text = displayLogContent(entry, language);
+      expect(text).toContain("Original topic {literal}");
+      expect(text).toContain("/resume");
+      expect(text).not.toBe(entry.content);
+    }
+    expect(agents.get(id)!.sessionId).toBe("session-1");
+    expect(logCache.get(id)![0]).toEqual(original);
+  } finally {
+    history.mockRestore();
+  }
 });
