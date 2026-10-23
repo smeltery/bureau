@@ -305,3 +305,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - [Install the office and individual apps](installing-apps.md) with browser prompts or manual steps, distinct app manifests, and app title/icon metadata. Existing access checks still apply.
 
 - [Safe UI publication](ui-builds.md) stages builds before serving them and offers open tabs an explicit refresh when the interface changes.
+
+- Large office views load on demand; Brotli/gzip static assets and private content-named JavaScript caching reduce repeat downloads.
