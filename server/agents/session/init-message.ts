@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { appendLog, loadLogWithAncestors } from "../../persistence.ts";
 import { autocompleteCommands } from "../commands.ts";
 import { addLogEntry, emit, logCache, persistAll, type ManagedAgent } from "../state.ts";
@@ -20,7 +21,7 @@ export function handleInitMessage(agentId: string, managed: ManagedAgent | undef
     if (hadPreviousSession && sessionId !== managed.sessionId) {
       logCache.set(agentId, []);
       emit({ type: "clear_logs", agentId });
-      addLogEntry(agentId, "system", "Conversation cleared.");
+      addLogEntry(agentId, "system", logMessage("logs.command.cleared"));
     }
     managed.sessionId = sessionId;
     // Backfill: write any cached log entries that were created before sessionId was known

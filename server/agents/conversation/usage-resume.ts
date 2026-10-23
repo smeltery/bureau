@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { agents, emit, emitQueueUpdate, addLogEntry, persistAll, type ManagedAgent } from "../state.ts";
 import { inMultiStepFlow } from "../pending-prompt.ts";
 import { enqueueMessage } from "./message-queue.ts";
@@ -69,7 +70,7 @@ function schedule(managed: ManagedAgent, timing: UsageResumeClock, minimumDelay 
             text: "[Bureau: the provider usage window has reset. Continue the task where it stopped.]",
             usageResume: true,
           });
-          if (!result.ok) addLogEntry(id, "system", `Automatic continuation was not accepted: ${result.error}`);
+          if (!result.ok) addLogEntry(id, "system", logMessage("logs.session.continuationRejected", { error: result.error }));
         } catch (error) {
           console.error("[usage-resume] continuation failed:", id, error);
         }
@@ -93,11 +94,7 @@ export function armUsageResume(managed: ManagedAgent, resetsAt: number, timing =
   managed.info.usageResumeAt = managed.usageResumePlan.dueAt;
   persistAll();
   emit({ type: "agent_updated", agentId: managed.info.id, changes: { usageResumeAt: managed.info.usageResumeAt } });
-  addLogEntry(
-    managed.info.id,
-    "system",
-    `Usage limit reached. Bureau will continue this conversation after ${new Date(managed.usageResumePlan.dueAt).toISOString()}. Stop or disable Resume after usage limit in agent settings to cancel.`,
-  );
+  addLogEntry(managed.info.id, "system", logMessage("logs.session.usageResume", { date: { timestamp: managed.usageResumePlan.dueAt, style: "full" } }));
   schedule(managed, timing);
 }
 

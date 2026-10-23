@@ -1,3 +1,4 @@
+import { displayLogText, logContent } from "../../../shared/i18n/log-message.ts";
 // A SIGTERMed Claude CLI hands the resumed model hardcoded text claiming the
 // USER rejected the tool that was running, so the agent wakes up believing its
 // boss countermanded it. The wake-up message has to say what actually happened —
@@ -184,7 +185,7 @@ describe("armDormantWakeNotice", () => {
     seedClaudeSession(workCwd, "sid", SHUTDOWN_TRANSCRIPT);
     const managed = makeManaged();
     const logLine = armDormantWakeNotice(managed, "boot", "sid");
-    expect(managed.wakeNotice).toBe(logLine);
+    expect(managed.wakeNotice).toBe(logContent(logLine).content);
   });
 
   test("leaves the slot empty on an idle wake", () => {
@@ -192,7 +193,28 @@ describe("armDormantWakeNotice", () => {
     const managed = makeManaged();
     managed.wakeNotice = "stale";
     const logLine = armDormantWakeNotice(managed, "idle", "sid");
-    expect(logLine).toContain("released while idle");
+    expect(logContent(logLine).content).toContain("released while idle");
     expect(managed.wakeNotice).toBeNull();
   });
+});
+
+test("reader language never changes the armed recovery instructions or marker evidence", () => {
+  for (const proven of [false, true]) {
+    seedClaudeSession(workCwd, "sid", proven ? SHUTDOWN_TRANSCRIPT : '{"type":"user"}\n');
+    for (const reason of ["boot", "session-ended", "idle"] as const) {
+      const managed = makeManaged();
+      const message = armDormantWakeNotice(managed, reason, "sid");
+      const canonical = logContent(message).content;
+      const note = managed.wakeNotice;
+      for (const language of ["es", "ca", "zh"] as const) {
+        const translated = displayLogText("fallback", message, language);
+        expect(translated).not.toBe("fallback");
+        expect(translated).not.toBe(canonical);
+        expect(translated.includes("'user rejected'")).toBe(proven && reason !== "idle");
+        expect(managed.wakeNotice).toBe(note);
+      }
+      expect(note).toBe(reason === "idle" ? null : canonical);
+      if (reason !== "idle") expect(note).toContain(WAKE_PARTIAL);
+    }
+  }
 });

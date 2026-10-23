@@ -1,3 +1,4 @@
+import { displayLogContent } from "../../../shared/i18n/log-message.ts";
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
@@ -157,4 +158,30 @@ describe("runConsumer", () => {
     expect((managed.pendingPermission as { approvalId: string } | null)?.approvalId).toBe("approval-2");
     expect(managed.queuedPermissions).toEqual([]);
   });
+});
+
+test("capacity and compaction notices translate while provider content stays literal", async () => {
+  const agentId = `notice-${crypto.randomUUID()}`;
+  const session = eventSession([
+    { kind: "provider_capacity_retry", attempt: 1, maxAttempts: 5, delayMs: 1500 },
+    { kind: "compacted", summary: "Provider summary {original}" },
+    { kind: "compacted" },
+    { kind: "permission_denied", toolUseId: "denied-1", toolName: "CustomTool", message: "" },
+    { kind: "permission_denied", toolUseId: "denied-2", toolName: "CustomTool", message: "Provider reason" },
+    { kind: "system_text", text: "Provider text" },
+  ]);
+  const managed = createManagedAgent({ info: agentInfo(agentId, "codex"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+  managed.session = session;
+  agents.set(agentId, managed);
+  await runConsumer(agentId, managed, session);
+  const entries = logCache.get(agentId)!;
+  expect(entries[0].content).toBe("Provider is at capacity. Retrying in 1.5s (2/5).");
+  expect(displayLogContent(entries[0], "es")).toContain("1,5s (2/5)");
+  expect(displayLogContent(entries[1], "zh")).toBe("上下文已压缩：Provider summary {original}");
+  expect(displayLogContent(entries[2], "ca")).toBe("Context compactat.");
+  expect(displayLogContent(entries[3], "es")).toBe("CustomTool denegado.");
+  expect(entries[3].metadata?.permissionDenied).toEqual(expect.objectContaining({ toolUseId: "denied-1" }));
+  expect(displayLogContent(entries[4], "es")).toBe("Provider reason");
+  expect(entries[4].message).toBeUndefined();
+  expect(displayLogContent(entries[5], "zh")).toBe("Provider text");
 });

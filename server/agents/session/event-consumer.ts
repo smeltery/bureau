@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { pushBoundarySteer, recordSteerDelivery } from "../conversation/push-steering.ts";
 import { armUsageResume } from "../conversation/usage-resume.ts";
 import { observeAutoHandoff } from "../conversation/auto-handoff.ts";
@@ -125,7 +126,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         }
         if (hadPreviousSession && ev.sessionId !== managed.sessionId) {
           emit({ type: "clear_logs", agentId });
-          addLogEntry(agentId, "system", "Conversation cleared.");
+          addLogEntry(agentId, "system", logMessage("logs.command.cleared"));
         }
         managed.sessionId = ev.sessionId;
         // Record the cwd this session was born in (source of truth for
@@ -160,7 +161,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       // and rules (a command containing `401` is not a sign-in problem), and
       // being ours they can never BE a provider auth notice.
       if (ev.claudeAccessDenied && managed?.info.agentType === "claude") {
-        emitEphemeralLog(agentId, "system", "Claude Code access is not available for this account. Check its subscription, or sign in with another account.", {
+        emitEphemeralLog(agentId, "system", logMessage("logs.session.accessUnavailable"), {
           providerLogin: "claude",
           openConnections: true,
         });
@@ -177,10 +178,14 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       addLogEntry(agentId, "system", ev.label, { taskEvent: { phase: ev.phase, taskId: ev.taskId } });
       break;
     case "provider_capacity_retry":
-      addLogEntry(agentId, "system", `Provider is at capacity. Retrying in ${ev.delayMs / 1_000}s (${ev.attempt + 1}/${ev.maxAttempts}).`);
+      addLogEntry(
+        agentId,
+        "system",
+        logMessage("logs.session.capacityRetry", { seconds: { number: ev.delayMs / 1_000 }, attempt: { number: ev.attempt + 1 }, maxAttempts: { number: ev.maxAttempts } }),
+      );
       break;
     case "permission_denied":
-      addLogEntry(agentId, "system", ev.decisionReason || ev.message || `${ev.toolName} denied.`, {
+      addLogEntry(agentId, "system", ev.decisionReason || ev.message || logMessage("logs.session.toolDenied", { tool: ev.toolName }), {
         permissionDenied: {
           toolUseId: ev.toolUseId,
           toolName: ev.toolName,
@@ -240,7 +245,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         if (!isInterrupted) {
           const raw = ev.error ?? `Agent stopped: ${ev.status}.`;
           if (ev.causedByProviderCapacity === true) {
-            addLogEntry(agentId, "error", "The provider is still at capacity after retries. Try again in a bit.", { backendFailureRaw: raw });
+            addLogEntry(agentId, "error", logMessage("logs.session.capacityExhausted"), { backendFailureRaw: raw });
             updateState(agentId, "waiting_for_response");
           } else {
             const failure = humanizeBackendFailure(raw);
@@ -272,7 +277,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
       break;
     }
     case "compacted":
-      addLogEntry(agentId, "system", ev.summary ? `Context compacted: ${ev.summary}` : "Context compacted.");
+      addLogEntry(agentId, "system", ev.summary ? logMessage("logs.session.compactedSummary", { summary: ev.summary }) : logMessage("logs.session.compacted"));
       break;
     case "file_view":
       addLogEntry(agentId, "file-view", ev.title, undefined, ev.attachments);

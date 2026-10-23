@@ -1,3 +1,4 @@
+import { errMessage } from "../../../shared/errors.ts";
 import { unsupportedLogMessage } from "./command-messages.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
@@ -10,7 +11,7 @@ import { SessionSwappedError } from "../session/runtime.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { commandHandlers } from "./slash-command-handlers.ts";
 import { recordSkillUse } from "../../skill-usage.ts";
-import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
+import { UsageCapError, usageCapMessage } from "../../usage-cap/member-usage-cap.ts";
 
 // Startup assertion: every supported command with a handler key must have a matching handler
 for (const [name, cfg] of Object.entries(commands)) {
@@ -101,7 +102,7 @@ async function executeSkill(agentId: string, managed: ManagedAgent, skillPrompt:
       sdkText: fullPrompt,
     });
     if (!result.ok) {
-      addLogEntry(agentId, "system", `Could not queue ${rawText}: ${result.error}`);
+      addLogEntry(agentId, "system", logMessage("logs.session.cannotQueue", { command: rawText, error: result.error }));
     }
     return true;
   }
@@ -128,11 +129,11 @@ async function executeSkill(agentId: string, managed: ManagedAgent, skillPrompt:
     // before await turn. Per-site error semantics remain here.
     if (err instanceof SessionSwappedError || err instanceof ProviderSignInRequiredError) return true;
     if (err instanceof UsageCapError) {
-      addLogEntry(agentId, "error", usageCapText(err));
+      addLogEntry(agentId, "error", usageCapMessage(err));
       updateState(agentId, "waiting_for_response");
       return true;
     }
-    addLogEntry(agentId, "error", `Skill error: ${err.message}`);
+    addLogEntry(agentId, "error", logMessage("logs.session.skillError", { error: errMessage(err) }));
     updateState(agentId, "error");
   }
   return true;

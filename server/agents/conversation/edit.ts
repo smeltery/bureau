@@ -8,7 +8,7 @@ import { addLogEntry, agents, emit, emitQueueUpdate, logCache, persistAll, updat
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
 import { buildSessionEnv } from "../session/session-env.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
-import { UsageCapError, usageCapText } from "../../usage-cap/member-usage-cap.ts";
+import { UsageCapError, usageCapMessage } from "../../usage-cap/member-usage-cap.ts";
 import { persistCurrentSessionTopic } from "../topic.ts";
 import { findUsageAtFork } from "../usage.ts";
 import { inMultiStepFlow } from "../pending-prompt.ts";
@@ -245,7 +245,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
       return;
     }
     if (err instanceof UsageCapError) {
-      addLogEntry(agentId, "error", usageCapText(err));
+      addLogEntry(agentId, "error", usageCapMessage(err));
       updateState(agentId, "waiting_for_response");
       persistAll();
       return;

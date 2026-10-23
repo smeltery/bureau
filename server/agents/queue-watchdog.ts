@@ -1,3 +1,4 @@
+import { logMessage } from "../../shared/i18n/log-message.ts";
 import { errMessage } from "../../shared/errors.ts";
 import { addLogEntry, agents, logCache, type ManagedAgent } from "./state.ts";
 import { createSession, replaceSession } from "./session/runtime.ts";
@@ -61,7 +62,7 @@ export async function sweepBusyTurnWatchdog(now = Date.now()): Promise<number> {
     console.error(
       `[queue-watchdog] ${managed.info.name} (${agentId}): Claude turn quiescent for ${now - quiescenceStartedAt}ms with ${managed.messageQueue.length} queued message(s), no active tool, tail=${tailKind}; forcing recovery via session replacement`,
     );
-    addLogEntry(agentId, "system", "Message delivery stalled; recovering.");
+    addLogEntry(agentId, "system", logMessage("logs.session.deliveryStalled"));
     try {
       const sessionId = managed.sessionId;
       await replaceSession(agentId, managed, sessionId ? createSession(managed, sessionId) : createSession(managed));

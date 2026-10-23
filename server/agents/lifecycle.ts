@@ -1,3 +1,5 @@
+import { errMessage } from "../../shared/errors.ts";
+import { logMessage } from "../../shared/i18n/log-message.ts";
 import { handoffSettingsError } from "../../shared/agents/handoff.ts";
 import { restoreUsageResume } from "./conversation/usage-resume.ts";
 import { join } from "path";
@@ -181,12 +183,12 @@ export async function spawn(
     addLogEntry(
       info.id,
       "system",
-      `${agentType === "codex" ? "Codex" : agentType === "opencode" ? "OpenCode" : "Claude"} agent "${name}" ready. Working in ${resolvedCwd}. Permission mode: ${permissionMode}.`,
+      logMessage("logs.session.ready", { provider: agentType === "codex" ? "Codex" : agentType === "opencode" ? "OpenCode" : "Claude", name, cwd: resolvedCwd, mode: permissionMode }),
     );
     // First stream() will deliver system/init + response to the first send().
   } catch (err: any) {
     console.error(`Failed to create session for ${name}:`, err.message);
-    addLogEntry(info.id, "error", `Failed to start: ${err.message}`);
+    addLogEntry(info.id, "error", logMessage("logs.session.startFailed", { error: errMessage(err) }));
     updateState(info.id, "error");
   }
 
@@ -270,7 +272,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
       if (p.lastSessionId) {
         const tail = (logCache.get(p.id) ?? []).at(-1);
         if (tail?.kind === "user_message") {
-          addLogEntry(p.id, "system", "Previous response was interrupted.");
+          addLogEntry(p.id, "system", logMessage("logs.session.previousInterrupted"));
         }
         // Bureau restores eagerly, so a restart never reaches the session-less
         // wake paths — this is the restart-wake path, and the restart is the

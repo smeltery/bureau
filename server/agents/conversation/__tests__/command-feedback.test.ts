@@ -1,3 +1,5 @@
+import { sendMessage } from "../send.ts";
+import { QUEUE_MAX } from "../message-queue.ts";
 import { afterEach, expect, spyOn, test } from "bun:test";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -188,4 +190,33 @@ test("context reports translate counts while preserving provider details and ove
   managed.session = null;
   await commandHandlers.context(managed.info.id, managed, [], "/context");
   expect(last(managed).message?.key).toBe("logs.report.noSession");
+});
+
+test("full queues preserve English API errors while translating the human notice", async () => {
+  const managed = install();
+  managed.info.state = "thinking";
+  managed.messageQueue = Array.from({ length: QUEUE_MAX }, (_, index) => ({ id: String(index), sender: { kind: "user", username: "Boss" }, text: "Queued text", queuedAt: 1 }));
+  const result = await sendMessage(managed.info.id, "New text", "Boss");
+  expect(result).toEqual({ ok: false, error: `Message queue is full (limit ${QUEUE_MAX}). Try again after the agent finishes.` });
+  expect(managed.messageQueue).toHaveLength(QUEUE_MAX);
+  expect(last(managed).message?.key).toBe("logs.session.queueFull");
+  expect(displayLogContent(last(managed), "zh")).toContain(`上限 ${QUEUE_MAX}`);
+});
+
+test("session startup errors retain provider details and recovery commands", async () => {
+  const managed = install();
+  const create = spyOn(runtime, "createSession").mockImplementation(() => {
+    throw new Error("Provider diagnostic");
+  });
+  try {
+    const result = await sendMessage(managed.info.id, "Original request", "Boss");
+    expect(result).toEqual({ ok: false, error: "Cannot start session: Provider diagnostic" });
+    expect(last(managed).message?.key).toBe("logs.session.cannotStart");
+    const text = displayLogContent(last(managed), "es");
+    for (const literal of ["Provider diagnostic", "/clear", "/resume"]) expect(text).toContain(literal);
+    expect(logCache.get(managed.info.id)![0].content).toBe("Original request");
+    expect(managed.info.state).toBe("error");
+  } finally {
+    create.mockRestore();
+  }
 });

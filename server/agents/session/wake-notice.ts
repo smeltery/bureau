@@ -1,3 +1,4 @@
+import { logContent, logMessage, logParts, type LogMessage, type LogParam } from "../../../shared/i18n/log-message.ts";
 import type { ManagedAgent } from "../state-types.ts";
 import { buildSessionEnv } from "./session-env.ts";
 import { claudeSessionInterruptedByShutdown } from "./shutdown-marker.ts";
@@ -29,36 +30,37 @@ export type DormantWakeReason = "boot" | "session-ended" | "idle";
 // occurrence this exists to fix — the agent is the one holding the false
 // rejection. The calm idle wording has nothing to warn about, so it carries
 // note: null and costs the agent no context.
-export function dormantWakeMessage(managed: ManagedAgent, reason: DormantWakeReason, sessionId: string): { log: string; note: string | null } {
+export function dormantWakeMessage(managed: ManagedAgent, reason: DormantWakeReason, sessionId: string): { log: string; note: string | null; message: LogMessage } {
   if (reason === "idle") {
-    return { log: "Resumed your session (it was released while idle to save memory).", note: null };
+    const message = logMessage("logs.session.wakeIdle");
+    return { log: logContent(message).content, note: null, message };
   }
-  const opener = reason === "boot" ? "Resumed your session after the server restarted." : "Resumed your session after the backend ended unexpectedly.";
-  const base = `${opener} Any command that was in flight may have partially run; verify its effects before retrying.`;
-  const clause = shutdownRejectionClause(managed, sessionId);
-  const text = clause ? `${base} ${clause}` : base;
-  return { log: text, note: text };
+  const parts: LogParam[] = [logMessage(reason === "boot" ? "logs.session.wakeBoot" : "logs.session.wakeEnded"), " ", logMessage("logs.session.wakePartial")];
+  if (hasShutdownRejection(managed, sessionId)) parts.push(" ", logMessage("logs.session.wakeRejection"));
+  const message = logParts(parts);
+  const text = logContent(message).content;
+  return { log: text, note: text, message };
 }
 
 // Arm the one-shot wake note and hand back the line to write to the Bureau log.
 // The two session-less wake paths (sendMessage's recovery branch and
 // flushQueue's) and the boot restore call this in place of their old static
 // wake strings, so all three deliver the same truth to the agent and the human.
-export function armDormantWakeNotice(managed: ManagedAgent, reason: DormantWakeReason, sessionId: string): string {
+export function armDormantWakeNotice(managed: ManagedAgent, reason: DormantWakeReason, sessionId: string): LogMessage {
   const wake = dormantWakeMessage(managed, reason, sessionId);
   managed.wakeNotice = wake.note;
-  return wake.log;
+  return wake.message;
 }
 
 // The rejection half of the wake-up message above. Present only when the
 // agent's own transcript proves the shutdown forged a rejection result —
-// explaining a rejection that may not exist reads as noise. Empty for every
+// explaining a rejection that may not exist reads as noise. False for every
 // Codex agent (the marker is a Claude CLI artifact).
-function shutdownRejectionClause(managed: ManagedAgent, sessionId: string): string {
+function hasShutdownRejection(managed: ManagedAgent, sessionId: string): boolean {
   if (managed.info.agentType === "claude" && claudeSessionInterruptedByShutdown(managed.info.cwd, sessionId, envForHints(managed))) {
-    return "The 'user rejected' result just above is from the shutdown, not a human.";
+    return true;
   }
-  return "";
+  return false;
 }
 
 // The env the spawned backend would see, used only to find the right
