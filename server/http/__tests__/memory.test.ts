@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
@@ -76,4 +79,43 @@ describe("handleMemoryRequest", () => {
       raw: "- 2026-08-03: remember this",
     });
   });
+});
+
+test("memory reads identify explicit and implicit targets without changing stored scope keys", () => {
+  const root = mkdtempSync(join(tmpdir(), "bureau-memory-target-"));
+  try {
+    const result = Bun.spawnSync(
+      [
+        process.execPath,
+        "--eval",
+        `
+      import { expect } from "bun:test";
+      import { agents, rooms } from "./server/agents/state.ts";
+      import { createManagedAgent } from "./server/agents/managed-factory.ts";
+      import { claimUserByName } from "./server/users.ts";
+      import { mintAgentToken } from "./server/agents/tokens.ts";
+      import { handleMemoryRequest } from "./server/http/memory.ts";
+      const member=claimUserByName("Owner",{role:"owner"});
+      const info={id:"memory-agent",name:"Archivist",room:0,userId:member.id,cwd:process.cwd(),agentType:"claude",state:"idle"};
+      agents.set(info.id,createManagedAgent({info,skillCwd:process.cwd(),skills:[],slashCommands:[]}));
+      const token=mintAgentToken(info.id,member.id);
+      const auth={kind:"ok",session:{userId:member.id,username:member.name,role:"owner"}};
+      async function read(query,bearer=false){const url=new URL("http://office.test/api/memory"+query);const response=await handleMemoryRequest(new Request(url,{headers:bearer?{Authorization:"Bearer "+token}:{}}),url,auth);return {status:response.status,body:await response.json()};}
+      expect((await read("?scope=office")).body).toMatchObject({scope:"office",scopeId:null,name:null});
+      expect((await read("",true)).body).toMatchObject({scope:"agent",scopeId:info.id,name:"Archivist"});
+      expect((await read("?scope=agent&scopeId="+info.id)).body).toMatchObject({scope:"agent",scopeId:info.id,name:"Archivist"});
+      expect((await read("?scope=room&scopeId="+rooms[0].id)).body).toMatchObject({scope:"room",scopeId:rooms[0].id,name:rooms[0].name});
+      expect((await read("?scope=boss",true)).body).toMatchObject({scope:"boss",scopeId:member.id,name:member.name});
+      expect((await read("?scope=boss")).body).toMatchObject({scope:"boss",scopeId:member.id,name:member.name});
+      expect((await read("?scope=agent&scopeId=missing")).status).toBe(404);
+      agents.get(info.id).info.name="Renamed";expect((await read("",true)).body.name).toBe("Renamed");
+      process.exit(0);
+    `,
+      ],
+      { env: { ...process.env, BUREAU_HOME: root }, stdout: "pipe", stderr: "pipe" },
+    );
+    expect(result.exitCode, result.stderr.toString()).toBe(0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
