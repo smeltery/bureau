@@ -146,6 +146,11 @@ idle ──send_message──> thinking ──tool_use──> tool_executing
 
 On the first user message (and when regenerated), a background one-shot `query()` (via the `runClaudeOneShot` helper in `server/backends/claude.ts`) generates a short topic:
 
+Claude background prompts disable tools and MCP connections, including host,
+project, plugin, subagent and account connectors. They retain their model,
+environment and inline launch settings. Interactive sessions keep their normal
+tool and MCP configuration.
+
 - Uses `claude-sonnet-4-20250514` (cheaper model).
 - Context: first user message + last 5 text entries.
 - Output: max 8 words, no trailing punctuation.
