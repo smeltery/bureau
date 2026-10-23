@@ -2,7 +2,7 @@ import { useI18n } from "../../i18n.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { ProviderAccountProvider, ProviderAccountScope, ProviderSignInStatus } from "../../../shared/provider-accounts.ts";
 import { useAppState } from "../../store.tsx";
-import { integrationApi } from "../integrations/scoped/api.ts";
+import { integrationApi, integrationFailure, integrationFailureText, type IntegrationFailure } from "../integrations/scoped/api.ts";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "../modals/dialog-styles.ts";
 
 export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAccountProvider; onChanged(): void }) {
@@ -10,7 +10,7 @@ export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAcco
   const { sessionContext } = useAppState();
   const [scope, setScope] = useState<ProviderAccountScope>("personal");
   const [status, setStatus] = useState<ProviderSignInStatus | null>(null);
-  const [error, setError] = useState<string | { key: "providerSignIn.checkFailed" | "providerSignIn.failed" } | null>(null);
+  const [error, setError] = useState<IntegrationFailure | null>(null);
   const [pending, setPending] = useState(false);
   const [code, setCode] = useState("");
   const [confirm, setConfirm] = useState(false);
@@ -38,7 +38,7 @@ export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAcco
         currentStatus.current = next;
         setStatus(next);
       } catch (caught) {
-        if (generation.current === ticket) setError(caught instanceof Error ? caught.message : { key: "providerSignIn.checkFailed" });
+        if (generation.current === ticket) setError(integrationFailure(caught, "providerSignIn.checkFailed"));
       }
       if (generation.current === ticket) timer = setTimeout(poll, 2000);
     }
@@ -62,7 +62,7 @@ export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAcco
       setConfirm(false);
       if (next.phase === "idle") changed.current();
     } catch (caught) {
-      if (generation.current === ticket) setError(caught instanceof Error ? caught.message : { key: "providerSignIn.failed" });
+      if (generation.current === ticket) setError(integrationFailure(caught, "providerSignIn.failed"));
     } finally {
       if (generation.current === ticket) setPending(false);
     }
@@ -175,7 +175,7 @@ export function ProviderSignIn({ provider, onChanged }: { provider: ProviderAcco
       )}
       {(error || status?.error) && (
         <p role="alert" style={{ color: "var(--red)", fontSize: 12 }}>
-          {error ? (typeof error === "string" ? error : t(error.key)) : status?.error}
+          {error ? integrationFailureText(error, t) : status?.error}
         </p>
       )}
     </section>

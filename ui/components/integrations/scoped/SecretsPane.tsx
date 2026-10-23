@@ -1,34 +1,33 @@
+import { useI18n } from "../../../i18n.tsx";
 import { ConnectionTest } from "./ConnectionTest.tsx";
 import { useState } from "react";
 import type { SecretMetadata } from "../../../../shared/integrations/connections.ts";
 import { dialogCancelBtn, dialogHint, dialogSaveBtn } from "../../modals/dialog-styles.ts";
-import { integrationApi, type IntegrationListing } from "./api.ts";
+import { integrationFailure, integrationFailureText, type IntegrationFailure, integrationApi, type IntegrationListing } from "./api.ts";
 import { SecretEditor } from "./SecretEditor.tsx";
 
 export function SecretsPane({ path, data, reload }: { path: string; data: IntegrationListing; reload: () => void }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState<SecretMetadata | "new" | null>(null);
   const [revealed, setRevealed] = useState<{ name: string; value: string } | null>(null);
   const [confirmation, setConfirmation] = useState<{ name: string; action: "delete" | "reissue" } | null>(null);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<IntegrationFailure | null>(null);
   async function action(run: () => Promise<void>) {
     setPending(true);
     setError(null);
     try {
       await run();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Credential update failed.");
+      setError(integrationFailure(caught, "integrations.credentialFailed"));
     } finally {
       setPending(false);
     }
   }
   return (
     <div>
-      <p style={dialogHint}>
-        Agents receive stand-ins in their environment. The local proxy substitutes credentials only for approved hosts and headers, and scrubs common reflected values. This reduces accidental
-        disclosure; it does not isolate secrets from programs running as the same OS user.
-      </p>
-      {error && <p role="alert">{error}</p>}
+      <p style={dialogHint}>{t("integrations.secretHint")}</p>
+      {error && <p role="alert">{integrationFailureText(error, t)}</p>}
       {editing ? (
         <SecretEditor
           path={path}
@@ -44,10 +43,10 @@ export function SecretsPane({ path, data, reload }: { path: string; data: Integr
         <>
           {data.canManage && (
             <button style={dialogSaveBtn} onClick={() => setEditing("new")}>
-              Add secret
+              {t("integrations.addSecret")}
             </button>
           )}
-          {!data.secrets.length && <p style={dialogHint}>No secrets in this scope. Add one to let agents use an integration without placing its value in their environment.</p>}
+          {!data.secrets.length && <p style={dialogHint}>{t("integrations.noSecrets")}</p>}
           {data.secrets.map((secret) => (
             <section key={secret.name} style={{ borderTop: "1px solid var(--border-subtle)", marginTop: 16, paddingTop: 12 }}>
               <strong style={{ overflowWrap: "anywhere" }}>{secret.name}</strong>
@@ -70,7 +69,7 @@ export function SecretsPane({ path, data, reload }: { path: string; data: Integr
                       })
                     }
                   >
-                    {revealed?.name === secret.name ? "Hide" : "Show"}
+                    {revealed?.name === secret.name ? t("common.hide") : t("common.show")}
                   </button>
                 )}
                 {data.canManage && (
@@ -84,24 +83,20 @@ export function SecretsPane({ path, data, reload }: { path: string; data: Integr
                         setEditing(secret);
                       }}
                     >
-                      Edit
+                      {t("common.edit")}
                     </button>
                     <button disabled={pending} style={dialogCancelBtn} onClick={() => setConfirmation({ name: secret.name, action: "reissue" })}>
-                      Reissue stand-in
+                      {t("integrations.reissue")}
                     </button>
                     <button disabled={pending} style={dialogCancelBtn} onClick={() => setConfirmation({ name: secret.name, action: "delete" })}>
-                      Delete
+                      {t("common.delete")}
                     </button>
                   </>
                 )}
               </div>
               {confirmation?.name === secret.name && (
-                <div role="group" aria-label="Confirm credential change">
-                  <p style={dialogHint}>
-                    {confirmation.action === "reissue"
-                      ? "Old stand-ins will stop working. Agents load the new stand-in on their next turn."
-                      : "Delete this secret? Connections that depend on it will stop working."}
-                  </p>
+                <div role="group" aria-label={t("integrations.confirmCredential")}>
+                  <p style={dialogHint}>{confirmation.action === "reissue" ? t("integrations.reissueHint") : t("integrations.deleteSecretHint")}</p>
                   <button
                     disabled={pending}
                     style={dialogSaveBtn}
@@ -117,10 +112,10 @@ export function SecretsPane({ path, data, reload }: { path: string; data: Integr
                       })
                     }
                   >
-                    Confirm
+                    {t("integrations.confirm")}
                   </button>
                   <button disabled={pending} style={dialogCancelBtn} onClick={() => setConfirmation(null)}>
-                    Cancel
+                    {t("common.cancel")}
                   </button>
                 </div>
               )}

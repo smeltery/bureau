@@ -1,10 +1,12 @@
+import { useI18n } from "../../../i18n.tsx";
 import { useState } from "react";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "../../modals/dialog-styles.ts";
-import { integrationApi, type IntegrationListing } from "./api.ts";
+import { integrationFailure, integrationFailureText, type IntegrationFailure, integrationApi, type IntegrationListing } from "./api.ts";
 export function VariablesPane({ path, data, reload }: { path: string; data: IntegrationListing; reload: () => void }) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<IntegrationFailure | null>(null);
   const [pending, setPending] = useState(false);
   async function save(method: string, selected = name) {
     setPending(true);
@@ -15,15 +17,15 @@ export function VariablesPane({ path, data, reload }: { path: string; data: Inte
       setValue("");
       reload();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not save the variable.");
+      setError(integrationFailure(caught, "integrations.variableSaveFailed"));
     } finally {
       setPending(false);
     }
   }
   return (
     <div>
-      <p style={dialogHint}>Variables are ordinary environment values visible to agents. Store integration credentials in Secrets instead. Updates take effect between turns.</p>
-      {error && <p role="alert">{error}</p>}
+      <p style={dialogHint}>{t("integrations.variableHint")}</p>
+      {error && <p role="alert">{integrationFailureText(error, t)}</p>}
       {data.canManage && (
         <form
           onSubmit={(e) => {
@@ -32,19 +34,19 @@ export function VariablesPane({ path, data, reload }: { path: string; data: Inte
           }}
         >
           <label style={dialogLabel}>
-            Name
+            {t("common.name")}
             <input required pattern="[A-Za-z_][A-Za-z0-9_]*" style={dialogInput} value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <label style={dialogLabel}>
-            Value
+            {t("integrations.value")}
             <input style={dialogInput} value={value} onChange={(e) => setValue(e.target.value)} />
           </label>
           <button disabled={pending} style={dialogSaveBtn}>
-            {pending ? "Saving…" : "Save variable"}
+            {pending ? t("common.saving") : t("integrations.saveVariable")}
           </button>
         </form>
       )}
-      {!data.variables.length && <p style={dialogHint}>No variables in this scope.</p>}
+      {!data.variables.length && <p style={dialogHint}>{t("integrations.noVariables")}</p>}
       {data.variables.map((variable) => (
         <div key={variable.name} style={{ borderTop: "1px solid var(--border-subtle)", marginTop: 12, paddingTop: 12 }}>
           <strong>{variable.name}</strong>
@@ -59,10 +61,10 @@ export function VariablesPane({ path, data, reload }: { path: string; data: Inte
                   setValue(variable.value ?? "");
                 }}
               >
-                Edit
+                {t("common.edit")}
               </button>
               <button disabled={pending} style={dialogCancelBtn} onClick={() => void save("DELETE", variable.name)}>
-                Delete
+                {t("common.delete")}
               </button>
             </>
           )}
