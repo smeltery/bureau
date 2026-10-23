@@ -197,12 +197,13 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   conversation), cached per conversation, and rendered inside a sandboxed
   iframe under a deny-everything CSP. Per-slide regenerate accepts a one-shot
   instruction.
-- Conversation branching by editing a past user message. Offered only where the
-  backend can fork a session: the Claude backend can, so Claude agents show edit,
-  and the Codex backend cannot, so Codex agents show no edit affordance and the
-  server refuses the command. Ephemeral slash-command echoes (unknown /
-  unsupported commands) are an exception: editing them trims the failed echo and
-  re-dispatches without a fork, including on Codex and before a session exists.
+- Conversation branching by editing a past user message on Claude, Codex, and
+  OpenCode. The replacement starts after the retained history and leaves the
+  original conversation intact. Codex branches before the edited message's
+  turn, including first-message edits; Claude starts fresh for a first-message
+  edit. Branches retain the conversation's provider account. Ephemeral
+  slash-command echoes are re-dispatched without a fork, including before a
+  session exists.
 
 - Session resume, new conversation, model/effort changes, and usage views.
 - Humanized backend death notices in chat when a Claude/Codex subprocess exits

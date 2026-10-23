@@ -113,7 +113,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Browser preview cards — agents can screenshot local/private (or allowlisted) URLs via POST /api/agents/:id/preview-url
 - Experimental interactive agent browser — opt-in via Office Settings (experimental.browserPanel, off by default). Agents drive host Chrome via POST /api/agents/:id/browser (goto/snapshot/click/fill/press/screenshot/close) under the same URL policy; Chromium is not bundled; managers get a live CDP JPEG side panel with drag-select, typing, and copy-selection. The page closes after 15 idle minutes unless someone is watching, and can be reopened.
 - Session-swap indicator — chat shows a brief "Restarting session..." hint during /resume, /model, or fork-from-edit so the drain → install gap isn't silent
-- Conversation branching — edit a past message to fork the conversation from that point, preserving the original
+- Conversation branching on Claude, Codex, and OpenCode — edit a past message to retain the history before it and replace that message on a new branch, preserving the original conversation and its provider account
 - Right-click context menu — resume past sessions, edit agent, kill
 
 ### Keyboard Shortcuts

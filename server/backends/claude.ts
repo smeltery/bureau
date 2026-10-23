@@ -258,7 +258,16 @@ export const claudeBackend: Backend = {
       dir: cwd,
       sessionStore: claudeSessionStore(sessionId, cwd, access?.env),
     };
-    const result = await sdkForkSession(sessionId, { upToMessageId: targetMessageId, ...sdkOptions });
+    const messages = await sdkGetSessionMessages(sessionId, sdkOptions);
+    if (targetMessageId === null && messages.length === 0) return { kind: "fresh" };
+    let predecessor: string | undefined;
+    if (targetMessageId !== null) {
+      const index = messages.findIndex((message) => message.uuid === targetMessageId);
+      if (index === -1) throw new Error("Cannot edit: target message not found in the conversation.");
+      if (index === 0 || index === messages.findIndex((message) => message.type === "user")) return { kind: "fresh" };
+      predecessor = messages[index - 1]!.uuid;
+    }
+    const result = await sdkForkSession(sessionId, { ...sdkOptions, ...(predecessor ? { upToMessageId: predecessor } : {}) });
     return { kind: "fork", sessionId: result.sessionId, forkedFromSessionId: sessionId };
   },
   async getSessionMessages(sessionId, cwd, access): Promise<NormalizedMessage[]> {

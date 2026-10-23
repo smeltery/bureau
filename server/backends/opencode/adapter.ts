@@ -87,7 +87,7 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
       }
     },
 
-    async forkSessionBeforeMessage(sessionId: string, targetMessageId: string, access?: SessionAccessOptions): Promise<ForkSessionBeforeMessageResult> {
+    async forkSessionBeforeMessage(sessionId: string, targetMessageId: string | null, access?: SessionAccessOptions): Promise<ForkSessionBeforeMessageResult> {
       const binding = profiles.access(sessionId, access);
       const transport = transportFor(sessionId, binding);
       try {
