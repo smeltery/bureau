@@ -146,6 +146,9 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   effort labels, resume dates, selection confirmations, and cancellations.
   Clear and handoff feedback, file/diff and peer-message replies, the agent
   roster, and subscription-usage guidance also follow the reader’s language.
+  `/context`, `/bureau-storage`, and `/bureau-usage` reports translate their
+  labels and format counts, sizes, and dates for each reader while preserving
+  provider details, room access restrictions, and USD totals.
   Help (including built-in command descriptions) and unavailable-command replies
   are translated too. Help copies in the reader’s language; skill-provided
   descriptions and inspected system-prompt text retain their original content.

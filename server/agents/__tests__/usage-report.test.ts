@@ -3,13 +3,20 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo, type UserRecord } from "../../../shared/types.ts";
 import { createManagedAgent } from "../managed-factory.ts";
 import { agents, setRooms } from "../state.ts";
-import { renderUsageReport, usageAudienceForUser } from "../usage/report.ts";
+import { renderUsageReport, usageAudienceForUser, usageReportMessage } from "../usage/report.ts";
+
+import { displayLogText } from "../../../shared/i18n/log-message.ts";
+import { saveSessionsMap } from "../../persistence/logs/sessions.ts";
+import { setCronjobDefinitions } from "../../cronjobs/cronjob-store.ts";
 
 const ROOM_A = { id: "room-a", name: "Room A", prompt: null, envFile: null };
 const ROOM_B = { id: "room-b", name: "Room B", prompt: null, envFile: null };
 
 afterEach(() => {
   agents.clear();
+  setCronjobDefinitions([]);
+  saveSessionsMap("agent-a", {});
+  saveSessionsMap("agent-b", {});
   setRooms([{ id: "room-default", name: "Room 1", prompt: null, envFile: null }]);
 });
 
@@ -85,4 +92,48 @@ describe("renderUsageReport access scoping", () => {
     expect(report).not.toContain("Room B");
     expect(report).not.toContain("Office total");
   });
+});
+
+test("translated usage excludes hidden data and keeps grand totals under seven columns", () => {
+  setRooms([ROOM_A, ROOM_B]);
+  installAgent("agent-a", "Alpha", 0);
+  installAgent("agent-b", "Hidden agent", 1);
+  agents.get("agent-a")!.sessionId = "session-a";
+  saveSessionsMap("agent-a", { "session-a": { topic: null, lastModified: 0, usage: { inputTokens: 1000, outputTokens: 250, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, costUSD: 12.34 } } });
+  saveSessionsMap("agent-b", { "session-b": { topic: null, lastModified: 0, usage: { inputTokens: 9000, outputTokens: 900, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, costUSD: 99 } } });
+  setCronjobDefinitions([
+    {
+      id: "report-job",
+      name: "Visible job",
+      roomId: ROOM_A.id,
+      schedule: { type: "daily", hour: 9, minute: 0 },
+      prompt: "Check",
+      cwd: process.cwd(),
+      agentType: "claude",
+      modelFamily: "opus",
+      effort: "high",
+      permissionMode: "never",
+      enabled: true,
+      createdBy: "Boss",
+      userId: null,
+      username: "Boss",
+      device: null,
+      createdAt: 1,
+      lastFireAt: null,
+      nextFireAt: 2,
+    },
+  ]);
+  const message = usageReportMessage(usageAudienceForUser(user("member", [ROOM_A.id])));
+  const payload = JSON.stringify(message);
+  for (const hidden of ["Hidden agent", "Room B", "agent-b", "session-b"]) expect(payload).not.toContain(hidden);
+  const english = displayLogText("fallback", message, "en");
+  expect(english).toContain("| **Total** | 1k | 250 | $12.34 | 1k | 250 | $12.34 |");
+  expect(english).toContain("## Total usage");
+  const lastTable = english.split("## Total usage")[1].trim().split("\n");
+  expect(lastTable).toHaveLength(3);
+  for (const row of lastTable) expect(row.split("|")).toHaveLength(9);
+  const spanish = displayLogText("fallback", message, "es");
+  expect(spanish).toContain("$12,34");
+  expect(spanish).toContain("Visible job");
+  expect(spanish).not.toContain("$99");
 });

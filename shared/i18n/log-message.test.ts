@@ -100,3 +100,42 @@ test("lowercase parameters localize text and reject recursive values", () => {
   cycle.lowercase = cycle;
   expect(displayLogContent({ ...entry, message: { key: "logs.parts", params: { parts: cycle } } } as unknown as LogEntry, "ca")).toBe(entry.content);
 });
+
+test("report numbers, bytes and dates follow each reader without changing precision", () => {
+  const message = logParts([{ number: 12345.67, digits: 2 }, " / ", { bytes: 1536 }, " / ", { timestamp: 0, style: "full" }]);
+  for (const language of ["en", "es", "ca", "zh"] as const) {
+    const entry = { kind: "system" as const, ...logContent(message) };
+    expect(displayLogContent(entry, language)).toBe(
+      [
+        new Intl.NumberFormat(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(12345.67),
+        new Intl.NumberFormat(language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(1.5) + " KB",
+        new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(0),
+      ].join(" / "),
+    );
+  }
+  for (const [bytes, expected] of [
+    [0, "0 B"],
+    [1023, "1023 B"],
+    [1024, "1 KB"],
+    [1024 ** 2, "1 MB"],
+    [1024 ** 3, "1 GB"],
+    [1024 ** 4, "1 TB"],
+  ] as const) {
+    expect(logContent(logParts([{ bytes }])).content).toBe(expected);
+  }
+});
+
+test("invalid report formats fall back to stored text", () => {
+  for (const param of [
+    { number: Infinity },
+    { number: 1, digits: -1 },
+    { number: 1, digits: 21 },
+    { number: 1, digits: 1.5 },
+    { number: 1, group: "yes" },
+    { bytes: -1 },
+    { bytes: NaN },
+    { timestamp: 0, style: "unknown" },
+  ]) {
+    expect(displayLogContent({ kind: "system", content: "Saved report", message: { key: "logs.parts", params: { parts: { parts: [param] } } } } as unknown as LogEntry, "es")).toBe("Saved report");
+  }
+});

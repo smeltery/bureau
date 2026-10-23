@@ -1,3 +1,4 @@
+import { formatSize } from "../format/human.ts";
 import type { LogEntry } from "../log-types.ts";
 import type { SupportedLanguageCode } from "../languages.ts";
 import { en } from "./en.ts";
@@ -8,7 +9,15 @@ export type LogMessageKey = keyof typeof logs;
 export type LogPluralKey = {
   [K in LogMessageKey]: K extends `${infer Base}.one` ? (`${Base}.other` extends LogMessageKey ? Base : never) : never;
 }[LogMessageKey];
-export type LogParam = string | number | LogMessage | { timestamp: number } | { parts: LogParam[] } | { lowercase: LogParam };
+export type LogParam =
+  | string
+  | number
+  | LogMessage
+  | { timestamp: number; style?: "full" }
+  | { number: number; digits?: number; group?: boolean }
+  | { bytes: number }
+  | { parts: LogParam[] }
+  | { lowercase: LogParam };
 export interface LogMessage {
   key: LogMessageKey | LogPluralKey;
   count?: number;
@@ -47,10 +56,30 @@ function renderParam(value: unknown, language: SupportedLanguageCode, depth: num
     if (texts.some((text) => text === undefined)) return;
     return texts.join("");
   }
+  if (Object.hasOwn(value, "number")) {
+    const { number, digits, group } = value as Record<string, unknown>;
+    if (typeof number !== "number" || !Number.isFinite(number)) return;
+    if (digits !== undefined && (typeof digits !== "number" || !Number.isInteger(digits) || digits < 0 || digits > 20)) return;
+    if (group !== undefined && typeof group !== "boolean") return;
+    return new Intl.NumberFormat(language, {
+      minimumFractionDigits: digits as number | undefined,
+      maximumFractionDigits: digits as number | undefined,
+      useGrouping: group as boolean | undefined,
+    }).format(number);
+  }
+  if (Object.hasOwn(value, "bytes")) {
+    const bytes = (value as { bytes: unknown }).bytes;
+    if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes < 0) return;
+    const [size, unit] = formatSize(bytes).split(" ");
+    const digits = size.includes(".") ? size.split(".")[1].length : 0;
+    return `${new Intl.NumberFormat(language, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false }).format(Number(size))} ${unit}`;
+  }
   if (Object.hasOwn(value, "timestamp")) {
     const timestamp = (value as { timestamp: unknown }).timestamp;
     if (typeof timestamp !== "number" || !Number.isFinite(timestamp) || !Number.isFinite(new Date(timestamp).getTime())) return;
-    return new Intl.DateTimeFormat(language, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(timestamp);
+    const style = (value as { style?: unknown }).style;
+    if (style !== undefined && style !== "full") return;
+    return new Intl.DateTimeFormat(language, style === "full" ? { dateStyle: "medium", timeStyle: "short" } : { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(timestamp);
   }
   return renderMessage(value, language, depth + 1);
 }

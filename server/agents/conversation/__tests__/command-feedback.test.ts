@@ -141,3 +141,51 @@ test("roster composition translates labels while preserving member content", asy
   const usage = logCache.get(managed.info.id)!.find((log) => log.message?.key === "logs.command.subscriptionUsage")!;
   expect(displayLogContent(usage, "zh")).toContain("`/bureau-usage`");
 });
+
+test("context reports translate counts while preserving provider details and overcapacity", async () => {
+  const managed = install();
+  managed.session = {
+    async *stream() {},
+    async send() {},
+    async approve() {},
+    async abort() {},
+    close() {},
+    canAbortInPlace() {
+      return false;
+    },
+    async getContextUsage() {
+      return {
+        model: "Provider model",
+        totalTokens: 12500,
+        maxTokens: 10000,
+        percentage: 125,
+        categories: [{ name: "Provider category", tokens: 1250 }],
+        memoryFiles: [{ path: "/project/NOTES.md", tokens: 250 }],
+        systemPromptSections: [{ name: "Provider section", tokens: 500 }],
+        isAutoCompactEnabled: true,
+        autoCompactThreshold: 8000,
+      };
+    },
+  };
+  await commandHandlers.context(managed.info.id, managed, [], "/context");
+  const entry = last(managed);
+  expect(entry.content).toContain("125%");
+  expect(entry.content).toContain("█".repeat(30));
+  for (const language of ["en", "es", "ca", "zh"] as const) {
+    const text = displayLogContent(entry, language);
+    for (const literal of ["Provider model", "Provider category", "/project/NOTES.md", "Provider section"]) expect(text).toContain(literal);
+    expect(text).toContain(new Intl.NumberFormat(language).format(12500));
+  }
+  managed.session.getContextUsage = async () => null;
+  await commandHandlers.context(managed.info.id, managed, [], "/context");
+  expect(last(managed).message?.key).toBe("logs.report.contextUnavailable");
+  managed.session.getContextUsage = async () => {
+    throw new Error("Provider detail");
+  };
+  await commandHandlers.context(managed.info.id, managed, [], "/context");
+  expect(last(managed).message?.key).toBe("logs.report.contextFailed");
+  expect(displayLogContent(last(managed), "es")).toContain("Provider detail");
+  managed.session = null;
+  await commandHandlers.context(managed.info.id, managed, [], "/context");
+  expect(last(managed).message?.key).toBe("logs.report.noSession");
+});
