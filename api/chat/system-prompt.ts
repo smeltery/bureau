@@ -192,7 +192,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Open from your phone — same Tailscale URL, touch-optimized UI
 - Instant sync — laptop and phone see the same state in real time over WebSocket
 - The isometric office works on mobile; there's also an agent list view as an alternative
-- Full conversation view with readable font sizes and two-row header
+- Full conversation view with readable font sizes and two-row header; agent, scheduled-run, and team-chat drafts grow to eight lines on mobile, then scroll
 - Send & abort buttons for touch input; left/right swipe to cycle agents
 - Safe area insets for notch/home bar devices
 - "Add to Home Screen" in Safari/Chrome turns Bureau into a standalone web app on your phone — no app store needed, it gets its own icon and opens full-screen without browser UI

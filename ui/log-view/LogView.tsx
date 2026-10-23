@@ -69,7 +69,7 @@ export function LogView({
 
   // Input draft + textarea ref
   const input = drafts.get(agent.id) ?? "";
-  const { inputRef, setInput, textareaRef, autoResize } = useLogViewInput(agent.id, input, dispatch);
+  const { inputRef, setInput, textareaRef, autoResize } = useLogViewInput(agent.id, input, dispatch, isMobile);
 
   // Scroll container ref + swipe-to-cycle-agent (mobile)
   const scrollRef = useRef<HTMLDivElement>(null);

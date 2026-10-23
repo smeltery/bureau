@@ -1,3 +1,4 @@
+import { composerHeightLimit, useComposerResize } from "../hooks/useComposerResize.ts";
 import { useTeamChatRead } from "./useTeamChatRead.ts";
 import { TeamChatUnread } from "./TeamChatUnread.tsx";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,6 +23,8 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
   const [pinned, setPinned] = useState<MembersChatMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [draft, setDraft] = useState("");
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  useComposerResize(composerRef, draft, isMobile, 18);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | { key: "teamChat.loadFailed" | "teamChat.sendFailed" | "teamChat.deleteFailed" | "teamChat.pinFailed" } | null>(null);
@@ -264,10 +267,11 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
         }}
       >
         <textarea
+          ref={composerRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value.slice(0, MEMBERS_CHAT_MAX_CHARS))}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !isMobile && !e.nativeEvent.isComposing) {
               e.preventDefault();
               void send();
             }
@@ -282,7 +286,10 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
             background: "var(--bg-surface)",
             color: "var(--text-primary)",
             padding: "8px 10px",
-            fontSize: 13,
+            fontSize: isMobile ? 16 : 13,
+            lineHeight: "20px",
+            maxHeight: composerHeightLimit(isMobile, 18),
+            overflowY: "auto",
             fontFamily: "inherit",
           }}
         />

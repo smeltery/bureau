@@ -1,3 +1,4 @@
+import { useComposerResize } from "../hooks/useComposerResize.ts";
 import { useI18n } from "../i18n.tsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
@@ -110,10 +111,7 @@ export function CronjobRunView({ jobId, runId, username, onClose }: { jobId: str
     setAutoScroll(scrollHeight - scrollTop - clientHeight < 50);
   }
 
-  function autoResize(el: HTMLTextAreaElement) {
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 200) + "px";
-  }
+  const autoResize = useComposerResize(textareaRef, input, isMobile, 4, canResume);
 
   function handleSend() {
     const text = input.trim();

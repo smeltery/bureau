@@ -1,3 +1,4 @@
+import { composerHeightLimit } from "../hooks/useComposerResize.ts";
 import { useI18n } from "../i18n.tsx";
 import type { RefObject } from "react";
 import type { CronjobRunStatus } from "../../shared/types.ts";
@@ -83,7 +84,7 @@ export function CronjobRunComposer({
               resize: "none",
               padding: "0 0 4px",
               lineHeight: "20px",
-              maxHeight: 200,
+              maxHeight: composerHeightLimit(isMobile),
               overflowY: "auto",
             }}
           />
