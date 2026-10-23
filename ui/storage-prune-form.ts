@@ -16,9 +16,9 @@ function parseInteger(raw: string, min: number): number | null {
 
 export function previewRequest(form: PolicyForm): PrunePolicy | null {
   const olderThanDays = parseInteger(form.olderThanDays, MIN_OLDER_THAN_DAYS);
-  if (olderThanDays === null) return null;
+  if (olderThanDays === null || olderThanDays > 36500) return null;
 
-  if (form.target === "attachments") {
+  if (form.target !== "transcripts") {
     return { target: form.target, olderThanDays };
   }
 
@@ -28,7 +28,7 @@ export function previewRequest(form: PolicyForm): PrunePolicy | null {
 }
 
 export function applyRequest(plan: PrunePlanWire): PrunePolicy {
-  if (plan.target === "attachments") {
+  if (plan.target !== "transcripts") {
     return { target: plan.target, olderThanDays: plan.policy.olderThanDays, apply: true };
   }
   return {

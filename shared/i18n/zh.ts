@@ -1,8 +1,10 @@
+import { storage } from "./storage-zh.ts";
 import { skills } from "./skills-zh.ts";
 // Simplified Chinese translations for the office UI catalog.
 import type { Catalog } from "./en.ts";
 export const zh: Catalog = {
   ...skills,
+  ...storage,
   "access.title": "Access",
   "apiTokens.title": "API tokens",
   "apps.confirmDelete": "删除 {name}？其数据目录将会保留。",
@@ -277,12 +279,6 @@ export const zh: Catalog = {
   "settings.you": "（你）",
   "signOut.hint": "End this device's session",
   "signOut.title": "Sign out",
-  "storage.loadFailed": "Could not load storage.",
-  "storage.leave": "离开",
-  "storage.leaveConfirm": "清理仍在进行。现在离开将丢失唯一一份删除报告。仍要离开吗？",
-  "storage.target.attachments": "Orphaned attachments",
-  "storage.target.transcripts": "Conversations",
-  "storage.title": "Office Storage",
   "tasks.allRooms": "所有房间",
   "tasks.assignee.any": "Any assignee",
   "tasks.empty": "没有任务",

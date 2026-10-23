@@ -22,10 +22,13 @@ export interface BackupStatusWire {
 const TARGET_LABELS: Record<PruneTarget, string> = {
   transcripts: "Conversations",
   attachments: "Orphaned attachments",
+  "token-logs": "API token logs",
+  "terminal-recordings": "Terminal recordings",
 };
 
 const SKIP_LABELS: Record<PruneSkipReason, string> = {
   "active-session": "active sessions",
+  "active-recording": "active recordings",
   "keep-newest": "newest conversations kept per agent",
   "fork-ancestor": "fork ancestors",
   referenced: "attachments still referenced by conversations or queues",

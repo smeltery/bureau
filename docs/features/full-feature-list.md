@@ -265,6 +265,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Owner storage reports via `/bureau-storage` and `GET /api/storage/usage`,
   covering transcripts, attachments, Codex home, memory, cron jobs, backups,
   and per-agent stored data.
+- Owner-triggered, preview-first age-based cleanup of API token conversation logs and terminal recordings in Storage, preserving sequence counters and active recordings.
 - Owner-triggered lossless transcript compression in User Settings → Storage
   and `POST /api/storage/compress`, with a read-only preview. Compressed history
   remains readable, resumable and safe for attachment pruning.

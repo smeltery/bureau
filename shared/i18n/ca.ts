@@ -1,8 +1,10 @@
+import { storage } from "./storage-ca.ts";
 import { skills } from "./skills-ca.ts";
 import type { Catalog } from "./en.ts";
 // Catalan translations for the office UI catalog.
 export const ca = {
   ...skills,
+  ...storage,
   "access.title": "Accés",
   "apiTokens.title": "Tokens d’API",
   "apps.confirmDelete": "Vols eliminar {name}? Se’n conservarà el directori de dades.",
@@ -277,12 +279,6 @@ export const ca = {
   "settings.you": "(tu)",
   "signOut.hint": "Acaba la sessió d’aquest dispositiu",
   "signOut.title": "Tanca la sessió",
-  "storage.loadFailed": "No s’ha pogut carregar l’emmagatzematge.",
-  "storage.leave": "Surt",
-  "storage.leaveConfirm": "Encara s’està executant una neteja. Si surts ara perds l’únic informe del que s’ha eliminat. Vols sortir igualment?",
-  "storage.target.attachments": "Adjunts orfes",
-  "storage.target.transcripts": "Converses",
-  "storage.title": "Emmagatzematge de l’oficina",
   "tasks.allRooms": "Totes les sales",
   "tasks.assignee.any": "Qualsevol assignat",
   "tasks.empty": "Encara no hi ha tasques.",

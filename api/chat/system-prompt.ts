@@ -154,6 +154,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Changes apply at the next hourly check; in-progress backups keep their original settings. Retention runs only after a new archive is verified
 - Live tar — JSON config writes use atomic write-then-rename so the snapshot can't capture a half-written file
 - Status (last run timestamp, ok/error, retention) at GET /backup/status
+- Owners can preview and delete old API token logs and terminal recordings in User Settings > Storage. Cleanup uses whole-file last-write age, preserves token sequence counters, and skips active recordings. Nothing expires automatically.
 - Owners can preview and compress old agent transcripts in User Settings > Storage to save space without deleting history. Compressed sessions remain readable and resumable; active sessions are skipped. This is manual, never scheduled
 
 ### Task Board

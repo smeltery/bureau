@@ -75,3 +75,13 @@ describe("planMatchesForm", () => {
     expect(planMatchesForm(plan, form({ target: "attachments", keepPerAgent: "bad" }))).toBe(true);
   });
 });
+
+test("log cleanup requests ignore session retention and invalidate previews on target changes", () => {
+  for (const target of ["token-logs", "terminal-recordings"] as const) {
+    expect(previewRequest(form({ target, keepPerAgent: "invalid" }))).toEqual({ target, olderThanDays: 90 });
+    const plan = planFor({ target });
+    expect(applyRequest(plan)).toEqual({ target, olderThanDays: 90, apply: true });
+    expect(planMatchesForm(plan, form({ target, keepPerAgent: "ignored" }))).toBe(true);
+    expect(planMatchesForm(plan, form({ target: "transcripts" }))).toBe(false);
+  }
+});

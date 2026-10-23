@@ -2,18 +2,32 @@
 
 Owners can inspect Bureau's persisted footprint with `/bureau-storage` in any
 agent chat, or with `GET /api/storage/usage`. The report breaks down office
-state into transcripts, attachments, metadata, Codex home, memory, cronjob runs,
+state into transcripts, attachments, metadata, Codex home, memory, cronjob runs, API token conversations, terminal recordings,
 other state files, backups, and per-agent stored data.
 
 Owners can also plan storage cleanup with `POST /api/storage/prune`. The
 endpoint is a dry run unless the body includes `apply: true`; transcript applies
 must also include `keepPerAgent` so the retention floor is explicit. Bureau does
-not automatically delete transcripts or attachments.
+not automatically delete transcripts, attachments, token logs or recordings.
 
-Example dry run:
+In **User Settings → Storage**, choose **API token logs** or **Terminal recordings**
+to preview age-based cleanup, then type `DELETE` to apply it. The API accepts
+`target: "token-logs"` or `target: "terminal-recordings"` with `olderThanDays`
+(1–36500); `keepPerAgent` does not apply to these targets. Storage requests require
+a current owner's browser session, including on localhost; personal API tokens
+and agent bearers cannot prune storage.
+
+Cleanup removes whole files by their last write time, including logs belonging to
+revoked tokens. Active recordings are always kept. Token sequence counters are
+saved before deletion, so new replies continue above the previous sequence after
+a restart. A token poll can therefore show a gap in retained history. Quarantined
+and temporary files are not selected. File replacements, symlinks and changed
+files are refused during deletion. Existing backups retain their own copies.
+
+Example dry run, with the owner's session cookie saved in `cookies.txt`:
 
 ```sh
-curl -X POST http://localhost:4000/api/storage/prune \
+curl -X POST http://localhost:4000/api/storage/prune -b cookies.txt \
   -H 'Content-Type: application/json' \
   -d '{"target":"transcripts","olderThanDays":90,"keepPerAgent":3}'
 ```

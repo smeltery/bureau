@@ -11,6 +11,8 @@ import { useI18n } from "../../i18n.tsx";
 const TARGET_LABELS = {
   transcripts: "storage.target.transcripts",
   attachments: "storage.target.attachments",
+  "token-logs": "storage.target.tokenLogs",
+  "terminal-recordings": "storage.target.recordings",
 } as const;
 
 class ApiError extends Error {}
@@ -139,7 +141,7 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
       </div>
 
       <FieldLabel>What to delete</FieldLabel>
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {(Object.keys(TARGET_LABELS) as PruneTarget[]).map((item) => (
           <button key={item} onClick={() => editForm(() => setTarget(item))} disabled={busy} style={toggleStyle(target === item, busy)}>
             {t(TARGET_LABELS[item])}
@@ -147,11 +149,15 @@ export function StorageModal({ onBack, embedded = false, onDeletingChange }: { o
         ))}
       </div>
 
+      {(target === "token-logs" || target === "terminal-recordings") && (
+        <p style={hint}>Whole files are removed based on their last write. Active recordings are kept, and token sequence counters are preserved.</p>
+      )}
       <FieldLabel>Older than</FieldLabel>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input
           type="number"
           min={1}
+          max={36500}
           value={olderThanDays}
           disabled={busy}
           onChange={(event) => editForm(() => setOlderThanDays(event.target.value))}

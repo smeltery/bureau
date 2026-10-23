@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { claimUserByName, deleteUserById } from "../../users.ts";
+const owner = claimUserByName(`Storage owner ${crypto.randomUUID()}`, { role: "owner" });
+afterAll(() => deleteUserById(owner.id));
+import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
@@ -12,7 +15,7 @@ const ownerAuth: AuthResult = {
   session: {
     sessionIdHash: "hash-1",
     sessionPrefix: "sess",
-    userId: "owner-1",
+    userId: owner.id,
     username: "Owner",
     role: "owner",
     needsRolling: false,
@@ -67,7 +70,18 @@ describe("handleStorageRequest", () => {
     expect(res?.status).toBe(200);
     expect(body.stateRoot).toBeString();
     expect(body.stateRootBytes).toBeNumber();
-    expect(body.categories.map((category: { id: string }) => category.id)).toEqual(["transcripts", "attachments", "metadata", "codex-home", "cronjobs", "memory", "other-state", "backups"]);
+    expect(body.categories.map((category: { id: string }) => category.id)).toEqual([
+      "transcripts",
+      "attachments",
+      "metadata",
+      "codex-home",
+      "cronjobs",
+      "memory",
+      "token-logs",
+      "terminal-recordings",
+      "other-state",
+      "backups",
+    ]);
   });
 
   test("plans storage pruning without deleting by default", async () => {

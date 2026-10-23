@@ -1,4 +1,4 @@
-export type StorageCategoryId = "transcripts" | "attachments" | "metadata" | "codex-home" | "cronjobs" | "memory" | "other-state" | "backups";
+export type StorageCategoryId = "transcripts" | "attachments" | "metadata" | "codex-home" | "cronjobs" | "memory" | "other-state" | "backups" | "token-logs" | "terminal-recordings";
 
 export interface StorageCategoryWire {
   id: StorageCategoryId;
@@ -24,9 +24,9 @@ export interface StorageUsageWire {
   agents: AgentStorageWire[];
 }
 
-export type PruneTarget = "transcripts" | "attachments";
+export type PruneTarget = "transcripts" | "attachments" | "token-logs" | "terminal-recordings";
 
-export type PruneSkipReason = "active-session" | "keep-newest" | "fork-ancestor" | "referenced" | "too-recent";
+export type PruneSkipReason = "active-session" | "keep-newest" | "fork-ancestor" | "referenced" | "too-recent" | "active-recording";
 
 export interface PrunePolicy {
   target: PruneTarget;
@@ -38,7 +38,7 @@ export interface PrunePolicy {
 export interface PruneCandidateWire {
   path: string;
   bytes: number;
-  agentId: string;
+  agentId?: string;
   sessionId?: string;
   ageDays: number;
   mtimeMs: number;
