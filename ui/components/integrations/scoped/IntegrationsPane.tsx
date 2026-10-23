@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useAppState } from "../../../store.tsx";
 import { ConnectionsPane } from "../../ConnectionsPane.tsx";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel } from "../../modals/dialog-styles.ts";
-import { integrationApi, type IntegrationListing } from "./api.ts";
+import { integrationFailure, integrationFailureText, type IntegrationFailure, integrationApi, type IntegrationListing } from "./api.ts";
 import { SecretsPane } from "./SecretsPane.tsx";
 import { VariablesPane } from "./VariablesPane.tsx";
 
@@ -18,7 +18,7 @@ export function IntegrationsPane() {
   const [tab, setTab] = useState<Tab>("Providers");
   const [scope, setScope] = useState(sessionContext ? `members/${sessionContext.userId}` : "office");
   const [data, setData] = useState<IntegrationListing | null>(null);
-  const [error, setError] = useState<string | { key: "integrations.loadFailed" } | null>(null);
+  const [error, setError] = useState<IntegrationFailure | null>(null);
   const [revision, setRevision] = useState(0);
   const path = `/api/integrations/${scope}`;
   useEffect(() => {
@@ -31,7 +31,7 @@ export function IntegrationsPane() {
           if (active) setData(result);
         })
         .catch((caught) => {
-          if (active) setError(caught instanceof Error ? caught.message : { key: "integrations.loadFailed" });
+          if (active) setError(integrationFailure(caught, "integrations.loadFailed"));
         });
     return () => {
       active = false;
@@ -70,7 +70,7 @@ export function IntegrationsPane() {
           </label>
           {error ? (
             <div role="alert">
-              <p>{typeof error === "string" ? error : t(error.key)}</p>
+              <p>{integrationFailureText(error, t)}</p>
               <button style={dialogCancelBtn} onClick={() => setRevision((value) => value + 1)}>
                 {t("common.retry")}
               </button>

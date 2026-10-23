@@ -1,16 +1,18 @@
+import { useI18n } from "../../../i18n.tsx";
 import { useState } from "react";
 import { SECRET_PRESETS, type SecretMetadata } from "../../../../shared/integrations/connections.ts";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "../../modals/dialog-styles.ts";
-import { integrationApi } from "./api.ts";
+import { integrationFailure, integrationFailureText, type IntegrationFailure, integrationApi } from "./api.ts";
 
 export function SecretEditor({ path, existing, onSaved, onCancel }: { path: string; existing?: SecretMetadata; onSaved: () => void; onCancel: () => void }) {
+  const { t } = useI18n();
   const [name, setName] = useState(existing?.name ?? "");
   const [value, setValue] = useState("");
   const [hosts, setHosts] = useState(existing?.hosts.join(", ") ?? "");
   const [header, setHeader] = useState(existing?.form.kind === "header" ? existing.form.header : "");
   const [note, setNote] = useState(existing?.note ?? "");
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<IntegrationFailure | null>(null);
   return (
     <form
       onSubmit={async (event) => {
@@ -30,7 +32,7 @@ export function SecretEditor({ path, existing, onSaved, onCancel }: { path: stri
           setValue("");
           onSaved();
         } catch (caught) {
-          setError(caught instanceof Error ? caught.message : "Could not save the credential.");
+          setError(integrationFailure(caught, "integrations.secretSaveFailed"));
         } finally {
           setPending(false);
         }
@@ -55,33 +57,33 @@ export function SecretEditor({ path, existing, onSaved, onCancel }: { path: stri
         </div>
       )}
       <label style={dialogLabel}>
-        Environment name
+        {t("integrations.environmentName")}
         <input required disabled={!!existing || pending} value={name} onChange={(e) => setName(e.target.value)} style={dialogInput} placeholder="GH_TOKEN" />
       </label>
       <label style={dialogLabel}>
-        {existing ? "Replacement value (leave empty to keep)" : "Secret value"}
+        {existing ? t("integrations.replacement") : t("integrations.secretValue")}
         <input type="password" autoComplete="new-password" required={!existing} value={value} onChange={(e) => setValue(e.target.value)} style={dialogInput} />
       </label>
       <label style={dialogLabel}>
-        Allowed hosts, separated by commas
+        {t("integrations.hosts")}
         <input required value={hosts} onChange={(e) => setHosts(e.target.value)} style={dialogInput} placeholder="api.github.com, github.com" />
       </label>
-      <p style={dialogHint}>Use exact hostnames. Credentials are delivered only over HTTPS port 443 to these hosts. Model providers and package registries are excluded.</p>
+      <p style={dialogHint}>{t("integrations.hostsHint")}</p>
       <label style={dialogLabel}>
-        Custom header (empty for Authorization)
+        {t("integrations.header")}
         <input value={header} onChange={(e) => setHeader(e.target.value)} style={dialogInput} placeholder="x-api-key" />
       </label>
       <label style={dialogLabel}>
-        Usage note for agents
-        <textarea maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} style={dialogInput} placeholder="What this connection is for; never paste credentials here." />
+        {t("integrations.note")}
+        <textarea maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} style={dialogInput} placeholder={t("integrations.notePlaceholder")} />
       </label>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{integrationFailureText(error, t)}</p>}
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <button disabled={pending} style={dialogSaveBtn}>
-          {pending ? "Saving…" : "Save secret"}
+          {pending ? t("common.saving") : t("integrations.saveSecret")}
         </button>
         <button type="button" disabled={pending} style={dialogCancelBtn} onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </button>
       </div>
     </form>
