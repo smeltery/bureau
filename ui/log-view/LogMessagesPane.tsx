@@ -1,3 +1,4 @@
+import { sendAbortDebounced } from "../utils/abort.ts";
 import { useMemo, type RefCallback } from "react";
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
 import { send } from "../ws.ts";
@@ -128,6 +129,19 @@ export function LogMessagesPane({
           <div key={entry.id}>{card}</div>
         );
       })}
+      {agent.usageResumeAt && (
+        <div role="status" style={{ padding: "8px 12px", color: "var(--text-muted)", fontSize: 12 }}>
+          Usage limit reached. Continuing after {new Date(agent.usageResumeAt).toLocaleString()}.
+          <button
+            type="button"
+            onClick={() => sendAbortDebounced(agent.id)}
+            title="Cancel scheduled continuation"
+            style={{ marginLeft: 8, padding: "3px 8px", cursor: "pointer", color: "var(--red)", background: "transparent", border: "1px solid var(--red)", borderRadius: 4 }}
+          >
+            Stop
+          </button>
+        </div>
+      )}
       <ActivityIndicator state={agent.state} stateChangedAt={stateChangedAt} agentId={agent.id} />
       <SessionSwapIndicator swapping={agent.sessionSwapping ?? false} />
     </div>

@@ -39,7 +39,17 @@ export function observeAutoHandoff(managed: ManagedAgent, event: NormalizedEvent
     if (event.kind === "turn_completed") attempt.status = event.status;
     return;
   }
-  if (event.kind !== "turn_completed" || event.status !== "completed" || !managed.info.autoHandoff || managed.autoHandoffSpent || attempt || !managed.session || managed.aborting) return;
+  if (
+    event.kind !== "turn_completed" ||
+    event.status !== "completed" ||
+    event.usageLimitResetAt !== undefined ||
+    !managed.info.autoHandoff ||
+    managed.autoHandoffSpent ||
+    attempt ||
+    !managed.session ||
+    managed.aborting
+  )
+    return;
   // Arm before the completion event publishes idle state, so queued messages
   // cannot take the context budget reserved for the brief.
   const next: AutoHandoffAttempt = { session: managed.session, cancelToken: managed.turnCancelToken, chunks: [], capturing: false, status: null };

@@ -51,16 +51,15 @@ export function steerRateLimited(managed: ManagedAgent): boolean {
 }
 
 function hasPendingFlow(managed: ManagedAgent): boolean {
-  if (managed.autoHandoffAttempt) return true;
+  if (managed.autoHandoffAttempt || managed.usageResumePlan) return true;
   if (managed.session && managed.providerSignInBlockedSession === managed.session) return true;
   return !!(managed.pendingPermission || (managed.queuedPermissions?.length ?? 0) > 0 || managed.pendingResume || managed.pendingModelPick || managed.pendingEffortPick || managed.pendingCronjobPick);
 }
 
 export function enqueueMessage(
   receiverId: string,
-  msg: { sender: QueuedSender; text: string; clientMessageId?: string; sdkText?: string; attachments?: Attachment[]; scheduledFor?: number; scheduledSenderGone?: boolean; handoff?: boolean },
-  // Agent-initiated steering. Kept on this call so enqueue and interrupt use
-  // the same state read and synchronous queue push.
+  msg: Omit<QueuedMessage, "id" | "queuedAt" | "queuedDuringBusyTurn" | "steer">,
+  // Keep enqueue and agent-initiated interruption on the same state read.
   opts?: { steer?: boolean; atHead?: boolean },
 ): EnqueueResult {
   const managed = agents.get(receiverId);
@@ -105,6 +104,7 @@ export function enqueueMessage(
     ...(msg.scheduledFor ? { scheduledFor: msg.scheduledFor } : {}),
     ...(msg.scheduledSenderGone ? { scheduledSenderGone: true } : {}),
     ...(msg.handoff ? { handoff: true } : {}),
+    ...(msg.usageResume ? { usageResume: true } : {}),
     ...(boundarySteer ? { steer: true } : {}),
     attachments: msg.attachments,
     queuedAt: Date.now(),

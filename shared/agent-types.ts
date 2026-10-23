@@ -69,6 +69,8 @@ export interface AgentInfo {
   capabilities: AgentCapabilities;
   privileged?: boolean;
   autoHandoff?: boolean;
+  resumeAfterUsageLimit?: boolean;
+  usageResumeAt?: number | null;
   codexSandbox?: CodexSandboxMode;
   effort?: EffortLevel;
   state: AgentState;
@@ -171,6 +173,7 @@ export interface QueuedMessage {
   scheduledSenderGone?: boolean;
   // Set when this is a self-handoff brief injected by POST /api/agents/:id/handoff.
   handoff?: boolean;
+  usageResume?: boolean;
   // Agent-to-agent steer that a compatible backend may deliver at a safe
   // in-turn boundary instead of aborting the receiver's active turn.
   steer?: boolean;

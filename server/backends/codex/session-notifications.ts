@@ -1,3 +1,4 @@
+import type { CodexQuotaStop } from "./session/quota-stop.ts";
 import type { AttachmentSpec, NormalizedEvent, SubagentOrigin } from "../types.ts";
 import type { JsonRpcNotification } from "./client-types.ts";
 import { isToolActivityItem, translateCompletedItem } from "./completed-items.ts";
@@ -20,6 +21,7 @@ export interface CodexNotificationDeps {
   authSignalEmittedThisTurn: boolean;
   usage: CodexUsageTracker;
   rateLimits: CodexRateLimitTracker;
+  quotaStop?: CodexQuotaStop;
   setActiveTurnId(turnId: string | null): void;
   clearTurnInFlight(): void;
   armLateToolResultNotice(): void;
@@ -81,7 +83,7 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
       const turn = params?.turn as
         | {
             status?: string;
-            error?: { message?: string } | null;
+            error?: { message?: string; codexErrorInfo?: unknown } | null;
           }
         | undefined;
       const rawStatus = mapTurnStatus(turn?.status);
@@ -125,7 +127,7 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
       // Close the per-turn auth-coalescing gate now that the turn has
       // settled. Next user send opens it again in send().
       deps.resetAuthTurnState();
-      deps.enqueue({
+      const completion: Extract<NormalizedEvent, { kind: "turn_completed" }> = {
         kind: "turn_completed",
         status,
         error: capacityError ?? error,
@@ -137,7 +139,9 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
         // wouldn't catch it.
         ...(causedByAuth ? { causedByAuth: true } : {}),
         ...(capacityError ? { causedByProviderCapacity: true } : {}),
-      });
+      };
+      if (deps.quotaStop) deps.quotaStop.complete(completion, turn?.error?.codexErrorInfo);
+      else deps.enqueue(completion);
       deps.clearCapacityRetry?.();
       break;
     }
@@ -251,6 +255,11 @@ export function handleCodexNotification(n: JsonRpcNotification, deps: CodexNotif
     case "error": {
       const notification = params as ErrorNotification | null | undefined;
       const message = notification?.error.message;
+      if (notification?.willRetry === false && (deps.turnInFlight || deps.turnStarting) && notification.error.codexErrorInfo === "usageLimitExceeded" && deps.quotaStop) {
+        deps.quotaStop.note(notification.error.codexErrorInfo);
+        if (message) deps.enqueue({ kind: "system_text", text: message });
+        break;
+      }
       if (message && notification.willRetry === false && notification.error.codexErrorInfo === "serverOverloaded") {
         deps.noteCapacityError?.(message);
         break;

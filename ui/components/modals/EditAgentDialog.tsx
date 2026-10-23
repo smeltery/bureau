@@ -37,6 +37,8 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     customInstructions,
     autoHandoff,
     setAutoHandoff,
+    resumeAfterUsageLimit,
+    setResumeAfterUsageLimit,
     cwd,
     cwdError,
     handleSave,
@@ -140,6 +142,15 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
 
       {!isSpawn && <EditAgentManagerField canEditManager={canEditManager} managerUserId={managerUserId} managerOptions={managerOptions} setManagerUserId={setManagerUserId} />}
 
+      {!isSpawn && (agentType === "claude" || agentType === "codex") && (
+        <label style={{ ...labelStyle, display: "block", marginTop: 14 }}>
+          <input type="checkbox" checked={resumeAfterUsageLimit} onChange={(event) => setResumeAfterUsageLimit(event.target.checked)} /> Resume after usage limit
+          <span style={{ display: "block", fontWeight: 400 }}>
+            Continue this conversation one minute after the provider’s reported usage reset. Stop cancels a pending continuation.
+            {agent?.usageResumeAt ? ` Scheduled for ${new Date(agent.usageResumeAt).toLocaleString()}.` : ""}
+          </span>
+        </label>
+      )}
       {!isSpawn && (
         <label style={{ ...labelStyle, display: "block", marginTop: 14 }}>
           <input type="checkbox" checked={autoHandoff} onChange={(event) => setAutoHandoff(event.target.checked)} /> Automatic handoff

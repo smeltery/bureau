@@ -42,6 +42,7 @@ Detailed subsystem documentation.
 | [Skills library](features/skills-library.md) | Agent-scoped skill browsing and owner-managed prompt editing |
 | [Pager](features/pager.md)                                          | Agents and apps page their person; Discord delivery until acked or resolved  |
 | [Integration secrets](features/integration-secrets.md) | Scoped credentials, host restrictions, rotation and variables |
+| [Usage-reset continuation](features/usage-reset-continuation.md) | Continue Claude/Codex work after a reported provider reset |
 | [Automatic handoff](features/automatic-handoff.md) | Continue long tasks with a brief and fresh context |
 | [Office MCP endpoint](features/office-mcp.md) | Reach agents from external clients with a personal API token |
 | [Per-Agent MCP Access](features/per-agent-mcp-access.md)            | Controlling MCP integration access per agent                                 |

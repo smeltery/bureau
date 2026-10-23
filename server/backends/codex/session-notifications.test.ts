@@ -1,3 +1,4 @@
+import { CodexQuotaStop } from "./session/quota-stop.ts";
 import { describe, expect, it } from "bun:test";
 
 import type { NormalizedEvent, SubagentOrigin } from "../types.ts";
@@ -278,4 +279,19 @@ describe("handleCodexNotification - errors", () => {
 
     expect(world.events).toEqual([{ kind: "error", message: "future wire error" }]);
   });
+});
+
+it("keeps a quota refusal pending until the completion carries the reset", () => {
+  const world = deps();
+  const reset = Date.now() + 3600000;
+  const quotaStop = new CodexQuotaStop(
+    () => reset,
+    async () => {},
+    (event) => world.events.push(event),
+  );
+  const state = { ...world.deps, quotaStop };
+  handleCodexNotification(notification("error", { threadId: "parent-thread", willRetry: false, error: { message: "Plan limit", codexErrorInfo: "usageLimitExceeded" } }), state);
+  expect(world.events).toEqual([{ kind: "system_text", text: "Plan limit" }]);
+  handleCodexNotification(notification("turn/completed", { threadId: "parent-thread", turn: { status: "failed", error: { message: "Plan limit" } } }), state);
+  expect(world.events[1]).toMatchObject({ kind: "turn_completed", status: "failed", usageLimitResetAt: reset });
 });

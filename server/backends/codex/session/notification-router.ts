@@ -16,6 +16,7 @@ export function routeCodexNotification(session: any, n: JsonRpcNotification): vo
     authSignalEmittedThisTurn: session.authGate.authSignalEmittedThisTurn,
     usage: session.usage,
     rateLimits: session.rateLimits,
+    quotaStop: session.quotaStop,
     setActiveTurnId: (turnId) => {
       session.activeTurnId = turnId;
     },

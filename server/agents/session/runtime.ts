@@ -1,3 +1,4 @@
+import { cancelUsageResume } from "../conversation/usage-resume.ts";
 import { resolveMcpServers } from "../../integrations/mcp.ts";
 import { cancelAutoHandoff } from "../conversation/auto-handoff.ts";
 import { ensureSessionClaudeConfigDir, getSessionClaudeConfigDir, rollSessionUsageOnResume } from "../../persistence.ts";
@@ -138,6 +139,7 @@ export async function waitForConsumerDrain(consumer: Promise<void>, timeoutMs = 
 // callers awaiting sendMessage's deferred don't hang.
 export async function replaceSession(agentId: string, managed: ManagedAgent, newSession: BackendSession, consumerDrainTimeoutMs = SESSION_REPLACE_CONSUMER_DRAIN_TIMEOUT_MS) {
   cancelAutoHandoff(managed);
+  cancelUsageResume(managed);
   clearLiveTurn(managed);
   // Bump the cancel token first so any concurrent runAgentTurn in its
   // pre-send plugin-retrieval window bails on the next await checkpoint —

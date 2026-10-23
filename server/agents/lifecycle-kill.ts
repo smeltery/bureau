@@ -1,3 +1,4 @@
+import { cancelUsageResume } from "./conversation/usage-resume.ts";
 import { loadAgentHistory, saveAgentHistory } from "../persistence.ts";
 import { agents, emit, logCache, persistAll, rooms as roomList } from "./state.ts";
 import { sidecarSend } from "./terminal.ts";
@@ -7,6 +8,7 @@ import { buildKilledAgentSummary } from "./revive.ts";
 export async function kill(agentId: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
+  cancelUsageResume(managed);
   // Stamp the history entry with killedAt + a full config snapshot BEFORE
   // removing the agent from the live map. After deletion, updateAgentHistory
   // (run by persistAll below) skips this entry because it iterates live
@@ -32,6 +34,7 @@ export async function kill(agentId: string) {
         privileged: managed.info.privileged ?? false,
         codexSandbox: managed.info.codexSandbox,
         autoHandoff: managed.info.autoHandoff,
+        resumeAfterUsageLimit: managed.info.resumeAfterUsageLimit,
         lastSessionId: managed.sessionId,
         topic: managed.info.topic,
         customInstructions: managed.info.customInstructions,

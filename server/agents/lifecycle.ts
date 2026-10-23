@@ -1,3 +1,4 @@
+import { restoreUsageResume } from "./conversation/usage-resume.ts";
 import { join } from "path";
 import { rmSync } from "fs";
 import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, LogInFlightTurn, ManifestInFlightTurn, PendingPromptKind, SkillInfo } from "../../shared/types.ts";
@@ -280,6 +281,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
       try {
         const session = p.lastSessionId ? createSession(managed, p.lastSessionId) : createSession(managed);
         installSession(p.id, managed, session);
+        restoreUsageResume(managed, p.usageResumePlan);
       } catch (err: any) {
         console.error(`Failed to restore session for ${p.name}:`, err.message);
         managed.info.state = "error";

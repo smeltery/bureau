@@ -211,6 +211,14 @@ export class CodexRateLimitTracker {
     this.buckets.set(key, prev ? mergeRateLimitSnapshots(prev, next) : next);
   }
 
+  snapshot(): RateLimitSnapshot | null {
+    return pickCodexLimitBucket(this.buckets);
+  }
+
+  async refresh(fetchOnce: () => Promise<GetAccountRateLimitsResponse | null>): Promise<void> {
+    await this.readOnce(fetchOnce);
+  }
+
   async read(fetchOnce: () => Promise<GetAccountRateLimitsResponse | null>): Promise<SubscriptionUsageResult> {
     if (this.buckets.size === 0) await this.readOnce(fetchOnce);
     const bucket = pickCodexLimitBucket(this.buckets);
@@ -233,10 +241,10 @@ export class CodexRateLimitTracker {
   // the entry is keyed. Callers pass the map key when they have one, so a
   // `{ codex: {limitId: null, ...} }` entry files under "codex" and not under
   // the legacy bucket, where it could lose selection.
-  private applyBaseline(baseline: RateLimitSnapshot, keyOverride?: string): void {
+  private applyBaseline(baseline: RateLimitSnapshot, before: Map<string, RateLimitSnapshot>, keyOverride?: string): void {
     const key = keyOverride ?? codexLimitKey(baseline);
     const newer = this.buckets.get(key);
-    this.buckets.set(key, newer ? mergeRateLimitSnapshots(baseline, newer) : baseline);
+    this.buckets.set(key, newer && newer !== before.get(key) ? mergeRateLimitSnapshots(baseline, newer) : baseline);
   }
 
   // `account/rateLimits/read`, deduped so concurrent refreshes share one
@@ -245,6 +253,7 @@ export class CodexRateLimitTracker {
   // who signs in mid-session starts seeing the pill without a restart.
   private readOnce(fetchOnce: () => Promise<GetAccountRateLimitsResponse | null>): Promise<void> {
     if (this.readInFlight) return this.readInFlight;
+    const before = new Map(this.buckets);
     const inFlight: Promise<void> = (async () => {
       try {
         const resp = await fetchOnce();
@@ -255,9 +264,9 @@ export class CodexRateLimitTracker {
         // single-bucket view has no map key of its own, so it files under its
         // own limitId (or the legacy key); the keyed entries file under their
         // MAP key, which is the authoritative metered id.
-        if (resp.rateLimits) this.applyBaseline(resp.rateLimits);
+        if (resp.rateLimits) this.applyBaseline(resp.rateLimits, before);
         for (const [limitId, snap] of Object.entries(resp.rateLimitsByLimitId ?? {})) {
-          if (snap) this.applyBaseline(snap, limitId);
+          if (snap) this.applyBaseline(snap, before, limitId);
         }
       } catch {
         // Unauthenticated, API-key-only, or an app-server that doesn't know

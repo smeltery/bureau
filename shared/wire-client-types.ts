@@ -49,6 +49,7 @@ export type ClientCommand =
       customInstructions?: string;
       customInstructionsVersion?: string;
       autoHandoff?: boolean;
+      resumeAfterUsageLimit?: boolean;
       agentType?: AgentInfo["agentType"];
       modelFamily?: string;
       permissionMode?: AgentInfo["permissionMode"];

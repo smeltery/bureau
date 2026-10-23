@@ -10,6 +10,7 @@ export interface ManagedAgent {
   appliedIntegrationRevision?: number;
   autoHandoffAttempt?: AutoHandoffAttempt | null;
   autoHandoffSpent?: boolean;
+  usageResumePlan?: { sessionId: string; dueAt: number };
   autoHandoffFresh?: boolean;
   settingsNotice?: SettingsNotice | null;
   info: AgentInfo;

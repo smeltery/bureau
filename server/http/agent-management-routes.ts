@@ -86,6 +86,7 @@ export async function handleAgentManagementRequest(req: Request, parts: string[]
           effort: typeof body.effort === "string" ? (body.effort as AgentInfo["effort"]) : undefined,
           userId: nextUserId,
           autoHandoff: typeof body.autoHandoff === "boolean" ? body.autoHandoff : undefined,
+          resumeAfterUsageLimit: typeof body.resumeAfterUsageLimit === "boolean" ? body.resumeAfterUsageLimit : undefined,
         },
         privilegedAgentIdentity(req)?.manager.name ?? sessionUser(auth)?.name,
       );
