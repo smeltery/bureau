@@ -1,3 +1,5 @@
+import { logMessage, logPlural, logParts, type LogParam } from "../../../shared/i18n/log-message.ts";
+import { errMessage } from "../../../shared/errors.ts";
 import { handleResumeCommand } from "./slash-resume.ts";
 import { resetAutoHandoff } from "./auto-handoff.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
@@ -31,7 +33,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     try {
       newSession = createSession(managed);
     } catch (err: any) {
-      emitEphemeralLog(agentId, "error", `Failed to clear conversation: ${err.message}`);
+      emitEphemeralLog(agentId, "error", logMessage("logs.command.clearFailed", { error: errMessage(err) }));
       updateState(agentId, "error");
       return true;
     }
@@ -62,7 +64,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     logCache.set(agentId, []);
     emit({ type: "clear_logs", agentId });
     emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false, contextUsage: null } });
-    emitEphemeralLog(agentId, "system", dropped > 0 ? `Conversation cleared. Dropped ${dropped} queued message${dropped === 1 ? "" : "s"}.` : "Conversation cleared.");
+    emitEphemeralLog(agentId, "system", dropped > 0 ? logPlural("logs.command.clearedQueue", dropped) : logMessage("logs.command.cleared"));
     updateState(agentId, "idle");
     persistAll();
     return true;
@@ -113,7 +115,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
         updateState(agentId, "waiting_for_response");
         return true;
       }
-      addLogEntry(agentId, "error", `Handoff error: ${err.message}`);
+      addLogEntry(agentId, "error", logMessage("logs.command.handoffFailed", { error: errMessage(err) }));
       updateState(agentId, "error");
     }
     return true;
@@ -123,7 +125,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     const handoffPrompt = rawText.replace(/^\/handoff-apply\s*/u, "").trim();
     if (!handoffPrompt) {
       emitEphemeralLog(agentId, "user_message", rawText, username ? { username } : undefined);
-      emitEphemeralLog(agentId, "system", "Usage: `/handoff-apply <handoff prompt>`");
+      emitEphemeralLog(agentId, "system", logMessage("logs.command.handoffUsage", { command: "/handoff-apply <handoff prompt>" }));
       updateState(agentId, "waiting_for_response");
       return true;
     }
@@ -131,7 +133,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     try {
       newSession = createSession(managed);
     } catch (err: any) {
-      emitEphemeralLog(agentId, "error", `Failed to start handoff session: ${err.message}`);
+      emitEphemeralLog(agentId, "error", logMessage("logs.command.handoffStartFailed", { error: errMessage(err) }));
       updateState(agentId, "error");
       return true;
     }
@@ -158,7 +160,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
     logCache.set(agentId, []);
     emit({ type: "clear_logs", agentId });
     emit({ type: "agent_updated", agentId, changes: { topic: null, topicStale: false, contextUsage: null } });
-    addLogEntry(agentId, "system", "Handoff approved. Starting fresh from the handoff prompt.");
+    addLogEntry(agentId, "system", logMessage("logs.command.handoffApproved"));
     addLogEntry(agentId, "user_message", handoffPrompt, username ? { username } : undefined);
     persistAll();
     try {
@@ -178,7 +180,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
         updateState(agentId, "waiting_for_response");
         return true;
       }
-      addLogEntry(agentId, "error", `Handoff restart error: ${err.message}`);
+      addLogEntry(agentId, "error", logMessage("logs.command.handoffRestartFailed", { error: errMessage(err) }));
       updateState(agentId, "error");
     } finally {
       releaseQueueAfterHandoff(agentId, managed);
@@ -205,31 +207,31 @@ export const commandHandlers: Record<string, HandlerFn> = {
       roomMap.get(room)!.push(a);
     }
 
-    const lines: string[] = [];
+    const lines: LogParam[] = [];
     for (const room of [...roomMap.keys()].sort((a, b) => a - b)) {
       const roomAgents = roomMap.get(room)!.sort((a, b) => a.info.desk - b.info.desk);
-      lines.push(`**=== Room ${room + 1} ===**`);
+      lines.push(logMessage("logs.command.rosterRoom", { room: room + 1 }));
       lines.push("");
 
       for (const a of roomAgents) {
-        const selfTag = a.info.id === agentId ? "  **(me)**" : "";
+        const selfTag = a.info.id === agentId ? logMessage("logs.command.rosterSelf") : "";
         const modelLabel = agentModelLabel(a.info.agentType, a.info.modelFamily, a.info.claudeModelOverrides);
         const topic = a.info.topic;
         const hasTopic = topic && topic !== "...";
-        const header = `**${a.info.name}** (desk ${a.info.desk + 1})${selfTag} — ${modelLabel} — \`${a.info.cwd}\``;
+        const header = logMessage("logs.command.rosterAgent", { name: a.info.name, desk: a.info.desk + 1, self: selfTag, model: modelLabel, cwd: a.info.cwd });
         if (hasTopic) {
           lines.push(header);
-          lines.push(`  Topic: ${topic}`);
+          lines.push(logMessage("logs.command.rosterTopic", { topic }));
         } else {
-          lines.push(`<span style="color: var(--text-dim)">${header}</span>`);
+          lines.push({ parts: ['<span style="color: var(--text-dim)">', header, "</span>"] });
         }
         lines.push("");
       }
     }
 
-    lines.push("Ask your agent if you'd like to know more about any agent or conversation.");
+    lines.push(logMessage("logs.command.rosterTip"));
 
-    addLogEntry(agentId, "system", lines.join("\n"));
+    addLogEntry(agentId, "system", logParts(lines.flatMap((line, index) => (index === 0 ? [line] : ["\n", line]))));
     updateState(agentId, "waiting_for_response");
     return true;
   },
@@ -243,20 +245,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
   async usage(agentId, _managed, _args, rawText, username) {
     const userMeta = username ? { username } : undefined;
     addLogEntry(agentId, "user_message", rawText, userMeta);
-    addLogEntry(
-      agentId,
-      "system",
-      [
-        "**Subscription plan limits aren't shown here.**",
-        "",
-        "To check your Claude or ChatGPT subscription quota, open the embedded terminal and:",
-        "",
-        "- launch `claude`, then type `/usage`",
-        "- launch `codex`, then type `/status`",
-        "",
-        "For Bureau office-level token spend (per-agent / per-room / per-cron-job), see `/bureau-usage`.",
-      ].join("\n"),
-    );
+    addLogEntry(agentId, "system", logMessage("logs.command.subscriptionUsage"));
     addLogEntry(agentId, "terminal-command", "claude", undefined, undefined, { terminal: { command: "claude" } });
     addLogEntry(agentId, "terminal-command", "codex", undefined, undefined, { terminal: { command: "codex" } });
     updateState(agentId, "waiting_for_response");
@@ -277,7 +266,7 @@ export const commandHandlers: Record<string, HandlerFn> = {
 
     const user = managed.info.userId ? getUserById(managed.info.userId) : null;
     if (user?.role !== "owner") {
-      addLogEntry(agentId, "system", "Storage usage is only available to office owners.");
+      addLogEntry(agentId, "system", logMessage("logs.command.storageOwner"));
       updateState(agentId, "waiting_for_response");
       return true;
     }

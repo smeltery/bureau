@@ -1,3 +1,4 @@
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { computeBureauDiff, resolveDiffCwd } from "../../bureau-diff.ts";
 import { resolveEditorPath, openFile as openEditorFile } from "../../file-editor.ts";
 import { addLogEntry, agents, rooms, updateState, type ManagedAgent } from "../state.ts";
@@ -9,27 +10,27 @@ export async function handleBureauEditCommand(agentId: string, managed: ManagedA
 
   const rawPath = args[0];
   if (!rawPath) {
-    addLogEntry(agentId, "system", `Usage: \`/bureau-edit <path>\`. Path can be relative (resolves against ${managed.info.cwd}), absolute, or \`~/...\`.`);
+    addLogEntry(agentId, "system", logMessage("logs.command.editUsage", { command: "/bureau-edit <path>", cwd: managed.info.cwd }));
     updateState(agentId, "waiting_for_response");
     return true;
   }
   const resolved = resolveEditorPath(rawPath, managed.info.cwd);
   if (resolved.kind === "bad_path") {
-    addLogEntry(agentId, "system", `Empty path.`);
+    addLogEntry(agentId, "system", logMessage("logs.command.emptyPath"));
     updateState(agentId, "waiting_for_response");
     return true;
   }
   const probe = openEditorFile(resolved.path);
   if (probe.kind === "not_found") {
-    addLogEntry(agentId, "system", `\`${resolved.path}\` does not exist.`);
+    addLogEntry(agentId, "system", logMessage("logs.command.missingFile", { path: resolved.path }));
   } else if (probe.kind === "not_file") {
-    addLogEntry(agentId, "system", `\`${resolved.path}\` is not a file.`);
+    addLogEntry(agentId, "system", logMessage("logs.command.notFile", { path: resolved.path }));
   } else if (probe.kind === "binary") {
-    addLogEntry(agentId, "system", `\`${resolved.path}\` is a binary file — the editor panel only supports text.`);
+    addLogEntry(agentId, "system", logMessage("logs.command.binaryFile", { path: resolved.path }));
   } else if (probe.kind === "too_large") {
-    addLogEntry(agentId, "system", `\`${resolved.path}\` is ${(probe.size / 1024).toFixed(1)} KB — too large for the editor panel (1 MB limit).`);
+    addLogEntry(agentId, "system", logMessage("logs.command.largeFile", { path: resolved.path, size: (probe.size / 1024).toFixed(1) }));
   } else if (probe.kind === "io_error") {
-    addLogEntry(agentId, "system", `Failed to open \`${resolved.path}\`: ${probe.message}`);
+    addLogEntry(agentId, "system", logMessage("logs.command.openFailed", { path: resolved.path, error: probe.message }));
   } else {
     addLogEntry(agentId, "edit-request", resolved.path, undefined, undefined, { file: { path: resolved.path } });
   }
@@ -46,21 +47,20 @@ export async function handleBureauMessageCommand(agentId: string, managed: Manag
   const others = [...agents.values()].filter((a) => a.info.id !== agentId);
 
   if (!targetArg || !text) {
-    const lines = ["Usage: `/bureau-message <agent-name-or-id> <message>`"];
-    if (others.length === 0) {
-      lines.push("\nNo other agents to message.");
-    } else {
-      lines.push("\nOther agents:");
-      for (const a of others) lines.push(`  **${a.info.name}**  \`${a.info.id}\``);
-    }
-    addLogEntry(agentId, "system", lines.join("\n"));
+    const peers =
+      others.length === 0
+        ? logMessage("logs.command.noPeers")
+        : logMessage("logs.command.peers", {
+            agents: others.map((a) => `  **${a.info.name}**  \`${a.info.id}\``).join("\n"),
+          });
+    addLogEntry(agentId, "system", logMessage("logs.command.messageHelp", { usage: logMessage("logs.command.messageUsage", { command: "/bureau-message <agent-name-or-id> <message>" }), peers }));
     updateState(agentId, "waiting_for_response");
     return true;
   }
 
   const self = managed.info;
   if (targetArg === self.id || targetArg.toLocaleLowerCase() === self.name.toLocaleLowerCase()) {
-    addLogEntry(agentId, "system", "You can't message yourself.");
+    addLogEntry(agentId, "system", logMessage("logs.command.messageSelf"));
     updateState(agentId, "waiting_for_response");
     return true;
   }
@@ -71,11 +71,10 @@ export async function handleBureauMessageCommand(agentId: string, managed: Manag
 
   if (!target) {
     if (byName.length > 1) {
-      const lines = [`Multiple agents are named "${targetArg}". Re-run with the id:`];
-      for (const a of byName) lines.push(`  \`${a.info.id}\``);
-      addLogEntry(agentId, "system", lines.join("\n"));
+      const ids = byName.map((a) => `  \`${a.info.id}\``).join("\n");
+      addLogEntry(agentId, "system", logMessage("logs.command.duplicateAgents", { name: targetArg, ids }));
     } else {
-      addLogEntry(agentId, "system", `No agent matches \`${targetArg}\`. Run \`/bureau-message\` with no arguments to list agents.`);
+      addLogEntry(agentId, "system", logMessage("logs.command.noAgentMatch", { name: targetArg }));
     }
     updateState(agentId, "waiting_for_response");
     return true;
@@ -84,9 +83,9 @@ export async function handleBureauMessageCommand(agentId: string, managed: Manag
   const sender = { kind: "agent" as const, agentId, agentName: managed.info.name, roomName: rooms[managed.info.room]!.name };
   const result = enqueueMessage(target.info.id, { sender, text });
   if (result.ok) {
-    addLogEntry(agentId, "system", result.queued ? `Queued for **${target.info.name}** (busy — will flush when idle).` : `Delivered to **${target.info.name}**.`);
+    addLogEntry(agentId, "system", logMessage(result.queued ? "logs.command.messageQueued" : "logs.command.messageDelivered", { name: target.info.name }));
   } else {
-    addLogEntry(agentId, "system", `Could not message **${target.info.name}**: ${result.error}`);
+    addLogEntry(agentId, "system", logMessage("logs.command.messageFailed", { name: target.info.name, error: result.error }));
   }
   updateState(agentId, "waiting_for_response");
   return true;
@@ -98,7 +97,7 @@ export async function handleBureauDiffCommand(agentId: string, managed: ManagedA
 
   const resolved = resolveDiffCwd(args[0], managed.info.cwd);
   if (resolved.kind === "bad_dir") {
-    addLogEntry(agentId, "system", `\`${resolved.attempted}\` is not a directory.`);
+    addLogEntry(agentId, "system", logMessage("logs.command.notDirectory", { cwd: resolved.attempted }));
     updateState(agentId, "waiting_for_response");
     return true;
   }
@@ -106,13 +105,13 @@ export async function handleBureauDiffCommand(agentId: string, managed: ManagedA
   const result = computeBureauDiff(resolved.cwd);
   switch (result.kind) {
     case "not_repo":
-      addLogEntry(agentId, "system", `\`${result.cwd}\` is not a git repository.`);
+      addLogEntry(agentId, "system", logMessage("logs.command.notRepository", { cwd: result.cwd }));
       break;
     case "git_error":
-      addLogEntry(agentId, "system", `Failed to run git diff in \`${result.cwd}\`:\n\n\`\`\`\n${result.message}\n\`\`\``);
+      addLogEntry(agentId, "system", logMessage("logs.command.diffFailed", { cwd: result.cwd, error: result.message }));
       break;
     case "clean":
-      addLogEntry(agentId, "system", `Working tree clean in \`${result.cwd}\` — no uncommitted changes.`);
+      addLogEntry(agentId, "system", logMessage("logs.command.cleanTree", { cwd: result.cwd }));
       break;
     case "ok":
       addLogEntry(agentId, "diff", result.summary, undefined, undefined, { diff: result.payload });

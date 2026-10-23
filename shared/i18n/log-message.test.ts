@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { LogEntry } from "../log-types.ts";
-import { displayLogContent, logContent, logMessage } from "./log-message.ts";
+import { displayLogContent, logContent, logMessage, logPlural, logParts } from "./log-message.ts";
 
 test("one stored lifecycle entry renders independently for each reader", () => {
   const entry = { kind: "system" as const, ...logContent(logMessage("logs.newConversation")) };
@@ -65,5 +65,30 @@ test("invalid nested values, dates and cycles fall back without partial translat
   for (const label of [cycle, { timestamp: NaN }, { timestamp: 9e15 }, { timestamp: "yesterday" }, { key: "logs.future" }, Object.create({ key: "logs.interrupted" })]) {
     const entry = { kind: "system", id: "bad", agentId: "test", timestamp: 0, content: "Original", message: { key: "logs.choice.alreadyUsing", params: { label } } } as LogEntry;
     expect(displayLogContent(entry, "ca")).toBe("Original");
+  }
+});
+
+test("plural log messages select forms by reader locale and preserve counts", () => {
+  for (const count of [0, 1, 2]) {
+    const entry = { kind: "system" as const, ...logContent(logPlural("logs.command.clearedQueue", count)) };
+    expect(displayLogContent(entry, "en")).toContain(`${count} queued message${count === 1 ? "" : "s"}.`);
+    expect(displayLogContent(entry, "zh")).toBe(`对话已清除。已丢弃 ${count} 条排队消息。`);
+  }
+});
+
+test("composed log parts fall back atomically on malformed nested data", () => {
+  const entry = { kind: "system" as const, ...logContent(logParts([logMessage("logs.command.cleared"), "\n", "Original text"])) };
+  expect(displayLogContent(entry, "ca")).toBe("Conversa esborrada.\nOriginal text");
+  const cycle: { parts: unknown[] } = { parts: [] };
+  cycle.parts.push(cycle);
+  for (const message of [
+    { key: "logs.parts", params: { parts: cycle } },
+    { key: "logs.parts", params: { parts: { parts: ["Valid", null] } } },
+    { key: "logs.command.clearedQueue", count: Infinity },
+    { key: "logs.command.clearedQueue", count: "1" },
+    { key: "logs.command.clearedQueue" },
+    { key: "logs.interrupted", count: 1 },
+  ]) {
+    expect(displayLogContent({ ...entry, message } as unknown as LogEntry, "es")).toBe(entry.content);
   }
 });
