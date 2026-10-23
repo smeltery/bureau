@@ -151,7 +151,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
       {/* Filter chip */}
       {tab === "runs" && runFilter && (
         <div style={{ padding: "8px 20px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Schedule:</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{t("schedules.filterLabel")}</span>
           <button
             onClick={() => setRunFilter(null)}
             style={{
