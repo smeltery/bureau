@@ -1,27 +1,29 @@
+import { useI18n } from "../i18n.tsx";
+import type { PlainMessageKey } from "../../shared/i18n/translate.ts";
 import { useEffect, useState } from "react";
 import type { AgentState, PendingPromptKind } from "../../shared/types.ts";
 import { sendAbortDebounced } from "../utils/abort.ts";
 import { ESCALATION_AMBER_MS, escalationColor, formatElapsed } from "../utils/time.ts";
 
-export const PENDING_PROMPT_BADGE: Record<PendingPromptKind, string> = {
-  permission: "permission",
-  resume: "session",
-  model: "model",
-  effort: "effort",
-  cronjob: "cronjob",
+export const PENDING_PROMPT_BADGE: Record<PendingPromptKind, PlainMessageKey> = {
+  permission: "chat.badge.permission",
+  resume: "chat.badge.resume",
+  model: "chat.badge.model",
+  effort: "chat.badge.effort",
+  cronjob: "chat.badge.cronjob",
 };
 
-export const PENDING_PROMPT_LABEL: Record<PendingPromptKind, string> = {
-  permission: "Waiting for permission",
-  resume: "Waiting for a session pick",
-  model: "Waiting for a model pick",
-  effort: "Waiting for an effort pick",
-  cronjob: "Waiting for a cron job pick",
+export const PENDING_PROMPT_LABEL: Record<PendingPromptKind, PlainMessageKey> = {
+  permission: "chat.pending.permission",
+  resume: "chat.pending.resume",
+  model: "chat.pending.model",
+  effort: "chat.pending.effort",
+  cronjob: "chat.pending.cronjob",
 };
 
-export const STATE_LABELS: Partial<Record<AgentState, string>> = {
-  thinking: "Thinking",
-  tool_executing: "Running tool",
+export const STATE_LABELS: Partial<Record<AgentState, PlainMessageKey>> = {
+  thinking: "chat.state.thinking",
+  tool_executing: "chat.state.tool",
 };
 
 /**
@@ -30,6 +32,7 @@ export const STATE_LABELS: Partial<Record<AgentState, string>> = {
  * after 5 minutes it turns red.
  */
 export function ActivityIndicator({ state, stateChangedAt, agentId }: { state: AgentState; stateChangedAt?: number; agentId: string }) {
+  const { t } = useI18n();
   const label = STATE_LABELS[state];
   const [now, setNow] = useState(Date.now());
 
@@ -64,7 +67,7 @@ export function ActivityIndicator({ state, stateChangedAt, agentId }: { state: A
         <span style={{ width: 4, height: 4, borderRadius: "50%", background: color, animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0.2s" }} />
         <span style={{ width: 4, height: 4, borderRadius: "50%", background: color, animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0.4s" }} />
       </span>
-      <span>{label}...</span>
+      <span>{t(label)}...</span>
       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, opacity: 0.7 }}>{formatElapsed(elapsedMs)}</span>
       {showAbort && (
         <button
@@ -81,7 +84,7 @@ export function ActivityIndicator({ state, stateChangedAt, agentId }: { state: A
             opacity: 0.8,
           }}
         >
-          Abort
+          {t("chat.abort")}
         </button>
       )}
     </div>
@@ -95,6 +98,7 @@ export function ActivityIndicator({ state, stateChangedAt, agentId }: { state: A
  * the agent had hung.
  */
 export function SessionSwapIndicator({ swapping }: { swapping: boolean }) {
+  const { t } = useI18n();
   if (!swapping) return null;
   return (
     <div
@@ -113,13 +117,15 @@ export function SessionSwapIndicator({ swapping }: { swapping: boolean }) {
         <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--text-muted)", animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0.2s" }} />
         <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--text-muted)", animation: "dotBounce 1.4s ease-in-out infinite", animationDelay: "0.4s" }} />
       </span>
-      <span>Restarting session...</span>
+      <span>{t("chat.state.restarting")}</span>
     </div>
   );
 }
 
 /** Inline state + elapsed timer shown next to the agent name in the header. */
 export function HeaderTimer({ state, stateChangedAt }: { state: AgentState; stateChangedAt?: number }) {
+  const { t } = useI18n();
+  const label = STATE_LABELS[state];
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 100);
@@ -132,7 +138,7 @@ export function HeaderTimer({ state, stateChangedAt }: { state: AgentState; stat
     <>
       <span style={{ color: "var(--text-ghost)" }}>&middot;</span>
       <span style={{ color, fontSize: 12 }}>
-        {STATE_LABELS[state]} {formatElapsed(elapsedMs)}
+        {label ? t(label) : ""} {formatElapsed(elapsedMs)}
       </span>
     </>
   );

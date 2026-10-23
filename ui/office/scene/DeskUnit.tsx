@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useState, useEffect, useRef } from "react";
 import type { AgentInfo, PendingPromptKind } from "../../../shared/types.ts";
 import { PENDING_PROMPT_BADGE } from "../../log-view/StateIndicators.tsx";
@@ -22,6 +23,7 @@ export function DeskUnit({
   onSwap?: (sourceDesk: number, targetDesk: number) => void;
   stateChangedAt?: number;
 }) {
+  const { t } = useI18n();
   const [hov, setHov] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -195,7 +197,7 @@ export function DeskUnit({
                 flexShrink: 0,
               }}
             >
-              {PENDING_PROMPT_BADGE[agent.pendingPrompt]}
+              {t(PENDING_PROMPT_BADGE[agent.pendingPrompt])}
             </span>
           )}
         </div>

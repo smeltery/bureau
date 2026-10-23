@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n.tsx";
+import { translatorFor, type Translator } from "../../../shared/i18n/translate.ts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Attachment } from "../../../shared/types.ts";
 import { isApiTokenDevice } from "../../../shared/identity.ts";
@@ -43,11 +45,13 @@ export function UserMessage({
   tasks?: TaskMap;
   onOpenTask?: (id: string) => void;
 }) {
+  const translator = useI18n();
+  const { t } = translator;
   const getText = useCallback(() => content, [content]);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   // Programmatic senders get a distinct dashed treatment so they don't read as
   // the human's own typing. Mirrors QueueChips for queued programmatic messages.
-  const sender = describeUserMessageSender({ username, device, agentName, agentRoom, cronjobName, webhookName });
+  const sender = describeUserMessageSender({ username, device, agentName, agentRoom, cronjobName, webhookName }, translator);
   const fromHuman = sender.fromHuman && !fromNonHuman;
   const edge = `3px ${fromHuman ? "solid" : "dashed"} ${fromHuman ? "var(--accent)" : "var(--text-muted)"}`;
   return (
@@ -89,7 +93,8 @@ export function UserMessage({
           {canEdit && onEdit && (
             <button
               onClick={onEdit}
-              title="Edit & branch"
+              aria-label={t("chat.editBranch")}
+              title={t("chat.editBranch")}
               style={{
                 background: "transparent",
                 border: "none",
@@ -115,28 +120,32 @@ export function UserMessage({
   );
 }
 
-export function describeUserMessageSender({
-  username,
-  device,
-  agentName,
-  agentRoom,
-  cronjobName,
-  webhookName,
-}: {
-  username?: string;
-  device?: string;
-  agentName?: string;
-  agentRoom?: string;
-  cronjobName?: string;
-  webhookName?: string;
-}): {
+export function describeUserMessageSender(
+  {
+    username,
+    device,
+    agentName,
+    agentRoom,
+    cronjobName,
+    webhookName,
+  }: {
+    username?: string;
+    device?: string;
+    agentName?: string;
+    agentRoom?: string;
+    cronjobName?: string;
+    webhookName?: string;
+  },
+  translator: Translator = translatorFor("en"),
+): {
   label: string;
   fromHuman: boolean;
 } {
-  if (webhookName) return { label: `${webhookName} · webhook`, fromHuman: false };
-  if (agentName) return { label: `${agentName} · agent · Room "${agentRoom ?? "?"}"`, fromHuman: false };
-  if (cronjobName) return { label: `${cronjobName} · cron job`, fromHuman: false };
-  const label = username ? (device ? `${username} (${device})` : username) : (device ?? "You");
+  const { t } = translator;
+  if (webhookName) return { label: t("chat.sender.webhook", { name: webhookName }), fromHuman: false };
+  if (agentName) return { label: t("chat.sender.agent", { name: agentName, room: agentRoom ?? "?" }), fromHuman: false };
+  if (cronjobName) return { label: t("chat.sender.cronjob", { name: cronjobName }), fromHuman: false };
+  const label = username ? (device ? `${username} (${device})` : username) : (device ?? t("chat.sender.you"));
   return { label, fromHuman: !isApiTokenDevice(device) };
 }
 
@@ -155,6 +164,7 @@ export function EditableUserMessage({
   onCancel?: () => void;
   onSubmit?: (entryId: string, newText: string) => void;
 }) {
+  const { t } = useI18n();
   const [text, setText] = useState(content);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Use `pointer: coarse` instead of the viewport-based `isMobile` prop so
@@ -193,9 +203,10 @@ export function EditableUserMessage({
       }}
     >
       <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 600, color: "var(--accent)", marginBottom: 4, fontFamily: "'DM Sans',sans-serif", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-        {(username ?? "You").toUpperCase()}
+        {(username ?? t("chat.sender.you")).toUpperCase()}
       </div>
       <textarea
+        aria-label={t("chat.editing")}
         ref={textareaRef}
         value={text}
         onChange={(e) => {
@@ -234,7 +245,7 @@ export function EditableUserMessage({
             cursor: "pointer",
           }}
         >
-          Cancel
+          {t("common.cancel")}
         </button>
         <button
           onClick={() => text.trim() && onSubmit?.(entryId, text.trim())}
@@ -250,7 +261,7 @@ export function EditableUserMessage({
             fontWeight: 600,
           }}
         >
-          Send
+          {t("chat.send")}
         </button>
       </div>
     </div>

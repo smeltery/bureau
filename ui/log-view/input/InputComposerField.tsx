@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import type { ClipboardEvent, RefObject } from "react";
 import { sendAbortDebounced } from "../../utils/abort.ts";
 import { InputAutocomplete } from "../InputAutocomplete.tsx";
@@ -51,6 +52,7 @@ export function InputComposerField({
   skillOrigins: Map<string, string>;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 }) {
+  const { t } = useI18n();
   function completeCommand(name: string) {
     const completed = completedSlashCommandDraft(input, name);
     setInput(completed.text);
@@ -77,6 +79,7 @@ export function InputComposerField({
         />
       )}
       <textarea
+        aria-label={t("chat.message")}
         ref={textareaRef}
         value={input}
         onPaste={handlePaste}
@@ -137,17 +140,7 @@ export function InputComposerField({
             sendAbortDebounced(agentId);
           }
         }}
-        placeholder={
-          editingLogEntryId
-            ? "Editing message above..."
-            : isBusy
-              ? isMobile
-                ? "Agent is busy..."
-                : "Agent is busy — Ctrl+C to interrupt..."
-              : isMobile
-                ? "Type a message..."
-                : "Type a message or / for commands..."
-        }
+        placeholder={editingLogEntryId ? t("chat.editing") : isBusy ? (isMobile ? t("chat.busy") : t("chat.busyDesktop")) : isMobile ? t("chat.placeholder") : t("chat.placeholderCommands")}
         autoFocus={!isMobile}
         rows={1}
         style={{

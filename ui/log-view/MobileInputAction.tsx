@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { sendAbortDebounced } from "../utils/abort.ts";
 import { StatusShape } from "../icons/StatusShape.tsx";
 
@@ -18,6 +19,7 @@ export function MobileInputAction({
   isBusy: boolean;
   onSend: () => void;
 }) {
+  const { t } = useI18n();
   if (isBusy) {
     return (
       <button
@@ -38,7 +40,8 @@ export function MobileInputAction({
           justifyContent: "center",
           lineHeight: 1,
         }}
-        title="Abort"
+        aria-label={t("chat.abort")}
+        title={t("chat.abort")}
       >
         ■
       </button>
@@ -68,7 +71,8 @@ export function MobileInputAction({
         lineHeight: 1,
         transition: "background 0.15s, color 0.15s",
       }}
-      title="Send"
+      aria-label={t("chat.send")}
+      title={t("chat.send")}
     >
       <StatusShape kind="triangle" rotate={-90} />
     </button>

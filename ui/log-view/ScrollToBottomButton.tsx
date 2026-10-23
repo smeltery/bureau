@@ -1,4 +1,6 @@
+import { useI18n } from "../i18n.tsx";
 export function ScrollToBottomButton({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n();
   return (
     <button
       onClick={onClick}
@@ -21,7 +23,8 @@ export function ScrollToBottomButton({ onClick }: { onClick: () => void }) {
         zIndex: 5,
         transition: "opacity 0.15s",
       }}
-      title="Scroll to bottom"
+      aria-label={t("chat.scrollBottom")}
+      title={t("chat.scrollBottom")}
     >
       ↓
     </button>

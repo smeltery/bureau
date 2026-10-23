@@ -1,13 +1,15 @@
+import { useI18n } from "../../i18n.tsx";
 import { discardAttempt, resendAttempt, useOutbox, type OutboxAttempt } from "./index.ts";
 
 export function OutboxRows({ agentId, isMobile, onEdit }: { agentId: string; isMobile?: boolean; onEdit: (id: string) => void }) {
+  const { t, tn, language } = useI18n();
   const attempts = useOutbox(agentId);
   if (attempts.length === 0) return null;
 
   const reason = (attempt: OutboxAttempt): string | null => {
     if (!attempt.error) return null;
-    if (attempt.error.kind === "network") return "Network error";
-    if (attempt.error.kind === "interrupted") return "Reloaded before Bureau confirmed this message.";
+    if (attempt.error.kind === "network") return t("chat.outbox.network");
+    if (attempt.error.kind === "interrupted") return t("chat.outbox.interrupted");
     return attempt.error.message;
   };
 
@@ -44,25 +46,25 @@ export function OutboxRows({ agentId, isMobile, onEdit }: { agentId: string; isM
             }}
           >
             <div style={{ fontSize: isMobile ? 11 : 10, fontWeight: 600, color: failed ? "var(--red-text)" : "var(--text-muted)", marginBottom: 2, textTransform: "uppercase" }}>
-              {failed ? "Not sent" : "Sending..."}
+              {failed ? t("chat.outbox.notSent") : t("chat.outbox.sending")}
             </div>
             {attempt.text && <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.4, maxHeight: isMobile ? "4.2em" : "3.5em", overflow: "hidden" }}>{attempt.text}</div>}
             {attachmentCount > 0 && (
               <div style={{ fontSize: isMobile ? 11 : 10, color: "var(--text-muted)", marginTop: attempt.text ? 4 : 0, fontStyle: "italic" }}>
-                {attachmentCount} attachment{attachmentCount === 1 ? "" : "s"}
+                {tn("chat.attachments", attachmentCount, { total: attachmentCount.toLocaleString(language) })}
               </div>
             )}
             {failed && (
               <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
                 {why && <span style={{ flex: 1, minWidth: 0, fontSize: isMobile ? 12 : 11, color: "var(--red-text)" }}>{why}</span>}
                 <button style={button()} onClick={() => resendAttempt(attempt.id)}>
-                  Resend
+                  {t("chat.outbox.resend")}
                 </button>
                 <button style={button()} onClick={() => onEdit(attempt.id)}>
-                  Edit
+                  {t("common.edit")}
                 </button>
                 <button style={button(true)} onClick={() => discardAttempt(attempt.id)}>
-                  Discard
+                  {t("common.discard")}
                 </button>
               </div>
             )}

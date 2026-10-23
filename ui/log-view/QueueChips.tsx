@@ -1,7 +1,9 @@
+import { useI18n } from "../i18n.tsx";
 import type { QueuedMessage } from "../../shared/types.ts";
 import { send } from "../ws.ts";
 
 export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[]; agentId: string; isMobile?: boolean }) {
+  const { t, tn, language } = useI18n();
   if (queue.length === 0) return null;
   return (
     <div
@@ -25,7 +27,7 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
             textTransform: "uppercase",
           }}
         >
-          {queue.length} queued
+          {tn("chat.queue.count", queue.length, { total: queue.length.toLocaleString(language) })}
         </span>
         <button
           onClick={() => send({ type: "send_now", agentId })}
@@ -40,9 +42,9 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
             cursor: "pointer",
             flexShrink: 0,
           }}
-          title="Flush queued messages now"
+          title={t("chat.queue.flush")}
         >
-          Send now
+          {t("chat.queue.sendNow")}
         </button>
       </div>
       {queue.map((msg) => {
@@ -50,14 +52,14 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
         const isProgrammatic = msg.sender.kind === "webhook" || msg.sender.kind === "agent" || msg.sender.kind === "app" || msg.sender.kind === "cronjob";
         const senderLabel =
           msg.sender.kind === "webhook"
-            ? `Webhook: ${msg.sender.webhookName}`
+            ? t("chat.queue.webhook", { name: msg.sender.webhookName })
             : msg.sender.kind === "agent"
-              ? `${msg.sender.agentName} · agent · Room "${msg.sender.roomName}"`
+              ? t("chat.sender.agent", { name: msg.sender.agentName, room: msg.sender.roomName })
               : msg.sender.kind === "app"
-                ? `${msg.sender.appName} · app`
+                ? t("chat.sender.app", { name: msg.sender.appName })
                 : msg.sender.kind === "cronjob"
-                  ? `${msg.sender.cronjobName} · cron job`
-                  : msg.sender.username || "you";
+                  ? t("chat.sender.cronjob", { name: msg.sender.cronjobName })
+                  : msg.sender.username || t("chat.sender.you");
         return (
           <div
             key={msg.id}
@@ -75,12 +77,10 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <span style={{ color: "var(--text-ghost)", fontSize: 10, fontWeight: 600 }}>QUEUED · {senderLabel}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+                <span style={{ color: "var(--text-ghost)", fontSize: 10, fontWeight: 600 }}>{t("chat.queue.sender", { sender: senderLabel })}</span>
                 {attachmentCount > 0 && (
-                  <span style={{ fontSize: 10, color: "var(--text-ghost)" }}>
-                    · {attachmentCount} attachment{attachmentCount === 1 ? "" : "s"}
-                  </span>
+                  <span style={{ fontSize: 10, color: "var(--text-ghost)" }}>· {tn("chat.attachments", attachmentCount, { total: attachmentCount.toLocaleString(language) })}</span>
                 )}
               </div>
               <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-secondary)" }}>{msg.text}</div>
@@ -97,7 +97,8 @@ export function QueueChips({ queue, agentId, isMobile }: { queue: QueuedMessage[
                 lineHeight: 1,
                 flexShrink: 0,
               }}
-              title="Cancel"
+              aria-label={t("common.cancel")}
+              title={t("common.cancel")}
             >
               &times;
             </button>

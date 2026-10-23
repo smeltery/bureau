@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { QuestionsPane } from "../questions/QuestionsPane.tsx";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefCallback } from "react";
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
@@ -56,6 +57,7 @@ export function LogView({
   embedded?: boolean;
 }) {
   const logs = useMemo(() => coalesceCodexDiagnostics(rawLogs), [rawLogs]);
+  const { t } = useI18n();
   const { agents, drafts, slashCommands, stateChangedAt, isMobile, connected, tasks, office } = useAppState();
   const dispatch = useDispatch();
   const features = useFeatures();
@@ -141,7 +143,7 @@ export function LogView({
     [setInput, voice],
   );
   const attachments = useAttachmentUpload(agent.id);
-  const [outboxError, setOutboxError] = useState<string | null>(null);
+  const [outboxError, setOutboxError] = useState(false);
 
   useEffect(() => {
     restoreOutbox(username, new Set(agents.map((liveAgent) => liveAgent.id)));
@@ -191,7 +193,10 @@ export function LogView({
       isBusy={isBusy}
       editingLogEntryId={editingLogEntryId}
       username={username}
-      onSent={() => setAutoScroll(true)}
+      onSent={() => {
+        setAutoScroll(true);
+        setOutboxError(false);
+      }}
       stagedAttachments={attachments.stagedAttachments}
       validAttachments={attachments.validAttachments}
       hasUploading={attachments.hasUploading}
@@ -209,7 +214,7 @@ export function LogView({
       isSecureContext={voice.isSecureContext}
       voiceInputError={voice.voiceInputError}
       voiceStatus={voice.voiceStatus}
-      onOutboxRejected={setOutboxError}
+      onOutboxRejected={() => setOutboxError(true)}
       showAutocomplete={autocomplete.showAutocomplete}
       filteredCommands={autocomplete.filteredCommands}
       skillOrigins={autocomplete.skillOrigins}
@@ -308,7 +313,7 @@ export function LogView({
 
             {outboxError && (
               <div role="alert" style={{ margin: "0 11px 8px", color: "var(--red)", fontSize: isMobile ? 12 : 11 }}>
-                {outboxError}
+                {t("chat.draftFailed")}
               </div>
             )}
             <QueueChips queue={agent.queue ?? []} agentId={agent.id} isMobile={isMobile} />

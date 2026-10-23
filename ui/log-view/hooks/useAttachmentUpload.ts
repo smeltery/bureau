@@ -1,7 +1,14 @@
 import { useRef, useState } from "react";
 import type { Attachment } from "../../../shared/types.ts";
 
-export type StagedAttachment = Attachment & { id: string; uploading: boolean; error?: string };
+export type AttachmentFailure = string | { kind: "tooLarge" } | { kind: "upload"; status: number } | { kind: "failed" };
+export type StagedAttachment = Attachment & { id: string; uploading: boolean; error?: AttachmentFailure };
+
+class UploadError extends Error {
+  constructor(readonly status: number) {
+    super(`Upload failed (${status})`);
+  }
+}
 
 /**
  * Staged-attachment lifecycle for the input bar.
@@ -36,7 +43,7 @@ export function useAttachmentUpload(agentId: string) {
             mediaType: file.type || "application/octet-stream",
             size: file.size,
             uploading: false,
-            error: "File too large (max 200MB)",
+            error: { kind: "tooLarge" },
           },
         ]);
         continue;
@@ -57,7 +64,7 @@ export function useAttachmentUpload(agentId: string) {
       formData.append("file", file);
       fetch(`/api/upload/${agentId}`, { method: "POST", body: formData })
         .then((res) => {
-          if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+          if (!res.ok) throw new UploadError(res.status);
           return res.json();
         })
         .then((data: { attachments: Attachment[] }) => {
@@ -65,7 +72,11 @@ export function useAttachmentUpload(agentId: string) {
           setStagedAttachments((prev) => prev.map((s) => (s.id === id ? { ...s, ...att, uploading: false } : s)));
         })
         .catch((err) => {
-          setStagedAttachments((prev) => prev.map((s) => (s.id === id ? { ...s, uploading: false, error: err.message } : s)));
+          setStagedAttachments((prev) =>
+            prev.map((s) =>
+              s.id === id ? { ...s, uploading: false, error: err instanceof UploadError ? { kind: "upload", status: err.status } : err instanceof Error ? err.message : { kind: "failed" } } : s,
+            ),
+          );
         });
     }
   }

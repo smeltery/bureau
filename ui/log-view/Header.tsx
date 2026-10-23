@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { AgentInfo, PendingPromptKind } from "../../shared/types.ts";
 import { agentModelLabel } from "../../shared/types.ts";
 import { useAppState } from "../store.tsx";
@@ -49,6 +50,7 @@ export function Header({
   setSlideView?: (active: boolean) => void;
   getConversationText: () => string;
 }) {
+  const { t } = useI18n();
   const { stateChangedAt, isMobile } = useAppState();
 
   if (isMobile) {
@@ -104,7 +106,7 @@ export function Header({
         <span style={{ flexShrink: 0 }}>
           <StatusLight state={agent.state} size={8} />
         </span>
-        <span onClick={onEditAgent} style={{ fontWeight: 600, color: "var(--text-primary)", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }} title="Edit agent">
+        <span onClick={onEditAgent} style={{ fontWeight: 600, color: "var(--text-primary)", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }} title={t("chat.editAgent")}>
           <span style={{ opacity: 0.5 }}>
             {agent.room > 0 ? `R${agent.room + 1}:` : ""}
             {agent.desk + 1} ·
@@ -179,5 +181,6 @@ export function Header({
 }
 
 function PendingPromptLabel({ kind }: { kind: PendingPromptKind }) {
-  return <span style={{ fontSize: 11, fontWeight: 600, color: "var(--orange)", whiteSpace: "nowrap" }}>{PENDING_PROMPT_LABEL[kind]}</span>;
+  const { t } = useI18n();
+  return <span style={{ fontSize: 11, fontWeight: 600, color: "var(--orange)", whiteSpace: "nowrap" }}>{t(PENDING_PROMPT_LABEL[kind])}</span>;
 }

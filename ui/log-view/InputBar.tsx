@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { AgentInfo, Attachment, SkillInfo } from "../../shared/types.ts";
 import { send } from "../ws.ts";
@@ -84,7 +85,7 @@ export function InputBar({
   isSecureContext: boolean;
   voiceInputError: string | null;
   voiceStatus?: string | null;
-  onOutboxRejected: (message: string) => void;
+  onOutboxRejected: () => void;
   showAutocomplete: boolean;
   filteredCommands: string[];
   skillOrigins: Map<string, string>;
@@ -95,6 +96,7 @@ export function InputBar({
   availableCommands: CommandEntry[];
   availableSkills: SkillInfo[];
 }) {
+  const { t } = useI18n();
   const { isMobile } = useAppState();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [skillsOpen, setSkillsOpen] = useState(false);
@@ -120,7 +122,7 @@ export function InputBar({
     const attachments = validAttachments.length > 0 ? validAttachments.map(({ id: _id, uploading: _u, error: _e, ...att }) => att as Attachment) : undefined;
     const attempt = sendAttempt({ agentId: agent.id, text, attachments, sendNow: opts?.sendNow && isBusy });
     if (!attempt) {
-      onOutboxRejected("Could not save this message before sending. Your draft was kept.");
+      onOutboxRejected();
       return;
     }
     setInput("");
@@ -211,7 +213,8 @@ export function InputBar({
             opacity: isBusy ? 0.4 : 0.7,
             transition: "opacity 0.15s",
           }}
-          title="Attach files"
+          aria-label={t("chat.attach")}
+          title={t("chat.attach")}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -234,7 +237,8 @@ export function InputBar({
             flexShrink: 0,
             opacity: isBusy ? 0.4 : 0.85,
           }}
-          title="Browse skills and commands"
+          aria-label={t("chat.skills")}
+          title={t("chat.skills")}
         >
           Sk
         </button>

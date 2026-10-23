@@ -34,6 +34,7 @@ export function AssistantText({
   tasks?: TaskMap;
   onOpenTask?: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const getText = useCallback(() => content, [content]);
   const canCollapse = shouldCollapseAssistantText(content);
   const [expanded, setExpanded] = useState(false);
@@ -91,7 +92,7 @@ export function AssistantText({
             padding: "4px 9px",
           }}
         >
-          {expanded ? "Show less" : "Show more"}
+          {expanded ? t("chat.showLess") : t("chat.showMore")}
         </button>
       )}
     </div>
@@ -113,6 +114,7 @@ export function ThinkingBlock({
   isMobile?: boolean;
   timestamp?: number;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   return (
     <div style={{ margin: "4px 0", position: "relative" }}>
@@ -133,7 +135,7 @@ export function ThinkingBlock({
         }}
       >
         <span style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s", display: "inline-block" }}>&#9654;</span>
-        Thinking...
+        {t("chat.thinking")}
         {durationMs != null && <DurationLabel ms={durationMs} isMobile={isMobile} />}
       </button>
       {open && (
@@ -259,6 +261,7 @@ export function TaskBreadcrumb({ content, phase, isMobile }: { content: string; 
 }
 
 export function PermissionDeniedCard({ denial, isMobile }: { denial: { toolName?: string; message?: string; decisionReason?: string }; isMobile?: boolean }) {
+  const { t } = useI18n();
   const reason = denial.decisionReason || denial.message;
   return (
     <div
@@ -276,7 +279,7 @@ export function PermissionDeniedCard({ denial, isMobile }: { denial: { toolName?
       }}
       title={denial.message}
     >
-      <span style={{ color: "var(--red)", fontWeight: 600, flexShrink: 0 }}>Denied</span>
+      <span style={{ color: "var(--red)", fontWeight: 600, flexShrink: 0 }}>{t("chat.denied")}</span>
       {denial.toolName && <span style={{ color: "var(--text-primary)", fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, flexShrink: 0 }}>{denial.toolName}</span>}
       {reason && <span style={{ color: "var(--text-dim)", overflowWrap: "anywhere" }}>{reason}</span>}
     </div>

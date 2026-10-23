@@ -1,3 +1,4 @@
+import { chat } from "./chat/en.ts";
 import { tasks } from "./tasks/en.ts";
 import { profile } from "./profile-en.ts";
 import { integrations } from "./integrations-en.ts";
@@ -16,6 +17,7 @@ export const en = {
   ...skills,
   ...storage,
   ...tasks,
+  ...chat,
   "access.title": "Access",
   "apiTokens.title": "API tokens",
   "apps.confirmDelete": "Delete {name}? Its data directory will be kept.",
