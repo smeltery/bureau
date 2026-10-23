@@ -87,6 +87,7 @@ export type NormalizedEvent =
       error?: string;
       causedByAuth?: boolean;
       causedByProviderCapacity?: boolean;
+      usageLimitResetAt?: number;
     }
   | { kind: "provider_capacity_retry"; attempt: number; maxAttempts: number; delayMs: number }
   | { kind: "usage_update"; tokenUsage: TokenUsage }

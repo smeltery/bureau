@@ -1,3 +1,4 @@
+import { ClaudeQuotaStop } from "./claude/usage-limit.ts";
 import { registerClaudeMcp } from "./claude/mcp.ts";
 import { withCloudModelDefaults } from "./claude/cloud-defaults.ts";
 import {
@@ -114,6 +115,7 @@ class ClaudeBackendSession implements BackendSession {
   private pendingApprovals = new Map<string, { input: Record<string, unknown>; suggestions?: PermissionUpdate[]; resolve: (r: PermissionResult) => void }>();
   private readonly raw: RawClaudeSession;
   private readonly taskBreadcrumbs = new TaskBreadcrumbTracker();
+  private readonly quotaStop = new ClaudeQuotaStop();
   // Plan-allowance reader (throttled + single-flight; see the module for why
   // the SDK method is looked up by typeof on every call). The thunk defers the
   // query lookup so field initialization order doesn't matter.
@@ -146,7 +148,10 @@ class ClaudeBackendSession implements BackendSession {
 
   async *stream(): AsyncIterable<NormalizedEvent> {
     for await (const msg of this.raw.stream()) {
-      for (const ev of normalizeClaudeMessage(msg, this.opts.agentId)) yield ev;
+      const usageLimitResetAt = this.quotaStop.observe(msg);
+      for (const ev of normalizeClaudeMessage(msg, this.opts.agentId)) {
+        yield ev.kind === "turn_completed" && usageLimitResetAt !== undefined ? { ...ev, usageLimitResetAt } : ev;
+      }
       for (const ev of this.taskBreadcrumbs.observe(msg)) yield ev;
     }
   }

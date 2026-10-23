@@ -31,6 +31,7 @@ export function buildRestoredAgentInfo(persisted: PersistedAgent, room: number):
     topicStale: false,
     customInstructions: persisted.customInstructions ?? null,
     autoHandoff: persisted.autoHandoff === true,
+    resumeAfterUsageLimit: persisted.resumeAfterUsageLimit !== false,
     customInstructionsVersion: versionOf(persisted.customInstructions ?? ""),
     queue: Array.isArray(persisted.queue) ? persisted.queue : [],
   };

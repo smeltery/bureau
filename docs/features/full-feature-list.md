@@ -299,3 +299,5 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Opt-in automatic handoff prepares a brief and starts fresh context at 85% fullness or 500,000 tokens (earlier for known engine compaction limits). Queued messages survive, Stop cancels the attempt, and an already-full fresh conversation pauses instead of looping.
 
 - **Office MCP endpoint** — external Streamable HTTP clients can list visible agents, read conversations, send messages and poll durable token replies at `/mcp`. Personal tokens retain their member’s room permissions; commands and pending member answers must be handled inside Bureau. See [setup](office-mcp.md).
+
+- **Resume after usage limit** — Claude and Codex agents continue the same conversation one minute after a reported quota reset. Pending schedules survive restarts; Stop, new work, and conversation changes cancel them. Toggle it in agent settings. [Details](usage-reset-continuation.md).

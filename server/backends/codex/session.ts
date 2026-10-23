@@ -1,3 +1,4 @@
+import { CodexQuotaStop, quotaResetAt } from "./session/quota-stop.ts";
 import { CodexSignInProbe } from "./session/sign-in-probe.ts";
 // Codex backend session.
 
@@ -51,6 +52,11 @@ export class CodexSession implements BackendSession {
   private prefixRules = new SessionPrefixRules();
   private usage = new CodexUsageTracker();
   private rateLimits = new CodexRateLimitTracker();
+  private quotaStop = new CodexQuotaStop(
+    () => quotaResetAt(this.rateLimits.snapshot()),
+    () => this.rateLimits.refresh(() => this.client.request<GetAccountRateLimitsResponse>("account/rateLimits/read")),
+    (event) => this.enqueue(event),
+  );
   private capacityRetry = new CodexCapacityRetry(
     (delayMs, run) => this.scheduleCapacityRetry(delayMs, run),
     (event) => this.enqueue(event),
@@ -131,12 +137,8 @@ export class CodexSession implements BackendSession {
   }
 
   async send(text: string, attachments?: AttachmentSpec[]): Promise<void> {
-    // Wait for bootstrap (initialize + thread/start) to finish so callers
-    // who fire send() immediately after a session swap don't race. After
-    // bootstrap, threadId is either set (success) or still null (bootstrap
-    // failed — the orchestrator already saw the `error` event from
-    // bootstrap and routed it; raising here surfaces the same condition to
-    // the awaiting sendMessage / flushQueue caller).
+    // Wait for thread/start after a session swap. A failed bootstrap leaves
+    // threadId null; surface it to the awaiting sendMessage / flushQueue caller.
     await this.bootstrapPromise;
     if (this.closed) throw new Error("CodexSession.send: session is closed");
     if (!this.threadId) {
@@ -149,6 +151,7 @@ export class CodexSession implements BackendSession {
       throw new BackendNotConfiguredError(this.bootstrapError?.message ?? "Codex bootstrap failed; cannot send");
     }
 
+    this.quotaStop.cancel();
     const input = buildCodexUserInput(text, attachments, this.opts.agentId);
     this.capacityRetry.resetTurn();
     // Only flip turnInFlight after turn/start succeeds. If the request throws
@@ -223,6 +226,7 @@ export class CodexSession implements BackendSession {
   }
 
   async abort(): Promise<void> {
+    this.quotaStop.cancel();
     if (this.finishCapacityBackoff("interrupted", "Provider-capacity retry interrupted.")) return;
     await this.bootstrapPromise;
     if (this.closed) return;
@@ -244,12 +248,13 @@ export class CodexSession implements BackendSession {
   }
 
   canAbortInPlace(): boolean {
-    return !this.closed && this.threadId !== null && (this.activeTurnId !== null || this.capacityRetry.hasPendingRetry);
+    return !this.closed && this.threadId !== null && (this.activeTurnId !== null || this.capacityRetry.hasPendingRetry || this.quotaStop.waiting);
   }
 
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.quotaStop.cancel();
     this.finishCapacityBackoff("failed", "Codex session closed during provider-capacity backoff.");
     rejectPendingApprovalsOnClose(this.client, this.pendingApprovals);
     void this.client.close();
@@ -311,9 +316,7 @@ export class CodexSession implements BackendSession {
     });
   }
 
-  // -------------------------------------------------------------------------
-  // Stderr + subprocess exit
-  // -------------------------------------------------------------------------
+  // Stderr and subprocess exit.
 
   private handleStderr(chunk: string): void {
     handleCodexSessionStderr(chunk, this.missingToolOutputNotices, (text) => this.enqueueAuthAwareSystemText(text));
@@ -321,6 +324,7 @@ export class CodexSession implements BackendSession {
 
   private handleSubprocessExit(code: number | null, signal: NodeJS.Signals | null): void {
     if (this.closed) return;
+    this.quotaStop.cancel();
     if (this.finishCapacityBackoff("failed", `codex subprocess exited${code != null ? ` (code ${code})` : ""}${signal ? ` (signal ${signal})` : ""} during provider-capacity backoff`)) {
       return;
     }

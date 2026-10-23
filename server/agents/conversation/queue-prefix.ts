@@ -17,6 +17,7 @@ function senderPrefixText(sender: QueuedSender): string {
 }
 
 export function flushPrefix(m: QueuedMessage, receiverAgentId: string): string {
+  if (m.usageResume && m.sender.kind === "agent" && m.sender.agentId === receiverAgentId) return "";
   if (m.handoff && m.sender.kind === "agent" && m.sender.agentId === receiverAgentId) return "[Handoff from your previous session] ";
   if (!m.scheduledFor) return senderPrefixText(m.sender);
   return `[Scheduled message for ${new Date(m.scheduledFor).toISOString()}.${m.scheduledSenderGone ? " The sender agent no longer exists." : ""}]\n`;

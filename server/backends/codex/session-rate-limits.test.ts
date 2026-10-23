@@ -277,3 +277,21 @@ describe("CodexRateLimitTracker", () => {
     expect(await tracker.read(fetchOnce)).toEqual({ kind: "unavailable" });
   });
 });
+
+it("a quota refresh replaces stale cache while retaining pushes received during the request", async () => {
+  const tracker = new CodexRateLimitTracker();
+  tracker.applyUpdate(snapshot({ primary: { ...fiveHour, usedPercent: 100, resetsAt: 100 } }));
+  await tracker.refresh(async () => readResponse({ rateLimits: snapshot({ primary: { ...fiveHour, usedPercent: 100, resetsAt: 200 } }) }));
+  expect(tracker.snapshot()?.primary?.resetsAt).toBe(200);
+  let release!: (value: GetAccountRateLimitsResponse) => void;
+  const pending = tracker.refresh(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
+  tracker.applyUpdate(snapshot({ primary: { ...fiveHour, usedPercent: 100, resetsAt: 300 } }));
+  release(readResponse({ rateLimits: snapshot({ primary: { ...fiveHour, usedPercent: 100, resetsAt: 250 } }) }));
+  await pending;
+  expect(tracker.snapshot()?.primary?.resetsAt).toBe(300);
+});

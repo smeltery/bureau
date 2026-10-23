@@ -1,3 +1,4 @@
+import { armUsageResume } from "../conversation/usage-resume.ts";
 import { observeAutoHandoff } from "../conversation/auto-handoff.ts";
 import type { AgentState } from "../../../shared/types.ts";
 import { accumulateSessionUsage, appendLog, appendSessionUsageSnapshot, ensureSessionClaudeConfigDir, ensureSessionCwd, loadLogWithAncestors } from "../../persistence.ts";
@@ -240,7 +241,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
             addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
             const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, raw);
             if (ev.causedByAuth !== true && auth) emitLoginInstructionsImpl(agentId, managed);
-            updateState(agentId, auth ? "waiting_for_response" : "error");
+            updateState(agentId, auth || ev.usageLimitResetAt !== undefined ? "waiting_for_response" : "error");
           }
         }
       }
@@ -251,6 +252,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         if (ev.causedByProviderCapacity === true) turn.reject(new ProviderCapacityError(ev.error ?? "Provider capacity"));
         else turn.resolve();
       }
+      if (managed && turn && !managed.aborting && ev.status !== "interrupted" && ev.usageLimitResetAt !== undefined) armUsageResume(managed, ev.usageLimitResetAt);
       if (managed && ev.status === "completed") void refreshContextUsage(agentId, managed).then(() => maybeNudgeForContextUsage(agentId, managed));
       break;
     }

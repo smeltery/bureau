@@ -1,3 +1,4 @@
+import { cancelUsageResume } from "./usage-resume.ts";
 import { cancelAutoHandoff } from "./auto-handoff.ts";
 import { listAgentSessions, loadLogWithAncestors, getSessionCwd, persistSessionCwd, ensureSessionCwd } from "../../persistence.ts";
 import { addLogEntry, agents, emit, isAgentBusy, logCache, persistAll, updateState, type ManagedAgent } from "../state.ts";
@@ -66,6 +67,7 @@ export async function abort(agentId: string) {
   // For the post-send path the existing pendingTurn rejection (below) is
   // still the cancellation mechanism; the token bump is harmless there.
   cancelAutoHandoff(managed);
+  cancelUsageResume(managed);
   managed.turnCancelToken++;
   // If no turn is in flight, the SDK stream may have died (e.g. subprocess
   // exited) OR runAgentTurn may be mid-plugin-retrieval. Either way reset

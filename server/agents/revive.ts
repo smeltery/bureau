@@ -184,6 +184,7 @@ export async function revive(agentId: string, roomId: string, desk: number): Pro
     topicStale: false,
     customInstructions: entry.customInstructions ?? null,
     autoHandoff: entry.autoHandoff === true,
+    resumeAfterUsageLimit: entry.resumeAfterUsageLimit !== false,
     customInstructionsVersion: versionOf(entry.customInstructions ?? ""),
     queue: [],
   };

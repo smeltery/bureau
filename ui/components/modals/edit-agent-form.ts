@@ -16,6 +16,7 @@ export type EditAgentFormSnapshot = {
   effort: EffortLevel;
   privileged: boolean;
   autoHandoff?: boolean;
+  resumeAfterUsageLimit?: boolean;
   managerUserId: string;
 };
 
@@ -32,6 +33,7 @@ export function isFormDirty(baseline: EditAgentFormSnapshot, current: EditAgentF
     baseline.effort !== current.effort ||
     baseline.privileged !== current.privileged ||
     baseline.autoHandoff !== current.autoHandoff ||
+    baseline.resumeAfterUsageLimit !== current.resumeAfterUsageLimit ||
     baseline.managerUserId !== current.managerUserId
   );
 }

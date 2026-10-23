@@ -1,3 +1,4 @@
+import { cancelUsageResume } from "./conversation/usage-resume.ts";
 import type { AgentState, Attachment, LogEntry, OfficeSettings, RoomWire } from "../../shared/types.ts";
 import { DEFAULT_AGENT_CAPABILITIES, generateRoomId, normalizeRoomPet } from "../../shared/types.ts";
 import { DEFAULT_MEMBER_SHARE } from "../../shared/member-usage/share.ts";
@@ -99,6 +100,7 @@ export function emitQueueUpdate(agentId: string, managed: ManagedAgent) {
 export function beginTurn(agentId: string, opts: { humanInput: boolean }) {
   const managed = agents.get(agentId);
   if (!managed) return;
+  cancelUsageResume(managed);
   if (managed.info.turnHadHumanInput !== opts.humanInput) {
     managed.info = { ...managed.info, turnHadHumanInput: opts.humanInput };
     emit({ type: "agent_updated", agentId, changes: { turnHadHumanInput: opts.humanInput } });

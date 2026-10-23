@@ -1,3 +1,4 @@
+import { cancelUsageResume } from "./conversation/usage-resume.ts";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../shared/types.ts";
 import { getBackend } from "../backends/index.ts";
 import { versionOf } from "../memory-store.ts";
@@ -32,6 +33,7 @@ export async function editAgent(
     effort?: AgentInfo["effort"];
     userId?: string | null;
     autoHandoff?: boolean;
+    resumeAfterUsageLimit?: boolean;
   },
   actor = "an office member",
 ) {
@@ -129,6 +131,12 @@ export async function editAgent(
   if (typeof changes.autoHandoff === "boolean" && changes.autoHandoff !== managed.info.autoHandoff) {
     managed.info.autoHandoff = changes.autoHandoff;
     updated.autoHandoff = changes.autoHandoff;
+  }
+
+  if (typeof changes.resumeAfterUsageLimit === "boolean" && changes.resumeAfterUsageLimit !== managed.info.resumeAfterUsageLimit) {
+    managed.info.resumeAfterUsageLimit = changes.resumeAfterUsageLimit;
+    updated.resumeAfterUsageLimit = changes.resumeAfterUsageLimit;
+    if (!changes.resumeAfterUsageLimit) cancelUsageResume(managed);
   }
 
   if (Object.keys(updated).length === 0) return;
