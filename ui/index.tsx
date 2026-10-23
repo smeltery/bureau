@@ -1,3 +1,4 @@
+import { captureInstallPrompt } from "./install/controller.ts";
 import { AppChatPage } from "./apps-view/AppChatPage.tsx";
 import type { AppChatBoot } from "../shared/integrations/app-chat.ts";
 declare global {
@@ -12,6 +13,7 @@ import { App } from "./App.tsx";
 import { LanguageProvider } from "./i18n.tsx";
 import { initFocusDebug } from "./focus-debug.ts";
 
+captureInstallPrompt();
 initFocusDebug();
 
 const root = createRoot(document.getElementById("root")!);

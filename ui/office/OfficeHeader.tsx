@@ -1,3 +1,4 @@
+import { InstallButton } from "../install/InstallButton.tsx";
 import type { ReactNode } from "react";
 import { SunIcon, MoonIcon } from "../components/controls/Icons.tsx";
 import { useI18n } from "../i18n.tsx";
@@ -133,6 +134,7 @@ export function DesktopOfficeHeader({
         {onOpenSkills && <HeaderButton icon={<span>▤</span>} label={t("skills.title")} title={t("skills.title")} onClick={onOpenSkills} />}
         {onOpenPlugins && <HeaderButton icon={<PlugIcon />} label={t("common.plugins")} title={t("office.header.pluginsTitle")} onClick={onOpenPlugins} />}
         <HeaderButton icon={<UserIcon />} label={t("common.user")} title={username || t("office.header.userSettings")} onClick={onEditUsername} />
+        <InstallButton />
         <HeaderButton icon={<DeviceIcon />} label={t("common.device")} title={t("office.header.deviceSettings")} onClick={onOpenDeviceSettings} />
         <HeaderButton icon={<BuildingIcon />} label={t("common.office")} title={t("office.header.officeSettings")} onClick={onEditOfficePrompt} />
         {onEditRoomSettings && <HeaderButton icon={<DoorIcon />} label={t("common.room")} title={t("office.header.roomSettings")} onClick={onEditRoomSettings} />}

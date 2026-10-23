@@ -222,6 +222,11 @@ export function AppCard({
         )}
       </div>
 
+      {app.shortUrl && !app.archivedAt && (
+        <a href={app.shortUrl + "#install"} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
+          Install app
+        </a>
+      )}
       {app.description && <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)" }}>{app.description}</div>}
 
       <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11 }}>

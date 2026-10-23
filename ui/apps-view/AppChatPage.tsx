@@ -1,3 +1,4 @@
+import { InstallButton } from "../install/InstallButton.tsx";
 /* eslint-disable react/iframe-missing-sandbox -- The server supplies a separate app origin; both flags support app scripts/storage without access to the office DOM. */
 import { useEffect, useRef, useState } from "react";
 import type { AppChatBoot, AppChatStatus } from "../../shared/integrations/app-chat.ts";
@@ -28,7 +29,7 @@ export function AppChatPage({ boot }: { boot: AppChatBoot }) {
   const draftKey = agent && user ? appChatDraftKey(boot, user.userId, agent.id) : null;
 
   useEffect(() => {
-    document.title = `${boot.name} · Bureau`;
+    document.title = boot.title ?? `${boot.name} · Bureau`;
     let cancelled = false;
     let controller: AbortController | null = null;
     async function refresh() {
@@ -127,7 +128,8 @@ export function AppChatPage({ boot }: { boot: AppChatBoot }) {
       <ConnectionBanner />
       <main style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg-base)", color: "var(--text-primary)" }}>
         <header style={{ display: "flex", flexWrap: "wrap", flexShrink: 0, alignItems: "center", gap: 12, padding: "8px 12px", borderBottom: "1px solid var(--border-subtle)" }}>
-          <strong style={{ flex: 1 }}>{boot.name}</strong>
+          <strong style={{ flex: 1 }}>{boot.title ?? boot.name}</strong>
+          <InstallButton name={boot.title ?? boot.name} showInstructions={window.location.hash === "#install"} />
           <a href="/" target="_blank" rel="noopener noreferrer">
             Office
           </a>

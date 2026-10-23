@@ -53,7 +53,7 @@ import { handleRoomsRequest } from "./rooms.ts";
 import { handleSessionsRequest } from "./sessions.ts";
 import { handleSkillsRequest } from "../skills/http.ts";
 import { handleSkillUsageRequest } from "./skill-usage.ts";
-import { handleStaticRequest } from "./static.ts";
+import { handleStaticRequest, handlePublicInstallAsset } from "./static.ts";
 import { handleStorageRequest } from "./storage.ts";
 import { handleSystemRequest } from "./system.ts";
 import { handleTasksRequest } from "./tasks.ts";
@@ -85,6 +85,8 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
   const offBoxToken = refuseOffBoxMachineToken(req, requestIsOnBox(req, server));
   if (offBoxToken) return offBoxToken;
+  const installAsset = await handlePublicInstallAsset(req, url);
+  if (installAsset) return installAsset;
   if (url.pathname === "/mcp" || url.pathname.startsWith("/browser-sharing/extension/") || url.pathname.startsWith("/hooks/github/")) {
     if (!requestIsOnBox(req, server) && isOutsideReachabilityBlocked()) return new Response(null, { status: 403 });
   }
@@ -104,12 +106,8 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
     });
   }
 
-  // The certificate-admission gate for app hostnames. A TLS terminator in
-  // front of the office asks it before serving a name under the wildcard, so
-  // it answers BEFORE any auth: the caller is a terminator on loopback, not a
-  // browser with a session, and the answer is a function of the registry
-  // alone. Refuses everything on an office with no app-host domain, which is
-  // every plain-HTTP and Tailscale-only install. See server/apps/tls-ask.ts.
+  // The loopback TLS terminator asks before auth whether an app hostname
+  // belongs to the registry. Offices without an app-host domain refuse it.
   if (url.pathname === TLS_ASK_PATH && req.method === "GET") {
     return handleTlsAsk(url, { domain: appHostDomain(), admit: (label) => appRegistry.admitAppCertificate(label) });
   }
@@ -195,7 +193,7 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   const agentsResp = await handleAgentsRequest(req, url, httpAuth);
   if (agentsResp) return agentsResp;
 
-  const appChatResp = handleAppChatRequest(req, url, () => authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() }));
+  const appChatResp = await handleAppChatRequest(req, url, () => authenticate(req, server, { allowLoopback: false, officeName: getOfficeName() }));
   if (appChatResp) return appChatResp;
 
   const appsResp = await handleAppsRequest(req, url, httpAuth);

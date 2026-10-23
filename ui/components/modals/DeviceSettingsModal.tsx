@@ -1,3 +1,4 @@
+import { InstallButton } from "../../install/InstallButton.tsx";
 import { useState } from "react";
 import { getDevice, setDevice } from "../../device-settings.ts";
 import { Modal } from "./Modal.tsx";
@@ -21,6 +22,9 @@ export function DeviceSettingsModal({ onClose }: { onClose: () => void }) {
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Device Settings</h3>
       <p style={{ fontSize: 11, color: "var(--text-ghost)", margin: "6px 0 0", lineHeight: 1.4 }}>Stored locally in this browser. Used to distinguish this device from your other sessions.</p>
 
+      <div style={{ marginTop: 12 }}>
+        <InstallButton />
+      </div>
       <label style={{ ...dialogLabel, marginTop: 16 }}>
         Device Label <span style={dialogHint}>(optional)</span>
       </label>
