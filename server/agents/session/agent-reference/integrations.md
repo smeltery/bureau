@@ -63,3 +63,11 @@ from member, office and server settings. A secret must allow `api.openai.com`
 with Authorization authentication. Direct members to the masked Secrets editor;
 never request a key in chat. Voice spending routes require a browser session and
 are unavailable to agent or personal API tokens.
+
+Members can sign in to Claude or Codex in **Integrations → Providers**. Personal
+sign-in selects a private account home after verification; only owners manage
+the office account. Codex device codes work remotely; its browser callback needs
+the Bureau host’s localhost. Claude codes belong in the masked sign-in field,
+never in chat. Existing conversations keep their credential directory; start a
+new conversation to use a newly activated account. Browser sessions are required
+for these routes; agent and personal API tokens cannot drive provider login.

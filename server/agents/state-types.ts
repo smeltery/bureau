@@ -193,6 +193,7 @@ export interface ManagedAgent {
   // Effective CLAUDE_CONFIG_DIR used by the currently launched Claude process.
   // Stamped into session metadata when system_init reports the session id.
   launchedClaudeConfigDir?: string;
+  launchedCodexHome?: string;
 }
 
 export type AgentEvent =

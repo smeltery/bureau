@@ -1,3 +1,4 @@
+import { ProviderSignIn } from "./connections/ProviderSignIn.tsx";
 import { BrowserSharingPane } from "./integrations/BrowserSharingPane.tsx";
 import { useEffect, useState } from "react";
 import type { ProviderAccountWire, ProviderAccountsWire, ProviderKeysUpdateRes, ProviderLoginQueueWire, ProviderSignInSlotRes } from "../../shared/provider-accounts.ts";
@@ -132,6 +133,14 @@ function ProviderConnectionCard({
         ? t("connections.statusUnavailable")
         : t("connections.statusNotConnected");
 
+  async function refreshAccount() {
+    try {
+      onUpdated((await apiFetch<ProviderAccountsWire>("POST", "/api/me/provider-accounts/refresh")).accounts);
+    } catch {
+      setLocalError(t("connections.checkFailed"));
+    }
+  }
+
   async function saveKey() {
     setPending(true);
     setLocalError(null);
@@ -258,6 +267,7 @@ function ProviderConnectionCard({
       )}
       {savedNote && <p style={{ ...dialogHint, marginTop: 8 }}>{savedNote}</p>}
 
+      <ProviderSignIn provider={account.provider} onChanged={() => void refreshAccount()} />
       {showSignInGuidance && (
         <>
           <p style={{ ...dialogHint, marginTop: 12 }}>{account.provider === "claude" ? t("connections.cliSignInClaude") : t("connections.cliSignInCodex")}</p>

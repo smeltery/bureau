@@ -1,8 +1,9 @@
+import { pinProviderEnvironment } from "../session/provider-environment.ts";
 import { openCodeEnvironmentId } from "../../backends/opencode/profiles/identity.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import { emitLoginInstructions } from "../session/diagnostics.ts";
 import { getBackend } from "../../backends/index.ts";
-import { getSessionClaudeConfigDir, persistSessionFork } from "../../persistence.ts";
+import { getSessionClaudeConfigDir, getSessionCodexHome, persistSessionFork } from "../../persistence.ts";
 import { addLogEntry, agents, emit, emitQueueUpdate, logCache, persistAll, updateState, rooms } from "../state.ts";
 import { SessionSwappedError, createSession, replaceSession } from "../session/runtime.ts";
 import { buildSessionEnv } from "../session/session-env.ts";
@@ -116,7 +117,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
     const access = {
       environmentId: openCodeEnvironmentId(managed.info.userId, rooms[managed.info.room]?.id),
       cwd: managed.info.cwd,
-      env: getSessionClaudeConfigDir(agentId, oldSessionId) ? { ...(env ?? process.env), CLAUDE_CONFIG_DIR: getSessionClaudeConfigDir(agentId, oldSessionId)! } : env,
+      env: pinProviderEnvironment(managed, oldSessionId, env),
     };
     const backend = getBackend(managed.info.agentType);
     const sdkMessages = await backend.getSessionMessages(oldSessionId, managed.info.cwd, access);
@@ -191,6 +192,7 @@ export async function editMessage(agentId: string, logEntryId: string, newText: 
         managed.info.cwd,
         getSessionClaudeConfigDir(agentId, oldSessionId) ?? undefined,
         parentBase,
+        getSessionCodexHome(agentId, oldSessionId) ?? undefined,
       );
     }
 

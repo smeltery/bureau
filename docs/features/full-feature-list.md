@@ -23,18 +23,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Use existing CLI authentication where available. Codex runs through Bureau's
   bundled `@openai/codex` launcher and isolated `CODEX_HOME`.
 - Settings → Connections groups provider accounts, scoped service secrets, remote MCP servers and ordinary variables. Secret stand-ins are delivered through a host-restricted HTTPS proxy; office/member scopes, masked entry, rotation, reissue, restricted reveal, usage notes and connection tests are supported. This is accidental-disclosure protection, not isolation from programs running as the same OS user. Remote MCP configuration reaches Claude, Codex, OpenCode and scheduled runs. Shared browser OAuth sign-in supports discovery, PKCE, pre-registered clients, token refresh and sign-out, with refresh tokens kept server-side. Agents can request missing credentials through expiring masked conversation cards; only the responsible member can answer and values never enter the transcript.
-- Account → Connections shows Claude/Codex connection status for the signed-in
-  user, accepts API keys into personal managed env (no secret echo), and points
-  office owners at host CLI login. Status probes are time-bounded so the pane never sticks on
-  "Checking…"; a timed-out check stays offerable for CLI guidance and is not
-  status-cached. A process-local per-provider "sign-in in progress" slot lets
-  members see which owner is following host CLI login (holder name + start time;
-  sentence composed client-side). Full browser/device OAuth login remains
-  deferred. Auth-failure chat notices deep-link to Connections. Claude recognizes
-  API keys, OAuth tokens, and auth tokens in the effective environment. On macOS,
-  a missing credentials file triggers a bounded local Keychain status check; an
-  inconclusive check stays unavailable rather than claiming the user is signed out.
-  Refresh and login guidance recheck status so a fresh sign-in is recognized.
+- [Provider browser/device sign-in](provider-sign-in.md) supports personal and office Claude/Codex accounts, Codex device codes, masked Claude callback codes, cancellation, verified disconnect and private managed personal homes. Only owners manage shared office accounts. Directory-scoped coordination protects concurrent sign-ins and probes; existing conversations retain their original credential roots. API-key entry and terminal fallback remain available, with bounded effective-auth status probes and local Keychain checks where supported.
   Claude login cards use the bundled CLI with the configured credential directory;
   a separate Claude installation is not required.
   Codex checks locally known sign-out before desk-agent turns. Confirmed sign-out

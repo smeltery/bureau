@@ -1,3 +1,4 @@
+import { activeProviderEnvironment } from "./homes.ts";
 import { claudeLoginCommand } from "../backends/claude/login-command.ts";
 import { claudeSignInStatus } from "../backends/claude/sign-in-status.ts";
 import { isClaudeCloudSelected, isClaudeCodeInstalled } from "../backends/claude-install-check.ts";
@@ -65,10 +66,12 @@ export function buildProviderProbeEnv(userId: string): { [key: string]: string |
       // Probe path: broken office env must not 500 the Connections pane.
     }
   }
+  const explicit: Record<string, string | undefined> = {};
   const userEnvFile = getUserById(userId)?.envFile ?? null;
   if (userEnvFile) {
     try {
-      Object.assign(merged, readEnvFile(userEnvFile));
+      Object.assign(explicit, readEnvFile(userEnvFile));
+      Object.assign(merged, explicit);
     } catch {
       // Same: surface status from process.env rather than failing the list.
     }
@@ -77,11 +80,13 @@ export function buildProviderProbeEnv(userId: string): { [key: string]: string |
   // freshly saved API key is visible even before envFile is linked.
   if (managedUserEnvExists(userId)) {
     try {
-      Object.assign(merged, readManagedUserEnv(userId));
+      Object.assign(explicit, readManagedUserEnv(userId));
+      Object.assign(merged, explicit);
     } catch {
       // ignore
     }
   }
+  Object.assign(merged, activeProviderEnvironment(userId, explicit));
   return merged;
 }
 

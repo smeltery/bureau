@@ -1,13 +1,5 @@
-// Process-local "sign-in in progress" mutex per provider.
-//
-// Bureau does not yet run shared browser/device OAuth login slots. Connections
-// only shows host CLI guidance (and API-key paste). This mutex lets a member
-// mark that they are following that guidance so a second member sees who holds
-// the slot — holder name + start time on the wire; sentence composition stays
-// on the client. Full OAuth / device-code login remains deferred.
-//
-// Slots are in-memory only (lost on process restart). Idle deadline matches
-// the ten-minute window used elsewhere for interactive provider login.
+// Legacy manual-CLI reservations. Browser/device sign-in is coordinated by
+// login/manager.ts against each account’s canonical credential directory.
 
 import type { ProviderAccountProvider, ProviderLoginQueueWire } from "../../shared/provider-accounts.ts";
 import { getUserById } from "../users.ts";

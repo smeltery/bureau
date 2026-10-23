@@ -57,3 +57,21 @@ export interface ProviderSignInSlotRes {
   accounts: ProviderAccountWire[];
   queue: ProviderLoginQueueWire;
 }
+
+export type ProviderAccountScope = "office" | "personal";
+export interface ProviderSignInStatus {
+  provider: ProviderAccountProvider;
+  scope: ProviderAccountScope;
+  connected: boolean;
+  label?: string;
+  apiKeyPresent: boolean;
+  managed: boolean;
+  activePersonal?: boolean;
+  phase: "idle" | "starting" | "waiting" | "verifying" | "cancelling";
+  operationId?: string;
+  holderName?: string;
+  startedAt?: number;
+  authUrl?: string;
+  userCode?: string;
+  error?: string;
+}
