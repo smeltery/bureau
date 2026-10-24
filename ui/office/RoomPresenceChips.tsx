@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { PresenceInfo } from "../../shared/types.ts";
 import { GhostGraphic } from "./ghostVariants.tsx";
 
@@ -34,8 +35,9 @@ export function MiniGhostCluster({ presences, selfConnectionId }: { presences: P
 }
 
 export function TotalOnlineChip({ count }: { count: number }) {
+  const { tn, language } = useI18n();
   if (count <= 0) return null;
-  const label = count === 1 ? "1 online user" : `${count} online users`;
+  const label = tn("roomsUi.online", count, { formattedCount: count.toLocaleString(language) });
   return (
     <span
       title={label}

@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useMemo } from "react";
 import { useAppState, useDispatch } from "../store.tsx";
 import { send } from "../ws.ts";
@@ -10,6 +11,7 @@ import { TuckedRooms } from "./TuckedRooms.tsx";
 import { useRoomTabInteractions } from "./useRoomTabInteractions.ts";
 
 export function RoomTabBar() {
+  const { t, language } = useI18n();
   const { agents, currentRoom, rooms, needsAttention, presences, totalOnlineUsers, sessionContext, lobbyOpen } = useAppState();
   const roomCount = rooms.length;
   const roomNames = rooms.map((r) => r.name);
@@ -92,13 +94,13 @@ export function RoomTabBar() {
           height: 24,
         }}
       >
-        Lobby
+        {t("roomsUi.lobby")}
       </button>
       {Array.from({ length: roomCount }, (_, i) => {
         const isActive = !lobbyOpen && i === currentRoom;
         const roomAgents = agents.filter((a) => a.room === i);
         const hasAttention = roomAgents.some((a) => needsAttention.has(a.id));
-        const displayName = roomNames[i] ?? `Room ${i + 1}`;
+        const displayName = roomNames[i] ?? t("roomsUi.defaultName", { number: (i + 1).toLocaleString(language) });
         const roomPresences = presencesByRoom.get(i) ?? [];
 
         return (
@@ -152,7 +154,8 @@ export function RoomTabBar() {
           marginLeft: 4,
           flexShrink: 0,
         }}
-        title="Create new room"
+        title={t("roomsUi.create")}
+        aria-label={t("roomsUi.create")}
       >
         +
       </button>

@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { DragEvent, MutableRefObject, TouchEvent } from "react";
 import type { AgentInfo, PresenceInfo, RoomWire } from "../../shared/types.ts";
 import { send } from "../ws.ts";
@@ -71,6 +72,7 @@ export function RoomTabItem({
   setEditValue,
   startEditing,
 }: RoomTabItemProps) {
+  const { t, language } = useI18n();
   const isEmpty = agents.length === 0;
   const isDragging = dragFrom === index;
   const isDropTarget = dragOver === index;
@@ -98,6 +100,7 @@ export function RoomTabItem({
     >
       {editingRoom === index ? (
         <input
+          aria-label={t("roomsUi.renameLabel")}
           ref={inputRef}
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
@@ -161,7 +164,7 @@ export function RoomTabItem({
           }}
         >
           {displayName}
-          <span style={{ color: "var(--text-hint)", fontSize: 9, marginLeft: 4 }}>{agents.length}/8</span>
+          <span style={{ color: "var(--text-hint)", fontSize: 9, marginLeft: 4 }}>{agents.length.toLocaleString(language)}/8</span>
           {activityDotColor && (
             <span
               style={{
@@ -200,7 +203,8 @@ export function RoomTabItem({
             padding: 0,
             lineHeight: 1,
           }}
-          title="Close empty room"
+          title={t("roomsUi.closeEmpty")}
+          aria-label={t("roomsUi.closeEmpty")}
         >
           ×
         </button>

@@ -1,6 +1,7 @@
 import type { AgentInfo, RoomWire } from "../../shared/types.ts";
 import { useState } from "react";
-import { saveRoomView } from "./room-view.ts";
+import { useI18n } from "../i18n.tsx";
+import { saveRoomView, roomViewFailure, roomViewFailureText, type RoomViewFailure } from "./room-view.ts";
 import { send } from "../ws.ts";
 
 export function RoomContextMenu({
@@ -18,7 +19,8 @@ export function RoomContextMenu({
   onRename: (roomIdx: number) => void;
   onSettings: (roomId: string) => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
+  const [error, setError] = useState<RoomViewFailure | null>(null);
   const room = rooms[ctxMenu.roomIdx];
   if (!room) return null;
   const roomAgents = agents.filter((a) => a.room === ctxMenu.roomIdx);
@@ -48,7 +50,7 @@ export function RoomContextMenu({
           onRename(ctxMenu.roomIdx);
         }}
       >
-        Rename
+        {t("roomsUi.rename")}
       </button>
       <button
         style={ctxItemStyle}
@@ -57,7 +59,7 @@ export function RoomContextMenu({
           onSettings(room.id);
         }}
       >
-        Room settings…
+        {t("roomsUi.settings")}
       </button>
       <button
         style={ctxItemStyle}
@@ -67,12 +69,12 @@ export function RoomContextMenu({
             rooms.filter((r) => r.id !== room.id).map((r) => r.id),
           )
             .then(onClose)
-            .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not tuck room"));
+            .catch((err: unknown) => setError(roomViewFailure(err)));
         }}
       >
-        Tuck room
+        {t("roomsUi.tuck")}
       </button>
-      {error && <span role="alert">{error}</span>}
+      {error && <span role="alert">{roomViewFailureText(error, t)}</span>}
       <button
         style={{ ...ctxItemStyle, color: canClose ? "var(--text-dim)" : "var(--text-ghost)", cursor: canClose ? "pointer" : "not-allowed" }}
         disabled={!canClose}
@@ -81,7 +83,7 @@ export function RoomContextMenu({
           if (canClose) send({ type: "close_room", roomId: room.id });
         }}
       >
-        Close room
+        {t("roomsUi.close")}
       </button>
     </div>
   );
