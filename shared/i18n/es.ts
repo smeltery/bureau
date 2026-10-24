@@ -1,3 +1,4 @@
+import { auditUi } from "./audit/es.ts";
 import { webhooks } from "./webhooks/es.ts";
 import { pluginsUi } from "./plugins/es.ts";
 import { access } from "./access/es.ts";
@@ -31,6 +32,7 @@ export const es = {
   ...access,
   ...pluginsUi,
   ...webhooks,
+  ...auditUi,
   "access.title": "Acceso",
   "apiTokens.title": "Tokens de API",
   "apps.confirmDelete": "¿Eliminar {name}? Se conservará su directorio de datos.",

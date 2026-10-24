@@ -19,7 +19,7 @@ export function getTerminalRecordingStatus(agentId: string): RecordingStatus {
   return recordingStatuses.get(agentId) ?? "off";
 }
 export function stopTerminalRecording(agentId: string) {
-  recordings.get(agentId)?.close("terminal closed");
+  recordings.get(agentId)?.close("terminal closed", "terminalClosed");
   recordings.delete(agentId);
   recordingStatuses.delete(agentId);
 }
@@ -158,7 +158,7 @@ export function terminalInput(agentId: string, data: string) {
   const managed = agents.get(agentId);
   if (managed?.ptySidecar) {
     const context = auditContext.getStore();
-    recordings.get(agentId)?.input(context && !context.closed ? context.actor : "unknown member");
+    recordings.get(agentId)?.input(context && !context.closed ? context.actor : "unknown member", !context || context.closed);
     sidecarSend(managed, { type: "input", data });
   }
 }

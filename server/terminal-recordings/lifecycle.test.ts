@@ -93,7 +93,7 @@ test("server termination flushes the pending output line and closes recordings",
     const ids = listRecordingIds(root);
     expect(ids).toHaveLength(1);
     const recording = readRecording(ids[0], false, root);
-    expect(recording.events.at(-1)).toMatchObject({ type: "end", reason: "server stopped" });
+    expect(recording.events.at(-1)).toMatchObject({ type: "end", reason: "server stopped", reasonCode: "serverStopped" });
     expect(recording.events[0].data).toBe("last prompt");
   } finally {
     rmSync(root, { recursive: true, force: true });
