@@ -1,3 +1,4 @@
+import { applyChatRecord, type Line, type FoldedMonth } from "./records.ts";
 import { createChatReadState } from "./read-state.ts";
 // Monthly JSONL members-chat store. One office-wide stream for signed-in
 // humans. A chat between people has no natural end, so history is cut by
@@ -16,6 +17,7 @@ import {
   recentMembersChatPins,
   type MembersChatMessage,
   type MembersChatSummary,
+  type MembersChatReactor,
 } from "../../shared/members-chat.ts";
 
 export { MEMBERS_CHAT_DEFAULT_PAGE, MEMBERS_CHAT_MAX_CHARS, MEMBERS_CHAT_MAX_PAGE };
@@ -33,27 +35,6 @@ export class MembersChatError extends Error {
     super(message);
     this.name = "MembersChatError";
   }
-}
-
-type Line =
-  | {
-      op: "post";
-      replyTo?: MembersChatMessage["replyTo"];
-      id: string;
-      kind?: MembersChatMessage["kind"];
-      userId: string;
-      userName: string;
-      device?: string;
-      timestamp: number;
-      content: string;
-    }
-  | { op: "edit"; id: string; timestamp: number; content: string }
-  | { op: "delete"; id: string; timestamp: number }
-  | { op: "pin"; id: string; timestamp: number; active: boolean };
-
-interface FoldedMonth {
-  order: string[];
-  byId: Map<string, MembersChatMessage>;
 }
 
 export interface MembersChatPage {
@@ -75,6 +56,7 @@ export interface MembersChatStore {
   markRead(userId: string, id: string): MembersChatSummary;
   setPinned(id: string, active: boolean): MembersChatMessage | null;
   post(input: PostInput): MembersChatMessage;
+  setThumbsUp(id: string, reactor: MembersChatReactor, active: boolean): MembersChatMessage | null;
   edit(id: string, content: string): MembersChatMessage | null;
   delete(id: string): MembersChatMessage | null;
   get(id: string): MembersChatMessage | null;
@@ -153,31 +135,7 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
       } catch {
         continue;
       }
-      if (line.op === "post") {
-        if (folded.byId.has(line.id) || folded.order.includes(line.id)) continue;
-        folded.order.push(line.id);
-        folded.byId.set(line.id, {
-          id: line.id,
-          kind: line.kind ?? "user",
-          userId: line.userId,
-          userName: line.userName,
-          ...(line.device ? { device: line.device } : {}),
-          timestamp: line.timestamp,
-          content: line.content,
-          ...(line.replyTo ? { replyTo: line.replyTo } : {}),
-        });
-      } else if (line.op === "pin") {
-        const message = folded.byId.get(line.id);
-        if (message) {
-          const { pinnedAt: _previous, ...rest } = message;
-          folded.byId.set(line.id, line.active ? { ...rest, pinnedAt: line.timestamp } : rest);
-        }
-      } else if (line.op === "edit") {
-        const message = folded.byId.get(line.id);
-        if (message) folded.byId.set(line.id, { ...message, content: line.content, editedAt: line.timestamp });
-      } else if (line.op === "delete") {
-        folded.byId.delete(line.id);
-      }
+      applyChatRecord(folded, line);
     }
     cache.set(month, folded);
     return folded;
@@ -220,6 +178,14 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
     if (!month) return null;
     const index = fold(month).order.indexOf(id);
     return index === -1 ? null : { month, index };
+  }
+
+  function setThumbsUp(id: string, reactor: MembersChatReactor, active: boolean): MembersChatMessage | null {
+    const message = get(id);
+    if (!message) return null;
+    if ((message.thumbsUp ?? []).some((item) => item.userId === reactor.userId) === active) return message;
+    append(monthOfId(id)!, { op: "react", id, timestamp: now(), reactor, active });
+    return get(id);
   }
 
   function edit(id: string, content: string): MembersChatMessage | null {
@@ -320,6 +286,7 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
       },
     }),
     setPinned,
+    setThumbsUp,
     edit,
     post,
     delete: del,

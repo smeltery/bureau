@@ -1,3 +1,4 @@
+import { TeamChatReaction } from "./TeamChatReaction.tsx";
 import { useState } from "react";
 import { TeamChatEdit } from "./TeamChatEdit.tsx";
 import { TeamChatQuote } from "./TeamChatQuote.tsx";
@@ -69,6 +70,7 @@ export function TeamChatMessageCard({
       ) : (
         <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{message.content}</div>
       )}
+      <TeamChatReaction message={message} myUserId={myUserId} />
       {!editing && (
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           {message.userId === myUserId && (
