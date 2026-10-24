@@ -1,3 +1,4 @@
+import { isSupportedLanguage } from "../shared/languages.ts";
 import { wouldRemovingOwnerStrandOffice } from "./auth/session-lifecycle.ts";
 import { oauthStore } from "./integrations/oauth/store.ts";
 import { integrationStore } from "./integrations/store.ts";
@@ -63,7 +64,7 @@ export function wouldDeleteLeaveNoOwner(userId: string): boolean {
 // claimed implicitly becomes owner. `opts.allowedRooms` defaults to [] for
 // members and to the snapshot for owners — callers (auth.ts) pass the
 // snapshot at first-owner time so the new owner sees every existing room.
-export function claimUserByName(name: string, opts: { role?: UserRole; allowedRooms?: string[]; pendingSignIn?: boolean } = {}): UserRecord {
+export function claimUserByName(name: string, opts: { role?: UserRole; allowedRooms?: string[]; pendingSignIn?: boolean; language?: UserRecord["language"] } = {}): UserRecord {
   const trimmed = name.trim().slice(0, 64) || "Boss";
   const key = normalizeUserKey(trimmed);
   const existing = users.get(key);
@@ -71,7 +72,11 @@ export function claimUserByName(name: string, opts: { role?: UserRole; allowedRo
   const role: UserRole = opts.role ?? (users.size === 0 ? "owner" : "member");
   const id = generateUserId([...users.values()].map((u) => u.id));
   const allowedRooms = opts.allowedRooms ?? [];
-  const created: UserRecord = { ...createUserRecord({ id, name: trimmed, role, allowedRooms }), ...(opts.pendingSignIn ? { pendingSignIn: true as const } : {}) };
+  const created: UserRecord = {
+    ...createUserRecord({ id, name: trimmed, role, allowedRooms }),
+    ...(isSupportedLanguage(opts.language) ? { language: opts.language } : {}),
+    ...(opts.pendingSignIn ? { pendingSignIn: true as const } : {}),
+  };
   users.set(key, created);
   persist();
   return created;

@@ -1,3 +1,4 @@
+import type { SupportedLanguageCode } from "../../shared/languages.ts";
 // Browser-tab title for /auth/* and /i/<token> pages.
 export function authPageTitle(officeName: string | null, suffix: string): string {
   return officeName ? `${officeName} | Bureau — ${suffix}` : `Bureau — ${suffix}`;
@@ -57,7 +58,7 @@ export const PREAUTH_EXTRA_CSS = `
   }
 `;
 
-export function baseHtml(title: string, body: string, og?: { title: string; description: string }, extraCss: string = ""): string {
+export function baseHtml(title: string, body: string, og?: { title: string; description: string }, extraCss: string = "", language: SupportedLanguageCode = "en"): string {
   const ogMeta = og
     ? `
 <meta property="og:title" content="${escapeAttr(og.title)}" />
@@ -68,7 +69,7 @@ export function baseHtml(title: string, body: string, og?: { title: string; desc
 <meta name="twitter:description" content="${escapeAttr(og.description)}" />`
     : "";
   return `<!doctype html>
-<html lang="en">
+<html lang="${language}">
 <head>
 <meta charset="utf-8" />
 <title>${escapeHtml(title)}</title>

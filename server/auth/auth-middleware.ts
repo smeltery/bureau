@@ -1,3 +1,4 @@
+import { authLanguage } from "./preauth/language.ts";
 // HTTP middleware + WS upgrade auth.
 
 import type { Server } from "bun";
@@ -41,7 +42,7 @@ function unauthorized(req: Request, officeName: string | null): Response {
       headers: { "Content-Type": "application/json" },
     });
   }
-  return new Response(renderLoginPage(officeName), {
+  return new Response(renderLoginPage(officeName, authLanguage(req)), {
     status: 401,
     headers: {
       "Content-Type": "text/html; charset=utf-8",

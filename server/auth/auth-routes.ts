@@ -1,3 +1,5 @@
+import { authLanguage } from "./preauth/language.ts";
+import type { SupportedLanguageCode } from "../../shared/languages.ts";
 import type { Server } from "bun";
 import { getUserByName } from "../users.ts";
 import { acceptInvite, clearCookieHeaders, logoutBySessionHash, peekInvite, readSessionCookie, setCookieHeader, validateSession, type InvitePeek } from "./auth.ts";
@@ -33,8 +35,8 @@ export function handleInvitePeek(req: Request, token: string, officeName: string
   const peek = peekInvite(token);
   if ("error" in peek) return inviteErrorResponse(req, peek.error, officeName);
   const conflict = inviteIdentityConflict(req, peek, null);
-  if (conflict) return renderInviteIdentityConflict(conflict, officeName);
-  return new Response(renderAcceptPage(token, peek.needsName, null, officeName), {
+  if (conflict) return renderInviteIdentityConflict(conflict, officeName, authLanguage(req));
+  return new Response(renderAcceptPage(token, peek.needsName, null, officeName, authLanguage(req)), {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
@@ -50,21 +52,22 @@ export async function handleAccept(req: Request, officeName: string | null, clie
   const limited = checkAuthRateLimit(client, "invite_accept");
   if (limited) return limited;
   const form = await req.formData().catch(() => null);
+  const language = authLanguage(req, form?.get("language"));
   const tokenField = form?.get("token");
   const nameField = form?.get("name");
   const token = typeof tokenField === "string" ? tokenField : "";
   const name = typeof nameField === "string" ? nameField : "";
-  if (!token) return renderInviteError("not_found", officeName);
+  if (!token) return renderInviteError("not_found", officeName, language);
   const peek = peekInvite(token);
   if (!("error" in peek)) {
     const conflict = inviteIdentityConflict(req, peek, name);
-    if (conflict) return renderInviteIdentityConflict(conflict, officeName);
+    if (conflict) return renderInviteIdentityConflict(conflict, officeName, language);
   }
   const ua = req.headers.get("user-agent");
-  const result = await acceptInvite(token, { userAgent: ua, chosenName: name });
+  const result = await acceptInvite(token, { userAgent: ua, chosenName: name, language });
   if (!result.ok) {
     if (result.error === "needs_name" || result.error === "invalid_name") {
-      return new Response(renderAcceptPage(token, true, "Please pick a display name.", officeName), {
+      return new Response(renderAcceptPage(token, true, { key: "preauth.nameError" }, officeName, language, name), {
         status: 400,
         headers: {
           "Content-Type": "text/html; charset=utf-8",
@@ -72,7 +75,7 @@ export async function handleAccept(req: Request, officeName: string | null, clie
         },
       });
     }
-    return inviteErrorResponse(req, result.error, officeName);
+    return inviteErrorResponse(req, result.error, officeName, undefined, language);
   }
   if (result.isBootstrap && onOwnerCreated) {
     try {
@@ -103,12 +106,18 @@ function signedInRedirectForConsumedInvite(req: Request, deps: InviteErrorRespon
   });
 }
 
-export function inviteErrorResponse(req: Request, error: string, officeName: string | null, deps: InviteErrorResponseDeps = { readSessionCookie, validateSession }): Response {
+export function inviteErrorResponse(
+  req: Request,
+  error: string,
+  officeName: string | null,
+  deps: InviteErrorResponseDeps = { readSessionCookie, validateSession },
+  language: SupportedLanguageCode = authLanguage(req),
+): Response {
   if (error === "consumed") {
     const redirect = signedInRedirectForConsumedInvite(req, deps);
     if (redirect) return redirect;
   }
-  return renderInviteError(error, officeName);
+  return renderInviteError(error, officeName, language);
 }
 
 export function inviteIdentityConflict(
@@ -144,19 +153,13 @@ export async function handleLogout(req: Request, officeName: string | null): Pro
   const lookup = validateSession(cookie);
   const result = lookup ? await logoutBySessionHash(lookup.sessionIdHash) : "not_found";
   if (result === "would_strand_office") {
-    return new Response(
-      renderLockoutBlocked(
-        "Sign out refused: this is the last active owner session in the " + "office. Mint an additional invite for yourself and accept it " + "on another device first, then retry.",
-        officeName,
-      ),
-      {
-        status: 409,
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          ...securityHeaders({ tokenInUrl: false }),
-        },
+    return new Response(renderLockoutBlocked({ key: "preauth.lastOwner" }, officeName, authLanguage(req)), {
+      status: 409,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        ...securityHeaders({ tokenInUrl: false }),
       },
-    );
+    });
   }
   // Both names, as independent Set-Cookie lines (an object literal can only
   // carry one). Clearing the name that did NOT authenticate this request is
@@ -175,7 +178,7 @@ export async function tryHandleAuthRoute<T>(req: Request, url: URL, officeName: 
   // + loopback-peer-IP check on the POST as defense-in-depth in case the
   // bind is widened by operator override.
   if (shouldShowClaimForm(req, url)) {
-    return handleClaimForm(officeName);
+    return handleClaimForm(officeName, req);
   }
   if (req.method === "POST" && url.pathname === "/auth/claim") {
     return handleClaim(req, server, officeName, onOwnerCreated);
@@ -183,7 +186,7 @@ export async function tryHandleAuthRoute<T>(req: Request, url: URL, officeName: 
   // GET /i/<token> — peek + render accept page (NEVER consumes).
   if (req.method === "GET" && url.pathname.startsWith("/i/")) {
     const token = url.pathname.slice(3);
-    if (!token) return renderInviteError("not_found", officeName);
+    if (!token) return renderInviteError("not_found", officeName, authLanguage(req));
     return handleInvitePeek(req, token, officeName, requestSource(req, requestPeer(req, server)).client);
   }
   if (url.pathname === "/auth/accept" && req.method === "POST") {

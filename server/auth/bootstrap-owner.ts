@@ -21,7 +21,10 @@ export function snapshotRoomIds(): string[] {
 // branch). Mutates user state so the named user becomes an owner with full
 // allowedRooms, then returns the resulting user record alongside a rollback
 // closure that restores the prior state.
-export function commitBootstrapOwnerUser(chosenName: string): {
+export function commitBootstrapOwnerUser(
+  chosenName: string,
+  language?: UserRecord["language"],
+): {
   user: UserRecord;
   rollback: () => void;
 } {
@@ -29,6 +32,7 @@ export function commitBootstrapOwnerUser(chosenName: string): {
   if (!existing) {
     const created = claimUserByName(chosenName, {
       role: "owner",
+      language,
       allowedRooms: snapshotRoomIds(),
     });
     const createdId = created.id;

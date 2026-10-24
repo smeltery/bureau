@@ -22,9 +22,10 @@ describe("members created up front", () => {
     expect(user.pendingSignIn).toBe(true);
     expect(minted.invite.userId).toBe(user.id);
 
-    const accepted = await acceptInvite(minted.rawToken, { userAgent: null });
+    const accepted = await acceptInvite(minted.rawToken, { userAgent: null, language: "ca" });
     expect(accepted.ok).toBe(true);
     expect(getUserById(user.id)?.pendingSignIn).toBeUndefined();
+    expect(getUserById(user.id)?.language).toBe("ca");
   });
 
   test("a link signs in the same member after a rename", async () => {

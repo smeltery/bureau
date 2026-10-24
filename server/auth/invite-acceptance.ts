@@ -1,5 +1,6 @@
+import type { SupportedLanguageCode } from "../../shared/languages.ts";
 import type { UserRole } from "../../shared/types.ts";
-import { claimUserByName, clearPendingSignIn, getUserById, getUserByName, hasOwner } from "../users.ts";
+import { updateUserById, claimUserByName, clearPendingSignIn, getUserById, getUserByName, hasOwner } from "../users.ts";
 import { commitBootstrapOwnerUser, snapshotRoomIds } from "./bootstrap-owner.ts";
 import { markAllUnconsumedBootstrapInvitesConsumed } from "./bootstrap-invites.ts";
 import { createSessionForUser } from "./session-creation.ts";
@@ -62,7 +63,7 @@ export interface AcceptErr {
 // is bound to the new session. If the invite is a bootstrap invite, the
 // caller must supply `chosenName` (the only path where invitees pick their
 // own display name).
-export async function acceptInvite(rawToken: string, ctx: { userAgent: string | null; chosenName?: string | null }): Promise<AcceptOk | AcceptErr> {
+export async function acceptInvite(rawToken: string, ctx: { userAgent: string | null; chosenName?: string | null; language?: SupportedLanguageCode }): Promise<AcceptOk | AcceptErr> {
   return mutate(() => {
     ensureLoaded();
     const hash = hashOf(rawToken);
@@ -102,7 +103,7 @@ export async function acceptInvite(rawToken: string, ctx: { userAgent: string | 
     let userRecord = bound ?? getUserByName(chosenName);
     let bootstrapRollback: (() => void) | null = null;
     if (invite.bootstrap) {
-      const committed = commitBootstrapOwnerUser(chosenName);
+      const committed = commitBootstrapOwnerUser(chosenName, ctx.language);
       userRecord = committed.user;
       bootstrapRollback = committed.rollback;
     } else if (!userRecord) {
@@ -112,8 +113,15 @@ export async function acceptInvite(rawToken: string, ctx: { userAgent: string | 
       // create their own.
       userRecord = claimUserByName(chosenName, {
         role: invite.role,
+        language: ctx.language,
         ...(invite.role === "owner" ? { allowedRooms: snapshotRoomIds() } : invite.allowedRooms ? { allowedRooms: invite.allowedRooms } : {}),
       });
+    }
+
+    if (userRecord.pendingSignIn && ctx.language) {
+      const updated = updateUserById(userRecord.id, { language: ctx.language });
+      if (!updated.ok) throw new Error(updated.error);
+      userRecord = updated.user;
     }
 
     const { rawSessionId, sessionHash, session } = createSessionForUser(userRecord.id, ctx.userAgent);
@@ -192,7 +200,7 @@ export interface ClaimErr {
 // pre-claim, plus a peer-IP loopback check and a strict same-origin check
 // on the POST); this function is only the auth-state mutation under the
 // mutex.
-export async function claimOwnership(rawChosenName: string, ctx: { userAgent: string | null }): Promise<ClaimOk | ClaimErr> {
+export async function claimOwnership(rawChosenName: string, ctx: { userAgent: string | null; language?: SupportedLanguageCode }): Promise<ClaimOk | ClaimErr> {
   return mutate(() => {
     ensureLoaded();
     if (hasOwner()) {
@@ -204,7 +212,7 @@ export async function claimOwnership(rawChosenName: string, ctx: { userAgent: st
     if (chosenName.length > 64) return { ok: false, error: "invalid_name" };
     if (!/^[\p{L}\p{N} ._'-]+$/u.test(chosenName)) return { ok: false, error: "invalid_name" };
 
-    const { user: userRecord, rollback } = commitBootstrapOwnerUser(chosenName);
+    const { user: userRecord, rollback } = commitBootstrapOwnerUser(chosenName, ctx.language);
 
     const { rawSessionId, sessionHash, session } = createSessionForUser(userRecord.id, ctx.userAgent);
     sessionStore().set(sessionHash, session);

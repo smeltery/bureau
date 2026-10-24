@@ -1,3 +1,4 @@
+import { preauth } from "./preauth/es.ts";
 import { settingsUi } from "./settings-ui/es.ts";
 import { roomsUi } from "./rooms/es.ts";
 import { appsUi } from "./apps/es.ts";
@@ -20,6 +21,7 @@ import { skills } from "./skills-es.ts";
 import type { Catalog } from "./en.ts";
 // Spanish translations for the office UI catalog.
 export const es = {
+  ...preauth,
   ...logs,
   ...integrations,
   ...profile,
