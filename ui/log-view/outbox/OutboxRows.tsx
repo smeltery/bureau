@@ -8,6 +8,7 @@ export function OutboxRows({ agentId, isMobile, onEdit }: { agentId: string; isM
 
   const reason = (attempt: OutboxAttempt): string | null => {
     if (!attempt.error) return null;
+    if (attempt.error.kind === "http") return t("chat.outbox.http", { status: attempt.error.status });
     if (attempt.error.kind === "network") return t("chat.outbox.network");
     if (attempt.error.kind === "interrupted") return t("chat.outbox.interrupted");
     return attempt.error.message;
