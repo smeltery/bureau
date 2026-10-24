@@ -18,6 +18,7 @@ import {
   jsonError,
   projectedAgentsManifest,
   readJsonBody,
+  readMessageBody,
   requireAgentAccessAllowingPrivileged,
   requireHandoffAccess,
   requireUserAgentAccess,
@@ -78,11 +79,8 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
       return new Response(JSON.stringify({ messageId: "" }), { headers: JSON_HEADERS });
     }
 
-    // Steering another agent's conversation — dequeue / resume /
-    // new-conversation / send-now — is the second half of a privileged agent's
-    // office authority, scoped to the agents its manager can see. Note this is
-    // NOT the same as sending as another agent: the message routes below keep
-    // their own sender rules, so a privileged agent still speaks only as itself.
+    // Privileged conversation controls stay scoped to manager-visible agents.
+    // Message routes retain their sender rules: an agent speaks only as itself.
     if (req.method === "DELETE" && parts.length === 4 && parts[2] === "queue") {
       const denied = requireAgentAccessAllowingPrivileged(req, auth, agentId);
       if (denied) return denied;
@@ -118,7 +116,8 @@ export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthRes
     }
 
     if (req.method === "POST" && parts.length === 3 && parts[2] === "messages") {
-      const body = await readJsonBody(req);
+      const body = await readMessageBody(req);
+      if (body instanceof Response) return body;
       const text = typeof body?.text === "string" ? body.text : "";
       const malformedFields = malformedMessageFields(body);
       if (malformedFields) return malformedFields;

@@ -1,3 +1,4 @@
+import { parseMessageBody } from "../../../shared/http/message-body.ts";
 import { isPythonDisplayFilter, unwrapCurlFunction } from "./curl-wrapper.ts";
 
 const LOCAL_BUREAU_URL_RE = /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1)(?::\d+)?\/[^\s'"\\)]+/g;
@@ -52,7 +53,7 @@ const routeLabels: Array<[RegExp, string | ((path: string) => string)]> = [
   [/^\/api\/agent-reference\/[^/]+$/, (path) => `Bureau API: office API reference: ${decodeURIComponent(path.split("/").pop()!)}`],
 ];
 
-const fieldOrder = ["action", "path", "url", "name", "command", "text", "steer", "title", "status", "assignee", "room"];
+const fieldOrder = ["action", "path", "url", "name", "command", "text", "steer", "deliverAt", "title", "status", "assignee", "room"];
 const displayFilterCommands = new Set(["jq", "grep", "rg", "sed", "sort", "uniq", "head", "tail", "cut", "tr", "wc", "column"]);
 
 export function summarizeBureauCurl(command: string): string | null {
@@ -67,7 +68,7 @@ export function summarizeBureauCurl(command: string): string | null {
   if (!route) return null;
   const label = typeof route === "string" ? route : route(url.pathname);
 
-  const fields = extractBodyFields(command);
+  const fields = extractBodyFields(command, url);
   const pipeTail = extractPipeTail(command, url.rawEnd);
   if (pipeTail !== null && !isSafeDisplayPipeTail(pipeTail)) return null;
   const details = [...fields, ...(pipeTail ? [pipeTailForDisplay(pipeTail)] : [])];
@@ -92,15 +93,26 @@ function extractLocalBureauUrl(command: string): (URL & { rawEnd: number }) | nu
   return null;
 }
 
-function extractBodyFields(command: string): string[] {
+function extractBodyFields(command: string, url: URL): string[] {
   const body = BODY_FLAG_RE.exec(command)?.[2] ?? extractDirectHeredocBody(command);
   if (!body) return [];
 
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(body);
-  } catch {
-    return [];
+  const header = /(?:^|\s)(?:-H|--header)\s+(["'])Content-Type:\s*(.*?)\1/i.exec(command)?.[2];
+  const messageRoute = /^\/api\/(agents|api-token-inboxes)\/[^/]+\/messages$/.exec(url.pathname);
+  if (header?.split(";", 1)[0]?.trim().toLowerCase() === "text/plain" && messageRoute) {
+    // Only quote-delimited heredocs or single-quoted literals are known text.
+    const literal = BODY_FLAG_RE.exec(command)?.[1] === "'" || !!DIRECT_HEREDOC_RE.exec(command)?.[1];
+    if (!literal) return [];
+    const result = parseMessageBody(body, header, url.search, messageRoute[1] === "api-token-inboxes" ? {} : undefined);
+    if (!result.ok) return [];
+    parsed = result.body;
+  } else {
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      return [];
+    }
   }
   if (!isJsonObject(parsed)) return [];
 

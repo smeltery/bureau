@@ -76,7 +76,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Codex command, file-edit, MCP, and delegation cards appear when work starts,
   with results attached when it finishes. Child-agent tool activity keeps its
   attribution; web-search cards wait for the completed query.
-- Agents can schedule one-off future messages, including self-reminders.
+- Agents can schedule one-off future messages, including self-reminders. Message APIs accept JSON or plain text with URL delivery options; quoted shell heredocs need no JSON escaping.
 - Durable shared memory with office, room, person, and agent scopes. Agents can
   append attributed facts through the local API, users can curate raw memory in
   settings dialogs, and relevant notes load into future agent prompts.

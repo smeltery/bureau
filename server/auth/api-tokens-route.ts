@@ -1,3 +1,4 @@
+import { parseMessageBody } from "../../shared/http/message-body.ts";
 import type { ApiTokenWire } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
@@ -38,30 +39,30 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
     const display = AgentManager.getAgentDisplay(agentToken.agentId);
     if (!sender?.userId || !display) return jsonError(403, "forbidden");
     const rawBody = await req.text();
-    let body: Record<string, unknown>;
-    try {
-      body = JSON.parse(rawBody || "{}") as Record<string, unknown>;
-    } catch {
-      return jsonError(400, "invalid JSON");
-    }
+    const parsed = parseMessageBody(rawBody, req.headers.get("content-type"), url.search, {});
+    if (!parsed.ok) return jsonError(parsed.status, parsed.error);
+    const body = parsed.body;
     const text = typeof body.text === "string" ? body.text : "";
     if (!text) return jsonError(400, "text is required");
     const tokenId = decodeURIComponent(inboxSendMatch[1]!);
-    const outcome = await apiTokenIdempotency.run({ subject: `agent:${agentToken.agentId}`, op: "api-token-inbox-send", idempotencyKey: readIdempotencyKey(req), rawBody }, async () => {
-      const result = await enqueueApiTokenInboxMessage({
-        tokenId,
-        userId: sender.userId!,
-        text,
-        senderAgentId: agentToken.agentId,
-        senderAgentName: display.name,
-        senderRoomName: display.roomName,
-      });
-      if (!result.ok) return cachedJson(404, { error: "api token unavailable" });
-      addLogEntry(agentToken.agentId, "api_token_outbound", text, {
-        recipient_api_token_name: result.tokenName,
-      });
-      return cachedJson(200, { messageId: result.message.id, lastDrainedAt: result.lastDrainedAt });
-    });
+    const outcome = await apiTokenIdempotency.run(
+      { subject: `agent:${agentToken.agentId}`, op: "api-token-inbox-send", idempotencyKey: readIdempotencyKey(req), rawBody: JSON.stringify(body) },
+      async () => {
+        const result = await enqueueApiTokenInboxMessage({
+          tokenId,
+          userId: sender.userId!,
+          text,
+          senderAgentId: agentToken.agentId,
+          senderAgentName: display.name,
+          senderRoomName: display.roomName,
+        });
+        if (!result.ok) return cachedJson(404, { error: "api token unavailable" });
+        addLogEntry(agentToken.agentId, "api_token_outbound", text, {
+          recipient_api_token_name: result.tokenName,
+        });
+        return cachedJson(200, { messageId: result.message.id, lastDrainedAt: result.lastDrainedAt });
+      },
+    );
     return idempotencyToResponse(outcome);
   }
 

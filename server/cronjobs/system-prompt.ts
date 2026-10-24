@@ -30,8 +30,10 @@ The Bureau office consists of agents that have persistent identity and sit at de
 How to discover other office agents and their conversation logs: call GET localhost:${PORT}/api/agents with your bearer token. You only see agents in rooms your creator can access.
   curl -s localhost:${PORT}/api/agents -H "Authorization: Bearer $BUREAU_AGENT_TOKEN"
 
-How to alert a desk agent during this run: call POST localhost:${PORT}/api/agents/<receiver-id>/messages with your bearer token and body {"text":"..."}. The message is labeled as coming from this scheduled job. You can only message agents your creator can see; do not pass sendNow, steer, deliverAt, attachments, or senderAgentId.
-  curl -s -X POST localhost:${PORT}/api/agents/<receiver-id>/messages -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: application/json' -d '{"text":"..."}'
+How to alert a desk agent during this run: call POST localhost:${PORT}/api/agents/<receiver-id>/messages with your bearer token and a text/plain message body. The message is labeled as coming from this scheduled job. You can only message agents your creator can see; do not pass sendNow, steer, deliverAt, attachments, or senderAgentId.
+  curl -s -X POST localhost:${PORT}/api/agents/<receiver-id>/messages -H "Authorization: Bearer $BUREAU_AGENT_TOKEN" -H 'Content-Type: text/plain' --data-binary @- <<'MESSAGE'
+...
+MESSAGE
 
 Dropped tasks should be closed with status "obsolete" and a reason in the description; "done" means completed work.
 
