@@ -109,7 +109,7 @@ export async function runClaudeOneShot(prompt: string, options: OneShotOptions):
       let out: { subtype: "success" | "error"; result: string } = { subtype: "error", result: "" };
       for await (const msg of q) {
         if (msg.type === "result") {
-          out = msg.subtype === "success" ? { subtype: "success", result: msg.result } : { subtype: "error", result: "" };
+          out = msg.subtype === "success" ? { subtype: "success", result: msg.result } : { subtype: "error", result: msg.errors.join("\n") };
         }
       }
       return out;

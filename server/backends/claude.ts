@@ -291,7 +291,8 @@ export const claudeBackend: Backend = {
       settings: CLAUDE_LAUNCH_SETTINGS,
       env: withCloudModelDefaults(opts.env),
     });
-    return result.subtype === "success" ? result.result : "";
+    if (result.subtype !== "success") throw new Error(result.result || "Background prompt failed");
+    return result.result;
   },
   detectAuthError(text: string) {
     return AUTH_ERROR_PATTERNS.test(text);

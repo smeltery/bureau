@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import type { AgentInfo } from "../../../shared/types.ts";
+import { isCodexAuthenticated } from "../../backends/codex/native-bin.ts";
+import { claudeSignInStatus } from "../../backends/claude/sign-in-status.ts";
 import { getBackend } from "../../backends/index.ts";
 import type { Backend, OneShotOptions } from "../../backends/types.ts";
 import { openCodeEnvironmentId } from "../../backends/opencode/profiles/identity.ts";
@@ -43,7 +45,16 @@ export function captureMetadataProvider(agent: AgentInfo, sessionId: string, ove
   const options: OneShotOptions = { modelFamily, environmentId, env, cwd: "/tmp" };
   return {
     scope: JSON.stringify([info.agentType, modelFamily, environmentId, fingerprint]),
-    generate: (prompt: string, systemPrompt: string) => backend.oneShotPrompt(prompt, { ...options, env: { ...env }, systemPrompt }),
+    async generate(prompt: string, systemPrompt: string) {
+      const result = await backend.oneShotPrompt(prompt, { ...options, env: { ...env }, systemPrompt });
+      // A provider may return a sign-in notice as text after credentials disappear.
+      // Auth-related labels alone are not evidence that the request failed.
+      if (backend.detectAuthError?.(result)) {
+        const signedOut = info.agentType === "codex" ? !isCodexAuthenticated(env) : info.agentType === "claude" && (await claudeSignInStatus(env, true)) === "signed_out";
+        if (signedOut) throw new Error(result);
+      }
+      return result;
+    },
     isAuthError: (error: unknown) => backend.detectAuthError?.(error instanceof Error ? error.message : String(error)) ?? false,
   };
 }
