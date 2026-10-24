@@ -1,4 +1,11 @@
 export const agentSettings = {
+  "agentSettings.handoff": "自动交接",
+  "agentSettings.handoffLimit": "Token 上限",
+  "agentSettings.handoffTokenLimit": "自动交接 Token 上限",
+  "agentSettings.handoffHint": "达到此上限或上下文使用率达到 85% 时交接，以先达到的条件为准（必要时会在引擎压缩前提前交接）。请选择 {min}–{max} 个 Token。Bureau 会编写摘要并保留排队中的消息。",
+  "agentSettings.handoffBoolean": "自动交接必须设为启用或禁用。",
+  "agentSettings.handoffRange": "Token 上限必须是 {min} 到 {max} 之间的整数。",
+
   "agentSettings.permission.auto": "自动（分类器自动批准安全操作）",
   "agentSettings.permission.default": "默认（所有操作都询问）",
   "agentSettings.permission.edits": "接受编辑（自动批准文件更改）",

@@ -1,4 +1,4 @@
-import { handoffSettingsError } from "../../shared/agents/handoff.ts";
+import { handoffSettingsError, handoffSettingsIssue } from "../../shared/agents/handoff.ts";
 import type { ServerWebSocket } from "bun";
 import type { ClientCommand, ServerMessage } from "../../shared/types.ts";
 import * as AgentManager from "../agent-manager.ts";
@@ -44,7 +44,7 @@ export async function handleAgentCommand(cmd: ClientCommand, ws: ServerWebSocket
   if (cmd.type === "spawn" || cmd.type === "edit_agent") {
     const error = handoffSettingsError(cmd);
     if (error) {
-      if (cmd.requestId) ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error } as ServerMessage));
+      if (cmd.requestId) ws.send(JSON.stringify({ type: "agent_save_response", requestId: cmd.requestId, ok: false, error, handoffIssue: handoffSettingsIssue(cmd) ?? undefined } as ServerMessage));
       return true;
     }
   }

@@ -1,4 +1,12 @@
 export const agentSettings = {
+  "agentSettings.handoff": "Relevo automático",
+  "agentSettings.handoffLimit": "Límite de tokens",
+  "agentSettings.handoffTokenLimit": "Límite de tokens del relevo automático",
+  "agentSettings.handoffHint":
+    "Relevo al alcanzar este límite o el 85 % del contexto, lo que ocurra primero (antes si es necesario para evitar la compactación del motor). Elige entre {min} y {max} tokens. Bureau escribe un resumen y conserva los mensajes en cola.",
+  "agentSettings.handoffBoolean": "El relevo automático debe estar activado o desactivado.",
+  "agentSettings.handoffRange": "El límite de tokens debe ser un número entero entre {min} y {max}.",
+
   "agentSettings.permission.auto": "Automático (el clasificador aprueba acciones seguras)",
   "agentSettings.permission.default": "Predeterminado (preguntar siempre)",
   "agentSettings.permission.edits": "Aceptar ediciones (aprobar cambios en archivos)",

@@ -10,9 +10,17 @@ export function handoffTokens(value: unknown): number {
   return validHandoffTokens(value) ? value : DEFAULT_HANDOFF_TOKENS;
 }
 
+export type HandoffSettingsIssue = "autoHandoff" | "autoHandoffTokens";
+
+export function handoffSettingsIssue(settings: { autoHandoff?: unknown; autoHandoffTokens?: unknown }): HandoffSettingsIssue | null {
+  if (settings.autoHandoff !== undefined && typeof settings.autoHandoff !== "boolean") return "autoHandoff";
+  if (settings.autoHandoffTokens !== undefined && !validHandoffTokens(settings.autoHandoffTokens)) return "autoHandoffTokens";
+  return null;
+}
+
 export function handoffSettingsError(settings: { autoHandoff?: unknown; autoHandoffTokens?: unknown }): string | null {
-  if (settings.autoHandoff !== undefined && typeof settings.autoHandoff !== "boolean") return "autoHandoff must be a boolean";
-  if (settings.autoHandoffTokens !== undefined && !validHandoffTokens(settings.autoHandoffTokens))
-    return `Token limit must be a whole number from ${MIN_HANDOFF_TOKENS.toLocaleString("en-US")} to ${MAX_HANDOFF_TOKENS.toLocaleString("en-US")}`;
+  const issue = handoffSettingsIssue(settings);
+  if (issue === "autoHandoff") return "autoHandoff must be a boolean";
+  if (issue === "autoHandoffTokens") return `Token limit must be a whole number from ${MIN_HANDOFF_TOKENS.toLocaleString("en-US")} to ${MAX_HANDOFF_TOKENS.toLocaleString("en-US")}`;
   return null;
 }
