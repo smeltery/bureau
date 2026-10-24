@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import type { PresenceInfo } from "../../../shared/types.ts";
 import { GhostBody, GhostTag } from "../Ghost.tsx";
 import { SCENE_W, VB_X, VB_Y } from "../grid.ts";
@@ -70,6 +71,7 @@ export function LobbyGhosts({
   onMove?: (spotId: string) => void;
   onOpenUser?: (userId: string) => void;
 }) {
+  const { t } = useI18n();
   const natural = naturalPlacements ?? lobbyGhostPlacements(presences, spots);
   const placements = animatedPlacements ?? natural;
   const occupied = new Set(natural.map((p) => p.presence.lobbySpotId));
@@ -88,8 +90,8 @@ export function LobbyGhosts({
                 type="button"
                 data-no-pan
                 data-lobby-spot={s.id}
-                aria-label="Move here"
-                title="Move here"
+                aria-label={t("settingsUi.lobbyMove")}
+                title={t("settingsUi.lobbyMove")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onMove(s.id!);

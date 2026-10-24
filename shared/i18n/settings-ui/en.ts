@@ -122,4 +122,11 @@ export const settingsUi = {
   "settingsUi.updateTip": "Tip: click the copy button to copy this notice to clipboard, then ask any agent to take care of it.",
   "settingsUi.updateGotIt": "Got it",
   "settingsUi.updateCommit": "commit {sha}",
+  "settingsUi.lobbyMove": "Move here",
+  "settingsUi.lobbyPlaqueTop": "EMPLOYEE OF",
+  "settingsUi.lobbyPlaqueBottom": "THE MINUTE",
+  "settingsUi.lobbyPlaque": "Employee of the Minute: {name}",
+  "settingsUi.lobbyWelcome": "WELCOME",
+  "settingsUi.lobbyDirectory": "DIRECTORY",
+  "settingsUi.lobbyOffice": "the office",
 } as const;

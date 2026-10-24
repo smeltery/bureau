@@ -1,8 +1,10 @@
+import { useI18n } from "../../i18n.tsx";
 import { IsoBox, iso, poly, shade, wallTransform } from "./iso.tsx";
 
 // Rugs, plants, wall pieces, cats, directory boards and the counter.
 
 export function RugOval() {
+  const { t } = useI18n();
   const [cx, cy] = iso(0, 0, 0);
   return (
     <g>
@@ -21,7 +23,7 @@ export function RugOval() {
         textLength="76"
         lengthAdjust="spacingAndGlyphs"
       >
-        {"WELCOME"}
+        {t("settingsUi.lobbyWelcome")}
       </text>
     </g>
   );
@@ -157,11 +159,13 @@ const FLAG_COLORS = ["#e2574c", "#f2b134", "#4ea5d9", "#7bc47f", "#b98cd4"];
 // Wall pieces draw flat (x along the wall, y up, origin at the wall contact
 // point) and get skewed onto the wall plane by wallTransform.
 export function Bunting({ wall, text }: { wall: "left" | "right"; text?: string }) {
-  const letters = (text ?? "WELCOME").toUpperCase().split("");
-  const step = 17;
+  const { t } = useI18n();
+  const label = text ?? t("settingsUi.lobbyWelcome");
+  const letters = Array.from(label.toUpperCase());
+  const step = text === undefined ? Math.min(17, 119 / Math.max(1, letters.length)) : 17;
   const width = step * letters.length;
   return (
-    <g transform={wallTransform(wall, 0, 0)}>
+    <g role="img" aria-label={label} transform={wallTransform(wall, 0, 0)}>
       <path d={`M${-width / 2 - 8} -40 Q0 -20 ${width / 2 + 8} -40`} fill="none" stroke="#7a5a3a" strokeWidth="1" />
       {letters.map((ch, i) => {
         const t = (i + 0.5) / letters.length;
@@ -293,6 +297,7 @@ export interface DirectoryRoom {
 }
 
 export function DirectoryBoard({ wall, rooms, officeName }: { wall: "left" | "right"; rooms: DirectoryRoom[]; officeName: string }) {
+  const { t } = useI18n();
   const rows = rooms.slice(0, 6);
   const h = 34 + rows.length * 9;
   return (
@@ -300,7 +305,7 @@ export function DirectoryBoard({ wall, rooms, officeName }: { wall: "left" | "ri
       <rect x="-34" y={-h - 6} width="68" height={h + 6} fill="#5a4030" />
       <rect x="-31" y={-h - 3} width="62" height={h} fill="#f5ecd6" />
       <text x="0" y={-h + 8} textAnchor="middle" fontSize="6.5" fontWeight="700" fontFamily="DM Sans, sans-serif" fill="#7a5a3a" letterSpacing="1.5">
-        {"DIRECTORY"}
+        {t("settingsUi.lobbyDirectory")}
       </text>
       <text x="0" y={-h + 16} textAnchor="middle" fontSize="4.5" fontFamily="DM Sans, sans-serif" fill="#a08a6a">
         {officeName}

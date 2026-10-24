@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useRef, type ReactNode } from "react";
 
 export type WallPanelMenuItem = {
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function WallPanelMenu({ x, y, items, onClose }: Props) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export function WallPanelMenu({ x, y, items, onClose }: Props) {
           letterSpacing: "0.06em",
         }}
       >
-        Settings
+        {t("common.settings")}
       </div>
       {items.map((item) => (
         <button

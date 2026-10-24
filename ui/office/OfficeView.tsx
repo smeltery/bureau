@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useQuestions } from "../questions/useQuestions.ts";
 import { useCallback, useEffect, useState } from "react";
 import { useAppState, useDispatch, useTheme, useFeatures } from "../store.tsx";
@@ -76,6 +77,7 @@ export function OfficeView({
   onSwipeRight?: () => void;
   viewportControlsRef?: React.RefObject<ViewportControls | null>;
 }) {
+  const { t } = useI18n();
   const { agents, needsAttention, stateChangedAt, office, tasks, currentRoom, rooms, isMobile, updateStatus, presences, sessionContext, lobbyOpen } = useAppState();
   const lobbyEdit = lobbyEditFromUrl();
   const roomCount = rooms.length;
@@ -133,8 +135,8 @@ export function OfficeView({
   );
 
   const wallMenuItems: WallPanelMenuItem[] = [
-    { id: "office", icon: <BuildingIcon />, label: "Office settings", onClick: onEditOfficePrompt },
-    ...(onEditRoomSettings ? [{ id: "room", icon: <DoorIcon />, label: "Room settings", onClick: onEditRoomSettings }] : []),
+    { id: "office", icon: <BuildingIcon />, label: t("office.header.officeSettings"), onClick: onEditOfficePrompt },
+    ...(onEditRoomSettings ? [{ id: "room", icon: <DoorIcon />, label: t("office.header.roomSettings"), onClick: onEditRoomSettings }] : []),
   ];
 
   const counts = getRoomCounts(roomAgents);
@@ -232,7 +234,7 @@ export function OfficeView({
                           reject: doorFeedback.leftDoorReject,
                         }
                       : {
-                          label: "Lobby",
+                          label: t("roomsUi.lobby"),
                           onClick: () => dispatch({ type: "set_lobby_open", open: true }),
                           dragOver: doorFeedback.leftDoorDragOver,
                           reject: doorFeedback.leftDoorReject,

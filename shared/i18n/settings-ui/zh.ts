@@ -122,4 +122,11 @@ export const settingsUi = {
   "settingsUi.updateTip": "提示：点击复制按钮将此通知复制到剪贴板，然后请任意代理处理。",
   "settingsUi.updateGotIt": "知道了",
   "settingsUi.updateCommit": "提交 {sha}",
+  "settingsUi.lobbyMove": "移动到这里",
+  "settingsUi.lobbyPlaqueTop": "本分钟",
+  "settingsUi.lobbyPlaqueBottom": "优秀员工",
+  "settingsUi.lobbyPlaque": "本分钟优秀员工：{name}",
+  "settingsUi.lobbyWelcome": "欢迎",
+  "settingsUi.lobbyDirectory": "房间目录",
+  "settingsUi.lobbyOffice": "办公室",
 } as const;
