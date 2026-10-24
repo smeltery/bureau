@@ -44,6 +44,11 @@ The closed chat does not fetch history to show an unread badge.
 Full-page panel at `/team-chat` (alias `/chat`). Header **Team chat** on
 desktop; mobile overflow menu. Humans only — no agent composer.
 
+Message text supports bold, italics, and clickable HTTP, HTTPS, and email links,
+including bare web addresses. Links open in a separate tab. HTML, images in
+Markdown, code, and diagrams remain literal text; uploaded images use the
+attachment preview. Line breaks are preserved.
+
 Unread counts appear on the desktop entry, lobby receptionist, mobile menu,
 and open chat header. A visible chat marks through its newest displayed
 message only while scrolled to the bottom. Reading older messages or hiding
