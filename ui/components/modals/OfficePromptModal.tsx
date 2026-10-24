@@ -1,3 +1,5 @@
+import { ValidationLine, type ValidationStatus } from "./settings/ValidationLine.tsx";
+import { useSaveGuard } from "../../hooks/settings/useSaveGuard.ts";
 import { useState, useEffect, useRef } from "react";
 import { useAppState } from "../../store.tsx";
 import { send, addRawListener, removeRawListener } from "../../ws.ts";
@@ -6,8 +8,6 @@ import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "./dialog-styles.ts"
 import { useMemoryEditor } from "../../hooks/useMemoryEditor.ts";
 import { ExpandableTextarea } from "./ExpandableTextarea.tsx";
 import { UnsavedChangesPrompt, useUnsavedChangesPrompt } from "./UnsavedChangesPrompt.tsx";
-
-type ValidationStatus = { kind: "idle" } | { kind: "pending" } | { kind: "ok"; keyCount?: number } | { kind: "error"; message: string };
 
 type OfficeBaseline = {
   text: string;
@@ -26,7 +26,8 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   const [baseline, setBaseline] = useState<OfficeBaseline | null>(null);
   const [name, setName] = useState(username);
   const [status, setStatus] = useState<ValidationStatus>({ kind: "idle" });
-  const [saving, setSaving] = useState(false);
+  const saveGuard = useSaveGuard();
+  const { saving } = saveGuard;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const requestIdRef = useRef<string>("");
   const officeMemory = useMemoryEditor("office", null);
@@ -124,25 +125,28 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
       setStatus({ kind: "error", message: "Office settings version is still loading. Try again in a moment." });
       return;
     }
+    if (!saveGuard.begin()) return;
     const memoryResult = await officeMemory.save();
+    if (!saveGuard.active()) return;
     if (!memoryResult.ok) {
+      saveGuard.finish();
       setStatus({ kind: "error", message: memoryResult.message });
       return;
     }
     const bossMemoryResult = await bossMemory.save();
+    if (!saveGuard.active()) return;
     if (!bossMemoryResult.ok) {
+      saveGuard.finish();
       setStatus({ kind: "error", message: bossMemoryResult.message });
       return;
     }
     const reqId = `office-save-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     requestIdRef.current = reqId;
-    setSaving(true);
     const listener = (data: string) => {
       try {
         const msg = JSON.parse(data);
         if (msg.type === "settings_save_response" && msg.requestId === reqId) {
-          setSaving(false);
-          removeRawListener(listener);
+          saveGuard.finish();
           if (msg.ok) {
             if (name.trim() && name.trim() !== username) onSaveUsername(name.trim());
             onClose();
@@ -152,7 +156,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         }
       } catch {}
     };
-    addRawListener(listener);
+    saveGuard.listen(listener);
     send({
       type: "update_office_settings",
       requestId: reqId,
@@ -173,142 +177,131 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
     }
   }, []);
 
-  const requestClose = () => discardPrompt.requestLeave(onClose);
+  const requestClose = () => {
+    if (!saveGuard.pending()) discardPrompt.requestLeave(onClose);
+  };
 
   return (
     <Modal onClose={requestClose}>
-      <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Settings</h3>
+      <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Settings</h3>
 
-      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>Boss Title</label>
-      <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>Boss Title</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
 
-      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-        Env File Path <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional, absolute path)</span>
-      </label>
-      <input
-        value={envFile}
-        onChange={(e) => {
-          setEnvFile(e.target.value);
-          setStatus({ kind: "idle" });
-        }}
-        placeholder="/home/you/.secrets/office.env"
-        style={inputStyle}
-      />
-      <ValidationLine status={status} />
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
+          Env File Path <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional, absolute path)</span>
+        </label>
+        <input
+          value={envFile}
+          onChange={(e) => {
+            setEnvFile(e.target.value);
+            setStatus({ kind: "idle" });
+          }}
+          placeholder="/home/you/.secrets/office.env"
+          style={inputStyle}
+        />
+        <ValidationLine status={status} />
 
-      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-        Rules <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(system prompt for all agents)</span>
-      </label>
-      <ExpandableTextarea
-        textareaRef={textareaRef}
-        title="Office Rules"
-        hint="System prompt for all agents. Changes take effect on next conversation."
-        value={text}
-        onChange={setText}
-        placeholder="e.g. Always write tests. Use TypeScript. Be concise."
-        rows={8}
-        style={{ ...inputStyle, resize: "vertical" }}
-      />
-      <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
+          Rules <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(system prompt for all agents)</span>
+        </label>
+        <ExpandableTextarea
+          textareaRef={textareaRef}
+          title="Office Rules"
+          hint="System prompt for all agents. Changes take effect on next conversation."
+          value={text}
+          onChange={setText}
+          placeholder="e.g. Always write tests. Use TypeScript. Be concise."
+          rows={8}
+          style={{ ...inputStyle, resize: "vertical" }}
+        />
+        <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>
 
-      {isOwner && (
-        <>
-          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-            Lobby receptionist <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
-          </label>
-          <select value={receptionistAgentId} onChange={(e) => setReceptionistAgentId(e.target.value)} style={inputStyle}>
-            <option value="">None (Team chat)</option>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-          <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Clicking the lobby host opens this agent's chat when the viewer can see them; otherwise Team chat.</p>
-        </>
-      )}
+        {isOwner && (
+          <>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
+              Lobby receptionist <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
+            </label>
+            <select value={receptionistAgentId} onChange={(e) => setReceptionistAgentId(e.target.value)} style={inputStyle}>
+              <option value="">None (Team chat)</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Clicking the lobby host opens this agent's chat when the viewer can see them; otherwise Team chat.</p>
+          </>
+        )}
 
-      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-        Memory{" "}
-        <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
-          (durable notes for all agents; {officeMemory.size} / {officeMemory.cap ?? "..."})
-        </span>
-      </label>
-      <ExpandableTextarea
-        title="Office Memory"
-        hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
-        value={officeMemory.memory}
-        onChange={officeMemory.setMemory}
-        rows={5}
-        style={{ ...inputStyle, resize: "vertical" }}
-        disabled={!officeMemory.loaded}
-      />
-
-      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-        My Memory{" "}
-        <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
-          (durable notes for agents you spawn; {bossMemory.size} / {bossMemory.cap ?? "..."})
-        </span>
-      </label>
-      <ExpandableTextarea
-        title="My Memory"
-        hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
-        value={bossMemory.memory}
-        onChange={bossMemory.setMemory}
-        rows={5}
-        style={{ ...inputStyle, resize: "vertical" }}
-        disabled={!bossMemory.loaded}
-      />
-
-      <h4 style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Experimental</h4>
-      <label
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 10,
-          marginTop: 4,
-          fontSize: 12,
-          color: "var(--text-primary)",
-          cursor: "pointer",
-        }}
-      >
-        <input type="checkbox" checked={browserPanel} onChange={(e) => setBrowserPanel(e.target.checked)} style={{ marginTop: 2 }} />
-        <span>
-          <span style={{ fontWeight: 600 }}>Agent browser</span>
-          <span style={{ display: "block", fontSize: 10, color: "var(--text-ghost)", marginTop: 2, fontWeight: 400 }}>
-            Lets agents drive a headless Chrome page (goto / snapshot / click / fill) for local and allowlisted URLs. Off by default; uses the host browser, not a bundled Chromium. Managers get a live
-            side-panel view with drag-select and copy.
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
+          Memory{" "}
+          <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
+            (durable notes for all agents; {officeMemory.size} / {officeMemory.cap ?? "..."})
           </span>
-        </span>
-      </label>
+        </label>
+        <ExpandableTextarea
+          title="Office Memory"
+          hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
+          value={officeMemory.memory}
+          onChange={officeMemory.setMemory}
+          rows={5}
+          style={{ ...inputStyle, resize: "vertical" }}
+          disabled={!officeMemory.loaded}
+        />
 
-      {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
+          My Memory{" "}
+          <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
+            (durable notes for agents you spawn; {bossMemory.size} / {bossMemory.cap ?? "..."})
+          </span>
+        </label>
+        <ExpandableTextarea
+          title="My Memory"
+          hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
+          value={bossMemory.memory}
+          onChange={bossMemory.setMemory}
+          rows={5}
+          style={{ ...inputStyle, resize: "vertical" }}
+          disabled={!bossMemory.loaded}
+        />
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-        <button onClick={requestClose} style={cancelBtnStyle} disabled={saving}>
-          Cancel
-        </button>
-        <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>
-          {saving ? "Saving…" : "Save"}
-        </button>
-      </div>
+        <h4 style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Experimental</h4>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            marginTop: 4,
+            fontSize: 12,
+            color: "var(--text-primary)",
+            cursor: "pointer",
+          }}
+        >
+          <input type="checkbox" checked={browserPanel} onChange={(e) => setBrowserPanel(e.target.checked)} style={{ marginTop: 2 }} />
+          <span>
+            <span style={{ fontWeight: 600 }}>Agent browser</span>
+            <span style={{ display: "block", fontSize: 10, color: "var(--text-ghost)", marginTop: 2, fontWeight: 400 }}>
+              Lets agents drive a headless Chrome page (goto / snapshot / click / fill) for local and allowlisted URLs. Off by default; uses the host browser, not a bundled Chromium. Managers get a
+              live side-panel view with drag-select and copy.
+            </span>
+          </span>
+        </label>
+
+        {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+          <button onClick={requestClose} style={cancelBtnStyle} disabled={saving}>
+            Cancel
+          </button>
+          <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </fieldset>
     </Modal>
   );
-}
-
-function ValidationLine({ status }: { status: ValidationStatus }) {
-  if (status.kind === "idle") return null;
-  if (status.kind === "pending") {
-    return <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "4px 0 0" }}>Checking…</p>;
-  }
-  if (status.kind === "ok") {
-    return (
-      <p style={{ fontSize: 10, color: "var(--accent)", margin: "4px 0 0" }}>
-        Loaded {status.keyCount ?? 0} variable{status.keyCount === 1 ? "" : "s"}.
-      </p>
-    );
-  }
-  return <p style={{ fontSize: 10, color: "#ff6b6b", margin: "4px 0 0" }}>{status.message}</p>;
 }
 
 const inputStyle: React.CSSProperties = dialogInput;

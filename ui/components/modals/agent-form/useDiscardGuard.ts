@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 
-export function useDiscardGuard(dirty: boolean, saving: boolean, onClose: () => void) {
+export function useDiscardGuard(dirty: boolean, saving: boolean, onClose: () => void, isSaving?: () => boolean) {
   function confirmDiscard(): boolean {
-    return !saving && (!dirty || window.confirm("Discard unsaved changes?"));
+    return !saving && !isSaving?.() && (!dirty || window.confirm("Discard unsaved changes?"));
   }
   function requestClose() {
     if (confirmDiscard()) onClose();

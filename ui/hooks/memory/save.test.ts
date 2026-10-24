@@ -57,3 +57,17 @@ test("memory failures preserve conflicts and server details and handle disconnec
   expect(result.ok).toBe(false);
   if (!result.ok) expect(result.message).toContain("Could not confirm");
 });
+
+test("stalled memory responses return an unconfirmed failure instead of locking the form", async () => {
+  const server = Bun.serve({
+    port: 0,
+    fetch: () => new Promise<Response>(() => {}),
+  });
+  try {
+    const result = await saveMemory(write, server.url.href, 25);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.message).toContain("Could not confirm");
+  } finally {
+    server.stop(true);
+  }
+});
