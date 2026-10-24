@@ -76,4 +76,7 @@ export const settingsUi = {
   "settingsUi.pet.olive": "Oliva",
   "settingsUi.pet.horsfield": "Horsfield",
   "settingsUi.pet.amber": "Ambre",
+  "settingsUi.memoryLoadFailed": "No s’ha pogut carregar la memòria. Comprova la connexió i torna-ho a provar.",
+  "settingsUi.memoryLoadHttp": "No s’ha pogut carregar la memòria (HTTP {status}). Torna-ho a provar.",
+  "settingsUi.memoryLoadInvalid": "La resposta de memòria no era vàlida. Torna a carregar-la.",
 } as const;
