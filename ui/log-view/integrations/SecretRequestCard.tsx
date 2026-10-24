@@ -1,13 +1,15 @@
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useState } from "react";
 import type { SecretRequestCard as RequestCard, SecretRequestStatus } from "../../../shared/integrations/secret-requests.ts";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "../../components/modals/dialog-styles.ts";
-import { integrationApi } from "../../components/integrations/scoped/api.ts";
+import { integrationApi, integrationFailure, integrationFailureText, type IntegrationFailure } from "../../components/integrations/scoped/api.ts";
 export function SecretRequestCard({ card }: { card: RequestCard }) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<SecretRequestStatus>("pending");
   const [canAnswer, setCanAnswer] = useState(false);
   const [value, setValue] = useState("");
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<IntegrationFailure | null>(null);
   const [deliveryNote, setDeliveryNote] = useState(false);
   const [revision, setRevision] = useState(0);
   const path = `/api/integrations/requests/${card.id}`;
@@ -31,7 +33,7 @@ export function SecretRequestCard({ card }: { card: RequestCard }) {
       } catch {
         if (active) {
           setCanAnswer(false);
-          setError("Could not check this credential request. Retry before saving.");
+          setError({ key: "credentials.checkFailed" });
         }
       }
     }
@@ -53,21 +55,21 @@ export function SecretRequestCard({ card }: { card: RequestCard }) {
       setStatus(result.status);
       setDeliveryNote(!result.delivered);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not answer this request.");
+      setError(caught instanceof TypeError || caught instanceof SyntaxError ? { key: "credentials.answerFailed" } : integrationFailure(caught, "credentials.answerFailed"));
     } finally {
       setPending(false);
     }
   }
   return (
-    <section aria-label={`Credential request: ${card.name}`} style={{ margin: "8px 0", padding: 14, border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg-subtle)" }}>
-      <strong style={{ overflowWrap: "anywhere" }}>Credential request · {card.name}</strong>
+    <section aria-label={t("credentials.label", { name: card.name })} style={{ margin: "8px 0", padding: 14, border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg-subtle)" }}>
+      <strong style={{ overflowWrap: "anywhere" }}>{t("credentials.title", { name: card.name })}</strong>
       <p style={dialogHint}>{card.reason}</p>
       <p style={{ ...dialogHint, overflowWrap: "anywhere" }}>
-        Scope: {card.scope.kind === "office" ? "Office · shared by all agents" : "Requesting agent's member"}
+        {t("credentials.scope", { scope: t(card.scope.kind === "office" ? "credentials.office" : "credentials.member") })}
         <br />
-        Allowed HTTPS hosts: {card.hosts.join(", ")}
+        {t("credentials.hosts", { hosts: card.hosts.join(", ") })}
         <br />
-        Header: {card.form.kind === "authorization" ? "Authorization" : card.form.header}
+        {t("credentials.header", { header: card.form.kind === "authorization" ? "Authorization" : card.form.header })}
       </p>
       {status === "pending" ? (
         canAnswer ? (
@@ -78,40 +80,33 @@ export function SecretRequestCard({ card }: { card: RequestCard }) {
             }}
           >
             <label style={dialogLabel}>
-              Secret value
+              {t("credentials.value")}
               <input required type="password" autoComplete="new-password" spellCheck={false} disabled={pending} value={value} onChange={(event) => setValue(event.target.value)} style={dialogInput} />
             </label>
-            <p style={dialogHint}>
-              Saved directly to the secret store, never posted in chat. The agent receives a stand-in. Only approve hosts you trust. This does not isolate the value from programs running as the same
-              OS user.
-            </p>
+            <p style={dialogHint}>{t("credentials.hint")}</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               <button disabled={pending || !value} style={dialogSaveBtn}>
-                {pending ? "Saving…" : "Save credential"}
+                {t(pending ? "credentials.saving" : "credentials.save")}
               </button>
               <button type="button" disabled={pending} style={dialogCancelBtn} onClick={() => void answer(true)}>
-                Decline
+                {t("credentials.decline")}
               </button>
             </div>
           </form>
         ) : (
           <p role="status" style={dialogHint}>
-            Waiting for the responsible member to answer.
+            {t("credentials.waiting")}
           </p>
         )
       ) : (
         <p role="status" style={dialogHint}>
-          {status === "saved"
-            ? "Credential saved. Its value was not sent in chat."
-            : status === "declined"
-              ? "Credential request declined."
-              : "This request is closed. Ask the agent to create a new one if needed."}
+          {status === "saved" ? t("credentials.saved") : status === "declined" ? t("credentials.declined") : t("credentials.closed")}
         </p>
       )}
-      {deliveryNote && <p style={dialogHint}>The agent could not be notified automatically. Send it a message when you are ready to continue.</p>}
+      {deliveryNote && <p style={dialogHint}>{t("credentials.deliveryNote")}</p>}
       {error && (
         <div role="alert">
-          <p>{error}</p>
+          <p>{integrationFailureText(error, t)}</p>
           <button
             type="button"
             style={dialogCancelBtn}
@@ -120,7 +115,7 @@ export function SecretRequestCard({ card }: { card: RequestCard }) {
               setRevision((number) => number + 1);
             }}
           >
-            Retry status
+            {t("credentials.retry")}
           </button>
         </div>
       )}

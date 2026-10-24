@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { SecretRequestCard } from "../log-view/integrations/SecretRequestCard.tsx";
 import { useState } from "react";
 import { useAppState } from "../store.tsx";
@@ -5,6 +6,7 @@ import { QuestionCard } from "./QuestionCard.tsx";
 import { useQuestions } from "./useQuestions.ts";
 
 export function QuestionsPane({ agentId, onOpenAgent }: { agentId?: string; onOpenAgent?: (id: string) => void }) {
+  const { t } = useI18n();
   const { sessionContext, agents } = useAppState();
   const { questions, credentials, error } = useQuestions(sessionContext?.userId, agentId);
   const [showAnswered, setShowAnswered] = useState(false);
@@ -12,12 +14,12 @@ export function QuestionsPane({ agentId, onOpenAgent }: { agentId?: string; onOp
   if (agentId && visible.length === 0 && credentials.length === 0 && !error) return null;
   return (
     <section style={{ padding: 12, display: "grid", gap: 10, maxHeight: agentId ? 240 : undefined, overflowY: agentId ? "auto" : undefined }}>
-      <h4 style={{ margin: 0 }}>Questions for you</h4>
+      <h4 style={{ margin: 0 }}>{t("questions.title")}</h4>
       {!agentId && (
         <>
-          <p style={{ margin: 0, fontSize: 12 }}>These questions can wait. Answer or dismiss them when you have time; urgent pages appear below.</p>
+          <p style={{ margin: 0, fontSize: 12 }}>{t("questions.hint")}</p>
           <label style={{ fontSize: 12 }}>
-            <input type="checkbox" checked={showAnswered} onChange={(event) => setShowAnswered(event.target.checked)} /> Show sent answers
+            <input type="checkbox" checked={showAnswered} onChange={(event) => setShowAnswered(event.target.checked)} /> {t("questions.showSent")}
           </label>
         </>
       )}
@@ -37,7 +39,7 @@ export function QuestionsPane({ agentId, onOpenAgent }: { agentId?: string; onOp
           agentName={agents.find((agent) => agent.id === question.agentId)?.name ?? question.agentId}
         />
       ))}
-      {!agentId && !error && visible.length === 0 && credentials.length === 0 && <p style={{ margin: 0, fontSize: 12 }}>No questions waiting for you.</p>}
+      {!agentId && !error && visible.length === 0 && credentials.length === 0 && <p style={{ margin: 0, fontSize: 12 }}>{t("questions.empty")}</p>}
     </section>
   );
 }

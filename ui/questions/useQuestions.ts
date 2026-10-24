@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+import { questionFailure, questionFailureText, questionRequest, type QuestionFailure } from "./api.ts";
 import type { SecretRequestCard } from "../../shared/integrations/secret-requests.ts";
 import { useCallback, useEffect, useState } from "react";
 import type { MemberQuestion } from "../../shared/questions/types.ts";
@@ -6,11 +8,12 @@ export function questionsChanged() {
   window.dispatchEvent(new Event("bureau-questions-changed"));
 }
 export function useQuestions(userId: string | undefined, agentId?: string) {
+  const { t } = useI18n();
   const enabled = !!userId;
   const [rows, setRows] = useState<MemberQuestion[]>([]);
   const [credentials, setCredentials] = useState<SecretRequestCard[]>([]);
   const [credentialUser, setCredentialUser] = useState<string>();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<QuestionFailure | null>(null);
   const [generation, refresh] = useState(0);
   const reload = useCallback(() => refresh((value) => value + 1), []);
   useEffect(() => {
@@ -20,10 +23,7 @@ export function useQuestions(userId: string | undefined, agentId?: string) {
     }
     const controller = new AbortController();
     async function read(path: string) {
-      const response = await fetch(path, { signal: controller.signal });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Could not load inbox");
-      return body;
+      return questionRequest(path, { signal: controller.signal });
     }
     Promise.all([read(`/api/questions${agentId ? `?agentId=${encodeURIComponent(agentId)}` : ""}`), read("/api/integrations/requests")])
       .then(([questions, requests]) => {
@@ -38,7 +38,7 @@ export function useQuestions(userId: string | undefined, agentId?: string) {
         if (!controller.signal.aborted) {
           setRows([]);
           setCredentials([]);
-          setError(error.message);
+          setError(questionFailure(error, "questions.loadFailed"));
         }
       });
     return () => controller.abort();
@@ -57,7 +57,7 @@ export function useQuestions(userId: string | undefined, agentId?: string) {
   return {
     credentials: enabled && credentialUser === userId ? credentials.filter((card) => !agentId || card.agentId === agentId) : [],
     questions: enabled ? rows.filter((row) => row.memberUserId === userId && (!agentId || row.agentId === agentId)) : [],
-    error,
+    error: error ? questionFailureText(error, t) : null,
     reload,
   };
 }

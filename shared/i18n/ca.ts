@@ -1,3 +1,4 @@
+import { questions } from "./questions/ca.ts";
 import { agentSettings } from "./agent-settings/ca.ts";
 import { panels } from "./panels/ca.ts";
 import { chat } from "./chat/ca.ts";
@@ -21,6 +22,7 @@ export const ca = {
   ...chat,
   ...panels,
   ...agentSettings,
+  ...questions,
   "access.title": "Accés",
   "apiTokens.title": "Tokens d’API",
   "apps.confirmDelete": "Vols eliminar {name}? Se’n conservarà el directori de dades.",
