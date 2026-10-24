@@ -101,3 +101,11 @@ JSON`),
     expect(summarizeBureauCurl(`curl -s -X POST localhost:4000/api/members-chat -d '{"text":"hi"}'`)).toBe("Bureau API: team chat - text=hi");
   });
 });
+
+test("summarizes literal plain-text messages with their delivery options", () => {
+  const command = (query: string, quoted = true) =>
+    `curl -s "localhost:4000/api/agents/a/messages${query}" -H 'Content-Type: text/plain' --data-binary @- <<${quoted ? "'EOF'" : "EOF"}\nhello $HOME\nEOF`;
+  expect(summarizeBureauCurl(command("?steer=1"))).toContain("text=hello $HOME, steer=true");
+  expect(summarizeBureauCurl(command("?steer=invalid"))).not.toContain("text=");
+  expect(summarizeBureauCurl(command("", false))).not.toContain("text=");
+});

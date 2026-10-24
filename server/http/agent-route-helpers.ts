@@ -1,3 +1,4 @@
+import { parseMessageBody } from "../../shared/http/message-body.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
@@ -18,6 +19,11 @@ export async function readJsonBody(req: Request): Promise<Record<string, unknown
   } catch {
     return null;
   }
+}
+
+export async function readMessageBody(req: Request): Promise<Record<string, unknown> | Response> {
+  const result = parseMessageBody(await req.text(), req.headers.get("content-type"), new URL(req.url).search);
+  return result.ok ? result.body : jsonError(result.status, result.error);
 }
 
 export function jsonError(status: number, error: string): Response {

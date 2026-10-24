@@ -1,3 +1,4 @@
+import { cancelScheduledMessage, listScheduledMessages } from "../../scheduled-messages.ts";
 import { afterEach, describe, expect, test } from "bun:test";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo } from "../../../shared/types.ts";
 import type { BackendSession } from "../../backends/types.ts";
@@ -247,4 +248,54 @@ describe("agent message validation", () => {
     expect(secondBody.queued).toBe(true);
     expect(receiver.messageQueue.map((m) => m.text)).toEqual(["retry once"]);
   });
+});
+
+test("plain-text bearer messages keep attribution, steering and retry deduplication", async () => {
+  const receiver = installBusyAgent("plain-receiver", []);
+  installIdleAgent("plain-sender");
+  const token = mintAgentToken("plain-sender", "user-1");
+  const text = 'Check "quotes", $HOME, `code` and lines\nsecond line\n';
+  const send = (query: string) => {
+    const req = new Request(`http://local.test/api/agents/plain-receiver/messages${query}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "text/plain" },
+      body: text,
+    });
+    return handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+  };
+  const first = await send("?steer=1&clientMessageId=plain-retry");
+  expect(first?.status).toBe(200);
+  const firstBody = await first!.json();
+  expect(await (await send("?clientMessageId=plain-retry&steer=true"))!.json()).toMatchObject({ messageId: firstBody.messageId });
+  expect(receiver.messageQueue).toHaveLength(1);
+  expect(receiver.messageQueue[0]).toMatchObject({ text, steer: true, sender: { kind: "agent", agentId: "plain-sender" } });
+  for (const query of ["?sendNow=1", "?steer=1&deliverAt=2099-01-01T00:00:00Z", "?steer=maybe", "?steer=1&steer=0"]) {
+    expect((await send(query))!.status).toBeGreaterThanOrEqual(400);
+    expect(receiver.messageQueue).toHaveLength(1);
+  }
+});
+
+test("plain-text scheduled sends preserve positive offsets and dedupe retries", async () => {
+  installIdleAgent("plain-scheduler");
+  installIdleAgent("plain-target");
+  const token = mintAgentToken("plain-scheduler", "user-1");
+  const time = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().replace("Z", "+02:00");
+  const send = async () => {
+    const req = new Request(`http://local.test/api/agents/plain-target/messages?deliverAt=${time}&clientMessageId=scheduled-plain`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "text/plain" },
+      body: "wake up\n",
+    });
+    return handleAgentsRequest(req, new URL(req.url), { kind: "loopback" });
+  };
+  try {
+    const response = await send();
+    expect(response?.status).toBe(200);
+    const body = await response!.json();
+    expect(body.deliverAt).toBe(new Date(time).toISOString());
+    expect(await (await send())!.json()).toEqual(body);
+    expect(listScheduledMessages("plain-scheduler")).toMatchObject([{ text: "wake up\n", clientMessageId: "scheduled-plain" }]);
+  } finally {
+    for (const entry of listScheduledMessages("plain-scheduler")) cancelScheduledMessage("plain-scheduler", entry.id);
+  }
 });

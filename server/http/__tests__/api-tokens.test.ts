@@ -178,7 +178,8 @@ describe("handleApiTokensRequest", () => {
     });
   });
 
-  test("logs bidirectional conversation order and supports idempotent drain/send", async () => {
+  test.each(["application/json", "text/plain"])("logs bidirectional conversation and idempotent retries with %s", async (contentType) => {
+    const encode = (text: string) => (contentType === "text/plain" ? text : JSON.stringify({ text }));
     const user = claimUserByName(USERNAME, { role: "member", allowedRooms: [] });
     const visibleRoom = AgentManager.getRooms()[0]!;
     updateUserById(user.id, { allowedRooms: [visibleRoom.id] });
@@ -190,10 +191,10 @@ describe("handleApiTokensRequest", () => {
     if (!apiToken) throw new Error("expected API token to resolve");
     const apiAuth: AuthResult = { kind: "api", token: apiToken };
 
-    const sendBody = JSON.stringify({ text: "request once" });
+    const sendBody = encode("request once");
     const sendReq = {
       method: "POST" as const,
-      headers: { Authorization: `Bearer ${minted.token}`, "Idempotency-Key": "send-once", "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${minted.token}`, "Idempotency-Key": "send-once", "Content-Type": contentType },
       body: sendBody,
     };
     const sent = await handleAgentsRequest(request("/api/agents/api-replier/messages", sendReq), new URL("http://local.test/api/agents/api-replier/messages"), apiAuth);
@@ -209,8 +210,8 @@ describe("handleApiTokensRequest", () => {
     const conflict = await handleAgentsRequest(
       request("/api/agents/api-replier/messages", {
         method: "POST",
-        headers: { Authorization: `Bearer ${minted.token}`, "Idempotency-Key": "send-once", "Content-Type": "application/json" },
-        body: JSON.stringify({ text: "different" }),
+        headers: { Authorization: `Bearer ${minted.token}`, "Idempotency-Key": "send-once", "Content-Type": contentType },
+        body: encode("different"),
       }),
       new URL("http://local.test/api/agents/api-replier/messages"),
       apiAuth,
@@ -220,8 +221,8 @@ describe("handleApiTokensRequest", () => {
     const reply = await handleApiTokensRequest(
       request(`/api/api-token-inboxes/${minted.apiToken.id}/messages`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${agentToken}` },
-        body: JSON.stringify({ text: "The report is ready." }),
+        headers: { Authorization: `Bearer ${agentToken}`, "Content-Type": contentType, "Idempotency-Key": "reply-once" },
+        body: encode("The report is ready."),
       }),
       new URL(`http://local.test/api/api-token-inboxes/${minted.apiToken.id}/messages`),
       undefined,
@@ -229,6 +230,16 @@ describe("handleApiTokensRequest", () => {
     expect(reply?.status).toBe(200);
     const replyBody = await reply!.json();
     expect(typeof replyBody.messageId).toBe("string");
+    const replyRequest = (text: string) =>
+      request(`/api/api-token-inboxes/${minted.apiToken.id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${agentToken}`, "Content-Type": contentType, "Idempotency-Key": "reply-once" },
+        body: encode(text),
+      });
+    const retryReply = replyRequest("The report is ready.");
+    expect(await (await handleApiTokensRequest(retryReply, new URL(retryReply.url), undefined))!.json()).toEqual(replyBody);
+    const conflictReply = replyRequest("Different report");
+    expect((await handleApiTokensRequest(conflictReply, new URL(conflictReply.url), undefined))?.status).toBe(409);
 
     const drained = await handleApiTokensRequest(
       request("/api/me/api-token-inbox/drain", {
