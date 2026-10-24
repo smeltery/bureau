@@ -1,3 +1,5 @@
+import { BureauLogError } from "../../../../shared/i18n/backend-errors/error.ts";
+import { logMessage } from "../../../../shared/i18n/log-message.ts";
 import type { CreateSessionOptions, SessionAccessOptions } from "../../types.ts";
 import { OpenCodeSupervisor } from "../supervisor.ts";
 import { DEFAULT_OPENCODE_MODEL, permissionAgent } from "../config.ts";
@@ -27,7 +29,7 @@ export class OpenCodeProfiles {
   select(opts: Pick<CreateSessionOptions, "cwd" | "env" | "environmentId" | "resolveEnv">, model: string, agent?: string, sessionId?: string): ProfileBinding {
     const environmentId = opts.environmentId ?? openCodeEnvironmentId();
     const stored = sessionId ? this.store?.read(sessionId) : null;
-    if (stored && stored.environmentId !== environmentId) throw new Error("OpenCode session belongs to another manager or room. Return to that environment or start a new conversation.");
+    if (stored && stored.environmentId !== environmentId) throw new BureauLogError(logMessage("logs.backendError.managerMismatch"));
     // Untagged historical sessions stay in the old store; never copy its DB or auth.
     const profile = stored?.profile ?? (sessionId ? "default" : profileKey(environmentId));
     return { environmentId, profile, cwd: opts.cwd, model, agent, supervisor: this.factory(this.store?.profileDir(profile) ?? profile), resolveEnv: opts.resolveEnv ?? (() => opts.env) };
@@ -41,7 +43,7 @@ export class OpenCodeProfiles {
   access(sessionId: string, access?: SessionAccessOptions): ProfileBinding {
     const live = this.bindings.get(sessionId);
     if (!access && live) return live;
-    if (!access) throw new Error("OpenCode session access requires its manager and room environment.");
+    if (!access) throw new BureauLogError(logMessage("logs.backendError.accessMissing"));
     const stored = this.store?.read(sessionId);
     const binding = this.select(access, stored?.model ?? live?.model ?? DEFAULT_OPENCODE_MODEL, stored?.agent ?? live?.agent, sessionId);
     this.bind(sessionId, binding);

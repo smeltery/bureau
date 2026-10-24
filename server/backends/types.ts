@@ -162,7 +162,7 @@ export interface Backend {
 
   createSession(opts: CreateSessionOptions): BackendSession;
   resumeSession(sessionId: string, opts: CreateSessionOptions): BackendSession;
-  checkSessionResumable(sessionId: string, opts: SessionAccessOptions): string | null;
+  checkSessionResumable(sessionId: string, opts: SessionAccessOptions): string | LogMessage | null;
 
   // Branch a conversation so that `targetMessageId` and everything after it
   // is replaced. The backend resolves predecessor / first-message semantics

@@ -1,3 +1,5 @@
+import { BureauLogError } from "../../../shared/i18n/backend-errors/error.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { openCodeMcpConfig, type AgentMcpServer } from "../../integrations/mcp.ts";
 import { compactionThreshold } from "./connection/context-limits.ts";
 // One process per durable profile, leased by transports and idle-reaped.
@@ -86,7 +88,7 @@ export class OpenCodeSupervisor {
     let released = false;
     let turnActive = false;
     const record = () => {
-      if (!this.record || this.runningRevision !== revision) throw new Error("OpenCode environment changed; retry the operation.");
+      if (!this.record || this.runningRevision !== revision) throw new BureauLogError(logMessage("logs.backendError.environmentChanged"));
       return this.record;
     };
     return {
@@ -170,7 +172,7 @@ export class OpenCodeSupervisor {
       await this.starting;
       return this.ensureServer(env, config);
     }
-    if (this.activeTurns > 0) throw new Error("OpenCode server cannot restart while another turn is active.");
+    if (this.activeTurns > 0) throw new BureauLogError(logMessage("logs.backendError.restartBusy"));
     this.starting = this.startServer(env, config).finally(() => {
       this.starting = null;
     });
@@ -180,7 +182,7 @@ export class OpenCodeSupervisor {
   private async validateServerForTurn(ownsTurn: boolean, env: Record<string, string | undefined>, config = this.currentConfig): Promise<void> {
     const healthy = this.record && this.runningRevision === this.revisionFor(env, config) && !this.unresponsive && (await this.healthy(this.record));
     if (this.unresponsive || !healthy) {
-      if (this.activeTurns > (ownsTurn ? 1 : 0)) throw new Error("OpenCode server health check failed during an active turn.");
+      if (this.activeTurns > (ownsTurn ? 1 : 0)) throw new BureauLogError(logMessage("logs.backendError.healthBusy"));
       // Before submitting a prompt this turn may own the only active lease.
       if (!this.starting)
         this.starting = this.startServer(env, config).finally(() => {
@@ -225,7 +227,7 @@ export class OpenCodeSupervisor {
     const port = await waitForStartedServer(child, () => stdout, password);
     if (!child.pid || port === null) {
       child.kill("SIGTERM");
-      throw new Error(`OpenCode server failed to start: ${stderr.trim() || "no healthy loopback listener within 60 seconds"}`);
+      throw new BureauLogError(logMessage("logs.backendError.startup", { error: stderr.trim() || logMessage("logs.backendError.startupTimeout") }));
     }
     const started: ServerRecord = { pid: child.pid, port, password, startTicks: readProcessStartTicks(child.pid) ?? undefined };
     this.child = child;

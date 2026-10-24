@@ -1,3 +1,4 @@
+import { displayLogContent, logContent } from "../../../../shared/i18n/log-message.ts";
 import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -55,6 +56,12 @@ test("create, restart, history, resume and fork keep the durable session profile
   expect(original.profile).not.toBe("default");
   const restarted = boot();
   const access = { ...opts, env: { OPENCODE_API_KEY: "rotated" } };
+  expect(restarted.checkSessionResumable("created-session", access)).toBeNull();
+  const issue = restarted.checkSessionResumable("created-session", { ...access, environmentId: openCodeEnvironmentId("bob", "room-a") });
+  expect(issue).toEqual({ key: "logs.backendError.managerMismatch" });
+  const entry = { ...logContent(issue!), kind: "error" as const };
+  expect(entry.content).toBe("OpenCode session belongs to another manager or room. Return to that environment or start a new conversation.");
+  for (const language of ["es", "ca", "zh"] as const) expect(displayLogContent(entry, language)).not.toBe(entry.content);
   const history = await restarted.getSessionMessages("created-session", opts.cwd, access);
   expect(history[0]?.text).toBe("retained history");
   const resumed = restarted.resumeSession("created-session", access);

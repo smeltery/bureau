@@ -1,3 +1,5 @@
+import { BureauLogError } from "../../../shared/i18n/backend-errors/error.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 // Resolve the OpenCode CLI binary. Prefer PATH / OPENCODE_BINARY so CI and
 // local installs stay light — we do not ship the multi-arch opencode npm
 // packages (they are large and platform-specific).
@@ -8,11 +10,11 @@ export function resolveOpenCodeBinary(env: NodeJS.ProcessEnv = process.env): str
   const override = env.OPENCODE_BINARY?.trim();
   if (override) {
     if (!existsSync(override)) {
-      throw new Error(`OPENCODE_BINARY is set to ${override}, but that path does not exist.`);
+      throw new BureauLogError(logMessage("logs.backendError.binaryPath", { path: override }));
     }
     return override;
   }
   const fromPath = Bun.which("opencode", { PATH: env.PATH ?? "/usr/bin:/bin" });
   if (fromPath) return fromPath;
-  throw new Error("OpenCode CLI not found. Install the `opencode` binary on PATH " + "(https://opencode.ai), or set OPENCODE_BINARY to its absolute path.");
+  throw new BureauLogError(logMessage("logs.backendError.binaryMissing"));
 }

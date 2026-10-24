@@ -1,3 +1,5 @@
+import { BureauLogError } from "../../../shared/i18n/backend-errors/error.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { pinProviderEnvironment } from "./provider-environment.ts";
 import { BUREAU_CODEX_HOME } from "../../backends/codex/native-bin.ts";
 import { cancelUsageResume } from "../conversation/usage-resume.ts";
@@ -206,7 +208,7 @@ export function createSession(managed: ManagedAgent, resumeSessionId?: string) {
       environmentId: openCodeEnvironmentId(managed.info.userId, rooms[managed.info.room]?.id),
     });
     if (resumableError) {
-      throw new Error(`${resumableError} Use /resume to pick a different session.`);
+      throw new BureauLogError(logMessage("logs.backendError.resumeOther", { error: resumableError }));
     }
   }
   const room = rooms[managed.info.room]!;
