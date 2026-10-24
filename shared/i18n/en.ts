@@ -1,3 +1,4 @@
+import { preauth } from "./preauth/en.ts";
 import { settingsUi } from "./settings-ui/en.ts";
 import { roomsUi } from "./rooms/en.ts";
 import { appsUi } from "./apps/en.ts";
@@ -21,6 +22,7 @@ import { skills } from "./skills-en.ts";
 // Keys name the surface and meaning ("preferences.language"), never the English
 // text. es.ts and ca.ts are complete records over these keys.
 export const en = {
+  ...preauth,
   ...logs,
   ...integrations,
   ...profile,

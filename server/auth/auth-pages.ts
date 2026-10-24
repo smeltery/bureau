@@ -1,7 +1,10 @@
 import { hasOwner } from "../users.ts";
 import { deriveAppHostDomain } from "../apps/domain.ts";
 import { buildPublicOrigin } from "./auth.ts";
-import { PREAUTH_EXTRA_CSS, authPageTitle, baseHtml, escapeAttr, escapeHtml } from "./auth-html.ts";
+import { escapeAttr, escapeHtml } from "./auth-html.ts";
+import { authDocument, errorHtml, nameInput, type AuthPageError } from "./preauth/document.ts";
+import type { SupportedLanguageCode } from "../../shared/languages.ts";
+import type { PlainMessageKey } from "../../shared/i18n/translate.ts";
 
 // Standard response headers for every HTML surface (SPA shell, login,
 // invite-accept, error pages).
@@ -92,142 +95,75 @@ export function withSecurityHeaders(response: Response): Response {
   return response;
 }
 
-export function renderLoginPage(officeName: string | null): string {
-  const hasOfficeOwner = hasOwner();
-  const body = `
-    <main class="card">
-      <h1>Bureau</h1>
-      ${
-        hasOfficeOwner
-          ? `<p>This office requires an invite link.</p>
-      <p>If the owner sent you a URL, open it. Each invite link signs you in on the device that opens it.</p>
-      <p class="muted">If you don't have one, ask the office owner to issue one from the Access pane.</p>`
-          : `<p>No owner has been set up for this office yet.</p>
-      <p>Open <a href="/">this office's home page</a> to claim ownership.</p>
-      <p class="muted">If you're trying to reach this office from another machine, you'll need to SSH-tunnel first (the claim form is only reachable from loopback). The server's startup log spells out the exact <code>ssh -L</code> command.</p>`
-      }
-    </main>
-  `;
-  return baseHtml(authPageTitle(officeName, "sign in"), body, undefined, PREAUTH_EXTRA_CSS);
-}
-
-// Tokenless first-time-setup form for the pre-claim flow. Shape mirrors
-// renderAcceptPage's bootstrap branch (same display-name constraints, same
-// "form must be submitted to take effect" anti-preview property) but without
-// a token field since locality is the gate.
-export function renderClaimPage(errorMsg: string | null, officeName: string | null): string {
-  const err = errorMsg ? `<p class="err">${escapeHtml(errorMsg)}</p>` : "";
-  const og = {
-    title: "Bureau — first-time setup",
-    description: "Claim ownership of a new Bureau office.",
-  };
-  return baseHtml(
-    authPageTitle(officeName, "first-time setup"),
-    `
-    <main class="card">
-      <h1>Welcome to your new Bureau office</h1>
-      <p>You're the first person to claim this office. Pick a display name; it'll appear next to anything you say.</p>
-      <form method="POST" action="/auth/claim">
-        <label>Display name <input name="name" type="text" autofocus maxlength="64" required pattern="[\\p{L}\\p{N} ._'\\-]+" /></label>
-        ${err}
-        <button type="submit">Continue</button>
-      </form>
-    </main>
-    `,
-    og,
-    PREAUTH_EXTRA_CSS,
+export function renderLoginPage(officeName: string | null, language: SupportedLanguageCode = "en"): string {
+  const owner = hasOwner();
+  return authDocument(
+    officeName,
+    "preauth.signIn",
+    (t) =>
+      `<h1>Bureau</h1>${
+        owner
+          ? `<p>${escapeHtml(t("preauth.requiresInvite"))}</p><p>${escapeHtml(t("preauth.openLink"))}</p><p class="muted">${escapeHtml(t("preauth.askOwner"))}</p>`
+          : `<p>${escapeHtml(t("preauth.noOwner"))}</p><p><a href="/">${escapeHtml(t("preauth.home"))}</a></p><p class="muted">${escapeHtml(t("preauth.tunnel"))}</p>`
+      }`,
+    language,
   );
 }
 
-export function renderAcceptPage(token: string, needsName: boolean, errorMsg: string | null, officeName: string | null): string {
-  const safeToken = escapeAttr(token);
-  const err = errorMsg ? `<p class="err">${escapeHtml(errorMsg)}</p>` : "";
-  const og = {
-    title: needsName ? "Bureau — first-time setup" : "Bureau — accept invite",
-    description: needsName ? "Open this link to claim ownership of a Bureau office." : "Open this link to sign in to a Bureau office on this device.",
-  };
-  if (needsName) {
-    return baseHtml(
-      authPageTitle(officeName, "first-time setup"),
-      `
-      <main class="card">
-        <h1>Welcome to your new Bureau office</h1>
-        <p>You're the first person to claim this office. Pick a display name — it'll appear next to anything you say.</p>
-        <form method="POST" action="/auth/accept">
-          <input type="hidden" name="token" value="${safeToken}" />
-          <label>Display name <input name="name" type="text" autofocus maxlength="64" required pattern="[\\p{L}\\p{N} ._'\\-]+" /></label>
-          ${err}
-          <button type="submit">Continue</button>
-        </form>
-      </main>
-      `,
-      og,
-      PREAUTH_EXTRA_CSS,
-    );
-  }
-  const heading = officeName ? `Open your invite to the Bureau office: ${escapeHtml(officeName)}` : "Open your Bureau invite";
-  return baseHtml(
-    authPageTitle(officeName, "accept invite"),
-    `
-    <main class="card">
-      <h1>${heading}</h1>
-      <p>Clicking the button below will sign you in on this device.</p>
-      <form method="POST" action="/auth/accept">
-        <input type="hidden" name="token" value="${safeToken}" />
-        ${err}
-        <button type="submit" autofocus>Accept and continue</button>
-      </form>
-    </main>
-    `,
-    og,
-    PREAUTH_EXTRA_CSS,
+export function renderClaimPage(error: AuthPageError, officeName: string | null, language: SupportedLanguageCode = "en", name = ""): string {
+  return authDocument(
+    officeName,
+    "preauth.setup",
+    (t) => `<h1>${escapeHtml(t("preauth.welcome"))}</h1><p>${escapeHtml(t("preauth.pickName"))}</p>
+    <form method="POST" action="/auth/claim">${nameInput(t, name)}${errorHtml(error, t)}<button type="submit">${escapeHtml(t("preauth.continue"))}</button></form>`,
+    language,
+    "preauth.setupDescription",
   );
 }
 
-export function renderInviteError(kind: string, officeName: string | null): Response {
-  const msg =
-    kind === "consumed"
-      ? "This invite has already been used."
-      : kind === "expired"
-        ? "This invite has expired."
-        : kind === "role_mismatch"
-          ? "This invite can't be accepted because the existing user has a different role. Ask the owner to mint a new invite."
-          : kind === "owner_exists"
-            ? "This office already has an owner. Bootstrap invites stop working once the office has been claimed."
-            : "This invite is no longer valid.";
-  const body = baseHtml(authPageTitle(officeName, "invite"), `<h1>Invite unavailable</h1><p>${escapeHtml(msg)}</p>`);
-  return new Response(body, {
-    status: 410, // Gone — invite was once valid (or never)
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      ...securityHeaders(),
+export function renderAcceptPage(token: string, needsName: boolean, error: AuthPageError, officeName: string | null, language: SupportedLanguageCode = "en", name = ""): string {
+  return authDocument(
+    officeName,
+    needsName ? "preauth.setup" : "preauth.acceptTitle",
+    (t) => {
+      const heading = needsName ? t("preauth.welcome") : officeName ? t("preauth.openNamedInvite", { office: officeName }) : t("preauth.openInvite");
+      return `<h1>${escapeHtml(heading)}</h1><p>${escapeHtml(t(needsName ? "preauth.pickName" : "preauth.clickHint"))}</p>
+      <form method="POST" action="/auth/accept"><input type="hidden" name="token" value="${escapeAttr(token)}" />
+      ${needsName ? nameInput(t, name) : ""}${errorHtml(error, t)}<button type="submit"${needsName ? "" : " autofocus"}>${escapeHtml(t(needsName ? "preauth.continue" : "preauth.accept"))}</button></form>`;
     },
-  });
+    language,
+    needsName ? "preauth.setupDescription" : "preauth.inviteDescription",
+  );
 }
 
-export function renderInviteIdentityConflict(conflict: { current: string; invitee: string }, officeName: string | null): Response {
-  const body = baseHtml(
-    authPageTitle(officeName, "invite"),
-    `<h1>This invite is for a different user</h1>
-    <p>${escapeHtml(`You are signed in as ${conflict.current}. This invite is for ${conflict.invitee}: open it on their device or in a separate browser profile.`)}</p>
-    <p><a href="/">Return to office</a></p>`,
-    undefined,
-    PREAUTH_EXTRA_CSS,
-  );
-  return new Response(body, {
-    status: 409,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      ...securityHeaders(),
+export function renderInviteError(kind: string, officeName: string | null, language: SupportedLanguageCode = "en"): Response {
+  const keys: Record<string, PlainMessageKey> = { consumed: "preauth.consumed", expired: "preauth.expired", role_mismatch: "preauth.roleMismatch", owner_exists: "preauth.bootstrapUsed" };
+  const key = Object.hasOwn(keys, kind) ? keys[kind] : "preauth.invalid";
+  return new Response(
+    authDocument(officeName, "preauth.inviteTitle", (t) => `<h1>${escapeHtml(t("preauth.unavailable"))}</h1><p>${escapeHtml(t(key))}</p>`, language),
+    {
+      status: 410,
+      headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() },
     },
-  });
+  );
 }
 
-export function renderLockoutBlocked(message: string, officeName: string | null): string {
-  return baseHtml(
-    authPageTitle(officeName, "sign out blocked"),
-    `<h1>Sign out blocked</h1>
-    <p>${escapeHtml(message)}</p>
-    <p><a href="/">Return to office</a></p>`,
+export function renderInviteIdentityConflict(conflict: { current: string; invitee: string }, officeName: string | null, language: SupportedLanguageCode = "en"): Response {
+  return new Response(
+    authDocument(
+      officeName,
+      "preauth.inviteTitle",
+      (t) => `<h1>${escapeHtml(t("preauth.conflict"))}</h1>
+    <p>${escapeHtml(t("preauth.conflictBody", conflict))}</p><p><a href="/">${escapeHtml(t("preauth.return"))}</a></p>`,
+      language,
+    ),
+    {
+      status: 409,
+      headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() },
+    },
   );
+}
+
+export function renderLockoutBlocked(message: AuthPageError, officeName: string | null, language: SupportedLanguageCode = "en"): string {
+  return authDocument(officeName, "preauth.blocked", (t) => `<h1>${escapeHtml(t("preauth.blocked"))}</h1>${errorHtml(message, t)}<p><a href="/">${escapeHtml(t("preauth.return"))}</a></p>`, language);
 }

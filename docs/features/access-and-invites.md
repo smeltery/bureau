@@ -10,6 +10,12 @@ How Bureau gates who can use an office, and how the invite-link flow works end-t
 - Sessions are created when someone opens an invite URL — issued by an owner for a new identity, or by a member for one of their own devices.
 - The first owner claims the office at `http://localhost:4000` on the host machine. Until that claim happens the server is only reachable from the host (or via an SSH tunnel).
 
+## Page language
+
+Setup, sign-in, and invite pages support English, Spanish, Catalan, and Chinese. They use the signed-in member’s saved language when available, otherwise the browser’s preferred supported language. The language selector updates the page without submitting a form or consuming an invite, and preserves a name already entered. Validation messages follow the selected language.
+
+A new owner or a member accepting their first invite keeps the selected language as their office preference. Signing an existing member into another device preserves their saved preference.
+
 ## End-to-end flow
 
 ### 1. First boot — owner claim

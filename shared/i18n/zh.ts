@@ -1,3 +1,4 @@
+import { preauth } from "./preauth/zh.ts";
 import { settingsUi } from "./settings-ui/zh.ts";
 import { roomsUi } from "./rooms/zh.ts";
 import { appsUi } from "./apps/zh.ts";
@@ -20,6 +21,7 @@ import { skills } from "./skills-zh.ts";
 // Simplified Chinese translations for the office UI catalog.
 import type { Catalog } from "./en.ts";
 export const zh: Catalog = {
+  ...preauth,
   ...logs,
   ...integrations,
   ...profile,

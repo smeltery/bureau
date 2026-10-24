@@ -1,3 +1,4 @@
+import { authLanguage } from "./preauth/language.ts";
 import type { Server } from "bun";
 import { hasOwner } from "../users.ts";
 import { claimOwnership, setCookieHeader } from "./auth.ts";
@@ -19,8 +20,8 @@ export function shouldShowClaimForm(req: Request, url: URL): boolean {
 // between that header and `Origin: null` on top-level form POSTs would
 // otherwise make the form's strict same-origin check reject the real
 // browser submit with 403.
-export function handleClaimForm(officeName: string | null): Response {
-  return new Response(renderClaimPage(null, officeName), {
+export function handleClaimForm(officeName: string | null, req?: Request): Response {
+  return new Response(renderClaimPage(null, officeName, authLanguage(req)), {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
@@ -53,16 +54,14 @@ export async function handleClaim<T>(req: Request, server: Server<T>, officeName
     return new Response("bad origin", { status: 403 });
   }
   const form = await req.formData().catch(() => null);
+  const language = authLanguage(req, form?.get("language"));
   const nameField = form?.get("name");
   const name = typeof nameField === "string" ? nameField : "";
   const ua = req.headers.get("user-agent");
-  const result = await claimOwnership(name, { userAgent: ua });
+  const result = await claimOwnership(name, { userAgent: ua, language });
   if (!result.ok) {
-    const errorMsg =
-      result.error === "owner_exists"
-        ? "This office already has an owner. Refresh and sign in with an invite link instead."
-        : "Please pick a display name (letters, numbers, spaces, periods, hyphens, apostrophes, or underscores).";
-    return new Response(renderClaimPage(errorMsg, officeName), {
+    const key = result.error === "owner_exists" ? "preauth.ownerExists" : "preauth.nameError";
+    return new Response(renderClaimPage({ key }, officeName, language, name), {
       status: 400,
       headers: {
         "Content-Type": "text/html; charset=utf-8",

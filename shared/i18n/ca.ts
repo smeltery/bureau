@@ -1,3 +1,4 @@
+import { preauth } from "./preauth/ca.ts";
 import { settingsUi } from "./settings-ui/ca.ts";
 import { roomsUi } from "./rooms/ca.ts";
 import { appsUi } from "./apps/ca.ts";
@@ -20,6 +21,7 @@ import { skills } from "./skills-ca.ts";
 import type { Catalog } from "./en.ts";
 // Catalan translations for the office UI catalog.
 export const ca = {
+  ...preauth,
   ...logs,
   ...integrations,
   ...profile,
