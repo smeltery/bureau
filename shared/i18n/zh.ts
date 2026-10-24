@@ -1,3 +1,4 @@
+import { auditUi } from "./audit/zh.ts";
 import { webhooks } from "./webhooks/zh.ts";
 import { pluginsUi } from "./plugins/zh.ts";
 import { access } from "./access/zh.ts";
@@ -31,6 +32,7 @@ export const zh: Catalog = {
   ...access,
   ...pluginsUi,
   ...webhooks,
+  ...auditUi,
   "access.title": "访问权限",
   "apiTokens.title": "API 令牌",
   "apps.confirmDelete": "删除 {name}？其数据目录将会保留。",

@@ -1,7 +1,7 @@
 import { closeSync, constants, openSync, readFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { atomicWriteFileSync, BUREAU_DIR } from "../persistence/paths.ts";
-import type { RecordingEvent, RecordingHeader, RecordingStatus } from "../../shared/terminal/recordings.ts";
+import type { RecordingEndReason, RecordingEvent, RecordingHeader, RecordingStatus } from "../../shared/terminal/recordings.ts";
 import { MAX_RECORDING_BYTES, recordingPath, safeDirectory } from "./files.ts";
 import { createRecordingRedactor } from "./redaction.ts";
 
@@ -26,20 +26,20 @@ export function recordingEnabled(root = BUREAU_DIR): boolean {
 }
 export function saveRecordingEnabled(enabled: boolean, root = BUREAU_DIR) {
   atomicWriteFileSync(join(root, "terminal-recording-settings.json"), JSON.stringify({ enabled }));
-  if (!enabled) for (const recording of active.values()) if (recording.root === root) recording.close("disabled");
+  if (!enabled) for (const recording of active.values()) if (recording.root === root) recording.close("disabled", "disabled");
 }
 interface Recording {
   id: string;
   root: string;
   output(data: string): void;
   resize(cols: number, rows: number): void;
-  input(actor: string): void;
-  close(reason: string): void;
+  input(actor: string, unknownActor?: boolean): void;
+  close(reason: string, reasonCode?: RecordingEndReason): void;
 }
 const active = new Map<string, Recording>();
 export const isRecordingActive = (id: string) => active.has(id);
 export function closeAllRecordings() {
-  for (const recording of active.values()) recording.close("server stopped");
+  for (const recording of active.values()) recording.close("server stopped", "serverStopped");
 }
 
 export function startRecording(agentId: string, roomId: string, status: (value: RecordingStatus) => void, root = BUREAU_DIR, now = Date.now): Recording | null {
@@ -59,6 +59,7 @@ export function startRecording(agentId: string, roomId: string, status: (value: 
     let bytes = Buffer.byteLength(firstLine);
     let closed = false;
     let lastActor = "";
+    let lastUnknownActor = false;
     let lastInput = 0;
     let outputSinceInput = false;
     let queued = "";
@@ -91,7 +92,7 @@ export function startRecording(agentId: string, roomId: string, status: (value: 
       const line = JSON.stringify(event) + "\n";
       const size = Buffer.byteLength(line);
       if (bytes + size > MAX_RECORDING_BYTES - 1024) {
-        queued += JSON.stringify({ type: "end", at: elapsed(), reason: "size limit reached" }) + "\n";
+        queued += JSON.stringify({ type: "end", at: elapsed(), reason: "size limit reached", reasonCode: "sizeLimit" }) + "\n";
         flush();
         stop("stopped");
         return;
@@ -113,18 +114,20 @@ export function startRecording(agentId: string, roomId: string, status: (value: 
       resize(cols, rows) {
         if (Number.isInteger(cols) && Number.isInteger(rows) && cols > 0 && cols <= 1000 && rows > 0 && rows <= 1000) append({ type: "resize", at: elapsed(), cols, rows });
       },
-      input(actor) {
+      input(actor, unknownActor = false) {
         if (closed) return;
         const at = elapsed();
-        if (actor !== lastActor || (outputSinceInput && at - lastInput > 2000)) append({ type: "typist", at, actor });
+        if (actor !== lastActor || unknownActor !== lastUnknownActor || (outputSinceInput && at - lastInput > 2000))
+          append({ type: "typist", at, actor, ...(unknownActor ? { unknownActor: true } : {}) });
         lastActor = actor;
+        lastUnknownActor = unknownActor;
         lastInput = at;
         outputSinceInput = false;
       },
-      close(reason) {
+      close(reason, reasonCode) {
         if (closed) return;
         redactor.finish();
-        append({ type: "end", at: elapsed(), reason });
+        append({ type: "end", at: elapsed(), reason, ...(reasonCode ? { reasonCode } : {}) });
         flush();
         stop("stopped");
       },

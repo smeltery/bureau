@@ -1,28 +1,26 @@
+import { useI18n } from "../../i18n.tsx";
+import { auditRequest, auditFailure, auditFailureText, type AuditFailure } from "../api.ts";
 import { useEffect, useRef, useState } from "react";
 import type { RecordingHeader, RecordingView } from "../../../shared/terminal/recordings.ts";
 import { RecordingReplay } from "./RecordingReplay.tsx";
 
-async function request(path = "", init?: RequestInit) {
-  const response = await fetch(`/api/terminal-recordings${path}`, init);
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error ?? "Unable to load recordings");
-  return result;
-}
+const request = (path = "", init?: RequestInit) => auditRequest(`/api/terminal-recordings${path}`, init);
 export function RecordingsPane({ selectedId, onClose }: { selectedId: string | null; onClose: () => void }) {
+  const { t, language } = useI18n();
   const replayRequest = useRef(0);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [recordings, setRecordings] = useState<(RecordingHeader & { active: boolean })[]>([]);
   const [view, setView] = useState<RecordingView | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<AuditFailure | null>(null);
   const [busy, setBusy] = useState(false);
   async function refresh() {
     try {
       const [settings, list] = await Promise.all([request("/settings"), request()]);
       setEnabled(settings.enabled);
       setRecordings(list.recordings);
-      setError("");
+      setError(null);
     } catch (error) {
-      setError(String(error));
+      setError(auditFailure(error, "auditUi.recordingFailed"));
     }
   }
   async function open(id: string) {
@@ -32,9 +30,9 @@ export function RecordingsPane({ selectedId, onClose }: { selectedId: string | n
       const recording = await request(`/${id}`);
       if (requestId !== replayRequest.current) return;
       setView(recording);
-      setError("");
+      setError(null);
     } catch (error) {
-      setError(String(error));
+      if (requestId === replayRequest.current) setError(auditFailure(error, "auditUi.recordingFailed"));
     }
   }
   useEffect(() => {
@@ -50,54 +48,52 @@ export function RecordingsPane({ selectedId, onClose }: { selectedId: string | n
       setEnabled(settings.enabled);
       await refresh();
     } catch (error) {
-      setError(String(error));
+      setError(auditFailure(error, "auditUi.recordingFailed"));
     } finally {
       setBusy(false);
     }
   }
   async function remove(id: string) {
-    if (!confirm("Permanently remove this terminal recording?")) return;
+    if (!confirm(t("auditUi.removeConfirm"))) return;
     setBusy(true);
     try {
       await request(`/${id}`, { method: "DELETE" });
       if (view?.header.id === id) setView(null);
       await refresh();
     } catch (error) {
-      setError(String(error));
+      setError(auditFailure(error, "auditUi.recordingFailed"));
     } finally {
       setBusy(false);
     }
   }
   return (
     <section>
-      <h3>Terminal recordings</h3>
+      <h3>{t("auditUi.recordings")}</h3>
       <label>
-        <input type="checkbox" disabled={enabled === null || busy} checked={enabled ?? false} onChange={() => void toggle()} /> Record newly opened terminals
+        <input type="checkbox" disabled={enabled === null || busy} checked={enabled ?? false} onChange={() => void toggle()} /> {t("auditUi.recordNew")}
       </label>
-      <p>
-        Off by default. Records displayed output, dimensions and who typed, never input text. Output may contain secrets despite best-effort masking. Turning this off stops current recordings. Restart
-        an existing terminal to begin recording after enabling.
-      </p>
-      {error && <p role="alert">{error}</p>}
+      <p>{t("auditUi.recordHint")}</p>
+      {error && <p role="alert">{auditFailureText(error, t)}</p>}
       {view && (
         <RecordingReplay
           key={view.header.id}
           recording={view}
           onClose={() => {
+            replayRequest.current++;
             setView(null);
             onClose();
           }}
         />
       )}
       <details>
-        <summary>Saved recordings ({recordings.length})</summary>
-        <button onClick={() => void refresh()}>Refresh recordings</button>
+        <summary>{t("auditUi.saved", { count: recordings.length.toLocaleString(language) })}</summary>
+        <button onClick={() => void refresh()}>{t("auditUi.refreshRecordings")}</button>
         {recordings.map((item) => (
           <p key={item.id}>
-            {new Date(item.startedAt).toLocaleString()} · {item.agentId}
-            {item.active ? " · Recording" : ""} <button onClick={() => void open(item.id)}>Replay</button>{" "}
+            {new Date(item.startedAt).toLocaleString(language)} · {item.agentId}
+            {item.active ? ` · ${t("auditUi.recording")}` : ""} <button onClick={() => void open(item.id)}>{t("auditUi.replay")}</button>{" "}
             <button disabled={busy || item.active} onClick={() => void remove(item.id)}>
-              Remove
+              {t("common.remove")}
             </button>
           </p>
         ))}

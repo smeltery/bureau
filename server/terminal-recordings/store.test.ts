@@ -53,12 +53,13 @@ test("recordings preserve redacted output, dimensions and input attribution with
   recording.input("member:one");
   recording.input("member:two");
   recording.resize(120, 40);
-  recording.close("terminal closed");
+  recording.close("terminal closed", "terminalClosed");
   recording.close("again");
   recording.output("after close");
   const result = readRecording(recording.id, false, dir);
   expect(result.events.filter((event) => event.type === "typist")).toHaveLength(3);
   expect(result.events.filter((event) => event.type === "end")).toHaveLength(1);
+  expect(result.events.at(-1)).toMatchObject({ reason: "terminal closed", reasonCode: "terminalClosed" });
   expect(result.events).toContainEqual({ type: "resize", at: 8000, cols: 120, rows: 40 });
   const serialized = JSON.stringify(result);
   expect(serialized).toContain("REDACTED");
@@ -103,7 +104,7 @@ test("disabling stops active recordings and flushes the final partial line", () 
   saveRecordingEnabled(false, dir);
   expect(isRecordingActive(recording.id)).toBe(false);
   expect(JSON.stringify(readRecording(recording.id, false, dir))).toContain("final prompt");
-  expect(readRecording(recording.id, false, dir).events.at(-1)).toMatchObject({ type: "end", reason: "disabled" });
+  expect(readRecording(recording.id, false, dir).events.at(-1)).toMatchObject({ type: "end", reason: "disabled", reasonCode: "disabled" });
 });
 
 test("file access rejects traversal and symlinks, and crash fragments stay readable", () => {
@@ -132,7 +133,7 @@ test("size cap stops the recording while retaining a readable end marker", () =>
   const recording = startRecording("a", "r", () => {}, dir)!;
   for (let i = 0; i < 400; i++) recording.output("x".repeat(60000) + "\n");
   expect(isRecordingActive(recording.id)).toBe(false);
-  expect(readRecording(recording.id, false, dir).events.at(-1)).toMatchObject({ type: "end", reason: "size limit reached" });
+  expect(readRecording(recording.id, false, dir).events.at(-1)).toMatchObject({ type: "end", reason: "size limit reached", reasonCode: "sizeLimit" });
 });
 
 test("disk failures stop recording without throwing into terminal output", () => {
@@ -153,4 +154,26 @@ test("disk failures stop recording without throwing into terminal output", () =>
   } finally {
     write.mockRestore();
   }
+});
+
+test("unknown input attribution is distinct from a literal matching member name", () => {
+  const dir = root();
+  saveRecordingEnabled(true, dir);
+  const recording = startRecording(
+    "a",
+    "r",
+    () => {},
+    dir,
+    () => 1000,
+  )!;
+  recording.input("unknown member", true);
+  recording.input("unknown member", true);
+  recording.input("unknown member");
+  recording.close("Original legacy reason");
+  const events = readRecording(recording.id, false, dir).events;
+  expect(events.filter((event) => event.type === "typist")).toEqual([
+    { type: "typist", at: 0, actor: "unknown member", unknownActor: true },
+    { type: "typist", at: 0, actor: "unknown member" },
+  ]);
+  expect(events.at(-1)).toEqual({ type: "end", at: 0, reason: "Original legacy reason" });
 });

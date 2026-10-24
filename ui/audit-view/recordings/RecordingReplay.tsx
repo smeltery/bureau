@@ -1,15 +1,20 @@
+import { useI18n } from "../../i18n.tsx";
+import { keyFrom } from "../../../shared/i18n/translate.ts";
 import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
-import type { RecordingView } from "../../../shared/terminal/recordings.ts";
+import type { RecordingView, RecordingEvent } from "../../../shared/terminal/recordings.ts";
+
+const END_KEYS = { disabled: "auditUi.disabled", serverStopped: "auditUi.serverStopped", sizeLimit: "auditUi.sizeLimit", terminalClosed: "auditUi.terminalClosed" } as const;
 
 export function RecordingReplay({ recording, onClose }: { recording: RecordingView; onClose: () => void }) {
+  const { t, language } = useI18n();
   const container = useRef<HTMLDivElement>(null);
   const terminal = useRef<Terminal | null>(null);
   const cursor = useRef(0);
   const elapsed = useRef(0);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
-  const [typist, setTypist] = useState("");
+  const [typist, setTypist] = useState<Extract<RecordingEvent, { type: "typist" }> | null>(null);
   const duration = recording.events.at(-1)?.at ?? 0;
   function advance(target: number) {
     const term = terminal.current;
@@ -18,7 +23,7 @@ export function RecordingReplay({ recording, onClose }: { recording: RecordingVi
       const event = recording.events[cursor.current++]!;
       if (event.type === "output") term.write(event.data);
       if (event.type === "resize") term.resize(event.cols, event.rows);
-      if (event.type === "typist") setTypist(event.actor);
+      if (event.type === "typist") setTypist(event);
     }
     elapsed.current = target;
     setPosition(target);
@@ -46,12 +51,13 @@ export function RecordingReplay({ recording, onClose }: { recording: RecordingVi
     return () => clearInterval(timer);
   }, [playing, recording]);
   const end = recording.events.findLast((event) => event.type === "end");
+  const endKey = end?.type === "end" && end.reasonCode ? keyFrom(END_KEYS, end.reasonCode) : undefined;
   return (
-    <section aria-label="Terminal recording replay" style={{ padding: 12, border: "1px solid var(--border-subtle)" }}>
-      <h3>Terminal recording · {new Date(recording.header.startedAt).toLocaleString()}</h3>
-      <p>Read-only snapshot · {recording.active ? "Still recording; reopen to refresh" : end?.type === "end" ? end.reason : "Interrupted recording"}</p>
+    <section aria-label={t("auditUi.replayLabel")} style={{ padding: 12, border: "1px solid var(--border-subtle)" }}>
+      <h3>{t("auditUi.recordedAt", { date: new Date(recording.header.startedAt).toLocaleString(language) })}</h3>
+      <p>{t("auditUi.snapshot", { status: recording.active ? t("auditUi.stillRecording") : endKey ? t(endKey) : end?.type === "end" ? end.reason : t("auditUi.interrupted") })}</p>
       <button onClick={() => setPlaying(!playing)} disabled={position >= duration}>
-        {playing ? "Pause" : "Play"}
+        {playing ? t("auditUi.pause") : t("auditUi.play")}
       </button>{" "}
       <button
         onClick={() => {
@@ -59,11 +65,11 @@ export function RecordingReplay({ recording, onClose }: { recording: RecordingVi
           terminal.current?.reset();
           terminal.current?.resize(recording.header.cols, recording.header.rows);
           cursor.current = 0;
-          setTypist("");
+          setTypist(null);
           advance(0);
         }}
       >
-        Restart replay
+        {t("auditUi.restart")}
       </button>{" "}
       <button
         onClick={() => {
@@ -71,11 +77,12 @@ export function RecordingReplay({ recording, onClose }: { recording: RecordingVi
           advance(duration);
         }}
       >
-        Show final output
+        {t("auditUi.finalOutput")}
       </button>{" "}
-      <button onClick={onClose}>Close replay</button>
+      <button onClick={onClose}>{t("auditUi.closeReplay")}</button>
       <p>
-        {Math.floor(position / 1000)} / {Math.floor(duration / 1000)} seconds{typist && ` · Last input by ${typist}`}
+        {t("auditUi.seconds", { position: Math.floor(position / 1000).toLocaleString(language), duration: Math.floor(duration / 1000).toLocaleString(language) })}
+        {typist && ` · ${t("auditUi.lastInput", { actor: typist.unknownActor ? t("auditUi.unknownMember") : typist.actor })}`}
       </p>
       <div ref={container} style={{ overflow: "auto", maxHeight: 480 }} />
     </section>
