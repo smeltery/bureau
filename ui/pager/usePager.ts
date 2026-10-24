@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+import { pagerRequest, pagerFailure, pagerFailureText, type PagerFailure } from "./feedback.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PagerEntry } from "../../shared/types.ts";
 import { addRawListener, removeRawListener } from "../ws.ts";
@@ -13,12 +15,13 @@ interface PagerResult {
   query: string;
   pages: PagerEntry[];
   nextCursor: string | null;
-  error: string | null;
+  error: PagerFailure | null;
 }
 
 // Each refresh retains the selected history window; old responses cannot
 // replace a newer room/cursor projection. The badge requests active pages only.
 export function usePager(enabled = true, filters: PagerFilters = {}) {
+  const { t } = useI18n();
   const params = new URLSearchParams({ includeResolved: String(filters.includeResolved ?? false), limit: "50" });
   if (filters.roomId) params.set("roomId", filters.roomId);
   if (filters.cursor) params.set("cursor", filters.cursor);
@@ -36,9 +39,7 @@ export function usePager(enabled = true, filters: PagerFilters = {}) {
     request.current = controller;
     setLoading(true);
     try {
-      const res = await fetch(`/api/pager?${query}`, { signal: controller.signal });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Could not load pages");
+      const body = await pagerRequest<{ pages: PagerEntry[]; nextCursor?: string }>(`/api/pager?${query}`, { signal: controller.signal });
       if (generation === sequence.current)
         setResult({ query, pages: Array.isArray(body.pages) ? body.pages : [], nextCursor: typeof body.nextCursor === "string" ? body.nextCursor : null, error: null });
     } catch (error) {
@@ -47,7 +48,7 @@ export function usePager(enabled = true, filters: PagerFilters = {}) {
           query,
           pages: previous?.query === query ? previous.pages : [],
           nextCursor: previous?.query === query ? previous.nextCursor : null,
-          error: error instanceof Error ? error.message : "Could not load pages",
+          error: pagerFailure(error, "pager.loadFailed"),
         }));
     } finally {
       if (generation === sequence.current) setLoading(false);
@@ -71,7 +72,7 @@ export function usePager(enabled = true, filters: PagerFilters = {}) {
   }, [enabled, reload]);
 
   const current = result?.query === query ? result : null;
-  return { pages: current?.pages ?? [], error: current?.error ?? null, nextCursor: current?.nextCursor ?? null, loading: loading || (enabled && !current), reload };
+  return { pages: current?.pages ?? [], error: current?.error ? pagerFailureText(current.error, t) : null, nextCursor: current?.nextCursor ?? null, loading: loading || (enabled && !current), reload };
 }
 
 export function openPagesFor(pages: PagerEntry[], userId: string | undefined): number {
