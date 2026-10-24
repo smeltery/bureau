@@ -2,6 +2,8 @@ import { loadLog, loadLogWithAncestors } from "../persistence/logs/logs.ts";
 import { listAgentSessions } from "../persistence/logs/sessions.ts";
 import type { LogEntry } from "../../shared/types.ts";
 
+import { CONVERSATION_KINDS } from "./summaries/summary.ts";
+
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 200;
 const MAX_QUERY_LENGTH = 500;
@@ -18,6 +20,7 @@ const ALL_KINDS = [
   "error",
   "system",
   "user_message",
+  "api_token_outbound",
   "diff",
   "edit-request",
   "terminal-command",
@@ -26,11 +29,12 @@ const ALL_KINDS = [
 const KIND_SET = new Set<LogEntry["kind"]>(ALL_KINDS);
 const TIER_KINDS = {
   prompts: new Set<LogEntry["kind"]>(["user_message"]),
-  conversation: new Set<LogEntry["kind"]>(["user_message", "text"]),
+  conversation: CONVERSATION_KINDS,
   full: null,
 } as const;
 
 export interface LogSessionSummary {
+  summary?: string;
   sessionId: string;
   topic: string | null;
   lastModified: number;
@@ -48,10 +52,17 @@ export interface LogSearchHit {
   snippet: string;
 }
 
+export interface SessionSummaryHit {
+  sessionId: string;
+  topic: string | null;
+  lastModified: number;
+  snippet: string;
+}
+
 export type LogReadResult =
-  | { ok: true; body: { mode: "index"; sessions: LogSessionSummary[] } }
-  | { ok: true; body: { mode: "search"; query: string; totalMatches: number; results: LogSearchHit[] } }
-  | { ok: true; body: { mode: "retrieve"; sessionId: string; entries: LogEntry[] } }
+  | { ok: true; body: { mode: "index"; sessions: LogSessionSummary[]; truncated: boolean } }
+  | { ok: true; body: { mode: "search"; query: string; totalMatches: number; results: LogSearchHit[]; summaryHits: SessionSummaryHit[] } }
+  | { ok: true; body: { mode: "retrieve"; sessionId: string; summary?: string; entries: LogEntry[] } }
   | { ok: false; status: number; error: string };
 
 interface TimestampBounds {
@@ -92,13 +103,16 @@ export function readAgentLogs(agentId: string, query: URLSearchParams): LogReadR
   if (matcher !== null) return searchAgentLogs(agentId, sessions, matcher, sessionId, limit, kinds, bounds);
   if (sessionId !== null) return retrieveAgentLog(agentId, sessions, sessionId, limit, around, window, kinds, bounds);
 
+  const indexed = sessions.filter((session) => withinTimestampBounds({ timestamp: session.lastModified }, bounds));
   return {
     ok: true,
     body: {
       mode: "index",
-      sessions: sessions.slice(0, limit).map((session) => ({
+      truncated: indexed.length > limit,
+      sessions: indexed.slice(0, limit).map((session) => ({
         sessionId: session.sessionId,
         topic: session.topic,
+        ...(session.summary ? { summary: session.summary } : {}),
         lastModified: session.lastModified,
         cwd: session.cwd,
         forked: session.forked === true,
@@ -125,8 +139,14 @@ function searchAgentLogs(
   if (sessionId !== null && searchable.length === 0) return { ok: false, status: 404, error: "session not found" };
 
   const results: LogSearchHit[] = [];
+  const summaryHits: SessionSummaryHit[] = [];
   let totalMatches = 0;
   for (const session of searchable) {
+    if (summaryHits.length < limit && withinTimestampBounds({ timestamp: session.lastModified }, bounds)) {
+      const content = [session.topic, session.summary].filter(Boolean).join("\n");
+      const match = findMatch(content, matcher);
+      if (match) summaryHits.push({ sessionId: session.sessionId, topic: session.topic, lastModified: session.lastModified, snippet: snippet(content, match.index, match.length) });
+    }
     for (const entry of loadLog(agentId, session.sessionId)) {
       if (!kindAllowed(entry.kind, kinds)) continue;
       if (!withinTimestampBounds(entry, bounds)) continue;
@@ -147,7 +167,7 @@ function searchAgentLogs(
     }
   }
   results.sort((a, b) => b.timestamp - a.timestamp);
-  return { ok: true, body: { mode: "search", query: matcher.query, totalMatches, results } };
+  return { ok: true, body: { mode: "search", query: matcher.query, totalMatches, results, summaryHits } };
 }
 
 function retrieveAgentLog(
@@ -160,16 +180,17 @@ function retrieveAgentLog(
   kinds: Set<LogEntry["kind"]> | null,
   bounds: TimestampBounds,
 ): LogReadResult {
-  if (!sessions.some((session) => session.sessionId === sessionId)) return { ok: false, status: 404, error: "session not found" };
+  const session = sessions.find((session) => session.sessionId === sessionId);
+  if (!session) return { ok: false, status: 404, error: "session not found" };
   const entries = loadLogWithAncestors(agentId, sessionId).filter((entry) => withinTimestampBounds(entry, bounds));
   if (around !== null) {
     const filtered = entries.filter((entry) => kindAllowed(entry.kind, kinds) || entry.id === around);
     const index = filtered.findIndex((entry) => entry.id === around);
     if (index === -1) return { ok: false, status: 404, error: "entry not found" };
-    return { ok: true, body: { mode: "retrieve", sessionId, entries: filtered.slice(Math.max(0, index - window), index + window + 1) } };
+    return { ok: true, body: { mode: "retrieve", sessionId, ...(session.summary ? { summary: session.summary } : {}), entries: filtered.slice(Math.max(0, index - window), index + window + 1) } };
   }
   const filtered = entries.filter((entry) => kindAllowed(entry.kind, kinds));
-  return { ok: true, body: { mode: "retrieve", sessionId, entries: filtered.slice(-limit) } };
+  return { ok: true, body: { mode: "retrieve", sessionId, ...(session.summary ? { summary: session.summary } : {}), entries: filtered.slice(-limit) } };
 }
 
 function parseLimit(raw: string | null): number | string {
@@ -235,7 +256,7 @@ function kindAllowed(kind: LogEntry["kind"], kinds: Set<LogEntry["kind"]> | null
   return kinds === null || kinds.has(kind);
 }
 
-function withinTimestampBounds(entry: LogEntry, bounds: TimestampBounds): boolean {
+function withinTimestampBounds(entry: { timestamp: number }, bounds: TimestampBounds): boolean {
   if (bounds.after !== null && entry.timestamp < bounds.after) return false;
   if (bounds.before !== null && entry.timestamp > bounds.before) return false;
   return true;

@@ -1,3 +1,4 @@
+import { requestSessionSummary } from "./summaries/activity.ts";
 import { runClaudeOneShot } from "../backends/claude.ts";
 import { persistSessionTopic } from "../persistence.ts";
 import { agents, emit, logCache, persistAll, updateManifest, type ManagedAgent } from "./state.ts";
@@ -26,6 +27,7 @@ export function shouldAutoRegenerateTopic(managed: ManagedAgent): boolean {
 // Persist an agent's current in-memory topic into sessions.json so that the
 // /resume list can display it later. Skips the transient "..." placeholder.
 export function persistCurrentSessionTopic(agentId: string, managed: ManagedAgent) {
+  requestSessionSummary(managed, true);
   if (managed.sessionId && managed.info.topic && managed.info.topic !== "...") {
     persistSessionTopic(agentId, managed.sessionId, managed.info.topic, managed.topicMessageCount);
   }

@@ -17,25 +17,11 @@ import { fetchOpenCode, readOpenCodeEvent, OPENCODE_DEADLINE_MS } from "./connec
 
 type EventSink = (event: NormalizedEvent) => void;
 
-export interface OpenCodeTransportOptions {
-  mcpServers?: AgentMcpServer[];
-  cwd: string;
-  model: string;
-  resolveEnv?: () => Record<string, string | undefined> | undefined;
-  effort?: string;
-  systemPrompt?: string;
-  agent?: string;
-  supervisor: OpenCodeSupervisor;
-  sessionId?: string;
-  autoApprove?: boolean;
-  agentId?: string;
-  agentToken?: string;
-  authorityBroker?: OpenCodeAuthorityBroker;
-  requestTimeoutMs?: number;
-  eventIdleTimeoutMs?: number;
-}
+export type { OpenCodeTransportOptions } from "./connection/transport-options.ts";
+import type { OpenCodeTransportOptions } from "./connection/transport-options.ts";
 
 export class OpenCodeTransport {
+  private readonly disableTools: boolean;
   private readonly mcpServers?: AgentMcpServer[];
   private readonly resolveEnv: OpenCodeTransportOptions["resolveEnv"];
   private announcedSession = false;
@@ -62,6 +48,7 @@ export class OpenCodeTransport {
 
   constructor(options: OpenCodeTransportOptions) {
     this.supervisor = options.supervisor;
+    this.disableTools = options.disableTools === true;
     this.mcpServers = options.mcpServers;
     this.resolveEnv = options.resolveEnv;
     this.cwd = options.cwd;
@@ -101,7 +88,10 @@ export class OpenCodeTransport {
       if (this.systemPrompt !== undefined) this.modelSelection.prefetch(this.lease);
       if (this.resumedSessionId) this.sessionId = this.resumedSessionId;
       else {
-        const response = await this.request("/session", { method: "POST", body: JSON.stringify({ title: "Bureau OpenCode session" }) });
+        const response = await this.request("/session", {
+          method: "POST",
+          body: JSON.stringify({ title: "Bureau OpenCode session", ...(this.disableTools ? { permission: [{ permission: "*", pattern: "*", action: "deny" }] } : {}) }),
+        });
         this.sessionId = allowSession(await response.json()).id;
       }
     }

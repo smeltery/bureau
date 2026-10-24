@@ -37,6 +37,9 @@ export type SessionsMap = Record<
     // worth regenerating. Missing on entries persisted before this field
     // existed — treated as 0 (regenerate aggressively).
     topicMessageCount?: number;
+    summary?: string;
+    summaryThroughEntryId?: string;
+    summaryAt?: number;
     lastModified: number;
     // The cwd this session runs in. Source of truth for per-session cwd; the
     // agent's `cwd` field is a denormalized mirror of the *active* session's
@@ -176,7 +179,7 @@ export function persistSessionFork(
 // List all sessions for an agent (sorted by most recent first), with topics from sessions.json
 export function listAgentSessions(
   agentId: string,
-): { sessionId: string; lastModified: number; topic: string | null; topicMessageCount: number; cwd: string | null; branched?: boolean; forked?: boolean }[] {
+): { sessionId: string; lastModified: number; topic: string | null; topicMessageCount: number; summary?: string; cwd: string | null; branched?: boolean; forked?: boolean }[] {
   try {
     const agentDir = join(LOGS_DIR, agentId);
     if (!existsSync(agentDir)) return [];
@@ -197,6 +200,7 @@ export function listAgentSessions(
           lastModified: entry?.lastModified ?? file.mtimeMs,
           topic: entry?.topic ?? null,
           topicMessageCount: entry?.topicMessageCount ?? 0,
+          ...(entry?.summary ? { summary: entry.summary } : {}),
           cwd: entry?.cwd ?? null,
           ...(branchedFromIds.has(sid) ? { branched: true as const } : {}),
           ...(entry?.forkedFrom ? { forked: true as const } : {}),

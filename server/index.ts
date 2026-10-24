@@ -1,3 +1,4 @@
+import { startConversationSummaries } from "./agents/summaries/runtime.ts";
 import { installProviderLoginShutdown } from "./provider-accounts/login/runtime.ts";
 import { installRecordingShutdown } from "./terminal-recordings/shutdown.ts";
 import { enableIntegrations } from "./integrations/agent-refresh.ts";
@@ -58,6 +59,7 @@ freezeAppHostDomain();
 installAuthCallbacks(() => AgentManager.getRooms());
 
 wireAgentAndCronjobEvents();
+startConversationSummaries();
 
 // Start the live-reload filesystem watcher (no-op unless BUREAU_LIVE_RELOAD=1)
 startLiveReloadWatcher();

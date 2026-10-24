@@ -11,14 +11,16 @@ export { prepareLogEntry, redactLogEntry } from "./log-redaction.ts";
 
 export function appendLog(agentId: string, sessionId: string, entry: LogEntry) {
   // Ephemeral entries must never reach disk — defense-in-depth for future callers.
-  if (entry.ephemeral) return;
+  if (entry.ephemeral) return false;
   entry = prepareLogEntry(entry);
   try {
     const agentDir = join(LOGS_DIR, agentId);
     mkdirSync(agentDir, { recursive: true });
     appendTranscript(agentDir, sessionId, JSON.stringify(entry) + "\n");
+    return true;
   } catch (err) {
     console.error("Failed to write log:", err);
+    return false;
   }
 }
 

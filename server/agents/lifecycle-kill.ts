@@ -1,3 +1,4 @@
+import { requestSessionSummary } from "./summaries/activity.ts";
 import { stopTerminalRecording } from "./terminal.ts";
 import { cancelUsageResume } from "./conversation/usage-resume.ts";
 import { loadAgentHistory, saveAgentHistory } from "../persistence.ts";
@@ -9,6 +10,7 @@ import { buildKilledAgentSummary } from "./revive.ts";
 export async function kill(agentId: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
+  requestSessionSummary(managed, true);
   cancelUsageResume(managed);
   // Stamp the history entry with killedAt + a full config snapshot BEFORE
   // removing the agent from the live map. After deletion, updateAgentHistory

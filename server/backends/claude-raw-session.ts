@@ -1,3 +1,4 @@
+import { withOneShotDeadline } from "./one-shot-deadline.ts";
 import { query, type Options, type Query, type SDKMessage, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
 import { CLAUDE_NATIVE_BIN } from "../agents/session/claude-native.ts";
@@ -82,14 +83,18 @@ export class RawClaudeSession {
 }
 
 // Run a single stateless prompt to completion and return the terminal result.
-type OneShotOptions = Omit<Options, "settings"> & { settings?: Extract<Options["settings"], object> };
+type OneShotOptions = Omit<Options, "settings"> & { settings?: Extract<Options["settings"], object>; timeoutMs?: number };
 
 export async function runClaudeOneShot(prompt: string, options: OneShotOptions): Promise<{ subtype: "success" | "error"; result: string }> {
+  const { timeoutMs, ...requestOptions } = options;
   const q = query({
     prompt,
     options: {
       pathToClaudeCodeExecutable: CLAUDE_NATIVE_BIN,
-      ...options,
+      ...requestOptions,
+      cwd: "/tmp",
+      settingSources: [],
+      thinking: { type: "disabled" },
       // Metadata prompts must not connect tools from the host, project,
       // plugins, account, or explicit subagent definitions.
       tools: [],
@@ -99,11 +104,17 @@ export async function runClaudeOneShot(prompt: string, options: OneShotOptions):
       settings: { ...options.settings, disableClaudeAiConnectors: true },
     },
   });
-  let out: { subtype: "success" | "error"; result: string } = { subtype: "error", result: "" };
-  for await (const msg of q) {
-    if (msg.type === "result") {
-      out = msg.subtype === "success" ? { subtype: "success", result: msg.result } : { subtype: "error", result: "" };
-    }
+  try {
+    return await withOneShotDeadline(async () => {
+      let out: { subtype: "success" | "error"; result: string } = { subtype: "error", result: "" };
+      for await (const msg of q) {
+        if (msg.type === "result") {
+          out = msg.subtype === "success" ? { subtype: "success", result: msg.result } : { subtype: "error", result: "" };
+        }
+      }
+      return out;
+    }, timeoutMs);
+  } finally {
+    q.close();
   }
-  return out;
 }

@@ -1,3 +1,4 @@
+import { recordSummaryEntry, requestSessionSummary } from "../summaries/activity.ts";
 import { BureauLogError } from "../../../shared/i18n/backend-errors/error.ts";
 import { logMessage, logParts, type LogParam } from "../../../shared/i18n/log-message.ts";
 import { pushBoundarySteer, recordSteerDelivery } from "../conversation/push-steering.ts";
@@ -126,6 +127,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
           for (const entry of history) emit({ type: "log_entry", entry });
         }
         if (hadPreviousSession && ev.sessionId !== managed.sessionId) {
+          requestSessionSummary(managed, true);
           emit({ type: "clear_logs", agentId });
           addLogEntry(agentId, "system", logMessage("logs.command.cleared"));
         }
@@ -140,7 +142,9 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
           ensureSessionClaudeConfigDir(agentId, ev.sessionId, managed.launchedClaudeConfigDir);
         }
         if (!hadPreviousSession) {
-          for (const entry of logCache.get(agentId) ?? []) appendLog(agentId, ev.sessionId, entry);
+          for (const entry of logCache.get(agentId) ?? []) {
+            if (appendLog(agentId, ev.sessionId, entry)) recordSummaryEntry(managed, entry);
+          }
         }
         persistAll();
       }
@@ -262,7 +266,10 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         }
       }
       const turn = managed?.pendingTurn;
-      if (managed) clearLiveTurn(managed);
+      if (managed) {
+        clearLiveTurn(managed);
+        requestSessionSummary(managed);
+      }
       if (managed && turn) {
         managed.pendingTurn = null;
         if (ev.causedByProviderCapacity === true) turn.reject(new ProviderCapacityError(ev.error ?? "Provider capacity"));

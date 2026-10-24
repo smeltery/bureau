@@ -286,6 +286,7 @@ export const claudeBackend: Backend = {
   async oneShotPrompt(prompt: string, opts: OneShotOptions): Promise<string> {
     const result = await runClaudeOneShot(prompt, {
       model: claudeModelForEnvironment(opts.modelFamily, opts.env),
+      timeoutMs: opts.timeoutMs,
       ...(opts.systemPrompt ? { systemPrompt: opts.systemPrompt } : {}),
       settings: CLAUDE_LAUNCH_SETTINGS,
       env: withCloudModelDefaults(opts.env),
