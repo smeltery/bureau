@@ -20,16 +20,16 @@ export type BrowserSessionDiagnostic =
     };
 
 export function browserSessionDiagnostic(cookies: SessionCookies, lookup: SessionLookup | null, gate: "http" | "ws"): BrowserSessionDiagnostic | null {
-  if (cookies.hostRaw === null && cookies.legacyRaw === null) {
+  if (cookies.selectedName === null) {
     return { outcome: "cookie_absent", gate };
   }
-  const selected = cookies.hostRaw !== null ? "host" : "legacy";
+  const selected = cookies.selectedName === "host" || cookies.selectedName === "sharedHost" ? "host" : "legacy";
   if (!lookup) {
     return {
       outcome: "cookie_rejected",
       gate,
       selected,
-      legacyAlsoPresent: cookies.legacyRaw !== null,
+      legacyAlsoPresent: cookies.values.plain !== null || cookies.values.sharedPlain !== null,
       marker: cookies.selected ? hashOf(cookies.selected).slice(0, 6) : undefined,
     };
   }

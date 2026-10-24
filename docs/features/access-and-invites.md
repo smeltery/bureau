@@ -320,3 +320,21 @@ other profile edits do not write it. Existing sessions retain their cached syste
 prompt; new and resumed sessions pick up the changed instructions.
 
 Shared provider sign-in coordination is owner-only. Members can inspect connection status and save their own provider API keys; host CLI sign-in guidance and shared sign-in controls are shown only to owners. Personal API tokens use their owning member’s current permissions for instruction edits, and revocation is checked again after reading an update request.
+
+## Multiple offices on one hostname
+
+Each office stores a public random identifier in `office-id` under its state root.
+Cookie names include it, so offices on different ports of the same hostname stay
+signed in independently. HTTPS cookies retain browser-enforced `__Host-` protections.
+
+Existing sessions migrate during page loads and WebSocket reconnects without
+extending their expiry. The old cookie is retired only after its replacement
+returns, and only if both contain the same session. Signing out of one office
+does not clear another office’s session. Invalid cookies under an office’s own
+name never fall back to older shared names.
+
+Backups preserve `office-id` and its cookie namespace. When copying a state
+directory to create an independent office,
+remove `office-id` from the copy before starting it. Invalid identifiers are preserved
+in an `office-id.invalid-*` file and replaced; storage failures stop
+startup rather than issuing a temporary identifier.

@@ -7,7 +7,7 @@
 // the hop-by-hop headers that stop at a proxy — and a set that is hard to find
 // is a set somebody edits by accident.
 
-import { COOKIE_NAME, HOST_COOKIE_NAME } from "../../auth/http-env.ts";
+import { isOfficeSessionCookie } from "../../auth/cookies/policy.ts";
 import { APP_COOKIE_NAME } from "./auth-cookie.ts";
 import { brotliCompressSync, deflateSync, gzipSync, zstdCompressSync } from "zlib";
 
@@ -66,16 +66,16 @@ const DECODED_HEADERS = await probeDecodedHeaders();
 // Cookies that never leave the office, whoever sent them.
 //
 // `__Host-bureau_app` is the load-bearing one: it is the credential that opens
-// THIS app, and an app holding it could open itself as its own visitor. The two
+// THIS app, and an app holding it could open itself as its own visitor. All
 // office session names are stripped for the same reason one level up — an app
 // handed a live office session could act as that user against the office API. No
-// browser sends any of the three to a child host (all are host-only), so a
+// browser sends these to a child host (all are host-only), so a
 // request carrying one was hand-built, and there is nothing to preserve for it.
 //
-// Names are matched EXACTLY, and cookie names are case-sensitive (RFC 6265): an
+// Session names include the exact twelve-hex office suffix. Matching remains
+// case-sensitive (RFC 6265): an
 // app's own `bureau_session_id` or `BUREAU_SESSION` is its own business and
 // passes through.
-const STRIPPED_COOKIE_NAMES = new Set([APP_COOKIE_NAME, HOST_COOKIE_NAME, COOKIE_NAME]);
 
 // The header names a message's own `Connection` header nominates as
 // connection-specific. Comma-separated, case-insensitive tokens.
@@ -110,7 +110,7 @@ export function stripBureauCookies(header: string | null): string | null {
     if (trimmed.length === 0) continue;
     const eq = trimmed.indexOf("=");
     const name = eq === -1 ? trimmed : trimmed.slice(0, eq);
-    if (STRIPPED_COOKIE_NAMES.has(name)) continue;
+    if (name === APP_COOKIE_NAME || isOfficeSessionCookie(name)) continue;
     kept.push(trimmed);
   }
   return kept.length > 0 ? kept.join("; ") : null;

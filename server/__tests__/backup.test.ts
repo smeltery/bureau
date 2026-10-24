@@ -318,3 +318,11 @@ describe("verified backup publication", () => {
     expect(retry.calls).toHaveLength(2);
   });
 });
+
+test("backup and restore retain the office cookie namespace", async () => {
+  const f = fixture();
+  write(f.state, "office-id", "123456abcdef\n");
+  await runBackupOnceForTest(config(f), realDeps);
+  const restored = extract(f, finals(f.backupDir)[0]);
+  expect(fs.readFileSync(path.join(restored, "office-id"), "utf8")).toBe("123456abcdef\n");
+});
