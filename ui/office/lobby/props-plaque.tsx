@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import type { AgentOutfit } from "../../../shared/types.ts";
 import { Character } from "../scene/Character.tsx";
 import { wallTransform } from "./iso.tsx";
@@ -11,8 +12,9 @@ function plaqueName(name: string): string {
 }
 
 export function EmployeePlaque({ wall, name, outfit }: { wall: "left" | "right"; name: string; outfit: AgentOutfit }) {
+  const { t } = useI18n();
   return (
-    <g transform={`${wallTransform(wall, 0, 0)} translate(0 -34)`}>
+    <g role="img" aria-label={t("settingsUi.lobbyPlaque", { name })} transform={`${wallTransform(wall, 0, 0)} translate(0 -34)`}>
       <defs>
         <clipPath id="lobby-eotm-mat">
           <rect x="-21" y="-29" width="42" height="58" rx="1" />
@@ -26,8 +28,8 @@ export function EmployeePlaque({ wall, name, outfit }: { wall: "left" | "right";
       <rect x="-21" y="-29" width="42" height="58" rx="1" fill="#F1E9D6" />
       <rect x="-21" y="-29" width="42" height="5" fill="#B7A87F" opacity="0.4" />
       <g fill="#6B4E28" fontFamily="monospace" fontWeight="bold" fontSize="5.8" textAnchor="middle">
-        <text y="-21">EMPLOYEE OF</text>
-        <text y="-14.5">THE MINUTE</text>
+        <text y="-21">{t("settingsUi.lobbyPlaqueTop")}</text>
+        <text y="-14.5">{t("settingsUi.lobbyPlaqueBottom")}</text>
       </g>
       <line x1="-13" y1="-11" x2="13" y2="-11" stroke="#C2A365" strokeWidth="0.6" />
       <g clipPath="url(#lobby-eotm-mat)">

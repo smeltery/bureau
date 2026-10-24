@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n.tsx";
+import { AppsWallScreen } from "./components/AppsWallScreen.tsx";
 import type { PresenceInfo } from "../../../shared/types.ts";
 import { LobbyGhosts, lobbyGhostPlacements } from "./LobbyGhosts.tsx";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -69,6 +71,7 @@ export function LobbyScene({
   onOpenCronjobs,
   decorateScene = true,
 }: LobbySceneProps) {
+  const { t } = useI18n();
   const c = lobbyColors(mode);
   const base = layout === "empty" ? null : LOBBY_LAYOUTS[layout];
   const naturalGhostPlacements = useMemo(() => lobbyGhostPlacements(presences, base?.ghostSpots ?? []), [presences, base]);
@@ -89,7 +92,7 @@ export function LobbyScene({
           placements={decorateScene ? spec.placements : []}
           variants={variants}
           rooms={rooms}
-          officeName={officeName?.trim() || "the office"}
+          officeName={officeName?.trim() || t("settingsUi.lobbyOffice")}
           mode={mode}
           star={star}
           receptionist={receptionist ? { ...spec.receptionist, node: receptionist } : undefined}
@@ -167,31 +170,6 @@ function LobbyWallDoors({ rightDoor }: { rightDoor: DoorProps }) {
   );
 }
 
-function AppsWallScreen({ onOpenApps }: { onOpenApps?: () => void }) {
-  return (
-    <g
-      data-no-pan
-      transform="translate(50, -75) skewY(-27)"
-      onClick={onOpenApps}
-      aria-label={onOpenApps ? "Apps" : undefined}
-      style={onOpenApps ? { cursor: "pointer", pointerEvents: "auto" } : undefined}
-    >
-      {onOpenApps && <title>Apps</title>}
-      <rect x="-30" y="-32" width="60" height="58" rx="3" fill="var(--wall-decor)" stroke="var(--wall-decor-stroke)" strokeWidth="1.2" />
-      <rect x="-25" y="-27" width="50" height="46" rx="1.5" fill="var(--bg-surface-solid, #1a1a1a)" stroke="var(--wall-decor-stroke)" strokeWidth="0.6" />
-      <g fill="var(--accent)" opacity="0.85">
-        <rect x="-9" y="-19" width="7" height="7" rx="1" />
-        <rect x="2" y="-19" width="7" height="7" rx="1" />
-        <rect x="-9" y="-8" width="7" height="7" rx="1" />
-        <rect x="2" y="-8" width="7" height="7" rx="1" />
-      </g>
-      <text x="0" y="13" textAnchor="middle" fontSize="11" fontWeight="600" fill="var(--text-primary)" style={{ userSelect: "none" }}>
-        Apps
-      </text>
-    </g>
-  );
-}
-
 // Window pane on the left wall, same parallelogram as the office window.
 const PANE = "M-290 111 L-149 40.5 L-149 -45.5 L-290 25 Z";
 const STAR_UV: Array<[number, number, number]> = [
@@ -227,6 +205,7 @@ function useClock() {
 }
 
 function LobbyWalls({ c, onToggleTheme, onOpenApps, onOpenCronjobs }: { c: LobbyColors; onToggleTheme?: () => void; onOpenApps?: () => void; onOpenCronjobs?: () => void }) {
+  const { t } = useI18n();
   const L = FLOOR_LEFT;
   const R = FLOOR_RIGHT;
   const A = WALL_APEX;
@@ -293,7 +272,7 @@ function LobbyWalls({ c, onToggleTheme, onOpenApps, onOpenCronjobs }: { c: Lobby
         data-no-pan
         role={onToggleTheme ? "button" : undefined}
         tabIndex={onToggleTheme ? 0 : undefined}
-        aria-label={onToggleTheme ? "Change theme" : undefined}
+        aria-label={onToggleTheme ? t("common.changeTheme") : undefined}
         onClick={onToggleTheme}
         onMouseDown={(event) => event.preventDefault()}
         onKeyDown={(event) => {
@@ -334,11 +313,11 @@ function LobbyWalls({ c, onToggleTheme, onOpenApps, onOpenCronjobs }: { c: Lobby
       <g
         transform="translate(240,-85) skewY(27)"
         data-no-pan
-        aria-label={onOpenCronjobs ? "Schedules" : undefined}
+        aria-label={onOpenCronjobs ? t("common.schedules") : undefined}
         onClick={onOpenCronjobs}
         style={onOpenCronjobs ? { cursor: "pointer", pointerEvents: "auto" } : undefined}
       >
-        {onOpenCronjobs && <title>Schedules</title>}
+        {onOpenCronjobs && <title>{t("common.schedules")}</title>}
         <circle cx="0" cy="0" r={CR} fill={c.clockFace} stroke={c.clockTick} strokeWidth="1" />
         <circle cx="0" cy="0" r={cr} fill={c.clockInner} />
         {Array.from({ length: 12 }, (_, i) => {
@@ -471,7 +450,7 @@ export function LobbyProps({
   const rugs = resolved.filter(({ p, v }) => !v.wall && p.family === "rug");
   const floor = resolved.filter(({ p, v }) => !v.wall && p.family !== "rug").sort((x, y) => placementDepth(x.p) - placementDepth(y.p));
   return (
-    <svg style={SVG_STYLE} width={SCENE_W} height={SCENE_H} viewBox={VB} overflow="visible" aria-hidden="true">
+    <svg style={SVG_STYLE} width={SCENE_W} height={SCENE_H} viewBox={VB} overflow="visible">
       <ShadowDefs dark={mode === "dark"} />
       <PropDefs />
       <defs>

@@ -122,4 +122,11 @@ export const settingsUi = {
   "settingsUi.updateTip": "Consejo: copia este aviso con el botón de copiar y pide a un agente que se encargue.",
   "settingsUi.updateGotIt": "Entendido",
   "settingsUi.updateCommit": "commit {sha}",
+  "settingsUi.lobbyMove": "Mover aquí",
+  "settingsUi.lobbyPlaqueTop": "EMPLEADO DEL",
+  "settingsUi.lobbyPlaqueBottom": "MINUTO",
+  "settingsUi.lobbyPlaque": "Empleado del minuto: {name}",
+  "settingsUi.lobbyWelcome": "BIENVENIDOS",
+  "settingsUi.lobbyDirectory": "DIRECTORIO",
+  "settingsUi.lobbyOffice": "la oficina",
 } as const;
