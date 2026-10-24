@@ -4,6 +4,16 @@ Open **Integrations → Voice** to choose the microphone and read-aloud provider
 for your member account. Each choice is saved across devices. Both default to
 **Browser**, which uses the browser's speech services without a Bureau API key.
 The browser determines which languages and voices are available.
+Browser speech is not guaranteed to stay on your device: recognition may send
+microphone audio to the browser's speech service, and a remote read-aloud voice
+may send message text to its speech service. Bureau does not require on-device
+recognition or restrict playback to local voices. These browser speech requests
+go directly from your browser to the service, without passing through Bureau's
+voice endpoints. This applies to every hosting option.
+
+See the browser API documentation for
+[speech recognition](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition)
+and [local versus remote voices](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice/localService).
 
 Choose **OpenAI** for recorded microphone transcription or generated read aloud.
 Microphone recording requires a secure browser context and microphone permission;
