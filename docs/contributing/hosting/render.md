@@ -38,3 +38,10 @@ checked-out repositories there. Files outside the disk are ephemeral.
 See [deploy/render/README.md](../../../deploy/render/README.md) for adapter
 details and current validation notes.
 
+## Update the office
+
+Finish active agent work and back up the persistent disk before deploying.
+Use the web service's manual deployment control in Render to deploy the
+intended revision of your configured repository. Keep the existing persistent
+disk and environment settings. Once the deployment is Live, inspect its logs
+and verify the office and app domains.
