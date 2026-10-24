@@ -1,4 +1,11 @@
 export const chat = {
+  "chat.toolInput": "Entrada",
+  "chat.toolOutput": "Sortida",
+  "chat.toolNoOutput": "(sense sortida)",
+  "chat.toolMore": "{path} i {count} més",
+  "chat.subagent": "subagent",
+  "chat.subagentTitle": "Subagent",
+
   "chat.attach": "Adjunta fitxers",
   "chat.skills": "Explora habilitats i ordres",
   "chat.draftFailed": "No s’ha pogut desar el missatge abans d’enviar-lo. S’ha conservat l’esborrany.",

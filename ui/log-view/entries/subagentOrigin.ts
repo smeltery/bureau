@@ -3,6 +3,7 @@
 // pill and its hover title read. Pure, and extracted from the card so they can
 // be covered without a React render harness.
 
+import { translatorFor, type Translator } from "../../../shared/i18n/translate.ts";
 import type { LogEntry, SubagentOrigin } from "../../../shared/types.ts";
 
 /**
@@ -20,8 +21,8 @@ export function subagentOf(entry: LogEntry): SubagentOrigin | undefined {
  * subagent ran — but older SDKs omit it, in which case the bare marking still
  * has to distinguish the row from the agent's own work.
  */
-export function subagentPillLabel(origin: SubagentOrigin): string {
-  return origin.type ? `subagent · ${origin.type}` : "subagent";
+export function subagentPillLabel(origin: SubagentOrigin, t: Translator["t"] = translatorFor("en").t): string {
+  return origin.type ? `${t("chat.subagent")} · ${origin.type}` : t("chat.subagent");
 }
 
 /**
@@ -30,6 +31,6 @@ export function subagentPillLabel(origin: SubagentOrigin): string {
  * still leaves room for a label that would squeeze a mobile tool row. The full
  * text lives here, composed rather than passed through raw.
  */
-export function subagentPillTitle(origin: SubagentOrigin): string {
-  return `Subagent${origin.type ? ` (${origin.type})` : ""}` + (origin.description ? `: ${origin.description}` : "");
+export function subagentPillTitle(origin: SubagentOrigin, t: Translator["t"] = translatorFor("en").t): string {
+  return `${t("chat.subagentTitle")}${origin.type ? ` (${origin.type})` : ""}` + (origin.description ? `: ${origin.description}` : "");
 }

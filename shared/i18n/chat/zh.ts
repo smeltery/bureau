@@ -1,4 +1,11 @@
 export const chat = {
+  "chat.toolInput": "输入",
+  "chat.toolOutput": "输出",
+  "chat.toolNoOutput": "（无输出）",
+  "chat.toolMore": "{path} 等另外 {count} 项",
+  "chat.subagent": "子代理",
+  "chat.subagentTitle": "子代理",
+
   "chat.attach": "添加附件",
   "chat.skills": "浏览技能和命令",
   "chat.draftFailed": "发送前无法保存此消息。草稿已保留。",
