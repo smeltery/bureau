@@ -1,3 +1,4 @@
+import { questions } from "./questions/es.ts";
 import { agentSettings } from "./agent-settings/es.ts";
 import { panels } from "./panels/es.ts";
 import { chat } from "./chat/es.ts";
@@ -21,6 +22,7 @@ export const es = {
   ...chat,
   ...panels,
   ...agentSettings,
+  ...questions,
   "access.title": "Acceso",
   "apiTokens.title": "Tokens de API",
   "apps.confirmDelete": "¿Eliminar {name}? Se conservará su directorio de datos.",

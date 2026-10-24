@@ -1,3 +1,4 @@
+import { questions } from "./questions/en.ts";
 import { agentSettings } from "./agent-settings/en.ts";
 import { panels } from "./panels/en.ts";
 import { chat } from "./chat/en.ts";
@@ -22,6 +23,7 @@ export const en = {
   ...chat,
   ...panels,
   ...agentSettings,
+  ...questions,
   "access.title": "Access",
   "apiTokens.title": "API tokens",
   "apps.confirmDelete": "Delete {name}? Its data directory will be kept.",
