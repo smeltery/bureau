@@ -2,7 +2,8 @@
 # Local k3d cluster for checking deploy/kubernetes. This is a local gate, not
 # EKS proof: Traefik replaces the ALB and the hostpath CSI driver replaces EBS.
 #
-#   run.sh up                  create the cluster and apply the overlay
+#   run.sh up                  create the cluster and apply the overlay; failed
+#                              or interrupted setup cleans up its cluster
 #   run.sh client CMD...       run CMD in a client container that resolves the
 #                              office hosts and trusts the test CA (/work/ca.pem);
 #                              this directory is at /verify
@@ -48,9 +49,37 @@ certificates() {
     openssl dgst -sha256 -binary | base64 > "$work/spki.txt"
 }
 
+cleanup_failed_setup() {
+  status=$?
+  trap - EXIT INT TERM
+  if ! k3d cluster delete "$CLUSTER"; then
+    echo "Failed to clean up $CLUSTER; run '$0 down' to retry." >&2
+  fi
+  # A create interrupted before nodes exist can leave only its network.
+  if docker network inspect "k3d-$CLUSTER" >/dev/null 2>&1; then
+    if ! docker network rm "k3d-$CLUSTER" >/dev/null; then
+      echo "Failed to remove verification network k3d-$CLUSTER." >&2
+    fi
+  fi
+  exit "$status"
+}
+
 case ${1:-} in
 up)
+  # Fail before installing cleanup when another invocation owns this name.
+  clusters=$(k3d cluster list --no-headers)
+  if printf '%s\n' "$clusters" | awk '{print $1}' | grep -Fxq "$CLUSTER"; then
+    echo "Cluster $CLUSTER already exists; run '$0 down' before creating it again." >&2
+    exit 1
+  fi
+  if docker network inspect "k3d-$CLUSTER" >/dev/null 2>&1; then
+    echo "Network k3d-$CLUSTER already exists; refusing to claim its cleanup." >&2
+    exit 1
+  fi
   certificates
+  trap cleanup_failed_setup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
   k3d cluster create "$CLUSTER" --image "$K3S_IMAGE" --agents 0 \
     --servers-memory 10g --k3s-node-label "bureau.com/office-node=true@server:0" --wait
   kubectl apply -k "https://github.com/kubernetes-csi/external-snapshotter/client/config/crd?ref=$SNAPSHOTTER_REF"
@@ -73,6 +102,8 @@ up)
     --from-literal=BUREAU_SETUP_KEY="$(cat "$work/setup-key")" --dry-run=client -o yaml | kubectl apply -f -
   kubectl kustomize "$here" | sed "s|$RELEASED|$IMAGE|g" | kubectl apply -f -
   kubectl -n bureau rollout status deployment/bureau --timeout=10m
+  trap - EXIT INT TERM
+  echo "Cluster $CLUSTER is ready; run '$0 down' when finished." >&2
   ;;
 client)
   shift
