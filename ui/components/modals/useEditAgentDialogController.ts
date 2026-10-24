@@ -1,3 +1,4 @@
+import { useSaveGuard } from "../../hooks/settings/useSaveGuard.ts";
 import { useDiscardGuard } from "./agent-form/useDiscardGuard.ts";
 import { handoffTokens, handoffSettingsError } from "../../../shared/agents/handoff.ts";
 import { useEffect, useRef, useState } from "react";
@@ -67,9 +68,9 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     userId: canEditManager ? managerUserId : undefined,
   });
   const managerOptions = [...users.values()].filter((u) => u.role === "owner" || (agentRoomId ? u.allowedRooms.includes(agentRoomId) : false)).sort((a, b) => a.name.localeCompare(b.name));
-  const [saving, setSaving] = useState(false);
+  const saveGuard = useSaveGuard();
+  const { saving } = saveGuard;
   const [cwdError, setCwdError] = useState<string | null>(null);
-  const pendingListener = useRef<((data: string) => void) | null>(null);
   const savePhase = useRef<"edit" | "privileged" | null>(null);
   const recentCwds = allRecentCwds.filter((c) => c !== cwd);
   const agentMemory = useMemoryEditor("agent", agent?.id ?? null, !isSpawn && !!agent);
@@ -97,13 +98,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const baselineRef = useRef(currentSnapshot);
   const isDirty = isFormDirty(baselineRef.current, currentSnapshot) || agentMemory.dirty;
 
-  const { confirmDiscard, requestClose } = useDiscardGuard(isDirty, saving, onClose);
-
-  useEffect(() => {
-    return () => {
-      if (pendingListener.current) removeRawListener(pendingListener.current);
-    };
-  }, []);
+  const { confirmDiscard, requestClose } = useDiscardGuard(isDirty, saving, onClose, saveGuard.pending);
 
   // Validate the existing cwd when the edit dialog opens, so the user sees
   // immediately if the stored directory is gone.
@@ -137,9 +132,12 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       setCwdError(handoffError);
       return;
     }
+    if (!saveGuard.begin()) return;
     if (!isSpawn) {
       const memoryResult = await agentMemory.save();
+      if (!saveGuard.active()) return;
       if (!memoryResult.ok) {
+        saveGuard.finish();
         setCwdError(memoryResult.message);
         return;
       }
@@ -154,9 +152,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
             send({ type: "set_agent_privileged", requestId: reqId, agentId: agent!.id, privileged });
             return;
           }
-          removeRawListener(listener);
-          pendingListener.current = null;
-          setSaving(false);
+          saveGuard.finish();
           if (msg.ok) {
             savePhase.current = null;
             onClose();
@@ -171,9 +167,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     if (isSpawn) {
       const targetRoomId = rooms[props.room!]?.id;
       setCwdError(null);
-      setSaving(true);
-      addRawListener(listener);
-      pendingListener.current = listener;
+      saveGuard.listen(listener);
       send({
         type: "spawn",
         autoHandoff,
@@ -234,9 +228,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       if (privilegedChanged || cmd.userId || cmd.cwd || cmd.autoHandoff !== undefined || cmd.autoHandoffTokens !== undefined) {
         // Round-trip when cwd validation, manager reassignment, or privilege
         // toggle needs a server ack before closing.
-        setSaving(true);
-        addRawListener(listener);
-        pendingListener.current = listener;
+        saveGuard.listen(listener);
         if (hasAgentChanges) {
           cmd.requestId = reqId;
           savePhase.current = "edit";

@@ -3,10 +3,13 @@ import type { MemoryScope } from "../../../shared/types.ts";
 export type MemorySaveResult = { ok: true; version: string } | { ok: false; conflict?: boolean; message: string };
 type MemoryWrite = { scope: MemoryScope; scopeId: string | null; text: string; version: string };
 
-export async function saveMemory(write: MemoryWrite, url = "/api/memory"): Promise<MemorySaveResult> {
+export async function saveMemory(write: MemoryWrite, url = "/api/memory", timeoutMs = 30_000): Promise<MemorySaveResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, {
       method: "PUT",
+      signal: controller.signal,
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(write),
@@ -32,5 +35,7 @@ export async function saveMemory(write: MemoryWrite, url = "/api/memory"): Promi
     return { ok: true, version: body.version };
   } catch {
     return { ok: false, message: "Could not confirm the memory save. Your edits are still available; check your connection and try again." };
+  } finally {
+    clearTimeout(timeout);
   }
 }

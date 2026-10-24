@@ -71,7 +71,9 @@ export function AgentDialogFrame({ children, isMobile, isSpawn, onClose, onSave,
         <div style={{ overflowY: "auto", flex: 1, padding: isMobile ? "max(24px, env(safe-area-inset-top)) 20px 16px" : "24px 28px 16px" }}>
           <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{title}</h3>
           <p style={{ fontSize: 12, color: "var(--text-faint)", margin: "2px 0 18px" }}>{subtitle}</p>
-          {children}
+          <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+            {children}
+          </fieldset>
         </div>
         <div
           style={{
