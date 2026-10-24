@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { injectedMemorySize, type MemoryScope } from "../../shared/types.ts";
 
-import { saveMemory } from "./memory/save.ts";
+import { saveMemory, type MemorySaveResult as MemoryWriteResult } from "./memory/save.ts";
 
-export type MemorySaveResult = { ok: true } | { ok: false; conflict?: boolean; message: string };
+export type MemorySaveResult = { ok: true } | Extract<MemoryWriteResult, { ok: false }>;
 
 export interface MemoryEditor {
   memory: string;

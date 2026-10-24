@@ -1,3 +1,4 @@
+import { settingsFailureText, type SettingsFailure } from "../../hooks/settings/feedback.ts";
 import { useSaveGuard } from "../../hooks/settings/useSaveGuard.ts";
 import { useDiscardGuard } from "./agent-form/useDiscardGuard.ts";
 import { handoffTokens, handoffSettingsError } from "../../../shared/agents/handoff.ts";
@@ -70,7 +71,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
   const managerOptions = [...users.values()].filter((u) => u.role === "owner" || (agentRoomId ? u.allowedRooms.includes(agentRoomId) : false)).sort((a, b) => a.name.localeCompare(b.name));
   const saveGuard = useSaveGuard();
   const { saving } = saveGuard;
-  const [cwdError, setCwdError] = useState<string | null>(null);
+  const [cwdError, setCwdError] = useState<SettingsFailure | null>(null);
   const savePhase = useRef<"edit" | "privileged" | null>(null);
   const recentCwds = allRecentCwds.filter((c) => c !== cwd);
   const agentMemory = useMemoryEditor("agent", agent?.id ?? null, !isSpawn && !!agent);
@@ -111,7 +112,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
         const msg = JSON.parse(data);
         if (msg.type === "cwd_validation" && msg.requestId === reqId) {
           removeRawListener(listener);
-          if (!msg.ok) setCwdError(msg.error || "Invalid directory");
+          if (!msg.ok) setCwdError(msg.error || { key: "settingsUi.invalidDirectory" });
         }
       } catch {}
     };
@@ -138,7 +139,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
       if (!saveGuard.active()) return;
       if (!memoryResult.ok) {
         saveGuard.finish();
-        setCwdError(memoryResult.message);
+        setCwdError(memoryResult.feedback ?? memoryResult.message);
         return;
       }
     }
@@ -158,7 +159,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
             onClose();
           } else {
             savePhase.current = null;
-            setCwdError(msg.error || "Save failed");
+            setCwdError(msg.error || { key: "settingsUi.saveFailed" });
           }
         }
       } catch {}
@@ -283,7 +284,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     confirmDiscard,
     customInstructions,
     cwd,
-    cwdError,
+    cwdError: cwdError ? settingsFailureText(cwdError, t) : null,
     handleSave,
     requestClose,
     isMobile,

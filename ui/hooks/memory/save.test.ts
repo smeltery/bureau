@@ -1,3 +1,5 @@
+import { translatorFor } from "../../../shared/i18n/translate.ts";
+import { settingsFailureText } from "../settings/feedback.ts";
 import { expect, test } from "bun:test";
 import { saveMemory } from "./save.ts";
 
@@ -44,11 +46,21 @@ test("memory failures preserve conflicts and server details and handle disconnec
   try {
     const conflict = await saveMemory(write, new URL("/conflict", url).href);
     expect(conflict).toMatchObject({ ok: false, conflict: true });
+    for (const language of ["en", "es", "ca", "zh"] as const) {
+      const { t } = translatorFor(language);
+      if (!conflict.ok) expect(settingsFailureText(conflict.feedback ?? conflict.message, t)).toBe(t("settingsUi.memoryConflict"));
+    }
     expect(await saveMemory(write, new URL("/detail", url).href)).toMatchObject({ ok: false, message: "Original failure {value}" });
     for (const path of ["/invalid", "/malformed"]) {
       const result = await saveMemory(write, new URL(path, url).href);
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.message).toContain(path === "/invalid" ? "HTTP 503" : "HTTP 502");
+      if (!result.ok) {
+        expect(result.message).toContain(path === "/invalid" ? "HTTP 503" : "HTTP 502");
+        for (const language of ["en", "es", "ca", "zh"] as const) {
+          const { t } = translatorFor(language);
+          expect(settingsFailureText(result.feedback ?? result.message, t)).toBe(t("settingsUi.memoryHttp", { status: path === "/invalid" ? 503 : 502 }));
+        }
+      }
     }
   } finally {
     server.stop(true);
