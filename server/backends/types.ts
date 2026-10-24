@@ -100,6 +100,8 @@ export interface ListModelsOptions {
   cwd: string;
   env?: { [key: string]: string | undefined };
   includeHidden?: boolean;
+  // Availability checks must not mistake static fallback entries for a live catalog.
+  requireLive?: boolean;
 }
 
 export interface SessionAccessOptions {
