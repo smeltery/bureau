@@ -1,5 +1,4 @@
 import { ProviderSignIn } from "./connections/ProviderSignIn.tsx";
-import { BrowserSharingPane } from "./integrations/BrowserSharingPane.tsx";
 import { useEffect, useState } from "react";
 import type { ProviderAccountWire, ProviderAccountsWire, ProviderKeysUpdateRes, ProviderLoginQueueWire, ProviderSignInSlotRes } from "../../shared/provider-accounts.ts";
 import { sectionHeader } from "./AccessPane.tsx";
@@ -80,7 +79,6 @@ export function ConnectionsPane({ username }: { username: string }) {
       ))}
       {sessionContext?.role === "owner" && <MemberUsageCard />}
       <BedrockHint />
-      <BrowserSharingPane />
     </div>
   );
 }

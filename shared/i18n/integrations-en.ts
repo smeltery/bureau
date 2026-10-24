@@ -6,6 +6,7 @@ export const integrations = {
   "integrations.voice": "Voice",
   "integrations.mcp": "MCP",
   "integrations.secrets": "Secrets",
+  "integrations.browser": "Browser Use",
   "integrations.variables": "Variables",
   "integrations.scope": "Scope",
   "integrations.officeScope": "Office · shared by all agents",
@@ -89,7 +90,8 @@ export const integrations = {
   "integrations.deleteMcpHint": "Remove this connection from agents in this scope?",
   "integrations.confirmDelete": "Confirm delete",
   "integrations.variableSaveFailed": "Could not save the variable.",
-  "integrations.variableHint": "Variables are ordinary environment values visible to agents. Store integration credentials in Secrets instead. Updates take effect between turns.",
+  "integrations.variableHint":
+    "Agents can read variable values. Use a variable when an agent needs the raw value; otherwise store service credentials in Secrets. Model-provider API keys belong in Providers or Variables. Updates take effect between turns.",
   "integrations.value": "Value",
   "integrations.saveVariable": "Save variable",
   "integrations.noVariables": "No variables in this scope.",

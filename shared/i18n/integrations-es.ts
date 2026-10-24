@@ -6,6 +6,7 @@ export const integrations = {
   "integrations.voice": "Voz",
   "integrations.mcp": "MCP",
   "integrations.secrets": "Secretos",
+  "integrations.browser": "Uso del navegador",
   "integrations.variables": "Variables",
   "integrations.scope": "Ámbito",
   "integrations.officeScope": "Oficina · compartido por todos los agentes",
@@ -93,7 +94,7 @@ export const integrations = {
   "integrations.confirmDelete": "Confirmar eliminación",
   "integrations.variableSaveFailed": "No se pudo guardar la variable.",
   "integrations.variableHint":
-    "Las variables son valores de entorno normales visibles para los agentes. Guarda las credenciales de integración en Secretos. Las actualizaciones se aplican entre turnos.",
+    "Los agentes pueden leer los valores de las variables. Usa una variable si un agente necesita el valor original; de lo contrario, guarda las credenciales del servicio en Secretos. Las claves de los proveedores de modelos van en Proveedores o Variables. Los cambios se aplican entre turnos.",
   "integrations.value": "Valor",
   "integrations.saveVariable": "Guardar variable",
   "integrations.noVariables": "No hay variables en este ámbito.",
