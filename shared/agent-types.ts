@@ -217,6 +217,7 @@ export function injectedMemorySize(text: string): number {
 
 // Session info for resume feature
 export interface SessionInfo {
+  summary?: string;
   sessionId: string;
   lastModified: number;
   topic: string | null;

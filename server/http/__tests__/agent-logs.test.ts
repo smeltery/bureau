@@ -7,6 +7,7 @@ import { _testResetAgentTokens, mintAgentToken } from "../../agents/tokens.ts";
 import type { BackendSession } from "../../backends/types.ts";
 import { LOGS_DIR } from "../../persistence/paths.ts";
 import { appendLog } from "../../persistence/logs/logs.ts";
+import { persistSessionSummary, readSessionSummary } from "../../persistence/logs/summary.ts";
 import { persistSessionFork, persistSessionTopic } from "../../persistence/logs/sessions.ts";
 import { handleAgentsRequest } from "../agents.ts";
 import { DEFAULT_AGENT_CAPABILITIES, type AgentInfo, type LogEntry } from "../../../shared/types.ts";
@@ -85,6 +86,18 @@ describe("GET /api/agents/:id/logs", () => {
       sessions: [{ sessionId: "session-one", topic: "Launch plan" }],
       inFlightTurn: null,
     });
+  });
+
+  test("searches persisted summaries through the isolated regex route", async () => {
+    installAgent("agent-log-http");
+    appendEntry("session-one", "entry-one", "api_token_outbound", "Token conversation");
+    const state = readSessionSummary("agent-log-http", "session-one")!;
+    expect(persistSessionSummary("agent-log-http", "session-one", state, "Resolved deployment failure", "entry-one")).toBe(true);
+    const token = mintAgentToken("agent-log-http", null);
+    const req = bearerRequest("/api/agents/agent-log-http/logs?q=deploy.*failure&regex=1&kind=tool_call", token);
+    const res = await handleAgentsRequest(req, new URL(req.url));
+    expect(res?.status).toBe(200);
+    expect(await res?.json()).toMatchObject({ mode: "search", results: [], summaryHits: [{ sessionId: "session-one", snippet: "Resolved deployment failure" }] });
   });
 
   test("reports live in-flight turn state with log reads", async () => {
@@ -301,7 +314,7 @@ describe("GET /api/agents/:id/logs", () => {
     expect(await tier?.json()).toEqual({ error: "tier must be one of: prompts, conversation, full" });
     expect(kind?.status).toBe(422);
     expect(await kind?.json()).toEqual({
-      error: "kind must be a comma-separated subset of: text, thinking, tool_call, tool_result, error, system, user_message, diff, edit-request, terminal-command, file-view",
+      error: "kind must be a comma-separated subset of: text, thinking, tool_call, tool_result, error, system, user_message, api_token_outbound, diff, edit-request, terminal-command, file-view",
     });
   });
 
