@@ -94,6 +94,8 @@ export type NormalizedEvent =
       causedByAuth?: boolean;
       causedByProviderCapacity?: boolean;
       usageLimitResetAt?: number;
+      /** Bureau-authored recovery control, never copied from provider metadata. */
+      pickModel?: boolean;
     }
   | { kind: "provider_capacity_retry"; attempt: number; maxAttempts: number; delayMs: number }
   | { kind: "usage_update"; tokenUsage: TokenUsage }

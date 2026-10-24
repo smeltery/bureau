@@ -1,3 +1,4 @@
+import { startModelAvailabilityMonitor } from "./agents/model-availability/runtime.ts";
 import { installTopicGeneration } from "./agents/topic.ts";
 import { startConversationSummaries } from "./agents/summaries/runtime.ts";
 import { installProviderLoginShutdown } from "./provider-accounts/login/runtime.ts";
@@ -62,6 +63,7 @@ installAuthCallbacks(() => AgentManager.getRooms());
 wireAgentAndCronjobEvents();
 startConversationSummaries();
 installTopicGeneration();
+startModelAvailabilityMonitor();
 
 // Start the live-reload filesystem watcher (no-op unless BUREAU_LIVE_RELOAD=1)
 startLiveReloadWatcher();

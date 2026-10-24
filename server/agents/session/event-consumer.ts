@@ -1,3 +1,4 @@
+import { requestModelAvailability } from "../model-availability/activity.ts";
 import { invalidateTopicGeneration } from "../topic.ts";
 import { recordSummaryEntry, requestSessionSummary } from "../summaries/activity.ts";
 import { BureauLogError } from "../../../shared/i18n/backend-errors/error.ts";
@@ -260,7 +261,8 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
               ev.causedByAuth === false && ev.bureauAuthored && ev.errorMessage
                 ? ev.errorMessage
                 : (failure.message ?? (ev.bureauAuthored && ev.errorMessage ? ev.errorMessage : ev.error === undefined ? logMessage("logs.diagnostic.stopped", { status: ev.status }) : failure.text));
-            addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
+            addLogEntry(agentId, "error", errorText, { ...backendFailureMeta(failure), ...(ev.pickModel ? { pickModel: true } : {}) });
+            if (ev.pickModel && managed.info.agentType === "opencode") requestModelAvailability(agentId);
             const auth = ev.causedByAuth ?? isAuthErrorForAgent(managed, raw);
             if (ev.causedByAuth !== true && auth) emitLoginInstructionsImpl(agentId, managed);
             updateState(agentId, auth || ev.usageLimitResetAt !== undefined ? "waiting_for_response" : "error");

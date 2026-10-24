@@ -80,6 +80,8 @@ export interface AgentInfo {
   topicStale: boolean;
   /** Runtime only: a label refresh is in flight. */
   topicGenerating?: boolean;
+  /** Runtime-only model warning; the selected model is never changed automatically. */
+  unavailableModel?: string | null;
   customInstructions: string | null;
   customInstructionsVersion?: string;
   pendingPrompt?: PendingPromptKind | null;

@@ -158,9 +158,16 @@ export function applyOpenCodeEvent(
       return;
     }
     const refusal = providerRefusal(event.error, ctx.model);
+    const pickModel =
+      event.error.statusCode === 403 ||
+      (event.error.statusCode !== 401 &&
+        event.error.name !== "ProviderAuthError" &&
+        /model.*(?:not found|does not exist)|ModelNotFound/i.test(`${event.error.name ?? ""} ${event.error.message ?? ""}`));
+
     ctx.settle({
-      ...bureauTurnFailure(refusal ?? providerFailureMessage(event.error)),
-      ...(refusal ? { causedByAuth: false } : event.error.statusCode === 401 || event.error.statusCode === 403 || event.error.name === "ProviderAuthError" ? { causedByAuth: true } : {}),
+      ...bureauTurnFailure(refusal ?? (pickModel ? logMessage("logs.provider.model") : providerFailureMessage(event.error))),
+      ...(pickModel ? { pickModel: true } : {}),
+      ...(refusal || pickModel ? { causedByAuth: false } : event.error.statusCode === 401 || event.error.name === "ProviderAuthError" ? { causedByAuth: true } : {}),
     });
   }
 }

@@ -116,3 +116,17 @@ test("a provider refusal retains its explanation without requesting another sign
   expect(JSON.stringify(event)).not.toContain("private-token");
   for (const language of ["en", "es", "ca", "zh"] as const) expect(displayLogContent({ kind: "error", ...logContent(event.errorMessage!) }, language)).toContain("This plan excludes");
 });
+
+test("model failures offer recovery while explicit sign-in failures keep authentication handling", () => {
+  for (const [statusCode, message, pickModel] of [
+    [403, "", true],
+    [404, "model not found", true],
+    [401, "model unavailable", false],
+  ] as const) {
+    const f = fixture();
+    f.wire("session.error", { sessionID: "s", error: { name: "APIError", data: { statusCode, message } } });
+    expect(f.events.at(-1)).toMatchObject({ kind: "turn_completed", status: "failed", causedByAuth: !pickModel });
+    if (pickModel) expect(f.events.at(-1)).toHaveProperty("pickModel", true);
+    else expect(f.events.at(-1)).not.toHaveProperty("pickModel");
+  }
+});

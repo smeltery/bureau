@@ -3,6 +3,8 @@ import { commandDescriptions } from "./command-descriptions-zh.ts";
 export const logs = {
   ...backendErrors,
   ...commandDescriptions,
+  "logs.backend.modelRemoved": "OpenCode 已不再提供模型 {model}。请在代理设置中选择其他模型。",
+  "logs.backend.receptionistModelRemoved": "{name} 无法使用此模型回复访客。请在代理设置中选择其他模型。",
   "logs.run.deleted": "计划已删除；此运行已停止。",
   "logs.run.pendingEditDeleted": "计划已删除；待处理的编辑已取消。",
   "logs.run.sendPromptFailed": "发送提示失败：{error}",

@@ -1,3 +1,4 @@
+import { invalidateModelAvailability } from "./model-availability/activity.ts";
 import { recordSummaryEntry } from "./summaries/activity.ts";
 import { logContent, type LogMessage } from "../../shared/i18n/log-message.ts";
 import { cancelUsageResume } from "./conversation/usage-resume.ts";
@@ -71,6 +72,10 @@ export function onEvent(handler: EventHandler) {
 }
 
 export function emit(event: AgentEvent) {
+  if (event.type === "agent_updated") {
+    const managed = agents.get(event.agentId);
+    if (managed) invalidateModelAvailability(managed, event.changes);
+  }
   eventHandler(event);
 }
 
