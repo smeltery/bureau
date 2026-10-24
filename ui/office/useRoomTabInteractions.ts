@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { send } from "../ws.ts";
 import { useDispatch } from "../store.tsx";
-import { saveRoomView } from "./room-view.ts";
+import { useI18n } from "../i18n.tsx";
+import { saveRoomView, roomViewFailure, roomViewFailureText, type RoomViewFailure } from "./room-view.ts";
 import type { RoomWire } from "../../shared/types.ts";
 
 export function useRoomTabInteractions(rooms: RoomWire[], roomNames: string[]) {
+  const { t, language } = useI18n();
   const dispatch = useDispatch();
-  const [viewError, setViewError] = useState<string | null>(null);
+  const [viewError, setViewError] = useState<RoomViewFailure | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
   const [editingRoom, setEditingRoom] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -42,7 +44,7 @@ export function useRoomTabInteractions(rooms: RoomWire[], roomNames: string[]) {
 
   function startEditing(i: number) {
     setEditingRoom(i);
-    setEditValue(roomNames[i] ?? `Room ${i + 1}`);
+    setEditValue(roomNames[i] ?? t("roomsUi.defaultName", { number: (i + 1).toLocaleString(language) }));
   }
 
   function commitEdit() {
@@ -117,7 +119,7 @@ export function useRoomTabInteractions(rooms: RoomWire[], roomNames: string[]) {
     void saveRoomView("order", order)
       .catch((error: unknown) => {
         dispatch({ type: "rooms_reordered", order: previous });
-        setViewError(error instanceof Error ? error.message : "Could not save room order");
+        setViewError(roomViewFailure(error));
       })
       .finally(() => setSavingOrder(false));
     setDragFrom(null);
@@ -129,7 +131,7 @@ export function useRoomTabInteractions(rooms: RoomWire[], roomNames: string[]) {
   }
 
   return {
-    viewError,
+    viewError: viewError ? roomViewFailureText(viewError, t) : null,
     cancelEdit,
     cancelLongPress,
     commitEdit,

@@ -1,3 +1,4 @@
+import { roomsUi } from "./rooms/es.ts";
 import { appsUi } from "./apps/es.ts";
 import { auditUi } from "./audit/es.ts";
 import { webhooks } from "./webhooks/es.ts";
@@ -35,6 +36,7 @@ export const es = {
   ...webhooks,
   ...auditUi,
   ...appsUi,
+  ...roomsUi,
   "access.title": "Acceso",
   "apiTokens.title": "Tokens de API",
   "apps.confirmDelete": "¿Eliminar {name}? Se conservará su directorio de datos.",

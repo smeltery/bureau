@@ -1,3 +1,4 @@
+import { roomsUi } from "./rooms/zh.ts";
 import { appsUi } from "./apps/zh.ts";
 import { auditUi } from "./audit/zh.ts";
 import { webhooks } from "./webhooks/zh.ts";
@@ -35,6 +36,7 @@ export const zh: Catalog = {
   ...webhooks,
   ...auditUi,
   ...appsUi,
+  ...roomsUi,
   "access.title": "访问权限",
   "apiTokens.title": "API 令牌",
   "apps.confirmDelete": "删除 {name}？其数据目录将会保留。",

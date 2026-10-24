@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useState } from "react";
 
 function ZoomButton({ onClick, title, "aria-label": ariaLabel, children, marginTop = 0 }: { onClick: () => void; title: string; "aria-label": string; children: React.ReactNode; marginTop?: number }) {
@@ -57,6 +58,7 @@ function ZoomButton({ onClick, title, "aria-label": ariaLabel, children, marginT
 }
 
 export function ZoomControls({ onZoomIn, onZoomOut, onReset }: { onZoomIn: () => void; onZoomOut: () => void; onReset: () => void }) {
+  const { t } = useI18n();
   return (
     <div
       data-no-pan
@@ -70,13 +72,13 @@ export function ZoomControls({ onZoomIn, onZoomOut, onReset }: { onZoomIn: () =>
         zIndex: 400,
       }}
     >
-      <ZoomButton onClick={onZoomIn} title="Zoom in" aria-label="Zoom in">
+      <ZoomButton onClick={onZoomIn} title={t("roomsUi.zoomIn")} aria-label={t("roomsUi.zoomIn")}>
         +
       </ZoomButton>
-      <ZoomButton onClick={onZoomOut} title="Zoom out" aria-label="Zoom out">
+      <ZoomButton onClick={onZoomOut} title={t("roomsUi.zoomOut")} aria-label={t("roomsUi.zoomOut")}>
         -
       </ZoomButton>
-      <ZoomButton onClick={onReset} title="Reset view (0)" aria-label="Reset view" marginTop={4}>
+      <ZoomButton onClick={onReset} title={t("roomsUi.resetHint")} aria-label={t("roomsUi.reset")} marginTop={4}>
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
           <circle cx="7" cy="7" r="5.5" />
           <line x1="7" y1="4" x2="7" y2="10" />
