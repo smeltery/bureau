@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { ValidationLine, type ValidationStatus } from "./settings/ValidationLine.tsx";
 import { useSaveGuard } from "../../hooks/settings/useSaveGuard.ts";
 import { useState, useEffect, useRef } from "react";
@@ -17,6 +18,7 @@ type OfficeBaseline = {
 };
 
 export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClose: () => void; username: string; onSaveUsername: (name: string) => void }) {
+  const { t, language } = useI18n();
   const { office, sessionContext, agents } = useAppState();
   const [text, setText] = useState(office.prompt ?? "");
   const [envFile, setEnvFile] = useState(office.envFile ?? "");
@@ -87,7 +89,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         setSettingsVersion(data.version);
       })
       .catch(() => {
-        if (!cancelled) setStatus({ kind: "error", message: "Could not load office settings version. Reopen and try again." });
+        if (!cancelled) setStatus({ kind: "error", message: { key: "settingsUi.officeLoadFailed" } });
       });
     return () => {
       cancelled = true;
@@ -110,7 +112,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         const msg = JSON.parse(data);
         if (msg.type === "settings_validation" && msg.requestId === reqId) {
           if (msg.ok) setStatus({ kind: "ok", keyCount: msg.keyCount });
-          else setStatus({ kind: "error", message: msg.error || "Invalid env file" });
+          else setStatus({ kind: "error", message: msg.error || { key: "settings.profile.envInvalid" } });
           removeRawListener(listener);
         }
       } catch {}
@@ -122,7 +124,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
 
   async function handleSave() {
     if (!settingsVersion) {
-      setStatus({ kind: "error", message: "Office settings version is still loading. Try again in a moment." });
+      setStatus({ kind: "error", message: { key: "settingsUi.officeLoading" } });
       return;
     }
     if (!saveGuard.begin()) return;
@@ -130,14 +132,14 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
     if (!saveGuard.active()) return;
     if (!memoryResult.ok) {
       saveGuard.finish();
-      setStatus({ kind: "error", message: memoryResult.message });
+      setStatus({ kind: "error", message: memoryResult.feedback ?? memoryResult.message });
       return;
     }
     const bossMemoryResult = await bossMemory.save();
     if (!saveGuard.active()) return;
     if (!bossMemoryResult.ok) {
       saveGuard.finish();
-      setStatus({ kind: "error", message: bossMemoryResult.message });
+      setStatus({ kind: "error", message: bossMemoryResult.feedback ?? bossMemoryResult.message });
       return;
     }
     const reqId = `office-save-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -151,7 +153,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
             if (name.trim() && name.trim() !== username) onSaveUsername(name.trim());
             onClose();
           } else {
-            setStatus({ kind: "error", message: msg.error || "Save failed" });
+            setStatus({ kind: "error", message: msg.error || { key: "settingsUi.saveFailed" } });
           }
         }
       } catch {}
@@ -184,15 +186,16 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   return (
     <Modal onClose={requestClose}>
       <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
-        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Office Settings</h3>
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{t("settingsUi.officeTitle")}</h3>
 
-        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>Boss Title</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>{t("settingsUi.bossTitle")}</label>
+        <input aria-label={t("settingsUi.bossTitle")} value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-          Env File Path <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional, absolute path)</span>
+          {t("settings.profile.envFilePath")} <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>{t("settingsUi.absoluteOptional")}</span>
         </label>
         <input
+          aria-label={t("settings.profile.envFilePath")}
           value={envFile}
           onChange={(e) => {
             setEnvFile(e.target.value);
@@ -204,46 +207,46 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         <ValidationLine status={status} />
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-          Rules <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(system prompt for all agents)</span>
+          {t("settingsUi.rules")} <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>{t("settingsUi.rulesScope")}</span>
         </label>
         <ExpandableTextarea
           textareaRef={textareaRef}
-          title="Office Rules"
-          hint="System prompt for all agents. Changes take effect on next conversation."
+          title={t("settingsUi.officeRules")}
+          hint={t("settingsUi.rulesHint")}
           value={text}
           onChange={setText}
-          placeholder="e.g. Always write tests. Use TypeScript. Be concise."
+          placeholder={t("settingsUi.rulesPlaceholder")}
           rows={8}
           style={{ ...inputStyle, resize: "vertical" }}
         />
-        <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>
+        <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>{t("settingsUi.nextConversation")}</p>
 
         {isOwner && (
           <>
             <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-              Lobby receptionist <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>(optional)</span>
+              {t("settingsUi.receptionist")} <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>{t("common.optional")}</span>
             </label>
-            <select value={receptionistAgentId} onChange={(e) => setReceptionistAgentId(e.target.value)} style={inputStyle}>
-              <option value="">None (Team chat)</option>
+            <select aria-label={t("settingsUi.receptionist")} value={receptionistAgentId} onChange={(e) => setReceptionistAgentId(e.target.value)} style={inputStyle}>
+              <option value="">{t("settingsUi.noReceptionist")}</option>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
               ))}
             </select>
-            <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Clicking the lobby host opens this agent's chat when the viewer can see them; otherwise Team chat.</p>
+            <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>{t("settingsUi.receptionistHint")}</p>
           </>
         )}
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-          Memory{" "}
+          {t("settingsUi.memory")}{" "}
           <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
-            (durable notes for all agents; {officeMemory.size} / {officeMemory.cap ?? "..."})
+            {t("settingsUi.officeMemorySize", { size: officeMemory.size.toLocaleString(language), cap: officeMemory.cap?.toLocaleString(language) ?? "…" })}
           </span>
         </label>
         <ExpandableTextarea
-          title="Office Memory"
-          hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
+          title={t("settingsUi.officeMemory")}
+          hint={t("settingsUi.memoryHint")}
           value={officeMemory.memory}
           onChange={officeMemory.setMemory}
           rows={5}
@@ -252,14 +255,14 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         />
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
-          My Memory{" "}
+          {t("settingsUi.myMemory")}{" "}
           <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
-            (durable notes for agents you spawn; {bossMemory.size} / {bossMemory.cap ?? "..."})
+            {t("settingsUi.myMemorySize", { size: bossMemory.size.toLocaleString(language), cap: bossMemory.cap?.toLocaleString(language) ?? "…" })}
           </span>
         </label>
         <ExpandableTextarea
-          title="My Memory"
-          hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
+          title={t("settingsUi.myMemory")}
+          hint={t("settingsUi.memoryHint")}
           value={bossMemory.memory}
           onChange={bossMemory.setMemory}
           rows={5}
@@ -267,7 +270,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
           disabled={!bossMemory.loaded}
         />
 
-        <h4 style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>Experimental</h4>
+        <h4 style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>{t("settingsUi.experimental")}</h4>
         <label
           style={{
             display: "flex",
@@ -281,11 +284,8 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
         >
           <input type="checkbox" checked={browserPanel} onChange={(e) => setBrowserPanel(e.target.checked)} style={{ marginTop: 2 }} />
           <span>
-            <span style={{ fontWeight: 600 }}>Agent browser</span>
-            <span style={{ display: "block", fontSize: 10, color: "var(--text-ghost)", marginTop: 2, fontWeight: 400 }}>
-              Lets agents drive a headless Chrome page (goto / snapshot / click / fill) for local and allowlisted URLs. Off by default; uses the host browser, not a bundled Chromium. Managers get a
-              live side-panel view with drag-select and copy.
-            </span>
+            <span style={{ fontWeight: 600 }}>{t("settingsUi.agentBrowser")}</span>
+            <span style={{ display: "block", fontSize: 10, color: "var(--text-ghost)", marginTop: 2, fontWeight: 400 }}>{t("settingsUi.agentBrowserHint")}</span>
           </span>
         </label>
 
@@ -293,10 +293,10 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
           <button onClick={requestClose} style={cancelBtnStyle} disabled={saving}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("common.saving") : t("common.save")}
           </button>
         </div>
       </fieldset>

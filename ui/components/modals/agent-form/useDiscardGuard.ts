@@ -1,8 +1,10 @@
+import { useI18n } from "../../../i18n.tsx";
 import { useEffect } from "react";
 
 export function useDiscardGuard(dirty: boolean, saving: boolean, onClose: () => void, isSaving?: () => boolean) {
+  const { t } = useI18n();
   function confirmDiscard(): boolean {
-    return !saving && !isSaving?.() && (!dirty || window.confirm("Discard unsaved changes?"));
+    return !saving && !isSaving?.() && (!dirty || window.confirm(t("common.discardPrompt")));
   }
   function requestClose() {
     if (confirmDiscard()) onClose();
