@@ -34,7 +34,7 @@ export function tdStyle(isMobile: boolean): React.CSSProperties {
 
 export function NameCell({ name, description, sub }: { name: string; description?: string; sub?: string }) {
   return (
-    <div>
+    <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
       <div style={{ fontWeight: 600, fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>
         {name}
         {sub && <span style={{ fontWeight: 400, color: "var(--text-muted)", marginLeft: 8, fontSize: 11 }}>{sub}</span>}
@@ -43,8 +43,3 @@ export function NameCell({ name, description, sub }: { name: string; description
     </div>
   );
 }
-
-// Installed plugins activate in new agent sessions only — the SDK subprocess
-// reads the plugin dirs at spawn. Surfaced after install/enable so users
-// aren't left wondering why a running agent doesn't see the new skills.
-export const SESSION_NOTE = "Running agents pick this up on their next session (restart or /resume them).";

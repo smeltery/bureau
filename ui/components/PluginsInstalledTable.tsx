@@ -1,7 +1,9 @@
+import { useI18n } from "../i18n.tsx";
+import { pluginRequest as postPlugins, type PluginAction } from "./plugins/api.ts";
 import { useState } from "react";
-import type { CCInstalledPlugin, CCPluginsState } from "../../shared/types.ts";
+import type { CCInstalledPlugin } from "../../shared/types.ts";
 import { StatusShape } from "../icons/StatusShape.tsx";
-import { ACTION_BTN, NameCell, SESSION_NOTE, tdStyle, thStyle } from "./PluginsViewShared.tsx";
+import { ACTION_BTN, NameCell, tdStyle, thStyle } from "./PluginsViewShared.tsx";
 
 export function InstalledTable({
   installed,
@@ -13,17 +15,18 @@ export function InstalledTable({
   installed: CCInstalledPlugin[];
   isMobile: boolean;
   busy: Set<string>;
-  onAction: (key: string, fn: () => Promise<CCPluginsState>, doneNotice?: string) => void;
+  onAction: PluginAction;
   onGoDiscover: () => void;
 }) {
+  const { t } = useI18n();
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   if (installed.length === 0) {
     return (
       <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-        No plugins installed.{" "}
+        {t("pluginsUi.empty")}{" "}
         <button onClick={onGoDiscover} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: "inherit", padding: 0 }}>
-          Browse the marketplace →
+          {t("pluginsUi.browse")}
         </button>
       </div>
     );
@@ -35,10 +38,10 @@ export function InstalledTable({
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <thead>
         <tr>
-          <th style={th}>PLUGIN</th>
-          {!isMobile && <th style={th}>VERSION</th>}
-          {!isMobile && <th style={th}>SCOPE</th>}
-          <th style={th}>STATUS</th>
+          <th style={th}>{t("pluginsUi.plugin")}</th>
+          {!isMobile && <th style={th}>{t("pluginsUi.version")}</th>}
+          {!isMobile && <th style={th}>{t("pluginsUi.scope")}</th>}
+          <th style={th}>{t("common.status")}</th>
           <th style={{ ...th, width: isMobile ? 120 : 230 }}></th>
         </tr>
       </thead>
@@ -53,20 +56,24 @@ export function InstalledTable({
                 <NameCell name={p.name} description={p.description} sub={`@${p.marketplace}`} />
               </td>
               {!isMobile && <td style={{ ...td, fontFamily: "'JetBrains Mono',monospace", color: "var(--text-dim)" }}>{p.version || "—"}</td>}
-              {!isMobile && <td style={{ ...td, color: "var(--text-dim)" }}>{p.scope}</td>}
+              {!isMobile && (
+                <td style={{ ...td, color: "var(--text-dim)" }}>
+                  {t(p.scope === "user" ? "pluginsUi.scopeUser" : p.scope === "project" ? "pluginsUi.scopeProject" : p.scope === "local" ? "pluginsUi.scopeLocal" : "pluginsUi.scopeManaged")}
+                </td>
+              )}
               <td style={{ ...td, color: p.enabled ? "var(--green)" : "var(--text-muted)", whiteSpace: "nowrap" }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <StatusShape kind="dot" hollow={!p.enabled} /> {p.enabled ? "enabled" : "disabled"}
+                  <StatusShape kind="dot" hollow={!p.enabled} /> {p.enabled ? t("common.enabled") : t("common.disabled")}
                 </span>
               </td>
               <td style={{ ...td, textAlign: "right" }}>
                 <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   <button
-                    onClick={() => onAction(`toggle:${p.id}`, () => postPlugins(p.enabled ? "/plugins/disable" : "/plugins/enable", { plugin: p.id }), p.enabled ? undefined : SESSION_NOTE)}
+                    onClick={() => onAction(`toggle:${p.id}`, () => postPlugins(p.enabled ? "/plugins/disable" : "/plugins/enable", { plugin: p.id }), p.enabled ? undefined : { session: true })}
                     disabled={toggling}
                     style={{ ...ACTION_BTN, opacity: toggling ? 0.6 : 1 }}
                   >
-                    {toggling ? "…" : p.enabled ? "Disable" : "Enable"}
+                    {toggling ? "…" : p.enabled ? t("common.disable") : t("common.enable")}
                   </button>
                   {!isMobile && (
                     <button
@@ -74,7 +81,7 @@ export function InstalledTable({
                       disabled={updating}
                       style={{ ...ACTION_BTN, opacity: updating ? 0.6 : 1 }}
                     >
-                      {updating ? "…" : "Update"}
+                      {updating ? "…" : t("common.update")}
                     </button>
                   )}
                   <button
@@ -96,7 +103,7 @@ export function InstalledTable({
                       opacity: removing ? 0.6 : 1,
                     }}
                   >
-                    {removing ? "…" : confirmRemove === p.id ? "Confirm?" : "Remove"}
+                    {removing ? "…" : confirmRemove === p.id ? t("common.confirmQuestion") : t("common.remove")}
                   </button>
                 </div>
               </td>
@@ -106,15 +113,4 @@ export function InstalledTable({
       </tbody>
     </table>
   );
-}
-
-async function postPlugins(path: string, body: Record<string, unknown>): Promise<CCPluginsState> {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
 }

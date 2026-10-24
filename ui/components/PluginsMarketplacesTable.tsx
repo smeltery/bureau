@@ -1,5 +1,7 @@
+import { useI18n } from "../i18n.tsx";
+import { pluginRequest as postPlugins, type PluginAction } from "./plugins/api.ts";
 import { useMemo, useState } from "react";
-import type { CCAvailablePlugin, CCMarketplace, CCPluginsState } from "../../shared/types.ts";
+import type { CCAvailablePlugin, CCMarketplace } from "../../shared/types.ts";
 import { ACTION_BTN, tdStyle, thStyle } from "./PluginsViewShared.tsx";
 
 export function MarketplacesTable({
@@ -13,8 +15,9 @@ export function MarketplacesTable({
   available: CCAvailablePlugin[];
   isMobile: boolean;
   busy: Set<string>;
-  onAction: (key: string, fn: () => Promise<CCPluginsState>, doneNotice?: string) => void;
+  onAction: PluginAction;
 }) {
+  const { t, language } = useI18n();
   const [source, setSource] = useState("");
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const adding = busy.has("marketplace:add");
@@ -25,11 +28,11 @@ export function MarketplacesTable({
     return counts;
   }, [available]);
 
-  function handleAdd() {
+  async function handleAdd() {
     const trimmed = source.trim();
     if (!trimmed || adding) return;
-    onAction("marketplace:add", () => postPlugins("/plugins/marketplace/add", { source: trimmed }));
-    setSource("");
+    const added = await onAction("marketplace:add", () => postPlugins("/plugins/marketplace/add", { source: trimmed }));
+    if (added) setSource((current) => (current.trim() === trimmed ? "" : current));
   }
 
   const th = thStyle(isMobile);
@@ -40,10 +43,12 @@ export function MarketplacesTable({
         <input
           value={source}
           onChange={(e) => setSource(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          placeholder="owner/repo, git URL, or local path"
+          onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && handleAdd()}
+          aria-label={t("pluginsUi.source")}
+          placeholder={t("pluginsUi.sourceHint")}
           style={{
             flex: 1,
+            minWidth: 0,
             maxWidth: 420,
             padding: "7px 12px",
             background: "var(--bg-input)",
@@ -70,19 +75,19 @@ export function MarketplacesTable({
             opacity: adding || !source.trim() ? 0.6 : 1,
           }}
         >
-          {adding ? "Adding…" : "+ Add"}
+          {adding ? t("pluginsUi.adding") : t("common.add")}
         </button>
       </div>
 
       {marketplaces.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>No marketplaces configured. Add one above (e.g. anthropics/claude-plugins-official).</div>
+        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{t("pluginsUi.noMarketplaces", { example: "anthropics/claude-plugins-official" })}</div>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              <th style={th}>NAME</th>
-              <th style={th}>SOURCE</th>
-              {!isMobile && <th style={th}>PLUGINS</th>}
+              <th style={th}>{t("common.name")}</th>
+              <th style={th}>{t("pluginsUi.source")}</th>
+              {!isMobile && <th style={th}>{t("pluginsUi.plugins")}</th>}
               <th style={{ ...th, width: 100 }}></th>
             </tr>
           </thead>
@@ -93,7 +98,7 @@ export function MarketplacesTable({
                 <tr key={m.name}>
                   <td style={{ ...td, fontWeight: 600, fontFamily: "'JetBrains Mono',monospace" }}>{m.name}</td>
                   <td style={{ ...td, color: "var(--text-dim)", fontFamily: "'JetBrains Mono',monospace", fontSize: 11, wordBreak: "break-all" }}>{m.repo ?? m.url ?? m.source}</td>
-                  {!isMobile && <td style={{ ...td, color: "var(--text-dim)" }}>{countByMarketplace.get(m.name) ?? 0}</td>}
+                  {!isMobile && <td style={{ ...td, color: "var(--text-dim)" }}>{(countByMarketplace.get(m.name) ?? 0).toLocaleString(language)}</td>}
                   <td style={{ ...td, textAlign: "right" }}>
                     <button
                       onClick={() => {
@@ -114,7 +119,7 @@ export function MarketplacesTable({
                         opacity: removing ? 0.6 : 1,
                       }}
                     >
-                      {removing ? "…" : confirmRemove === m.name ? "Confirm?" : "Remove"}
+                      {removing ? "…" : confirmRemove === m.name ? t("common.confirmQuestion") : t("common.remove")}
                     </button>
                   </td>
                 </tr>
@@ -125,15 +130,4 @@ export function MarketplacesTable({
       )}
     </div>
   );
-}
-
-async function postPlugins(path: string, body: Record<string, unknown>): Promise<CCPluginsState> {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
 }

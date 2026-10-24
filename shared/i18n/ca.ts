@@ -1,3 +1,4 @@
+import { pluginsUi } from "./plugins/ca.ts";
 import { access } from "./access/ca.ts";
 import { pager } from "./pager/ca.ts";
 import { questions } from "./questions/ca.ts";
@@ -27,6 +28,7 @@ export const ca = {
   ...questions,
   ...pager,
   ...access,
+  ...pluginsUi,
   "access.title": "Accés",
   "apiTokens.title": "Tokens d’API",
   "apps.confirmDelete": "Vols eliminar {name}? Se’n conservarà el directori de dades.",

@@ -1,3 +1,4 @@
+import { pluginsUi } from "./plugins/zh.ts";
 import { access } from "./access/zh.ts";
 import { pager } from "./pager/zh.ts";
 import { questions } from "./questions/zh.ts";
@@ -27,6 +28,7 @@ export const zh: Catalog = {
   ...questions,
   ...pager,
   ...access,
+  ...pluginsUi,
   "access.title": "访问权限",
   "apiTokens.title": "API 令牌",
   "apps.confirmDelete": "删除 {name}？其数据目录将会保留。",
