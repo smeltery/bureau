@@ -1,3 +1,4 @@
+import type { Attachment } from "./log-types.ts";
 // Office-wide humans-only chat helpers and types. The store lives under
 // ~/.bureau/members-chat/ as monthly JSONL; see server/members-chat/store.ts.
 
@@ -27,14 +28,17 @@ export interface MembersChatMessage {
   device?: string;
   timestamp: number;
   content: string;
+  attachments?: Attachment[];
   editedAt?: number;
   thumbsUp?: MembersChatReactor[];
   replyTo?: MembersChatReply;
   pinnedAt?: number;
 }
 
-export function membersChatExcerpt(content: string): string {
-  return Array.from(content.trim()).slice(0, 200).join("");
+export function membersChatExcerpt(content: string, attachments: Attachment[] = []): string {
+  return Array.from(content.trim() || attachments.map((attachment) => attachment.originalName).join(", "))
+    .slice(0, 200)
+    .join("");
 }
 
 export function recentMembersChatPins(messages: Iterable<MembersChatMessage>): MembersChatMessage[] {

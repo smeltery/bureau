@@ -292,6 +292,7 @@ export const es = {
   "teamChat.addThumbsUp": "Añadir me gusta",
   "teamChat.removeThumbsUp": "Quitar me gusta",
   "teamChat.reactionFailed": "No se pudo actualizar tu reacción. Vuelve a intentarlo.",
+  "teamChat.attachmentLimit": "Adjunta hasta cinco archivos por mensaje. Elimina un archivo para continuar.",
   "teamChat.reply": "Responder",
   "teamChat.cancelReply": "Cancelar respuesta",
   "teamChat.replyingTo": "Respondiendo a {name}",

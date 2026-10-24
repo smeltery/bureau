@@ -21,7 +21,7 @@ class UploadError extends Error {
  * InputBar to highlight its border). We reference-count dragenter/leave
  * events because nested elements fire spurious leave events otherwise.
  */
-export function useAttachmentUpload(agentId: string) {
+export function useAttachmentUpload(agentId: string, uploadUrl = `/api/upload/${agentId}`) {
   const [stagedAttachments, setStagedAttachments] = useState<StagedAttachment[]>([]);
   const [draggingOver, setDraggingOver] = useState(false);
   const dragCounterRef = useRef(0);
@@ -62,13 +62,14 @@ export function useAttachmentUpload(agentId: string) {
       ]);
       const formData = new FormData();
       formData.append("file", file);
-      fetch(`/api/upload/${agentId}`, { method: "POST", body: formData })
+      fetch(uploadUrl, { method: "POST", body: formData })
         .then((res) => {
           if (!res.ok) throw new UploadError(res.status);
           return res.json();
         })
         .then((data: { attachments: Attachment[] }) => {
-          const att = data.attachments[0];
+          const att = data.attachments?.[0];
+          if (!att || typeof att.filename !== "string" || !att.filename) throw new UploadError(502);
           setStagedAttachments((prev) => prev.map((s) => (s.id === id ? { ...s, ...att, uploading: false } : s)));
         })
         .catch((err) => {
@@ -141,6 +142,7 @@ export function useAttachmentUpload(agentId: string) {
     handleFileSelect,
     removeStaged,
     clear,
+    clearSubmitted: (ids: string[]) => setStagedAttachments((previous) => previous.filter((item) => !ids.includes(item.id))),
     handleDragOver,
     handleDragEnter,
     handleDragLeave,

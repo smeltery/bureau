@@ -1,3 +1,4 @@
+import { TeamChatAttachments } from "./TeamChatAttachments.tsx";
 import { TeamChatReaction } from "./TeamChatReaction.tsx";
 import { useState } from "react";
 import { TeamChatEdit } from "./TeamChatEdit.tsx";
@@ -70,6 +71,7 @@ export function TeamChatMessageCard({
       ) : (
         <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{message.content}</div>
       )}
+      {!!message.attachments?.length && <TeamChatAttachments attachments={message.attachments} />}
       <TeamChatReaction message={message} myUserId={myUserId} />
       {!editing && (
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>

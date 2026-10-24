@@ -19,7 +19,9 @@ bearers are refused.
 | Method | Path | Notes |
 | ------ | ---- | ----- |
 | `GET` | `/api/members-chat?before=&limit=` | Page of messages (oldest→newest in the page) plus pinned and the caller’s unread summary |
-| `POST` | `/api/members-chat` | Body `{ text, replyTo?, device? }` → `201` message |
+| `POST` | `/api/members-chat` | Body `{ text, attachments?, replyTo?, device? }` → `201` message |
+| `POST` | `/api/members-chat/uploads` | Multipart files; returns attachment metadata |
+| `GET` | `/api/members-chat/files/:filename` | Browser-authenticated file, with untrusted-content headers |
 | `POST` | `/api/members-chat/read` | Body `{ lastReadId }`; marks through that message for the caller only |
 | `PUT` | `/api/members-chat/:id/pin` | Owner only; body `{ active?: boolean }` |
 | `PUT` | `/api/members-chat/:id` | Author only; body `{ text }`; edits in place |
@@ -68,3 +70,14 @@ Members can add or remove one thumbs-up per message. Counts and reactor names
 sync across browsers and persist after restart. Repeating the same desired
 state is harmless; reactions never add unread messages. Failed requests show
 a retry hint beside the button without discarding the current reaction state.
+
+Attach files with the paperclip, paste, or drag and drop. Uploads are staged
+until posted; remove failed or unwanted files before sending. A message may
+contain only attachments. Limits are five files per message/upload, 200 MiB
+per file, and 400 MiB total. A failed post retains staged files and draft text.
+
+Files and metadata live in `members-chat/files/` under generated names.
+Posted metadata is resolved from the saved upload, never trusted from the
+client. Inline images and file links require a browser session; active file
+types use the same sandbox headers as other Bureau attachments. Uploaded
+files remain stored when a message is deleted.

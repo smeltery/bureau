@@ -293,6 +293,7 @@ export const en = {
   "teamChat.addThumbsUp": "Add thumbs up",
   "teamChat.removeThumbsUp": "Remove thumbs up",
   "teamChat.reactionFailed": "Could not update your reaction. Try again.",
+  "teamChat.attachmentLimit": "Attach up to five files per message. Remove a file to continue.",
   "teamChat.reply": "Reply",
   "teamChat.cancelReply": "Cancel reply",
   "teamChat.replyingTo": "Replying to {name}",

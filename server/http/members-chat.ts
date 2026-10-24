@@ -1,3 +1,5 @@
+import { handleChatFiles } from "./members-chat/files.ts";
+import type { Attachment } from "../../shared/log-types.ts";
 import { broadcastChatSummary } from "../members-chat/broadcast.ts";
 // Humans-only team chat REST surface. Cookie session required — API tokens,
 // loopback agent callers, and agent bearer tokens are refused. Owners may
@@ -60,6 +62,9 @@ export async function handleMembersChatRequest(req: Request, url: URL, auth: Aut
   const session = requireBrowserSession(auth);
   if (session instanceof Response) return session;
 
+  const fileResponse = await handleChatFiles(req, url, store);
+  if (fileResponse) return fileResponse;
+
   const user = getUserById(session.session.userId);
   const userName = user?.name ?? session.session.username;
   const isOwner = session.session.role === "owner";
@@ -103,6 +108,7 @@ export async function handleMembersChatRequest(req: Request, url: URL, auth: Aut
         userId: session.session.userId,
         userName,
         content: record.text,
+        ...(record.attachments !== undefined ? { attachments: record.attachments as Attachment[] } : {}),
         ...(device ? { device } : {}),
         ...(typeof record.replyTo === "string" ? { replyTo: record.replyTo } : {}),
       });
