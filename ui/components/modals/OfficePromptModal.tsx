@@ -173,11 +173,11 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
   // Place cursor at end of text on mount
   useEffect(() => {
     const ta = textareaRef.current;
-    if (ta) {
+    if (ta && settingsVersion) {
       ta.focus();
       ta.setSelectionRange(ta.value.length, ta.value.length);
     }
-  }, []);
+  }, [settingsVersion]);
 
   const requestClose = () => {
     if (!saveGuard.pending()) discardPrompt.requestLeave(onClose);
@@ -185,7 +185,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
 
   return (
     <Modal onClose={requestClose}>
-      <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+      <fieldset disabled={saving || !settingsVersion} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
         <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{t("settingsUi.officeTitle")}</h3>
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>{t("settingsUi.bossTitle")}</label>
@@ -204,6 +204,11 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
           placeholder="/home/you/.secrets/office.env"
           style={inputStyle}
         />
+        {!settingsVersion && status.kind === "idle" && (
+          <p role="status" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            {t("common.loading")}
+          </p>
+        )}
         <ValidationLine status={status} />
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
@@ -288,18 +293,18 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
             <span style={{ display: "block", fontSize: 10, color: "var(--text-ghost)", marginTop: 2, fontWeight: 400 }}>{t("settingsUi.agentBrowserHint")}</span>
           </span>
         </label>
-
-        {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-          <button onClick={requestClose} style={cancelBtnStyle} disabled={saving}>
-            {t("common.cancel")}
-          </button>
-          <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>
-            {saving ? t("common.saving") : t("common.save")}
-          </button>
-        </div>
       </fieldset>
+
+      {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+        <button onClick={requestClose} style={cancelBtnStyle} disabled={saving}>
+          {t("common.cancel")}
+        </button>
+        <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>
+          {saving ? t("common.saving") : t("common.save")}
+        </button>
+      </div>
     </Modal>
   );
 }

@@ -183,11 +183,11 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
 
   useEffect(() => {
     const ta = textareaRef.current;
-    if (ta) {
+    if (ta && settingsVersion) {
       ta.focus();
       ta.setSelectionRange(ta.value.length, ta.value.length);
     }
-  }, []);
+  }, [settingsVersion]);
 
   if (!room) return null;
 
@@ -197,7 +197,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
 
   return (
     <Modal onClose={requestClose}>
-      <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+      <fieldset disabled={saving || !settingsVersion} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
         <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{t("settingsUi.roomTitle", { name: room.name })}</h3>
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 18, marginBottom: 5 }}>
@@ -213,6 +213,11 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
           placeholder="/home/you/.secrets/room.env"
           style={inputStyle}
         />
+        {!settingsVersion && status.kind === "idle" && (
+          <p role="status" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            {t("common.loading")}
+          </p>
+        )}
         <ValidationLine status={status} />
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>{t("settingsUi.look")}</label>
@@ -292,18 +297,18 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
           style={{ ...inputStyle, resize: "vertical" }}
           disabled={!roomMemory.loaded}
         />
-
-        {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-          <button onClick={requestClose} style={cancelBtnStyle} disabled={saving}>
-            {t("common.cancel")}
-          </button>
-          <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>
-            {saving ? t("common.saving") : t("common.save")}
-          </button>
-        </div>
       </fieldset>
+
+      {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+        <button onClick={requestClose} style={cancelBtnStyle} disabled={saving}>
+          {t("common.cancel")}
+        </button>
+        <button onClick={handleSave} style={saveBtnStyle} disabled={saving || !settingsVersion}>
+          {saving ? t("common.saving") : t("common.save")}
+        </button>
+      </div>
     </Modal>
   );
 }
