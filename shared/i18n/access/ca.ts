@@ -59,4 +59,29 @@ export const access = {
   "invitesUi.mintRecovery": "Genera un enllaç de recuperació",
   "invitesUi.recoveryFailed": "No s'ha pogut generar l'enllaç de recuperació",
   "invitesUi.missingLink": "La resposta de recuperació no incloïa cap enllaç",
+  "externalUi.hint": "Controla si es pot accedir a aquesta oficina des de fora de l'equip amfitrió. Els enllaços d'invitació i els dispositius connectats són a Invitacions i Sessions.",
+  "externalUi.title": "Accés extern",
+  "externalUi.loopback": "Actualment només escolta a la interfície local. S'hi pot accedir des d'aquest equip o des d'altres mitjançant un túnel SSH.",
+  "externalUi.external": "Actualment escolta externament. S'hi pot accedir des de qualsevol lloc on es resolgui l'URL públic.",
+  "externalUi.name": "Nom de l'oficina (opcional)",
+  "externalUi.nameExample": "p. ex., Seu d'Acme",
+  "externalUi.nameHint": "Es mostra a les pàgines d'accés i d'invitació per identificar aquesta oficina. És útil si executes diverses instàncies de Bureau. S'aplica immediatament.",
+  "externalUi.enable": "Activa l'accés extern",
+  "externalUi.url": "URL públic",
+  "externalUi.urlHint": "Format: {pattern} (l'adreça que obriràs des del portàtil o telèfon). Desar no canvia per si sol l'adreça d'escolta del servidor en execució; reinicia Bureau per aplicar-ho.",
+  "externalUi.hosts": "Hosts públics per a la previsualització del navegador",
+  "externalUi.hostsHint":
+    "Noms de host opcionals que els agents poden capturar amb la previsualització del navegador encara que es resolguin a adreces públiques. Els URL locals i de xarxes privades funcionen sense entrades aquí.",
+  "externalUi.envInvalid": "Nota: {variable} està definida a l'entorn, però no és un origen públic vàlid i el servidor la ignora. Elimina-la del fitxer d'entorn o assigna-li {https} o {local}.",
+  "externalUi.envMatch":
+    "Nota: {assignment} està definida a l'entorn i coincideix amb aquest URL públic. La variable està obsoleta; elimina-la del fitxer d'entorn després de desar aquest valor a la configuració de l'oficina.",
+  "externalUi.envConflict":
+    "Nota: {assignment} està definida a l'entorn. Després de reiniciar, substituiria qualsevol valor diferent desat aquí. No es permetrà desar fins que aquest URL coincideixi amb el valor de l'entorn o eliminis la variable de l'entorn del servei.",
+  "externalUi.envIgnored":
+    "Nota: {assignment} està definida a l'entorn, però l'oficina només escolta a la interfície local i s'ignora durant l'execució. La variable està obsoleta; elimina-la del fitxer d'entorn.",
+  "externalUi.failed": "No s'ha pogut actualitzar la configuració",
+  "externalUi.saving": "Desant…",
+  "externalUi.restart": "Desat. Reinicia Bureau per aplicar la nova adreça d'escolta:",
+  "externalUi.systemService": "Per a un servei del sistema, fes servir:",
+  "externalUi.signIn": "Després de reiniciar, obre aquest URL al dispositiu que vulguis fer servir des de l'adreça pública. Caduca 1 hora després de crear-lo.",
 } as const;

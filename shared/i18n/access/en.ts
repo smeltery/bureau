@@ -57,4 +57,28 @@ export const access = {
   "invitesUi.mintRecovery": "Mint recovery link",
   "invitesUi.recoveryFailed": "Failed to mint recovery link",
   "invitesUi.missingLink": "Recovery response did not include a link",
+  "externalUi.hint": "Control whether this office is reachable from outside the host machine. Invite links and signed-in devices live in Invites and Sessions.",
+  "externalUi.title": "External access",
+  "externalUi.loopback": "Currently loopback-only. The office is reachable from this machine, or from other machines via an SSH tunnel.",
+  "externalUi.external": "Currently listening externally. The office is reachable from anywhere the public URL resolves.",
+  "externalUi.name": "Office name (optional)",
+  "externalUi.nameExample": "e.g. Acme HQ",
+  "externalUi.nameHint": "Shown on sign-in and invite pages to identify this office. Useful when you run multiple Bureau instances. Takes effect immediately.",
+  "externalUi.enable": "Enable external access",
+  "externalUi.url": "Public URL",
+  "externalUi.urlHint": "Pattern: {pattern} (the address you will open from your laptop or phone). Saving does not change the running server's bind on its own — restart Bureau to apply.",
+  "externalUi.hosts": "Browser preview public hosts",
+  "externalUi.hostsHint": "Optional hostnames agents may capture with browser preview even when they resolve publicly. Local and private-network URLs work without entries here.",
+  "externalUi.envInvalid": "Note: {variable} is set in the environment but is not a valid public origin, so the server ignores it. Remove it from your env file or set it to {https} or {local}.",
+  "externalUi.envMatch":
+    "Note: {assignment} is set in the environment and matches this Public URL. The environment variable is deprecated — remove it from your env file once this office configuration value is saved.",
+  "externalUi.envConflict":
+    "Note: {assignment} is set in the environment. After restart it would override a different value saved here, so saving will be refused until you match this URL to the environment value or remove the variable from your service environment.",
+  "externalUi.envIgnored":
+    "Note: {assignment} is set in the environment, but the office is bound to loopback only, so the value is ignored at runtime. The environment variable is deprecated — remove it from your env file.",
+  "externalUi.failed": "Failed to update settings",
+  "externalUi.saving": "Saving…",
+  "externalUi.restart": "Saved. Restart Bureau so the new bind takes effect:",
+  "externalUi.systemService": "For a system service, use:",
+  "externalUi.signIn": "After restarting, open this URL on the device you want to use from the public address. It expires 1 hour after creation.",
 } as const;
