@@ -1,3 +1,4 @@
+import { withOneShotDeadline } from "../one-shot-deadline.ts";
 import type { BackendEffortOption, BackendModel, ForkSessionBeforeMessageResult, ListModelsOptions, NormalizedMessage, OneShotOptions, SessionAccessOptions } from "../types.ts";
 
 import { JsonRpcLiteClient } from "./client.ts";
@@ -140,60 +141,63 @@ export async function getCodexSessionMessages(sessionId: string, access?: Sessio
 export async function oneShotCodexPrompt(prompt: string, opts: OneShotOptions): Promise<string> {
   const client = new JsonRpcLiteClient({ cwd: opts.cwd, env: opts.env });
   try {
-    client.start();
-    await initializeCodexClient(client);
-    const startResp = await client.request<{ thread: { id: string } }>("thread/start", {
-      cwd: opts.cwd,
-      model: opts.modelFamily,
-      sandbox: "read-only",
-      approvalPolicy: "never",
-      ephemeral: true,
-      experimentalRawEvents: false,
-      persistExtendedHistory: false,
-      config: { ...CODEX_THREAD_CONFIG_OVERRIDES },
-    });
-    const threadId = startResp.thread.id;
-    let result = "";
-    let resolved = false;
-    let failure: Error | null = null;
-    const done = new Promise<void>((resolve) => {
-      client.onNotification((n) => {
-        const params = n.params as Record<string, unknown> | null | undefined;
-        if (params?.threadId !== threadId) return;
-        if (n.method === "item/completed") {
-          const item = params?.item as { type?: string; text?: string } | undefined;
-          if (item?.type === "agentMessage" && typeof item.text === "string") {
-            result = item.text;
-          }
-        } else if (n.method === "turn/completed") {
-          const turn = params?.turn as { status?: string; error?: { message?: string } | null } | undefined;
-          if (turn?.status && turn.status !== "completed") {
-            failure = new Error(`Codex one-shot turn ${turn.status}: ${turn.error?.message ?? "no detail"}`);
-          }
-          if (!resolved) {
-            resolved = true;
-            resolve();
-          }
-        } else if (n.method === "error") {
-          const msg = params?.message;
-          failure = new Error(`Codex one-shot error: ${typeof msg === "string" ? msg : "unknown"}`);
-          if (!resolved) {
-            resolved = true;
-            resolve();
-          }
-        }
+    return await withOneShotDeadline(async () => {
+      client.start();
+      await initializeCodexClient(client);
+      const startResp = await client.request<{ thread: { id: string } }>("thread/start", {
+        cwd: opts.cwd,
+        model: opts.modelFamily,
+        baseInstructions: opts.systemPrompt,
+        sandbox: "read-only",
+        approvalPolicy: "never",
+        ephemeral: true,
+        experimentalRawEvents: false,
+        persistExtendedHistory: false,
+        config: { ...CODEX_THREAD_CONFIG_OVERRIDES },
       });
-    });
-    await client.request("turn/start", {
-      threadId,
-      input: [{ type: "text", text: prompt, text_elements: [] }],
-    });
-    await done;
-    try {
-      await client.request("thread/archive", { threadId });
-    } catch {}
-    if (failure) throw failure as Error;
-    return result;
+      const threadId = startResp.thread.id;
+      let result = "";
+      let resolved = false;
+      let failure: Error | null = null;
+      const done = new Promise<void>((resolve) => {
+        client.onNotification((n) => {
+          const params = n.params as Record<string, unknown> | null | undefined;
+          if (params?.threadId !== threadId) return;
+          if (n.method === "item/completed") {
+            const item = params?.item as { type?: string; text?: string } | undefined;
+            if (item?.type === "agentMessage" && typeof item.text === "string") {
+              result = item.text;
+            }
+          } else if (n.method === "turn/completed") {
+            const turn = params?.turn as { status?: string; error?: { message?: string } | null } | undefined;
+            if (turn?.status && turn.status !== "completed") {
+              failure = new Error(`Codex one-shot turn ${turn.status}: ${turn.error?.message ?? "no detail"}`);
+            }
+            if (!resolved) {
+              resolved = true;
+              resolve();
+            }
+          } else if (n.method === "error") {
+            const msg = params?.message;
+            failure = new Error(`Codex one-shot error: ${typeof msg === "string" ? msg : "unknown"}`);
+            if (!resolved) {
+              resolved = true;
+              resolve();
+            }
+          }
+        });
+      });
+      await client.request("turn/start", {
+        threadId,
+        input: [{ type: "text", text: prompt, text_elements: [] }],
+      });
+      await done;
+      try {
+        await client.request("thread/archive", { threadId });
+      } catch {}
+      if (failure) throw failure as Error;
+      return result;
+    }, opts.timeoutMs);
   } finally {
     await client.close();
   }
