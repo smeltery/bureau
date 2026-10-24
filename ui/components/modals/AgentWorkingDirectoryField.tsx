@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { shortenCwd } from "../../cwd-display.ts";
 
 export function AgentWorkingDirectoryField({
@@ -19,9 +20,10 @@ export function AgentWorkingDirectoryField({
   setCwdError: (error: string | null) => void;
   showNextConversationHint: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <>
-      <label style={{ ...labelStyle, marginTop: 12 }}>Working Directory</label>
+      <label style={{ ...labelStyle, marginTop: 12 }}>{t("dialogs.agent.workingDirectory")}</label>
       <input
         value={cwd}
         onChange={(e) => {
@@ -47,7 +49,7 @@ export function AgentWorkingDirectoryField({
           ))}
         </div>
       )}
-      {showNextConversationHint && <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>Changes take effect on next conversation.</p>}
+      {showNextConversationHint && <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>{t("agentSettings.nextConversation")}</p>}
     </>
   );
 }
