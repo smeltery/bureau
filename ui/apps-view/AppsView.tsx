@@ -1,3 +1,4 @@
+import { appFailureText } from "./appsApi.ts";
 // The Apps tab — agent-built web apps bureau runs and keeps running. Beside
 // Cron jobs, which is the precedent for "a thing bureau runs that is not an
 // agent" (docs/features/agent-apps.md).
@@ -46,7 +47,7 @@ export function AppsView({ onClose }: { onClose: () => void }) {
     toggleLogs,
   } = useAppsViewController();
   const features = useFeatures();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   return (
     <div style={{ height: isMobile ? "100dvh" : "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)", color: "var(--text-primary)" }}>
@@ -56,6 +57,7 @@ export function AppsView({ onClose }: { onClose: () => void }) {
         style={{
           display: "flex",
           alignItems: "center",
+          flexWrap: "wrap",
           gap: 8,
           padding: isMobile ? "0 12px" : "0 20px",
           paddingTop: isMobile ? "env(safe-area-inset-top, 0px)" : undefined,
@@ -71,7 +73,7 @@ export function AppsView({ onClose }: { onClose: () => void }) {
           ←
         </button>
         <div style={{ fontSize: 13, fontWeight: 600 }}>{t("apps.title")}</div>
-        <button onClick={() => setShowArchived(!showArchived)}>{showArchived ? "Show active apps" : "Show archive"}</button>
+        <button onClick={() => setShowArchived(!showArchived)}>{showArchived ? t("appsUi.active") : t("appsUi.archiveView")}</button>
         <button
           type="button"
           onClick={() => setPreviewsEnabled(!previewsEnabled)}
@@ -89,10 +91,16 @@ export function AppsView({ onClose }: { onClose: () => void }) {
         >
           {previewsEnabled ? t("apps.previewsOn") : t("apps.previewsOff")}
         </button>
-        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{!appsLoaded ? "" : shown.length < sorted.length ? `${shown.length}/${sorted.length}` : `${sorted.length}`}</div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          {!appsLoaded ? "" : shown.length < sorted.length ? `${shown.length.toLocaleString(language)}/${sorted.length.toLocaleString(language)}` : sorted.length.toLocaleString(language)}
+        </div>
       </div>
 
-      {error && <div style={{ padding: "8px 16px", background: "var(--bg-subtle)", borderBottom: "1px solid var(--border-subtle)", color: "var(--red)", fontSize: 12, flexShrink: 0 }}>{error}</div>}
+      {error && (
+        <div style={{ padding: "8px 16px", background: "var(--bg-subtle)", borderBottom: "1px solid var(--border-subtle)", color: "var(--red)", fontSize: 12, flexShrink: 0 }}>
+          {appFailureText(error, t)}
+        </div>
+      )}
 
       {appsLoaded && sorted.length > 0 && (
         <div
@@ -122,8 +130,8 @@ export function AppsView({ onClose }: { onClose: () => void }) {
                 {t(FILTER_LABELS[filter])}
               </label>
             ))}
-          <select aria-label="Filter apps by room" value={roomFilter} onChange={(event) => setRoomFilter(event.target.value)}>
-            <option value="">All rooms</option>
+          <select aria-label={t("appsUi.room")} value={roomFilter} onChange={(event) => setRoomFilter(event.target.value)}>
+            <option value="">{t("appsUi.allRooms")}</option>
             {rooms.map((room) => (
               <option key={room.id} value={room.id}>
                 {room.name}

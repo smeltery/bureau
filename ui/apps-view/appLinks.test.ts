@@ -5,7 +5,7 @@
 // Pure: no DOM, no server.
 
 import { describe, expect, test } from "bun:test";
-import { appHref, appLinkLabel } from "./appLinks.ts";
+import { appHref, appLinkLabelKey } from "./appLinks.ts";
 
 describe("appHref", () => {
   test("uses the app's own URL verbatim when it has one", () => {
@@ -69,14 +69,14 @@ describe("appHref", () => {
   });
 });
 
-describe("appLinkLabel", () => {
+describe("appLinkLabelKey", () => {
   test("uses a plain action for apps with issued URLs", () => {
-    expect(appLinkLabel({ url: "https://standup-board.office.example" })).toBe("Open app");
+    expect(appLinkLabelKey({ url: "https://standup-board.office.example" })).toBe("appsUi.open");
   });
 
   test("makes port fallback scope explicit", () => {
-    expect(appLinkLabel({})).toBe("Open on this network");
-    expect(appLinkLabel({ url: "" })).toBe("Open on this network");
+    expect(appLinkLabelKey({})).toBe("appsUi.openNetwork");
+    expect(appLinkLabelKey({ url: "" })).toBe("appsUi.openNetwork");
   });
 });
 

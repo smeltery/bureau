@@ -1,3 +1,4 @@
+import type { PlainMessageKey, Translator } from "../../shared/i18n/translate.ts";
 // The browser side of /api/apps. The app registry is an HTTP surface (agents
 // call the same routes), so the Apps tab talks to it directly rather than
 // through the websocket — the deltas the server broadcasts are what keep every
@@ -12,7 +13,7 @@ import type { AppVerb } from "./appVerbs.ts";
  * shown as-is; anything else (a proxy's HTML, an empty body) falls back to the
  * status so the banner is never blank.
  */
-export function appsErrorMessage(body: unknown, status: number): string {
+function serverMessage(body: unknown): string | null {
   if (body && typeof body === "object") {
     const error = (body as { error?: unknown }).error;
     if (error && typeof error === "object") {
@@ -20,10 +21,42 @@ export function appsErrorMessage(body: unknown, status: number): string {
       if (typeof message === "string" && message !== "") return message;
     }
   }
-  return `HTTP ${status}`;
+  return null;
 }
 
-async function appsFetch<T>(method: string, path: string): Promise<T> {
+export function appsErrorMessage(body: unknown, status: number): string {
+  return serverMessage(body) ?? `HTTP ${status}`;
+}
+export type AppFailure = string | { key: PlainMessageKey } | { status: number };
+export class AppUiError extends Error {
+  readonly key: PlainMessageKey;
+  constructor(key: PlainMessageKey) {
+    super(key);
+    this.key = key;
+  }
+}
+class AppResponseError extends Error {
+  readonly detail: string | null;
+  constructor(
+    body: unknown,
+    readonly status: number,
+  ) {
+    super(appsErrorMessage(body, status));
+    this.detail = serverMessage(body);
+  }
+}
+export function appResponseError(body: unknown, status: number): Error {
+  return new AppResponseError(body, status);
+}
+export function appFailure(error: unknown, fallback: PlainMessageKey): AppFailure {
+  if (error instanceof AppResponseError) return error.detail ?? { status: error.status };
+  return { key: error instanceof AppUiError ? error.key : fallback };
+}
+export function appFailureText(error: AppFailure, t: Translator["t"]): string {
+  return typeof error === "string" ? error : "status" in error ? t("appsUi.httpError", { status: error.status }) : t(error.key);
+}
+
+export async function appsFetch<T>(method: string, path: string): Promise<T> {
   const res = await fetch(path, { method, credentials: "same-origin" });
   // 204 (delete) has no body at all, and neither does a proxy error page worth
   // parsing — a failed parse must not mask the status.
@@ -33,10 +66,12 @@ async function appsFetch<T>(method: string, path: string): Promise<T> {
     try {
       body = JSON.parse(text);
     } catch {
+      if (res.ok) throw new Error("Invalid app response");
       body = null;
     }
   }
-  if (!res.ok) throw new Error(appsErrorMessage(body, res.status));
+  if (!res.ok) throw appResponseError(body, res.status);
+  if (res.status !== 204 && text === "") throw new Error("Empty app response");
   return body as T;
 }
 

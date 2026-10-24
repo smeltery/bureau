@@ -1,3 +1,4 @@
+import { appHref } from "./appLinks.ts";
 // The Apps tab's state: the polling loop, the verbs, the log pane and the
 // delete confirmation. The view below it is markup only.
 
@@ -5,17 +6,16 @@ import { useEffect, useRef, useState } from "react";
 import type { AppListWire } from "../../shared/apps.ts";
 import { useAppState, useDispatch } from "../store.tsx";
 import { getAppFilter, getAppPreviews, pruneAppPreviewOpens, setAppFilter, setAppPreviews, type AppFilter } from "../device-settings.ts";
-import { controlApp, deleteApp, listApps, readAppLog } from "./appsApi.ts";
+import { controlApp, deleteApp, listApps, readAppLog, appFailure, type AppFailure } from "./appsApi.ts";
 import { nextPollDelay, shouldCommit } from "./appsPolling.ts";
 import { filterApps, sortApps, type AppVerb } from "./appVerbs.ts";
-import { errMessage } from "../../shared/errors.ts";
 
 export function useAppsViewController() {
   const { apps, appsLoaded, appsRevision, isMobile, hydrationEpoch, sessionContext, agents, rooms, currentRoom, lobbyOpen } = useAppState();
   const [roomFilter, setRoomFilter] = useState(() => (lobbyOpen ? "" : (rooms[currentRoom]?.id ?? "")));
   const dispatch = useDispatch();
   const [showArchived, setShowArchived] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AppFailure | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AppListWire | null>(null);
   const [previewsEnabled, setPreviewsEnabled] = useState(getAppPreviews);
@@ -37,7 +37,7 @@ export function useAppsViewController() {
   const logGenRef = useRef(0);
   const openLogsRef = useRef<string | null>(null);
   const [logLines, setLogLines] = useState<string[] | null>(null);
-  const [logError, setLogError] = useState<string | null>(null);
+  const [logError, setLogError] = useState<AppFailure | null>(null);
 
   // Mirrors the store's app revision so the async poll body reads the CURRENT
   // value rather than the one captured when its closure was created.
@@ -61,7 +61,7 @@ export function useAppsViewController() {
 
   useEffect(() => {
     if (!appsLoaded) return;
-    pruneAppPreviewOpens(apps.flatMap((app) => (typeof app.url === "string" && app.url !== "" ? [app.url] : [])));
+    pruneAppPreviewOpens(apps.map((app) => appHref(app, window.location.hostname)));
   }, [apps, appsLoaded]);
 
   // Fetch on mount and on every rehydration, then poll while open.
@@ -100,7 +100,7 @@ export function useAppsViewController() {
         landed = revision === revisionRef.current;
       } catch (err) {
         if (cancelled) return;
-        setError(errMessage(err, "Could not load apps."));
+        setError(appFailure(err, "apps.loadFailed"));
       }
       const delay = nextPollDelay(cancelled, landed);
       if (delay === null) return;
@@ -121,7 +121,7 @@ export function useAppsViewController() {
       const app = await controlApp(name, verb);
       dispatch({ type: "app_updated", app });
     } catch (err) {
-      setError(errMessage(err, `Could not ${verb}.`));
+      setError(appFailure(err, "appsUi.actionFailed"));
     } finally {
       setBusy(null);
     }
@@ -140,7 +140,7 @@ export function useAppsViewController() {
         openLogsRef.current = null;
       }
     } catch (err) {
-      setError(errMessage(err, "Could not delete."));
+      setError(appFailure(err, "appsUi.deleteFailed"));
     } finally {
       setBusy(null);
     }
@@ -165,7 +165,7 @@ export function useAppsViewController() {
       setLogLines(lines);
     } catch (err) {
       if (!shouldCommit(gen, logGenRef.current, name, openLogsRef.current)) return;
-      setLogError(errMessage(err, "Could not read the log."));
+      setLogError(appFailure(err, "appsUi.logFailed"));
     }
   }
 

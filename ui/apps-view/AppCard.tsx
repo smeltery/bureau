@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+import { appResponseError, appFailure, appFailureText, type AppFailure } from "./appsApi.ts";
 // One app's row: state, the name (which links to the running app), its blurb,
 // the facts a human wants at a glance, the verbs, and the log pane when open.
 
@@ -6,9 +8,9 @@ import { useEffect, useRef, useState } from "react";
 import type { AppListWire, AppState as AppRunState } from "../../shared/apps.ts";
 import { APP_PREVIEW_OPEN_TTL_MS, getAppPreviewOpenedAt, markAppPreviewOpened } from "../device-settings.ts";
 import { appPreviewQueue } from "./previewQueue.ts";
-import { appHref, appLinkLabel } from "./appLinks.ts";
+import { appHref, appLinkLabelKey } from "./appLinks.ts";
 import { appCanPreview, appPreviewPhase, appPreviewUrl, BACKGROUND_OPEN_FALLBACK_MS } from "./appPreview.ts";
-import { APP_VERBS, STATE_COLOR, VERB_TITLES, stateIsHollow, verbInert, type AppVerb } from "./appVerbs.ts";
+import { APP_VERBS, STATE_COLOR, VERB_TITLE_KEYS, VERB_LABEL_KEYS, STATE_LABEL_KEYS, stateIsHollow, verbInert, type AppVerb } from "./appVerbs.ts";
 import { appBtnStyle, appMonoPane } from "./styles.ts";
 
 // A drawn dot, not a glyph: iOS Safari emoji-renders characters like ● and ▶
@@ -42,13 +44,14 @@ function Meta({ label, value }: { label: string; value: string }) {
 }
 
 function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppListWire, "name">; href: string; isMobile: boolean; framesAllowed: boolean }) {
+  const { t } = useI18n();
   const hostRef = useRef<HTMLAnchorElement>(null);
   const [visible, setVisible] = useState(() => !("IntersectionObserver" in window));
   const [openedAt, setOpenedAt] = useState(() => getAppPreviewOpenedAt(href));
   const [now, setNow] = useState(Date.now);
   const [waitingForReturn, setWaitingForReturn] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AppFailure | null>(null);
   const phase = appPreviewPhase(openedAt, now, visible, waitingForReturn, framesAllowed);
 
   useEffect(() => {
@@ -101,14 +104,14 @@ function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppListW
         const response = await fetch(appPreviewUrl(app), { cache: "no-store" });
         if (!response.ok) {
           const body = await response.json().catch(() => null);
-          throw new Error(body?.error?.message ?? `Preview failed (${response.status})`);
+          throw appResponseError(body, response.status);
         }
         objectUrl = URL.createObjectURL(await response.blob());
         if (cancelled) return;
         setImageUrl(objectUrl);
       } catch (err) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Preview failed");
+        setError(appFailure(err, "appsUi.previewFailed"));
       }
     });
     return () => {
@@ -132,7 +135,7 @@ function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppListW
       href={href}
       target="_blank"
       rel="noreferrer"
-      title={`Open ${app.name}`}
+      title={t("appsUi.openNamed", { name: app.name })}
       tabIndex={-1}
       onClick={recordOpen}
       onAuxClick={(event) => {
@@ -152,15 +155,15 @@ function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppListW
       }}
     >
       {phase === "open-prompt" ? (
-        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12 }}>Open app to enable preview</span>
+        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12 }}>{t("appsUi.previewPrompt")}</span>
       ) : phase === "loading" ? (
-        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12 }}>Loading preview...</span>
+        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12 }}>{t("appsUi.previewLoading")}</span>
       ) : error ? (
-        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12, padding: 12, textAlign: "center" }}>{error}</span>
+        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12, padding: 12, textAlign: "center" }}>{appFailureText(error, t)}</span>
       ) : imageUrl ? (
         <img src={imageUrl} alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />
       ) : (
-        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12 }}>Loading preview...</span>
+        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 12 }}>{t("appsUi.previewLoading")}</span>
       )}
       {phase !== "open-prompt" && (
         <span
@@ -176,7 +179,7 @@ function AppPreview({ app, href, isMobile, framesAllowed }: { app: Pick<AppListW
             boxShadow: "0 1px 4px var(--shadow-heavy)",
           }}
         >
-          live preview
+          {t("appsUi.previewLive")}
         </span>
       )}
     </a>
@@ -201,44 +204,45 @@ export function AppCard({
   isMobile: boolean;
   logOpen: boolean;
   logLines: string[] | null;
-  logError: string | null;
+  logError: AppFailure | null;
   previewsEnabled: boolean;
   livePreviewFramesAllowed: boolean;
   onAct: (verb: AppVerb) => void;
   onToggleLogs: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   const href = appHref(app, window.location.hostname);
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-subtle)", padding: isMobile ? 12 : 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <StateDot state={app.state} />
         <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{app.name}</span>
-        <span style={{ fontSize: 11, color: STATE_COLOR[app.state], textTransform: "lowercase" }}>{app.archivedAt ? "archived" : app.state}</span>
+        <span style={{ fontSize: 11, color: STATE_COLOR[app.state], textTransform: "lowercase" }}>{app.archivedAt ? t("appsUi.archived") : t(STATE_LABEL_KEYS[app.state])}</span>
         {!app.archivedAt && (
-          <a href={href} target="_blank" rel="noreferrer" title={appLinkLabel(app)} style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>
-            {appLinkLabel(app)} ↗
+          <a href={href} target="_blank" rel="noreferrer" title={t(appLinkLabelKey(app))} style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>
+            {t(appLinkLabelKey(app))} ↗
           </a>
         )}
       </div>
 
       {app.shortUrl && !app.archivedAt && (
         <a href={app.shortUrl + "#install"} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
-          Install app
+          {t("appsUi.install")}
         </a>
       )}
       {app.description && <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)" }}>{app.description}</div>}
 
       <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 11 }}>
-        <Meta label="port" value={String(app.port)} />
-        {app.createdBy && <Meta label="created by" value={app.createdBy} />}
-        {app.canManage && app.username && <Meta label="owner" value={app.username} />}
+        <Meta label={t("appsUi.port")} value={String(app.port)} />
+        {app.createdBy && <Meta label={t("apps.meta.createdBy")} value={app.createdBy} />}
+        {app.canManage && app.username && <Meta label={t("appsUi.owner")} value={app.username} />}
       </div>
 
       {app.canManage && (
         <div style={{ ...appMonoPane, marginTop: 6, padding: 0, background: "transparent", color: "var(--text-muted)" }}>
           {app.command}
-          <span style={{ opacity: 0.7 }}> in {app.cwd}</span>
+          <span style={{ opacity: 0.7 }}> {t("appsUi.directory", { path: app.cwd })}</span>
         </div>
       )}
 
@@ -256,21 +260,21 @@ export function AppCard({
             APP_VERBS.map((verb) => {
               const inert = isBusy || verbInert(verb, app.state);
               return (
-                <button key={verb} title={VERB_TITLES[verb]} disabled={inert} onClick={() => onAct(verb)} style={appBtnStyle(false, inert)}>
-                  {verb}
+                <button key={verb} title={t(VERB_TITLE_KEYS[verb])} disabled={inert} onClick={() => onAct(verb)} style={appBtnStyle(false, inert)}>
+                  {t(VERB_LABEL_KEYS[verb])}
                 </button>
               );
             })}
-          <button disabled={isBusy} onClick={() => onAct(app.archivedAt ? "restore" : "archive")} style={appBtnStyle(false, isBusy)}>
-            {app.archivedAt ? "restore" : "archive"}
+          <button title={t(VERB_TITLE_KEYS[app.archivedAt ? "restore" : "archive"])} disabled={isBusy} onClick={() => onAct(app.archivedAt ? "restore" : "archive")} style={appBtnStyle(false, isBusy)}>
+            {t(VERB_LABEL_KEYS[app.archivedAt ? "restore" : "archive"])}
           </button>
           {!app.archivedAt && (
-            <button title="Show the app's recent output" disabled={isBusy} onClick={onToggleLogs} style={appBtnStyle(false, isBusy)}>
-              {logOpen ? "hide log" : "log"}
+            <button title={t("appsUi.logTitle")} disabled={isBusy} onClick={onToggleLogs} style={appBtnStyle(false, isBusy)}>
+              {logOpen ? t("appsUi.hideLog") : t("appsUi.log")}
             </button>
           )}
-          <button title="Remove the app" disabled={isBusy} onClick={onDelete} style={appBtnStyle(true, isBusy)}>
-            delete
+          <button title={t("appsUi.deleteTitle")} disabled={isBusy} onClick={onDelete} style={appBtnStyle(true, isBusy)}>
+            {t("common.delete")}
           </button>
         </div>
       )}
@@ -289,7 +293,7 @@ export function AppCard({
             whiteSpace: "pre-wrap",
           }}
         >
-          {logError ?? (logLines === null ? "Loading…" : logLines.length === 0 ? "Nothing in the log yet." : logLines.join("\n"))}
+          {logError ? appFailureText(logError, t) : logLines === null ? t("common.loading") : logLines.length === 0 ? t("appsUi.logEmpty") : logLines.join("\n")}
         </pre>
       )}
     </div>

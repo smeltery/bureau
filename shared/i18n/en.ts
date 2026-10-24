@@ -1,3 +1,4 @@
+import { appsUi } from "./apps/en.ts";
 import { auditUi } from "./audit/en.ts";
 import { webhooks } from "./webhooks/en.ts";
 import { pluginsUi } from "./plugins/en.ts";
@@ -34,6 +35,7 @@ export const en = {
   ...pluginsUi,
   ...webhooks,
   ...auditUi,
+  ...appsUi,
   "access.title": "Access",
   "apiTokens.title": "API tokens",
   "apps.confirmDelete": "Delete {name}? Its data directory will be kept.",

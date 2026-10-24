@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from "bun:test";
 import type { AppState as AppRunState, AppWire } from "../../shared/apps.ts";
-import { APP_VERBS, STATE_COLOR, VERB_TITLES, filterApps, sortApps, stateIsHollow, verbInert } from "./appVerbs.ts";
+import { APP_VERBS, STATE_COLOR, VERB_TITLE_KEYS, filterApps, sortApps, stateIsHollow, verbInert } from "./appVerbs.ts";
 
 function enabledVerbs(state: AppRunState): string[] {
   return APP_VERBS.filter((verb) => !verbInert(verb, state));
@@ -68,7 +68,7 @@ describe("state presentation", () => {
 
   test("every verb has a plain-language tooltip", () => {
     // The buttons are single opaque words; the title is what explains them.
-    for (const verb of APP_VERBS) expect(VERB_TITLES[verb].length).toBeGreaterThan(0);
+    for (const verb of APP_VERBS) expect(VERB_TITLE_KEYS[verb].length).toBeGreaterThan(0);
   });
 });
 
