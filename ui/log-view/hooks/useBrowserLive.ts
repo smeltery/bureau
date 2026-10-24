@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n.tsx";
+import type { PlainMessageKey } from "../../../shared/i18n/translate.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BrowserHumanInput, ServerMessage } from "../../../shared/types.ts";
 import { addRawListener, removeRawListener, send } from "../../ws.ts";
@@ -8,12 +10,13 @@ const BROWSER_MAX_DIM = 2560;
 let nextSelectionRequest = 0;
 
 export function useBrowserLive(agentId: string) {
+  const { t } = useI18n();
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [available, setAvailable] = useState(false);
   const [title, setTitle] = useState("");
-  const [copyNote, setCopyNote] = useState("");
+  const [copyNote, setCopyNote] = useState<PlainMessageKey | null>(null);
   const [copying, setCopying] = useState(false);
-  const [liveError, setLiveError] = useState("");
+  const [liveError, setLiveError] = useState<string | { key: PlainMessageKey }>("");
   const [idleClosed, setIdleClosed] = useState(false);
   const [urlFromServer, setUrlFromServer] = useState<string | null>(null);
   const surfaceRef = useRef<HTMLCanvasElement>(null);
@@ -141,7 +144,7 @@ export function useBrowserLive(agentId: string) {
         setAvailable(msg.available);
         setIdleClosed(msg.idleClosed === true);
         if (msg.url !== undefined) {
-          if (msg.url !== lastServerUrl.current) setCopyNote("");
+          if (msg.url !== lastServerUrl.current) setCopyNote(null);
           lastServerUrl.current = msg.url;
           if (msg.url && msg.url !== "about:blank") setUrlFromServer(msg.url);
         }
@@ -167,10 +170,10 @@ export function useBrowserLive(agentId: string) {
 
   const copySelection = async () => {
     if (selectionRequest.current) return;
-    setCopyNote("");
+    setCopyNote(null);
     setLiveError("");
     if (!navigator.clipboard?.writeText) {
-      setLiveError("Clipboard unavailable");
+      setLiveError({ key: "agentBrowser.clipboardUnavailable" });
       return;
     }
     setCopying(true);
@@ -186,14 +189,14 @@ export function useBrowserLive(agentId: string) {
       });
       if (!isCurrent()) return;
       if (!selection.text) {
-        setCopyNote("No selection");
+        setCopyNote("agentBrowser.noSelection");
         return;
       }
       reading = false;
       await navigator.clipboard.writeText(selection.text);
-      if (isCurrent()) setCopyNote(selection.truncated ? "Copied (truncated)" : "Copied");
+      if (isCurrent()) setCopyNote(selection.truncated ? "agentBrowser.copiedTruncated" : "common.copied");
     } catch {
-      if (isCurrent()) setLiveError(reading ? "Could not read selection" : "Copy failed");
+      if (isCurrent()) setLiveError({ key: reading ? "agentBrowser.readFailed" : "agentBrowser.copyFailed" });
     } finally {
       if (timer) clearTimeout(timer);
       if (isCurrent()) selectionRequest.current = null;
@@ -289,9 +292,9 @@ export function useBrowserLive(agentId: string) {
     size,
     available,
     title,
-    copyNote,
+    copyNote: copyNote ? t(copyNote) : "",
     copying,
-    liveError,
+    liveError: typeof liveError === "string" ? liveError : t(liveError.key),
     idleClosed,
     urlFromServer,
     surfaceRef,
@@ -304,6 +307,6 @@ export function useBrowserLive(agentId: string) {
     releaseHeld,
     coordinates,
     clearLiveError: () => setLiveError(""),
-    clearCopyNote: () => setCopyNote(""),
+    clearCopyNote: () => setCopyNote(null),
   };
 }
