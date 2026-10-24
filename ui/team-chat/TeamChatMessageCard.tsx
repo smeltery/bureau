@@ -7,9 +7,9 @@ import { TeamChatQuote } from "./TeamChatQuote.tsx";
 import type { MembersChatMessage } from "../../shared/members-chat.ts";
 import { useI18n } from "../i18n.tsx";
 
-function formatTime(ts: number): string {
+function formatTime(ts: number, language: string): string {
   try {
-    return new Date(ts).toLocaleString(undefined, {
+    return new Date(ts).toLocaleString(language, {
       month: "short",
       day: "numeric",
       hour: "2-digit",
@@ -41,7 +41,7 @@ export function TeamChatMessageCard({
   replyingDisabled: boolean;
   onEdited: (message: MembersChatMessage) => void;
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [editing, setEditing] = useState(false);
   const canDelete = isOwner || message.userId === myUserId;
   return (
@@ -62,7 +62,7 @@ export function TeamChatMessageCard({
           {message.pinnedAt !== undefined ? <span style={{ marginLeft: 6, color: "var(--accent)", fontSize: 10, fontWeight: 600 }}>{t("teamChat.pinnedBadge")}</span> : null}
         </div>
         <div style={{ fontSize: 10, color: "var(--text-ghost)" }}>
-          {formatTime(message.timestamp)}
+          {formatTime(message.timestamp, language)}
           {message.editedAt !== undefined && <> · {t("teamChat.edited")}</>}
         </div>
       </div>

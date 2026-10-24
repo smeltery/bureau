@@ -1,4 +1,11 @@
 export const chat = {
+  "chat.toolInput": "Entrada",
+  "chat.toolOutput": "Salida",
+  "chat.toolNoOutput": "(sin salida)",
+  "chat.toolMore": "{path} y {count} más",
+  "chat.subagent": "subagente",
+  "chat.subagentTitle": "Subagente",
+
   "chat.attach": "Adjuntar archivos",
   "chat.skills": "Explorar habilidades y comandos",
   "chat.draftFailed": "No se pudo guardar el mensaje antes de enviarlo. Se conservó el borrador.",

@@ -1,4 +1,11 @@
 export const chat = {
+  "chat.toolInput": "Input",
+  "chat.toolOutput": "Output",
+  "chat.toolNoOutput": "(no output)",
+  "chat.toolMore": "{path} +{count} more",
+  "chat.subagent": "subagent",
+  "chat.subagentTitle": "Subagent",
+
   "chat.attach": "Attach files",
   "chat.skills": "Browse skills and commands",
   "chat.draftFailed": "Could not save this message before sending. Your draft was kept.",

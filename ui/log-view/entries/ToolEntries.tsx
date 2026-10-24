@@ -1,3 +1,4 @@
+import type { Translator } from "../../../shared/i18n/translate.ts";
 import { useI18n } from "../../i18n.tsx";
 import { useState } from "react";
 import type { LogEntry, SubagentOrigin } from "../../../shared/types.ts";
@@ -5,7 +6,7 @@ import { summarizeBureauCurl } from "./bureau-curl.ts";
 import { AttachmentDisplay, DurationLabel, TurnCopyButton } from "./shared.tsx";
 import { subagentOf, subagentPillLabel, subagentPillTitle } from "./subagentOrigin.ts";
 
-function extractToolSummary(toolName: string, input: unknown): string {
+function extractToolSummary(toolName: string, input: unknown, t: Translator["t"]): string {
   if (!input || typeof input !== "object") return "";
   const obj = input as Record<string, unknown>;
   switch (toolName) {
@@ -15,7 +16,7 @@ function extractToolSummary(toolName: string, input: unknown): string {
       return typeof obj.file_path === "string" ? obj.file_path : "";
     case "Write":
     case "Edit":
-      return typeof obj.file_path === "string" ? obj.file_path : extractChangePaths(obj.changes);
+      return typeof obj.file_path === "string" ? obj.file_path : extractChangePaths(obj.changes, t);
     case "Glob":
       return typeof obj.pattern === "string" ? obj.pattern : "";
     case "Grep":
@@ -27,7 +28,7 @@ function extractToolSummary(toolName: string, input: unknown): string {
   }
 }
 
-function extractChangePaths(changes: unknown): string {
+function extractChangePaths(changes: unknown, t: Translator["t"]): string {
   if (!Array.isArray(changes)) return "";
   const paths = changes
     .map((change) => {
@@ -37,7 +38,7 @@ function extractChangePaths(changes: unknown): string {
     })
     .filter(Boolean);
   if (paths.length === 0) return "";
-  return paths.length === 1 ? paths[0] : `${paths[0]} +${paths.length - 1} more`;
+  return paths.length === 1 ? paths[0] : t("chat.toolMore", { path: paths[0], count: paths.length - 1 });
 }
 
 export function isFoldedToolResult(entry: LogEntry, turnEntries: LogEntry[] | undefined): boolean {
@@ -61,9 +62,10 @@ export function findMatchingToolResult(toolCallEntry: LogEntry, turnEntries: Log
  * subagent's Bash/Read run reads as the agent's own.
  */
 function SubagentPill({ origin, isMobile }: { origin: SubagentOrigin; isMobile?: boolean }) {
+  const { t } = useI18n();
   return (
     <span
-      title={subagentPillTitle(origin)}
+      title={subagentPillTitle(origin, t)}
       style={{
         flexShrink: 0,
         maxWidth: isMobile ? 120 : 160,
@@ -79,7 +81,7 @@ function SubagentPill({ origin, isMobile }: { origin: SubagentOrigin; isMobile?:
         whiteSpace: "nowrap",
       }}
     >
-      {subagentPillLabel(origin)}
+      {subagentPillLabel(origin, t)}
     </span>
   );
 }
@@ -108,8 +110,9 @@ export function ToolCall({
   isMobile?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   const inputStr = typeof input === "string" ? input : JSON.stringify(input, null, 2);
-  const summary = extractToolSummary(name, input);
+  const summary = extractToolSummary(name, input, t);
   const borderColor = resultIsError ? "var(--red)" : "var(--green-border)";
   const bgColor = resultIsError ? "var(--red-bg)" : "var(--tool-call-bg)";
   const textColor = resultIsError ? "var(--red)" : "var(--green)";
@@ -168,15 +171,15 @@ export function ToolCall({
             maxWidth: "100%",
           }}
         >
-          <SectionLabel text="Input" isMobile={isMobile} />
+          <SectionLabel text={t("chat.toolInput")} isMobile={isMobile} />
           <div style={{ whiteSpace: "pre-wrap" }}>{inputStr}</div>
           {hasResult && (
             <>
-              <SectionLabel text="Output" isMobile={isMobile} isError={resultIsError} marginTop={10} />
+              <SectionLabel text={t("chat.toolOutput")} isMobile={isMobile} isError={resultIsError} marginTop={10} />
               {resultContent && resultContent.length > 0 ? (
                 <div style={{ whiteSpace: "pre-wrap" }}>{resultContent}</div>
               ) : (
-                <div style={{ color: "var(--text-ghost)", fontStyle: "italic" }}>(no output)</div>
+                <div style={{ color: "var(--text-ghost)", fontStyle: "italic" }}>{t("chat.toolNoOutput")}</div>
               )}
             </>
           )}
