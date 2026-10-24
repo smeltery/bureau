@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n.tsx";
+import { webhookRequest, webhookFailure, webhookFailureText, parseWebhookPayload, WebhookUiError, type WebhookFailure } from "./webhooks/api.ts";
 import { useEffect, useState } from "react";
 import type { Webhook, WebhookDelivery } from "../../../shared/integrations/webhooks.ts";
 import { useAppState } from "../../store.tsx";
@@ -5,15 +7,13 @@ import { useAppState } from "../../store.tsx";
 import { copyLoadedText } from "../../utils/clipboard-load.ts";
 import { copyText } from "../../utils/clipboard.ts";
 
-type HookRow = Webhook & { url: string };
-async function api(path: string, method = "GET", body?: unknown) {
-  const response = await fetch(`/api/webhooks${path}`, { method, headers: { "Content-Type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
-  const data = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw new Error(data?.error ?? `Request failed (${response.status})`);
-  return data;
-}
+const DELIVERY_STATUS_KEYS = { accepted: "webhooks.accepted", ignored: "webhooks.ignored", failed: "webhooks.failed", pending: "webhooks.pending" } as const;
 
+const api = (path: string, method = "GET", body?: unknown) => webhookRequest(`/api/webhooks${path}`, method, body);
+
+type HookRow = Webhook & { url: string };
 export function WebhooksPane() {
+  const { t, rich, language } = useI18n();
   const { agents, cronjobs, sessionContext } = useAppState();
   const [hooks, setHooks] = useState<HookRow[]>([]);
   const [editing, setEditing] = useState<HookRow | null>(null);
@@ -22,18 +22,18 @@ export function WebhooksPane() {
   const [events, setEvents] = useState("push");
   const [actions, setActions] = useState("");
   const [fields, setFields] = useState("repository.full_name,ref,after");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<WebhookFailure | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<WebhookDelivery[] | null>(null);
   const [payload, setPayload] = useState("{}");
   const [testEvent, setTestEvent] = useState("push");
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | { noMatch: true } | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const canManage = (row: { userId?: string | null }) => sessionContext?.role === "owner" || (!!sessionContext?.userId && row.userId === sessionContext.userId);
   const reload = async () => setHooks(await api(""));
   useEffect(() => {
-    void reload().catch((err: Error) => setError(err.message));
+    void reload().catch((err) => setError(webhookFailure(err)));
   }, []);
   async function perform(action: () => Promise<void>) {
     setBusy(true);
@@ -42,7 +42,7 @@ export function WebhooksPane() {
       await action();
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      setError(webhookFailure(err));
     } finally {
       setBusy(false);
     }
@@ -65,17 +65,17 @@ export function WebhooksPane() {
       .map((part) => part.trim())
       .filter(Boolean);
   return (
-    <section style={{ padding: 20, maxWidth: 850 }}>
-      <h2>Webhooks</h2>
-      <p>Let GitHub events message an agent or start a saved schedule. Only the selected payload fields reach the target. GitHub must be able to reach your office URL.</p>
-      {error && <p role="alert">{error}</p>}
+    <section style={{ padding: 20, maxWidth: 850, overflowWrap: "anywhere" }}>
+      <h2>{t("webhooks.title")}</h2>
+      <p>{t("webhooks.hint")}</p>
+      {error && <p role="alert">{webhookFailureText(error, t)}</p>}
       <button disabled={busy} onClick={() => void perform(reload)}>
-        Refresh
+        {t("common.refresh")}
       </button>
       <ul>
         {hooks.map((hook) => (
           <li key={hook.id} style={{ margin: "12px 0" }}>
-            <strong>{hook.name}</strong> — {hook.enabled ? "enabled" : "paused"} · {hook.events.join(", ")}
+            <strong>{hook.name}</strong> — {hook.enabled ? t("common.enabled") : t("common.paused")} · {hook.events.join(", ")}
             <div>
               <code>{hook.url}</code>
             </div>
@@ -86,7 +86,7 @@ export function WebhooksPane() {
                 void perform(async () => setDeliveries(await api(`/${hook.id}/deliveries`)));
               }}
             >
-              Details
+              {t("common.details")}
             </button>
             {canManage(hook) && (
               <>
@@ -98,26 +98,26 @@ export function WebhooksPane() {
                     })
                   }
                 >
-                  {hook.enabled ? "Pause" : "Enable"}
+                  {hook.enabled ? t("webhooks.pause") : t("common.enable")}
                 </button>
                 <button
                   disabled={busy}
                   onClick={() => {
-                    if (window.confirm(`Delete webhook ${hook.name}?`))
+                    if (window.confirm(t("webhooks.deleteConfirm", { name: hook.name })))
                       void perform(async () => {
                         await api(`/${hook.id}`, "DELETE");
                         if (editing?.id === hook.id) edit(null);
                       });
                   }}
                 >
-                  Delete
+                  {t("common.delete")}
                 </button>
               </>
             )}
           </li>
         ))}
       </ul>
-      {editing && <button onClick={() => edit(null)}>New webhook</button>}
+      {editing && <button onClick={() => edit(null)}>{t("webhooks.new")}</button>}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -136,53 +136,55 @@ export function WebhooksPane() {
           });
         }}
       >
-        <fieldset disabled={busy || (!!editing && !canManage(editing))} style={{ display: "grid", gap: 8 }}>
-          <legend>{editing ? "Edit webhook" : "New webhook"}</legend>
-          <label>
-            Name <input required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} />
+        <fieldset disabled={busy || (!!editing && !canManage(editing))} style={{ display: "grid", gap: 8, minWidth: 0 }}>
+          <legend>{editing ? t("webhooks.edit") : t("webhooks.new")}</legend>
+          <label style={{ display: "grid", gap: 4 }}>
+            {t("common.name")} <input style={{ minWidth: 0, maxWidth: "100%" }} required maxLength={100} value={name} onChange={(event) => setName(event.target.value)} />
           </label>
-          <label>
-            Target{" "}
-            <select required value={target} onChange={(event) => setTarget(event.target.value)}>
-              <option value="">Choose a target</option>
+          <label style={{ display: "grid", gap: 4 }}>
+            {t("webhooks.target")}{" "}
+            <select style={{ minWidth: 0, maxWidth: "100%" }} required value={target} onChange={(event) => setTarget(event.target.value)}>
+              <option value="">{t("webhooks.choose")}</option>
               {agents.filter(canManage).map((agent) => (
                 <option key={agent.id} value={`agent:${agent.id}`}>
-                  Agent: {agent.name}
+                  {t("webhooks.agent", { name: agent.name })}
                 </option>
               ))}
               {cronjobs.filter(canManage).map((job) => (
                 <option key={job.id} value={`schedule:${job.id}`}>
-                  Schedule: {job.name}
+                  {t("webhooks.schedule", { name: job.name })}
                 </option>
               ))}
             </select>
           </label>
-          <label>
-            Events (comma separated) <input required value={events} onChange={(event) => setEvents(event.target.value)} />
+          <label style={{ display: "grid", gap: 4 }}>
+            {t("webhooks.events")} <input style={{ minWidth: 0, maxWidth: "100%" }} required value={events} onChange={(event) => setEvents(event.target.value)} />
           </label>
-          <label>
-            Actions (optional) <input value={actions} onChange={(event) => setActions(event.target.value)} />
+          <label style={{ display: "grid", gap: 4 }}>
+            {t("webhooks.actions")} <input style={{ minWidth: 0, maxWidth: "100%" }} value={actions} onChange={(event) => setActions(event.target.value)} />
           </label>
-          <label>
-            Payload fields (dotted paths) <input required value={fields} onChange={(event) => setFields(event.target.value)} />
+          <label style={{ display: "grid", gap: 4 }}>
+            {t("webhooks.fields")} <input style={{ minWidth: 0, maxWidth: "100%" }} required value={fields} onChange={(event) => setFields(event.target.value)} />
           </label>
-          <button type="submit">Save</button>
+          <button type="submit">{t("common.save")}</button>
         </fieldset>
       </form>
       {editing && (
         <>
-          <p>
-            GitHub settings: Payload URL <code>{editing.url}</code>; Content type <code>application/json</code>; choose the listed events and copy the signing secret.
-          </p>
+          <p>{rich("webhooks.setup", { url: <code>{editing.url}</code>, type: <code>application/json</code> })}</p>
           {canManage(editing) && (
             <button
               disabled={busy}
               onClick={() => {
-                if (window.confirm("Rotate the signing secret? Update GitHub before new deliveries can arrive."))
-                  void perform(async () => setSecret((await api(`/${editing.id}/rotate`, "POST")).secret));
+                if (window.confirm(t("webhooks.rotateConfirm")))
+                  void perform(async () => {
+                    const result = await api(`/${editing.id}/rotate`, "POST");
+                    setSecret(result.secret);
+                    setCopied(false);
+                  });
               }}
             >
-              Rotate secret
+              {t("webhooks.rotate")}
             </button>
           )}
           {canManage(editing) && !secret && (
@@ -191,56 +193,58 @@ export function WebhooksPane() {
               onClick={() =>
                 void perform(async () => {
                   setCopied(false);
-                  if (!(await copyLoadedText(async () => (await api(`/${editing.id}/secret`)).secret))) throw new Error("Clipboard unavailable; allow clipboard access and try again.");
+                  if (!(await copyLoadedText(async () => (await api(`/${editing.id}/secret`)).secret))) throw new WebhookUiError("webhooks.clipboard");
                   setCopied(true);
                 })
               }
             >
-              Copy signing secret
+              {t("webhooks.copySigning")}
             </button>
           )}
-          {copied && <p role="status">Signing secret copied.</p>}
+          {copied && <p role="status">{t("webhooks.copied")}</p>}
           {secret && (
             <p>
-              <label>
-                Copy this secret now <input type="password" readOnly value={secret} autoComplete="off" />
+              <label style={{ display: "grid", gap: 4 }}>
+                {t("webhooks.copyNow")} <input style={{ minWidth: 0, maxWidth: "100%" }} type="password" readOnly value={secret} autoComplete="off" />
               </label>{" "}
               <button
-                onClick={() =>
+                onClick={() => {
+                  setCopied(false);
+                  setError(null);
                   void copyText(secret).then((ok) => {
                     if (ok) setCopied(true);
-                    else setError("Clipboard unavailable; select and copy the secret field.");
-                  })
-                }
+                    else setError({ key: "webhooks.clipboardManual" });
+                  });
+                }}
               >
-                Copy secret
+                {t("webhooks.copy")}
               </button>{" "}
-              <button onClick={() => setSecret(null)}>Dismiss</button>
+              <button onClick={() => setSecret(null)}>{t("common.close")}</button>
             </p>
           )}
           {canManage(editing) && (
             <div>
-              <h3>Test rule without dispatching</h3>
-              <label>
-                Event <input value={testEvent} onChange={(event) => setTestEvent(event.target.value)} />
+              <h3>{t("webhooks.test")}</h3>
+              <label style={{ display: "grid", gap: 4 }}>
+                {t("webhooks.event")} <input style={{ minWidth: 0, maxWidth: "100%" }} value={testEvent} onChange={(event) => setTestEvent(event.target.value)} />
               </label>
-              <textarea aria-label="Sample JSON payload" rows={6} value={payload} onChange={(event) => setPayload(event.target.value)} style={{ width: "100%" }} />
+              <textarea aria-label={t("webhooks.payload")} rows={6} value={payload} onChange={(event) => setPayload(event.target.value)} style={{ width: "100%" }} />
               <button
                 disabled={busy}
-                onClick={() => void perform(async () => setPreview((await api(`/${editing.id}/test`, "POST", { event: testEvent, payload: JSON.parse(payload) })).data ?? "Rule did not match."))}
+                onClick={() => void perform(async () => setPreview((await api(`/${editing.id}/test`, "POST", { event: testEvent, payload: parseWebhookPayload(payload) })).data ?? { noMatch: true }))}
               >
-                Preview selected data
+                {t("webhooks.preview")}
               </button>
-              {preview && <pre style={{ whiteSpace: "pre-wrap" }}>{preview}</pre>}
+              {preview && <pre style={{ whiteSpace: "pre-wrap" }}>{typeof preview === "string" ? preview : t("webhooks.noMatch")}</pre>}
             </div>
           )}
           {deliveries && (
             <>
-              <h3>Recent deliveries</h3>
+              <h3>{t("webhooks.deliveries")}</h3>
               <ul>
                 {deliveries.map((row) => (
                   <li key={row.id}>
-                    {new Date(row.at).toLocaleString()} · {row.event} · {row.status} · <code>{row.id}</code>
+                    {new Date(row.at).toLocaleString(language)} · {row.event} · {t(DELIVERY_STATUS_KEYS[row.status])} · <code>{row.id}</code>
                     {row.resultId && (
                       <>
                         {" "}

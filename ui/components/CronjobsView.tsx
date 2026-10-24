@@ -67,6 +67,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          flexWrap: "wrap",
           gap: 8,
           padding: isMobile ? "0 12px" : "0 20px",
           paddingTop: isMobile ? "env(safe-area-inset-top, 0px)" : undefined,
@@ -80,6 +81,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
       >
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <button
+            aria-label={t("common.back")}
             onClick={onClose}
             style={{
               background: "none",
@@ -98,7 +100,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
                 key={tabKey}
                 onClick={() => setTab(tabKey)}
                 style={{
-                  padding: "5px 12px",
+                  padding: isMobile ? "5px 6px" : "5px 12px",
                   border: "none",
                   background: tab === tabKey ? "var(--accent)" : "transparent",
                   color: tab === tabKey ? "var(--bg-base)" : "var(--text-muted)",
@@ -108,7 +110,7 @@ export function CronjobsView({ username, onClose }: { username: string; onClose:
                   textTransform: "capitalize",
                 }}
               >
-                {tabKey === "webhooks" ? "Webhooks" : t(TAB_LABEL_KEYS[tabKey])}
+                {tabKey === "webhooks" ? t("webhooks.title") : t(TAB_LABEL_KEYS[tabKey])}
               </button>
             ))}
           </div>
