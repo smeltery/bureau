@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useMemo, useState } from "react";
 import type { AgentInfo, LogEntry } from "../../../shared/types.ts";
 import { buildDeckTurns, restoredDeckPos, settledDeckPos } from "../../../shared/slide-turns.ts";
@@ -16,6 +17,7 @@ import { useDeckSlides } from "./useDeckSlides.ts";
 // counter, the turn's frozen prompt beneath each slide, and the chat view's own
 // composer below that.
 export function DeckView({ agent, logs, isMobile, inputBar }: { agent: AgentInfo; logs: LogEntry[]; isMobile: boolean; inputBar: React.ReactNode }) {
+  const { t, language } = useI18n();
   const { hydrationEpoch } = useAppState();
   // Deck positions, in display order (timestamp; a stable sort keeps arrival order
   // on ties) - the same 1:1 mapping the server keys slides on.
@@ -77,7 +79,7 @@ export function DeckView({ agent, logs, isMobile, inputBar }: { agent: AgentInfo
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
       <section style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "stretch", justifyContent: "center", position: "relative", overflow: "hidden" }}>
         {turns.length === 0 ? (
-          <div style={{ alignSelf: "center", color: "var(--text-muted)", fontSize: 14 }}>No conversation turns yet.</div>
+          <div style={{ alignSelf: "center", color: "var(--text-muted)", fontSize: 14 }}>{t("slides.empty")}</div>
         ) : (
           <SlideStage
             // Keyed by turn: the offscreen measurement and the fitted scale belong
@@ -92,16 +94,16 @@ export function DeckView({ agent, logs, isMobile, inputBar }: { agent: AgentInfo
             onRegen={(feedback) => turn && slides.regenerate(turn.entryId, feedback)}
           />
         )}
-        <DeckButton label="Previous slide" side="left" disabled={atStart} isMobile={isMobile} onClick={() => jump(index - 1)} />
-        <DeckButton label="Next slide" side="right" disabled={atEnd} isMobile={isMobile} onClick={() => jump(index + 1)} />
+        <DeckButton label={t("slides.previous")} side="left" disabled={atStart} isMobile={isMobile} onClick={() => jump(index - 1)} />
+        <DeckButton label={t("slides.next")} side="right" disabled={atEnd} isMobile={isMobile} onClick={() => jump(index + 1)} />
         {turns.length > 0 && (
           <div style={{ position: "absolute", bottom: isMobile ? 4 : 10, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ ...PILL_STYLE, color: "var(--text-muted)" }}>
-              {index + 1} / {turns.length}
+              {(index + 1).toLocaleString(language)} / {turns.length.toLocaleString(language)}
             </span>
             {!atEnd && (
-              <button onClick={() => jump(turns.length - 1)} title="Jump to the latest slide (End)" style={{ ...PILL_STYLE, color: "var(--text-secondary)", cursor: "pointer" }}>
-                Latest
+              <button onClick={() => jump(turns.length - 1)} title={t("slides.latestHint")} style={{ ...PILL_STYLE, color: "var(--text-secondary)", cursor: "pointer" }}>
+                {t("slides.latest")}
               </button>
             )}
           </div>
@@ -128,9 +130,10 @@ const PILL_STYLE: React.CSSProperties = {
 // the vertically-centred nav arrows. A FIXED height for the same reason - a longer
 // prompt scrolls within the bar rather than growing it.
 function PromptBar({ promptText, isMobile }: { promptText: string; isMobile: boolean }) {
+  const { t } = useI18n();
   return (
     <div
-      title="The prompt that produced this slide"
+      title={t("slides.promptHint")}
       style={{
         flexShrink: 0,
         borderTop: "1px solid var(--border-light)",
@@ -144,7 +147,7 @@ function PromptBar({ promptText, isMobile }: { promptText: string; isMobile: boo
         overflowY: "auto",
       }}
     >
-      <span style={{ color: "var(--text-dim)", marginRight: 8 }}>Prompt:</span>
+      <span style={{ color: "var(--text-dim)", marginRight: 8 }}>{t("slides.prompt")}</span>
       {promptText}
     </div>
   );

@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { DeckTurn } from "../../../shared/slide-turns.ts";
 import type { SlideRecord } from "../../../shared/slides.ts";
@@ -22,6 +23,7 @@ export function SlideStage({
   turn: DeckTurn | undefined;
   onRegen: (feedback?: string) => void;
 }) {
+  const { t } = useI18n();
   const stageRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   // Natural content height of the current slide's HTML, measured offscreen at
@@ -73,7 +75,7 @@ export function SlideStage({
         <MeasureFrame html={slide.html} onMeasured={setMeasuredH} />
         {frame(
           <iframe
-            title="slide"
+            title={t("slides.frame")}
             sandbox=""
             srcDoc={buildSlideSrcDoc(slide.html, contentH)}
             width={SLIDE_W}
@@ -94,7 +96,7 @@ export function SlideStage({
   } else if (kind === "fallback" && turn) {
     body = frame(<FallbackInner turn={turn} />);
   } else {
-    body = <Spinner label={spinnerLabel(isNewest)} />;
+    body = <Spinner label={t(spinnerLabel(isNewest))} />;
   }
 
   return (
@@ -147,6 +149,7 @@ function MeasureFrame({ html, onMeasured }: { html: string; onMeasured: (h: numb
 
 // The per-slide regenerate button + optional feedback field.
 function RegenControl({ onRegen }: { onRegen: (feedback?: string) => void }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
   const submit = () => {
@@ -158,7 +161,7 @@ function RegenControl({ onRegen }: { onRegen: (feedback?: string) => void }) {
     <div style={{ position: "absolute", top: 10, right: 12, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
       <button
         onClick={() => setOpen((v) => !v)}
-        title="Regenerate this slide"
+        title={t("slides.regenerate")}
         style={{
           background: "var(--bg-overlay)",
           border: "1px solid var(--border-medium)",
@@ -177,7 +180,7 @@ function RegenControl({ onRegen }: { onRegen: (feedback?: string) => void }) {
           <input
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
-            placeholder="What to change (optional)"
+            placeholder={t("slides.feedback")}
             onKeyDown={(e) => {
               if (e.key === "Enter") submit();
               if (e.key === "Escape") setOpen(false);
@@ -194,7 +197,7 @@ function RegenControl({ onRegen }: { onRegen: (feedback?: string) => void }) {
             }}
           />
           <button onClick={submit} style={{ background: "var(--accent)", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, padding: "5px 10px", cursor: "pointer" }}>
-            Redo
+            {t("slides.redo")}
           </button>
         </div>
       )}
@@ -205,6 +208,7 @@ function RegenControl({ onRegen }: { onRegen: (feedback?: string) => void }) {
 // Placeholder position: an empty / interrupted / tool-only turn. Natural size
 // (1280x720); the parent's frame() applies the scale.
 function PlaceholderInner({ slide }: { slide: SlideRecord }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -224,8 +228,8 @@ function PlaceholderInner({ slide }: { slide: SlideRecord }) {
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: 30, color: "#e8eaf0", fontWeight: 600 }}>{slide.errorText ? "Turn failed" : "No answer to show"}</div>
-      <div style={{ fontSize: 22, lineHeight: 1.4, maxWidth: 820 }}>{slide.errorText ? slide.errorText : "This turn produced no text (interrupted, or tool-only)."}</div>
+      <div style={{ fontSize: 30, color: "#e8eaf0", fontWeight: 600 }}>{t(slide.errorText ? "slides.failed" : "slides.noAnswer")}</div>
+      <div style={{ fontSize: 22, lineHeight: 1.4, maxWidth: 820 }}>{slide.errorText ? slide.errorText : t("slides.noText")}</div>
     </div>
   );
 }
@@ -234,6 +238,7 @@ function PlaceholderInner({ slide }: { slide: SlideRecord }) {
 // live turn to render): the raw answer on a plain template, so the viewer still
 // gets the content. Regenerate stays available via the control above.
 function FallbackInner({ turn }: { turn: DeckTurn }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -251,7 +256,7 @@ function FallbackInner({ turn }: { turn: DeckTurn }) {
         overflow: "hidden",
       }}
     >
-      <div style={{ fontSize: 22, color: "#9aa3b2" }}>Slide unavailable - showing the raw answer</div>
+      <div style={{ fontSize: 22, color: "#9aa3b2" }}>{t("slides.fallback")}</div>
       <div style={{ fontSize: 24, lineHeight: 1.5, whiteSpace: "pre-wrap", overflow: "hidden" }}>{turn.assistantText.slice(0, 1200)}</div>
     </div>
   );
