@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { injectedMemorySize, type MemoryScope } from "../../shared/types.ts";
 
+import { saveMemory } from "./memory/save.ts";
+
 export type MemorySaveResult = { ok: true } | { ok: false; conflict?: boolean; message: string };
 
 export interface MemoryEditor {
@@ -75,23 +77,10 @@ export function useMemoryEditor(scope: MemoryScope, scopeId: string | null, enab
 
   async function save(): Promise<MemorySaveResult> {
     if (!loaded || !dirty || version == null) return { ok: true };
-    const res = await fetch("/api/memory", {
-      method: "PUT",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scope, scopeId, text: memory, version }),
-    });
-    if (!res.ok) {
-      const err = await parseError(res);
-      return {
-        ok: false,
-        conflict: err.code === "memory_conflict",
-        message: err.code === "memory_conflict" ? "Memory changed since you opened this. Reopen the dialog to edit the latest version." : err.message,
-      };
-    }
-    const data = (await res.json()) as { version: string };
+    const result = await saveMemory({ scope, scopeId, text: memory, version });
+    if (!result.ok) return result;
     setBaseline(memory);
-    setVersion(data.version);
+    setVersion(result.version);
     return { ok: true };
   }
 
