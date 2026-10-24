@@ -100,7 +100,7 @@ export function Header({
           cursor: "pointer",
         }}
       >
-        ← Back to Office
+        ← {t("chatControls.back")}
       </button>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, flex: 1, minWidth: 0, marginLeft: 12 }}>
         <span style={{ flexShrink: 0 }}>

@@ -1,6 +1,8 @@
+import { useI18n } from "../i18n.tsx";
 import type { LogEntry } from "../../shared/types.ts";
 
 export function PinnedUserMessageBanner({ pinnedMessage, isMobile, onClick }: { pinnedMessage: LogEntry; isMobile: boolean; onClick: () => void }) {
+  const { t } = useI18n();
   return (
     <div
       onClick={onClick}
@@ -18,7 +20,7 @@ export function PinnedUserMessageBanner({ pinnedMessage, isMobile, onClick }: { 
         flexShrink: 0,
       }}
     >
-      <span style={{ color: "var(--text-ghost)", flexShrink: 0, fontWeight: 600 }}>↑ you:</span>
+      <span style={{ color: "var(--text-ghost)", flexShrink: 0, fontWeight: 600 }}>↑ {t("chatControls.you")}</span>
       <span
         style={{
           flex: 1,

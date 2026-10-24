@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useState } from "react";
 import type { LogEntry, SubagentOrigin } from "../../../shared/types.ts";
 import { summarizeBureauCurl } from "./bureau-curl.ts";
@@ -206,6 +207,7 @@ function SectionLabel({ text, isMobile, isError, marginTop }: { text: string; is
 
 export function ToolResult({ entry, isLastInTurn, turnEntries, isMobile }: { entry: LogEntry; isLastInTurn?: boolean; turnEntries?: LogEntry[]; isMobile?: boolean }) {
   const [open, setOpen] = useState(false);
+  const { t, tn } = useI18n();
   const [echoOpen, setEchoOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const content = entry.content;
@@ -266,7 +268,7 @@ export function ToolResult({ entry, isLastInTurn, turnEntries, isMobile }: { ent
             cursor: "pointer",
           }}
         >
-          {open ? "Show less" : "Show more"}
+          {open ? t("chatControls.showLess") : t("chat.showMore")}
         </button>
       )}
       {entry.attachments &&
@@ -274,7 +276,7 @@ export function ToolResult({ entry, isLastInTurn, turnEntries, isMobile }: { ent
         (isAttachmentEcho && !echoOpen ? (
           <button
             onClick={() => setEchoOpen(true)}
-            title="The agent viewed an image attached earlier in this chat. Click to show it."
+            title={t("chatControls.viewedHint")}
             style={{
               display: "block",
               marginTop: showText && content ? 6 : 0,
@@ -287,7 +289,7 @@ export function ToolResult({ entry, isLastInTurn, turnEntries, isMobile }: { ent
               cursor: "pointer",
             }}
           >
-            Viewed {entry.attachments.length === 1 ? entry.attachments[0].originalName : `${entry.attachments.length} attached images`} (click to show)
+            {entry.attachments.length === 1 ? t("chatControls.viewedFile", { name: entry.attachments[0].originalName }) : tn("chatControls.viewedImages", entry.attachments.length)}
           </button>
         ) : (
           <AttachmentDisplay attachments={entry.attachments} agentId={entry.agentId} isMobile={isMobile} lightboxSrc={lightboxSrc} setLightboxSrc={setLightboxSrc} hasContent={showText && !!content} />

@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useState } from "react";
 import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { MoonIcon, PersonIcon, SunIcon } from "../../components/controls/Icons.tsx";
@@ -37,6 +38,7 @@ export function HeaderActions({
   setSlideView?: (active: boolean) => void;
   getConversationText: () => string;
 }) {
+  const { t } = useI18n();
   const { mode } = useTheme();
   const features = useFeatures();
   const [themePickerOpen, setThemePickerOpen] = useState(false);
@@ -56,14 +58,14 @@ export function HeaderActions({
             cursor: "pointer",
           }}
         >
-          Tasks
+          {t("common.tasks")}
         </button>
       )}
       {logs.length > 0 && <CopyButton getText={getConversationText} />}
       {slideModeEnabled && setSlideView && (
         <button
           onClick={() => setSlideView(!slideView)}
-          title={slideView ? "Show chat" : "Show slides"}
+          title={slideView ? t("chatControls.showChat") : t("chatControls.showSlides")}
           style={{
             display: "flex",
             alignItems: "center",
@@ -82,7 +84,7 @@ export function HeaderActions({
       )}
       <button
         onClick={toggleAvatar}
-        title={showAvatar ? "Hide agent avatar" : "Show agent avatar"}
+        title={showAvatar ? t("chatControls.hideAvatar") : t("chatControls.showAvatar")}
         style={{
           display: "flex",
           alignItems: "center",
@@ -101,7 +103,7 @@ export function HeaderActions({
       </button>
       <button
         onClick={() => setThemePickerOpen(true)}
-        title="Change theme"
+        title={t("chatControls.theme")}
         style={{
           display: "flex",
           alignItems: "center",
@@ -120,7 +122,7 @@ export function HeaderActions({
       {browserEnabled && setBrowserOpen && (
         <button
           onClick={() => setBrowserOpen((prev) => !prev)}
-          title={browserOpen ? "Close agent browser" : "Open agent browser (experimental)"}
+          title={browserOpen ? t("chatControls.closeBrowser") : t("chatControls.openBrowser")}
           style={{
             display: "flex",
             alignItems: "center",
@@ -141,7 +143,7 @@ export function HeaderActions({
       {features.editor && (
         <button
           onClick={() => setEditorOpen((prev) => !prev)}
-          title={editorOpen ? "Close editor" : "Open editor"}
+          title={editorOpen ? t("editor.close") : t("chatControls.openEditor")}
           style={{
             display: "flex",
             alignItems: "center",
@@ -162,7 +164,7 @@ export function HeaderActions({
       {features.terminal && (
         <button
           onClick={() => setTerminalOpen((prev) => !prev)}
-          title={terminalOpen ? "Close terminal (Ctrl+`)" : "Open terminal (Ctrl+`)"}
+          title={terminalOpen ? t("chatControls.closeTerminal", { shortcut: "Ctrl+`" }) : t("chatControls.openTerminal", { shortcut: "Ctrl+`" })}
           style={{
             display: "flex",
             alignItems: "center",

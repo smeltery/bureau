@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import { useCallback, useRef, useState, type RefObject } from "react";
 import type { Terminal } from "@xterm/xterm";
 import { applyCtrl, type SoftKey } from "../terminal-mobile.tsx";
@@ -11,6 +12,7 @@ type UseTerminalSoftKeysOptions = {
 };
 
 export function useTerminalSoftKeys({ inputProxyRef, mobile, sendInput, termRef }: UseTerminalSoftKeysOptions) {
+  const { t } = useI18n();
   const [ctrlActive, setCtrlActive] = useState(false);
   const ctrlActiveRef = useRef(false);
   const keyboardOpen = useMobileKeyboardOpen(mobile);
@@ -40,12 +42,12 @@ export function useTerminalSoftKeys({ inputProxyRef, mobile, sendInput, termRef 
       }
     } catch {}
     if (!text) {
-      const fromPrompt = window.prompt("Paste:");
+      const fromPrompt = window.prompt(t("chatControls.pastePrompt"));
       if (fromPrompt) text = fromPrompt;
     }
     if (text) termRef.current?.paste(text);
     inputProxyRef.current?.focus();
-  }, [inputProxyRef, termRef]);
+  }, [inputProxyRef, termRef, t]);
 
   const handleSoftKey = useCallback(
     (key: SoftKey) => {

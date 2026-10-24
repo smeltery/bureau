@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { AgentInfo } from "../../shared/types.ts";
 import { CopyButton } from "../components/controls/CopyButton.tsx";
 import { PersonIcon } from "../components/controls/Icons.tsx";
@@ -34,6 +35,7 @@ export function HeaderMobile({
   slideView?: boolean;
   setSlideView?: (active: boolean) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -49,6 +51,7 @@ export function HeaderMobile({
     >
       <button
         onClick={onBack}
+        aria-label={t("chatControls.back")}
         style={{
           padding: "12px 14px",
           border: "none",
@@ -71,6 +74,7 @@ export function HeaderMobile({
           <StatusLight state={agent.state} size={8} />
           <span
             onClick={onEditAgent}
+            title={t("chat.editAgent")}
             style={{
               fontWeight: 600,
               color: "var(--text-primary)",
@@ -108,14 +112,14 @@ export function HeaderMobile({
                 flexShrink: 0,
               }}
             >
-              Tasks
+              {t("common.tasks")}
             </button>
           )}
           {logs.length > 0 && <CopyButton getText={getConversationText} />}
           {slideModeEnabled && setSlideView && (
             <button
               onClick={() => setSlideView(!slideView)}
-              title={slideView ? "Show chat" : "Show slides"}
+              title={slideView ? t("chatControls.showChat") : t("chatControls.showSlides")}
               style={{
                 padding: "2px 7px",
                 borderRadius: 6,
@@ -133,7 +137,7 @@ export function HeaderMobile({
           )}
           <button
             onClick={toggleAvatar}
-            title={showAvatar ? "Hide agent avatar" : "Show agent avatar"}
+            title={showAvatar ? t("chatControls.hideAvatar") : t("chatControls.showAvatar")}
             style={{
               display: "flex",
               alignItems: "center",

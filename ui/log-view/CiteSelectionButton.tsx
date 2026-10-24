@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { Portal } from "../components/Portal.tsx";
 import type { CiteSelection } from "./useSelectionCite.ts";
 
@@ -23,6 +24,7 @@ const PILL_EDGE_PAD = 4;
  * Never touches scroll position or layout outside its own box.
  */
 export function CiteSelectionButton({ cite, containerRect, onClick }: { cite: CiteSelection; containerRect: DOMRect; onClick: () => void }) {
+  const { t } = useI18n();
   // Vertical placement: above the selection if room, else below.
   const aboveTop = cite.rect.top - PILL_HEIGHT - PILL_GAP;
   const placement = aboveTop >= containerRect.top ? { top: aboveTop } : { top: cite.rect.bottom + PILL_GAP };
@@ -52,7 +54,7 @@ export function CiteSelectionButton({ cite, containerRect, onClick }: { cite: Ci
           e.stopPropagation();
           onClick();
         }}
-        title="Cite selected text in input"
+        title={t("chatControls.citeHint")}
         style={{
           position: "fixed",
           left,
@@ -82,7 +84,7 @@ export function CiteSelectionButton({ cite, containerRect, onClick }: { cite: Ci
         <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <path d="M3 3h4v4H5v3H3V3zm7 0h4v4h-2v3h-2V3z" />
         </svg>
-        <span>Cite</span>
+        <span>{t("chatControls.cite")}</span>
       </button>
     </Portal>
   );
