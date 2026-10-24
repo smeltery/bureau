@@ -1,3 +1,4 @@
+import { recordSummaryEntry } from "./summaries/activity.ts";
 import { logContent, type LogMessage } from "../../shared/i18n/log-message.ts";
 import { cancelUsageResume } from "./conversation/usage-resume.ts";
 import type { AgentState, Attachment, LogEntry, OfficeSettings, RoomWire } from "../../shared/types.ts";
@@ -188,7 +189,7 @@ export function addLogEntry(
   const managed = agents.get(agentId);
   if (managed) managed.lastActivityAt = entry.timestamp;
   if (managed?.sessionId) {
-    appendLog(agentId, managed.sessionId, entry);
+    if (appendLog(agentId, managed.sessionId, entry)) recordSummaryEntry(managed, entry);
     // Track the last entry actually written to this session's JSONL so that
     // /usage's per-turn snapshots have a stable anchor inside the log.
     managed.lastWrittenEntryId = entry.id;
