@@ -72,7 +72,12 @@ explanation without asking for that key. An unexplained sign-in failure names
 the selected model and offers the model picker. Context-overflow compaction stays
 inside the original turn; its internal summary is not shown as an answer. Stop
 remains available and the event-stream deadline still detects lost connections.
-Bureau does not replay a submitted prompt.
+Bureau does not replay a submitted prompt. After a submitted turn fails, Bureau
+rejects unanswered permissions and stops that session before sending another
+prompt. Permission replies and the stop each have a request deadline. A failed
+cleanup requires process recovery; active peers prevent that restart until they
+finish. Late permissions are rejected, and cleanup retains the original
+process endpoint so it cannot stop a replacement process or another session.
 
 Usage includes all billed steps, including compaction. Repeated updates of the
 same step replace its snapshot; per-turn charges are added once to both agent
