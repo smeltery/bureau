@@ -1,4 +1,4 @@
-import { errMessage } from "../../../shared/errors.ts";
+import { errorLogParam } from "../../../shared/i18n/backend-errors/error.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { ProviderSignInRequiredError } from "../../internal-types.ts";
 import type { Attachment } from "../../../shared/types.ts";
@@ -83,7 +83,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       // Fall through so the message is actually sent on the new session.
     } catch (err: any) {
       addLogEntry(agentId, "user_message", text, username ? { username } : undefined, attachments);
-      addLogEntry(agentId, "error", logMessage("logs.session.cannotStart", { error: errMessage(err) }));
+      addLogEntry(agentId, "error", logMessage("logs.session.cannotStart", { error: errorLogParam(err) }));
       updateState(agentId, "error");
       return { ok: false, error: `Cannot start session: ${err.message}` };
     }
@@ -119,7 +119,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
     try {
       await managed.session?.approve(pending.approvalId, decision);
     } catch (err: any) {
-      emitEphemeralLog(agentId, "error", logMessage("logs.permission.resolveFailed", { error: errMessage(err) }));
+      emitEphemeralLog(agentId, "error", logMessage("logs.permission.resolveFailed", { error: errorLogParam(err) }));
       updateState(agentId, "error");
     }
     showNextPermissionPrompt(agentId, managed);
@@ -185,7 +185,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
           generateTopic(agentId);
         }
       } catch (err: any) {
-        emitEphemeralLog(agentId, "error", logMessage("logs.resumeFailed", { error: String(err?.message ?? err) }));
+        emitEphemeralLog(agentId, "error", logMessage("logs.resumeFailed", { error: errorLogParam(err, String(err)) }));
         updateState(agentId, "error");
       }
       return { ok: true };
@@ -246,7 +246,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       return { ok: false, error: usageCapText(err) };
     }
     console.error(`Agent ${agentId} send error:`, err.message);
-    addLogEntry(agentId, "error", logMessage("logs.session.error", { error: errMessage(err) }));
+    addLogEntry(agentId, "error", logMessage("logs.session.error", { error: errorLogParam(err) }));
     updateState(agentId, "error");
     return { ok: false, error: err.message ?? "Send failed" };
   }

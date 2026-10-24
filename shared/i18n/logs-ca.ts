@@ -1,5 +1,7 @@
+import { backendErrors } from "./backend-errors/ca.ts";
 import { commandDescriptions } from "./command-descriptions-ca.ts";
 export const logs = {
+  ...backendErrors,
   ...commandDescriptions,
   "logs.run.deleted": "S’ha eliminat la programació; aquesta execució s’ha aturat.",
   "logs.run.pendingEditDeleted": "S’ha eliminat la programació; s’ha cancel·lat l’edició pendent.",

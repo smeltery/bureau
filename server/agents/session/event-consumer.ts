@@ -1,3 +1,4 @@
+import { BureauLogError } from "../../../shared/i18n/backend-errors/error.ts";
 import { logMessage, logParts, type LogParam } from "../../../shared/i18n/log-message.ts";
 import { pushBoundarySteer, recordSteerDelivery } from "../conversation/push-steering.ts";
 import { armUsageResume } from "../conversation/usage-resume.ts";
@@ -39,7 +40,9 @@ export async function runConsumer(agentId: string, managed: ManagedAgent, boundS
     if (turn) turn.reject(err);
     const raw = err.message ?? String(err);
     const failure = humanizeBackendFailure(raw);
-    const errorText = failure.text.startsWith("Stream error:") ? failure.text : logMessage("logs.diagnostic.streamError", { error: failure.message ?? failure.text });
+    const errorText = failure.text.startsWith("Stream error:")
+      ? failure.text
+      : logMessage("logs.diagnostic.streamError", { error: failure.message ?? (err instanceof BureauLogError ? err.logMessage : failure.text) });
     addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
     if (managed.info.agentType === "claude") {
       const hints = diagnoseProcessExit(managed);

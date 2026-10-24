@@ -1,3 +1,4 @@
+import { BureauLogError, errorLogParam } from "../../../shared/i18n/backend-errors/error.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { bureauSystemNotice, bureauTurnFailure } from "../session-types.ts";
 import type { AgentMcpServer } from "../../integrations/mcp.ts";
@@ -119,7 +120,7 @@ export class OpenCodeTransport {
       sink(bureauTurnFailure(logMessage("logs.backend.missingBinding")));
       return;
     }
-    if (this.activeTurn) throw new Error("OpenCode already has an active turn.");
+    if (this.activeTurn) throw new BureauLogError(logMessage("logs.backendError.activeTurn"));
     this.resetLease();
     const sessionId = await this.initialize(sink);
     await this.lease!.beginTurn();
@@ -158,7 +159,14 @@ export class OpenCodeTransport {
       this.activeTurn = false;
       this.authorityBinding?.deactivate();
       this.lease!.endTurn();
-      if (wasActive) sink(error instanceof Error ? { kind: "turn_completed", status: "failed", error: error.message } : bureauTurnFailure(logMessage("logs.backend.requestFailed")));
+      if (wasActive)
+        sink(
+          error instanceof BureauLogError
+            ? bureauTurnFailure(error.logMessage)
+            : error instanceof Error
+              ? { kind: "turn_completed", status: "failed", error: error.message }
+              : bureauTurnFailure(logMessage("logs.backend.requestFailed")),
+        );
     }
   }
 
@@ -178,7 +186,7 @@ export class OpenCodeTransport {
     const pending = this.pendingPermission;
     if (!pending || pending.id !== approvalId || pending.sessionId !== this.sessionId) return;
     if (decision.kind !== "allow_once" && decision.kind !== "deny") {
-      throw new Error("OpenCode supports Allow once and Deny.");
+      throw new BureauLogError(logMessage("logs.backendError.approval"));
     }
     this.pendingPermission = null;
     await this.replyPermission(approvalId, decision.kind === "allow_once" ? "once" : "reject", decision.kind === "deny" ? decision.reason : undefined);
@@ -217,7 +225,7 @@ export class OpenCodeTransport {
 
   private async consumeEvents(sessionId: string, sink: EventSink, signal: AbortSignal): Promise<void> {
     const response = await this.request("/event", { signal });
-    if (!response.body) throw new Error("OpenCode event stream has no body.");
+    if (!response.body) throw new BureauLogError(logMessage("logs.backendError.noBody"));
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     const assistantMessages = new Set<string>();
@@ -285,7 +293,7 @@ export class OpenCodeTransport {
       } catch (error) {
         if (!signal.aborted) {
           this.lease?.markUnresponsive?.();
-          settle(bureauTurnFailure(logMessage("logs.backend.streamFailed", { error: error instanceof Error ? error.message : logMessage("logs.backend.unknownError") })));
+          settle(bureauTurnFailure(logMessage("logs.backend.streamFailed", { error: error instanceof Error ? errorLogParam(error) : logMessage("logs.backend.unknownError") })));
         }
       } finally {
         await reader.cancel().catch(() => undefined);
@@ -308,7 +316,7 @@ export class OpenCodeTransport {
   }
 
   private async request(path: string, init: RequestInit = {}): Promise<Response> {
-    if (!this.lease) throw new Error("OpenCode transport is not initialized.");
+    if (!this.lease) throw new BureauLogError(logMessage("logs.backendError.uninitialized"));
     const url = new URL(path, this.lease.baseUrl);
     url.searchParams.set("directory", this.cwd);
     const response = await fetchOpenCode(
@@ -325,7 +333,7 @@ export class OpenCodeTransport {
     );
     if (!response.ok) {
       await response.body?.cancel().catch(() => undefined);
-      throw new Error(`OpenCode HTTP ${response.status} at ${path}.`);
+      throw new BureauLogError(logMessage("logs.backendError.http", { status: response.status, path }));
     }
     return response;
   }
