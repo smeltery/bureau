@@ -2,7 +2,7 @@ import { authLanguage } from "./preauth/language.ts";
 import type { SupportedLanguageCode } from "../../shared/languages.ts";
 import type { Server } from "bun";
 import { getUserByName } from "../users.ts";
-import { acceptInvite, clearCookieHeaders, logoutBySessionHash, peekInvite, readSessionCookie, setCookieHeader, validateSession, type InvitePeek } from "./auth.ts";
+import { acceptInvite, clearCookieHeaders, logoutBySessionHash, peekInvite, readSessionCookie, readSessionCookies, setCookieHeader, validateSession, type InvitePeek } from "./auth.ts";
 import { renderAcceptPage, renderInviteError, renderInviteIdentityConflict, renderLockoutBlocked, securityHeaders } from "./auth-pages.ts";
 import { handleClaim, handleClaimForm, shouldShowClaimForm } from "./auth-claim-routes.ts";
 import { checkAuthRateLimit } from "./auth-rate-limit.ts";
@@ -149,8 +149,8 @@ export async function handleLogout(req: Request, officeName: string | null): Pro
   if (!originValidForAuthPost(req)) {
     return new Response("bad origin", { status: 403 });
   }
-  const cookie = readSessionCookie(req);
-  const lookup = validateSession(cookie);
+  const cookies = readSessionCookies(req);
+  const lookup = validateSession(cookies.selected || null);
   const result = lookup ? await logoutBySessionHash(lookup.sessionIdHash) : "not_found";
   if (result === "would_strand_office") {
     return new Response(renderLockoutBlocked({ key: "preauth.lastOwner" }, officeName, authLanguage(req)), {
@@ -161,12 +161,8 @@ export async function handleLogout(req: Request, officeName: string | null): Pro
       },
     });
   }
-  // Both names, as independent Set-Cookie lines (an object literal can only
-  // carry one). Clearing the name that did NOT authenticate this request is
-  // client-side cleanup only — the session revoked above is the one the
-  // request actually selected.
   const headers = new Headers({ Location: "/", ...securityHeaders() });
-  for (const line of clearCookieHeaders()) headers.append("Set-Cookie", line);
+  for (const line of clearCookieHeaders(cookies, lookup ? cookies.selected : null)) headers.append("Set-Cookie", line);
   return new Response(null, { status: 302, headers });
 }
 
