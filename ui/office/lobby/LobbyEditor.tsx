@@ -1,3 +1,6 @@
+import { layoutLabel, themeLabel } from "./editor/labels.ts";
+import { useI18n } from "../../i18n.tsx";
+import { importLayout, type EditorStatus } from "./editor/import.ts";
 // Dev art tool for lobby prop placement. Mounted when URL has ?lobbyEdit=1.
 // Client-only: drag props, export a TypeScript snippet for layouts.ts, copy to clipboard.
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -34,6 +37,7 @@ export function LobbyEditor({
   officeName: string | null;
   star: PropStar | null;
 }) {
+  const { t } = useI18n();
   const [layout, setLayout] = useState<LobbyLayoutId>(initialLayout);
   const [theme, setTheme] = useState(() => THEMES.find((t) => t.id === themeId) ?? THEMES[0]);
   const mode = theme.mode;
@@ -42,7 +46,7 @@ export function LobbyEditor({
   const [selected, setSelected] = useState<number | null>(null);
   const [addFamily, setAddFamily] = useState(LOBBY_PROPS[0].id);
   const [addVariant, setAddVariant] = useState(LOBBY_PROPS[0].variants[0].id);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<EditorStatus>(null);
   const [draft, setDraft] = useState<string | null>(null);
   const nextKey = useRef(1000);
   const rowRefs = useRef(new Map<number, HTMLTableRowElement>());
@@ -63,6 +67,7 @@ export function LobbyEditor({
     setRecep(LOBBY_LAYOUTS[id].receptionist);
     setSelected(null);
     setDraft(null);
+    setStatus(null);
   }
 
   const update = useCallback((key: number, patch: Partial<Placement>) => {
@@ -130,22 +135,18 @@ export function LobbyEditor({
 
   function applyText() {
     if (draft === null) return;
-    try {
-      const j = JSON.parse(draft) as { layout?: LobbyLayoutId; placements?: Placement[]; receptionist?: { a: number; b: number } };
-      const list = Array.isArray(j) ? (j as Placement[]) : j.placements;
-      if (!Array.isArray(list)) {
-        setStatus("that JSON has no placements array");
-        return;
-      }
-      if (j.layout && j.layout in LOBBY_LAYOUTS) setLayout(j.layout);
-      setItems(list.map((p, i) => ({ ...p, key: i })));
-      if (j.receptionist) setRecep(j.receptionist);
-      setSelected(null);
-      setDraft(null);
-      setStatus(`loaded ${list.length} props`);
-    } catch (err) {
-      setStatus(`not valid JSON: ${String(err)}`);
+    const result = importLayout(draft);
+    if (!result.ok) {
+      setStatus({ kind: "error", key: result.key });
+      return;
     }
+    const { placements, layout: importedLayout, receptionist } = result.value;
+    if (importedLayout) setLayout(importedLayout);
+    setItems(placements.map((p, i) => ({ ...p, key: i })));
+    if (receptionist) setRecep(receptionist);
+    setSelected(null);
+    setDraft(null);
+    setStatus({ kind: "loaded", count: placements.length });
   }
 
   const recepPx = anchorPx({ family: "", variant: "", a: recep.a, b: recep.b });
@@ -161,7 +162,7 @@ export function LobbyEditor({
           star={star}
           placements={items}
           receptionistAt={recep}
-          rightDoor={{ label: rooms[0]?.name ?? "Room 1", onClick: () => {} }}
+          rightDoor={{ label: rooms[0]?.name ?? t("common.room"), onClick: () => {} }}
           receptionist={
             <g transform="translate(-26 -68)">
               <Character state="idle" outfit={RECEP_OUTFIT} />
@@ -193,7 +194,7 @@ export function LobbyEditor({
         })}
         <div
           onPointerDown={(e) => startDrag(e, { kind: "recep" })}
-          title="receptionist"
+          title={t("settingsUi.editorReceptionist")}
           style={{
             position: "absolute",
             left: recepPx.left - 7,
@@ -217,19 +218,19 @@ export function LobbyEditor({
         status={status}
         draft={draft}
         layoutSelect={
-          <select value={layout} onChange={(e) => loadLayout(e.target.value as LobbyLayoutId)}>
+          <select aria-label={t("settingsUi.editorLayout")} value={layout} onChange={(e) => loadLayout(e.target.value as LobbyLayoutId)}>
             {LOBBY_LAYOUT_IDS.map((id) => (
               <option key={id} value={id}>
-                {id}
+                {layoutLabel(id, t)}
               </option>
             ))}
           </select>
         }
         onLoadLayout={
-          <select value={theme.id} onChange={(e) => setTheme(THEMES.find((t) => t.id === e.target.value) ?? THEMES[0])}>
-            {THEMES.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.displayName}
+          <select aria-label={t("settingsUi.editorTheme")} value={theme.id} onChange={(e) => setTheme(THEMES.find((t) => t.id === e.target.value) ?? THEMES[0])}>
+            {THEMES.map((theme) => (
+              <option key={theme.id} value={theme.id}>
+                {themeLabel(theme, t)}
               </option>
             ))}
           </select>
@@ -243,10 +244,13 @@ export function LobbyEditor({
         onReset={() => loadLayout(layout)}
         onDraft={(text) => {
           setDraft(text);
-          if (text === null) setStatus("copied");
+          if (text === null) setStatus({ kind: "copied" });
         }}
         onApplyDraft={applyText}
-        onClearDraft={() => setDraft(null)}
+        onClearDraft={() => {
+          setDraft(null);
+          setStatus(null);
+        }}
         rowRefs={rowRefs}
       />
     </div>

@@ -1,3 +1,4 @@
+import type { PlainMessageKey } from "../../../shared/i18n/translate.ts";
 import type { ComponentType } from "react";
 import type { AgentOutfit } from "../../../shared/types.ts";
 import { EmployeePlaque } from "./props-plaque.tsx";
@@ -42,7 +43,7 @@ export interface PropContext {
 
 export interface PropVariant {
   id: string;
-  label: string;
+  labelKey: PlainMessageKey;
   Component: ComponentType<PropContext>;
   // Contact shadow ellipse (screen units). Absent for wall pieces and rugs.
   shadow?: { rx: number; ry: number };
@@ -60,7 +61,7 @@ export interface PropVariant {
 
 export interface PropFamily {
   id: string;
-  label: string;
+  labelKey: PlainMessageKey;
   variants: PropVariant[];
 }
 
@@ -73,12 +74,12 @@ const noCtx = (C: ComponentType) => {
 export const LOBBY_PROPS: PropFamily[] = [
   {
     id: "sofa",
-    label: "Sofa",
+    labelKey: "settingsUi.propSofa",
     variants: [
       {
         id: "boxy",
         facings: 4,
-        label: "Boxy slate",
+        labelKey: "settingsUi.propBoxySlate",
         Component: ({ back }) => <SofaBoxy back={back} />,
         shadow: { rx: 66, ry: 30 },
         height: 60,
@@ -86,7 +87,7 @@ export const LOBBY_PROPS: PropFamily[] = [
       {
         id: "loveseat",
         facings: 4,
-        label: "Mustard loveseat",
+        labelKey: "settingsUi.propMustardLoveseat",
         Component: ({ back }) => <SofaLoveseat back={back} />,
         shadow: { rx: 54, ry: 26 },
         height: 60,
@@ -94,7 +95,7 @@ export const LOBBY_PROPS: PropFamily[] = [
       {
         id: "chesterfield",
         facings: 4,
-        label: "Oxblood chesterfield",
+        labelKey: "settingsUi.propOxbloodChesterfield",
         Component: ({ back }) => <SofaChesterfield back={back} />,
         shadow: { rx: 70, ry: 32 },
         height: 62,
@@ -103,19 +104,19 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "armchair",
-    label: "Armchair",
+    labelKey: "settingsUi.propArmchair",
     variants: [
       {
         id: "club",
         facings: 4,
-        label: "Leather club",
+        labelKey: "settingsUi.propLeatherClub",
         Component: ({ back }) => <ArmchairClub back={back} />,
         shadow: { rx: 36, ry: 20 },
         height: 56,
       },
       {
         id: "egg",
-        label: "Sage egg chair",
+        labelKey: "settingsUi.propSageEggChair",
         Component: noCtx(ArmchairEgg),
         shadow: { rx: 22, ry: 11 },
         height: 70,
@@ -124,18 +125,18 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "table",
-    label: "Coffee table",
+    labelKey: "settingsUi.propCoffeeTable",
     variants: [
       {
         id: "round",
-        label: "Round wood",
+        labelKey: "settingsUi.propRoundWood",
         Component: noCtx(TableRound),
         shadow: { rx: 26, ry: 13 },
         height: 34,
       },
       {
         id: "glass",
-        label: "Glass rectangle",
+        labelKey: "settingsUi.propGlassRectangle",
         Component: noCtx(TableGlass),
         shadow: { rx: 40, ry: 20 },
         height: 32,
@@ -144,18 +145,18 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "fireplace",
-    label: "Fireplace",
+    labelKey: "settingsUi.propFireplace",
     variants: [
       {
         id: "brick",
-        label: "Brick with mantel",
+        labelKey: "settingsUi.propBrickWithMantel",
         Component: noCtx(FireplaceBrick),
         shadow: { rx: 48, ry: 22 },
         height: 100,
       },
       {
         id: "modern",
-        label: "Stone slab",
+        labelKey: "settingsUi.propStoneSlab",
         Component: noCtx(FireplaceModern),
         shadow: { rx: 60, ry: 24 },
         height: 70,
@@ -164,18 +165,18 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "shelf",
-    label: "Shelving",
+    labelKey: "settingsUi.propShelving",
     variants: [
       {
         id: "tall",
-        label: "Tall bookcase",
+        labelKey: "settingsUi.propTallBookcase",
         Component: noCtx(BookshelfTall),
         shadow: { rx: 32, ry: 16 },
         height: 90,
       },
       {
         id: "credenza",
-        label: "Credenza",
+        labelKey: "settingsUi.propCredenza",
         Component: noCtx(Credenza),
         shadow: { rx: 42, ry: 20 },
         height: 50,
@@ -184,18 +185,18 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "tank",
-    label: "Fish",
+    labelKey: "settingsUi.propFish",
     variants: [
       {
         id: "stand",
-        label: "Tank on stand",
+        labelKey: "settingsUi.propTankOnStand",
         Component: noCtx(FishTankStand),
         shadow: { rx: 32, ry: 16 },
         height: 68,
       },
       {
         id: "bowl",
-        label: "Bowl on side table",
+        labelKey: "settingsUi.propBowlOnSideTable",
         Component: noCtx(FishBowl),
         shadow: { rx: 18, ry: 9 },
         height: 52,
@@ -204,18 +205,18 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "lamp",
-    label: "Floor lamp",
+    labelKey: "settingsUi.propFloorLamp",
     variants: [
       {
         id: "arc",
-        label: "Arc lamp",
+        labelKey: "settingsUi.propArcLamp",
         Component: noCtx(LampArc),
         shadow: { rx: 13, ry: 6.5 },
         height: 118,
       },
       {
         id: "tripod",
-        label: "Tripod drum",
+        labelKey: "settingsUi.propTripodDrum",
         Component: noCtx(LampTripod),
         shadow: { rx: 16, ry: 8 },
         height: 84,
@@ -224,12 +225,12 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "rug",
-    label: "Rug",
+    labelKey: "settingsUi.propRug",
     variants: [
       {
         id: "oval",
         facings: 1,
-        label: "Oval welcome",
+        labelKey: "settingsUi.propOvalWelcome",
         Component: noCtx(RugOval),
         noFlip: true,
         height: 26,
@@ -237,14 +238,14 @@ export const LOBBY_PROPS: PropFamily[] = [
       {
         id: "rect",
         facings: 1,
-        label: "Striped kilim",
+        labelKey: "settingsUi.propStripedKilim",
         Component: noCtx(RugRect),
         height: 40,
       },
       {
         id: "round",
         facings: 1,
-        label: "Braided round",
+        labelKey: "settingsUi.propBraidedRound",
         Component: noCtx(RugRound),
         height: 22,
       },
@@ -252,18 +253,18 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "plant",
-    label: "Plant",
+    labelKey: "settingsUi.propPlant",
     variants: [
       {
         id: "corner",
-        label: "Office corner plant",
+        labelKey: "settingsUi.propOfficeCornerPlant",
         Component: noCtx(PlantCorner),
         shadow: { rx: 25, ry: 12.5 },
         height: 90,
       },
       {
         id: "monstera",
-        label: "Monstera",
+        labelKey: "settingsUi.propMonstera",
         Component: noCtx(PlantMonstera),
         shadow: { rx: 18, ry: 9 },
         height: 70,
@@ -272,11 +273,11 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "wallart",
-    label: "Wall piece",
+    labelKey: "settingsUi.propWallPiece",
     variants: [
       {
         id: "bunting",
-        label: "Welcome bunting",
+        labelKey: "settingsUi.propWelcomeBunting",
         Component: ({ wall }) => <Bunting wall={wall} />,
         wall: true,
         noFlip: true,
@@ -284,7 +285,7 @@ export const LOBBY_PROPS: PropFamily[] = [
       },
       {
         id: "poster",
-        label: "Framed poster",
+        labelKey: "settingsUi.propFramedPoster",
         Component: ({ wall }) => <FramedPoster wall={wall} />,
         wall: true,
         noFlip: true,
@@ -294,18 +295,18 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "cat",
-    label: "Cat",
+    labelKey: "settingsUi.propCat",
     variants: [
       {
         id: "curled",
-        label: "Curled tabby",
+        labelKey: "settingsUi.propCurledTabby",
         Component: noCtx(CatCurled),
         shadow: { rx: 18, ry: 8 },
         height: 18,
       },
       {
         id: "sitting",
-        label: "Sitting grey",
+        labelKey: "settingsUi.propSittingGrey",
         Component: noCtx(CatSitting),
         shadow: { rx: 12, ry: 5 },
         height: 40,
@@ -314,11 +315,11 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "directory",
-    label: "Directory",
+    labelKey: "settingsUi.propDirectory",
     variants: [
       {
         id: "board",
-        label: "Wall bulletin",
+        labelKey: "settingsUi.propWallBulletin",
         Component: ({ wall, rooms, officeName }) => <DirectoryBoard wall={wall} rooms={rooms} officeName={officeName} />,
         wall: true,
         noFlip: true,
@@ -326,7 +327,7 @@ export const LOBBY_PROPS: PropFamily[] = [
       },
       {
         id: "sign",
-        label: "A-frame chalkboard",
+        labelKey: "settingsUi.propAFrameChalkboard",
         Component: ({ rooms, officeName }) => <DirectorySign rooms={rooms} officeName={officeName} />,
         shadow: { rx: 20, ry: 9 },
         noFlip: true,
@@ -336,11 +337,11 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "plaque",
-    label: "Employee of the Minute",
+    labelKey: "settingsUi.propEmployeeOfTheMinute",
     variants: [
       {
         id: "framed",
-        label: "Framed portrait",
+        labelKey: "settingsUi.propFramedPortrait",
         Component: ({ wall, star }) => (star ? <EmployeePlaque wall={wall} name={star.name} outfit={star.outfit} /> : <g />),
         wall: true,
         noFlip: true,
@@ -350,12 +351,12 @@ export const LOBBY_PROPS: PropFamily[] = [
   },
   {
     id: "counter",
-    label: "Reception",
+    labelKey: "settingsUi.propReception",
     variants: [
       {
         id: "counter",
         facings: 4,
-        label: "Wood counter",
+        labelKey: "settingsUi.propWoodCounter",
         Component: ({ back }) => <ReceptionCounter back={back} />,
         shadow: { rx: 66, ry: 30 },
         height: 60,

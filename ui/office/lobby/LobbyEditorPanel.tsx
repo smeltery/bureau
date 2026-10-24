@@ -1,3 +1,5 @@
+import { useI18n } from "../../i18n.tsx";
+import type { EditorStatus } from "./editor/import.ts";
 // Side panel for the lobby layout editor: prop list, add/remove, export.
 import { type CSSProperties } from "react";
 import { LOBBY_PROPS, variantFacings } from "./props.tsx";
@@ -43,7 +45,7 @@ export function LobbyEditorPanel({
   selected: number | null;
   addFamily: string;
   addVariant: string;
-  status: string;
+  status: EditorStatus;
   draft: string | null;
   layoutSelect: React.ReactNode;
   onSelect: (key: number | null) => void;
@@ -59,6 +61,7 @@ export function LobbyEditorPanel({
   onClearDraft: () => void;
   rowRefs: React.MutableRefObject<Map<number, HTMLTableRowElement>>;
 }) {
+  const { t, tn } = useI18n();
   const exportedTs = exportLayoutTs(items, recep);
   const exportedJson = placementsJson(items, recep);
   const boxText = draft ?? exportedJson;
@@ -77,15 +80,14 @@ export function LobbyEditorPanel({
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
         {layoutSelect}
         <button type="button" onClick={onReset}>
-          reset
+          {t("settingsUi.editorReset")}
         </button>
         {onLoadLayout}
       </div>
-      <div style={{ color: "var(--text-dim)", marginBottom: 8 }}>
-        Drag the dots. Arrows nudge (shift: bigger), Delete removes. Yellow: floor, blue: wall, green: receptionist. Copy TS for layouts.ts.
-      </div>
-      <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 8 }}>
+      <div style={{ color: "var(--text-dim)", marginBottom: 8 }}>{t("settingsUi.editorHint")}</div>
+      <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
         <select
+          aria-label={t("settingsUi.editorFamily")}
           value={addFamily}
           onChange={(e) => {
             onAddFamily(e.target.value);
@@ -94,22 +96,22 @@ export function LobbyEditorPanel({
         >
           {LOBBY_PROPS.map((f) => (
             <option key={f.id} value={f.id}>
-              {f.label}
+              {t(f.labelKey)}
             </option>
           ))}
         </select>
-        <select value={addVariant} onChange={(e) => onAddVariant(e.target.value)}>
+        <select aria-label={t("settingsUi.editorVariant")} value={addVariant} onChange={(e) => onAddVariant(e.target.value)}>
           {LOBBY_PROPS.find((f) => f.id === addFamily)!.variants.map((v) => (
             <option key={v.id} value={v.id}>
-              {v.label}
+              {t(v.labelKey)}
             </option>
           ))}
         </select>
         <button type="button" onClick={onAdd}>
-          add
+          {t("settingsUi.editorAdd")}
         </button>
       </div>
-      <table style={{ borderCollapse: "collapse", width: "100%" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: "fixed" }}>
         <tbody>
           {items.map((it) => {
             const fam = LOBBY_PROPS.find((f) => f.id === it.family)!;
@@ -131,6 +133,8 @@ export function LobbyEditorPanel({
               >
                 <td style={{ padding: 2 }}>
                   <select
+                    style={{ width: "100%" }}
+                    aria-label={t("settingsUi.editorFamily")}
                     value={it.family}
                     onChange={(e) => {
                       const f = LOBBY_PROPS.find((x) => x.id === e.target.value)!;
@@ -139,20 +143,21 @@ export function LobbyEditorPanel({
                   >
                     {LOBBY_PROPS.map((f) => (
                       <option key={f.id} value={f.id}>
-                        {f.id}
+                        {t(f.labelKey)}
                       </option>
                     ))}
                   </select>
-                  <select value={it.variant} onChange={(e) => onUpdate(it.key, { variant: e.target.value })}>
+                  <select style={{ width: "100%" }} aria-label={t("settingsUi.editorVariant")} value={it.variant} onChange={(e) => onUpdate(it.key, { variant: e.target.value })}>
                     {fam.variants.map((v) => (
                       <option key={v.id} value={v.id}>
-                        {v.id}
+                        {t(v.labelKey)}
                       </option>
                     ))}
                   </select>
                 </td>
-                <td style={{ padding: 2, whiteSpace: "nowrap" }}>
+                <td style={{ padding: 2 }}>
                   <select
+                    aria-label={t("settingsUi.editorSurface")}
                     value={it.wall ?? ""}
                     onChange={(e) =>
                       onUpdate(it.key, {
@@ -163,16 +168,45 @@ export function LobbyEditorPanel({
                       })
                     }
                   >
-                    <option value="">floor</option>
-                    <option value="left">left</option>
-                    <option value="right">right</option>
+                    <option value="">{t("settingsUi.editorFloor")}</option>
+                    <option value="left">{t("settingsUi.editorLeft")}</option>
+                    <option value="right">{t("settingsUi.editorRight")}</option>
                   </select>
-                  {it.wall && <input style={inputStyle} type="number" step="5" value={roundCoord(it.h ?? 60)} onChange={(e) => onUpdate(it.key, { h: Number(e.target.value) })} title="height" />}
-                  <input style={inputStyle} type="number" step="0.05" value={it.scale ?? 1} onChange={(e) => onUpdate(it.key, { scale: Number(e.target.value) })} title="scale" />
-                  {!it.wall && <input style={inputStyle} type="number" step="0.5" value={it.z ?? 0} onChange={(e) => onUpdate(it.key, { z: Number(e.target.value) })} title="draw order" />}
+                  {it.wall && (
+                    <input
+                      style={inputStyle}
+                      type="number"
+                      step="5"
+                      value={roundCoord(it.h ?? 60)}
+                      onChange={(e) => onUpdate(it.key, { h: Number(e.target.value) })}
+                      aria-label={t("settingsUi.editorHeight")}
+                      title={t("settingsUi.editorHeight")}
+                    />
+                  )}
+                  <input
+                    style={inputStyle}
+                    type="number"
+                    step="0.05"
+                    value={it.scale ?? 1}
+                    onChange={(e) => onUpdate(it.key, { scale: Number(e.target.value) })}
+                    aria-label={t("settingsUi.editorScale")}
+                    title={t("settingsUi.editorScale")}
+                  />
+                  {!it.wall && (
+                    <input
+                      style={inputStyle}
+                      type="number"
+                      step="0.5"
+                      value={it.z ?? 0}
+                      onChange={(e) => onUpdate(it.key, { z: Number(e.target.value) })}
+                      aria-label={t("settingsUi.editorOrder")}
+                      title={t("settingsUi.editorOrder")}
+                    />
+                  )}
                   {it.wall ? (
-                    <label title="flip">
-                      <input type="checkbox" checked={!!it.flip} onChange={(e) => onUpdate(it.key, { flip: e.target.checked })} />f
+                    <label aria-label={t("settingsUi.editorFlip")} title={t("settingsUi.editorFlip")}>
+                      <input type="checkbox" checked={!!it.flip} onChange={(e) => onUpdate(it.key, { flip: e.target.checked })} />
+                      {t("settingsUi.editorFlip")}
                     </label>
                   ) : (
                     (() => {
@@ -180,7 +214,11 @@ export function LobbyEditorPanel({
                       if (n === 1) return null;
                       const options = n === 4 ? ["SE", "SW", "NE", "NW"] : ["SE", "SW"];
                       return (
-                        <select value={it.facing ?? (it.flip ? "SW" : "SE")} onChange={(e) => onUpdate(it.key, { facing: e.target.value as Placement["facing"], flip: undefined })}>
+                        <select
+                          aria-label={t("settingsUi.editorFacing")}
+                          value={it.facing ?? (it.flip ? "SW" : "SE")}
+                          onChange={(e) => onUpdate(it.key, { facing: e.target.value as Placement["facing"], flip: undefined })}
+                        >
                           {options.map((o) => (
                             <option key={o} value={o}>
                               {o}
@@ -190,7 +228,7 @@ export function LobbyEditorPanel({
                       );
                     })()
                   )}
-                  <button type="button" onClick={() => onRemove(it.key)}>
+                  <button type="button" aria-label={t("settingsUi.editorRemove")} onClick={() => onRemove(it.key)}>
                     x
                   </button>
                 </td>
@@ -201,20 +239,28 @@ export function LobbyEditorPanel({
       </table>
       <div style={{ margin: "8px 0 4px", display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
         <button type="button" onClick={() => void copyTs()}>
-          Copy TS
+          {t("settingsUi.editorCopy")}
         </button>
         <button type="button" onClick={onApplyDraft} disabled={draft === null}>
-          apply JSON
+          {t("settingsUi.editorApply")}
         </button>
         <button type="button" onClick={onClearDraft} disabled={draft === null}>
-          revert
+          {t("settingsUi.editorRevert")}
         </button>
-        <button type="button" onClick={() => onDraft(exportedTs)} title="show layouts.ts block">
-          show as TS
+        <button type="button" onClick={() => onDraft(exportedTs)} title={t("settingsUi.editorShowHint")}>
+          {t("settingsUi.editorShow")}
         </button>
-        <span style={{ color: "var(--text-dim)" }}>{status}</span>
+        <span style={{ color: "var(--text-dim)" }}>
+          {status?.kind === "copied" ? t("common.copied") : status?.kind === "loaded" ? tn("settingsUi.editorLoaded", status.count) : status?.kind === "error" ? t(status.key) : ""}
+        </span>
       </div>
-      <textarea value={boxText} onChange={(e) => onDraft(e.target.value)} spellCheck={false} style={{ width: "100%", height: 220, fontFamily: "JetBrains Mono, monospace", fontSize: 10 }} />
+      <textarea
+        aria-label={t("settingsUi.editorData")}
+        value={boxText}
+        onChange={(e) => onDraft(e.target.value)}
+        spellCheck={false}
+        style={{ width: "100%", height: 220, fontFamily: "JetBrains Mono, monospace", fontSize: 10 }}
+      />
     </div>
   );
 }

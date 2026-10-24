@@ -204,7 +204,7 @@ export function OfficeView({
               ...(lobbyOpen ? {} : skinVars),
             }}
           >
-            {lobbyOpen ? (
+            {lobbyOpen || lobbyEdit ? (
               <OfficeLobbyLayer
                 onOpenTeamChat={onOpenTeamChat}
                 onFocusAgent={onFocusAgent}
