@@ -1,3 +1,6 @@
+import { translatorFor } from "../../../shared/i18n/translate.ts";
+import { buildCommitNotice } from "../../../shared/update-notice.ts";
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import type { AgentInfo } from "../../../shared/types.ts";
 import type { CommitNotice } from "../../../shared/update-notice.ts";
@@ -59,4 +62,50 @@ describe("UpdateModal helpers", () => {
     expect(text).toContain("docs/contributing/hosting/kubernetes.md");
     expect(text).not.toContain("systemctl");
   });
+});
+
+test("translated update copies preserve commands and deployment-specific guide targets", () => {
+  for (const language of ["en", "es", "ca", "zh"] as const) {
+    const translator = translatorFor(language);
+    const notice = buildCommitNotice(
+      {
+        mode: "commit",
+        updateAvailable: true,
+        current: { release: "v-current {literal}", sha: "a".repeat(40) },
+        latest: { tag: "v-next {literal}", url: null },
+        releaseStanding: "behind",
+        mainAhead: 2,
+      },
+      translator,
+    )!;
+    const copy = buildPlainText(notice, 1, translator);
+    expect(copy).toContain("v-current {literal}");
+    expect(copy).toContain("v-next {literal}");
+    expect(copy).toContain(translator.tn("settingsUi.updateBusy", 1));
+    for (const command of ["bun install", "bun run dev", "systemctl --user restart bureau", "sudo systemctl restart bureau"]) expect(copy).toContain(`\`${command}\``);
+    for (const guide of ["kubernetes", "render", "container"] as const) {
+      const text = buildReleasePlainText(
+        {
+          mode: "release",
+          updateAvailable: true,
+          current: { release: null, version: "a".repeat(40) },
+          latest: { tag: "v-next {literal}", url: "https://example.test/release", publishedAt: "2026-10-23T08:48:16Z" },
+          apply: { kind: "image", guide },
+        },
+        translator,
+      );
+      expect(text).toContain(translator.t("settingsUi.updateCommit", { sha: "aaaaaaa" }));
+      expect(text).toContain("v-next {literal}");
+      expect(text).toContain("https://example.test/release");
+      expect(text).toContain("2026-10-23T08:48:16Z");
+      expect(text).not.toContain("systemctl");
+      const link = text.match(/https:\/\/github.com\/smeltery\/bureau\/blob\/master\/([^\s#]+)#([^\s]+)/)!;
+      expect(link).not.toBeNull();
+      const document = readFileSync(new URL(`../../../${link[1]}`, import.meta.url), "utf8");
+      expect(document).toContain(guide === "container" ? "## Container updates" : "## Update the office");
+    }
+    const unknown = buildReleasePlainText({ mode: "release", updateAvailable: false, current: { release: null, version: null }, latest: null, apply: { kind: "host" } }, translator);
+    expect(unknown).toStartWith(translator.t("settingsUi.updateStatus"));
+    expect(unknown).not.toContain("systemctl");
+  }
 });

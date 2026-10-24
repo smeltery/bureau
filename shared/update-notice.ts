@@ -1,3 +1,4 @@
+import { translatorFor, type Translator } from "./i18n/translate.ts";
 import type { CommitUpdateStatus } from "./update-types.ts";
 
 export interface CommitNotice {
@@ -6,49 +7,40 @@ export interface CommitNotice {
   notice: string;
 }
 
-export function buildCommitNotice(status: CommitUpdateStatus): CommitNotice | null {
+export function buildCommitNotice(status: CommitUpdateStatus, translator: Translator = translatorFor("en")): CommitNotice | null {
   if (!status.updateAvailable) return null;
+  const { t } = translator;
 
   const shortSha = status.current.sha.slice(0, 7);
-  const running = status.current.release ?? `commit ${shortSha}`;
+  const running = status.current.release ?? t("settingsUi.updateCommit", { sha: shortSha });
   const latest = status.latest;
 
   let identity: string;
   if (!latest) {
-    identity = `You're on ${running}.`;
+    identity = t("settingsUi.updateRunning", { running });
   } else if (status.releaseStanding === "current") {
-    identity = `You're on ${running} (latest release).`;
+    identity = t("settingsUi.updateCurrent", { running });
   } else if (status.releaseStanding === "behind") {
-    identity = `You're on ${running}; ${latest.tag} is out.`;
+    identity = t("settingsUi.updateBehind", { running, latest: latest.tag });
   } else if (status.releaseStanding === "ahead") {
-    identity = status.current.release ? `You're on ${running} (newer than the latest release, ${latest.tag}).` : `You're on ${running}, past the latest release (${latest.tag}).`;
+    identity = status.current.release ? t("settingsUi.updateAhead", { running, latest: latest.tag }) : t("settingsUi.updatePast", { running, latest: latest.tag });
   } else {
-    identity = `You're on ${running}. The latest release is ${latest.tag};`;
+    identity = t("settingsUi.updateUnknown", { running, latest: latest.tag });
   }
 
-  const drift = buildDrift(status);
+  const drift = buildDrift(status, translator);
   const releaseNewer = latest !== null && status.releaseStanding === "behind";
 
   return {
-    pill: releaseNewer ? "new release" : `master +${status.mainAhead}`,
-    title: releaseNewer ? "New Release Available" : "Newer Commits on master",
+    pill: releaseNewer ? t("settingsUi.updatePill") : `master +${status.mainAhead}`,
+    title: releaseNewer ? t("settingsUi.updateNew") : t("settingsUi.updateCommits"),
     notice: [identity, drift].filter(Boolean).join(" "),
   };
 }
 
-function buildDrift(status: CommitUpdateStatus): string {
+function buildDrift(status: CommitUpdateStatus, { tn }: Translator): string {
   if (status.mainAhead <= 0) return "";
-  const commits = status.mainAhead === 1 ? "commit" : "commits";
-  const latest = status.latest;
-
-  if (latest && status.releaseStanding === "behind" && status.current.release) {
-    return `master has ${status.mainAhead} ${commits} beyond that.`;
-  }
-  if (latest && status.releaseStanding === "unknown") {
-    return `master has ${status.mainAhead} newer ${commits}.`;
-  }
-  if (latest && (status.releaseStanding === "current" || status.releaseStanding === "ahead")) {
-    return `master has ${status.mainAhead} newer ${commits} if you want the bleeding edge.`;
-  }
-  return `master has ${status.mainAhead} newer ${commits}.`;
+  if (status.latest && status.releaseStanding === "behind" && status.current.release) return tn("settingsUi.updateBeyond", status.mainAhead);
+  if (status.latest && (status.releaseStanding === "current" || status.releaseStanding === "ahead")) return tn("settingsUi.updateEdge", status.mainAhead);
+  return tn("settingsUi.updateDrift", status.mainAhead);
 }

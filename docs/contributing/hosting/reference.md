@@ -34,11 +34,11 @@ office logs one line naming the holder. Personal API tokens are unaffected.
 Set `BUREAU_TRUSTED_PROXY` so rate limits count each real client instead of
 the proxy:
 
-| Value | Use when | Rate-limit key |
-| --- | --- | --- |
-| `none` (default) | clients connect straight to Bureau's port | TCP peer |
-| `same-host` | Caddy, `tailscale serve` or Funnel on the same machine | rightmost `X-Forwarded-For` on loopback requests |
-| `load-balancer` | Render, Kubernetes, or another off-box balancer | rightmost `X-Forwarded-For` on off-box requests |
+| Value            | Use when                                               | Rate-limit key                                   |
+| ---------------- | ------------------------------------------------------ | ------------------------------------------------ |
+| `none` (default) | clients connect straight to Bureau's port              | TCP peer                                         |
+| `same-host`      | Caddy, `tailscale serve` or Funnel on the same machine | rightmost `X-Forwarded-For` on loopback requests |
+| `load-balancer`  | Render, Kubernetes, or another off-box balancer        | rightmost `X-Forwarded-For` on off-box requests  |
 
 ## Backups
 
@@ -58,3 +58,20 @@ bun run doctor
 `WARN` lines identify optional or degraded capabilities. `FAIL` lines should
 be fixed before considering the host healthy.
 
+## Container updates
+
+Use the deployment controls for the host running your container. For
+[Kubernetes](kubernetes.md#update-the-office) or
+[Render](render.md#update-the-office), follow the platform guide.
+
+1. Finish active agent work before replacing the running container.
+2. Back up its persistent state volume and retain the current deployment
+   configuration and image reference. A rollback may require restoring state
+   from before the update.
+3. Select the desired release image for your deployment, preserving its
+   persistent mounts, environment settings, networking, and security settings.
+4. Redeploy through your container host, then inspect its startup logs and
+   verify that the office, provider connections, and apps work.
+
+Do not run host service restart commands inside the container or replace its
+persistent state with the new image's filesystem.
