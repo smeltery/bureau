@@ -1,4 +1,5 @@
 export const chat = {
+  "chat.outbox.http": "请求失败（{status}）",
   "chat.toolInput": "输入",
   "chat.toolOutput": "输出",
   "chat.toolNoOutput": "（无输出）",

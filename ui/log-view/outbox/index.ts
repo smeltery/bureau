@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { Attachment } from "../../../shared/types.ts";
 
-export type OutboxError = { kind: "network" } | { kind: "interrupted" } | { kind: "server"; message: string };
+export type OutboxError = { kind: "network" } | { kind: "interrupted" } | { kind: "http"; status: number } | { kind: "server"; message: string };
 
 export interface OutboxAttempt {
   id: string;
@@ -125,17 +125,18 @@ async function post(attempt: OutboxAttempt) {
       }),
     });
     if (!res.ok) {
-      let message = `Request failed (${res.status})`;
+      let error: OutboxError = { kind: "http", status: res.status };
       try {
         const body = (await res.json()) as { error?: unknown };
-        if (typeof body.error === "string") message = body.error;
+        if (typeof body.error === "string" && body.error) error = { kind: "server", message: body.error };
       } catch {}
-      throw new Error(message);
+      update(attempt.id, { status: "failed", error });
+      return;
     }
     remove(attempt.id);
-  } catch (err) {
+  } catch {
     if (!attempts.some((existing) => existing.id === attempt.id)) return;
-    update(attempt.id, { status: "failed", error: err instanceof Error ? { kind: "server", message: err.message } : { kind: "network" } });
+    update(attempt.id, { status: "failed", error: { kind: "network" } });
   }
 }
 

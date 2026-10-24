@@ -74,9 +74,7 @@ export function useAttachmentUpload(agentId: string, uploadUrl = `/api/upload/${
         })
         .catch((err) => {
           setStagedAttachments((prev) =>
-            prev.map((s) =>
-              s.id === id ? { ...s, uploading: false, error: err instanceof UploadError ? { kind: "upload", status: err.status } : err instanceof Error ? err.message : { kind: "failed" } } : s,
-            ),
+            prev.map((s) => (s.id === id ? { ...s, uploading: false, error: err instanceof UploadError ? { kind: "upload", status: err.status } : { kind: "failed" } } : s)),
           );
         });
     }
