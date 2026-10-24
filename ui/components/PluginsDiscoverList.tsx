@@ -1,19 +1,12 @@
+import { useI18n } from "../i18n.tsx";
+import { pluginRequest as postPlugins, type PluginAction } from "./plugins/api.ts";
 import { useMemo, useState } from "react";
-import type { CCAvailablePlugin, CCPluginScope, CCPluginsState } from "../../shared/types.ts";
+import type { CCAvailablePlugin, CCPluginScope } from "../../shared/types.ts";
 import { StatusShape } from "../icons/StatusShape.tsx";
-import { NameCell, SESSION_NOTE } from "./PluginsViewShared.tsx";
+import { NameCell } from "./PluginsViewShared.tsx";
 
-export function DiscoverList({
-  available,
-  isMobile,
-  busy,
-  onAction,
-}: {
-  available: CCAvailablePlugin[];
-  isMobile: boolean;
-  busy: Set<string>;
-  onAction: (key: string, fn: () => Promise<CCPluginsState>, doneNotice?: string) => void;
-}) {
+export function DiscoverList({ available, isMobile, busy, onAction }: { available: CCAvailablePlugin[]; isMobile: boolean; busy: Set<string>; onAction: PluginAction }) {
+  const { t, tn, language } = useI18n();
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<CCPluginScope>("user");
 
@@ -42,9 +35,11 @@ export function DiscoverList({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={`Search ${available.length} plugins…`}
+          aria-label={t("common.search")}
+          placeholder={t("pluginsUi.search", { count: available.length.toLocaleString(language) })}
           style={{
             flex: 1,
+            minWidth: 0,
             maxWidth: 420,
             padding: "7px 12px",
             background: "var(--bg-input)",
@@ -57,23 +52,22 @@ export function DiscoverList({
           }}
         />
         <label style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
-          {!isMobile && "Install scope:"}
+          {!isMobile && t("pluginsUi.scopeLabel")}
           <select
+            aria-label={t("pluginsUi.scopeLabel")}
             value={scope}
             onChange={(e) => setScope(e.target.value as CCPluginScope)}
             style={{ padding: "6px 8px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-primary)", fontSize: 11 }}
           >
-            <option value="user">user (global)</option>
-            <option value="project">project</option>
-            <option value="local">local</option>
+            <option value="user">{t("pluginsUi.scopeUser")}</option>
+            <option value="project">{t("pluginsUi.scopeProject")}</option>
+            <option value="local">{t("pluginsUi.scopeLocal")}</option>
           </select>
         </label>
       </div>
 
       {filtered.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
-          {available.length === 0 ? "No marketplaces configured — add one in the Marketplaces tab." : "No plugins match your search."}
-        </div>
+        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>{available.length === 0 ? t("pluginsUi.noCatalog") : t("pluginsUi.noMatch")}</div>
       ) : (
         filtered.map((p) => {
           const installing = busy.has(`install:${p.id}`);
@@ -92,15 +86,17 @@ export function DiscoverList({
               <NameCell name={p.name} description={p.description} sub={`@${p.marketplace}${p.version ? ` · v${p.version}` : ""}`} />
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                 {p.installCount !== undefined && !isMobile && (
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{p.installCount.toLocaleString()} installs</span>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
+                    {tn("pluginsUi.installs", p.installCount, { formatted: p.installCount.toLocaleString(language) })}
+                  </span>
                 )}
                 {p.installed ? (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--green)", whiteSpace: "nowrap" }}>
-                    <StatusShape kind="check" /> installed
+                    <StatusShape kind="check" /> {t("pluginsUi.installed")}
                   </span>
                 ) : (
                   <button
-                    onClick={() => onAction(`install:${p.id}`, () => postPlugins("/plugins/install", { plugin: p.id, scope }), `Installed ${p.name}. ${SESSION_NOTE}`)}
+                    onClick={() => onAction(`install:${p.id}`, () => postPlugins("/plugins/install", { plugin: p.id, scope }), { installed: p.name })}
                     disabled={installing}
                     style={{
                       padding: "4px 12px",
@@ -115,7 +111,7 @@ export function DiscoverList({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {installing ? "Installing…" : "Install"}
+                    {installing ? t("pluginsUi.installing") : t("pluginsUi.install")}
                   </button>
                 )}
               </div>
@@ -125,15 +121,4 @@ export function DiscoverList({
       )}
     </div>
   );
-}
-
-async function postPlugins(path: string, body: Record<string, unknown>): Promise<CCPluginsState> {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
 }

@@ -1,3 +1,4 @@
+import { pluginsUi } from "./plugins/es.ts";
 import { access } from "./access/es.ts";
 import { pager } from "./pager/es.ts";
 import { questions } from "./questions/es.ts";
@@ -27,6 +28,7 @@ export const es = {
   ...questions,
   ...pager,
   ...access,
+  ...pluginsUi,
   "access.title": "Acceso",
   "apiTokens.title": "Tokens de API",
   "apps.confirmDelete": "¿Eliminar {name}? Se conservará su directorio de datos.",
