@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { displayLogContent, logContent } from "../../../../shared/i18n/log-message.ts";
-import { providerDetail, providerRefusal, providerRetry } from "./provider-details.ts";
+import { providerDetail, providerRefusal, providerRetry, providerSignInFailure } from "./provider-details.ts";
 
 test("provider details redact credentials before bounding Unicode text", () => {
   const secret = "sk-" + "A".repeat(30);
@@ -46,4 +46,17 @@ test("retry details are inert markdown and free-tier hints remain conditional", 
   expect(retry).toContain("retry 2");
   const refusal = providerRefusal({ name: "APIError", statusCode: 403, message: "Free tier can only be used from within OpenCode" })!;
   expect(logContent(refusal).content).toContain("may be a free-tier restriction");
+});
+
+test("sign-in failures without provider words identify the model and offer recovery", () => {
+  for (const error of [{ statusCode: 401 }, { name: "ProviderAuthError", message: "  " }]) {
+    const event = providerSignInFailure(error, "vendor/model", false);
+    expect(event).toMatchObject({ causedByAuth: false, pickModel: true });
+    for (const language of ["en", "es", "ca", "zh"] as const) {
+      const text = displayLogContent({ kind: "error", ...logContent(event.errorMessage!) }, language);
+      expect(text).toContain("vendor/model");
+      if (language !== "en") expect(text).not.toBe(event.error);
+    }
+    expect(providerSignInFailure(error, "opencode/paid", true)).toMatchObject({ causedByAuth: true, errorMessage: { key: "logs.provider.auth" } });
+  }
 });

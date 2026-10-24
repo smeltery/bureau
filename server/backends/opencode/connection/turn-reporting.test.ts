@@ -10,6 +10,7 @@ function fixture() {
   const events: NormalizedEvent[] = [];
   const accounting = new OpenCodeTurnAccounting();
   const context = {
+    needsApiKey: true,
     sink: (event: NormalizedEvent) => events.push(event),
     settle: (event: NormalizedEvent) => events.push(event.kind === "turn_completed" ? { ...event, ...accounting.totals("s") } : event),
     abortRequested: false,

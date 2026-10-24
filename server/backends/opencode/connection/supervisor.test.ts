@@ -132,3 +132,20 @@ it("writes MCP headers privately and changes configuration only between active t
   expect(JSON.parse(readFileSync(file, "utf8")).mcp).toEqual({});
   next.release();
 });
+
+it("reports only nonempty variables passed to the leased process", async () => {
+  const supervisor = fixture({ OPENCODE_API_KEY: "", BUREAU_AGENT_TOKEN: "office-secret" });
+  const first = await supervisor.acquire();
+  expect(first.hasLaunchVariable!("OPENCODE_API_KEY")).toBe(false);
+  expect(first.hasLaunchVariable!("BUREAU_AGENT_TOKEN")).toBe(false);
+  await first.beginTurn();
+  const nextEnv = { OPENCODE_API_KEY: "new-key", OPENCODE_BINARY: join(supervisor.profileDir, "..", "serve") };
+  await expect(supervisor.acquire(nextEnv)).rejects.toThrow("another turn");
+  expect(first.hasLaunchVariable!("OPENCODE_API_KEY")).toBe(false);
+  first.endTurn();
+  const next = await supervisor.acquire(nextEnv);
+  expect(next.hasLaunchVariable!("OPENCODE_API_KEY")).toBe(true);
+  expect(() => first.hasLaunchVariable!("OPENCODE_API_KEY")).toThrow("environment changed");
+  first.release();
+  next.release();
+});

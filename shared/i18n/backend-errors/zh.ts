@@ -22,6 +22,7 @@ export const backendErrors = {
   "logs.backendError.bindingUnreadable": "无法读取 OpenCode 会话绑定。",
   "logs.backendError.resumeOther": "{error} 使用 /resume 选择其他会话。",
   "logs.backendError.providerRefused": "{model} 的提供方拒绝了请求：“{detail}”",
+  "logs.backendError.providerSignIn": "OpenCode 无法登录 {model} 的提供方。请选择其他模型或检查提供方凭据。",
   "logs.backendError.providerReported": "{model} 的提供方报告：“{detail}”",
   "logs.backendError.providerFreeTier": "这可能是免费额度的限制。请稍后重试或选择其他模型。",
 } as const;

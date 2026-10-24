@@ -67,6 +67,7 @@ export async function waitForCatalog(load: Promise<DiscoveredOpenCodeModel[]>, t
 /** Keeps a turn's prefetch even if it fails, so the same turn never loads twice. */
 export class OpenCodeModelSelection {
   private prefetchLoad: { identity: string; load: Promise<DiscoveredOpenCodeModel[]> } | null = null;
+  isFree: boolean | undefined;
   contextLimit: number | undefined;
   limits?: { context: number; input?: number; output?: number };
   constructor(
@@ -91,12 +92,14 @@ export class OpenCodeModelSelection {
     try {
       models = await waitForCatalog(pending?.identity === identity ? pending.load : this.catalog.load(lease, this.cwd), this.waitMs);
     } catch {
+      this.isFree = undefined;
       this.contextLimit = undefined;
       this.limits = undefined;
       return { notice: "OpenCode's model catalog is unavailable. This turn uses the model's default effort.", noticeMessage: logMessage("logs.backend.catalogUnavailable") };
     }
     if (catalogIdentity(lease) !== identity) return this.resolve(lease);
     const model = models.find((model) => model.id === this.model);
+    this.isFree = model?.isFree;
     this.contextLimit = model?.contextLimit;
     this.limits = model?.contextLimit ? { context: model.contextLimit, input: model.inputLimit, output: model.outputLimit } : undefined;
     const levels = model?.supportedEfforts ?? [];
