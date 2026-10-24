@@ -251,9 +251,11 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
           } else {
             const failure = humanizeBackendFailure(raw);
             const errorText =
-              failure.message ?? (ev.bureauAuthored && ev.errorMessage ? ev.errorMessage : ev.error === undefined ? logMessage("logs.diagnostic.stopped", { status: ev.status }) : failure.text);
+              ev.causedByAuth === false && ev.bureauAuthored && ev.errorMessage
+                ? ev.errorMessage
+                : (failure.message ?? (ev.bureauAuthored && ev.errorMessage ? ev.errorMessage : ev.error === undefined ? logMessage("logs.diagnostic.stopped", { status: ev.status }) : failure.text));
             addLogEntry(agentId, "error", errorText, backendFailureMeta(failure));
-            const auth = ev.causedByAuth === true || isAuthErrorForAgent(managed, raw);
+            const auth = ev.causedByAuth ?? isAuthErrorForAgent(managed, raw);
             if (ev.causedByAuth !== true && auth) emitLoginInstructionsImpl(agentId, managed);
             updateState(agentId, auth || ev.usageLimitResetAt !== undefined ? "waiting_for_response" : "error");
           }

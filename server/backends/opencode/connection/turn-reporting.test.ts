@@ -69,7 +69,7 @@ test("overflow without a resumed answer fails; Stop can interrupt compaction", (
 
 test("provider retries explain the cause without echoing provider secrets", () => {
   const f = fixture();
-  f.wire("session.status", { sessionID: "s", status: { type: "retry", attempt: 2, message: "rate limit; secret-token" } });
+  f.wire("session.status", { sessionID: "s", status: { type: "retry", attempt: 2, message: "rate limit; Bearer secret-token" } });
   expect(f.events[0]).toMatchObject({ kind: "system_text", text: expect.stringContaining("retry 2") });
   expect(JSON.stringify(f.events)).not.toContain("secret-token");
   expect(providerFailure({ statusCode: 503 })).toContain("503");
@@ -103,4 +103,16 @@ test("incomplete idle and permission faults carry translated terminal errors", (
   const f = fixture();
   applyOpenCodeEvent({ kind: "permission_fault", sessionId: "s" }, f.context);
   expect(f.events.at(-1)).toMatchObject({ error: "OpenCode asked to use a tool but sent no permission id.", errorMessage: { key: "logs.backend.permissionFault" } });
+});
+
+test("a provider refusal retains its explanation without requesting another sign-in", () => {
+  const f = fixture();
+  f.wire("session.error", { sessionID: "s", error: { name: "APIError", data: { statusCode: 403, message: "This plan excludes the requested model; token=private-token" } } });
+  const event = f.events.at(-1)!;
+  expect(event).toMatchObject({ kind: "turn_completed", status: "failed", bureauAuthored: true });
+  if (event.kind !== "turn_completed") throw new Error("Expected completion");
+  expect(event.causedByAuth).toBe(false);
+  expect(event.error).toContain("This plan excludes the requested model");
+  expect(JSON.stringify(event)).not.toContain("private-token");
+  for (const language of ["en", "es", "ca", "zh"] as const) expect(displayLogContent({ kind: "error", ...logContent(event.errorMessage!) }, language)).toContain("This plan excludes");
 });

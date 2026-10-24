@@ -244,6 +244,10 @@ test("auth and failure state use original errors while Bureau explanations trans
     bureauTurnFailure(logMessage("logs.provider.rateLimit")),
     bureauError(logMessage("logs.backend.streamFailed", { error: "Original detail {value}" })),
     { ...bureauTurnFailure(logMessage("logs.provider.auth")), causedByAuth: true },
+    {
+      ...bureauTurnFailure(logMessage("logs.backendError.providerRefused", { model: "vendor/model", detail: "403 Forbidden: plan excludes this model; error_during_execution" })),
+      causedByAuth: false,
+    },
     codexSubprocessExitEvent({ code: 143, signal: null, turnInFlight: true }),
   ]) {
     const agentId = crypto.randomUUID();
@@ -255,6 +259,10 @@ test("auth and failure state use original errors while Bureau explanations trans
     const entry = logCache.get(agentId)!.find((entry) => entry.kind === "error")!;
     for (const language of ["es", "ca", "zh"] as const) expect(displayLogContent(entry, language)).not.toBe(entry.content);
     expect(managed.info.state).toBe("causedByAuth" in event && event.causedByAuth ? "waiting_for_response" : "error");
+    if (event.kind === "turn_completed" && event.causedByAuth === false) {
+      expect(displayLogContent(entry, "es")).toContain("403 Forbidden: plan excludes this model; error_during_execution");
+      expect(logCache.get(agentId)!.some((entry) => entry.kind === "terminal-command")).toBe(false);
+    }
     if (event.kind === "error") expect(displayLogContent(entry, "zh")).toContain("Original detail {value}");
     if (event.kind === "turn_completed" && event.error?.includes("143")) {
       expect(entry.message?.key).toBe("logs.diagnostic.terminated");

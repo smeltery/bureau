@@ -90,6 +90,7 @@ export type NormalizedEvent =
       /** Display metadata for errors composed by Bureau, never relayed provider text. */
       bureauAuthored?: true;
       errorMessage?: LogMessage;
+      /** Explicit false keeps quoted provider text out of auth heuristics. */
       causedByAuth?: boolean;
       causedByProviderCapacity?: boolean;
       usageLimitResetAt?: number;

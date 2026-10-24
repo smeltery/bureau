@@ -1,3 +1,4 @@
+import { providerRefusal, providerRetry } from "./connection/provider-details.ts";
 import { bureauSystemNotice, bureauTurnFailure } from "../session-types.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { NormalizedEvent } from "../types.ts";
@@ -67,6 +68,7 @@ export function applyOpenCodeEvent(
   event: AllowedEvent,
   ctx: {
     sink: EventSink;
+    model?: string;
     settle: (e: NormalizedEvent) => void;
     abortRequested: boolean;
     autoApprove: boolean;
@@ -87,7 +89,7 @@ export function applyOpenCodeEvent(
       ctx.assistantMessages.delete(event.messageId);
     } else ctx.assistantMessages.add(event.messageId);
   }
-  if (event.kind === "retry") ctx.sink(bureauSystemNotice(logMessage("logs.backend.retry", { error: providerFailureMessage({ message: event.message }), attempt: event.attempt })));
+  if (event.kind === "retry") ctx.sink(bureauSystemNotice(providerRetry(event.message, event.attempt, ctx.model)));
   if (event.kind === "text" && ctx.assistantMessages.has(event.messageId)) {
     const prior = ctx.textByPart.get(event.partId) ?? "";
     if (event.text.startsWith(prior)) {
@@ -155,9 +157,10 @@ export function applyOpenCodeEvent(
       ctx.sink(bureauSystemNotice(logMessage("logs.backend.compacting")));
       return;
     }
+    const refusal = providerRefusal(event.error, ctx.model);
     ctx.settle({
-      ...bureauTurnFailure(providerFailureMessage(event.error)),
-      ...(event.error.statusCode === 401 || event.error.statusCode === 403 ? { causedByAuth: true } : {}),
+      ...bureauTurnFailure(refusal ?? providerFailureMessage(event.error)),
+      ...(refusal ? { causedByAuth: false } : event.error.statusCode === 401 || event.error.statusCode === 403 || event.error.name === "ProviderAuthError" ? { causedByAuth: true } : {}),
     });
   }
 }
