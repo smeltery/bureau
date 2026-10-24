@@ -2,7 +2,7 @@ import { withOneShotDeadline } from "../one-shot-deadline.ts";
 import type { BackendEffortOption, BackendModel, ForkSessionBeforeMessageResult, ListModelsOptions, NormalizedMessage, OneShotOptions, SessionAccessOptions } from "../types.ts";
 
 import { JsonRpcLiteClient } from "./client.ts";
-import { CODEX_THREAD_CONFIG_OVERRIDES } from "./config.ts";
+import { ONE_SHOT_ARGS, oneShotConfig } from "./session/one-shot-config.ts";
 import { findTurnIndexContainingItemId, readThreadTurns } from "./thread-history.ts";
 
 import type { Model as CodexProtocolModel } from "./_generated/v2/Model.ts";
@@ -139,13 +139,16 @@ export async function getCodexSessionMessages(sessionId: string, access?: Sessio
 }
 
 export async function oneShotCodexPrompt(prompt: string, opts: OneShotOptions): Promise<string> {
-  const client = new JsonRpcLiteClient({ cwd: opts.cwd, env: opts.env });
+  const cwd = "/tmp";
+  const client = new JsonRpcLiteClient({ cwd, env: opts.env, args: ONE_SHOT_ARGS });
   try {
     return await withOneShotDeadline(async () => {
       client.start();
       await initializeCodexClient(client);
+      const config = await oneShotConfig(client, cwd);
       const startResp = await client.request<{ thread: { id: string } }>("thread/start", {
-        cwd: opts.cwd,
+        cwd,
+        environments: [],
         model: opts.modelFamily,
         baseInstructions: opts.systemPrompt,
         sandbox: "read-only",
@@ -153,7 +156,7 @@ export async function oneShotCodexPrompt(prompt: string, opts: OneShotOptions): 
         ephemeral: true,
         experimentalRawEvents: false,
         persistExtendedHistory: false,
-        config: { ...CODEX_THREAD_CONFIG_OVERRIDES },
+        config,
       });
       const threadId = startResp.thread.id;
       let result = "";

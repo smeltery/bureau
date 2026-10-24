@@ -1,3 +1,5 @@
+import { createSummaryRunner } from "./runtime.ts";
+import { readAgentLogs } from "../log-reader.ts";
 import { afterEach, expect, spyOn, test } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -161,4 +163,36 @@ test("backend session replacement and agent removal request the outgoing history
   await kill(managed.info.id);
   expect(requests).toEqual(["first", "replacement"]);
   expect(agents.has(managed.info.id)).toBe(false);
+});
+
+test("turn completion returns before generation and publishes searchable history afterward", async () => {
+  const managed = fixture();
+  let finish!: (text: string) => void;
+  const pending: Promise<void>[] = [];
+  const run = createSummaryRunner({
+    environment: () => ({ env: {} }),
+    backend: () => ({
+      capabilities: DEFAULT_AGENT_CAPABILITIES,
+      getModelOptions: () => [],
+      oneShotPrompt: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    }),
+  });
+  cleanup.push(
+    installSummaryRequests((target, session) => {
+      pending.push(run(target, session));
+    }),
+  );
+  for (let i = 0; i < 40; i++) addLogEntry(managed.info.id, "text", "Persisted conversation");
+  await consume(managed, [{ kind: "turn_completed", status: "completed" }]);
+  expect(pending).toHaveLength(1);
+  expect(readAgentLogs(managed.info.id, new URLSearchParams("q=deployment"))).toMatchObject({ ok: true, body: { summaryHits: [] } });
+  finish("Resolved deployment failure");
+  await Promise.all(pending);
+  expect(readAgentLogs(managed.info.id, new URLSearchParams("q=deployment"))).toMatchObject({
+    ok: true,
+    body: { results: [], summaryHits: [{ sessionId: "first", snippet: "Resolved deployment failure" }] },
+  });
 });

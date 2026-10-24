@@ -7,6 +7,7 @@ import { getSessionClaudeConfigDir, getSessionCodexHome } from "../../persistenc
 import { readSessionSummary, persistSessionSummary } from "../../persistence/logs/summary.ts";
 import { buildSessionEnv } from "../session/session-env.ts";
 import { rooms } from "../state.ts";
+import { installSummaryRequests } from "./activity.ts";
 import { createSessionSummarizer, type SummaryDependencies } from "./summary.ts";
 
 interface SummaryEnvironment {
@@ -63,4 +64,11 @@ export function createSummaryRunner(overrides: Partial<RunnerDependencies> = {})
       generate: (prompt, systemPrompt) => backend.oneShotPrompt(prompt, { ...options, env: { ...env }, systemPrompt }),
     });
   };
+}
+
+export function startConversationSummaries() {
+  const run = createSummaryRunner();
+  return installSummaryRequests((managed, sessionId) => {
+    void run(managed, sessionId).catch(() => console.error("Conversation summary generation failed"));
+  });
 }
