@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { FilePayload } from "../../shared/types.ts";
 
 function FileIcon() {
@@ -10,6 +11,7 @@ function FileIcon() {
 }
 
 export function EditRequestCard({ payload, onOpen }: { payload: FilePayload; onOpen: (path: string) => void }) {
+  const { t } = useI18n();
   // Render a relative-looking suffix (the basename + parent) so the boss
   // sees what they're opening without the wall of absolute path noise.
   const parts = payload.path.split("/");
@@ -56,9 +58,9 @@ export function EditRequestCard({ payload, onOpen }: { payload: FilePayload; onO
             cursor: "pointer",
             flexShrink: 0,
           }}
-          title="Open this file in the editor side panel"
+          title={t("chatControls.editFileHint")}
         >
-          Open in editor
+          {t("chatControls.editFile")}
         </button>
       </div>
     </div>

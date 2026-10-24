@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 export type SoftKey = {
   id: string;
   label: string;
@@ -33,6 +34,7 @@ const SOFT_KEYS: SoftKey[] = [
 ];
 
 export function MobileSoftKeyBar({ ctrlActive, keyboardOpen, onSoftKey }: { ctrlActive: boolean; keyboardOpen: boolean; onSoftKey: (key: SoftKey) => void }) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -81,7 +83,7 @@ export function MobileSoftKeyBar({ ctrlActive, keyboardOpen, onSoftKey }: { ctrl
               WebkitTapHighlightColor: "transparent",
             }}
           >
-            {key.label}
+            {key.action === "paste" ? t("chatControls.paste") : key.label}
           </button>
         );
       })}

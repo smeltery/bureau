@@ -124,7 +124,7 @@ export function LogView({
     handleAutoScroll: handleChatScroll,
     recomputePinned,
   });
-  const handleTerminalSendToChat = useCallback((text: string) => handleCite(text, "Terminal output"), [handleCite]);
+  const handleTerminalSendToChat = useCallback((text: string) => handleCite(text, t("chatControls.terminalOutput")), [handleCite, t]);
   const autocomplete = useSlashAutocomplete(input, slashCommands.get(agent.id));
   const voice = useVoiceInput({
     sessionKey: agent.id,
