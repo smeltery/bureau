@@ -1,50 +1,52 @@
+import { useI18n } from "../../i18n.tsx";
+import type { PlainMessageKey } from "../../../shared/i18n/translate.ts";
 import type { AgentOutfit } from "../../../shared/types.ts";
 import { ACCESSORIES, BEARDS, COSTUMES, costumeOf, HAIR_COLORS, HAIR_STYLES, HATS, SHIRT_COLORS, SKIN_COLORS } from "../../../shared/outfit-options.ts";
 import { Character } from "../../office/scene/Character.tsx";
 
-const HAIR_STYLE_LABELS: Record<AgentOutfit["hairStyle"], string> = {
-  short: "Short",
-  long: "Long",
-  ponytail: "Ponytail",
-  bun: "Bun",
-  pigtails: "Pigtails",
-  curly: "Curly",
-  bald: "Bald",
+const HAIR_STYLE_LABELS: Record<AgentOutfit["hairStyle"], PlainMessageKey> = {
+  short: "agentSettings.hair.short",
+  long: "agentSettings.hair.long",
+  ponytail: "agentSettings.hair.ponytail",
+  bun: "agentSettings.hair.bun",
+  pigtails: "agentSettings.hair.pigtails",
+  curly: "agentSettings.hair.curly",
+  bald: "agentSettings.hair.bald",
 };
 
-const HAT_LABELS: Record<AgentOutfit["hat"], string> = {
-  none: "None",
-  cap: "Cap",
-  beanie: "Beanie",
-  bow: "Hair Bow",
-  headband: "Headband",
+const HAT_LABELS: Record<AgentOutfit["hat"], PlainMessageKey> = {
+  none: "agentSettings.appearance.none",
+  cap: "agentSettings.hat.cap",
+  beanie: "agentSettings.hat.beanie",
+  bow: "agentSettings.hat.bow",
+  headband: "agentSettings.hat.headband",
 };
 
-const COSTUME_LABELS: Record<NonNullable<AgentOutfit["costume"]>, string> = {
-  none: "None",
-  doctor: "Doctor",
-  police: "Police",
-  firefighter: "Firefighter",
-  chef: "Chef",
-  construction: "Construction",
-  astronaut: "Astronaut",
+const COSTUME_LABELS: Record<NonNullable<AgentOutfit["costume"]>, PlainMessageKey> = {
+  none: "agentSettings.appearance.none",
+  doctor: "agentSettings.costume.doctor",
+  police: "agentSettings.costume.police",
+  firefighter: "agentSettings.costume.firefighter",
+  chef: "agentSettings.costume.chef",
+  construction: "agentSettings.costume.construction",
+  astronaut: "agentSettings.costume.astronaut",
 };
 
-const ACCESSORY_LABELS: Record<string, string> = {
-  none: "None",
-  glasses: "Glasses",
-  headphones: "Headphones",
-  bow_tie: "Bow Tie",
-  tie: "Tie",
-  earrings: "Earrings",
+const ACCESSORY_LABELS: Record<string, PlainMessageKey> = {
+  none: "agentSettings.appearance.none",
+  glasses: "agentSettings.accessory.glasses",
+  headphones: "agentSettings.accessory.headphones",
+  bow_tie: "agentSettings.accessory.bowTie",
+  tie: "agentSettings.accessory.tie",
+  earrings: "agentSettings.accessory.earrings",
 };
 
-const BEARD_LABELS: Record<AgentOutfit["beard"], string> = {
-  none: "None",
-  stubble: "Stubble",
-  full: "Full",
-  goatee: "Goatee",
-  mustache: "Mustache",
+const BEARD_LABELS: Record<AgentOutfit["beard"], PlainMessageKey> = {
+  none: "agentSettings.appearance.none",
+  stubble: "agentSettings.beard.stubble",
+  full: "agentSettings.beard.full",
+  goatee: "agentSettings.beard.goatee",
+  mustache: "agentSettings.beard.mustache",
 };
 
 export function makeRandomOutfit(): AgentOutfit {
@@ -67,6 +69,7 @@ interface AgentAppearanceEditorProps {
 }
 
 export function AgentAppearanceEditor({ outfit, onChange, selectStyle }: AgentAppearanceEditorProps) {
+  const { t } = useI18n();
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
@@ -74,20 +77,20 @@ export function AgentAppearanceEditor({ outfit, onChange, selectStyle }: AgentAp
           <Character state="idle" outfit={outfit} />
         </div>
         <button onClick={() => onChange(makeRandomOutfit())} style={randomBtnStyle}>
-          Randomize
+          {t("agentSettings.appearance.random")}
         </button>
       </div>
 
-      <ColorSwatches label="Skin" colors={SKIN_COLORS} selected={outfit.skin} onSelect={(skin) => onChange({ ...outfit, skin })} />
-      <ColorSwatches label="Shirt" colors={SHIRT_COLORS} selected={outfit.color} onSelect={(color) => onChange({ ...outfit, color })} />
-      <ColorSwatches label="Hair Color" colors={HAIR_COLORS} selected={outfit.hair} onSelect={(hair) => onChange({ ...outfit, hair })} />
+      <ColorSwatches label={t("agentSettings.appearance.skin")} colors={SKIN_COLORS} selected={outfit.skin} onSelect={(skin) => onChange({ ...outfit, skin })} />
+      <ColorSwatches label={t("agentSettings.appearance.shirt")} colors={SHIRT_COLORS} selected={outfit.color} onSelect={(color) => onChange({ ...outfit, color })} />
+      <ColorSwatches label={t("agentSettings.appearance.hairColor")} colors={HAIR_COLORS} selected={outfit.hair} onSelect={(hair) => onChange({ ...outfit, hair })} />
 
       <div style={{ marginBottom: 8 }}>
-        <div style={fieldLabelStyle}>Costume</div>
+        <div style={fieldLabelStyle}>{t("agentSettings.appearance.costume")}</div>
         <select value={costumeOf(outfit.costume)} onChange={(e) => onChange({ ...outfit, costume: costumeOf(e.target.value) })} style={selectStyle}>
           {COSTUMES.map((costume) => (
             <option key={costume} value={costume}>
-              {COSTUME_LABELS[costume]}
+              {t(COSTUME_LABELS[costume])}
             </option>
           ))}
         </select>
@@ -95,21 +98,21 @@ export function AgentAppearanceEditor({ outfit, onChange, selectStyle }: AgentAp
 
       <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
-          <div style={fieldLabelStyle}>Hair Style</div>
+          <div style={fieldLabelStyle}>{t("agentSettings.appearance.hairStyle")}</div>
           <select value={outfit.hairStyle ?? "short"} onChange={(e) => onChange({ ...outfit, hairStyle: e.target.value as AgentOutfit["hairStyle"] })} style={selectStyle}>
             {HAIR_STYLES.map((s) => (
               <option key={s} value={s}>
-                {HAIR_STYLE_LABELS[s]}
+                {t(HAIR_STYLE_LABELS[s])}
               </option>
             ))}
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={fieldLabelStyle}>Hat</div>
+          <div style={fieldLabelStyle}>{t("agentSettings.appearance.hat")}</div>
           <select value={outfit.hat} onChange={(e) => onChange({ ...outfit, hat: e.target.value as AgentOutfit["hat"] })} style={selectStyle}>
             {HATS.map((h) => (
               <option key={h} value={h}>
-                {HAT_LABELS[h]}
+                {t(HAT_LABELS[h])}
               </option>
             ))}
           </select>
@@ -118,17 +121,17 @@ export function AgentAppearanceEditor({ outfit, onChange, selectStyle }: AgentAp
 
       <div style={{ display: "flex", gap: 12, marginBottom: 4 }}>
         <div style={{ flex: 1 }}>
-          <div style={fieldLabelStyle}>Beard</div>
+          <div style={fieldLabelStyle}>{t("agentSettings.appearance.beard")}</div>
           <select value={outfit.beard ?? "none"} onChange={(e) => onChange({ ...outfit, beard: e.target.value as AgentOutfit["beard"] })} style={selectStyle}>
             {BEARDS.map((b) => (
               <option key={b} value={b}>
-                {BEARD_LABELS[b]}
+                {t(BEARD_LABELS[b])}
               </option>
             ))}
           </select>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={fieldLabelStyle}>Accessory</div>
+          <div style={fieldLabelStyle}>{t("agentSettings.appearance.accessory")}</div>
           <select
             value={outfit.accessory ?? "none"}
             onChange={(e) => onChange({ ...outfit, accessory: e.target.value === "none" ? null : (e.target.value as AgentOutfit["accessory"]) })}
@@ -136,7 +139,7 @@ export function AgentAppearanceEditor({ outfit, onChange, selectStyle }: AgentAp
           >
             {ACCESSORIES.map((a) => (
               <option key={a ?? "none"} value={a ?? "none"}>
-                {ACCESSORY_LABELS[a ?? "none"]}
+                {t(ACCESSORY_LABELS[a ?? "none"])}
               </option>
             ))}
           </select>

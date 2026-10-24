@@ -25,8 +25,7 @@ export function EditAgentManagerField({
           {!managerUserId && <option value="">{t("dialogs.agent.managerUnowned")}</option>}
           {managerOptions.map((u) => (
             <option key={u.id} value={u.id}>
-              {u.name}
-              {u.role === "owner" ? " (owner)" : ""}
+              {u.role === "owner" ? t("agentSettings.ownerName", { name: u.name }) : u.name}
             </option>
           ))}
         </select>

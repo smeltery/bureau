@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n.tsx";
 import type { AgentInfo, RoomWire } from "../../../shared/types.ts";
 import { send } from "../../ws.ts";
 
@@ -18,11 +19,12 @@ export function AgentMoveRoomSection({
   onClose: () => void;
   rooms: RoomWire[];
 }) {
+  const { t } = useI18n();
   if (rooms.length <= 1) return null;
 
   return (
     <>
-      <label style={{ ...labelStyle, marginTop: 14 }}>Move to Room</label>
+      <label style={{ ...labelStyle, marginTop: 14 }}>{t("agentSettings.moveRoom")}</label>
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
         {rooms.map((room, i) => {
           if (i === agent.room) return null;

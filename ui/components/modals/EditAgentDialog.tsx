@@ -79,7 +79,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
     instructionsStale,
   } = useEditAgentDialogController(props);
   const killedAgents = useAppState().killedAgents;
-  const { t } = useI18n();
+  const { t, rich, language } = useI18n();
   const engineLabelKey: Record<"claude" | "codex" | "opencode", PlainMessageKey> = {
     claude: "dialogs.agent.engine.claude",
     codex: "dialogs.agent.engine.codex",
@@ -147,10 +147,9 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
 
       {!isSpawn && (agentType === "claude" || agentType === "codex") && (
         <label style={{ ...labelStyle, display: "block", marginTop: 14 }}>
-          <input type="checkbox" checked={resumeAfterUsageLimit} onChange={(event) => setResumeAfterUsageLimit(event.target.checked)} /> Resume after usage limit
+          <input type="checkbox" checked={resumeAfterUsageLimit} onChange={(event) => setResumeAfterUsageLimit(event.target.checked)} /> {t("agentSettings.resume")}
           <span style={{ display: "block", fontWeight: 400 }}>
-            Continue this conversation one minute after the provider’s reported usage reset. Stop cancels a pending continuation.
-            {agent?.usageResumeAt ? ` Scheduled for ${new Date(agent.usageResumeAt).toLocaleString()}.` : ""}
+            {t("agentSettings.resumeHint")} {agent?.usageResumeAt ? t("agentSettings.resumeAt", { date: new Date(agent.usageResumeAt).toLocaleString(language) }) : ""}
           </span>
         </label>
       )}
@@ -160,20 +159,17 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
       </label>
       <ExpandableTextarea
         title={t("dialogs.agent.customInstructions")}
-        hint="Personal system prompt for this agent. Run /bureau-system-prompt in a chat to see the agent's full system prompt."
+        hint={t("agentSettings.instructionsHint")}
         value={customInstructions}
         onChange={setCustomInstructions}
-        placeholder='e.g. "You are a backend specialist. Always write tests."'
+        placeholder={t("agentSettings.instructionsExample")}
         rows={3}
         style={{ ...inputStyle, resize: "vertical" }}
       />
       <p style={{ fontSize: 10, color: "var(--text-ghost)", margin: "3px 0 0" }}>
-        Run <code>/bureau-system-prompt</code> in a chat to see the agent's full system prompt.
-        {!isSpawn && " Changes take effect on next conversation."}
+        {rich("agentSettings.instructionsCommand", { command: <code>/bureau-system-prompt</code> })} {!isSpawn && t("agentSettings.nextConversation")}
       </p>
-      {!isSpawn && instructionsStale && (
-        <p style={{ fontSize: 11, color: "var(--orange)", margin: "6px 0 0" }}>Custom instructions changed since you opened this dialog. Close and reopen to edit the latest version.</p>
-      )}
+      {!isSpawn && instructionsStale && <p style={{ fontSize: 11, color: "var(--orange)", margin: "6px 0 0" }}>{t("agentSettings.instructionsStale")}</p>}
 
       {isSpawn && props.room !== undefined && killedAgents.length > 0 && (
         <ReviveAgentSection deskIndex={props.deskIndex} roomId={rooms[props.room]?.id} killedAgents={killedAgents} onRevived={props.onClose} />
@@ -182,14 +178,14 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
       {!isSpawn && (
         <>
           <label style={{ ...labelStyle, marginTop: 14 }}>
-            Memory{" "}
+            {t("agentSettings.memory")}{" "}
             <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>
-              (durable notes for this agent; {agentMemory.size} / {agentMemory.cap ?? "..."})
+              {t("agentSettings.memorySize", { size: agentMemory.size.toLocaleString(language), cap: agentMemory.cap?.toLocaleString(language) ?? "…" })}
             </span>
           </label>
           <ExpandableTextarea
-            title="Agent Memory"
-            hint="This editor rewrites the file exactly as shown. Use one memory per line; keep existing author/date text unless you mean to change it."
+            title={t("agentSettings.memoryTitle")}
+            hint={t("agentSettings.memoryHint")}
             value={agentMemory.memory}
             onChange={agentMemory.setMemory}
             rows={4}
@@ -205,8 +201,9 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
 }
 
 function ReviveAgentSection({ deskIndex, roomId, killedAgents, onRevived }: { deskIndex: number; roomId: string | undefined; killedAgents: KilledAgentSummary[]; onRevived: () => void }) {
+  const { t } = useI18n();
   const [reviving, setReviving] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ detail?: string } | null>(null);
   const pendingListener = useRef<((data: string) => void) | null>(null);
 
   useEffect(() => {
@@ -228,7 +225,7 @@ function ReviveAgentSection({ deskIndex, roomId, killedAgents, onRevived }: { de
         pendingListener.current = null;
         setReviving(null);
         if (msg.ok) onRevived();
-        else setError(msg.error || "Revive failed");
+        else setError({ detail: msg.error || undefined });
       } catch {}
     };
     addRawListener(listener);
@@ -238,7 +235,7 @@ function ReviveAgentSection({ deskIndex, roomId, killedAgents, onRevived }: { de
 
   return (
     <div style={{ marginTop: 16, paddingBottom: 8 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-dim)", marginBottom: 8 }}>Revive a killed agent</div>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--text-dim)", marginBottom: 8 }}>{t("agentSettings.revive")}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {killedAgents.map((agent) => {
           const accent = ENGINE_ACCENT[agent.agentType];
@@ -247,24 +244,24 @@ function ReviveAgentSection({ deskIndex, roomId, killedAgents, onRevived }: { de
           const title = agent.topic ? `${agent.lastRoomName} - ${agent.topic}` : agent.lastRoomName;
           return (
             <button key={agent.id} onClick={() => handleRevive(agent)} disabled={disabled} title={title} style={reviveButtonStyle(accent, disabled)} type="button">
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isThisReviving ? "Reviving..." : agent.name}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isThisReviving ? t("agentSettings.reviving") : agent.name}</span>
             </button>
           );
         })}
       </div>
-      {error && <div style={{ marginTop: 8, fontSize: 12, color: "var(--accent-error, #f88)" }}>{error}</div>}
+      {error && <div style={{ marginTop: 8, fontSize: 12, color: "var(--accent-error, #f88)" }}>{error.detail ?? t("agentSettings.reviveFailed")}</div>}
     </div>
   );
 }
 
 function AgentTemplatePicker({ selectedKey, onPick }: { selectedKey: string | null; onPick: (template: AgentTemplate | null) => void }) {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={labelStyle}>Template</label>
+      <label style={labelStyle}>{t("dialogs.agent.template")}</label>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         <button autoFocus data-spawn-initial-focus="template" onClick={() => onPick(null)} style={templateButtonStyle(selectedKey === null)} type="button">
-          Blank
+          {t("dialogs.agent.blank")}
         </button>
         {AGENT_TEMPLATES.map((template) => (
           <button key={template.key} onClick={() => onPick(template)} title={templateDescription(template, language)} style={templateButtonStyle(selectedKey === template.key)} type="button">
