@@ -36,4 +36,27 @@ export const access = {
   "accessUi.lastOwner": "No permitido: esta es la última sesión activa de propietario en la oficina. Crea otra invitación para un propietario, acéptala en otro dispositivo y vuelve a intentarlo.",
   "accessUi.lastOwnerLogout":
     "No se puede cerrar sesión: esta es la última sesión activa de propietario en la oficina. Crea otra invitación para ti, acéptala en otro dispositivo y vuelve a intentarlo.",
+  "invitesUi.title": "Invitaciones",
+  "invitesUi.hint":
+    "Emite enlaces de invitación para nuevos usuarios. Los usuarios existentes añaden sus dispositivos desde Mis dispositivos, o un propietario puede generar aquí un enlace de recuperación.",
+  "invitesUi.recovery": "Enlaces de recuperación",
+  "invitesUi.outstanding": "Invitaciones pendientes",
+  "invitesUi.issueFor": "Emitir invitación para…",
+  "invitesUi.username": "Nombre de usuario (p. ej., Marc)",
+  "invitesUi.roleFixed": "El rol debe coincidir con el registro existente de {name}. Usa el cambio de rol para modificar sus permisos.",
+  "invitesUi.matches": "(coincide con el usuario existente)",
+  "invitesUi.issueHint":
+    "Emitir la invitación crea el miembro de inmediato; el enlace sin usar caduca a las 24 horas. Puedes enviar otro enlace más abajo. Las sesiones aceptadas duran hasta 1 año y se pueden revocar desde Sesiones en cualquier momento.",
+  "invitesUi.noRooms": "Aún no hay salas.",
+  "invitesUi.roomsHint": "Las salas seleccionadas estarán disponibles cuando el miembro acepte. No selecciones ninguna para conceder acceso más tarde.",
+  "invitesUi.existing": "El usuario <b>{name}</b> ya existe. Emite otra invitación para esta identidad (p. ej., otro dispositivo). Esto no afectará a las sesiones existentes ni al rol.",
+  "invitesUi.minting": "Generando…",
+  "invitesUi.issue": "Emitir invitación",
+  "invitesUi.failed": "No se pudo generar la invitación",
+  "invitesUi.recoveryHint":
+    "Genera un enlace de acceso de un solo uso para un miembro existente que nunca haya iniciado sesión o no tenga acceso a un dispositivo conectado. El nuevo enlace sustituye al anterior pendiente.",
+  "invitesUi.selectUser": "Selecciona un usuario…",
+  "invitesUi.mintRecovery": "Generar enlace de recuperación",
+  "invitesUi.recoveryFailed": "No se pudo generar el enlace de recuperación",
+  "invitesUi.missingLink": "La respuesta de recuperación no incluía un enlace",
 } as const;

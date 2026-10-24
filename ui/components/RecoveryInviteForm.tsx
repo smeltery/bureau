@@ -1,3 +1,7 @@
+import { useId } from "react";
+import { useI18n } from "../i18n.tsx";
+import { accessFailureText, type AccessFailure } from "./access/feedback.ts";
+import type { SupportedLanguageCode } from "../../shared/languages.ts";
 import { useMemo, useState } from "react";
 import type { InviteWire, UserRecord } from "../../shared/types.ts";
 import { useAppState } from "../store.tsx";
@@ -9,17 +13,19 @@ type RecoveryInviteResponse = {
   invite: InviteWire;
 };
 
-export function recoveryInviteUserOptions(users: Map<string, UserRecord>): UserRecord[] {
-  return [...users.values()].sort((a, b) => a.name.localeCompare(b.name));
+export function recoveryInviteUserOptions(users: Map<string, UserRecord>, language?: SupportedLanguageCode): UserRecord[] {
+  return [...users.values()].sort((a, b) => a.name.localeCompare(b.name, language));
 }
 
 export function RecoveryInviteForm() {
+  const { t, language } = useI18n();
+  const userIdLabel = useId();
   const { users } = useAppState();
   const [userId, setUserId] = useState("");
   const [mintedUrl, setMintedUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AccessFailure | null>(null);
   const [pending, setPending] = useState(false);
-  const userOptions = useMemo(() => recoveryInviteUserOptions(users), [users]);
+  const userOptions = useMemo(() => recoveryInviteUserOptions(users, language), [users, language]);
 
   async function submit() {
     if (!userId) return;
@@ -35,15 +41,17 @@ export function RecoveryInviteForm() {
       });
       const body = (await res.json().catch(() => null)) as (Partial<RecoveryInviteResponse> & { error?: string }) | null;
       if (!res.ok) {
-        throw new Error(body?.error || "Failed to mint recovery link");
+        setError(body?.error || { key: "invitesUi.recoveryFailed" });
+        return;
       }
       if (typeof body?.url !== "string") {
-        throw new Error("Recovery response did not include a link");
+        setError({ key: "invitesUi.missingLink" });
+        return;
       }
       setMintedUrl(body.url);
       setUserId("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to mint recovery link");
+    } catch {
+      setError({ key: "invitesUi.recoveryFailed" });
     } finally {
       setPending(false);
     }
@@ -51,11 +59,12 @@ export function RecoveryInviteForm() {
 
   return (
     <div style={cardStyle}>
-      <p style={{ ...hint, marginTop: 0 }}>
-        Mint a one-time sign-in link for an existing member: one who has never signed in, or one who cannot reach a signed-in device. A new link replaces their previous outstanding link.
-      </p>
-      <label style={subLabel}>User</label>
+      <p style={{ ...hint, marginTop: 0 }}>{t("invitesUi.recoveryHint")}</p>
+      <label htmlFor={userIdLabel} style={subLabel}>
+        {t("accessUi.user")}
+      </label>
       <select
+        id={userIdLabel}
         value={userId}
         onChange={(e) => {
           setUserId(e.target.value);
@@ -63,14 +72,14 @@ export function RecoveryInviteForm() {
         }}
         style={dialogInput}
       >
-        <option value="">Select a user...</option>
+        <option value="">{t("invitesUi.selectUser")}</option>
         {userOptions.map((user) => (
           <option key={user.id} value={user.id}>
             {user.name}
           </option>
         ))}
       </select>
-      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{error}</p>}
+      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{accessFailureText(error, t)}</p>}
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
         <button
           onClick={() => {
@@ -82,7 +91,7 @@ export function RecoveryInviteForm() {
             opacity: pending || !userId ? 0.5 : 1,
           }}
         >
-          {pending ? "Minting..." : "Mint recovery link"}
+          {t(pending ? "invitesUi.minting" : "invitesUi.mintRecovery")}
         </button>
       </div>
       {mintedUrl && <MintedUrlBox url={mintedUrl} />}

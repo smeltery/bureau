@@ -1,3 +1,6 @@
+import { useId } from "react";
+import { useI18n } from "../i18n.tsx";
+import { accessFailureText, type AccessFailure } from "./access/feedback.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { UserRecord, UserRole } from "../../shared/types.ts";
 import { lowercaseKey } from "../../shared/identity.ts";
@@ -7,13 +10,15 @@ import { dialogInput, dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { cardStyle, hint, MintedUrlBox, subLabel } from "./AccessPaneShared.tsx";
 
 export function IssueInviteForm() {
+  const { t, rich } = useI18n();
+  const nameId = useId();
   const { users, rooms, allRooms } = useAppState();
   const [name, setName] = useState("");
   const [role, setRole] = useState<UserRole>("member");
   const [allowExisting, setAllowExisting] = useState(false);
   const [grantRooms, setGrantRooms] = useState<string[]>([]);
   const [mintedUrl, setMintedUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AccessFailure | null>(null);
   const [pending, setPending] = useState(false);
   const pendingListenerRef = useRef<((data: string) => void) | null>(null);
   const grantableRooms = allRooms.length > 0 ? allRooms : rooms;
@@ -63,7 +68,7 @@ export function IssueInviteForm() {
             setAllowExisting(false);
             setGrantRooms([]);
           } else {
-            setError(msg.error || "Failed to mint invite");
+            setError(msg.error || { key: "invitesUi.failed" });
           }
         }
       } catch {}
@@ -82,53 +87,54 @@ export function IssueInviteForm() {
 
   return (
     <div style={cardStyle}>
-      <label style={subLabel}>Issue invite for…</label>
+      <label htmlFor={nameId} style={subLabel}>
+        {t("invitesUi.issueFor")}
+      </label>
       <input
+        id={nameId}
         value={name}
         onChange={(e) => {
           setName(e.target.value);
           setError(null);
         }}
-        placeholder="Username (e.g. Marc)"
+        placeholder={t("invitesUi.username")}
         maxLength={64}
         style={dialogInput}
       />
-      <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 8 }}>
         <label style={{ flex: 1 }}>
-          <div style={subLabel}>Role</div>
+          <div style={subLabel}>{t("accessUi.role")}</div>
           {existingUser ? (
             <div
               style={{
                 ...dialogInput,
                 display: "flex",
                 alignItems: "center",
+                flexWrap: "wrap",
                 color: "var(--text-dim)",
                 background: "var(--bg-base)",
                 fontSize: 12,
               }}
-              title={`Role is fixed to match the existing ${existingUser.name} record. Use the change-role flow to promote/demote.`}
+              title={t("invitesUi.roleFixed", { name: existingUser.name })}
             >
-              {existingUser.role}
-              <span style={{ marginLeft: 6, color: "var(--text-hint)" }}>(matches existing user)</span>
+              {t(existingUser.role === "owner" ? "common.owner" : "common.member")}
+              <span style={{ marginLeft: 6, color: "var(--text-hint)" }}>{t("invitesUi.matches")}</span>
             </div>
           ) : (
             <select value={role} onChange={(e) => setRole(e.target.value as UserRole)} style={dialogInput}>
-              <option value="member">member</option>
-              <option value="owner">owner</option>
+              <option value="member">{t("common.member")}</option>
+              <option value="owner">{t("common.owner")}</option>
             </select>
           )}
         </label>
       </div>
-      <p style={{ ...hint, marginTop: 6 }}>
-        Issuing creates the member right away; the link expires 24h after issuing if unused, and you can send a fresh one below. Accepted sessions last up to 1 year (revocable from the Access pane any
-        time).
-      </p>
+      <p style={{ ...hint, marginTop: 6 }}>{t("invitesUi.issueHint")}</p>
       {showRoomPicker && (
         <div style={{ marginTop: 8 }}>
-          <div style={subLabel}>Rooms</div>
+          <div style={subLabel}>{t("accessUi.rooms")}</div>
           <div style={roomPickerBox}>
             {grantableRooms.length === 0 ? (
-              <div style={emptyRoomText}>No rooms yet.</div>
+              <div style={emptyRoomText}>{t("invitesUi.noRooms")}</div>
             ) : (
               grantableRooms.map((room) => (
                 <label key={room.id} style={roomOption}>
@@ -138,18 +144,16 @@ export function IssueInviteForm() {
               ))
             )}
           </div>
-          <p style={{ ...hint, marginTop: 4 }}>Checked rooms are available as soon as the member accepts. Leave all unchecked to grant access later.</p>
+          <p style={{ ...hint, marginTop: 4 }}>{t("invitesUi.roomsHint")}</p>
         </div>
       )}
       {existing && (
         <label style={{ display: "flex", gap: 6, marginTop: 8, fontSize: 12 }}>
           <input type="checkbox" checked={allowExisting} onChange={(e) => setAllowExisting(e.target.checked)} />
-          <span>
-            User <b>{name}</b> already exists. Issue an additional invite for this identity (e.g. another device). Won't affect existing sessions or role.
-          </span>
+          <span>{rich("invitesUi.existing", { name, b: (chunk) => <b>{chunk}</b> })}</span>
         </label>
       )}
-      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{error}</p>}
+      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{accessFailureText(error, t)}</p>}
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
         <button
           onClick={submit}
@@ -159,7 +163,7 @@ export function IssueInviteForm() {
             opacity: pending || !name.trim() || (existing && !allowExisting) ? 0.5 : 1,
           }}
         >
-          {pending ? "Minting…" : "Issue invite"}
+          {t(pending ? "invitesUi.minting" : "invitesUi.issue")}
         </button>
       </div>
       {mintedUrl && <MintedUrlBox url={mintedUrl} />}
