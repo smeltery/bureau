@@ -7,8 +7,8 @@ const lastAbortAtPerAgent = new Map<string, number>();
 
 export function sendAbortDebounced(agentId: string) {
   const now = performance.now();
-  const last = lastAbortAtPerAgent.get(agentId) ?? 0;
-  if (now - last < 2000) return;
+  const last = lastAbortAtPerAgent.get(agentId);
+  if (last !== undefined && now - last < 2000) return;
   lastAbortAtPerAgent.set(agentId, now);
   send({ type: "abort", agentId });
 }
