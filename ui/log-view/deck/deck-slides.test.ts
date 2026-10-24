@@ -223,7 +223,7 @@ describe("stageKind", () => {
   });
 
   test("the spinner names what is actually happening at each position", () => {
-    expect(spinnerLabel(true)).toBe("Generating");
-    expect(spinnerLabel(false)).toBe("Designing slide");
+    expect(spinnerLabel(true)).toBe("slides.generating");
+    expect(spinnerLabel(false)).toBe("slides.designing");
   });
 });

@@ -158,6 +158,6 @@ export function stageRegenerable(kind: StageKind): boolean {
 
 // The newest position reads "Generating" (its turn may still be producing an
 // answer, or its slide is being designed); a past position can only be designing.
-export function spinnerLabel(isNewest: boolean): string {
-  return isNewest ? "Generating" : "Designing slide";
+export function spinnerLabel(isNewest: boolean): "slides.generating" | "slides.designing" {
+  return isNewest ? "slides.generating" : "slides.designing";
 }

@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { Marked } from "marked";
 import { markedHighlight } from "marked-highlight";
@@ -152,7 +153,7 @@ marked.use({ extensions: [mathInlineDisplayExtension] });
 
 const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5a1.5 1.5 0 0 0-1.5-1.5H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>`;
 const CHECK_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></svg>`;
-const COPY_BTN_HTML = `<button class="copy-btn code-copy-btn" title="Copy">${COPY_SVG}</button>`;
+const COPY_BTN_HTML = `<button class="copy-btn code-copy-btn">${COPY_SVG}</button>`;
 
 export function renderMarkdown(content: string): string {
   const raw = marked.parse(content) as string;
@@ -163,6 +164,7 @@ export function renderMarkdown(content: string): string {
 const EMPTY_TASKS: TaskMap = new Map();
 
 export function Markdown({ content, tasks = EMPTY_TASKS, onOpenTask }: { content: string; tasks?: TaskMap; onOpenTask?: (id: string) => void }) {
+  const { t } = useI18n();
   const html = useMemo(() => {
     try {
       return renderMarkdown(content);
@@ -209,6 +211,13 @@ export function Markdown({ content, tasks = EMPTY_TASKS, onOpenTask }: { content
     if (!root) return;
     root.innerHTML = html;
   }, [html]);
+
+  useLayoutEffect(() => {
+    for (const button of containerRef.current?.querySelectorAll<HTMLButtonElement>(".code-copy-btn") ?? []) {
+      button.title = t("common.copy");
+      button.setAttribute("aria-label", t("common.copy"));
+    }
+  }, [html, t]);
 
   useLayoutEffect(() => {
     const root = containerRef.current;
