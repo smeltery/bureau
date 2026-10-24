@@ -1,3 +1,5 @@
+import { BureauLogError } from "../../../../shared/i18n/backend-errors/error.ts";
+import { logMessage } from "../../../../shared/i18n/log-message.ts";
 import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -17,7 +19,7 @@ export class OpenCodeProfileStore {
   constructor(readonly root = join(BUREAU_DIR, "opencode")) {}
 
   profileDir(profile: string): string {
-    if (profile !== "default" && !/^[a-f0-9]{64}$/.test(profile)) throw new Error("Invalid OpenCode profile identity.");
+    if (profile !== "default" && !/^[a-f0-9]{64}$/.test(profile)) throw new BureauLogError(logMessage("logs.backendError.profileInvalid"));
     return join(this.root, "profiles", profile);
   }
 
@@ -37,7 +39,7 @@ export class OpenCodeProfileStore {
       typeof value.model !== "string" ||
       (value.agent !== undefined && typeof value.agent !== "string")
     ) {
-      throw new Error("OpenCode session binding is invalid; refusing to select a different history store.");
+      throw new BureauLogError(logMessage("logs.backendError.bindingInvalid"));
     }
     this.profileDir(value.profile);
     return value;
@@ -47,7 +49,7 @@ export class OpenCodeProfileStore {
     this.profileDir(binding.profile);
     const previous = this.read(binding.sessionId);
     if (previous && (previous.profile !== binding.profile || previous.environmentId !== binding.environmentId)) {
-      throw new Error("OpenCode session belongs to another environment. Return to that environment or start a new conversation.");
+      throw new BureauLogError(logMessage("logs.backendError.environmentMismatch"));
     }
     const dir = join(this.root, "session-bindings");
     mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -63,7 +65,7 @@ export class OpenCodeProfileStore {
   }
 
   private bindingPath(sessionId: string): string {
-    if (!sessionId || sessionId.length > 512) throw new Error("Invalid OpenCode session identity.");
+    if (!sessionId || sessionId.length > 512) throw new BureauLogError(logMessage("logs.backendError.sessionInvalid"));
     return join(this.root, "session-bindings", `${profileKey(sessionId)}.json`);
   }
 }

@@ -1,3 +1,5 @@
+import { BureauLogError } from "../../../shared/i18n/backend-errors/error.ts";
+import { logMessage, type LogMessage } from "../../../shared/i18n/log-message.ts";
 import type {
   Backend,
   BackendModel,
@@ -78,12 +80,12 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
       return new OpenCodeBackendSession(opts, model, binding.supervisor, sessionId, (id) => profiles.bind(id, binding));
     },
 
-    checkSessionResumable(sessionId: string, opts: SessionAccessOptions): string | null {
+    checkSessionResumable(sessionId: string, opts: SessionAccessOptions): string | LogMessage | null {
       try {
         profiles.select(opts, DEFAULT_OPENCODE_MODEL, undefined, sessionId);
         return null;
       } catch (error) {
-        return error instanceof Error ? error.message : "OpenCode session binding could not be read.";
+        return error instanceof BureauLogError ? error.logMessage : error instanceof Error ? error.message : logMessage("logs.backendError.bindingUnreadable");
       }
     },
 
