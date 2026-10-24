@@ -1,3 +1,4 @@
+import { access } from "./access/en.ts";
 import { pager } from "./pager/en.ts";
 import { questions } from "./questions/en.ts";
 import { agentSettings } from "./agent-settings/en.ts";
@@ -26,6 +27,7 @@ export const en = {
   ...agentSettings,
   ...questions,
   ...pager,
+  ...access,
   "access.title": "Access",
   "apiTokens.title": "API tokens",
   "apps.confirmDelete": "Delete {name}? Its data directory will be kept.",

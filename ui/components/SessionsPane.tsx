@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+import { accessFailureText, revokeFailure, type AccessFailure } from "./access/feedback.ts";
 import { useEffect, useRef, useState } from "react";
 import { useAppState } from "../store.tsx";
 import { addRawListener, removeRawListener, send } from "../ws.ts";
@@ -5,8 +7,9 @@ import { SessionsTable, renderListSection, sectionHeader } from "./AccessPane.ts
 import { hint } from "./AccessPaneShared.tsx";
 
 export function SessionsPane() {
+  const { t } = useI18n();
   const { activeSessions, activeSessionsLoaded } = useAppState();
-  const [blockedNote, setBlockedNote] = useState<string | null>(null);
+  const [blockedNote, setBlockedNote] = useState<AccessFailure | null>(null);
   const prevSessionsLenRef = useRef<number>(activeSessions.length);
 
   useEffect(() => {
@@ -18,7 +21,7 @@ export function SessionsPane() {
       try {
         const m = JSON.parse(data);
         if (m.type === "revoke_blocked" && typeof m.reason === "string") {
-          setBlockedNote(m.reason);
+          setBlockedNote(revokeFailure(m));
         }
       } catch {}
     };
@@ -35,12 +38,12 @@ export function SessionsPane() {
 
   return (
     <div style={{ marginTop: 24 }}>
-      <h4 style={sectionHeader}>Sessions</h4>
-      <p style={hint}>Devices signed into this office, across all users. Revoking a session signs that device out.</p>
+      <h4 style={sectionHeader}>{t("accessUi.sessions")}</h4>
+      <p style={hint}>{t("accessUi.sessionsHint")}</p>
 
       {blockedNote && (
         <div style={blockedBox}>
-          <span style={{ flex: 1 }}>{blockedNote}</span>
+          <span style={{ flex: 1 }}>{accessFailureText(blockedNote, t)}</span>
           <button
             onClick={() => setBlockedNote(null)}
             style={{
@@ -51,7 +54,7 @@ export function SessionsPane() {
               fontSize: 14,
               padding: 0,
             }}
-            title="Dismiss"
+            title={t("accessUi.dismiss")}
           >
             ×
           </button>

@@ -1,3 +1,4 @@
+import { access } from "./access/ca.ts";
 import { pager } from "./pager/ca.ts";
 import { questions } from "./questions/ca.ts";
 import { agentSettings } from "./agent-settings/ca.ts";
@@ -25,6 +26,7 @@ export const ca = {
   ...agentSettings,
   ...questions,
   ...pager,
+  ...access,
   "access.title": "Accés",
   "apiTokens.title": "Tokens d’API",
   "apps.confirmDelete": "Vols eliminar {name}? Se’n conservarà el directori de dades.",

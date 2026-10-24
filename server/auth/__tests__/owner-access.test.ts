@@ -118,6 +118,7 @@ test("WebSocket logout reports a refusal and keeps session context", () => {
     setWsSessionPrefix(ws, session.session.sessionPrefix);
     await handleAccessCommand({ type: "logout" }, ws);
     expect(sent.map(row => row.type)).toEqual(["revoke_blocked"]);
+    expect(sent[0].reasonCode).toBe("last_owner_logout");
     expect(sessionStore().has(session.sessionHash)).toBe(true);
   `);
 });

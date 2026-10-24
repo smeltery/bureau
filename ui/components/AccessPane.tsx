@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 // Owner-only Access section: external reachability for the office.
 // Invite links and active sessions live in their own settings panes.
 
@@ -21,9 +22,13 @@ export function AccessPane({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
 // Render the cached rows whenever any are present, even while a refresh is
 // in flight — avoids a flicker to "Loading…" on every reconnect.
 export function renderListSection<T>(rows: T[], loaded: boolean, renderTable: (rows: T[]) => React.ReactNode): React.ReactNode {
-  if (rows.length > 0) return renderTable(rows);
-  if (!loaded) return <p style={hint}>Loading…</p>;
-  return <p style={hint}>None.</p>;
+  if (rows.length > 0) return <div style={{ maxWidth: "100%", overflowX: "auto" }}>{renderTable(rows)}</div>;
+  return <ListEmpty loaded={loaded} />;
+}
+
+function ListEmpty({ loaded }: { loaded: boolean }) {
+  const { t } = useI18n();
+  return <p style={hint}>{t(loaded ? "common.none" : "common.loading")}</p>;
 }
 
 export const sectionHeader: React.CSSProperties = {

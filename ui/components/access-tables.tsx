@@ -1,34 +1,38 @@
+import { useI18n } from "../i18n.tsx";
+import { translatorFor } from "../../shared/i18n/translate.ts";
+import type { SupportedLanguageCode } from "../../shared/languages.ts";
 import { Fragment } from "react";
 import type { InviteWire, SessionWire } from "../../shared/types.ts";
 import { useAppState } from "../store.tsx";
 import { send } from "../ws.ts";
 
 export function InvitesTable({ invites }: { invites: InviteWire[] }) {
+  const { t, language } = useI18n();
   const { rooms, allRooms } = useAppState();
   const roomList = allRooms.length > 0 ? allRooms : rooms;
   return (
     <table style={tableStyle}>
       <thead>
         <tr>
-          <th style={th}>For</th>
-          <th style={th}>Role</th>
-          <th style={th}>Rooms</th>
-          <th style={th}>Expires</th>
-          <th style={th}>Prefix</th>
+          <th style={th}>{t("accessUi.for")}</th>
+          <th style={th}>{t("accessUi.role")}</th>
+          <th style={th}>{t("accessUi.rooms")}</th>
+          <th style={th}>{t("accessUi.expires")}</th>
+          <th style={th}>{t("accessUi.prefix")}</th>
           <th style={th}></th>
         </tr>
       </thead>
       <tbody>
         {invites.map((i) => (
           <tr key={i.tokenPrefix}>
-            <td style={td}>{i.username ?? <i>{i.bootstrap ? "(bootstrap)" : "—"}</i>}</td>
-            <td style={td}>{i.role}</td>
+            <td style={td}>{i.username ?? <i>{i.bootstrap ? t("accessUi.bootstrap") : "—"}</i>}</td>
+            <td style={td}>{t(i.role === "owner" ? "common.owner" : "common.member")}</td>
             <td style={td}>{formatInviteRooms(i, roomList)}</td>
-            <td style={td}>{formatExpiry(i.expiresAt)}</td>
+            <td style={td}>{formatExpiry(i.expiresAt, language)}</td>
             <td style={mono}>{i.tokenPrefix}…</td>
             <td style={td}>
               <button onClick={() => send({ type: "revoke_invite", tokenPrefix: i.tokenPrefix })} style={smallBtn}>
-                Revoke
+                {t("accessUi.revoke")}
               </button>
             </td>
           </tr>
@@ -44,17 +48,18 @@ export function formatInviteRooms(invite: Pick<InviteWire, "allowedRooms">, room
 }
 
 export function SessionsTable({ sessions }: { sessions: SessionWire[] }) {
+  const { t, language } = useI18n();
   const { sessionContext } = useAppState();
   const currentPrefix = sessionContext?.currentSessionPrefix ?? null;
   return (
     <table style={tableStyle}>
       <thead>
         <tr>
-          <th style={th}>User</th>
-          <th style={th}>Last seen</th>
-          <th style={th}>Created</th>
-          <th style={th}>User-Agent</th>
-          <th style={th}>Prefix</th>
+          <th style={th}>{t("accessUi.user")}</th>
+          <th style={th}>{t("accessUi.lastSeen")}</th>
+          <th style={th}>{t("accessUi.created")}</th>
+          <th style={th}>{t("accessUi.userAgent")}</th>
+          <th style={th}>{t("accessUi.prefix")}</th>
           <th style={th}></th>
         </tr>
       </thead>
@@ -65,18 +70,18 @@ export function SessionsTable({ sessions }: { sessions: SessionWire[] }) {
             <Fragment key={s.sessionPrefix}>
               <tr>
                 <td style={sessionPrimaryCell}>{s.username}</td>
-                <td style={sessionPrimaryCell}>{formatRelative(s.lastSeenAt)}</td>
-                <td style={sessionPrimaryCell}>{formatRelative(s.createdAt)}</td>
+                <td style={sessionPrimaryCell}>{formatRelative(s.lastSeenAt, language)}</td>
+                <td style={sessionPrimaryCell}>{formatRelative(s.createdAt, language)}</td>
                 <td style={sessionPrimaryEllipsis}>{s.userAgent ?? "—"}</td>
                 <td style={sessionPrimaryMono}>{s.sessionPrefix}…</td>
                 <td style={sessionPrimaryCell}>
                   {isCurrent ? (
-                    <span style={{ fontSize: 10, color: "var(--text-ghost)", fontStyle: "italic" }} title="Use Sign out to end your current session.">
-                      Current session
+                    <span style={{ fontSize: 10, color: "var(--text-ghost)", fontStyle: "italic" }} title={t("accessUi.currentHint")}>
+                      {t("accessUi.current")}
                     </span>
                   ) : (
                     <button onClick={() => send({ type: "revoke_session", sessionPrefix: s.sessionPrefix })} style={smallBtn}>
-                      Revoke
+                      {t("accessUi.revoke")}
                     </button>
                   )}
                 </td>
@@ -84,7 +89,7 @@ export function SessionsTable({ sessions }: { sessions: SessionWire[] }) {
               <tr>
                 <td colSpan={6} style={sessionExpiryCell}>
                   <div style={sessionExpiryStyle}>
-                    {sessionExpiryLines(s).map((line) => (
+                    {sessionExpiryLines(s, language).map((line) => (
                       <span key={line.label}>
                         {line.label}: {line.value}
                       </span>
@@ -100,41 +105,31 @@ export function SessionsTable({ sessions }: { sessions: SessionWire[] }) {
   );
 }
 
-function formatRelative(ts: number): string {
-  const diffMs = Date.now() - ts;
-  const m = Math.round(diffMs / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
-  if (h < 48) return `${h}h ago`;
-  const d = Math.round(h / 24);
-  return `${d}d ago`;
+function formatRelative(ts: number, language: SupportedLanguageCode): string {
+  const minutes = Math.round((Date.now() - ts) / 60000);
+  if (minutes < 1) return translatorFor(language).t("accessUi.justNow");
+  const hours = Math.round(minutes / 60);
+  const format = new Intl.RelativeTimeFormat(language);
+  return minutes < 60 ? format.format(-minutes, "minute") : hours < 48 ? format.format(-hours, "hour") : format.format(-Math.round(hours / 24), "day");
 }
 
-function formatExpiry(ts: number): string {
+function formatExpiry(ts: number, language: SupportedLanguageCode): string {
   const diffMs = ts - Date.now();
-  if (diffMs <= 0) return "expired";
-  const h = Math.round(diffMs / 3600_000);
-  if (h < 48) return `${h}h`;
-  const d = Math.round(h / 24);
-  return `${d}d`;
+  if (diffMs <= 0) return translatorFor(language).t("accessUi.expired");
+  const hours = Math.round(diffMs / 3600_000);
+  const format = new Intl.RelativeTimeFormat(language);
+  return hours < 48 ? format.format(hours, "hour") : format.format(Math.round(hours / 24), "day");
 }
 
-export const SESSION_EXPIRY_LABELS = {
-  inactivity: "Expires after inactivity",
-  latest: "Expires at the latest",
-} as const;
-
-export function formatAbsoluteLocal(ts: number): string {
-  const date = new Date(ts);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())} local`;
+export function formatAbsoluteLocal(ts: number, language: SupportedLanguageCode = "en"): string {
+  return new Intl.DateTimeFormat(language, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(ts);
 }
 
-export function sessionExpiryLines(session: Pick<SessionWire, "expiresAt" | "absoluteExpiresAt">): { label: string; value: string }[] {
+export function sessionExpiryLines(session: Pick<SessionWire, "expiresAt" | "absoluteExpiresAt">, language: SupportedLanguageCode = "en"): { label: string; value: string }[] {
+  const { t } = translatorFor(language);
   return [
-    { label: SESSION_EXPIRY_LABELS.inactivity, value: formatAbsoluteLocal(session.expiresAt) },
-    { label: SESSION_EXPIRY_LABELS.latest, value: formatAbsoluteLocal(session.absoluteExpiresAt) },
+    { label: t("accessUi.inactivity"), value: formatAbsoluteLocal(session.expiresAt, language) },
+    { label: t("accessUi.latest"), value: formatAbsoluteLocal(session.absoluteExpiresAt, language) },
   ];
 }
 
