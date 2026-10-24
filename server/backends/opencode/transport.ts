@@ -1,3 +1,5 @@
+import { openCodeRequest } from "./connection/request.ts";
+import { OpenCodeTurnCleanup, createTurnCleanup } from "./connection/turn-cleanup.ts";
 import { BureauLogError, errorLogParam } from "../../../shared/i18n/backend-errors/error.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { bureauSystemNotice, bureauTurnFailure } from "../session-types.ts";
@@ -13,7 +15,7 @@ import type { OpenCodeLease, OpenCodeSupervisor } from "./supervisor.ts";
 import { applyOpenCodeEvent, type TrackedTool } from "./transport-events.ts";
 import { openCodeAuthorityBroker, type OpenCodeAuthorityBinding, type OpenCodeAuthorityBroker } from "./authority-broker.ts";
 import { OPENCODE_TURN_HANDLE_PLACEHOLDER } from "./office-proxy-shared.ts";
-import { fetchOpenCode, readOpenCodeEvent, OPENCODE_DEADLINE_MS } from "./connection/deadlines.ts";
+import { readOpenCodeEvent, OPENCODE_DEADLINE_MS } from "./connection/deadlines.ts";
 
 type EventSink = (event: NormalizedEvent) => void;
 
@@ -40,8 +42,10 @@ export class OpenCodeTransport {
   private sessionId: string | null = null;
   private abortController: AbortController | null = null;
   private activeTurn = false;
+  private startingTurn = false;
   private abortRequested = false;
-  private pendingPermission: { id: string; sessionId: string } | null = null;
+  private turn: OpenCodeTurnCleanup | null = null;
+  private cleaning: Promise<void> = Promise.resolve();
   private closed = false;
   private latestContext: OpenCodeContextBreakdown | null = null;
   private authorityBinding: OpenCodeAuthorityBinding | null = null;
@@ -110,28 +114,54 @@ export class OpenCodeTransport {
       sink(bureauTurnFailure(logMessage("logs.backend.missingBinding")));
       return;
     }
-    if (this.activeTurn) throw new BureauLogError(logMessage("logs.backendError.activeTurn"));
-    this.resetLease();
-    const sessionId = await this.initialize(sink);
-    await this.lease!.beginTurn();
+    if (this.activeTurn || this.startingTurn) throw new BureauLogError(logMessage("logs.backendError.activeTurn"));
+    this.startingTurn = true;
+    let sessionId: string;
+    try {
+      await this.cleaning;
+      if (this.closed) return;
+      this.resetLease();
+      sessionId = await this.initialize(sink);
+      if (this.closed) {
+        this.lease?.release();
+        return;
+      }
+      await this.lease!.beginTurn();
+      if (this.closed) {
+        this.lease!.endTurn();
+        this.lease!.release();
+        return;
+      }
+      this.turn = createTurnCleanup(this.lease!, this.cwd, sessionId, this.requestTimeoutMs);
+      this.activeTurn = true;
+    } catch (error) {
+      this.lease?.endTurn();
+      throw error;
+    } finally {
+      this.startingTurn = false;
+    }
+    const lease = this.lease!;
+    let turn = this.turn!;
+    const controller = (this.abortController = new AbortController());
     try {
       this.authorityBinding?.activate(this.lease!.pid);
       this.activeTurn = true;
       this.abortRequested = false;
-      this.abortController = new AbortController();
       try {
-        await this.consumeEvents(sessionId, sink, this.abortController.signal);
+        await this.consumeEvents(sessionId, sink, controller.signal);
       } catch (error) {
-        if (this.abortController.signal.aborted || this.closed) throw error;
+        if (controller.signal.aborted || this.closed) throw error;
         await this.lease!.recoverBeforePrompt();
+        turn = this.turn = createTurnCleanup(lease, this.cwd, sessionId, this.requestTimeoutMs);
         this.authorityBinding?.activate(this.lease!.pid);
-        await this.consumeEvents(sessionId, sink, this.abortController.signal);
+        await this.consumeEvents(sessionId, sink, controller.signal);
       }
       const [providerID, modelID] = splitModel(this.model);
       const { variant, notice, noticeMessage } = await this.modelSelection.resolve(this.lease!);
-      this.abortController.signal.throwIfAborted();
+      controller.signal.throwIfAborted();
       if (notice) sink(noticeMessage ? bureauSystemNotice(noticeMessage) : { kind: "system_text", text: notice, bureauAuthored: true });
       const parts = buildPromptParts(text, attachments, agentId);
+      turn.submitted = true;
       await this.request(`/session/${encodeURIComponent(sessionId)}/prompt_async`, {
         method: "POST",
         body: JSON.stringify({
@@ -143,19 +173,22 @@ export class OpenCodeTransport {
         }),
       });
     } catch (error) {
-      this.abortController?.abort();
-      const wasActive = this.activeTurn;
-      if (wasActive && !this.abortRequested && !this.closed) this.lease?.markUnresponsive?.();
+      controller.abort();
+      const wasActive = this.turn === turn && this.activeTurn && !turn.ended;
+      if (!wasActive) return;
+      if (wasActive && !turn.submitted && !this.abortRequested && !this.closed) lease.markUnresponsive?.();
       this.activeTurn = false;
       this.authorityBinding?.deactivate();
-      this.lease!.endTurn();
+      if (wasActive) this.cleaning = turn.finish(true).finally(() => lease.endTurn());
       if (wasActive)
         sink(
-          error instanceof BureauLogError
-            ? bureauTurnFailure(error.logMessage)
-            : error instanceof Error
-              ? { kind: "turn_completed", status: "failed", error: error.message }
-              : bureauTurnFailure(logMessage("logs.backend.requestFailed")),
+          this.abortRequested
+            ? { kind: "turn_completed", status: "interrupted" }
+            : error instanceof BureauLogError
+              ? bureauTurnFailure(error.logMessage)
+              : error instanceof Error
+                ? { kind: "turn_completed", status: "failed", error: error.message }
+                : bureauTurnFailure(logMessage("logs.backend.requestFailed")),
         );
     }
   }
@@ -166,20 +199,18 @@ export class OpenCodeTransport {
   }
 
   async abort(): Promise<void> {
-    if (!this.sessionId) return;
+    if (!this.activeTurn) return;
     this.abortRequested = true;
-    await this.rejectPendingPermission();
-    await this.request(`/session/${encodeURIComponent(this.sessionId)}/abort`, { method: "POST" }).catch(() => undefined);
+    if (!this.turn?.submitted) this.abortController?.abort();
+    await this.turn?.stop();
   }
 
   async approve(approvalId: string, decision: ApprovalDecision): Promise<void> {
-    const pending = this.pendingPermission;
-    if (!pending || pending.id !== approvalId || pending.sessionId !== this.sessionId) return;
+    if (!this.turn?.hasPending(approvalId)) return;
     if (decision.kind !== "allow_once" && decision.kind !== "deny") {
       throw new BureauLogError(logMessage("logs.backendError.approval"));
     }
-    this.pendingPermission = null;
-    await this.replyPermission(approvalId, decision.kind === "allow_once" ? "once" : "reject", decision.kind === "deny" ? decision.reason : undefined);
+    await this.turn.reply(approvalId, decision.kind === "allow_once" ? "once" : "reject", decision.kind === "deny" ? decision.reason : undefined);
   }
 
   async getSessionMessages(): Promise<NormalizedMessage[]> {
@@ -204,16 +235,21 @@ export class OpenCodeTransport {
   close(): void {
     if (this.closed) return;
     this.closed = true;
-    if (this.activeTurn) void this.rejectPendingPermission().then(() => this.abort());
+    const lease = this.lease;
+    if (this.turn) this.cleaning = this.turn.finish(true);
     this.abortController?.abort();
     this.authorityBinding?.deactivate();
     this.authorityBinding?.unbind();
     this.authorityBinding = null;
-    this.lease?.endTurn();
-    this.lease?.release();
+    void this.cleaning.finally(() => {
+      lease?.endTurn();
+      lease?.release();
+    });
   }
 
   private async consumeEvents(sessionId: string, sink: EventSink, signal: AbortSignal): Promise<void> {
+    const turn = this.turn!;
+    const lease = this.lease!;
     const response = await this.request("/event", { signal });
     if (!response.body) throw new BureauLogError(logMessage("logs.backendError.noBody"));
     const reader = response.body.getReader();
@@ -226,12 +262,11 @@ export class OpenCodeTransport {
     const accounting = new OpenCodeTurnAccounting();
     let settled = false;
     const settle = (event: NormalizedEvent): void => {
-      if (settled) return;
+      if (settled || this.turn !== turn || turn.ended) return;
       settled = true;
       this.activeTurn = false;
-      this.pendingPermission = null;
+      this.cleaning = turn.finish(event.kind === "turn_completed" && event.status === "failed").finally(() => lease.endTurn());
       this.authorityBinding?.deactivate();
-      this.lease?.endTurn();
       sink(event.kind === "turn_completed" ? { ...event, ...accounting.totals(sessionId) } : event);
       this.abortController?.abort();
     };
@@ -253,6 +288,10 @@ export class OpenCodeTransport {
               .join("\n");
             const event = parseAllowedEvent(data);
             if (!event || event.sessionId !== sessionId) continue;
+            if (settled || signal.aborted || turn.ended || (this.abortRequested && event.kind === "permission")) {
+              if (event.kind === "permission") void turn.rejectLate(event.id);
+              continue;
+            }
             applyOpenCodeEvent(event, {
               model: this.model,
               needsApiKey: ["opencode", "opencode-go"].includes(splitModel(this.model)[0]) && !this.lease?.hasLaunchVariable?.("OPENCODE_API_KEY") && this.modelSelection.isFree !== true,
@@ -260,9 +299,9 @@ export class OpenCodeTransport {
               settle,
               abortRequested: this.abortRequested,
               autoApprove: this.autoApprove,
-              replyPermission: (id, reply) => this.replyPermission(id, reply),
+              replyPermission: (id, reply) => turn.reply(id, reply).catch(() => settle(bureauTurnFailure(logMessage("logs.backend.permissionFault")))),
               setPendingPermission: (pending) => {
-                this.pendingPermission = pending;
+                if (pending) turn.track(pending.id);
               },
               assistantMessages,
               textByPart,
@@ -274,16 +313,13 @@ export class OpenCodeTransport {
                 this.latestContext = breakdown;
               },
             });
-            if (settled) return;
           }
         }
         if (!signal.aborted) {
-          this.lease?.markUnresponsive?.();
           settle(bureauTurnFailure(logMessage("logs.backend.streamEnded")));
         }
       } catch (error) {
         if (!signal.aborted) {
-          this.lease?.markUnresponsive?.();
           settle(bureauTurnFailure(logMessage("logs.backend.streamFailed", { error: error instanceof Error ? errorLogParam(error) : logMessage("logs.backend.unknownError") })));
         }
       } finally {
@@ -292,40 +328,8 @@ export class OpenCodeTransport {
     })();
   }
 
-  private async replyPermission(id: string, reply: "once" | "reject", message?: string): Promise<void> {
-    await this.request(`/permission/${encodeURIComponent(id)}/reply`, {
-      method: "POST",
-      body: JSON.stringify({ reply, ...(message ? { message } : {}) }),
-    });
-  }
-
-  private async rejectPendingPermission(): Promise<void> {
-    const pending = this.pendingPermission;
-    if (!pending || pending.sessionId !== this.sessionId) return;
-    this.pendingPermission = null;
-    await this.replyPermission(pending.id, "reject").catch(() => undefined);
-  }
-
   private async request(path: string, init: RequestInit = {}): Promise<Response> {
     if (!this.lease) throw new BureauLogError(logMessage("logs.backendError.uninitialized"));
-    const url = new URL(path, this.lease.baseUrl);
-    url.searchParams.set("directory", this.cwd);
-    const response = await fetchOpenCode(
-      url,
-      {
-        ...init,
-        headers: {
-          authorization: this.lease.authHeader,
-          ...(init.body ? { "content-type": "application/json" } : {}),
-          ...init.headers,
-        },
-      },
-      this.requestTimeoutMs,
-    );
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new BureauLogError(logMessage("logs.backendError.http", { status: response.status, path }));
-    }
-    return response;
+    return openCodeRequest(this.lease, this.cwd, this.requestTimeoutMs)(path, init);
   }
 }
