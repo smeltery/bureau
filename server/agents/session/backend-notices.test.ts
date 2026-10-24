@@ -120,7 +120,7 @@ test("normal and scheduled logs retain translated backend notices through persis
   }
 });
 
-test("retry and compaction notices translate without exposing raw provider details", () => {
+test("retry and compaction notices translate while redacting provider credentials", () => {
   const events: NormalizedEvent[] = [];
   const settled: NormalizedEvent[] = [];
   const accounting = new OpenCodeTurnAccounting();
@@ -139,18 +139,19 @@ test("retry and compaction notices translate without exposing raw provider detai
     accounting,
     onContext: () => {},
   };
-  applyOpenCodeEvent({ kind: "retry", sessionId: "test", attempt: 2, message: "rate limit; private provider detail" }, ctx);
+  applyOpenCodeEvent({ kind: "retry", sessionId: "test", attempt: 2, message: "rate limit; Bearer private-provider-detail" }, ctx);
   applyOpenCodeEvent({ kind: "error", sessionId: "test", error: { name: "ContextOverflowError" } }, ctx);
   expect(accounting.overflowPending).toBe(true);
   expect(settled).toHaveLength(0);
   expect(events).toHaveLength(2);
   const active = { pendingEntries: [], sessionId: null, streamId: "retry-test" } as unknown as ActiveRun;
   for (const event of events) processNormalizedEvent(active, event, () => {});
-  expect(active.pendingEntries[0].content).toBe("The model provider is rate limiting requests. Try again shortly. OpenCode retry 2.");
+  expect(active.pendingEntries[0].content).toContain("rate limit; Bearer");
+  expect(active.pendingEntries[0].content).toContain("OpenCode retry 2.");
   expect(displayLogContent(active.pendingEntries[0], "es")).toContain("Reintento 2 de OpenCode");
-  expect(displayLogContent(active.pendingEntries[0], "es")).toContain("limitando las solicitudes");
+  expect(displayLogContent(active.pendingEntries[0], "es")).toContain("rate limit");
   expect(displayLogContent(active.pendingEntries[1], "zh")).toContain("正在压缩对话");
-  expect(JSON.stringify(events)).not.toContain("private provider detail");
+  expect(JSON.stringify(events)).not.toContain("private-provider-detail");
 });
 
 test("image failure wrappers translate while keeping provider details literal", () => {

@@ -21,4 +21,7 @@ export const backendErrors = {
   "logs.backendError.accessMissing": "Per accedir a la sessió d’OpenCode cal l’entorn del seu responsable i sala.",
   "logs.backendError.bindingUnreadable": "No s’ha pogut llegir la vinculació de la sessió d’OpenCode.",
   "logs.backendError.resumeOther": "{error} Fes servir /resume per triar una altra sessió.",
+  "logs.backendError.providerRefused": "El proveïdor de {model} ha rebutjat la sol·licitud: «{detail}»",
+  "logs.backendError.providerReported": "El proveïdor de {model} ha informat: «{detail}»",
+  "logs.backendError.providerFreeTier": "Pot ser una restricció del nivell gratuït. Torna-ho a provar més tard o selecciona un altre model.",
 } as const;

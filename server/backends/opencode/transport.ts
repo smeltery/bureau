@@ -261,10 +261,10 @@ export class OpenCodeTransport {
               .filter((line) => line.startsWith("data:"))
               .map((line) => line.slice(5).trimStart())
               .join("\n");
-            if (!data) continue;
             const event = parseAllowedEvent(data);
             if (!event || event.sessionId !== sessionId) continue;
             applyOpenCodeEvent(event, {
+              model: this.model,
               sink,
               settle,
               abortRequested: this.abortRequested,

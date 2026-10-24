@@ -62,8 +62,11 @@ The OS assigns each server's loopback port. Bureau waits up to 60 seconds for
 its announced listener to become healthy, accommodating cold starts under load.
 Existing active turns still prevent process replacement.
 
-Provider retries appear in the conversation with a classified cause, without
-copying raw provider responses or credentials. Context-overflow compaction stays
+Provider refusals and retries show the provider’s explanation as a bounded,
+credential-redacted quote. The surrounding guidance follows each reader’s
+language; provider words remain literal. An explained 403 refusal does not
+request another sign-in. Authentication failures and errors without a usable
+explanation retain classified guidance. Context-overflow compaction stays
 inside the original turn; its internal summary is not shown as an answer. Stop
 remains available and the event-stream deadline still detects lost connections.
 Bureau does not replay a submitted prompt.
