@@ -1,3 +1,4 @@
+import { BureauLogError } from "../../../../shared/i18n/backend-errors/error.ts";
 import { displayLogContent, logContent } from "../../../../shared/i18n/log-message.ts";
 import { afterEach, describe, expect, it } from "bun:test";
 import type { NormalizedEvent } from "../../types.ts";
@@ -14,7 +15,9 @@ describe("OpenCode deadlines", () => {
   it("bounds session creation even when the server never sends headers", async () => {
     const server = Bun.serve({ port: 0, fetch: () => new Promise<Response>(() => {}) });
     cleanup.push(() => server.stop(true));
-    await expect(fetchOpenCode(new URL(`http://127.0.0.1:${server.port}/session`), { method: "POST" }, 30)).rejects.toThrow("timed out");
+    const error = await fetchOpenCode(new URL(`http://127.0.0.1:${server.port}/session`), { method: "POST" }, 30).catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(BureauLogError);
+    expect((error as BureauLogError).logMessage).toEqual({ key: "logs.backendError.timeout", params: { path: "/session" } });
   });
 
   it("bounds a response body that stalls after its headers", async () => {
@@ -30,7 +33,9 @@ describe("OpenCode deadlines", () => {
         ),
     });
     cleanup.push(() => server.stop(true));
-    await expect(fetchOpenCode(new URL(`http://127.0.0.1:${server.port}/session`), {}, 30)).rejects.toThrow();
+    const error = await fetchOpenCode(new URL(`http://127.0.0.1:${server.port}/session`), {}, 30).catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(BureauLogError);
+    expect((error as BureauLogError).logMessage.key).toBe("logs.backendError.timeout");
   });
 
   async function exerciseStream(heartbeat: boolean, stallFirstSubscription = false) {
@@ -113,7 +118,7 @@ describe("OpenCode deadlines", () => {
       expect(completed[0].errorMessage?.key).toBe("logs.backend.streamFailed");
       expect(completed[0].error).toBe("OpenCode event stream failed: OpenCode event stream stopped sending heartbeats.");
       const entry = { ...logContent(completed[0].errorMessage!), kind: "error" as const };
-      expect(displayLogContent(entry, "es")).toBe("El flujo de eventos de OpenCode falló: OpenCode event stream stopped sending heartbeats.");
+      expect(displayLogContent(entry, "es")).toBe("El flujo de eventos de OpenCode falló: El flujo de eventos de OpenCode dejó de enviar señales de actividad.");
     }
     expect(prompts).toBe(1);
     expect(recoveries).toBe(stallFirstSubscription ? 1 : 0);

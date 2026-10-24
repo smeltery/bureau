@@ -1,5 +1,7 @@
+import { backendErrors } from "./backend-errors/zh.ts";
 import { commandDescriptions } from "./command-descriptions-zh.ts";
 export const logs = {
+  ...backendErrors,
   ...commandDescriptions,
   "logs.run.deleted": "计划已删除；此运行已停止。",
   "logs.run.pendingEditDeleted": "计划已删除；待处理的编辑已取消。",

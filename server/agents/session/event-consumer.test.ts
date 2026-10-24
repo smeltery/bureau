@@ -1,3 +1,4 @@
+import { BureauLogError } from "../../../shared/i18n/backend-errors/error.ts";
 import { bureauError, bureauTurnFailure } from "../../backends/session-types.ts";
 import { codexSubprocessExitEvent } from "../../backends/codex/session-process-events.ts";
 import { logMessage, displayLogContent } from "../../../shared/i18n/log-message.ts";
@@ -276,5 +277,27 @@ test("provider errors cannot supply translation metadata without Bureau authorsh
   const entries = logCache.get(agentId)!;
   expect(entries.map((entry) => displayLogContent(entry, "zh"))).toEqual(["Original completion", "Original failure"]);
   expect(entries.every((entry) => entry.message === undefined)).toBe(true);
+  expect(managed.info.state).toBe("error");
+});
+
+test("owned errors thrown by streams keep translation metadata and canonical failure state", async () => {
+  const agentId = crypto.randomUUID();
+  const session = eventSession([]);
+  const message = logMessage("logs.backendError.timeout", { path: "/session/literal" });
+  session.stream = async function* () {
+    yield { kind: "system_text", text: "Literal provider output" };
+    throw new BureauLogError(message);
+  };
+  const managed = createManagedAgent({ info: agentInfo(agentId, "opencode"), skillCwd: process.cwd(), slashCommands: [], skills: [] });
+  managed.session = session;
+  agents.set(agentId, managed);
+  await runConsumer(agentId, managed, session);
+  const entry = logCache.get(agentId)!.find((entry) => entry.kind === "error")!;
+  expect(entry.content).toBe("Stream error: OpenCode request timed out at /session/literal.");
+  expect(entry.message?.params?.error).toEqual(message);
+  for (const language of ["es", "ca", "zh"] as const) {
+    expect(displayLogContent(entry, language)).not.toContain("request timed out");
+    expect(displayLogContent(entry, language)).toContain("/session/literal");
+  }
   expect(managed.info.state).toBe("error");
 });
