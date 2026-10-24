@@ -18,7 +18,7 @@ test("short addresses name the office app shell and preserve the app generation"
 });
 
 test("reserved paths and inaccessible, archived or unhosted apps are refused", () => {
-  for (const name of ["tasks", "skills", "settings", "pager", "chat", "schedules", "api"]) {
+  for (const name of ["tasks", "skills", "settings", "pager", "inbox", "chat", "schedules", "api"]) {
     expect(shortAppName(`/${name}`)).toBeNull();
     expect(appShortUrl({ ...app, name }, publicUrl, "https://office.example")).toBeUndefined();
   }

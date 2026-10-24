@@ -105,6 +105,7 @@ describe("app-registry: name validation", () => {
       ["../etc", "invalid_name"],
       ["www", "reserved_name"],
       ["api", "reserved_name"],
+      ["inbox", "reserved_name"],
     ];
     for (const [name, code] of bad) {
       expect(checkAppName(name)?.code).toBe(code);
