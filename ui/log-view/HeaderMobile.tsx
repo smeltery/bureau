@@ -1,3 +1,4 @@
+import { ModelRecovery } from "./header/ModelRecovery.tsx";
 import { useI18n } from "../i18n.tsx";
 import type { AgentInfo } from "../../shared/types.ts";
 import { CopyButton } from "../components/controls/CopyButton.tsx";
@@ -95,6 +96,7 @@ export function HeaderMobile({
               ""
             )}
           </span>
+          {agent.unavailableModel && <ModelRecovery model={agent.unavailableModel} onClick={onEditAgent} />}
           {STATE_LABELS[agent.state] && <HeaderTimer state={agent.state} stateChangedAt={stateChangedAt} />}
           <SubscriptionPill key={`${agent.id}:${agent.agentType}`} agentId={agent.id} provider={agent.agentType} state={agent.state} isMobile />
           <ContextMeter usage={agent.contextUsage} />

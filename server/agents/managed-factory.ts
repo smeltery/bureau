@@ -18,6 +18,7 @@ export function createManagedAgent(input: {
     ...input.info,
     topic: normalizeTopic(input.info.topic),
     topicGenerating: false,
+    unavailableModel: null,
     customInstructionsVersion: input.info.customInstructionsVersion ?? versionOf(input.info.customInstructions ?? ""),
   };
   const slashCommands = input.slashCommands ?? autocompleteCommands();

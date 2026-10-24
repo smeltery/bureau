@@ -59,11 +59,12 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
     async listModels(opts: ListModelsOptions): Promise<BackendModel[]> {
       try {
         const models = await discoverOpenCodeModels(profiles.select(opts, DEFAULT_OPENCODE_MODEL).supervisor, opts.cwd, opts.env);
-        if (models.length === 0) return staticBackendModels();
+        if (models.length === 0 && !opts.requireLive) return staticBackendModels();
         return models.map(({ contextLimit: _c, isFree: _f, ...entry }) => ({
           ...entry,
         }));
-      } catch {
+      } catch (error) {
+        if (opts.requireLive) throw error;
         return staticBackendModels();
       }
     },

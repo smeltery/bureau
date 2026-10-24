@@ -89,3 +89,21 @@ routes as other backends. The broker retains explicit route admission because
 Bureau's loopback HTTP routes do not all accept agent authority. Browser-only
 uploads, app chat metadata, account settings and privilege changes remain
 unavailable through agent tokens; binary transport does not broaden access.
+
+## Unavailable models
+
+Bureau checks live OpenCode catalogs two minutes after startup and once a day,
+grouped by manager, room environment and working directory. A model is marked
+unavailable only when its provider still lists other connected models but no
+longer lists the selected one. Failed, empty and disconnected-provider lookups
+do not prove removal and leave the previous status unchanged.
+
+The conversation header shows a warning that opens agent settings. Model
+failures also offer a model-settings button. Bureau never changes a selected
+model automatically. Changing the model, manager, working directory or room clears an old
+warning, and a later successful listing clears it when the model returns.
+Warnings are derived at runtime, not saved with agent configuration.
+
+When the configured lobby receptionist loses its model, its manager receives
+a deduplicated page. Ordinary agents receive a conversation notice. Catalog
+checks do not send prompts or generate paid model responses.

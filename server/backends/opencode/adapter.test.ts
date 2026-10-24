@@ -132,6 +132,13 @@ describe("createOpenCodeBackend", () => {
     expect(models.map((m) => m.id)).toEqual(MODEL_OPTIONS.map((m) => m.value));
     expect(models[0].id).toBe(DEFAULT_OPENCODE_MODEL);
     expect(models[0].label).toContain("free");
+    await expect(backend.listModels({ cwd: "/tmp", requireLive: true })).rejects.toThrow("no server");
+  });
+
+  it("live listings preserve an empty connected catalog instead of inventing fallback models", async () => {
+    const backend = createOpenCodeBackend({ supervisor: mockSupervisor({ onProvider: () => ({ connected: [], all: [] }) }) });
+    expect(await backend.listModels({ cwd: "/tmp", requireLive: true })).toEqual([]);
+    expect((await backend.listModels({ cwd: "/tmp" })).length).toBeGreaterThan(0);
   });
 
   it("createSession emits system_init with the OpenCode session id", async () => {

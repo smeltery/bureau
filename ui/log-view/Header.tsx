@@ -1,3 +1,4 @@
+import { ModelRecovery } from "./header/ModelRecovery.tsx";
 import { useI18n } from "../i18n.tsx";
 import type { AgentInfo, PendingPromptKind } from "../../shared/types.ts";
 import { agentModelLabel } from "../../shared/types.ts";
@@ -113,6 +114,7 @@ export function Header({
           </span>{" "}
           {agent.name}
         </span>
+        {agent.unavailableModel && <ModelRecovery model={agent.unavailableModel} onClick={onEditAgent} />}
         {STATE_LABELS[agent.state] && <HeaderTimer state={agent.state} stateChangedAt={stateChangedAt.get(agent.id)} />}
         {agent.pendingPrompt && <PendingPromptLabel kind={agent.pendingPrompt} />}
         <HeaderTopic key={agent.id} agent={agent} />

@@ -1,4 +1,6 @@
 export const chat = {
+  "chat.model.choose": "选择模型",
+  "chat.model.unavailable": "OpenCode 已不再提供 {model}。打开模型设置。",
   "chat.topic.edit": "编辑主题",
   "chat.topic.add": "添加主题",
   "chat.topic.refresh": "根据对话刷新主题",

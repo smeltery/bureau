@@ -3,6 +3,8 @@ import { commandDescriptions } from "./command-descriptions-en.ts";
 export const logs = {
   ...backendErrors,
   ...commandDescriptions,
+  "logs.backend.modelRemoved": "OpenCode no longer lists model {model}. Choose another model in the agent settings.",
+  "logs.backend.receptionistModelRemoved": "{name} cannot answer visitors with this model. Choose another model in the agent settings.",
   "logs.run.deleted": "Schedule deleted; this run was stopped.",
   "logs.run.pendingEditDeleted": "Schedule deleted; the pending edit was cancelled.",
   "logs.run.sendPromptFailed": "Failed to send prompt: {error}",

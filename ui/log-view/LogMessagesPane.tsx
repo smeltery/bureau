@@ -1,3 +1,4 @@
+import { ModelRecovery } from "./header/ModelRecovery.tsx";
 import { useI18n } from "../i18n.tsx";
 import { sendAbortDebounced } from "../utils/abort.ts";
 import { useMemo, type RefCallback } from "react";
@@ -126,10 +127,12 @@ export function LogMessagesPane({
         return isUserMsg ? (
           <div key={entry.id} ref={getUserMsgRefCb(entry.id)} style={{ marginRight: showAvatar ? 74 : 0 }}>
             {card}
+            {entry.metadata?.pickModel === true && <ModelRecovery onClick={onEditAgent} />}
           </div>
         ) : (
           <div key={entry.id} style={{ marginRight: showAvatar ? 74 : 0 }}>
             {card}
+            {entry.metadata?.pickModel === true && <ModelRecovery onClick={onEditAgent} />}
           </div>
         );
       })}

@@ -1,4 +1,6 @@
 export const chat = {
+  "chat.model.choose": "Choose a model",
+  "chat.model.unavailable": "OpenCode no longer lists {model}. Open model settings.",
   "chat.topic.edit": "Edit topic",
   "chat.topic.add": "Add topic",
   "chat.topic.refresh": "Refresh topic from conversation",
