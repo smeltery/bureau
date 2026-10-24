@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+import { accessFailureText, revokeFailure, type AccessFailure } from "./access/feedback.ts";
 // Member-scoped "My devices" pane: parallel to AccessPane but every
 // list is filtered to the current user. The mint-invite form collapses
 // to a single "Generate device link" button (the server fixes role to
@@ -14,6 +16,7 @@ import { InvitesTable, SessionsTable, renderListSection, sectionHeader } from ".
 import { cardStyle, hint, MintedUrlBox, subsectionHeader } from "./AccessPaneShared.tsx";
 
 export function MyDevicesPane() {
+  const { t } = useI18n();
   const { invitesList, invitesLoaded, activeSessions, activeSessionsLoaded, sessionContext } = useAppState();
   const usernameKey = sessionContext ? lowercaseKey(sessionContext.username) : null;
   const myInvites = invitesList.filter((invite) => invite.username !== null && usernameKey !== null && lowercaseKey(invite.username) === usernameKey);
@@ -23,7 +26,7 @@ export function MyDevicesPane() {
   // owner-relevant in practice — a member's session can't be the office's
   // last owner session — but the banner is wired in case a future
   // role-change races a revoke.
-  const [blockedNote, setBlockedNote] = useState<string | null>(null);
+  const [blockedNote, setBlockedNote] = useState<AccessFailure | null>(null);
   const prevSessionsLenRef = useRef<number>(activeSessions.length);
 
   // Same lazy-fetch pattern as AccessPane. The server returns the
@@ -39,7 +42,7 @@ export function MyDevicesPane() {
       try {
         const m = JSON.parse(data);
         if (m.type === "revoke_blocked" && typeof m.reason === "string") {
-          setBlockedNote(m.reason);
+          setBlockedNote(revokeFailure(m));
         }
       } catch {}
     };
@@ -56,8 +59,8 @@ export function MyDevicesPane() {
 
   return (
     <div style={{ marginTop: 24 }}>
-      <h4 style={sectionHeader}>My devices</h4>
-      <p style={hint}>Generate a single-use link to sign another of your devices into your account. The link expires in 1 hour; generating a new one replaces the previous.</p>
+      <h4 style={sectionHeader}>{t("accessUi.devices")}</h4>
+      <p style={hint}>{t("accessUi.devicesHint")}</p>
 
       {blockedNote && (
         <div
@@ -74,7 +77,7 @@ export function MyDevicesPane() {
             alignItems: "flex-start",
           }}
         >
-          <span style={{ flex: 1 }}>{blockedNote}</span>
+          <span style={{ flex: 1 }}>{accessFailureText(blockedNote, t)}</span>
           <button
             onClick={() => setBlockedNote(null)}
             style={{
@@ -85,7 +88,7 @@ export function MyDevicesPane() {
               fontSize: 14,
               padding: 0,
             }}
-            title="Dismiss"
+            title={t("accessUi.dismiss")}
           >
             ×
           </button>
@@ -94,12 +97,12 @@ export function MyDevicesPane() {
 
       <GenerateDeviceLinkForm />
 
-      <h5 style={subsectionHeader}>Outstanding device links</h5>
+      <h5 style={subsectionHeader}>{t("accessUi.outstanding")}</h5>
       {renderListSection(myInvites, invitesLoaded, (rows) => (
         <InvitesTable invites={rows} />
       ))}
 
-      <h5 style={subsectionHeader}>My active sessions</h5>
+      <h5 style={subsectionHeader}>{t("accessUi.active")}</h5>
       {renderListSection(mySessions, activeSessionsLoaded, (rows) => (
         <SessionsTable sessions={rows} />
       ))}
@@ -108,8 +111,9 @@ export function MyDevicesPane() {
 }
 
 function GenerateDeviceLinkForm() {
+  const { t } = useI18n();
   const [mintedUrl, setMintedUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AccessFailure | null>(null);
   const [pending, setPending] = useState(false);
   // One-shot WS listener for the mint response; cleared on unmount so a
   // navigation away mid-mint doesn't leak the subscription.
@@ -136,7 +140,7 @@ function GenerateDeviceLinkForm() {
           if (msg.ok) {
             setMintedUrl(msg.url);
           } else {
-            setError(msg.error || "Failed to generate device link");
+            setError(msg.error || { key: "accessUi.generateFailed" });
           }
         }
       } catch {}
@@ -152,11 +156,11 @@ function GenerateDeviceLinkForm() {
 
   return (
     <div style={cardStyle}>
-      <p style={{ ...hint, marginTop: 0 }}>Anyone with the link can sign in as you until it expires or is used — treat it like a one-time password and only open it on your own device.</p>
+      <p style={{ ...hint, marginTop: 0 }}>{t("accessUi.generateHint")}</p>
       <button onClick={generate} disabled={pending} style={{ ...dialogSaveBtn, opacity: pending ? 0.5 : 1 }}>
-        {pending ? "Generating…" : "Generate device link"}
+        {t(pending ? "accessUi.generating" : "accessUi.generate")}
       </button>
-      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{error}</p>}
+      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{accessFailureText(error, t)}</p>}
       {mintedUrl && <MintedUrlBox url={mintedUrl} />}
     </div>
   );

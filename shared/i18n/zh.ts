@@ -1,3 +1,4 @@
+import { access } from "./access/zh.ts";
 import { pager } from "./pager/zh.ts";
 import { questions } from "./questions/zh.ts";
 import { agentSettings } from "./agent-settings/zh.ts";
@@ -25,6 +26,7 @@ export const zh: Catalog = {
   ...agentSettings,
   ...questions,
   ...pager,
+  ...access,
   "access.title": "访问权限",
   "apiTokens.title": "API 令牌",
   "apps.confirmDelete": "删除 {name}？其数据目录将会保留。",

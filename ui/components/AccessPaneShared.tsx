@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useEffect, useRef, useState } from "react";
 import { dialogLabel } from "./modals/dialog-styles.ts";
 
@@ -49,6 +50,7 @@ export const restartBoxStyle: React.CSSProperties = {
 // when navigator.clipboard rejects; final fallback selects the URL so the
 // user can copy manually.
 export function MintedUrlBox({ url }: { url: string }) {
+  const { t } = useI18n();
   const codeRef = useRef<HTMLElement | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "ok" | "fallback" | "fail">("idle");
@@ -105,7 +107,7 @@ export function MintedUrlBox({ url }: { url: string }) {
 
   return (
     <div style={mintedBox}>
-      <div style={{ ...subLabel, marginTop: 0 }}>Invite URL</div>
+      <div style={{ ...subLabel, marginTop: 0 }}>{t("accessUi.inviteUrl")}</div>
       <code ref={codeRef} style={codeStyle}>
         {url}
       </code>
@@ -114,12 +116,12 @@ export function MintedUrlBox({ url }: { url: string }) {
           void handleCopy();
         }}
         style={smallBtn}
-        title="Copy URL"
+        title={t("accessUi.copyUrl")}
       >
-        {copyState === "ok" || copyState === "fallback" ? "Copied!" : "Copy"}
+        {t(copyState === "ok" || copyState === "fallback" ? "common.copied" : "common.copy")}
       </button>
-      {copyState === "fail" && <p style={{ ...hint, color: "#ff6b6b", marginTop: 4 }}>Clipboard blocked. The URL above is selected — copy it manually.</p>}
-      <p style={hint}>Send this URL to the invitee. It's one-time: opening it on their device signs them in. The URL is shown once — copy it now.</p>
+      {copyState === "fail" && <p style={{ ...hint, color: "#ff6b6b", marginTop: 4 }}>{t("accessUi.copyFailed")}</p>}
+      <p style={hint}>{t("accessUi.inviteHint")}</p>
     </div>
   );
 }

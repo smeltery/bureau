@@ -37,6 +37,7 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
               type: "revoke_blocked",
               sessionPrefix: cmd.sessionPrefix,
               reason: lockoutReason,
+              reasonCode: "last_owner_session",
             } as ServerMessage),
           );
           return true;
@@ -56,6 +57,7 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
             type: "revoke_blocked",
             sessionPrefix: cmd.sessionPrefix,
             reason: lockoutReason,
+            reasonCode: "last_owner_session",
           } as ServerMessage),
         );
       } else if (result === "ok") {
@@ -73,6 +75,7 @@ export async function handleAccessCommand(cmd: ClientCommand, ws: ServerWebSocke
           JSON.stringify({
             type: "revoke_blocked",
             sessionPrefix: getSessionContext(ws)!.currentSessionPrefix,
+            reasonCode: "last_owner_logout",
             reason: "Sign out refused: this is the last active owner session in the office. " + "Mint an additional invite for yourself and accept it on another device first, then retry.",
           } as ServerMessage),
         );

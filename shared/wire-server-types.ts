@@ -40,7 +40,7 @@ export type ServerMessage =
     }
   | { type: "invite_revoked"; tokenPrefix: string }
   | { type: "session_revoked"; sessionPrefix: string }
-  | { type: "revoke_blocked"; sessionPrefix: string; reason: string }
+  | { type: "revoke_blocked"; sessionPrefix: string; reason: string; reasonCode?: "last_owner_session" | "last_owner_logout" }
   | { type: "session_expired" }
   | {
       type: "access_settings";
