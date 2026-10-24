@@ -48,3 +48,18 @@ describe("pathForPage", () => {
     }
   });
 });
+
+test("integration links open Settings only for recognized tabs", () => {
+  for (const path of [
+    "/integrations",
+    "/integrations/",
+    "/integrations/providers",
+    "/integrations/browser",
+    "/integrations/voice",
+    "/integrations/mcp",
+    "/integrations/secrets",
+    "/integrations/variables/",
+  ])
+    expect(pageForPath(path)).toBe("settings");
+  for (const path of ["/integrations/unknown", "/integrations/browser/extra", "/Integrations/browser"]) expect(pageForPath(path)).toBeNull();
+});

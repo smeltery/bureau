@@ -1,3 +1,5 @@
+import { INTEGRATION_TABS, integrationTabForPath, integrationPath, type IntegrationTab } from "../../../settings-view/integration-route.ts";
+import { BrowserSharingPane } from "../BrowserSharingPane.tsx";
 import { useI18n } from "../../../i18n.tsx";
 import { VoicePane } from "../../../voice/VoicePane.tsx";
 import { McpPane } from "./McpPane.tsx";
@@ -9,13 +11,27 @@ import { integrationFailure, integrationFailureText, type IntegrationFailure, in
 import { SecretsPane } from "./SecretsPane.tsx";
 import { VariablesPane } from "./VariablesPane.tsx";
 
-type Tab = "Providers" | "Voice" | "MCP" | "Secrets" | "Variables";
-const TAB_LABELS = { Providers: "integrations.providers", Voice: "integrations.voice", MCP: "integrations.mcp", Secrets: "integrations.secrets", Variables: "integrations.variables" } as const;
+const TAB_LABELS = {
+  Browser: "integrations.browser",
+  Providers: "integrations.providers",
+  Voice: "integrations.voice",
+  MCP: "integrations.mcp",
+  Secrets: "integrations.secrets",
+  Variables: "integrations.variables",
+} as const;
 
 export function IntegrationsPane() {
   const { t } = useI18n();
   const { sessionContext, users } = useAppState();
-  const [tab, setTab] = useState<Tab>("Providers");
+  const [tab, setTab] = useState<IntegrationTab>(() => integrationTabForPath(window.location.pathname) ?? "Providers");
+  useEffect(() => {
+    const navigate = () => setTab(integrationTabForPath(window.location.pathname) ?? "Providers");
+    window.addEventListener("popstate", navigate);
+    return () => window.removeEventListener("popstate", navigate);
+  }, []);
+  useEffect(() => {
+    window.history.replaceState(window.history.state, "", integrationPath(tab));
+  }, [tab]);
   const [scope, setScope] = useState(sessionContext ? `members/${sessionContext.userId}` : "office");
   const [data, setData] = useState<IntegrationListing | null>(null);
   const [error, setError] = useState<IntegrationFailure | null>(null);
@@ -25,7 +41,7 @@ export function IntegrationsPane() {
     let active = true;
     setData(null);
     setError(null);
-    if (tab !== "Providers" && tab !== "Voice")
+    if (tab !== "Providers" && tab !== "Voice" && tab !== "Browser")
       void integrationApi<IntegrationListing>(path)
         .then((result) => {
           if (active) setData(result);
@@ -44,7 +60,7 @@ export function IntegrationsPane() {
       <h3>{t("integrations.title")}</h3>
       <p style={dialogHint}>{t("integrations.intro")}</p>
       <nav aria-label={t("integrations.categories")} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-        {(["Providers", "Voice", "MCP", "Secrets", "Variables"] as const).map((item) => (
+        {INTEGRATION_TABS.map((item) => (
           <button key={item} aria-pressed={tab === item} style={{ ...dialogCancelBtn, ...(tab === item ? { borderColor: "var(--accent)", color: "var(--accent)" } : {}) }} onClick={() => setTab(item)}>
             {t(TAB_LABELS[item])}
           </button>
@@ -52,6 +68,8 @@ export function IntegrationsPane() {
       </nav>
       {tab === "Providers" ? (
         <ConnectionsPane username={sessionContext.username} />
+      ) : tab === "Browser" ? (
+        <BrowserSharingPane key={sessionContext.userId} />
       ) : tab === "Voice" ? (
         <VoicePane key={sessionContext.userId} />
       ) : (

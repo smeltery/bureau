@@ -1,3 +1,4 @@
+import { integrationTabForPath, integrationPath } from "./settings-view/integration-route.ts";
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import type { AgentInfo, RoomWire, SessionContext } from "../shared/types.ts";
 import { LOBBY_ROOM_ID } from "../shared/lobby.ts";
@@ -84,6 +85,7 @@ export function useAppNavigation({
   bootPage: Page | null;
 }) {
   const roomCount = rooms.length;
+  const bootNavigation = useRef(true);
   const viewportControlsRef = useRef<ViewportControls | null>(null);
   // Close goes back only when this hook pushed the current history entry.
   const entryRef = useRef<"none" | "adopted" | "pushed">(bootPage === null ? "none" : "adopted");
@@ -162,8 +164,7 @@ export function useAppNavigation({
     dispatch({ type: "focus", agentId: null });
   }, [applyPage, dispatch]);
 
-  // Tasks opened over a focused chat: closing the board returns to that chat
-  // (still deep). Otherwise Close returns to the office.
+  // A task board opened over a chat returns to that chat.
   const tasksOverChat = tasksOpen && !!focusedAgent;
   const closeTasks = useCallback(() => {
     if (tasksOverChat) setTasksOpen(false);
@@ -276,23 +277,24 @@ export function useAppNavigation({
     openSettings,
   ]);
 
-  // Agent chats are not routes — they share "/" with the office. Panels get
-  // real paths so refresh/share keep working.
+  // Panel URLs survive refresh; agent chats share the office URL.
   const page = pageFromFlags({ tasksOpen, cronjobsOpen, appsOpen, skillsOpen, pluginsOpen, settingsOpen, teamChatOpen });
   const isDeep = page !== null || focusedAgentId !== null;
   useEffect(() => {
+    const initial = bootNavigation.current;
+    bootNavigation.current = false;
+    if (initial && bootPage !== null && !isDeep) return;
     const entry = { bureau: true, page };
-    const path = pathForPage(page);
+    const integrationTab = page === "settings" ? integrationTabForPath(window.location.pathname) : null;
+    const path = integrationTab ? integrationPath(integrationTab) : pathForPage(page);
     if (isDeep && entryRef.current === "none") {
       window.history.pushState(entry, "", path);
       entryRef.current = "pushed";
     } else if (isDeep) {
-      // Deep→deep, or boot on an adopted entry: rewrite path in place
-      // (canonicalises /cronjobs → /schedules, /users → /settings).
+      // Preserve recognized integration links while canonicalizing aliases.
       window.history.replaceState(entry, "", path);
     } else if (entryRef.current !== "none") {
-      // Returned to office without history.back() (e.g. "t" toggle): keep the
-      // stack entry but point it at the office so the address bar matches.
+      // A keyboard toggle returns to the office without traversing history.
       window.history.replaceState({ bureau: true, page: null }, "", "/");
       entryRef.current = "none";
     }

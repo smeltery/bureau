@@ -1,3 +1,4 @@
+import { integrationTabForPath } from "./settings-view/integration-route.ts";
 // Full-page panel URLs for the office UI. Pure and DOM-free so the table can
 // be unit-tested without rendering App. Agent chats stay on "/" — only the
 // panel pages (plus plugins) get their own path.
@@ -11,6 +12,7 @@ export type Page = "tasks" | "schedules" | "apps" | "skills" | "plugins" | "sett
  * accepted as an alias for schedules (pre-rename links) but never produced.
  */
 export function pageForPath(pathname: string): Page | null {
+  if (integrationTabForPath(pathname)) return "settings";
   switch (pathname.replace(/\/+$/, "") || "/") {
     case "/tasks":
       return "tasks";

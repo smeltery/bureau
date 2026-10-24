@@ -6,6 +6,7 @@ export const integrations = {
   "integrations.voice": "Veu",
   "integrations.mcp": "MCP",
   "integrations.secrets": "Secrets",
+  "integrations.browser": "Ús del navegador",
   "integrations.variables": "Variables",
   "integrations.scope": "Àmbit",
   "integrations.officeScope": "Oficina · compartit per tots els agents",
@@ -91,7 +92,8 @@ export const integrations = {
   "integrations.deleteMcpHint": "Vols eliminar aquesta connexió dels agents d’aquest àmbit?",
   "integrations.confirmDelete": "Confirma la supressió",
   "integrations.variableSaveFailed": "No s’ha pogut desar la variable.",
-  "integrations.variableHint": "Les variables són valors d’entorn normals visibles per als agents. Desa les credencials d’integració a Secrets. Les actualitzacions s’apliquen entre torns.",
+  "integrations.variableHint":
+    "Els agents poden llegir els valors de les variables. Fes servir una variable si un agent necessita el valor original; si no, desa les credencials del servei a Secrets. Les claus dels proveïdors de models van a Proveïdors o Variables. Els canvis s’apliquen entre torns.",
   "integrations.value": "Valor",
   "integrations.saveVariable": "Desa la variable",
   "integrations.noVariables": "No hi ha variables en aquest àmbit.",

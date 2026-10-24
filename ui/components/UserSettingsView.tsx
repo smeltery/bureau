@@ -1,3 +1,4 @@
+import { integrationTabForPath } from "../settings-view/integration-route.ts";
 import { headerStyle, sidebarStyle, detailStyle, backBtn, sidebarLabel, rowButton, smallBtn } from "../settings-view/styles.ts";
 import { AuditPane } from "../audit-view/AuditPane.tsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -47,10 +48,18 @@ export function UserSettingsView({
   const editorRooms = useMemo(() => roomsInViewerOrder(allRooms.length ? allRooms : rooms, rooms), [allRooms, rooms]);
   const [newName, setNewName] = useState("");
   const [selection, setSelection] = useState<Selection | null>(() => {
+    if (integrationTabForPath(window.location.pathname)) return { kind: "section", section: "connections" };
     if (initialSection) return { kind: "section", section: initialSection };
     if (initialUserId) return { kind: "user", id: initialUserId };
     if (!isMobile && sessionContext?.userId) return { kind: "user", id: sessionContext.userId };
     return null;
+  });
+  useEffect(() => {
+    const navigate = () => {
+      if (integrationTabForPath(window.location.pathname)) select({ kind: "section", section: "connections" });
+    };
+    window.addEventListener("popstate", navigate);
+    return () => window.removeEventListener("popstate", navigate);
   });
   const [detailDirty, setDetailDirty] = useState(false);
   const [storageDeleting, setStorageDeleting] = useState(false);
@@ -86,6 +95,9 @@ export function UserSettingsView({
     discardPrompt.requestLeave(() => {
       setDetailDirty(false);
       setSelection(next);
+      if (integrationTabForPath(window.location.pathname) && !(next?.kind === "section" && next.section === "connections")) {
+        window.history.replaceState(window.history.state, "", "/settings");
+      }
     });
   }
 

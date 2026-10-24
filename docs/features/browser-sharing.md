@@ -7,7 +7,7 @@ use your existing signed-in page session. Other tabs are not offered implicitly.
 
 ## Setup
 
-1. Open **User Settings → Connections → Share browser tabs with agents**.
+1. Open **User Settings → Connections → Browser Use** (`/integrations/browser`).
 2. Download the extension ZIP and extract it into a permanent folder.
 3. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**,
    and select that folder. Chrome 120 or later is required.

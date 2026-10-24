@@ -134,6 +134,7 @@ export const RESERVED_APP_NAMES: ReadonlySet<string> = new Set([
   "users",
   "pager",
   "inbox",
+  "integrations",
   "team-chat",
   "chat",
 ]);
