@@ -1,3 +1,4 @@
+import { webhooks } from "./webhooks/en.ts";
 import { pluginsUi } from "./plugins/en.ts";
 import { access } from "./access/en.ts";
 import { pager } from "./pager/en.ts";
@@ -30,6 +31,7 @@ export const en = {
   ...pager,
   ...access,
   ...pluginsUi,
+  ...webhooks,
   "access.title": "Access",
   "apiTokens.title": "API tokens",
   "apps.confirmDelete": "Delete {name}? Its data directory will be kept.",
