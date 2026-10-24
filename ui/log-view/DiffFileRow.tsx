@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import type { DiffFileSummary } from "../../shared/types.ts";
 import { DiffRenderer, type DiffOutputFormat } from "./DiffRenderer.tsx";
 import { FilePath, PlusMinus, StatusBadge } from "./DiffFileBits.tsx";
@@ -19,15 +20,16 @@ export function DiffFileRow({
   onOverlay: () => void;
   truncated: boolean;
 }) {
+  const { t, tn } = useI18n();
   const handleClick = summary.inlineEligible ? onToggle : onOverlay;
   const overlayHint = !summary.inlineEligible
     ? truncated
-      ? "Open (patch not shipped)"
+      ? t("diff.openTruncated")
       : summary.status === "binary"
-        ? "Open (binary)"
+        ? t("diff.openBinary")
         : summary.status === "untracked"
-          ? "Open (untracked, too large)"
-          : `Open (${summary.lineCount} lines)`
+          ? t("diff.openUntracked")
+          : tn("diff.openLines", summary.lineCount)
     : null;
 
   return (
@@ -72,7 +74,7 @@ export function DiffFileRow({
           <FilePath summary={summary} />
         </span>
         <PlusMinus additions={summary.additions} deletions={summary.deletions} />
-        {overlayHint && <span style={{ color: "var(--text-faint)", fontSize: 10, flexShrink: 0 }}>{overlayHint}</span>}
+        {overlayHint && <span style={{ color: "var(--text-faint)", fontSize: 10, maxWidth: "40%", textAlign: "right" }}>{overlayHint}</span>}
       </button>
       {summary.inlineEligible && expanded && patch && (
         <div style={{ padding: "0 12px 10px 28px", overflowX: "auto" }}>

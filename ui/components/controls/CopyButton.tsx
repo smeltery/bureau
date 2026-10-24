@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { copyText } from "../../utils/clipboard.ts";
+import { useI18n } from "../../i18n.tsx";
 
 const COPY_ICON = (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -15,6 +16,7 @@ const CHECK_ICON = (
 );
 
 export function CopyButton({ getText, size = 24 }: { getText: () => string; size?: number }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -28,7 +30,7 @@ export function CopyButton({ getText, size = 24 }: { getText: () => string; size
     <button
       onClick={handleCopy}
       className="copy-btn"
-      title={copied ? "Copied!" : "Copy"}
+      title={t(copied ? "common.copied" : "common.copy")}
       style={{
         width: size,
         height: size,

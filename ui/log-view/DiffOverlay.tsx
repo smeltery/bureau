@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useEffect } from "react";
 import type { DiffFileSummary } from "../../shared/types.ts";
 import { CopyButton } from "../components/controls/CopyButton.tsx";
@@ -17,6 +18,7 @@ export function DiffOverlay({
   truncated: boolean;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   // Intercept ESC at capture phase so the global window-level handler in
   // App.tsx (which navigates back to the room view) doesn't fire.
   useEffect(() => {
@@ -31,13 +33,13 @@ export function DiffOverlay({
   }, [onClose]);
 
   const reason = truncated
-    ? "The total patch was over 2 MB so the diff content was not shipped to the browser. Re-run /bureau-diff after narrowing the working tree, or open this file in your editor."
+    ? t("diff.reasonTruncated")
     : summary.status === "binary"
-      ? "Binary file — no textual diff to render."
+      ? t("diff.reasonBinary")
       : summary.status === "untracked"
-        ? "Untracked file too large to synthesize a patch (>1 MB). Open in your editor, or `git add` it and re-run."
+        ? t("diff.reasonUntracked")
         : !patch
-          ? "No patch content for this file."
+          ? t("diff.reasonEmpty")
           : null;
 
   return (
@@ -96,7 +98,7 @@ export function DiffOverlay({
           {patch && <CopyButton getText={() => patch} />}
           <button
             onClick={onClose}
-            title="Close (Esc)"
+            title={t("diff.close")}
             style={{
               background: "transparent",
               border: "1px solid var(--border-medium)",
@@ -108,7 +110,7 @@ export function DiffOverlay({
               cursor: "pointer",
             }}
           >
-            Close
+            {t("common.close")}
           </button>
         </div>
         <div style={{ flex: 1, overflow: "auto", padding: 12 }}>

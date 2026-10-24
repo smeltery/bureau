@@ -1,14 +1,16 @@
+import { useI18n } from "../i18n.tsx";
 import type { DiffFileSummary } from "../../shared/types.ts";
 
 export function StatusBadge({ status }: { status: DiffFileSummary["status"] }) {
-  const palette: Record<DiffFileSummary["status"], { fg: string; bg: string; label: string }> = {
-    added: { fg: "var(--green)", bg: "var(--green-bg)", label: "added" },
-    modified: { fg: "var(--accent)", bg: "var(--accent-bg)", label: "modified" },
-    deleted: { fg: "var(--red)", bg: "var(--red-bg)", label: "deleted" },
-    renamed: { fg: "var(--purple)", bg: "rgba(155,109,255,0.10)", label: "renamed" },
-    copied: { fg: "var(--purple)", bg: "rgba(155,109,255,0.10)", label: "copied" },
-    untracked: { fg: "var(--orange)", bg: "var(--orange-bg)", label: "untracked" },
-    binary: { fg: "var(--text-muted)", bg: "var(--bg-hover)", label: "binary" },
+  const { t } = useI18n();
+  const palette: Record<DiffFileSummary["status"], { fg: string; bg: string }> = {
+    added: { fg: "var(--green)", bg: "var(--green-bg)" },
+    modified: { fg: "var(--accent)", bg: "var(--accent-bg)" },
+    deleted: { fg: "var(--red)", bg: "var(--red-bg)" },
+    renamed: { fg: "var(--purple)", bg: "rgba(155,109,255,0.10)" },
+    copied: { fg: "var(--purple)", bg: "rgba(155,109,255,0.10)" },
+    untracked: { fg: "var(--orange)", bg: "var(--orange-bg)" },
+    binary: { fg: "var(--text-muted)", bg: "var(--bg-hover)" },
   };
   const p = palette[status];
   return (
@@ -26,16 +28,17 @@ export function StatusBadge({ status }: { status: DiffFileSummary["status"] }) {
         flexShrink: 0,
       }}
     >
-      {p.label}
+      {t(`diff.status.${status}`)}
     </span>
   );
 }
 
 export function PlusMinus({ additions, deletions }: { additions: number; deletions: number }) {
+  const { language } = useI18n();
   return (
     <span style={{ display: "inline-flex", gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, flexShrink: 0 }}>
-      {additions > 0 && <span style={{ color: "var(--green)" }}>+{additions}</span>}
-      {deletions > 0 && <span style={{ color: "var(--red)" }}>-{deletions}</span>}
+      {additions > 0 && <span style={{ color: "var(--green)" }}>+{additions.toLocaleString(language)}</span>}
+      {deletions > 0 && <span style={{ color: "var(--red)" }}>-{deletions.toLocaleString(language)}</span>}
     </span>
   );
 }
