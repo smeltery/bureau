@@ -1,3 +1,6 @@
+import { useId } from "react";
+import { useI18n } from "../i18n.tsx";
+import { accessFailureText, type AccessFailure } from "./access/feedback.ts";
 import { useEffect, useRef, useState } from "react";
 import { normalizePublicOrigin } from "../../shared/public-origin.ts";
 import { dialogInput, dialogSaveBtn } from "./modals/dialog-styles.ts";
@@ -26,6 +29,8 @@ export function shouldBlockExternalAccessUnload(loaded: boolean, dirty: boolean)
 }
 
 export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
+  const { t, rich } = useI18n();
+  const id = useId();
   const [loaded, setLoaded] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -38,7 +43,7 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
   const [envOrigin, setEnvOrigin] = useState<string | null>(null);
   const [boundLoopback, setBoundLoopback] = useState(true);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AccessFailure | null>(null);
   const [signInUrl, setSignInUrl] = useState<string | null>(null);
   const [restartRequired, setRestartRequired] = useState(false);
   const pendingListenerRef = useRef<((data: string) => void) | null>(null);
@@ -107,7 +112,7 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
             setSignInUrl(typeof m.signInUrl === "string" ? m.signInUrl : null);
             setRestartRequired(!!m.restartRequired);
           } else {
-            setError(m.error || "Failed to update settings");
+            setError(m.error || { key: "externalUi.failed" });
           }
         }
       } catch {}
@@ -148,84 +153,71 @@ export function ExternalAccessSection({ onDirtyChange }: { onDirtyChange?: (dirt
   if (!loaded) {
     return (
       <div style={cardStyle}>
-        <h5 style={{ ...subsectionHeader, margin: "0 0 6px" }}>External access</h5>
-        <p style={hint}>Loading…</p>
+        <h5 style={{ ...subsectionHeader, margin: "0 0 6px" }}>{t("externalUi.title")}</h5>
+        <p style={hint}>{t("common.loading")}</p>
       </div>
     );
   }
 
   return (
     <div style={cardStyle}>
-      <h5 style={{ ...subsectionHeader, margin: "0 0 6px" }}>External access</h5>
-      <p style={hint}>
-        Currently {boundLoopback ? "loopback-only" : "listening externally"}.
-        {boundLoopback ? " The office is reachable from this machine, or from other machines via an SSH tunnel." : " The office is reachable from anywhere the public URL resolves."}
-      </p>
-      <div style={subLabel}>Office name (optional)</div>
-      <input value={officeNameInput} onChange={(e) => setOfficeNameInput(e.target.value.slice(0, 64))} placeholder="e.g. Acme HQ" style={dialogInput} />
-      <p style={hint}>
-        Shown on the sign-in and invite pages as "&lt;Office name&gt; | Bureau — sign in". Useful when you run multiple bureau instances and want to tell them apart at a glance. Takes effect
-        immediately.
-      </p>
+      <h5 style={{ ...subsectionHeader, margin: "0 0 6px" }}>{t("externalUi.title")}</h5>
+      <p style={hint}>{t(boundLoopback ? "externalUi.loopback" : "externalUi.external")}</p>
+      <label htmlFor={id + "-name"} style={subLabel}>
+        {t("externalUi.name")}
+      </label>
+      <input id={id + "-name"} value={officeNameInput} onChange={(e) => setOfficeNameInput(e.target.value.slice(0, 64))} placeholder={t("externalUi.nameExample")} style={dialogInput} />
+      <p style={hint}>{t("externalUi.nameHint")}</p>
       <label style={{ display: "flex", gap: 6, marginTop: 12, fontSize: 12 }}>
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-        <span>Enable external access</span>
+        <span>{t("externalUi.enable")}</span>
       </label>
       {enabled && (
         <>
-          <div style={subLabel}>Public URL</div>
-          <input value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://my-mac-mini.tailnet.ts.net" style={dialogInput} />
-          <p style={hint}>Pattern: https://&lt;host&gt; (the address you'll open from your laptop / phone). Saving doesn't change the running server's bind on its own — restart bureau to apply.</p>
+          <label htmlFor={id + "-url"} style={subLabel}>
+            {t("externalUi.url")}
+          </label>
+          <input id={id + "-url"} value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://my-mac-mini.tailnet.ts.net" style={dialogInput} />
+          <p style={hint}>{rich("externalUi.urlHint", { pattern: <code>{"https://<host>"}</code> })}</p>
         </>
       )}
-      <div style={subLabel}>Browser preview public hosts</div>
+      <label htmlFor={id + "-hosts"} style={subLabel}>
+        {t("externalUi.hosts")}
+      </label>
       <textarea
+        id={id + "-hosts"}
         value={previewAllowHostsInput}
         onChange={(e) => setPreviewAllowHostsInput(e.target.value)}
         placeholder={"example.com\nstaging.example.com"}
         rows={3}
         style={{ ...dialogInput, resize: "vertical", minHeight: 72 }}
       />
-      <p style={hint}>Optional hostnames agents may capture with browser preview even when they resolve publicly. Local and private-network URLs work without entries here.</p>
+      <p style={hint}>{t("externalUi.hostsHint")}</p>
       {envOriginSet && !envOrigin && (
         <p style={{ ...hint, marginTop: 6 }}>
-          Note: <code>BUREAU_PUBLIC_ORIGIN</code> is set in the environment but not a valid public origin, so the server ignores it. Remove it from your env file or set it to{" "}
-          <code>https://&lt;host&gt;</code> or <code>http://localhost</code>.
+          {rich("externalUi.envInvalid", { variable: <code>BUREAU_PUBLIC_ORIGIN</code>, https: <code>{"https://<host>"}</code>, local: <code>http://localhost</code> })}
         </p>
       )}
-      {envOrigin && enabled && normalizedInput === envOrigin && (
-        <p style={{ ...hint, marginTop: 6 }}>
-          Note: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> is set in the environment and matches this Public URL. The env var is deprecated — remove it from your env file once this office-config
-          value is saved.
-        </p>
-      )}
+      {envOrigin && enabled && normalizedInput === envOrigin && <p style={{ ...hint, marginTop: 6 }}>{rich("externalUi.envMatch", { assignment: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> })}</p>}
       {envOrigin && enabled && normalizedInput && normalizedInput !== envOrigin && (
-        <p style={{ ...hint, marginTop: 6 }}>
-          Note: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> is set in the environment. After restart it would override any different value saved here, so the save will be refused until you either
-          match this URL to the env value or remove the env var from your service environment.
-        </p>
+        <p style={{ ...hint, marginTop: 6 }}>{rich("externalUi.envConflict", { assignment: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> })}</p>
       )}
-      {envOrigin && !enabled && (
-        <p style={{ ...hint, marginTop: 6 }}>
-          Note: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> is set in the environment but the office is bound loopback-only, so the value is ignored at runtime. The env var is deprecated — remove it
-          from your env file.
-        </p>
-      )}
-      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{error}</p>}
+      {envOrigin && !enabled && <p style={{ ...hint, marginTop: 6 }}>{rich("externalUi.envIgnored", { assignment: <code>BUREAU_PUBLIC_ORIGIN={envOrigin}</code> })}</p>}
+      {error && <p style={{ fontSize: 11, color: "#ff6b6b", margin: "6px 0 0" }}>{accessFailureText(error, t)}</p>}
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
         <button onClick={submit} disabled={pending || !dirty} style={{ ...dialogSaveBtn, opacity: pending || !dirty ? 0.5 : 1 }}>
-          {pending ? "Saving…" : dirty ? "Save" : "Saved"}
+          {t(pending ? "externalUi.saving" : dirty ? "common.save" : "common.saved")}
         </button>
       </div>
       {restartRequired && (
         <div style={restartBoxStyle}>
-          <p style={{ ...hint, marginTop: 0 }}>Saved. Restart bureau so the new bind takes effect:</p>
+          <p style={{ ...hint, marginTop: 0 }}>{t("externalUi.restart")}</p>
           <code style={codeBlockStyle}>systemctl --user restart bureau</code>
-          <p style={{ ...hint, marginTop: 8 }}>For a system service, use:</p>
+          <p style={{ ...hint, marginTop: 8 }}>{t("externalUi.systemService")}</p>
           <code style={codeBlockStyle}>sudo systemctl restart bureau</code>
           {signInUrl && (
             <>
-              <p style={{ ...hint, marginTop: 10 }}>After the restart, open this URL on whichever device you want to use from the public address. (It expires 1 hour after minting.)</p>
+              <p style={{ ...hint, marginTop: 10 }}>{t("externalUi.signIn")}</p>
               <MintedUrlBox url={signInUrl} />
             </>
           )}

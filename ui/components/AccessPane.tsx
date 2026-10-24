@@ -9,10 +9,11 @@ import { hint } from "./AccessPaneShared.tsx";
 export { InvitesTable, SessionsTable } from "./access-tables.tsx";
 
 export function AccessPane({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
+  const { t } = useI18n();
   return (
     <div style={{ marginTop: 24 }}>
-      <h4 style={sectionHeader}>Access</h4>
-      <p style={hint}>Control whether this office is reachable from outside the host machine. Invite links and signed-in devices live in Invites and Sessions.</p>
+      <h4 style={sectionHeader}>{t("access.title")}</h4>
+      <p style={hint}>{t("externalUi.hint")}</p>
 
       <ExternalAccessSection onDirtyChange={onDirtyChange} />
     </div>

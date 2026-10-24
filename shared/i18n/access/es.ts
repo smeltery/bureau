@@ -59,4 +59,31 @@ export const access = {
   "invitesUi.mintRecovery": "Generar enlace de recuperación",
   "invitesUi.recoveryFailed": "No se pudo generar el enlace de recuperación",
   "invitesUi.missingLink": "La respuesta de recuperación no incluía un enlace",
+  "externalUi.hint": "Controla si se puede acceder a esta oficina desde fuera del equipo anfitrión. Los enlaces de invitación y los dispositivos conectados están en Invitaciones y Sesiones.",
+  "externalUi.title": "Acceso externo",
+  "externalUi.loopback": "Actualmente solo escucha en la interfaz local. Se puede acceder desde este equipo o desde otros mediante un túnel SSH.",
+  "externalUi.external": "Actualmente escucha externamente. Se puede acceder desde cualquier lugar donde se resuelva la URL pública.",
+  "externalUi.name": "Nombre de la oficina (opcional)",
+  "externalUi.nameExample": "p. ej., Sede de Acme",
+  "externalUi.nameHint": "Se muestra en las páginas de acceso e invitación para identificar esta oficina. Es útil si ejecutas varias instancias de Bureau. Se aplica de inmediato.",
+  "externalUi.enable": "Activar acceso externo",
+  "externalUi.url": "URL pública",
+  "externalUi.urlHint":
+    "Formato: {pattern} (la dirección que abrirás desde tu portátil o teléfono). Guardar no cambia por sí solo la dirección de escucha del servidor en ejecución; reinicia Bureau para aplicarlo.",
+  "externalUi.hosts": "Hosts públicos para vista previa del navegador",
+  "externalUi.hostsHint":
+    "Nombres de host opcionales que los agentes pueden capturar con la vista previa del navegador aunque resuelvan a direcciones públicas. Las URL locales y de redes privadas funcionan sin entradas aquí.",
+  "externalUi.envInvalid":
+    "Nota: {variable} está definida en el entorno, pero no es un origen público válido, por lo que el servidor la ignora. Elimínala del archivo de entorno o asígnale {https} o {local}.",
+  "externalUi.envMatch":
+    "Nota: {assignment} está definida en el entorno y coincide con esta URL pública. La variable está obsoleta; elimínala del archivo de entorno después de guardar este valor en la configuración de la oficina.",
+  "externalUi.envConflict":
+    "Nota: {assignment} está definida en el entorno. Tras reiniciar, sustituiría cualquier valor diferente guardado aquí. No se permitirá guardar hasta que esta URL coincida con el valor del entorno o elimines la variable del entorno del servicio.",
+  "externalUi.envIgnored":
+    "Nota: {assignment} está definida en el entorno, pero la oficina solo escucha en la interfaz local, por lo que se ignora durante la ejecución. La variable está obsoleta; elimínala del archivo de entorno.",
+  "externalUi.failed": "No se pudieron actualizar los ajustes",
+  "externalUi.saving": "Guardando…",
+  "externalUi.restart": "Guardado. Reinicia Bureau para aplicar la nueva dirección de escucha:",
+  "externalUi.systemService": "Para un servicio del sistema, usa:",
+  "externalUi.signIn": "Tras reiniciar, abre esta URL en el dispositivo que quieras usar desde la dirección pública. Caduca 1 hora después de su creación.",
 } as const;
