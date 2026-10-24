@@ -115,7 +115,7 @@ export function Header({
         </span>
         {STATE_LABELS[agent.state] && <HeaderTimer state={agent.state} stateChangedAt={stateChangedAt.get(agent.id)} />}
         {agent.pendingPrompt && <PendingPromptLabel kind={agent.pendingPrompt} />}
-        <HeaderTopic agent={agent} />
+        <HeaderTopic key={agent.id} agent={agent} />
         <span style={{ color: "var(--text-ghost)", flexShrink: 0 }}>&middot;</span>
         <span
           title={agent.cwd}

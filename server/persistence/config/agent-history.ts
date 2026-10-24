@@ -1,3 +1,4 @@
+import { normalizeTopic } from "../../../shared/topics/label.ts";
 import { readFileSync, existsSync } from "fs";
 import { AGENT_HISTORY_FILE, atomicWriteFileSync } from "../paths.ts";
 import type { AgentInfo, EffortLevel } from "../../../shared/types.ts";
@@ -34,7 +35,11 @@ export type AgentHistory = Record<string, AgentHistoryEntry>;
 export function loadAgentHistory(): AgentHistory {
   try {
     if (!existsSync(AGENT_HISTORY_FILE)) return {};
-    return JSON.parse(readFileSync(AGENT_HISTORY_FILE, "utf-8")) as AgentHistory;
+    const history = JSON.parse(readFileSync(AGENT_HISTORY_FILE, "utf-8")) as AgentHistory;
+    for (const entry of Object.values(history)) {
+      if (entry && typeof entry === "object") entry.topic = normalizeTopic(entry.topic);
+    }
+    return history;
   } catch {
     return {};
   }

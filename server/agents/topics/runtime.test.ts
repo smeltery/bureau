@@ -145,3 +145,10 @@ test("failed refresh preserves the label and flags, and removed agents ignore la
   await pending;
   expect(loadSessionsMap(managed.info.id)).toEqual({});
 });
+
+test("restored agents normalize their label and reset the runtime generation flag", () => {
+  const managed = fixture();
+  const restored = createManagedAgent({ info: { ...managed.info, topic: "...", topicGenerating: true }, skillCwd: process.cwd(), slashCommands: [], skills: [] });
+  expect(restored.info).toMatchObject({ topic: null, topicGenerating: false });
+  expect(restored.topicGenerating).toBe(false);
+});

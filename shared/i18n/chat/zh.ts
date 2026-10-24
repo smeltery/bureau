@@ -1,4 +1,9 @@
 export const chat = {
+  "chat.topic.edit": "编辑主题",
+  "chat.topic.add": "添加主题",
+  "chat.topic.refresh": "根据对话刷新主题",
+  "chat.topic.generating": "正在生成主题",
+  "chat.topic.clearHint": "留空以清除主题",
   "chat.outbox.http": "请求失败（{status}）",
   "chat.toolInput": "输入",
   "chat.toolOutput": "输出",

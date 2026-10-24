@@ -1,4 +1,9 @@
 export const chat = {
+  "chat.topic.edit": "Editar tema",
+  "chat.topic.add": "Añadir tema",
+  "chat.topic.refresh": "Actualizar el tema a partir de la conversación",
+  "chat.topic.generating": "Generando tema",
+  "chat.topic.clearHint": "Déjalo en blanco para borrar el tema",
   "chat.outbox.http": "La solicitud falló ({status})",
   "chat.toolInput": "Entrada",
   "chat.toolOutput": "Salida",

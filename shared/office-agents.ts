@@ -50,6 +50,7 @@ export function createAgentInfo(opts: { name: string; cwd: string; permissionMod
     state: "idle",
     topic: null,
     topicStale: false,
+    topicGenerating: false,
     customInstructions: opts.customInstructions || null,
   };
 }

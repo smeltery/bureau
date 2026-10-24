@@ -1,3 +1,4 @@
+import { normalizeTopic } from "../../../shared/topics/label.ts";
 import { join } from "path";
 import { listTranscripts } from "./transcript-files.ts";
 import { mkdirSync, readFileSync, existsSync, readdirSync } from "fs";
@@ -66,7 +67,11 @@ export function loadSessionsMap(agentId: string): SessionsMap {
   try {
     const filePath = join(LOGS_DIR, agentId, "sessions.json");
     if (!existsSync(filePath)) return {};
-    return JSON.parse(readFileSync(filePath, "utf-8")) as SessionsMap;
+    const sessions = JSON.parse(readFileSync(filePath, "utf-8")) as SessionsMap;
+    for (const entry of Object.values(sessions)) {
+      if (entry && typeof entry === "object") entry.topic = normalizeTopic(entry.topic);
+    }
+    return sessions;
   } catch {
     return {};
   }

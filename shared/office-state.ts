@@ -1,3 +1,4 @@
+import { normalizeTopic } from "./topics/label.ts";
 import type { AgentInfo, AgentOutfit, TaskItem, TaskPriority, RoomWire, OfficeSettings } from "./types.ts";
 import type { OfficeEvent, OfficeStateData } from "./office-events.ts";
 import type { RoomPet } from "./user-types.ts";
@@ -252,17 +253,17 @@ export class OfficeState {
   setTopic(agentId: string, topic: string): OfficeEvent[] {
     const agent = this.agents.get(agentId);
     if (!agent) return [];
-    agent.topic = topic.slice(0, 80);
+    agent.topic = normalizeTopic(topic);
+    agent.topicGenerating = false;
     agent.topicStale = false;
-    return [{ type: "agent_updated", agentId, changes: { topic: agent.topic, topicStale: false } }];
+    return [{ type: "agent_updated", agentId, changes: { topic: agent.topic, topicStale: false, topicGenerating: false } }];
   }
 
   resetTopic(agentId: string): OfficeEvent[] {
     const agent = this.agents.get(agentId);
     if (!agent) return [];
-    agent.topic = null;
-    agent.topicStale = false;
-    return [{ type: "agent_updated", agentId, changes: { topic: null, topicStale: false } }];
+    agent.topicGenerating = true;
+    return [{ type: "agent_updated", agentId, changes: { topicGenerating: true } }];
   }
 
   addTask(title: string, createdBy: string, opts?: { description?: string; priority?: TaskPriority; assignee?: string }): OfficeEvent[] {
