@@ -79,4 +79,8 @@ export const settingsUi = {
   "settingsUi.memoryLoadFailed": "Could not load memory. Check your connection and try again.",
   "settingsUi.memoryLoadHttp": "Could not load memory (HTTP {status}). Try again.",
   "settingsUi.memoryLoadInvalid": "The memory response was invalid. Try loading it again.",
+  "settingsUi.welcome": "Welcome - pick or create a user",
+  "settingsUi.profilesHint": "Profiles live on the server. Owners can set which rooms each member can see and use.",
+  "settingsUi.ownerHint": "Owner - can invite users, revoke sessions, and set per-user room access",
+  "settingsUi.memberHint": "Member - can act in rooms the owner allowed",
 } as const;

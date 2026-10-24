@@ -79,4 +79,8 @@ export const settingsUi = {
   "settingsUi.memoryLoadFailed": "No s’ha pogut carregar la memòria. Comprova la connexió i torna-ho a provar.",
   "settingsUi.memoryLoadHttp": "No s’ha pogut carregar la memòria (HTTP {status}). Torna-ho a provar.",
   "settingsUi.memoryLoadInvalid": "La resposta de memòria no era vàlida. Torna a carregar-la.",
+  "settingsUi.welcome": "Benvingut: tria o crea un usuari",
+  "settingsUi.profilesHint": "Els perfils es desen al servidor. Els propietaris poden definir quines sales pot veure i utilitzar cada membre.",
+  "settingsUi.ownerHint": "Propietari: pot convidar usuaris, revocar sessions i configurar l’accés de cada usuari a les sales",
+  "settingsUi.memberHint": "Membre: pot actuar a les sales permeses pel propietari",
 } as const;

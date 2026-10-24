@@ -79,4 +79,8 @@ export const settingsUi = {
   "settingsUi.memoryLoadFailed": "No se pudo cargar la memoria. Comprueba la conexión e inténtalo de nuevo.",
   "settingsUi.memoryLoadHttp": "No se pudo cargar la memoria (HTTP {status}). Inténtalo de nuevo.",
   "settingsUi.memoryLoadInvalid": "La respuesta de memoria no era válida. Intenta cargarla de nuevo.",
+  "settingsUi.welcome": "Te damos la bienvenida: elige o crea un usuario",
+  "settingsUi.profilesHint": "Los perfiles se guardan en el servidor. Los propietarios pueden definir qué salas puede ver y usar cada miembro.",
+  "settingsUi.ownerHint": "Propietario: puede invitar usuarios, revocar sesiones y configurar el acceso de cada usuario a las salas",
+  "settingsUi.memberHint": "Miembro: puede actuar en las salas permitidas por el propietario",
 } as const;

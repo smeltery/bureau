@@ -79,4 +79,8 @@ export const settingsUi = {
   "settingsUi.memoryLoadFailed": "无法加载记忆。请检查连接并重试。",
   "settingsUi.memoryLoadHttp": "无法加载记忆（HTTP {status}）。请重试。",
   "settingsUi.memoryLoadInvalid": "记忆响应无效。请重新加载。",
+  "settingsUi.welcome": "欢迎：选择或创建用户",
+  "settingsUi.profilesHint": "个人资料保存在服务器上。所有者可以设置每位成员可查看和使用的房间。",
+  "settingsUi.ownerHint": "所有者：可以邀请用户、撤销会话并设置各用户的房间访问权限",
+  "settingsUi.memberHint": "成员：可以在所有者允许的房间中操作",
 } as const;
