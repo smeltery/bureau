@@ -1,6 +1,8 @@
+import { useI18n } from "../../i18n.tsx";
 import { useEffect, useState } from "react";
 
 export function UiBuildNotice() {
+  const { t } = useI18n();
   const [current] = useState(() => document.querySelector('meta[name="bureau-ui-build"]')?.getAttribute("content") ?? null);
   const [latest, setLatest] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<string | null>(null);
@@ -61,9 +63,9 @@ export function UiBuildNotice() {
         alignItems: "center",
       }}
     >
-      <span>A new office interface is ready. Reload when you’re ready.</span>
-      <button onClick={() => window.location.reload()}>Reload</button>
-      <button onClick={() => setDismissed(latest)}>Later</button>
+      <span>{t("settingsUi.buildReady")}</span>
+      <button onClick={() => window.location.reload()}>{t("settingsUi.reload")}</button>
+      <button onClick={() => setDismissed(latest)}>{t("settingsUi.later")}</button>
     </div>
   );
 }

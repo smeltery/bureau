@@ -1,3 +1,4 @@
+import { settingsUi } from "./settings-ui/en.ts";
 import { roomsUi } from "./rooms/en.ts";
 import { appsUi } from "./apps/en.ts";
 import { auditUi } from "./audit/en.ts";
@@ -38,6 +39,7 @@ export const en = {
   ...auditUi,
   ...appsUi,
   ...roomsUi,
+  ...settingsUi,
   "access.title": "Access",
   "apiTokens.title": "API tokens",
   "apps.confirmDelete": "Delete {name}? Its data directory will be kept.",

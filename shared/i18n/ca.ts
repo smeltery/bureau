@@ -1,3 +1,4 @@
+import { settingsUi } from "./settings-ui/ca.ts";
 import { roomsUi } from "./rooms/ca.ts";
 import { appsUi } from "./apps/ca.ts";
 import { auditUi } from "./audit/ca.ts";
@@ -37,6 +38,7 @@ export const ca = {
   ...auditUi,
   ...appsUi,
   ...roomsUi,
+  ...settingsUi,
   "access.title": "Accés",
   "apiTokens.title": "Tokens d’API",
   "apps.confirmDelete": "Vols eliminar {name}? Se’n conservarà el directori de dades.",

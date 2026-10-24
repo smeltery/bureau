@@ -1,11 +1,14 @@
 import { InstallButton } from "../../install/InstallButton.tsx";
-import { useState } from "react";
+import { useI18n } from "../../i18n.tsx";
+import { useId, useState } from "react";
 import { getDevice, setDevice } from "../../device-settings.ts";
 import { Modal } from "./Modal.tsx";
 import { dialogCancelBtn, dialogHint, dialogInput, dialogLabel, dialogSaveBtn } from "./dialog-styles.ts";
 import { UnsavedChangesPrompt, useUnsavedChangesPrompt } from "./UnsavedChangesPrompt.tsx";
 
 export function DeviceSettingsModal({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  const labelId = useId();
   const [baseline] = useState(() => getDevice() ?? "");
   const [label, setLabel] = useState(baseline);
   const dirty = label !== baseline;
@@ -19,16 +22,17 @@ export function DeviceSettingsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal onClose={requestClose} width={420}>
-      <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Device Settings</h3>
-      <p style={{ fontSize: 11, color: "var(--text-ghost)", margin: "6px 0 0", lineHeight: 1.4 }}>Stored locally in this browser. Used to distinguish this device from your other sessions.</p>
+      <h3 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>{t("settingsUi.deviceTitle")}</h3>
+      <p style={{ fontSize: 11, color: "var(--text-ghost)", margin: "6px 0 0", lineHeight: 1.4 }}>{t("settingsUi.deviceIntro")}</p>
 
       <div style={{ marginTop: 12 }}>
         <InstallButton />
       </div>
-      <label style={{ ...dialogLabel, marginTop: 16 }}>
-        Device Label <span style={dialogHint}>(optional)</span>
+      <label htmlFor={labelId} style={{ ...dialogLabel, marginTop: 16 }}>
+        {t("settingsUi.deviceLabel")} <span style={dialogHint}>{t("common.optional")}</span>
       </label>
       <input
+        id={labelId}
         autoFocus
         value={label}
         onChange={(e) => setLabel(e.target.value.slice(0, 24))}
@@ -36,7 +40,7 @@ export function DeviceSettingsModal({ onClose }: { onClose: () => void }) {
           if (e.key === "Enter" && !e.nativeEvent.isComposing) save();
         }}
         maxLength={24}
-        placeholder="Phone, Laptop, iPad"
+        placeholder={t("settingsUi.devicePlaceholder")}
         style={dialogInput}
       />
 
@@ -44,10 +48,10 @@ export function DeviceSettingsModal({ onClose }: { onClose: () => void }) {
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
         <button onClick={requestClose} style={dialogCancelBtn}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button onClick={save} style={dialogSaveBtn}>
-          Save
+          {t("common.save")}
         </button>
       </div>
     </Modal>
