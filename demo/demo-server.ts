@@ -97,6 +97,10 @@ export function handleCommand(cmd: ClientCommand) {
     }
     case "reset_topic": {
       emitEvents(state.resetTopic(cmd.agentId));
+      setTimeout(() => {
+        const agent = state.getAgent(cmd.agentId);
+        if (agent?.topicGenerating) emitEvents(state.setTopic(cmd.agentId, agent.topic ?? agent.name));
+      }, 500);
       break;
     }
     case "update_office_settings": {

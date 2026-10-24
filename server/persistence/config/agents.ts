@@ -1,3 +1,4 @@
+import { normalizeTopic } from "../../../shared/topics/label.ts";
 import { join } from "path";
 import { constants, copyFileSync, readFileSync, unlinkSync } from "fs";
 import { randomUUID } from "crypto";
@@ -35,6 +36,8 @@ export interface PersistedAgent {
 // Migrate a persisted agent that may have the legacy `model: "claude-opus-4-6"`
 // field to the current `modelFamily: "opus"` shape. Mutates in place.
 function migratePersistedAgent(agent: any) {
+  agent.topic = normalizeTopic(agent.topic);
+  delete agent.topicGenerating;
   if (agent.modelFamily) return;
   if (typeof agent.model === "string") {
     agent.modelFamily = familyFromLegacyModel(agent.model);

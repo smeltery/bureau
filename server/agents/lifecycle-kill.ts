@@ -1,3 +1,4 @@
+import { invalidateTopicGeneration } from "./topic.ts";
 import { requestSessionSummary } from "./summaries/activity.ts";
 import { stopTerminalRecording } from "./terminal.ts";
 import { cancelUsageResume } from "./conversation/usage-resume.ts";
@@ -11,6 +12,7 @@ export async function kill(agentId: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
   requestSessionSummary(managed, true);
+  invalidateTopicGeneration(managed);
   cancelUsageResume(managed);
   // Stamp the history entry with killedAt + a full config snapshot BEFORE
   // removing the agent from the live map. After deletion, updateAgentHistory

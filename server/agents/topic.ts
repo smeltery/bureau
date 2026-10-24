@@ -1,137 +1,88 @@
 import { requestSessionSummary } from "./summaries/activity.ts";
-import { runClaudeOneShot } from "../backends/claude.ts";
+import { captureMetadataProvider } from "./metadata/provider.ts";
+import { createTopicGenerator, normalizeTopic } from "./topics/generation.ts";
 import { persistSessionTopic } from "../persistence.ts";
-import { agents, emit, logCache, persistAll, updateManifest, type ManagedAgent } from "./state.ts";
+import { agents, emit, logCache, persistAll, type ManagedAgent } from "./state.ts";
 
-// Auto-regenerate the topic once this many new user_message+text entries have
-// accumulated since the topic was last generated. The goal is catching
-// "the conversation is now about a fundamentally different thing" (the same
-// signal /clear gives explicitly), not chasing every subtle drift — a smaller
-// number would burn Sonnet calls on minor shifts that the original topic
-// still describes well enough. Users who want an earlier refresh have the ↻
-// button in LogView (calls resetTopic, no threshold).
-export const TOPIC_REGEN_THRESHOLD = 20;
+let captureProvider: typeof captureMetadataProvider | undefined;
 
-// True when the conversation has accumulated enough new exchanges since the
-// topic was generated that the topic likely no longer describes what the
-// agent is actually working on. Used by the post-resume / post-restart /
-// long-session triggers; the manual ↻ button uses the looser topicStale
-// signal (any drift at all) via resetTopic directly.
-export function shouldAutoRegenerateTopic(managed: ManagedAgent): boolean {
-  if (!managed.info.topicStale) return false;
-  if (managed.info.topic === null || managed.info.topic === "...") return false;
-  const textCount = (logCache.get(managed.info.id) ?? []).filter((e) => e.kind === "user_message" || e.kind === "text").length;
-  return textCount - managed.topicMessageCount >= TOPIC_REGEN_THRESHOLD;
+/** Install at server boot, or supply a fake provider in integration tests. */
+export function installTopicGeneration(provider = captureMetadataProvider): () => void {
+  const previous = captureProvider;
+  captureProvider = provider;
+  return () => {
+    captureProvider = previous;
+  };
 }
 
-// Persist an agent's current in-memory topic into sessions.json so that the
-// /resume list can display it later. Skips the transient "..." placeholder.
+const generator = createTopicGenerator<ManagedAgent>({
+  generating(managed, value) {
+    managed.topicGenerating = value;
+    managed.info.topicGenerating = value;
+    if (agents.get(managed.info.id) === managed) emit({ type: "agent_updated", agentId: managed.info.id, changes: { topicGenerating: value } });
+  },
+  apply(managed, topic, count) {
+    managed.info.topic = topic;
+    managed.info.topicStale = false;
+    managed.topicMessageCount = count;
+    emit({ type: "agent_updated", agentId: managed.info.id, changes: { topic, topicStale: false } });
+    if (managed.sessionId) persistSessionTopic(managed.info.id, managed.sessionId, topic, count);
+    persistAll();
+  },
+  onError: () => console.error("Topic generation failed"),
+});
+
+export function invalidateTopicGeneration(managed: ManagedAgent) {
+  generator.invalidate(managed);
+}
+
 export function persistCurrentSessionTopic(agentId: string, managed: ManagedAgent) {
   requestSessionSummary(managed, true);
-  if (managed.sessionId && managed.info.topic && managed.info.topic !== "...") {
-    persistSessionTopic(agentId, managed.sessionId, managed.info.topic, managed.topicMessageCount);
-  }
+  invalidateTopicGeneration(managed);
+  if (managed.sessionId) persistSessionTopic(agentId, managed.sessionId, normalizeTopic(managed.info.topic), managed.topicMessageCount);
 }
 
-// Generate a short topic description for an agent's conversation
-export async function generateTopic(agentId: string) {
+export async function generateTopic(agentId: string, manual = false) {
   const managed = agents.get(agentId);
-  if (!managed || managed.topicGenerating) return;
-
-  managed.topicGenerating = true;
-  managed.info.topic = "...";
-  managed.info.topicStale = false;
-  emit({ type: "agent_updated", agentId, changes: { topic: "...", topicStale: false } });
-
-  // Build context: first user message + last 5 text entries
-  const logs = logCache.get(agentId) ?? [];
-  const textEntries = logs.filter((e) => e.kind === "user_message" || e.kind === "text");
-  const firstUserMsg = textEntries.find((e) => e.kind === "user_message");
-  if (!firstUserMsg) {
-    managed.topicGenerating = false;
-    managed.info.topic = null;
-    emit({ type: "agent_updated", agentId, changes: { topic: null } });
-    return;
-  }
-
-  const lastFive = textEntries.slice(-5);
-  let context: string;
-  if (textEntries.length <= 1) {
-    context = `User message: ${firstUserMsg.content}`;
-  } else {
-    // Deduplicate if first message is already in lastFive
-    const recent = lastFive.filter((e) => e.id !== firstUserMsg.id);
-    context = `First message: ${firstUserMsg.content}\n\nRecent conversation:\n` + recent.map((e) => `${e.kind === "user_message" ? "User" : "Assistant"}: ${e.content.slice(0, 200)}`).join("\n");
-  }
-
-  // System framing matters: without it, Sonnet occasionally roleplayed as
-  // the agent in the conversation and "responded" to the task (e.g. asking
-  // for file access) instead of labelling. Wrapping the snippet in a tag
-  // and pinning the model to a labeller role suppresses that.
-  const topicSystemPrompt = `You are a labelling tool. You receive a snippet of a conversation between a user and an AI assistant and you output a short topic label that summarizes what the conversation is about. You are NOT the assistant in the conversation, you do NOT have access to any files or systems mentioned, and you must NOT attempt to do the task. You only label.`;
-  const prompt = `<conversation>\n${context}\n</conversation>\n\nOutput ONLY a topic label, max 8 words. No quotes, no trailing punctuation.`;
-
+  if (!managed || !captureProvider || managed.topicGenerating || (!manual && normalizeTopic(managed.info.topic))) return;
+  const sessionId = managed.sessionId;
+  const session = managed.session;
+  const { agentType, modelFamily, userId, room } = managed.info;
   try {
-    // One-shot label task: no tools, no extended thinking, no filesystem
-    // context. `permissionMode: "plan"` had been adding a planning system
-    // prompt + adaptive thinking, which produced 200+-token outputs, ~10s+
-    // latency, and a ~20% rate of the model roleplaying as an agent
-    // attempting the conversation's task. cwd:"/tmp" + settingSources:[]
-    // prevents the caller's cwd from leaking git/dir context into the
-    // prompt (which made the model occasionally label with an unrelated
-    // recent commit).
-    const result = await runClaudeOneShot(prompt, {
-      model: "claude-sonnet-4-20250514",
-      tools: [],
-      thinking: { type: "disabled" },
-      settingSources: [],
-      cwd: "/tmp",
-      systemPrompt: topicSystemPrompt,
+    const provider = captureProvider(managed.info, sessionId ?? "");
+    if (!provider) return;
+    await generator.generate(managed, {
+      ...provider,
+      topic: managed.info.topic,
+      manual,
+      entries: logCache.get(agentId) ?? [],
+      isCurrent: () =>
+        agents.get(agentId) === managed &&
+        managed.sessionId === sessionId &&
+        managed.session === session &&
+        managed.info.agentType === agentType &&
+        managed.info.modelFamily === modelFamily &&
+        managed.info.userId === userId &&
+        managed.info.room === room,
     });
-    if (result.subtype === "success" && agents.has(agentId)) {
-      const topic = result.result.trim().slice(0, 80);
-      managed.info.topic = topic;
-      managed.info.topicStale = false;
-      managed.topicMessageCount = textEntries.length;
-      emit({ type: "agent_updated", agentId, changes: { topic, topicStale: false } });
-      persistAll();
-      // Persist topic + the textCount at which it was generated, so that on
-      // resume/restart we can compute drift against the replayed history and
-      // decide whether to auto-refresh.
-      if (managed.sessionId) {
-        persistSessionTopic(agentId, managed.sessionId, topic, textEntries.length);
-      }
-    }
-  } catch (err: any) {
-    console.error(`Topic generation failed for ${agentId}:`, err.message);
-    // Silently fail — clear the "..." placeholder
-    if (agents.has(agentId)) {
-      managed.info.topic = null;
-      emit({ type: "agent_updated", agentId, changes: { topic: null } });
-    }
-  } finally {
-    managed.topicGenerating = false;
+  } catch {
+    console.error("Could not prepare topic generation");
   }
 }
 
 export function setTopic(agentId: string, topic: string) {
   const managed = agents.get(agentId);
   if (!managed) return;
-  managed.info.topic = topic.slice(0, 80);
+  invalidateTopicGeneration(managed);
+  managed.info.topic = normalizeTopic(topic);
   managed.info.topicStale = false;
-  const textCount = (logCache.get(agentId) ?? []).filter((e) => e.kind === "user_message" || e.kind === "text").length;
+  const textCount = (logCache.get(agentId) ?? []).filter((entry) => entry.kind === "user_message" || entry.kind === "text" || entry.kind === "api_token_outbound").length;
   managed.topicMessageCount = textCount;
   emit({ type: "agent_updated", agentId, changes: { topic: managed.info.topic, topicStale: false } });
-  // Persist to sessions.json so resume list shows the manual topic; the
-  // count anchors future drift detection to the moment the user signed off.
-  if (managed.sessionId) {
-    persistSessionTopic(agentId, managed.sessionId, managed.info.topic, textCount);
-  }
-  updateManifest();
+  if (managed.sessionId) persistSessionTopic(agentId, managed.sessionId, managed.info.topic, textCount);
+  persistAll();
 }
 
 export function resetTopic(agentId: string) {
-  const managed = agents.get(agentId);
-  if (!managed) return;
-  generateTopic(agentId); // fire-and-forget
+  void generateTopic(agentId, true);
 }

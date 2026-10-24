@@ -7,7 +7,6 @@ import { rmSync } from "fs";
 import type { AgentBackendType, AgentInfo, AgentOutfit, LogEntry, LogInFlightTurn, ManifestInFlightTurn, PendingPromptKind, SkillInfo } from "../../shared/types.ts";
 import { listAgentSessions, loadAgents, loadLogWithAncestors } from "../persistence.ts";
 import { versionOf } from "../memory-store.ts";
-import { generateTopic, TOPIC_REGEN_THRESHOLD } from "./topic.ts";
 import { addLogEntry, agents, emit, logCache, persistAll, rooms as roomList, setRooms, type ManagedAgent } from "./state.ts";
 import { createSession, installSession } from "./session/runtime.ts";
 import { armDormantWakeNotice } from "./session/wake-notice.ts";
@@ -245,21 +244,13 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
         if (history.length > 0) {
           logCache.set(p.id, [...history]);
         }
-        // Detect topic drift against the persisted baseline: if the
-        // replayed history has grown past where the topic was last
-        // generated, flag stale (lights up the ↻ button) and, if past the
-        // refresh threshold, regenerate now so the agent's nametag is
-        // honest the moment the user looks at it. fire-and-forget — the
-        // call only needs logCache, which is populated above.
+        // Retain drift metadata for clients without automatically replacing labels.
         if (info.topic) {
           const textCount = history.filter((e) => e.kind === "user_message" || e.kind === "text").length;
           const drift = textCount - persistedTopicCount;
           if (drift > 0) {
             // Mutate directly: no clients are listening yet (broadcast comes later).
             info.topicStale = true;
-          }
-          if (drift >= TOPIC_REGEN_THRESHOLD) {
-            void generateTopic(p.id);
           }
         }
       }

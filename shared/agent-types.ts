@@ -78,6 +78,8 @@ export interface AgentInfo {
   state: AgentState;
   topic: string | null;
   topicStale: boolean;
+  /** Runtime only: a label refresh is in flight. */
+  topicGenerating?: boolean;
   customInstructions: string | null;
   customInstructionsVersion?: string;
   pendingPrompt?: PendingPromptKind | null;

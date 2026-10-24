@@ -1,3 +1,4 @@
+import { normalizeTopic } from "../../shared/topics/label.ts";
 import type { AgentInfo, SkillInfo } from "../../shared/types.ts";
 import { versionOf } from "../memory-store.ts";
 import { autocompleteCommands } from "./commands.ts";
@@ -15,6 +16,8 @@ export function createManagedAgent(input: {
 }): ManagedAgent {
   const info: AgentInfo = {
     ...input.info,
+    topic: normalizeTopic(input.info.topic),
+    topicGenerating: false,
     customInstructionsVersion: input.info.customInstructionsVersion ?? versionOf(input.info.customInstructions ?? ""),
   };
   const slashCommands = input.slashCommands ?? autocompleteCommands();
