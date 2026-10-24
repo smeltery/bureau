@@ -4,6 +4,7 @@ export type Line =
   | {
       op: "post";
       replyTo?: MembersChatMessage["replyTo"];
+      attachments?: MembersChatMessage["attachments"];
       id: string;
       kind?: MembersChatMessage["kind"];
       userId: string;
@@ -34,6 +35,7 @@ export function applyChatRecord(folded: FoldedMonth, line: Line): void {
       ...(line.device ? { device: line.device } : {}),
       timestamp: line.timestamp,
       content: line.content,
+      ...(line.attachments?.length ? { attachments: line.attachments } : {}),
       ...(line.replyTo ? { replyTo: line.replyTo } : {}),
     });
   } else if (line.op === "pin") {

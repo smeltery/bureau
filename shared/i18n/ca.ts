@@ -292,6 +292,7 @@ export const ca = {
   "teamChat.addThumbsUp": "Afegeix un m’agrada",
   "teamChat.removeThumbsUp": "Treu el m’agrada",
   "teamChat.reactionFailed": "No s’ha pogut actualitzar la reacció. Torna-ho a provar.",
+  "teamChat.attachmentLimit": "Adjunta fins a cinc fitxers per missatge. Elimina un fitxer per continuar.",
   "teamChat.reply": "Respon",
   "teamChat.cancelReply": "Cancel·la la resposta",
   "teamChat.replyingTo": "Responent a {name}",

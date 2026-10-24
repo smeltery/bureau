@@ -1,3 +1,4 @@
+import { useAttachmentUpload } from "../log-view/hooks/useAttachmentUpload.ts";
 import { TeamChatComposer } from "./TeamChatComposer.tsx";
 import { useTeamChatRead } from "./useTeamChatRead.ts";
 import { TeamChatUnread } from "./TeamChatUnread.tsx";
@@ -22,6 +23,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<MembersChatMessage[]>([]);
   const [pinned, setPinned] = useState<MembersChatMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
+  const uploads = useAttachmentUpload("", "/api/members-chat/uploads");
   const [draft, setDraft] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [reply, setReply] = useState<MembersChatReply | null>(null);
@@ -116,14 +118,20 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
 
   async function send() {
     const text = draft.trim();
-    if (!text || sending) return;
+    const files = uploads.validAttachments.filter((file) => !file.uploading);
+    if ((!text && !files.length) || sending || uploads.hasUploading || uploads.stagedAttachments.some((file) => file.error) || files.length > 5) return;
     setSending(true);
     setError(null);
     try {
       const res = await fetch("/api/members-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, device: getDevice(), ...(reply ? { replyTo: reply.id } : {}) }),
+        body: JSON.stringify({
+          text,
+          attachments: files.map(({ filename, originalName, mediaType, size }) => ({ filename, originalName, mediaType, size })),
+          device: getDevice(),
+          ...(reply ? { replyTo: reply.id } : {}),
+        }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string; code?: string } | null;
@@ -134,6 +142,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
       setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
       setDraft((current) => (current === draft ? "" : current));
       setReply(null);
+      uploads.clearSubmitted(files.map((file) => file.id));
     } catch {
       setError({ key: "teamChat.sendFailed" });
     } finally {
@@ -157,7 +166,12 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
 
   return (
     <div
+      onDragOver={uploads.handleDragOver}
+      onDragEnter={uploads.handleDragEnter}
+      onDragLeave={uploads.handleDragLeave}
+      onDrop={uploads.handleDrop}
       style={{
+        outline: uploads.draggingOver ? "2px solid var(--accent)" : undefined,
         height: isMobile ? "100dvh" : "100vh",
         display: "flex",
         flexDirection: "column",
@@ -247,7 +261,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
                 setPinned(update);
               }}
               onReply={() => {
-                setReply({ id: m.id, userName: m.userName, excerpt: membersChatExcerpt(m.content) });
+                setReply({ id: m.id, userName: m.userName, excerpt: membersChatExcerpt(m.content, m.attachments) });
                 composerRef.current?.focus({ preventScroll: true });
               }}
               onJump={
@@ -283,6 +297,7 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
       {error && <div style={{ padding: "6px 16px", color: "var(--red)", fontSize: 12, borderTop: "1px solid var(--border-subtle)" }}>{typeof error === "string" ? error : t(error.key)}</div>}
 
       <TeamChatComposer
+        uploads={uploads}
         draft={draft}
         setDraft={setDraft}
         sending={sending}

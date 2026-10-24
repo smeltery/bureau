@@ -1,3 +1,5 @@
+import { createChatAttachments, CHAT_MAX_FILES, CHAT_MAX_TOTAL_BYTES } from "./attachments.ts";
+import type { Attachment } from "../../shared/log-types.ts";
 import { applyChatRecord, type Line, type FoldedMonth } from "./records.ts";
 import { createChatReadState } from "./read-state.ts";
 // Monthly JSONL members-chat store. One office-wide stream for signed-in
@@ -25,7 +27,7 @@ export { MEMBERS_CHAT_DEFAULT_PAGE, MEMBERS_CHAT_MAX_CHARS, MEMBERS_CHAT_MAX_PAG
 const MONTH_FILE = /^(\d{4})-(\d{2})\.jsonl$/;
 const ID_SHAPE = /^(\d{4})(\d{2})-[0-9a-f]{8}$/;
 
-export type MembersChatErrorCode = "empty" | "too_long" | "reply_not_found";
+export type MembersChatErrorCode = "empty" | "too_long" | "reply_not_found" | "invalid_attachment";
 
 export class MembersChatError extends Error {
   constructor(
@@ -44,6 +46,7 @@ export interface MembersChatPage {
 }
 
 export interface PostInput {
+  attachments?: Attachment[];
   replyTo?: string;
   userId: string;
   userName: string;
@@ -52,6 +55,9 @@ export interface PostInput {
 }
 
 export interface MembersChatStore {
+  saveAttachment(data: Buffer, mediaType: string, originalName: string): Attachment;
+  getAttachment(filename: string): Attachment | null;
+  attachmentPath(filename: string): string | null;
   summary(userId: string): MembersChatSummary;
   markRead(userId: string, id: string): MembersChatSummary;
   setPinned(id: string, active: boolean): MembersChatMessage | null;
@@ -75,14 +81,14 @@ export function monthOfId(id: string): string | null {
   return m ? `${m[1]}-${m[2]}` : null;
 }
 
-function validateContent(content: string): string {
+function validateContent(content: string, hasAttachments = false): string {
   if (typeof content !== "string") {
     throw new MembersChatError("empty", "text must be a string");
   }
   if (content.length > MEMBERS_CHAT_MAX_CHARS) {
     throw new MembersChatError("too_long", `text must be at most ${MEMBERS_CHAT_MAX_CHARS} characters`);
   }
-  if (content.trim() === "") {
+  if (content.trim() === "" && !hasAttachments) {
     throw new MembersChatError("empty", "a message needs text");
   }
   return content;
@@ -99,6 +105,7 @@ function randomHex8(): string {
 export function createMembersChatStore(dir: string, opts: { now?: () => number } = {}): MembersChatStore {
   const now = opts.now ?? (() => Date.now());
   const cache = new Map<string, FoldedMonth>();
+  const attachments = createChatAttachments(dir);
   let pinIndex: Map<string, MembersChatMessage> | null = null;
 
   const monthFile = (month: string) => join(dir, `${month}.jsonl`);
@@ -191,7 +198,7 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
   function edit(id: string, content: string): MembersChatMessage | null {
     const existing = get(id);
     if (!existing) return null;
-    append(monthOfId(id)!, { op: "edit", id, timestamp: Math.max(now(), (existing.editedAt ?? 0) + 1), content: validateContent(content) });
+    append(monthOfId(id)!, { op: "edit", id, timestamp: Math.max(now(), (existing.editedAt ?? 0) + 1), content: validateContent(content, !!existing.attachments?.length) });
     return get(id);
   }
 
@@ -204,7 +211,15 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
   }
 
   function post(input: PostInput): MembersChatMessage {
-    const content = validateContent(input.content);
+    const supplied = input.attachments === undefined ? [] : input.attachments;
+    if (!Array.isArray(supplied) || supplied.length > CHAT_MAX_FILES) throw new MembersChatError("invalid_attachment", "Invalid attachments");
+    const files = supplied.map((item) => {
+      const file = item && typeof item.filename === "string" ? attachments.getAttachment(item.filename) : null;
+      if (!file) throw new MembersChatError("invalid_attachment", "Unknown attachment");
+      return file;
+    });
+    if (files.reduce((total, file) => total + file.size, 0) > CHAT_MAX_TOTAL_BYTES) throw new MembersChatError("invalid_attachment", "Attachments exceed total size limit");
+    const content = validateContent(input.content, files.length > 0);
     const target = input.replyTo === undefined ? null : get(input.replyTo);
     if (input.replyTo !== undefined && !target) {
       throw new MembersChatError("reply_not_found", "reply target not found");
@@ -213,7 +228,7 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
       ? {
           id: target.id,
           userName: target.userName,
-          excerpt: membersChatExcerpt(target.content),
+          excerpt: membersChatExcerpt(target.content, target.attachments),
         }
       : undefined;
     const timestamp = now();
@@ -233,6 +248,7 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
       ...(input.device ? { device: input.device } : {}),
       timestamp,
       content,
+      ...(files.length ? { attachments: files } : {}),
     };
     append(month, line);
     return get(id)!;
@@ -275,6 +291,7 @@ export function createMembersChatStore(dir: string, opts: { now?: () => number }
   }
 
   return {
+    ...attachments,
     ...createChatReadState(dir, {
       positionOf,
       visitMonths(visit) {

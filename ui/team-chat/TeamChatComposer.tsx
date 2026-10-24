@@ -1,10 +1,13 @@
-import type { RefObject } from "react";
+import { AttachmentChips } from "../log-view/AttachmentChips.tsx";
+import type { useAttachmentUpload } from "../log-view/hooks/useAttachmentUpload.ts";
+import { useRef, type RefObject } from "react";
 import { MEMBERS_CHAT_MAX_CHARS, type MembersChatReply } from "../../shared/members-chat.ts";
 import { composerHeightLimit, useComposerResize } from "../hooks/useComposerResize.ts";
 import { useI18n } from "../i18n.tsx";
 import { TeamChatQuote } from "./TeamChatQuote.tsx";
 
 export function TeamChatComposer({
+  uploads,
   draft,
   setDraft,
   sending,
@@ -14,6 +17,7 @@ export function TeamChatComposer({
   onCancelReply,
   onSend,
 }: {
+  uploads: ReturnType<typeof useAttachmentUpload>;
   draft: string;
   setDraft: (value: string) => void;
   sending: boolean;
@@ -24,9 +28,20 @@ export function TeamChatComposer({
   onSend: () => void;
 }) {
   const { t } = useI18n();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const canSend =
+    !sending && !uploads.hasUploading && !uploads.stagedAttachments.some((item) => item.error) && uploads.validAttachments.length <= 5 && (!!draft.trim() || uploads.validAttachments.length > 0);
   useComposerResize(composerRef, draft, isMobile, 18);
   return (
     <>
+      <div style={{ padding: "0 12px", flexShrink: 0 }}>
+        <AttachmentChips stagedAttachments={uploads.stagedAttachments} isMobile={isMobile} removeStaged={uploads.removeStaged} />
+        {uploads.validAttachments.length > 5 && (
+          <div role="alert" style={{ color: "var(--red)", fontSize: 12 }}>
+            {t("teamChat.attachmentLimit")}
+          </div>
+        )}
+      </div>
       {reply && (
         <div data-team-chat-reply style={{ padding: "8px 16px", flexShrink: 0 }}>
           <TeamChatQuote reply={reply} />
@@ -45,7 +60,26 @@ export function TeamChatComposer({
           flexShrink: 0,
         }}
       >
+        <input
+          type="file"
+          multiple
+          ref={fileInput}
+          style={{ display: "none" }}
+          onChange={(event) => {
+            uploads.handleFileSelect(event.target.files);
+            event.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          aria-label={t("chat.attach")}
+          onClick={() => fileInput.current?.click()}
+          style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 4 }}
+        >
+          📎
+        </button>
         <textarea
+          onPaste={uploads.handlePaste}
           ref={composerRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value.slice(0, MEMBERS_CHAT_MAX_CHARS))}
@@ -59,6 +93,7 @@ export function TeamChatComposer({
           rows={2}
           style={{
             flex: 1,
+            minWidth: 0,
             resize: "none",
             borderRadius: 8,
             border: "1px solid var(--border)",
@@ -74,16 +109,16 @@ export function TeamChatComposer({
         />
         <button
           onClick={onSend}
-          disabled={sending || !draft.trim()}
+          disabled={!canSend}
           style={{
             padding: "0 16px",
             borderRadius: 8,
             border: "none",
-            background: draft.trim() ? "var(--accent)" : "var(--btn-surface)",
-            color: draft.trim() ? "var(--bg-base)" : "var(--text-muted)",
+            background: canSend ? "var(--accent)" : "var(--btn-surface)",
+            color: canSend ? "var(--bg-base)" : "var(--text-muted)",
             fontWeight: 600,
             fontSize: 13,
-            cursor: draft.trim() ? "pointer" : "default",
+            cursor: canSend ? "pointer" : "default",
           }}
         >
           {t("teamChat.post")}

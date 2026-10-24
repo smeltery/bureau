@@ -13,7 +13,7 @@ export function TeamChatEdit({ message, onClose, onSaved }: { message: MembersCh
   const ref = useRef<HTMLTextAreaElement>(null);
   useComposerResize(ref, text, isMobile, 18);
   async function save() {
-    if (saving || !text.trim()) return;
+    if (saving || (!text.trim() && !message.attachments?.length)) return;
     setSaving(true);
     setFailed(false);
     try {
@@ -71,7 +71,7 @@ export function TeamChatEdit({ message, onClose, onSaved }: { message: MembersCh
         </div>
       )}
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button type="button" style={buttonStyle} disabled={saving || !text.trim()} onClick={() => void save()}>
+        <button type="button" style={buttonStyle} disabled={saving || (!text.trim() && !message.attachments?.length)} onClick={() => void save()}>
           {t("common.save")}
         </button>
         <button type="button" style={buttonStyle} disabled={saving} onClick={onClose}>

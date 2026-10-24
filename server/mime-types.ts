@@ -26,5 +26,5 @@ export function mimeTypeForFilename(filename: string): string {
   const dot = filename.lastIndexOf(".");
   if (dot <= 0) return DEFAULT_MIME;
   const ext = filename.slice(dot + 1).toLowerCase();
-  return EXT_TO_MIME[ext] ?? DEFAULT_MIME;
+  return Object.hasOwn(EXT_TO_MIME, ext) ? EXT_TO_MIME[ext]! : DEFAULT_MIME;
 }

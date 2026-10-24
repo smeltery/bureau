@@ -291,6 +291,7 @@ export const zh: Catalog = {
   "teamChat.addThumbsUp": "点赞",
   "teamChat.removeThumbsUp": "取消点赞",
   "teamChat.reactionFailed": "无法更新你的回应，请重试。",
+  "teamChat.attachmentLimit": "每条消息最多可附加五个文件。请移除文件后继续。",
   "teamChat.reply": "回复",
   "teamChat.cancelReply": "取消回复",
   "teamChat.replyingTo": "正在回复 {name}",
