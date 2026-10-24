@@ -86,7 +86,9 @@ export function DiscoverList({ available, isMobile, busy, onAction }: { availabl
               <NameCell name={p.name} description={p.description} sub={`@${p.marketplace}${p.version ? ` · v${p.version}` : ""}`} />
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                 {p.installCount !== undefined && !isMobile && (
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>{tn("pluginsUi.installs", p.installCount)}</span>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono',monospace" }}>
+                    {tn("pluginsUi.installs", p.installCount, { formatted: p.installCount.toLocaleString(language) })}
+                  </span>
                 )}
                 {p.installed ? (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--green)", whiteSpace: "nowrap" }}>
