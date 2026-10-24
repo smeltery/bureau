@@ -76,4 +76,7 @@ export const settingsUi = {
   "settingsUi.pet.olive": "Oliva",
   "settingsUi.pet.horsfield": "Horsfield",
   "settingsUi.pet.amber": "Ámbar",
+  "settingsUi.memoryLoadFailed": "No se pudo cargar la memoria. Comprueba la conexión e inténtalo de nuevo.",
+  "settingsUi.memoryLoadHttp": "No se pudo cargar la memoria (HTTP {status}). Inténtalo de nuevo.",
+  "settingsUi.memoryLoadInvalid": "La respuesta de memoria no era válida. Intenta cargarla de nuevo.",
 } as const;

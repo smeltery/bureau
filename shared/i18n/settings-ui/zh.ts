@@ -76,4 +76,7 @@ export const settingsUi = {
   "settingsUi.pet.olive": "橄榄色",
   "settingsUi.pet.horsfield": "四爪陆龟",
   "settingsUi.pet.amber": "琥珀色",
+  "settingsUi.memoryLoadFailed": "无法加载记忆。请检查连接并重试。",
+  "settingsUi.memoryLoadHttp": "无法加载记忆（HTTP {status}）。请重试。",
+  "settingsUi.memoryLoadInvalid": "记忆响应无效。请重新加载。",
 } as const;

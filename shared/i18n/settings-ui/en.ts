@@ -76,4 +76,7 @@ export const settingsUi = {
   "settingsUi.pet.olive": "Olive",
   "settingsUi.pet.horsfield": "Horsfield",
   "settingsUi.pet.amber": "Amber",
+  "settingsUi.memoryLoadFailed": "Could not load memory. Check your connection and try again.",
+  "settingsUi.memoryLoadHttp": "Could not load memory (HTTP {status}). Try again.",
+  "settingsUi.memoryLoadInvalid": "The memory response was invalid. Try loading it again.",
 } as const;

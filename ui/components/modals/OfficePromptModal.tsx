@@ -1,3 +1,4 @@
+import { MemoryLoadFeedback } from "./settings/MemoryLoadFeedback.tsx";
 import { useI18n } from "../../i18n.tsx";
 import { ValidationLine, type ValidationStatus } from "./settings/ValidationLine.tsx";
 import { useSaveGuard } from "../../hooks/settings/useSaveGuard.ts";
@@ -258,6 +259,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
           style={{ ...inputStyle, resize: "vertical" }}
           disabled={!officeMemory.loaded}
         />
+        <MemoryLoadFeedback editor={officeMemory} title={t("settingsUi.officeMemory")} />
 
         <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
           {t("settingsUi.myMemory")}{" "}
@@ -274,6 +276,7 @@ export function OfficePromptModal({ onClose, username, onSaveUsername }: { onClo
           style={{ ...inputStyle, resize: "vertical" }}
           disabled={!bossMemory.loaded}
         />
+        <MemoryLoadFeedback editor={bossMemory} title={t("settingsUi.myMemory")} />
 
         <h4 style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>{t("settingsUi.experimental")}</h4>
         <label

@@ -1,3 +1,4 @@
+import { MemoryLoadFeedback } from "./settings/MemoryLoadFeedback.tsx";
 import { HandoffFields } from "./agent-form/HandoffFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { AgentBackendType, AgentInfo, KilledAgentSummary } from "../../../shared/types.ts";
@@ -192,6 +193,7 @@ export function EditAgentDialog(props: EditAgentDialogProps) {
             style={{ ...inputStyle, resize: "vertical" }}
             disabled={!agentMemory.loaded}
           />
+          <MemoryLoadFeedback editor={agentMemory} title={t("agentSettings.memoryTitle")} />
         </>
       )}
 

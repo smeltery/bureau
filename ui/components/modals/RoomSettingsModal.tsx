@@ -1,3 +1,4 @@
+import { MemoryLoadFeedback } from "./settings/MemoryLoadFeedback.tsx";
 import { DECOR_LABELS, PET_LABELS, petCoatLabel } from "./settings/appearance-labels.ts";
 import { useI18n } from "../../i18n.tsx";
 import { ValidationLine, type ValidationStatus } from "./settings/ValidationLine.tsx";
@@ -297,6 +298,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
           style={{ ...inputStyle, resize: "vertical" }}
           disabled={!roomMemory.loaded}
         />
+        <MemoryLoadFeedback editor={roomMemory} title={t("settingsUi.roomMemoryTitle", { name: room.name })} />
       </fieldset>
 
       {discardPrompt.open && <UnsavedChangesPrompt onDiscard={discardPrompt.discard} onCancel={discardPrompt.cancel} />}
