@@ -14,6 +14,11 @@ export interface MembersChatReply {
   excerpt: string;
 }
 
+export interface MembersChatReactor {
+  userId: string;
+  userName: string;
+}
+
 export interface MembersChatMessage {
   id: string; // "YYYYMM-xxxxxxxx" — month names the JSONL file
   kind: "user";
@@ -23,6 +28,7 @@ export interface MembersChatMessage {
   timestamp: number;
   content: string;
   editedAt?: number;
+  thumbsUp?: MembersChatReactor[];
   replyTo?: MembersChatReply;
   pinnedAt?: number;
 }

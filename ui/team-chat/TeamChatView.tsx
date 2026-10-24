@@ -241,7 +241,8 @@ export function TeamChatView({ onClose }: { onClose: () => void }) {
               onDelete={(id) => void remove(id)}
               replyingDisabled={sending}
               onEdited={(edited) => {
-                const update = (items: MembersChatMessage[]) => items.map((item) => (item.id === edited.id && (item.editedAt ?? 0) <= (edited.editedAt ?? 0) ? edited : item));
+                const update = (items: MembersChatMessage[]) =>
+                  items.map((item) => (item.id === edited.id && (item.editedAt ?? 0) <= (edited.editedAt ?? 0) ? { ...item, content: edited.content, editedAt: edited.editedAt } : item));
                 setMessages(update);
                 setPinned(update);
               }}

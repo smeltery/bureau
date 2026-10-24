@@ -45,12 +45,12 @@ function emitDeleted(id: string): void {
   broadcast({ type: "members_chat_deleted", id });
 }
 
-function parseIdPath(pathname: string): { id: string; action: "message" | "pin" } | null {
+function parseIdPath(pathname: string): { id: string; action: "message" | "pin" | "thumbs-up" } | null {
   if (!pathname.startsWith(ROOT + "/")) return null;
   const rest = pathname.slice(ROOT.length + 1);
   const parts = rest.split("/").filter(Boolean);
   if (parts.length === 1) return { id: decodeURIComponent(parts[0]), action: "message" };
-  if (parts.length === 2 && parts[1] === "pin") return { id: decodeURIComponent(parts[0]), action: "pin" };
+  if (parts.length === 2 && (parts[1] === "pin" || parts[1] === "thumbs-up")) return { id: decodeURIComponent(parts[0]), action: parts[1] };
   return null;
 }
 
@@ -142,6 +142,20 @@ export async function handleMembersChatRequest(req: Request, url: URL, auth: Aut
     }
     const active = body && typeof body === "object" && !Array.isArray(body) && "active" in body ? Boolean((body as { active: unknown }).active) : true;
     const message = store.setPinned(parsed.id, active);
+    if (!message) return error(404, "not_found");
+    emitMessage(message, true);
+    return json(message);
+  }
+
+  if (parsed.action === "thumbs-up" && req.method === "PUT") {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return error(400, "invalid_json", "invalid JSON");
+    }
+    if (!body || typeof body !== "object" || !("active" in body) || typeof body.active !== "boolean") return error(400, "invalid_request", "active must be a boolean");
+    const message = store.setThumbsUp(parsed.id, { userId: session.session.userId, userName }, body.active);
     if (!message) return error(404, "not_found");
     emitMessage(message, true);
     return json(message);

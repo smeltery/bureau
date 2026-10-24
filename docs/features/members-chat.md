@@ -23,13 +23,14 @@ bearers are refused.
 | `POST` | `/api/members-chat/read` | Body `{ lastReadId }`; marks through that message for the caller only |
 | `PUT` | `/api/members-chat/:id/pin` | Owner only; body `{ active?: boolean }` |
 | `PUT` | `/api/members-chat/:id` | Author only; body `{ text }`; edits in place |
+| `PUT` | `/api/members-chat/:id/thumbs-up` | Body `{ active: boolean }`; changes only the caller’s reaction |
 | `DELETE` | `/api/members-chat/:id` | Author or owner |
 
 ## WebSocket
 
 Connected browsers receive:
 
-- `members_chat_message` — new post, edit, or pin/unpin with `updateOnly: true`
+- `members_chat_message` — new post, edit, reaction, or pin/unpin with `updateOnly: true`
 - `members_chat_deleted` — `{ id }`
 - `members_chat_summary` — `{ summary: { userId, readPointer, unread, latestId } }`, sent only to that member’s sockets after a read update. Posts and deletions refresh each connected member’s own summary.
 
@@ -62,3 +63,8 @@ Authors can edit their own messages in place. Saving updates connected tabs,
 preserves pins and existing reply quotes, and does not add unread messages.
 Owners cannot edit someone else’s text. Failed saves keep the editing draft;
 Cancel discards it without changing the posted message.
+
+Members can add or remove one thumbs-up per message. Counts and reactor names
+sync across browsers and persist after restart. Repeating the same desired
+state is harmless; reactions never add unread messages. Failed requests show
+a retry hint beside the button without discarding the current reaction state.
