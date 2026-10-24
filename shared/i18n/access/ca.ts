@@ -36,4 +36,27 @@ export const access = {
   "accessUi.lastOwner": "No permès: aquesta és l'última sessió activa de propietari de l'oficina. Crea una altra invitació per a un propietari, accepta-la en un altre dispositiu i torna-ho a provar.",
   "accessUi.lastOwnerLogout":
     "No es pot tancar la sessió: aquesta és l'última sessió activa de propietari de l'oficina. Crea una altra invitació per a tu, accepta-la en un altre dispositiu i torna-ho a provar.",
+  "invitesUi.title": "Invitacions",
+  "invitesUi.hint":
+    "Emet enllaços d'invitació per a usuaris nous. Els usuaris existents afegeixen els seus dispositius des d'Els meus dispositius, o un propietari pot generar aquí un enllaç de recuperació.",
+  "invitesUi.recovery": "Enllaços de recuperació",
+  "invitesUi.outstanding": "Invitacions pendents",
+  "invitesUi.issueFor": "Emet una invitació per a…",
+  "invitesUi.username": "Nom d'usuari (p. ex., Marc)",
+  "invitesUi.roleFixed": "El rol ha de coincidir amb el registre existent de {name}. Fes servir el canvi de rol per modificar-ne els permisos.",
+  "invitesUi.matches": "(coincideix amb l'usuari existent)",
+  "invitesUi.issueHint":
+    "Emetre la invitació crea el membre immediatament; l'enllaç sense utilitzar caduca al cap de 24 hores. Pots enviar un enllaç nou més avall. Les sessions acceptades duren fins a 1 any i es poden revocar des de Sessions en qualsevol moment.",
+  "invitesUi.noRooms": "Encara no hi ha sales.",
+  "invitesUi.roomsHint": "Les sales seleccionades estaran disponibles quan el membre accepti. No en seleccionis cap per concedir-hi accés més endavant.",
+  "invitesUi.existing": "L'usuari <b>{name}</b> ja existeix. Emet una altra invitació per a aquesta identitat (p. ex., un altre dispositiu). Això no afectarà les sessions existents ni el rol.",
+  "invitesUi.minting": "Generant…",
+  "invitesUi.issue": "Emet la invitació",
+  "invitesUi.failed": "No s'ha pogut generar la invitació",
+  "invitesUi.recoveryHint":
+    "Genera un enllaç d'accés d'un sol ús per a un membre existent que no hagi iniciat mai sessió o no tingui accés a un dispositiu connectat. L'enllaç nou substitueix l'anterior pendent.",
+  "invitesUi.selectUser": "Selecciona un usuari…",
+  "invitesUi.mintRecovery": "Genera un enllaç de recuperació",
+  "invitesUi.recoveryFailed": "No s'ha pogut generar l'enllaç de recuperació",
+  "invitesUi.missingLink": "La resposta de recuperació no incloïa cap enllaç",
 } as const;

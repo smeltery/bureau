@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useEffect } from "react";
 import { useAppState } from "../store.tsx";
 import { send } from "../ws.ts";
@@ -7,6 +8,7 @@ import { IssueInviteForm } from "./IssueInviteForm.tsx";
 import { RecoveryInviteForm } from "./RecoveryInviteForm.tsx";
 
 export function InvitesPane() {
+  const { t } = useI18n();
   const { invitesList, invitesLoaded } = useAppState();
 
   useEffect(() => {
@@ -15,15 +17,15 @@ export function InvitesPane() {
 
   return (
     <div style={{ marginTop: 24 }}>
-      <h4 style={sectionHeader}>Invites</h4>
-      <p style={hint}>Issue invite URLs for new users. Existing users add their own devices from My devices, or owners can mint a recovery link here.</p>
+      <h4 style={sectionHeader}>{t("invitesUi.title")}</h4>
+      <p style={hint}>{t("invitesUi.hint")}</p>
 
       <IssueInviteForm />
 
-      <h5 style={subsectionHeader}>Recovery links</h5>
+      <h5 style={subsectionHeader}>{t("invitesUi.recovery")}</h5>
       <RecoveryInviteForm />
 
-      <h5 style={subsectionHeader}>Outstanding invites</h5>
+      <h5 style={subsectionHeader}>{t("invitesUi.outstanding")}</h5>
       {renderListSection(invitesList, invitesLoaded, (rows) => (
         <InvitesTable invites={rows} />
       ))}
