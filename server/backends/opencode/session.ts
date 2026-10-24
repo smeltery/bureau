@@ -14,7 +14,7 @@ export class OpenCodeBackendSession implements BackendSession {
   private readonly agentId: string;
 
   constructor(
-    opts: CreateSessionOptions,
+    opts: CreateSessionOptions & { disableTools?: boolean },
     model: string,
     supervisor: OpenCodeSupervisor,
     sessionId?: string,
@@ -25,13 +25,14 @@ export class OpenCodeBackendSession implements BackendSession {
     const token = identity.kind === "cronjob_run" ? getRunToken(identity.runId) : getAgentToken(identity.agentId);
     this.transport = new OpenCodeTransport({
       cwd: opts.cwd,
+      disableTools: opts.disableTools,
       mcpServers: opts.mcpServers,
       resolveEnv: opts.resolveEnv ?? (() => opts.env),
       model,
       effort: opts.effort,
       systemPrompt: opts.systemPrompt,
       agent: permissionAgent(opts.permissionMode),
-      autoApprove: opts.permissionMode === "bypassPermissions",
+      autoApprove: !opts.disableTools && opts.permissionMode === "bypassPermissions",
       supervisor,
       sessionId,
       agentId: opts.agentId,

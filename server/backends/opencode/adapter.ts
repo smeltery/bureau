@@ -126,11 +126,12 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
       const session = new OpenCodeBackendSession(
         {
           agentId: "bureau-opencode-one-shot",
+          disableTools: true,
           cwd: opts.cwd ?? "/tmp",
           systemPrompt: opts.systemPrompt ?? "",
           modelFamily: model,
           effort: "high",
-          permissionMode: "bypassPermissions",
+          permissionMode: "default",
           env: opts.env,
         },
         model,
@@ -156,10 +157,13 @@ export function createOpenCodeBackend(options: OpenCodeBackendOptions = {}): Bac
         return await Promise.race([
           run,
           new Promise<never>((_, reject) => {
-            timeout = setTimeout(() => {
-              void session.abort();
-              reject(new Error("OpenCode one-shot prompt timed out."));
-            }, options.oneShotTimeoutMs ?? ONE_SHOT_TIMEOUT_MS);
+            timeout = setTimeout(
+              () => {
+                void session.abort();
+                reject(new Error("OpenCode one-shot prompt timed out."));
+              },
+              opts.timeoutMs ?? options.oneShotTimeoutMs ?? ONE_SHOT_TIMEOUT_MS,
+            );
           }),
         ]);
       } finally {
