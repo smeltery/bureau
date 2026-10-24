@@ -1,3 +1,4 @@
+import { installTopicGeneration } from "./agents/topic.ts";
 import { startConversationSummaries } from "./agents/summaries/runtime.ts";
 import { installProviderLoginShutdown } from "./provider-accounts/login/runtime.ts";
 import { installRecordingShutdown } from "./terminal-recordings/shutdown.ts";
@@ -60,6 +61,7 @@ installAuthCallbacks(() => AgentManager.getRooms());
 
 wireAgentAndCronjobEvents();
 startConversationSummaries();
+installTopicGeneration();
 
 // Start the live-reload filesystem watcher (no-op unless BUREAU_LIVE_RELOAD=1)
 startLiveReloadWatcher();

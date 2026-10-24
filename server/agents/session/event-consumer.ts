@@ -1,3 +1,4 @@
+import { invalidateTopicGeneration } from "../topic.ts";
 import { recordSummaryEntry, requestSessionSummary } from "../summaries/activity.ts";
 import { BureauLogError } from "../../../shared/i18n/backend-errors/error.ts";
 import { logMessage, logParts, type LogParam } from "../../../shared/i18n/log-message.ts";
@@ -128,6 +129,7 @@ function processNormalizedEvent(agentId: string, ev: NormalizedEvent) {
         }
         if (hadPreviousSession && ev.sessionId !== managed.sessionId) {
           requestSessionSummary(managed, true);
+          invalidateTopicGeneration(managed);
           emit({ type: "clear_logs", agentId });
           addLogEntry(agentId, "system", logMessage("logs.command.cleared"));
         }

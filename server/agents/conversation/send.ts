@@ -8,7 +8,7 @@ import { SessionSwappedError, createSession, installSession, replaceSession } fr
 import { armDormantWakeNotice } from "../session/wake-notice.ts";
 import { runAgentTurn } from "../../plugins/run-agent-turn.ts";
 import { ProviderCapacityError } from "../../internal-types.ts";
-import { generateTopic, persistCurrentSessionTopic, shouldAutoRegenerateTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
+import { generateTopic, persistCurrentSessionTopic } from "../topic.ts";
 import { handleSlashCommand } from "./slash-commands.ts";
 import { enqueueUserMessage, QUEUE_MAX } from "./message-queue.ts";
 import { handlePendingCronjobPick, handlePendingEffortPick, handlePendingModelPick } from "./pending-picks.ts";
@@ -176,12 +176,8 @@ export async function sendMessage(agentId: string, text: string, username?: stri
         emitEphemeralLog(agentId, "system", logMessage("logs.resumed", { topic: picked.topic || picked.sessionId.slice(0, 8) + "..." }));
         updateState(agentId, "waiting_for_response");
         persistAll();
-        // Regenerate immediately if there's no topic at all, or if the
-        // resumed conversation has drifted enough since the topic was last
-        // generated. Waiting for the next user_message would let one stale
-        // message through; firing here keeps the resumed agent's topic
-        // honest from the moment the user sees it.
-        if (!picked.topic || drift >= TOPIC_REGEN_THRESHOLD) {
+        // Fill missing labels on resume without replacing an existing label.
+        if (!picked.topic) {
           generateTopic(agentId);
         }
       } catch (err: any) {
@@ -226,7 +222,7 @@ export async function sendMessage(agentId: string, text: string, username?: stri
       humanInput: true,
       onSendAccepted: () => {
         // Do not start a separate topic-generation request for a signed-out turn.
-        if ((managed.info.topic === null || shouldAutoRegenerateTopic(managed)) && !managed.topicGenerating) generateTopic(agentId);
+        if (managed.info.topic === null && !managed.topicGenerating) generateTopic(agentId);
       },
     });
   } catch (err: any) {

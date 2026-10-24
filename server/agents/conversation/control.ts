@@ -6,7 +6,7 @@ import { addLogEntry, agents, emit, isAgentBusy, logCache, persistAll, updateSta
 import { createSession, replaceSession } from "../session/runtime.ts";
 import { validateCwd } from "../session/paths.ts";
 import { errMessage } from "../../../shared/errors.ts";
-import { generateTopic, persistCurrentSessionTopic, TOPIC_REGEN_THRESHOLD } from "../topic.ts";
+import { generateTopic, persistCurrentSessionTopic } from "../topic.ts";
 import { flushQueue, enqueueMessage, steerRateLimited, type EnqueueResult } from "./message-queue.ts";
 import { getAgentDisplay } from "../lifecycle.ts";
 
@@ -295,10 +295,8 @@ export async function resume(agentId: string, sessionId: string) {
     addLogEntry(agentId, "system", logMessage("logs.resumed", { topic: restoredTopic || sessionId.slice(0, 8) + "..." }));
     persistAll();
 
-    // Regenerate now (rather than waiting for the next user_message) if the
-    // topic is missing or the replayed history has drifted past the
-    // refresh threshold — same policy as the /resume two-step flow above.
-    if (!restoredTopic || drift >= TOPIC_REGEN_THRESHOLD) {
+    // Fill missing labels on resume without replacing an existing label.
+    if (!restoredTopic) {
       generateTopic(agentId);
     }
   } catch (err: any) {
