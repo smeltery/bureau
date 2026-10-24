@@ -1,3 +1,4 @@
+import type { PlainMessageKey } from "../../shared/i18n/translate.ts";
 // The Apps tab's decisions about a row: which verbs it offers, whether each one
 // can do anything from where the app currently is, what colour the state reads
 // in, and the order the rows come in. Pure, and extracted from the view so they
@@ -11,12 +12,21 @@ export type AppVerb = (typeof APP_VERBS)[number] | "archive" | "restore";
 
 // Plain language, not the verb again: the buttons are opaque to a
 // non-technical user.
-export const VERB_TITLES: Record<AppVerb, string> = {
-  archive: "Archive the app and keep its data",
-  restore: "Restore and run the archived app",
-  start: "Run the app",
-  stop: "Shut the app down (its data is kept)",
-  restart: "Stop the app and start it again",
+export const VERB_TITLE_KEYS: Record<AppVerb, PlainMessageKey> = {
+  archive: "appsUi.archiveTitle",
+  restore: "appsUi.restoreTitle",
+  start: "appsUi.startTitle",
+  stop: "appsUi.stopTitle",
+  restart: "appsUi.restartTitle",
+};
+
+export const VERB_LABEL_KEYS: Record<AppVerb, PlainMessageKey> = { start: "appsUi.start", stop: "appsUi.stop", restart: "appsUi.restart", archive: "appsUi.archive", restore: "appsUi.restore" };
+export const STATE_LABEL_KEYS: Record<AppRunState, PlainMessageKey> = {
+  running: "appsUi.running",
+  starting: "appsUi.starting",
+  stopped: "appsUi.stopped",
+  failed: "appsUi.failed",
+  unknown: "appsUi.unknown",
 };
 
 /**

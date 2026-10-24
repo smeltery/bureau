@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n.tsx";
+import { AppUiError, appFailure, appFailureText, type AppFailure } from "./appsApi.ts";
 import { InstallButton } from "../install/InstallButton.tsx";
 /* eslint-disable react/iframe-missing-sandbox -- The server supplies a separate app origin; both flags support app scripts/storage without access to the office DOM. */
 import { useEffect, useRef, useState } from "react";
@@ -13,10 +15,11 @@ import { getDevice } from "../device-settings.ts";
 import { appChatDraftKey, appSignInUrl, beginAppSignIn, isAppSessionSignal } from "./chat-state.ts";
 
 export function AppChatPage({ boot }: { boot: AppChatBoot }) {
+  const { t } = useI18n();
   const state = useAppState();
   const dispatch = useDispatch();
   const [status, setStatus] = useState<AppChatStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AppFailure | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
@@ -38,19 +41,19 @@ export function AppChatPage({ boot }: { boot: AppChatBoot }) {
       controller = requestController;
       try {
         const response = await fetch(`/api/apps/${encodeURIComponent(boot.name)}/chat-view?generation=${boot.hostGen}`, { signal: requestController.signal, cache: "no-store" });
-        if (!response.ok) throw new Error(response.status === 404 ? "This app is no longer available." : "Unable to verify app access. Refresh to retry.");
+        if (!response.ok) throw new AppUiError(response.status === 404 ? "appsUi.chatUnavailable" : "appsUi.chatVerify");
         const next = (await response.json()) as AppChatStatus;
         if (cancelled || requestController.signal.aborted) return;
         setStatus(next);
         setError(null);
         if (!next.sessionExpiresAt) {
           if (beginAppSignIn(sessionStorage, boot)) window.location.replace(appSignInUrl(next.appUrl, window.location.search));
-          else setError("App sign-in could not finish. Allow app cookies and use Reconnect app after one minute.");
+          else setError({ key: "appsUi.chatSignIn" });
         }
       } catch (caught) {
-        if (cancelled || (caught instanceof Error && caught.name === "AbortError")) return;
+        if (cancelled || requestController.signal.aborted || (caught instanceof Error && caught.name === "AbortError")) return;
         setStatus(null);
-        setError(caught instanceof Error ? caught.message : "Unable to load app.");
+        setError(appFailure(caught, "appsUi.chatLoadFailed"));
       }
     }
     void refresh();
@@ -107,7 +110,7 @@ export function AppChatPage({ boot }: { boot: AppChatBoot }) {
     function onMessage(event: MessageEvent) {
       if (!status || !isAppSessionSignal(event, frame.current?.contentWindow ?? null, status.appUrl)) return;
       if (beginAppSignIn(sessionStorage, boot)) window.location.replace(appSignInUrl(status.appUrl, window.location.search));
-      else setError("App sign-in could not finish. Allow app cookies and use Reconnect app after one minute.");
+      else setError({ key: "appsUi.chatSignIn" });
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -116,7 +119,7 @@ export function AppChatPage({ boot }: { boot: AppChatBoot }) {
   function reconnect() {
     if (!status) return;
     if (!beginAppSignIn(sessionStorage, boot)) {
-      setError("App sign-in is limited to once a minute. Allow app cookies, then retry.");
+      setError({ key: "appsUi.chatLimited" });
       return;
     }
     window.location.assign(appSignInUrl(status.appUrl, window.location.search));
@@ -131,29 +134,29 @@ export function AppChatPage({ boot }: { boot: AppChatBoot }) {
           <strong style={{ flex: 1 }}>{boot.title ?? boot.name}</strong>
           <InstallButton name={boot.title ?? boot.name} showInstructions={window.location.hash === "#install"} />
           <a href="/" target="_blank" rel="noopener noreferrer">
-            Office
+            {t("appsUi.office")}
           </a>
           {status && (
             <>
               <a href={status.appUrl + window.location.search} target="_blank" rel="noopener noreferrer">
-                Open app
+                {t("appsUi.open")}
               </a>
-              <button onClick={reconnect}>Reconnect app</button>
-              <button onClick={() => setFrameKey((key) => key + 1)}>Reload app</button>
+              <button onClick={reconnect}>{t("appsUi.reconnect")}</button>
+              <button onClick={() => setFrameKey((key) => key + 1)}>{t("appsUi.reload")}</button>
             </>
           )}
           {agent && (
             <button aria-expanded={open} onClick={() => setOpen(!open)}>
-              {open ? "Close chat" : `Chat with ${agent.name}`}
+              {open ? t("appsUi.closeChat") : t("appsUi.chatWith", { name: agent.name })}
             </button>
           )}
         </header>
         {error && (
           <p role="alert" style={{ padding: 12 }}>
-            {error}
+            {appFailureText(error, t)}
           </p>
         )}
-        {!status && !error && <p role="status">Loading app…</p>}
+        {!status && !error && <p role="status">{t("appsUi.chatLoading")}</p>}
         <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
           {status && (
             <iframe
@@ -168,7 +171,7 @@ export function AppChatPage({ boot }: { boot: AppChatBoot }) {
           )}
           {open && agent && user && (
             <section
-              aria-label={`Chat with ${agent.name}`}
+              aria-label={t("appsUi.chatWith", { name: agent.name })}
               style={{ width: state.isMobile ? "100%" : 440, maxWidth: "100%", minHeight: 0, display: "flex", flexDirection: "column", borderLeft: "1px solid var(--border-subtle)" }}
             >
               <LogView

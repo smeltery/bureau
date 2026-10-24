@@ -1,3 +1,4 @@
+import { appsUi } from "./apps/ca.ts";
 import { auditUi } from "./audit/ca.ts";
 import { webhooks } from "./webhooks/ca.ts";
 import { pluginsUi } from "./plugins/ca.ts";
@@ -33,6 +34,7 @@ export const ca = {
   ...pluginsUi,
   ...webhooks,
   ...auditUi,
+  ...appsUi,
   "access.title": "Accés",
   "apiTokens.title": "Tokens d’API",
   "apps.confirmDelete": "Vols eliminar {name}? Se’n conservarà el directori de dades.",
