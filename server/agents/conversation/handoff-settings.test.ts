@@ -39,9 +39,11 @@ test("handoff settings validate before mutation and survive spawn, persistence a
       }
       const sent=[];const ws={send:message=>sent.push(JSON.parse(message))};bindWsUser(ws,owner);
       await handleAgentCommand({type:"edit_agent",requestId:"bad",agentId:info.id,name:"Invalid",autoHandoffTokens:NaN},ws);
-      expect(sent.at(-1)).toMatchObject({requestId:"bad",ok:false});expect(Agents.getAgent(info.id).name).toBe("Automatic");
+      expect(sent.at(-1)).toMatchObject({requestId:"bad",ok:false,handoffIssue:"autoHandoffTokens"});expect(Agents.getAgent(info.id).name).toBe("Automatic");
       await handleAgentCommand({type:"spawn",requestId:"bad-spawn",name:"Invalid",cwd:process.cwd(),roomId:room,desk:1,autoHandoffTokens:Infinity},ws);
-      expect(sent.at(-1)).toMatchObject({requestId:"bad-spawn",ok:false});expect(Agents.getAllAgents()).toHaveLength(1);
+      expect(sent.at(-1)).toMatchObject({requestId:"bad-spawn",ok:false,handoffIssue:"autoHandoffTokens"});expect(Agents.getAllAgents()).toHaveLength(1);
+      await handleAgentCommand({type:"edit_agent",requestId:"bad-flag",agentId:info.id,autoHandoff:"yes"},ws);
+      expect(sent.at(-1)).toMatchObject({requestId:"bad-flag",ok:false,handoffIssue:"autoHandoff",error:"autoHandoff must be a boolean"});
       await handleAgentCommand({type:"edit_agent",requestId:"valid",agentId:info.id,autoHandoffTokens:123500},ws);
       expect(sent.at(-1)).toMatchObject({requestId:"valid",ok:true});
       expect(Agents.getAgent(info.id).autoHandoffTokens).toBe(123500);

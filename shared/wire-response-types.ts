@@ -1,3 +1,5 @@
+import type { HandoffSettingsIssue } from "./agents/handoff.ts";
+
 // Response to update_*_settings (sent only to the requesting client)
 export interface SettingsSaveResponse {
   type: "settings_save_response";
@@ -21,6 +23,7 @@ export interface SettingsValidationResponse {
 
 // Response to spawn / edit_agent (sent only to the requesting client, when requestId provided)
 export interface AgentSaveResponse {
+  handoffIssue?: HandoffSettingsIssue;
   type: "agent_save_response";
   requestId: string;
   ok: boolean;

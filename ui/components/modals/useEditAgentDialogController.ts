@@ -1,7 +1,7 @@
 import { settingsFailureText, type SettingsFailure } from "../../hooks/settings/feedback.ts";
 import { useSaveGuard } from "../../hooks/settings/useSaveGuard.ts";
 import { useDiscardGuard } from "./agent-form/useDiscardGuard.ts";
-import { handoffTokens, handoffSettingsError } from "../../../shared/agents/handoff.ts";
+import { handoffTokens, handoffSettingsIssue } from "../../../shared/agents/handoff.ts";
 import { useEffect, useRef, useState } from "react";
 import type { AgentBackendType, AgentInfo, AgentOutfit, ClientCommand, CodexSandboxMode, EffortLevel } from "../../../shared/types.ts";
 import { CODEX_MODELS, DEFAULT_EFFORT, familyAllowsAutoPermission, MODEL_FAMILIES, OPENCODE_MODELS } from "../../../shared/types.ts";
@@ -128,9 +128,9 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
 
   async function handleSave() {
     const tokenLimit = autoHandoff ? Number(autoHandoffTokens) : handoffTokens(agent?.autoHandoffTokens);
-    const handoffError = handoffSettingsError({ autoHandoff, autoHandoffTokens: tokenLimit });
+    const handoffError = handoffSettingsIssue({ autoHandoff, autoHandoffTokens: tokenLimit });
     if (handoffError) {
-      setCwdError(handoffError);
+      setCwdError({ handoff: handoffError });
       return;
     }
     if (!saveGuard.begin()) return;
@@ -159,7 +159,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
             onClose();
           } else {
             savePhase.current = null;
-            setCwdError(msg.error || { key: "settingsUi.saveFailed" });
+            setCwdError(msg.handoffIssue ? { handoff: msg.handoffIssue } : msg.error || { key: "settingsUi.saveFailed" });
           }
         }
       } catch {}
@@ -284,7 +284,7 @@ export function useEditAgentDialogController(props: EditAgentDialogProps) {
     confirmDiscard,
     customInstructions,
     cwd,
-    cwdError: cwdError ? settingsFailureText(cwdError, t) : null,
+    cwdError: cwdError ? settingsFailureText(cwdError, t, language) : null,
     handleSave,
     requestClose,
     isMobile,

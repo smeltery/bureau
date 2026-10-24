@@ -1,4 +1,12 @@
 export const agentSettings = {
+  "agentSettings.handoff": "Relleu automàtic",
+  "agentSettings.handoffLimit": "Límit de tokens",
+  "agentSettings.handoffTokenLimit": "Límit de tokens del relleu automàtic",
+  "agentSettings.handoffHint":
+    "Relleu en arribar a aquest límit o al 85 % del context, el que passi primer (abans si cal per evitar la compactació del motor). Tria entre {min} i {max} tokens. Bureau escriu un resum i conserva els missatges en cua.",
+  "agentSettings.handoffBoolean": "El relleu automàtic ha d’estar activat o desactivat.",
+  "agentSettings.handoffRange": "El límit de tokens ha de ser un nombre enter entre {min} i {max}.",
+
   "agentSettings.permission.auto": "Automàtic (el classificador aprova accions segures)",
   "agentSettings.permission.default": "Predeterminat (preguntar sempre)",
   "agentSettings.permission.edits": "Acceptar edicions (aprovar canvis als fitxers)",

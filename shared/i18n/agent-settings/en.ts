@@ -1,4 +1,12 @@
 export const agentSettings = {
+  "agentSettings.handoff": "Automatic handoff",
+  "agentSettings.handoffLimit": "Token limit",
+  "agentSettings.handoffTokenLimit": "Automatic handoff token limit",
+  "agentSettings.handoffHint":
+    "Hand off at this limit or 85% context, whichever comes first (earlier when needed before engine compaction). Choose {min}–{max} tokens. Bureau writes a brief and preserves queued messages.",
+  "agentSettings.handoffBoolean": "Automatic handoff must be enabled or disabled.",
+  "agentSettings.handoffRange": "Token limit must be a whole number from {min} to {max}.",
+
   "agentSettings.permission.auto": "Auto (classifier auto-approves safe actions)",
   "agentSettings.permission.default": "Default (ask for everything)",
   "agentSettings.permission.edits": "Accept Edits (auto-approve file changes)",
