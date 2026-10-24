@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n.tsx";
 import { useCallback, useMemo, useState } from "react";
 import type { DiffPayload } from "../../shared/types.ts";
 import type { DiffOutputFormat } from "./DiffRenderer.tsx";
@@ -19,6 +20,7 @@ function writePref(v: DiffOutputFormat) {
 }
 
 export function DiffCard({ payload }: { payload: DiffPayload }) {
+  const { t, tn, language } = useI18n();
   const [outputFormat, setOutputFormat] = useState<DiffOutputFormat>(() => readPref());
   const setFormat = useCallback((v: DiffOutputFormat) => {
     setOutputFormat(v);
@@ -52,7 +54,7 @@ export function DiffCard({ payload }: { payload: DiffPayload }) {
   const [overlayPath, setOverlayPath] = useState<string | null>(null);
   const overlaySummary = overlayPath ? (payload.files.find((f) => f.path === overlayPath) ?? null) : null;
 
-  const headerLine = `+${payload.stats.additions} -${payload.stats.deletions} across ${payload.stats.filesChanged} file${payload.stats.filesChanged === 1 ? "" : "s"}`;
+  const headerLine = tn("diff.summary", payload.stats.filesChanged, { additions: payload.stats.additions.toLocaleString(language), deletions: payload.stats.deletions.toLocaleString(language) });
 
   return (
     <div
@@ -115,7 +117,7 @@ export function DiffCard({ payload }: { payload: DiffPayload }) {
                   fontWeight: 600,
                 }}
               >
-                {fmt === "line-by-line" ? "Unified" : "Split"}
+                {t(fmt === "line-by-line" ? "diff.unified" : "diff.split")}
               </button>
             );
           })}
@@ -134,12 +136,12 @@ export function DiffCard({ payload }: { payload: DiffPayload }) {
               cursor: "pointer",
             }}
           >
-            {allExpanded ? "Collapse all" : "Expand all"}
+            {t(allExpanded ? "diff.collapse" : "diff.expand")}
           </button>
         )}
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "var(--text-faint)", flexBasis: "100%", marginTop: -2 }}>
           {payload.cwd}
-          {payload.truncated && <span style={{ color: "var(--orange)", marginLeft: 8 }}>· patch &gt; 2 MB · summary only</span>}
+          {payload.truncated && <span style={{ color: "var(--orange)", marginLeft: 8 }}>· {t("diff.truncated")}</span>}
         </span>
       </div>
       <div>
