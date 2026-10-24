@@ -28,6 +28,7 @@ interface ServerRecord {
   port: number;
   password: string;
   startTicks?: string;
+  launchVariables?: ReadonlySet<string>;
 }
 
 export interface OpenCodeLease {
@@ -39,6 +40,7 @@ export interface OpenCodeLease {
   recoverBeforePrompt(): Promise<void>;
   endTurn(): void;
   markUnresponsive?(): void;
+  hasLaunchVariable?(name: string): boolean;
 }
 
 export interface OpenCodeSupervisorOptions {
@@ -101,6 +103,7 @@ export class OpenCodeSupervisor {
       get pid() {
         return record().pid;
       },
+      hasLaunchVariable: (name) => record().launchVariables?.has(name) ?? false,
       release: () => {
         if (released) return;
         released = true;
@@ -206,11 +209,12 @@ export class OpenCodeSupervisor {
     await chmod(configPath, 0o600);
     const binary = this.binary ?? resolveOpenCodeBinary({ ...process.env, ...this.launchEnv });
     const password = randomBytes(32).toString("base64url");
+    const childEnv = this.childEnv(password, configPath);
     const child = spawn(binary, ["serve", "--hostname", "127.0.0.1", "--port", "0"], {
       cwd: this.profileDir,
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
-      env: this.childEnv(password, configPath),
+      env: childEnv,
     });
     child.unref();
     let stdout = "";
@@ -230,6 +234,11 @@ export class OpenCodeSupervisor {
       throw new BureauLogError(logMessage("logs.backendError.startup", { error: stderr.trim() || logMessage("logs.backendError.startupTimeout") }));
     }
     const started: ServerRecord = { pid: child.pid, port, password, startTicks: readProcessStartTicks(child.pid) ?? undefined };
+    started.launchVariables = new Set(
+      Object.entries(childEnv)
+        .filter(([, value]) => value?.trim())
+        .map(([name]) => name),
+    );
     this.child = child;
     this.record = started;
     try {

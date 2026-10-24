@@ -22,6 +22,7 @@ export const backendErrors = {
   "logs.backendError.bindingUnreadable": "OpenCode session binding could not be read.",
   "logs.backendError.resumeOther": "{error} Use /resume to pick a different session.",
   "logs.backendError.providerRefused": "The provider for {model} refused the request: “{detail}”",
+  "logs.backendError.providerSignIn": "OpenCode could not sign in to the provider for {model}. Choose another model or check the provider credentials.",
   "logs.backendError.providerReported": "The provider for {model} reported: “{detail}”",
   "logs.backendError.providerFreeTier": "This may be a free-tier restriction. Try again later or select another model.",
 } as const;

@@ -255,6 +255,7 @@ export class OpenCodeTransport {
             if (!event || event.sessionId !== sessionId) continue;
             applyOpenCodeEvent(event, {
               model: this.model,
+              needsApiKey: ["opencode", "opencode-go"].includes(splitModel(this.model)[0]) && !this.lease?.hasLaunchVariable?.("OPENCODE_API_KEY") && this.modelSelection.isFree !== true,
               sink,
               settle,
               abortRequested: this.abortRequested,

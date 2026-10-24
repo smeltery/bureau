@@ -1,4 +1,4 @@
-import { providerRefusal, providerRetry } from "./connection/provider-details.ts";
+import { providerRefusal, providerRetry, providerSignInFailure } from "./connection/provider-details.ts";
 import { bureauSystemNotice, bureauTurnFailure } from "../session-types.ts";
 import { logMessage } from "../../../shared/i18n/log-message.ts";
 import type { NormalizedEvent } from "../types.ts";
@@ -69,6 +69,7 @@ export function applyOpenCodeEvent(
   ctx: {
     sink: EventSink;
     model?: string;
+    needsApiKey?: boolean;
     settle: (e: NormalizedEvent) => void;
     abortRequested: boolean;
     autoApprove: boolean;
@@ -157,17 +158,17 @@ export function applyOpenCodeEvent(
       ctx.sink(bureauSystemNotice(logMessage("logs.backend.compacting")));
       return;
     }
+    if (event.error.statusCode === 401 || event.error.name === "ProviderAuthError") {
+      ctx.settle(providerSignInFailure(event.error, ctx.model, ctx.needsApiKey === true));
+      return;
+    }
     const refusal = providerRefusal(event.error, ctx.model);
-    const pickModel =
-      event.error.statusCode === 403 ||
-      (event.error.statusCode !== 401 &&
-        event.error.name !== "ProviderAuthError" &&
-        /model.*(?:not found|does not exist)|ModelNotFound/i.test(`${event.error.name ?? ""} ${event.error.message ?? ""}`));
+    const pickModel = event.error.statusCode === 403 || /model.*(?:not found|does not exist)|ModelNotFound/i.test(`${event.error.name ?? ""} ${event.error.message ?? ""}`);
 
     ctx.settle({
       ...bureauTurnFailure(refusal ?? (pickModel ? logMessage("logs.provider.model") : providerFailureMessage(event.error))),
       ...(pickModel ? { pickModel: true } : {}),
-      ...(refusal || pickModel ? { causedByAuth: false } : event.error.statusCode === 401 || event.error.name === "ProviderAuthError" ? { causedByAuth: true } : {}),
+      ...(refusal || pickModel ? { causedByAuth: false } : {}),
     });
   }
 }

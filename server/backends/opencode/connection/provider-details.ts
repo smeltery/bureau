@@ -1,3 +1,4 @@
+import { bureauTurnFailure } from "../../session-types.ts";
 import { logMessage, logParts, type LogMessage } from "../../../../shared/i18n/log-message.ts";
 import { redactLogEntry } from "../../../persistence/logs/log-redaction.ts";
 import type { SafeOpenCodeError } from "../parse.ts";
@@ -34,4 +35,15 @@ export function providerRetry(message: string, attempt: number, model = "OpenCod
   const detail = providerDetail(message);
   const error = detail ? logMessage("logs.backendError.providerReported", { model: providerDetail(model) ?? "OpenCode", detail }) : providerFailureMessage({ message });
   return logMessage("logs.backend.retry", { error, attempt });
+}
+
+export function providerSignInFailure(error: SafeOpenCodeError, model = "OpenCode", needsApiKey = false) {
+  const detail = providerDetail(error.message);
+  const reported = detail ? logMessage("logs.backendError.providerReported", { model: providerDetail(model) ?? "OpenCode", detail }) : null;
+  const message = needsApiKey
+    ? reported
+      ? logParts([providerFailureMessage(error), "\n", reported])
+      : providerFailureMessage(error)
+    : (reported ?? logMessage("logs.backendError.providerSignIn", { model: providerDetail(model) ?? "OpenCode" }));
+  return { ...bureauTurnFailure(message), causedByAuth: needsApiKey, ...(!needsApiKey && !detail ? { pickModel: true } : {}) };
 }

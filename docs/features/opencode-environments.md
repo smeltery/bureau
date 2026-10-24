@@ -65,8 +65,11 @@ Existing active turns still prevent process replacement.
 Provider refusals and retries show the provider’s explanation as a bounded,
 credential-redacted quote. The surrounding guidance follows each reader’s
 language; provider words remain literal. An explained 403 refusal does not
-request another sign-in. Authentication failures and errors without a usable
-explanation retain classified guidance. Context-overflow compaction stays
+request another sign-in. Missing-key guidance applies only to paid or unknown
+OpenCode models whose running server has no nonempty `OPENCODE_API_KEY`. Free
+models, other providers and rejected existing credentials retain the provider’s
+explanation without asking for that key. An unexplained sign-in failure names
+the selected model and offers the model picker. Context-overflow compaction stays
 inside the original turn; its internal summary is not shown as an answer. Stop
 remains available and the event-stream deadline still detects lost connections.
 Bureau does not replay a submitted prompt.
