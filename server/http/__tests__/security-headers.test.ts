@@ -38,7 +38,7 @@ describe("office security headers", () => {
 
     expect(res?.status).toBe(200);
     expect(res?.headers.get("content-type")).toContain("text/plain");
-    expect(await res?.text()).toContain("Contact: https://github.com/dotbrains/bureau/security/advisories/new");
+    expect(await res?.text()).toContain("Contact: https://github.com/smeltery/bureau/security/advisories/new");
     expect(res?.headers.get("x-content-type-options")).toBe("nosniff");
   });
 });
