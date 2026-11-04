@@ -150,7 +150,6 @@ Or via the UI: **Settings → Branches → Add branch protection rule** for
 After the rule exists, GitHub disables the merge button on any PR with a
 failing or pending check.
 
-
 ### Browser sharing extension
 
 `bun run build:ui` also packages `browser-extension/` as
