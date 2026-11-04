@@ -1,4 +1,4 @@
-import type { ChatCopyFormat, ChatCopyScope } from "./chat-copy.ts";
+import type { ChatCopyGetter } from "./chat-html.ts";
 import { ChatCopyMenu } from "./ChatCopyMenu.tsx";
 import { useI18n } from "../../i18n.tsx";
 import { useState } from "react";
@@ -37,7 +37,7 @@ export function HeaderActions({
   slideModeEnabled?: boolean;
   slideView?: boolean;
   setSlideView?: (active: boolean) => void;
-  getConversationText: (scope: ChatCopyScope, format: ChatCopyFormat) => string;
+  getConversationText: ChatCopyGetter;
 }) {
   const { t } = useI18n();
   const { mode } = useTheme();

@@ -43,6 +43,7 @@ export const chat = {
   "chat.copy.lastExchange": "Último intercambio",
   "chat.copy.markdown": "Markdown",
   "chat.copy.plain": "Texto sin formato",
+  "chat.copy.html": "Archivo HTML",
   "chat.copy.format": "Formato",
   "chat.image.viewer": "Visor de imágenes",
   "chat.image.fullSize": "Tamaño completo",

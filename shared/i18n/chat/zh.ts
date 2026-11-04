@@ -43,6 +43,7 @@ export const chat = {
   "chat.copy.lastExchange": "最后一轮",
   "chat.copy.markdown": "Markdown",
   "chat.copy.plain": "纯文本",
+  "chat.copy.html": "HTML 文件",
   "chat.copy.format": "格式",
   "chat.image.viewer": "图片查看器",
   "chat.image.fullSize": "原始大小",

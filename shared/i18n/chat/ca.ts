@@ -43,6 +43,7 @@ export const chat = {
   "chat.copy.lastExchange": "Últim intercanvi",
   "chat.copy.markdown": "Markdown",
   "chat.copy.plain": "Text sense format",
+  "chat.copy.html": "Fitxer HTML",
   "chat.copy.format": "Format",
   "chat.image.viewer": "Visor d'imatges",
   "chat.image.fullSize": "Mida completa",
