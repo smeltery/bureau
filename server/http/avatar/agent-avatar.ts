@@ -4,11 +4,11 @@
 // image cannot drift from the agent's look in the office.
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { AgentOutfit } from "../../shared/types.ts";
-import { Character } from "../../ui/office/scene/Character.tsx";
-import * as AgentManager from "../agent-manager.ts";
-import type { AuthResult } from "../auth/auth-middleware.ts";
-import { agentRouteParts, jsonError, requireLiveAgentReadAccess } from "./agent-route-helpers.ts";
+import type { AgentOutfit } from "../../../shared/types.ts";
+import { Character } from "../../../ui/office/scene/Character.tsx";
+import * as AgentManager from "../../agent-manager.ts";
+import type { AuthResult } from "../../auth/auth-middleware.ts";
+import { agentRouteParts, jsonError, requireLiveAgentReadAccess } from "../agent-route-helpers.ts";
 
 const SVG_NS = 'xmlns="http://www.w3.org/2000/svg"';
 

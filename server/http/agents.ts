@@ -10,7 +10,7 @@ import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentBrowserSessionRoute } from "./agent-browser-route.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
-import { handleAgentAvatarRequest } from "./agent-avatar.ts";
+import { handleAgentAvatarRequest } from "./avatar/agent-avatar.ts";
 import { acceptUserSend } from "./user-send/acceptance.ts";
 import {
   agentRouteParts,

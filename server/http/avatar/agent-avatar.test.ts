@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import { agents } from "../../agents/state.ts";
-import { agentAvatarSvg } from "../agent-avatar.ts";
+import { agentAvatarSvg } from "./agent-avatar.ts";
 import { handleAgentsRequest } from "../agents.ts";
-import { bearerRequest, HIDDEN_AGENT, PLAIN_AGENT, setupPrivilegedFixture, TARGET_AGENT, teardownPrivilegedFixture, type PrivilegedFixture } from "./privileged-agent-fixture.ts";
+import { bearerRequest, HIDDEN_AGENT, PLAIN_AGENT, setupPrivilegedFixture, TARGET_AGENT, teardownPrivilegedFixture, type PrivilegedFixture } from "../__tests__/privileged-agent-fixture.ts";
 
 let fixture: PrivilegedFixture;
 beforeAll(() => {
