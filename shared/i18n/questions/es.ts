@@ -23,6 +23,8 @@ export const questions = {
   "questions.sortAgent": "Agente",
   "questions.priorityAll": "Todas las prioridades",
   "questions.priorityNone": "Sin prioridad",
+  "questions.fileAsTask": "Ahora no, archivar como tarea",
+  "questions.filedAsTask": "Archivada como tarea {id}",
   "questions.delivered": "Aceptada por la cola de mensajes del agente.",
   "questions.refused": "Se rechazó la entrega. Tu respuesta está guardada.",
   "questions.uncertain": "Tu respuesta está guardada, pero no se pudo confirmar la entrega. Revisa la conversación antes de reintentar.",

@@ -37,6 +37,8 @@ permissions and never execute simply because the question is opened.
 
 There may be 50 open questions per agent. Edits use revision checks; refresh on
 409 rather than overwriting newer content. Responses carry the question and
-member's answer into your normal message queue. A reply belongs to the
+member's answer into your normal message queue. A member who isn't ready can
+file the question on the task board instead; you then receive "Filed as task
+<id>" with any note, and the task holds the full question. A reply belongs to the
 conversation that asked it: if you start a different session, delivery is
 refused and the member keeps their saved answer for manual follow-up.

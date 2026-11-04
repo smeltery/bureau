@@ -8,6 +8,7 @@ import { canSeeRoom, getUserById, getUserByName } from "../users.ts";
 import type { MemberQuestion } from "../../shared/questions/types.ts";
 import { createQuestionStore, questionFile } from "./store.ts";
 import { QuestionError, questionContent } from "./validation.ts";
+import { addBoardTask, removeBoardTask } from "../tasks/board.ts";
 
 export const questions = createQuestionStore(questionFile(join(BUREAU_DIR, "questions.json")));
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -49,14 +50,32 @@ function deliver(question: MemberQuestion) {
   if (!visible(question, answer.userId) || !agent) return { ok: false as const, error: "The agent or room is no longer accessible" };
   if (agent.sessionId !== question.sessionId) return { ok: false as const, error: "The agent started a different conversation. Open its chat before sending this answer manually." };
   if (agent.info.pendingPrompt) return { ok: false as const, error: "Finish the agent's pending permission or selection first" };
-  const text = `Question: ${question.prompt}\n\n${answer.dismissed ? "Dismissed by the addressed member" : "Answer"}${answer.text ? `: ${answer.text}` : "."}`;
+  const outcome = answer.taskId ? `Filed as task ${answer.taskId} by the addressed member` : answer.dismissed ? "Dismissed by the addressed member" : "Answer";
+  const text = `Question: ${question.prompt}\n\n${outcome}${answer.text ? `: ${answer.text}` : "."}`;
   const result = enqueueMessage(question.agentId, { sender: { kind: "user", username: answer.username }, text, clientMessageId: `question-${answer.attemptId}` });
   return result.ok ? { ok: true as const } : { ok: false as const, error: result.error };
 }
 
+// The task keeps the whole question, so nothing is lost when it closes.
+function taskTitle(prompt: string): string {
+  const line =
+    prompt
+      .split("\n")
+      .find((part) => part.trim())
+      ?.trim() ?? "Question";
+  return line.length > 120 ? `${line.slice(0, 119)}…` : line;
+}
+function taskDescription(question: MemberQuestion, note: string): string {
+  const parts = [question.prompt];
+  if (question.options?.length) parts.push(`Options: ${question.options.map((option) => (option === question.recommended ? `${option} (recommended)` : option)).join(" · ")}`);
+  if (question.link) parts.push(`Link: ${question.link}`);
+  if (note) parts.push(`Note: ${note}`);
+  return parts.join("\n\n");
+}
+
 export async function handleQuestionsRequest(req: Request, url: URL, auth?: AuthResult): Promise<Response | null> {
   const agentRoute = /^\/api\/agents\/([^/]+)\/questions(?:\/([a-f0-9-]{36}))?$/.exec(url.pathname);
-  const memberRoute = /^\/api\/questions(?:\/([a-f0-9-]{36})(?:\/(answer|dismiss|retry))?)?$/.exec(url.pathname);
+  const memberRoute = /^\/api\/questions(?:\/([a-f0-9-]{36})(?:\/(answer|dismiss|retry|file-task))?)?$/.exec(url.pathname);
   if (!agentRoute && !memberRoute) return null;
   try {
     if (agentRoute) {
@@ -116,6 +135,22 @@ export async function handleQuestionsRequest(req: Request, url: URL, auth?: Auth
         knownKeys(body, ["revision", "text"]);
         if (body.text !== undefined && typeof body.text !== "string") throw new QuestionError("text must be a string");
         return json(questions.answer(id, revision(body), { text: (body.text as string | undefined) ?? "", dismissed: action === "dismiss", userId, username: user.name }, deliver));
+      }
+      if (req.method === "POST" && action === "file-task") {
+        knownKeys(body, ["revision", "text"]);
+        if (body.text !== undefined && typeof body.text !== "string") throw new QuestionError("text must be a string");
+        // A repeat of a filed question returns its saved result; no second task.
+        if (row.answer?.taskId) return json(questions.answer(id, revision(body), { ...row.answer }, deliver));
+        if (row.answer) throw new QuestionError("This question already has an answer", 409);
+        const room = rooms[agents.get(row.agentId)?.info.room ?? -1];
+        const note = ((body.text as string | undefined) ?? "").trim();
+        const task = addBoardTask({ title: taskTitle(row.prompt), description: taskDescription(row, note), roomId: room?.id, createdBy: user.name });
+        try {
+          return json(questions.answer(id, revision(body), { text: note, dismissed: true, userId, username: user.name, taskId: task.id }, deliver));
+        } catch (error) {
+          removeBoardTask(task.id, user.name);
+          throw error;
+        }
       }
       if (req.method === "POST" && action === "retry") {
         knownKeys(body, ["revision", "confirmedUncertain"]);

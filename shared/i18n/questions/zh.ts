@@ -23,6 +23,8 @@ export const questions = {
   "questions.sortAgent": "代理",
   "questions.priorityAll": "所有优先级",
   "questions.priorityNone": "无优先级",
+  "questions.fileAsTask": "暂不处理，记为任务",
+  "questions.filedAsTask": "已记为任务 {id}",
   "questions.delivered": "已被代理的消息队列接收。",
   "questions.refused": "发送被拒绝。你的回答已保存。",
   "questions.uncertain": "你的回答已保存，但无法确认是否送达。重试前请检查对话。",
