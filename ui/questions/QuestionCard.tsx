@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { MemberQuestion } from "../../shared/questions/types.ts";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "../components/modals/dialog-styles.ts";
 import { questionsChanged } from "./useQuestions.ts";
+import { QuestionPrompt } from "./QuestionPrompt.tsx";
 import { questionExcerpt, withDiscussPrefix } from "./discuss.ts";
 import { useAppState, useDispatch } from "../store.tsx";
 
@@ -92,7 +93,7 @@ export function QuestionCard({
           {t("questions.openChat")}
         </button>
       )}
-      <div style={{ whiteSpace: "pre-wrap" }}>{question.prompt}</div>
+      <QuestionPrompt prompt={question.prompt} />
       {changed && (
         <div role="status">
           {t("questions.changed")}{" "}

@@ -14,7 +14,8 @@ With your own agent bearer, call `POST /api/agents/<your-id>/questions` with JSO
 
 The default recipient is your manager. Set `member` to another existing member's
 username only when that member can access your room. A prompt is required
-(1–4000 characters). Options are optional: 1–10 distinct labels, each at most
+(1–4000 characters). To ask about an exact change, put it in a ```` ```diff ````
+fence in the prompt; the card draws removed and added lines in red and green. Options are optional: 1–10 distinct labels, each at most
 80 characters. A recommendation must match one label. Add `priority` (`P0`, most urgent, to
 `P3`, as on the task board) when the decision is time-sensitive; `null` clears it. With several options, a
 tap fills the answer field for the member to review. For a step the member must
