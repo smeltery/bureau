@@ -4,6 +4,7 @@ import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { formatDuration } from "../../utils/time.ts";
 import { formatSize } from "../../../shared/format/human.ts";
 import { serializeEntries } from "./serialize.ts";
+import { ImageLightbox } from "../components/ImageLightbox.tsx";
 
 export function FileChip({ att, agentId, isMobile }: { att: Attachment; agentId: string; isMobile?: boolean }) {
   const isPdf = att.mediaType === "application/pdf";
@@ -91,26 +92,7 @@ export function AttachmentDisplay({
           ))}
         </div>
       )}
-      {lightboxSrc && (
-        <div
-          tabIndex={0}
-          ref={(el) => el?.focus()}
-          onClick={() => setLightboxSrc(null)}
-          onKeyDown={(e) => e.key === "Escape" && setLightboxSrc(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            background: "rgba(0,0,0,0.85)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "zoom-out",
-          }}
-        >
-          <img src={lightboxSrc} alt="Full size" style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8 }} />
-        </div>
-      )}
+      {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
     </>
   );
 }

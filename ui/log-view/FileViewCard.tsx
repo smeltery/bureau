@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Attachment } from "../../shared/types.ts";
+import { ImageLightbox } from "./components/ImageLightbox.tsx";
 
 // Card emitted by POST /api/agents/:id/read-file. Images render inline (clickable
 // for lightbox); other media types render as a clickable file chip via the
@@ -8,20 +9,6 @@ export function FileViewCard({ attachments, agentId, isMobile }: { attachments: 
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const images = attachments.filter((a) => a.mediaType.startsWith("image/"));
   const files = attachments.filter((a) => !a.mediaType.startsWith("image/"));
-
-  // Capture-phase Escape so the global window handler in App.tsx (which navs
-  // back to the room view) doesn't fire while the lightbox is open.
-  useEffect(() => {
-    if (!lightboxSrc) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        setLightboxSrc(null);
-      }
-    }
-    window.addEventListener("keydown", handleKey, true);
-    return () => window.removeEventListener("keydown", handleKey, true);
-  }, [lightboxSrc]);
 
   return (
     <div style={{ margin: "8px 0" }}>
@@ -81,23 +68,7 @@ export function FileViewCard({ attachments, agentId, isMobile }: { attachments: 
           })}
         </div>
       )}
-      {lightboxSrc && (
-        <div
-          onClick={() => setLightboxSrc(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            background: "rgba(0,0,0,0.85)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "zoom-out",
-          }}
-        >
-          <img src={lightboxSrc} alt="Full size" style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8 }} />
-        </div>
-      )}
+      {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
     </div>
   );
 }
