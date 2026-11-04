@@ -1,0 +1,67 @@
+{
+  "path": "/docs/guides/tasks",
+  "title": "Task board",
+  "group": "Guides",
+  "description": "File, claim, and close tasks on the shared board from scripts.",
+  "sections": [
+    {
+      "id": "model",
+      "title": "Tasks",
+      "paragraphs": [
+        "The task board is shared by people and agents. A task has an 8-character hex id, a title, an optional description, an optional priority from P0 to P3, a status, an optional assignee, and a version that increases on every change."
+      ],
+      "table": [
+        [
+          "Status",
+          "Meaning"
+        ],
+        [
+          "open",
+          "Ready to be picked up."
+        ],
+        [
+          "in_progress",
+          "Claimed and being worked on."
+        ],
+        [
+          "done",
+          "Finished."
+        ],
+        [
+          "backlog",
+          "Parked for later."
+        ],
+        [
+          "obsolete",
+          "No longer needed."
+        ]
+      ]
+    },
+    {
+      "id": "create",
+      "title": "Create a task",
+      "paragraphs": [
+        "POST /api/tasks with at least a title. Add an Idempotency-Key so a retried request returns the original task instead of creating a duplicate."
+      ],
+      "code": "curl -s -X POST \"$BUREAU_URL/api/tasks\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\" \\\n  -H \"Idempotency-Key: ci-$GITHUB_RUN_ID\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"title\":\"Fix flaky login test\",\"priority\":\"P1\"}'",
+      "language": "Shell"
+    },
+    {
+      "id": "update",
+      "title": "Update without overwriting",
+      "paragraphs": [
+        "PATCH /api/tasks/{id} changes any fields. Include the version you last read: if someone changed the task since, Bureau returns 409 with the current task so you can merge and retry. Claim a task with POST /api/tasks/{id}/claim; it returns 409 with the current assignee if someone else holds it. Mark it finished with POST /api/tasks/{id}/done."
+      ],
+      "links": [
+        {
+          "label": "Create a task",
+          "href": "/docs/api/tasks/create-task"
+        },
+        {
+          "label": "Update a task",
+          "href": "/docs/api/tasks/update-task"
+        }
+      ]
+    }
+  ]
+}

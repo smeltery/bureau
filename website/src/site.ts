@@ -5,6 +5,7 @@ export const SITE = {
   origin: 'https://bureau.smeltery.io',
   github: REPO,
   quickStart: `${REPO}#quick-start`,
+  apiDocs: '/docs/api/',
   docs: `${BLOB}/docs/README.md`,
   article: `${BLOB}/articles/punching-in-building-an-office-for-ai-agents.md`,
   tasks: `${BLOB}/docs/features/task-system-design.md`,

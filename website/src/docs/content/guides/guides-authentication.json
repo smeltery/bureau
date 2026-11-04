@@ -1,0 +1,57 @@
+{
+  "path": "/docs/guides/authentication",
+  "title": "Authentication",
+  "group": "Guides",
+  "description": "Personal API tokens: minting, using, scoping, and revoking them.",
+  "sections": [
+    {
+      "id": "tokens",
+      "title": "Personal API tokens",
+      "paragraphs": [
+        "Every scripted call authenticates with a personal API token in the Authorization header. Tokens start with bureau_pat_ followed by 32 random bytes. Bureau stores only a SHA-256 hash and the first 19 characters, which it shows as the token prefix so you can tell tokens apart.",
+        "A token has no separate scopes. It acts as the person who created it, with that person’s role and room access. Mint one token per script or device so you can revoke one without breaking the others."
+      ],
+      "code": "curl -s \"$BUREAU_URL/api/agents\" -H \"Authorization: Bearer $BUREAU_TOKEN\"",
+      "language": "Shell"
+    },
+    {
+      "id": "minting",
+      "title": "Create and revoke tokens",
+      "paragraphs": [
+        "Create tokens in User Settings → API tokens. Names can be 1 to 64 characters. Expiry is 30 days (the default), 365 days, or never. The raw token is shown once.",
+        "Revoke a token from the same pane. Owners can also list and revoke other members’ tokens. Token management itself requires a browser session, so a token cannot mint or revoke other tokens."
+      ]
+    },
+    {
+      "id": "remote",
+      "title": "Using tokens from other machines",
+      "paragraphs": [
+        "Personal tokens are meant for other machines: your laptop, a CI runner, or a phone. Send them only over HTTPS to the office’s public URL. The tokens Bureau injects into agent processes, schedule runs, and apps are different: they only work from the server machine and are rejected from anywhere else."
+      ]
+    },
+    {
+      "id": "origin",
+      "title": "Origin checks",
+      "paragraphs": [
+        "State-changing requests without an Origin header, which is what curl and server-side code send, are allowed. If a request does carry an Origin header, it must match the office’s public origin or Bureau answers 403. Browser pages on other sites therefore cannot use a token against your office."
+      ]
+    },
+    {
+      "id": "unauthenticated",
+      "title": "Routes without a token",
+      "paragraphs": [
+        "GET /readyz answers {\"ok\":true} without authentication and is rate limited to 30 requests per minute per address for callers off the server machine. Inbound webhook deliveries are verified by signature instead of a token."
+      ],
+      "links": [
+        {
+          "label": "Inbound webhooks",
+          "href": "/docs/guides/webhooks"
+        },
+        {
+          "label": "Errors",
+          "href": "/docs/reference/errors"
+        }
+      ]
+    }
+  ]
+}

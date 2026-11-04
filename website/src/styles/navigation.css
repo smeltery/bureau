@@ -1,0 +1,242 @@
+.menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.menu-toggle:hover {
+  background: #eceee5;
+}
+
+/* Below this width the desktop link row would wrap, so the header becomes a
+   floating pill with a Menu button. */
+@media (max-width: 860px) {
+  html {
+    scroll-padding-top: 88px;
+  }
+  .site-header {
+    position: sticky;
+    top: 10px;
+    z-index: 20;
+    width: calc(100% - 20px);
+    margin-top: 10px;
+    padding: 8px 8px 8px 16px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
+  .site-nav {
+    display: none;
+  }
+  .menu-toggle {
+    display: inline-flex;
+  }
+}
+
+.mobile-menu {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.mobile-menu[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-menu::backdrop {
+  background: rgba(36, 37, 34, 0.3);
+}
+
+.mobile-menu .menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mobile-menu .brand {
+  font-size: 21px;
+}
+
+.menu-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.mobile-menu .menu-content {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px 24px;
+}
+
+.menu-eyebrow {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.mobile-menu h2 {
+  max-width: none;
+  margin-bottom: 26px;
+  font-size: 36px;
+}
+
+.menu-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.menu-cards a {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--card);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.menu-cards .featured {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  border-color: #a9cdb6;
+  background: #e4f1e8;
+}
+
+.menu-cards .featured > span:nth-child(2) {
+  flex: 1;
+}
+
+.mobile-menu strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.mobile-menu small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.menu-cards .featured small {
+  margin-top: 4px;
+}
+
+.menu-symbol {
+  color: var(--accent);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.menu-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 28px 0 14px;
+}
+
+.mobile-menu h3 {
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.menu-section-title > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.menu-links {
+  display: grid;
+  gap: 8px;
+}
+
+.menu-links a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.menu-links small {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.mobile-menu .menu-footer {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+  padding: 12px 24px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.menu-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.menu-cards a:hover,
+.menu-links a:hover,
+.menu-close:hover {
+  background-color: #eceee5;
+}

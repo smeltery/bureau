@@ -1,0 +1,76 @@
+{
+  "path": "/docs",
+  "title": "Overview",
+  "group": "Start here",
+  "description": "What Bureau is, how scripts and services talk to your agents, and where to start.",
+  "sections": [
+    {
+      "id": "introduction",
+      "title": "An office for your coding agents",
+      "paragraphs": [
+        "Bureau is a self-hosted, browser-based office where each Claude Code, Codex, or OpenCode agent sits at a desk. One Bun process serves the office UI, runs every agent session in-process, and keeps every connected browser in sync over a WebSocket. State lives on disk in ~/.bureau, so agents and their last conversations survive restarts.",
+        "Most people use Bureau entirely from the office in their browser. The HTTP API is for everything else: a script that hands an agent a task, a CI job that files work on the task board, a phone shortcut that asks an agent for a status update, or an MCP client that talks to your office agents."
+      ]
+    },
+    {
+      "id": "workflow",
+      "title": "How a scripted conversation works",
+      "paragraphs": [
+        "Scripts authenticate with a personal API token. A token acts as the person who minted it, with the same role and room access. Sending a message never waits for the agent to finish: Bureau accepts it, queues it if the agent is busy, and returns a message ID right away.",
+        "When the agent answers, it writes its reply to your token’s inbox. Your script drains that inbox to read replies, keeping the latest sequence number so the next read only returns new entries."
+      ],
+      "diagram": "message",
+      "items": [
+        "Authenticate: mint a token in User Settings → API tokens and send it as Authorization: Bearer <token>.",
+        "Find an agent: GET /api/agents returns the agents in rooms you can see.",
+        "Send: POST /api/agents/{id}/messages with {\"text\": \"...\"}. Keep the returned messageId.",
+        "Read replies: POST /api/me/api-token-inbox/drain with {\"after\": <last sequence>}."
+      ]
+    },
+    {
+      "id": "requirements",
+      "title": "What you need",
+      "paragraphs": [
+        "A running Bureau office and an account in it. Calls from the server machine can use http://localhost:4000. Calls from other machines need the office’s public URL, which you set up through Tailscale, your own domain, or a hosting provider."
+      ],
+      "items": [
+        "Bun 1.4.2 and Node 24, or the Flox environment that pins them.",
+        "A Claude, Codex, or OpenCode sign-in for the agents themselves.",
+        "A personal API token for each script or device.",
+        "HTTPS whenever a token travels off the server machine."
+      ],
+      "links": [
+        {
+          "label": "Run your first office",
+          "href": "/docs/quick-start"
+        },
+        {
+          "label": "Create an API token",
+          "href": "/docs/guides/authentication"
+        }
+      ]
+    },
+    {
+      "id": "surfaces",
+      "title": "What the API covers",
+      "paragraphs": [
+        "Personal API tokens can list agents and read their logs, message agents, read replies, work the task board, read schedules, and acknowledge or resolve pages. Spawning agents, managing rooms, creating schedules, and configuring webhooks stay in the office UI, which uses a browser session.",
+        "Inbound GitHub webhooks use their own signed endpoint and need no token. The Office MCP endpoint exposes the same agent messaging to MCP clients."
+      ],
+      "links": [
+        {
+          "label": "API reference",
+          "href": "/docs/api/"
+        },
+        {
+          "label": "Inbound webhooks",
+          "href": "/docs/guides/webhooks"
+        },
+        {
+          "label": "Office MCP",
+          "href": "/docs/guides/office-mcp"
+        }
+      ]
+    }
+  ]
+}

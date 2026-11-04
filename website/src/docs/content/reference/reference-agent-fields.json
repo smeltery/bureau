@@ -1,0 +1,67 @@
+{
+  "path": "/docs/reference/agent-fields",
+  "title": "Agent fields",
+  "group": "Reference",
+  "description": "Fields returned for each agent by GET /api/agents.",
+  "sections": [
+    {
+      "id": "fields",
+      "title": "Agent object",
+      "paragraphs": [],
+      "table": [
+        [
+          "Field",
+          "Meaning"
+        ],
+        [
+          "id",
+          "Stable agent id."
+        ],
+        [
+          "name",
+          "Display name."
+        ],
+        [
+          "room, roomId, roomName",
+          "The room the agent sits in."
+        ],
+        [
+          "desk",
+          "Desk number, 0 to 7."
+        ],
+        [
+          "topic",
+          "Current conversation topic, if set."
+        ],
+        [
+          "cwd",
+          "Working directory."
+        ],
+        [
+          "agentType",
+          "claude, codex, or opencode."
+        ],
+        [
+          "modelFamily, model, effort",
+          "Model selection and reasoning effort."
+        ],
+        [
+          "permissionMode",
+          "Tool permission mode."
+        ],
+        [
+          "inFlightTurn",
+          "Whether the agent is working right now."
+        ],
+        [
+          "pendingPrompt",
+          "Queued input waiting for the next turn."
+        ],
+        [
+          "lastSessionId",
+          "The conversation Bureau resumes on restart."
+        ]
+      ]
+    }
+  ]
+}

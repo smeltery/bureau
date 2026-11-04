@@ -1,0 +1,24 @@
+{
+  "path": "/docs/examples/node-script",
+  "title": "Node helper",
+  "group": "Examples",
+  "description": "A small TypeScript client that sends a prompt and waits for the reply.",
+  "sections": [
+    {
+      "id": "helper",
+      "title": "Save as bureau.ts",
+      "paragraphs": [
+        "Uses only fetch, so it runs on Node 18+ and Bun. Each send carries a fresh Idempotency-Key so client retries never deliver a prompt twice."
+      ],
+      "code": "// bureau.ts — minimal client for scripts (Node 18+ or Bun).\nconst base = process.env.BUREAU_URL!;\nconst token = process.env.BUREAU_TOKEN!;\n\nasync function api<T>(path: string, init: RequestInit = {}): Promise<T> {\n  const res = await fetch(`${base}${path}`, {\n    ...init,\n    headers: { Authorization: `Bearer ${token}`, \"Content-Type\": \"application/json\", ...init.headers },\n  });\n  const body = await res.json();\n  if (!res.ok) throw new Error(`${res.status} ${body.error ?? res.statusText}`);\n  return body as T;\n}\n\ntype Entry = { direction: \"from_agent\" | \"to_agent\"; senderAgentId?: string; text: string };\ntype Drain = { entries: Entry[]; latestSequence: number };\n\nconst drain = (after: number) => api<Drain>(\"/api/me/api-token-inbox/drain\", { method: \"POST\", body: JSON.stringify({ after }) });\n\nexport async function ask(agentId: string, text: string, timeoutMs = 600_000): Promise<string> {\n  let after = (await drain(0)).latestSequence;\n  await api(`/api/agents/${agentId}/messages`, {\n    method: \"POST\",\n    headers: { \"Idempotency-Key\": crypto.randomUUID() },\n    body: JSON.stringify({ text }),\n  });\n  const deadline = Date.now() + timeoutMs;\n  while (Date.now() < deadline) {\n    const inbox = await drain(after);\n    const reply = inbox.entries.find((e) => e.direction === \"from_agent\" && e.senderAgentId === agentId);\n    if (reply) return reply.text;\n    after = inbox.latestSequence;\n    await new Promise((resolve) => setTimeout(resolve, 5_000));\n  }\n  throw new Error(\"Timed out waiting for a reply\");\n}",
+      "language": "bureau.ts"
+    },
+    {
+      "id": "usage",
+      "title": "Use it",
+      "paragraphs": [],
+      "code": "import { ask } from \"./bureau.ts\";\n\nconst answer = await ask(process.env.AGENT_ID!, \"Review the open PRs and list blockers.\");\nconsole.log(answer);",
+      "language": "TypeScript"
+    }
+  ]
+}

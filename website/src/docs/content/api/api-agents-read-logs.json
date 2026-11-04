@@ -1,0 +1,24 @@
+{
+  "path": "/docs/api/agents/read-logs",
+  "title": "Read agent logs",
+  "group": "API endpoints",
+  "description": "Returns the agent’s conversation log for rooms you can see. Use it to follow an agent’s progress or audit what it did.",
+  "sections": [
+    {
+      "id": "request",
+      "title": "GET /api/agents/{id}/logs",
+      "paragraphs": [
+        "Every request requires Authorization: Bearer <token>."
+      ],
+      "code": "curl --fail-with-body \"$BUREAU_URL/api/agents/$AGENT_ID/logs\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\"",
+      "language": "cURL"
+    },
+    {
+      "id": "response",
+      "title": "Behavior",
+      "paragraphs": [
+        "Returns the agent’s conversation log for rooms you can see. Use it to follow an agent’s progress or audit what it did."
+      ]
+    }
+  ]
+}

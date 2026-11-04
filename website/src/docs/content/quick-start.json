@@ -1,0 +1,79 @@
+{
+  "path": "/docs/quick-start",
+  "title": "Quick start",
+  "group": "Start here",
+  "description": "Run an office, mint a token, and message your first agent from the terminal.",
+  "sections": [
+    {
+      "id": "setup",
+      "title": "Start the office",
+      "paragraphs": [
+        "Clone the repository and start the server. The Flox environment pins Bun, Node, and the native build toolchain; without Flox, install Bun 1.4.2 and Node 24 yourself and run bun install."
+      ],
+      "code": "git clone https://github.com/smeltery/bureau.git\ncd bureau\nflox activate     # or: bun install\nbun run dev",
+      "language": "Shell"
+    },
+    {
+      "id": "claim",
+      "title": "Claim the office",
+      "paragraphs": [
+        "Open http://localhost:4000 on the server machine. The first visit asks for your name and makes you the owner; claiming only works from the machine itself. Click an empty desk to spawn your first agent and sign in to its provider when asked."
+      ]
+    },
+    {
+      "id": "token",
+      "title": "Create an API token",
+      "paragraphs": [
+        "Open User Settings → API tokens, give the token a name such as \"laptop scripts\", and choose an expiry of 30 days, a year, or never. Copy it now: Bureau stores only a hash and shows the token once."
+      ],
+      "code": "export BUREAU_URL=\"http://localhost:4000\"\nexport BUREAU_TOKEN=\"bureau_pat_...\"",
+      "language": "Shell"
+    },
+    {
+      "id": "send",
+      "title": "Send your first message",
+      "paragraphs": [
+        "List your agents, pick an id, and send it a message. The call returns as soon as the message is accepted; the agent works on it in the office like any other message."
+      ],
+      "code": "curl -s \"$BUREAU_URL/api/agents\" -H \"Authorization: Bearer $BUREAU_TOKEN\" | jq -r '.[] | \"\\(.id)  \\(.name)\"'\n\ncurl -s -X POST \"$BUREAU_URL/api/agents/$AGENT_ID/messages\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"text\":\"Summarize the open TODOs in this repo\"}'",
+      "language": "Shell"
+    },
+    {
+      "id": "verify",
+      "title": "Read the reply",
+      "paragraphs": [
+        "Drain your token’s inbox to read what the agent sent back. Entries with direction from_agent are replies; to_agent entries echo what you sent. Pass the latestSequence from one drain as after on the next to get only new entries."
+      ],
+      "code": "curl -s -X POST \"$BUREAU_URL/api/me/api-token-inbox/drain\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\" \\\n  -H \"Content-Type: application/json\" -d '{\"after\":0}'",
+      "language": "Shell",
+      "links": [
+        {
+          "label": "Shell script example",
+          "href": "/docs/examples/shell-script"
+        },
+        {
+          "label": "Node helper",
+          "href": "/docs/examples/node-script"
+        }
+      ]
+    },
+    {
+      "id": "troubleshooting",
+      "title": "If the first request fails",
+      "paragraphs": [
+        "Check GET /readyz first; it needs no token and separates connectivity problems from authentication problems. A 401 means the token is missing, mistyped, revoked, or expired. A 403 means the agent is in a room your account cannot see.",
+        "A 409 on send means the agent is not accepting messages right now, for example while it is stopped. A 429 means its queue already holds 50 messages; wait for it to catch up."
+      ],
+      "links": [
+        {
+          "label": "Error reference",
+          "href": "/docs/reference/errors"
+        },
+        {
+          "label": "Limits",
+          "href": "/docs/reference/limits"
+        }
+      ]
+    }
+  ]
+}

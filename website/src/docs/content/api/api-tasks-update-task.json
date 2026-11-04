@@ -1,0 +1,31 @@
+{
+  "path": "/docs/api/tasks/update-task",
+  "title": "Update a task",
+  "group": "API endpoints",
+  "description": "Returns HTTP 200 with the updated task. Include version to guard against overwrites; a stale version returns 409 with the current task. Invalid status or priority returns 400.",
+  "sections": [
+    {
+      "id": "request",
+      "title": "PATCH /api/tasks/{id}",
+      "paragraphs": [
+        "Every request requires Authorization: Bearer <token>."
+      ],
+      "code": "curl --fail-with-body -X PATCH \"$BUREAU_URL/api/tasks/$TASK_ID\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"status\":\"in_progress\",\"version\":3}'",
+      "language": "cURL"
+    },
+    {
+      "id": "response",
+      "title": "Behavior",
+      "paragraphs": [
+        "Returns HTTP 200 with the updated task. Include version to guard against overwrites; a stale version returns 409 with the current task. Invalid status or priority returns 400."
+      ]
+    },
+    {
+      "id": "related",
+      "title": "Related routes",
+      "paragraphs": [
+        "POST /api/tasks/{id}/claim assigns the task, returning 409 if someone else holds it. POST /api/tasks/{id}/done closes it. DELETE /api/tasks/{id} removes it and returns 204."
+      ]
+    }
+  ]
+}

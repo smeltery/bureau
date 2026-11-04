@@ -1,0 +1,17 @@
+{
+  "path": "/docs/examples/cron-message",
+  "title": "Message from a cron job",
+  "group": "Examples",
+  "description": "Nudge an agent on a timetable from the system crontab.",
+  "sections": [
+    {
+      "id": "crontab",
+      "title": "Crontab entry",
+      "paragraphs": [
+        "Sends a plain-text prompt to an existing agent. If the agent is busy, the message waits in its queue. For prompts that should run in a fresh session each time, use Bureau’s built-in Schedules instead."
+      ],
+      "code": "# crontab -e — ask an agent for a status summary every weekday at 9:00.\n# cron entries are single lines; keep the token in a file only you can read.\nBUREAU_URL=http://localhost:4000\n0 9 * * 1-5  curl -s -X POST \"$BUREAU_URL/api/agents/AGENT_ID/messages\" -H \"Authorization: Bearer $(cat ~/.bureau-token)\" -H \"Content-Type: text/plain\" --data \"Post a status summary of yesterday's merges.\"",
+      "language": "Shell"
+    }
+  ]
+}

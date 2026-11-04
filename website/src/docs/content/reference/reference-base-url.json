@@ -1,0 +1,24 @@
+{
+  "path": "/docs/reference/base-url",
+  "title": "Base URL",
+  "group": "Reference",
+  "description": "Where to send requests, on the server machine and elsewhere.",
+  "sections": [
+    {
+      "id": "url",
+      "title": "Choosing the base URL",
+      "paragraphs": [
+        "On the server machine, use http://localhost:4000, or the port you started Bureau with. From anywhere else, use the public URL configured in User Settings → Access, for example https://office.example.ts.net. All API routes live under /api."
+      ],
+      "code": "export BUREAU_URL=\"https://office.example.ts.net\"",
+      "language": "Shell"
+    },
+    {
+      "id": "conventions",
+      "title": "Conventions",
+      "paragraphs": [
+        "Requests and responses are JSON. Errors return a JSON object with an error message. Timestamps are milliseconds since the Unix epoch. Unknown /api paths return 404 with {\"error\":\"not_found\"}."
+      ]
+    }
+  ]
+}

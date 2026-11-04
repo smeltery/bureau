@@ -1,0 +1,34 @@
+{
+  "path": "/docs/examples/ci-task",
+  "title": "File a task from CI",
+  "group": "Examples",
+  "description": "Put failed builds on the task board for an agent to pick up.",
+  "sections": [
+    {
+      "id": "workflow",
+      "title": "GitHub Actions step",
+      "paragraphs": [
+        "Store the office’s public URL and a dedicated token as repository secrets. The run id doubles as the idempotency key, so re-running the step never files a second task."
+      ],
+      "code": "# .github/workflows/nightly.yml (excerpt)\n- name: File a task when the nightly build fails\n  if: failure()\n  env:\n    BUREAU_URL: ${{ secrets.BUREAU_URL }}\n    BUREAU_TOKEN: ${{ secrets.BUREAU_TOKEN }}\n  run: |\n    curl --fail-with-body -X POST \"$BUREAU_URL/api/tasks\" \\\n      -H \"Authorization: Bearer $BUREAU_TOKEN\" \\\n      -H \"Idempotency-Key: nightly-${{ github.run_id }}\" \\\n      -H \"Content-Type: application/json\" \\\n      -d \"$(jq -n --arg url \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\" \\\n        '{title: \"Nightly build failed\", description: $url, priority: \"P1\"}')\"",
+      "language": "YAML"
+    },
+    {
+      "id": "notes",
+      "title": "Notes",
+      "paragraphs": [
+        "The runner calls the office from outside, so the office needs a public HTTPS URL. To react to GitHub events directly instead of from a workflow, use an inbound webhook."
+      ],
+      "links": [
+        {
+          "label": "Inbound webhooks",
+          "href": "/docs/guides/webhooks"
+        },
+        {
+          "label": "Remote access",
+          "href": "/docs/guides/remote-access"
+        }
+      ]
+    }
+  ]
+}

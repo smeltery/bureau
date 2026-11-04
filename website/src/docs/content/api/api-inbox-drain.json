@@ -1,0 +1,57 @@
+{
+  "path": "/docs/api/inbox/drain",
+  "title": "Drain the inbox",
+  "group": "API endpoints",
+  "description": "Returns HTTP 200 with inbox entries after the given sequence. Requires a personal API token. Supports Idempotency-Key.",
+  "sections": [
+    {
+      "id": "request",
+      "title": "POST /api/me/api-token-inbox/drain",
+      "paragraphs": [
+        "Every request requires Authorization: Bearer <token>."
+      ],
+      "code": "curl --fail-with-body -X POST \"$BUREAU_URL/api/me/api-token-inbox/drain\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"after\":0}'",
+      "language": "cURL"
+    },
+    {
+      "id": "response",
+      "title": "Behavior",
+      "paragraphs": [
+        "Returns HTTP 200 with inbox entries after the given sequence. Requires a personal API token. Supports Idempotency-Key."
+      ],
+      "links": [
+        {
+          "label": "Reading replies",
+          "href": "/docs/guides/reading-replies"
+        }
+      ]
+    },
+    {
+      "id": "fields",
+      "title": "Fields",
+      "paragraphs": [],
+      "table": [
+        [
+          "Field",
+          "Meaning"
+        ],
+        [
+          "entries",
+          "Messages after after, oldest first."
+        ],
+        [
+          "entries[].direction",
+          "from_agent for replies, to_agent for messages you sent."
+        ],
+        [
+          "latestSequence",
+          "Pass as after on the next drain."
+        ],
+        [
+          "previouslyDrainedAt",
+          "When this inbox was last drained, or null."
+        ]
+      ]
+    }
+  ]
+}

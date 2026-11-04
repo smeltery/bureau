@@ -1,0 +1,56 @@
+{
+  "path": "/docs/api/agents/send-message",
+  "title": "Send a message",
+  "group": "API endpoints",
+  "description": "Returns HTTP 200 with a messageId once the message is accepted, whether the agent is idle or busy. Busy agents queue it. 403 for agents outside your rooms, 404 for unknown agents, 409 if the agent is not accepting messages, 429 when its queue is full.",
+  "sections": [
+    {
+      "id": "request",
+      "title": "POST /api/agents/{id}/messages",
+      "paragraphs": [
+        "Every request requires Authorization: Bearer <token>."
+      ],
+      "code": "curl --fail-with-body -X POST \"$BUREAU_URL/api/agents/$AGENT_ID/messages\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"text\":\"Run the test suite and report failures\"}'",
+      "language": "cURL"
+    },
+    {
+      "id": "response",
+      "title": "Behavior",
+      "paragraphs": [
+        "Returns HTTP 200 with a messageId once the message is accepted, whether the agent is idle or busy. Busy agents queue it. 403 for agents outside your rooms, 404 for unknown agents, 409 if the agent is not accepting messages, 429 when its queue is full."
+      ],
+      "links": [
+        {
+          "label": "Messaging agents",
+          "href": "/docs/guides/messaging-agents"
+        },
+        {
+          "label": "Errors",
+          "href": "/docs/reference/errors"
+        }
+      ]
+    },
+    {
+      "id": "example",
+      "title": "Example response",
+      "paragraphs": [],
+      "code": "{ \"messageId\": \"...\" }",
+      "language": "Example response"
+    },
+    {
+      "id": "fields",
+      "title": "Fields",
+      "paragraphs": [],
+      "table": [
+        [
+          "Field",
+          "Meaning"
+        ],
+        [
+          "text",
+          "Required. The message. Tokens may not send other fields."
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "path": "/docs/examples",
+  "title": "Examples",
+  "group": "Examples",
+  "description": "Runnable starting points for scripting your office.",
+  "sections": [
+    {
+      "id": "choose",
+      "title": "Choose an example",
+      "paragraphs": [
+        "All examples expect BUREAU_URL and BUREAU_TOKEN in the environment."
+      ],
+      "links": [
+        {
+          "label": "Shell script",
+          "href": "/docs/examples/shell-script"
+        },
+        {
+          "label": "Node helper",
+          "href": "/docs/examples/node-script"
+        },
+        {
+          "label": "File a task from CI",
+          "href": "/docs/examples/ci-task"
+        },
+        {
+          "label": "Message from a cron job",
+          "href": "/docs/examples/cron-message"
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
+import { claudeBackend } from "../../backends/claude.ts";
+import { logMessage } from "../../../shared/i18n/log-message.ts";
 import { emitLoginInstructions } from "../session/diagnostics.ts";
 import { logCache, type ManagedAgent } from "../state.ts";
 
@@ -9,7 +11,14 @@ describe("emitLoginInstructions Connections notice", () => {
     const managed = {
       info: { id: agentId, agentType: "claude", userId: "user-1", cwd: process.cwd() },
     } as ManagedAgent;
-    await emitLoginInstructions(agentId, managed);
+    // The real probe asks the host's Claude CLI, which reports "signed in" on a
+    // logged-in Mac. Pin the signed-out answer an auth failure produces.
+    const signedOut = spyOn(claudeBackend, "getLoginInstructions").mockImplementation(async () => ({ text: "Claude needs sign-in.", message: logMessage("logs.login.claude") }));
+    try {
+      await emitLoginInstructions(agentId, managed);
+    } finally {
+      signedOut.mockRestore();
+    }
     const entries = logCache.get(agentId) ?? [];
     const system = entries.find((e) => e.kind === "system");
     expect(system).toBeTruthy();
