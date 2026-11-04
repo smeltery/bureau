@@ -44,4 +44,13 @@ export const tasks = {
   "tasks.deleted.more": "More",
   "tasks.deleted.failed": "Unable to read deleted tasks.",
   "tasks.deleted.restoreFailed": "Unable to restore this task.",
+  "tasks.github.title": "Import GitHub issues",
+  "tasks.github.repo": "GitHub repository",
+  "tasks.github.label": "Label",
+  "tasks.github.labelHint": "Label (optional)",
+  "tasks.github.import": "Import",
+  "tasks.github.importing": "Importing…",
+  "tasks.github.hint": "Public repositories only. New open issues become tasks on this board; running it again marks tasks done when their issue closes. Nothing is written to GitHub.",
+  "tasks.github.done": "{created} added, {closed} closed, {reopened} reopened.",
+  "tasks.github.failed": "Unable to import issues.",
 } as const;

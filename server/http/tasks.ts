@@ -21,6 +21,7 @@ import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { resolveCronRunBearer } from "../cronjobs/run-messaging.ts";
 import { broadcast, tasks } from "../ws/broadcast.ts";
+import { GithubImportError, importGithubIssues, parseGithubImport } from "../tasks/github-import.ts";
 
 const createTaskIdempotency = new Map<string, string>();
 
@@ -102,6 +103,8 @@ async function routeTasks(req: Request, url: URL, auth?: AuthResult): Promise<Re
     if (!canAccessTask(task, bearer, cronRun, auth, api)) return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
     return new Response(JSON.stringify(withVersion(task)), { headers: corsHeaders });
   }
+
+  if (req.method === "POST" && api && taskId === "import" && action === "github" && !parts[3]) return importGithubRoute(req, auth);
 
   if (req.method === "POST" && !taskId) {
     const idempotencyCacheKey = api ? taskCreateIdempotencyKey(req, bearer, cronRun, auth) : null;
@@ -241,4 +244,21 @@ async function routeTasks(req: Request, url: URL, auth?: AuthResult): Promise<Re
   }
 
   return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+}
+
+// POST /api/tasks/import/github: signed-in members only, into a room they can
+// see or the office-wide board.
+async function importGithubRoute(req: Request, auth?: AuthResult): Promise<Response> {
+  if (auth?.kind !== "ok") return Response.json({ error: "sign in to import issues" }, { status: 401, headers: corsHeaders });
+  const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body || typeof body !== "object") return Response.json({ error: "invalid JSON" }, { status: 400, headers: corsHeaders });
+  const roomId = typeof body.roomId === "string" && body.roomId ? body.roomId : undefined;
+  if (roomId && !canAccessRoom(roomId, null, null, auth)) return Response.json({ error: "not found" }, { status: 404, headers: corsHeaders });
+  try {
+    const result = await importGithubIssues({ ...parseGithubImport(body), roomId, actor: taskAttribution(null, null, auth)! });
+    return Response.json(result, { headers: corsHeaders });
+  } catch (error) {
+    if (error instanceof GithubImportError) return Response.json({ error: error.message }, { status: error.status, headers: corsHeaders });
+    throw error;
+  }
 }

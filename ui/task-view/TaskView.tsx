@@ -1,5 +1,6 @@
 import { useI18n } from "../i18n.tsx";
 import { DeletedTasks } from "./DeletedTasks.tsx";
+import { GithubImport } from "./GithubImport.tsx";
 import { TaskDetailPanel } from "./TaskDetailPanel.tsx";
 import { TaskViewHeader } from "./TaskViewHeader.tsx";
 import { TaskTable } from "./TaskTable.tsx";
@@ -79,6 +80,7 @@ export function TaskView({ username, onClose, onFocusAgent, openTaskId }: { user
       />
 
       <DeletedTasks />
+      <GithubImport roomId={roomScope === "all" ? allRoomsCreateRoomId : roomScope === "global" ? "" : roomScope} />
       {/* Body */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {/* Table area */}

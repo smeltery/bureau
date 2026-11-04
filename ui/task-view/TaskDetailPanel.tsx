@@ -215,6 +215,11 @@ export function TaskDetailPanel({
         onTitleChange={setTitle}
       />
 
+      {task?.github && (
+        <a href={task.github.url} target="_blank" rel="noopener noreferrer" style={{ padding: "0 20px", fontSize: 12, color: "var(--accent)" }}>
+          {task.github.repo}#{task.github.number}
+        </a>
+      )}
       {task && mode === "edit" && <TaskHistory key={task.id} taskId={task.id} revision={JSON.stringify(task)} />}
       <TaskDetailFooter
         confirmDelete={confirmDelete}

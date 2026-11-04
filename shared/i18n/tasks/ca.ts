@@ -44,4 +44,14 @@ export const tasks = {
   "tasks.deleted.more": "Més",
   "tasks.deleted.failed": "No s’han pogut llegir les tasques eliminades.",
   "tasks.deleted.restoreFailed": "No s’ha pogut restaurar aquesta tasca.",
+  "tasks.github.title": "Importa issues de GitHub",
+  "tasks.github.repo": "Repositori de GitHub",
+  "tasks.github.label": "Etiqueta",
+  "tasks.github.labelHint": "Etiqueta (opcional)",
+  "tasks.github.import": "Importa",
+  "tasks.github.importing": "S'està important…",
+  "tasks.github.hint":
+    "Només repositoris públics. Els issues oberts nous es converteixen en tasques d'aquest tauler; en repetir-ho, les tasques es marquen com a fetes quan el seu issue es tanca. No s'escriu res a GitHub.",
+  "tasks.github.done": "{created} afegides, {closed} tancades, {reopened} reobertes.",
+  "tasks.github.failed": "No s'han pogut importar els issues.",
 } as const;
