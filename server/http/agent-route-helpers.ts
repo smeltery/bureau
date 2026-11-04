@@ -3,6 +3,7 @@ import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { sendApiTokenMessage } from "../auth/api-tokens.ts";
+import { apiTokenViewer } from "../auth/api-token-rooms.ts";
 import { projectAgentsForCronRun, resolveCronRunBearer } from "../cronjobs/run-messaging.ts";
 import { buildAgentsManifest, buildKilledManifest } from "../persistence.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
@@ -37,7 +38,7 @@ export function sessionUser(auth: AuthResult | undefined): UserRecord | null {
 
 export function apiTokenUser(auth: AuthResult | undefined): UserRecord | null {
   if (auth?.kind !== "api") return null;
-  return getUserById(auth.token.userId);
+  return apiTokenViewer(auth.token);
 }
 
 export async function handleApiTokenMessage(auth: AuthResult, agentId: string, body: Record<string, unknown> | null, text: string, deliverAtRaw: unknown, req?: Request): Promise<Response | null> {

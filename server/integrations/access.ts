@@ -1,5 +1,6 @@
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { resolveApiToken } from "../auth/api-tokens.ts";
+import { apiTokenViewer } from "../auth/api-token-rooms.ts";
 import { readBearerToken } from "../agents/tokens.ts";
 import { privilegedAgentIdentity } from "../http/agent-route-helpers.ts";
 import { getUserById } from "../users.ts";
@@ -10,7 +11,7 @@ export function integrationActor(req: Request, auth: AuthResult) {
   if (bearer) {
     const token = auth.kind === "api" ? resolveApiToken(bearer) : null;
     const operator = token ? null : privilegedAgentIdentity(req);
-    const user = token ? getUserById(token.userId) : operator?.manager;
+    const user = token ? apiTokenViewer(token) : operator?.manager;
     return user ? { user, agent: !!operator, label: operator ? `agent:${operator.agentId}` : `member:${user.id} token:${token!.tokenId}` } : null;
   }
   const user = auth.kind === "ok" ? getUserById(auth.session.userId) : null;

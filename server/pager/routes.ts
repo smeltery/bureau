@@ -1,3 +1,4 @@
+import { apiTokenViewer } from "../auth/api-token-rooms.ts";
 /**
  * Pager HTTP surface.
  *
@@ -126,7 +127,8 @@ function sessionUserId(req: Request, auth: AuthResult | undefined): string | nul
 }
 
 function memberFor(req: Request, auth: AuthResult | undefined): UserRecord | null {
-  const userId = auth?.kind === "api" ? auth.token.userId : sessionUserId(req, auth);
+  if (auth?.kind === "api") return apiTokenViewer(auth.token);
+  const userId = sessionUserId(req, auth);
   return userId ? getUserById(userId) : null;
 }
 
