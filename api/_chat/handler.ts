@@ -4,8 +4,6 @@ import { SSE_HEADERS, createStreamResponse } from "./sse";
 import { SYSTEM_PROMPT } from "./system-prompt";
 import type { ChatMessage } from "./types";
 
-export const config = { runtime: "edge" };
-
 type AnthropicStreamEvent = {
   type?: string;
   delta?: { type?: string; text?: string };
