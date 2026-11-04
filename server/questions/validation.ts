@@ -8,14 +8,23 @@ export class QuestionError extends Error {
     super(message);
   }
 }
+
+// A lone option is a "do this, then tell me" step that the card sends on tap.
+export const QUESTION_OPTIONS_MIN = 1;
+export const QUESTION_OPTIONS_MAX = 10;
+
 export function questionContent(input: Record<string, unknown>, previous?: QuestionContent): QuestionContent {
   const prompt = input.prompt === undefined ? previous?.prompt : input.prompt;
   if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 4000) throw new QuestionError("prompt must contain 1–4000 characters");
   const raw = input.options === undefined ? previous?.options : input.options;
   let options: string[] | undefined;
   if (raw !== undefined) {
-    if (!Array.isArray(raw) || (raw.length !== 0 && (raw.length < 2 || raw.length > 4)) || raw.some((value) => typeof value !== "string" || !value.trim() || value.length > 80))
-      throw new QuestionError("options must contain 2–4 nonempty labels of at most 80 characters, or an empty list");
+    if (
+      !Array.isArray(raw) ||
+      (raw.length !== 0 && (raw.length < QUESTION_OPTIONS_MIN || raw.length > QUESTION_OPTIONS_MAX)) ||
+      raw.some((value) => typeof value !== "string" || !value.trim() || value.length > 80)
+    )
+      throw new QuestionError(`options must contain ${QUESTION_OPTIONS_MIN}–${QUESTION_OPTIONS_MAX} nonempty labels of at most 80 characters, or an empty list`);
     options = raw.length ? raw.map((value) => value.trim()) : undefined;
     if (options && new Set(options).size !== options.length) throw new QuestionError("options must be distinct");
   }
