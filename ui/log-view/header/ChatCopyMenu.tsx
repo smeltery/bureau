@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../../i18n.tsx";
 import { copyText } from "../../utils/clipboard.ts";
 import { getChatCopyFormat, setChatCopyFormat } from "../../device-settings.ts";
-import { CHAT_COPY_SCOPES, type ChatCopyFormat, type ChatCopyScope } from "../chat-copy.ts";
+import { CHAT_COPY_SCOPES, type ChatCopyFormat, type ChatCopyScope } from "./chat-copy.ts";
 
 const SCOPE_LABEL = {
   messages: "chat.copy.messages",

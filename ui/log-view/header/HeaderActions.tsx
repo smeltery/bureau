@@ -1,4 +1,4 @@
-import type { ChatCopyFormat, ChatCopyScope } from "../chat-copy.ts";
+import type { ChatCopyFormat, ChatCopyScope } from "./chat-copy.ts";
 import { ChatCopyMenu } from "./ChatCopyMenu.tsx";
 import { useI18n } from "../../i18n.tsx";
 import { useState } from "react";

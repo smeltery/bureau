@@ -1,4 +1,4 @@
-import type { ChatCopyFormat, ChatCopyScope } from "./chat-copy.ts";
+import type { ChatCopyFormat, ChatCopyScope } from "./header/chat-copy.ts";
 import { ChatCopyMenu } from "./header/ChatCopyMenu.tsx";
 import { ModelRecovery } from "./header/ModelRecovery.tsx";
 import { useI18n } from "../i18n.tsx";

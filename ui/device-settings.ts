@@ -1,5 +1,5 @@
 import { storageGetItem, storageReadObject, storageRemoveItem, storageSetItem } from "./browser-storage.ts";
-import type { ChatCopyFormat } from "./log-view/chat-copy.ts";
+import type { ChatCopyFormat } from "./log-view/header/chat-copy.ts";
 
 const KEY_DEVICE = "bureau-device";
 const KEY_APP_PREVIEWS = "bureau-app-previews";

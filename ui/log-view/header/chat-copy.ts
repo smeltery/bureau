@@ -1,7 +1,7 @@
 import { decodeHTMLStrict } from "entities";
 import { Lexer, type Token, type Tokens } from "marked";
-import { isApiTokenDevice } from "../../shared/identity.ts";
-import type { LogEntry } from "../../shared/types.ts";
+import { isApiTokenDevice } from "../../../shared/identity.ts";
+import type { LogEntry } from "../../../shared/types.ts";
 
 // What the chat header's Copy puts on the clipboard. "messages" leaves out
 // tool calls, "mine" keeps only the viewer's own messages, "lastExchange"

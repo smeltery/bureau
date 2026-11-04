@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { LogEntry } from "../../shared/types.ts";
+import type { LogEntry } from "../../../shared/types.ts";
 import { chatCopyEntries, chatCopyText, markdownToPlainText, type ChatCopyOptions } from "./chat-copy.ts";
 
 let seq = 0;

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import type { LogEntry } from "../../../shared/types.ts";
 import { useI18n } from "../../i18n.tsx";
 import { useAppState } from "../../store.tsx";
-import { chatCopyText, type ChatCopyFormat, type ChatCopyScope } from "../chat-copy.ts";
+import { chatCopyText, type ChatCopyFormat, type ChatCopyScope } from "../header/chat-copy.ts";
 import { describeUserMessageSender } from "../entries/UserMessage.tsx";
 
 // The text the chat header's Copy menu puts on the clipboard, with each
