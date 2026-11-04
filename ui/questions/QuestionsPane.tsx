@@ -1,12 +1,21 @@
 import { useI18n } from "../i18n.tsx";
 import { SecretRequestCard } from "../log-view/integrations/SecretRequestCard.tsx";
-import { useState } from "react";
+import { useState, type RefObject } from "react";
 import { useAppState } from "../store.tsx";
 import { QuestionCard } from "./QuestionCard.tsx";
 import { useQuestions } from "./useQuestions.ts";
 import { orderQuestions, QUESTION_PRIORITY_FILTERS, readQuestionOrder, saveQuestionOrder, type QuestionPriorityFilter, type QuestionSort } from "./inbox-order.ts";
 
-export function QuestionsPane({ agentId, onOpenAgent }: { agentId?: string; onOpenAgent?: (id: string) => void }) {
+export function QuestionsPane({ agentId, onOpenAgent, composerRef }: { agentId?: string; onOpenAgent?: (id: string) => void; composerRef?: RefObject<HTMLTextAreaElement | null> }) {
+  // Inside a chat, Discuss focuses its composer with the caret after the prefix.
+  const focusComposer = composerRef
+    ? (prefix: string) =>
+        // After the click's render, which puts the new draft in the field.
+        setTimeout(() => {
+          composerRef.current?.focus();
+          composerRef.current?.setSelectionRange(prefix.length, prefix.length);
+        })
+    : undefined;
   const { t } = useI18n();
   const { sessionContext, agents } = useAppState();
   const { questions, credentials, error } = useQuestions(sessionContext?.userId, agentId);
@@ -56,7 +65,14 @@ export function QuestionsPane({ agentId, onOpenAgent }: { agentId?: string; onOp
         <SecretRequestCard key={card.id} card={card} />
       ))}
       {visible.map((question) => (
-        <QuestionCard key={`${question.id}:${question.status}`} question={question} onOpenAgent={onOpenAgent ? () => onOpenAgent(question.agentId) : undefined} agentName={nameOf(question.agentId)} />
+        <QuestionCard
+          key={`${question.id}:${question.status}`}
+          question={question}
+          onOpenAgent={onOpenAgent ? () => onOpenAgent(question.agentId) : undefined}
+          // In the Inbox, Discuss opens the agent's chat with the draft ready.
+          onDiscuss={focusComposer ?? (onOpenAgent ? () => onOpenAgent(question.agentId) : undefined)}
+          agentName={nameOf(question.agentId)}
+        />
       ))}
       {!agentId && !error && visible.length === 0 && credentials.length === 0 && <p style={{ margin: 0, fontSize: 12 }}>{t("questions.empty")}</p>}
     </section>

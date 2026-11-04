@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { MemberQuestion } from "../../shared/questions/types.ts";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "../components/modals/dialog-styles.ts";
 import { questionsChanged } from "./useQuestions.ts";
+import { questionExcerpt, withDiscussPrefix } from "./discuss.ts";
+import { useAppState, useDispatch } from "../store.tsx";
 
 // A single option is a "do this, then tell me" step: a tap sends it, with any
 // typed note after it.
@@ -12,8 +14,26 @@ export function singleChoiceAnswer(option: string, typed: string) {
   return note && note !== option ? `${option}\n\n${note}` : option;
 }
 
-export function QuestionCard({ question, agentName, onOpenAgent }: { question: MemberQuestion; agentName: string; onOpenAgent?: () => void }) {
+export function QuestionCard({
+  question,
+  agentName,
+  onOpenAgent,
+  onDiscuss,
+}: {
+  question: MemberQuestion;
+  agentName: string;
+  onOpenAgent?: () => void;
+  // Runs after the draft gains the prefix: focuses the composer or opens the chat.
+  onDiscuss?: (prefix: string) => void;
+}) {
   const { t } = useI18n();
+  const { drafts } = useAppState();
+  const dispatch = useDispatch();
+  function discuss() {
+    const prefix = t("questions.discussPrefix", { excerpt: questionExcerpt(question.prompt) });
+    dispatch({ type: "set_draft", agentId: question.agentId, text: withDiscussPrefix(drafts.get(question.agentId) ?? "", prefix) });
+    onDiscuss?.(prefix);
+  }
   const [reviewedRevision, setReviewedRevision] = useState(question.revision);
   const changed = reviewedRevision !== question.revision;
   const [text, setText] = useState("");
@@ -107,6 +127,9 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
             </button>
             <button type="button" disabled={busy || changed} style={dialogCancelBtn} onClick={() => void act("dismiss")}>
               {t(text.trim() ? "questions.dismissReason" : "questions.dismiss")}
+            </button>
+            <button type="button" disabled={busy} style={dialogCancelBtn} onClick={discuss}>
+              {t("questions.discuss")}
             </button>
             <button type="button" disabled={busy || changed} style={dialogCancelBtn} onClick={() => void act("file-task")}>
               {t("questions.fileAsTask")}

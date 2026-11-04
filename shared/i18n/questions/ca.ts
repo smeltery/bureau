@@ -16,6 +16,8 @@ export const questions = {
   "questions.dismiss": "Descarta",
   "questions.dismissReason": "Descarta amb aquest motiu",
   "questions.dismissed": "Descartada",
+  "questions.discuss": "Comenta-ho al xat",
+  "questions.discussPrefix": 'Sobre la teva pregunta "{excerpt}": ',
   "questions.priorityLabel": "Prioritat",
   "questions.sortLabel": "Ordena",
   "questions.sortAge": "Més temps esperant",
