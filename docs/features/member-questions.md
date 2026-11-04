@@ -21,8 +21,11 @@ is checked again on every request and immediately before reply delivery.
 }
 ```
 
-Prompts allow 1–4000 characters. Optional choices have 2–4 distinct labels of
-at most 80 characters; a recommendation must match a label. Members can always
+Prompts allow 1–4000 characters. Optional choices have 1–10 distinct labels of
+at most 80 characters; a recommendation must match a label. With several
+choices, a tap fills the answer field for review. A single choice is a
+"do this, then tell me" step: tapping it sends the label at once, followed by
+any note the member typed. Members can always
 type their own answer. `link` accepts the office Tasks, Apps, Schedules,
 Settings, Inbox or Pager page, with a simple query string. File previews,
 editor links and copy-to-terminal cards use the existing conversation

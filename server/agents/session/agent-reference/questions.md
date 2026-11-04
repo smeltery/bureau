@@ -14,9 +14,11 @@ With your own agent bearer, call `POST /api/agents/<your-id>/questions` with JSO
 
 The default recipient is your manager. Set `member` to another existing member's
 username only when that member can access your room. A prompt is required
-(1–4000 characters). Options are optional: 2–4 distinct labels, each at most
-80 characters. A recommendation must match one label. Members can always type a
-free-text answer. An optional `link` can open `/tasks`, `/apps`, `/schedules`,
+(1–4000 characters). Options are optional: 1–10 distinct labels, each at most
+80 characters. A recommendation must match one label. With several options, a
+tap fills the answer field for the member to review. For a step the member must
+do and then report, give one option such as `Done`: tapping it sends the reply
+at once. Members can always type a free-text answer. An optional `link` can open `/tasks`, `/apps`, `/schedules`,
 `/settings`, `/inbox` or `/pager` with a simple query string.
 
 Use the existing `affordances` APIs to put file previews, editor links and

@@ -105,9 +105,24 @@ test("refused delivery keeps the saved answer for retry", () => {
   expect(f.store.retry(f.question.id, 1, false, () => ({ ok: true })).status).toBe("delivered");
 });
 
+test("a question offers between one and ten choices", () => {
+  const f = fixture();
+  const single = f.store.edit(f.question.id, 1, { options: ["Done"], recommended: "Done" });
+  expect(single.options).toEqual(["Done"]);
+  const ten = Array.from({ length: 10 }, (_, index) => `Option ${index}`);
+  expect(f.store.edit(f.question.id, single.revision, { options: ten }).options).toEqual(ten);
+});
+
 test("invalid prompts, choices, links, recipients and corrupt storage are refused", () => {
   const f = fixture();
-  for (const input of [{ prompt: "" }, { options: ["A"] }, { options: ["A", "A"] }, { recommended: "unknown" }, { link: "https://example.com" }, { link: "//example.com" }])
+  for (const input of [
+    { prompt: "" },
+    { options: Array.from({ length: 11 }, (_, index) => `Option ${index}`) },
+    { options: ["A", "A"] },
+    { recommended: "unknown" },
+    { link: "https://example.com" },
+    { link: "//example.com" },
+  ])
     expect(() => f.store.edit(f.question.id, 1, input)).toThrow();
   expect(() => f.store.answer(f.question.id, 1, { ...f.answer, userId: "someone-else" }, () => ({ ok: true }))).toThrow("addressed");
   let writes = 0;

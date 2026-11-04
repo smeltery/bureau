@@ -5,6 +5,13 @@ import type { MemberQuestion } from "../../shared/questions/types.ts";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "../components/modals/dialog-styles.ts";
 import { questionsChanged } from "./useQuestions.ts";
 
+// A single option is a "do this, then tell me" step: a tap sends it, with any
+// typed note after it.
+export function singleChoiceAnswer(option: string, typed: string) {
+  const note = typed.trim();
+  return note && note !== option ? `${option}\n\n${note}` : option;
+}
+
 export function QuestionCard({ question, agentName, onOpenAgent }: { question: MemberQuestion; agentName: string; onOpenAgent?: () => void }) {
   const { t } = useI18n();
   const [reviewedRevision, setReviewedRevision] = useState(question.revision);
@@ -13,7 +20,8 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<QuestionFailure | null>(null);
   const [confirmRetry, setConfirmRetry] = useState(false);
-  async function act(action: "answer" | "dismiss" | "retry" | "remove") {
+  // `answerText` overrides the field, as when a lone option is tapped.
+  async function act(action: "answer" | "dismiss" | "retry" | "remove", answerText = text) {
     if (busy || changed) return;
     setBusy(true);
     setError(null);
@@ -21,7 +29,11 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
       await questionRequest(`/api/questions/${question.id}${action === "remove" ? "" : `/${action}`}`, {
         method: action === "remove" ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ revision: question.revision, ...(action === "answer" || action === "dismiss" ? { text } : {}), ...(action === "retry" ? { confirmedUncertain: confirmRetry } : {}) }),
+        body: JSON.stringify({
+          revision: question.revision,
+          ...(action === "answer" || action === "dismiss" ? { text: answerText } : {}),
+          ...(action === "retry" ? { confirmedUncertain: confirmRetry } : {}),
+        }),
       });
       questionsChanged();
     } catch (error) {
@@ -30,6 +42,10 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
     } finally {
       setBusy(false);
     }
+  }
+  function chooseOption(option: string) {
+    if (question.options?.length === 1) void act("answer", singleChoiceAnswer(option, text));
+    else setText(option);
   }
   return (
     <article style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, display: "grid", gap: 8, fontSize: 12 }}>
@@ -58,7 +74,7 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
           {question.options && (
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {question.options.map((option) => (
-                <button key={option} type="button" disabled={busy} style={dialogCancelBtn} onClick={() => setText(option)}>
+                <button key={option} type="button" disabled={busy || (changed && question.options!.length === 1)} style={dialogCancelBtn} onClick={() => chooseOption(option)}>
                   {option === question.recommended ? t("questions.recommended", { option }) : option}
                 </button>
               ))}
