@@ -1,5 +1,9 @@
+import type { TaskPriority } from "../tasks.ts";
+
 export interface QuestionContent {
   prompt: string;
+  // How urgent the decision is, on the task board's scale (P0 most urgent).
+  priority?: TaskPriority;
   options?: string[];
   recommended?: string;
   link?: string;

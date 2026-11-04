@@ -26,7 +26,10 @@ at most 80 characters; a recommendation must match a label. With several
 choices, a tap fills the answer field for review. A single choice is a
 "do this, then tell me" step: tapping it sends the label at once, followed by
 any note the member typed. Members can always
-type their own answer. `link` accepts the office Tasks, Apps, Schedules,
+type their own answer. An optional `priority` (`P0` most urgent to `P3`, the
+task board's scale) shows on the card; `priority: null` clears it. The Inbox
+sorts questions by longest waiting, most urgent or agent, and filters by
+priority; both choices are remembered per browser. `link` accepts the office Tasks, Apps, Schedules,
 Settings, Inbox or Pager page, with a simple query string. File previews,
 editor links and copy-to-terminal cards use the existing conversation
 features; Open conversation takes the member to that context.
