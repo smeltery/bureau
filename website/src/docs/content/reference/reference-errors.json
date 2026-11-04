@@ -1,0 +1,69 @@
+{
+  "path": "/docs/reference/errors",
+  "title": "Errors",
+  "group": "Reference",
+  "description": "Status codes the API returns and what to do about them.",
+  "sections": [
+    {
+      "id": "format",
+      "title": "Error format",
+      "paragraphs": [
+        "Errors are JSON objects with a single error string."
+      ],
+      "code": "{ \"error\": \"queue full (limit 50)\" }",
+      "language": "JSON"
+    },
+    {
+      "id": "codes",
+      "title": "Status codes",
+      "paragraphs": [],
+      "table": [
+        [
+          "Status",
+          "Meaning",
+          "What to do"
+        ],
+        [
+          "400",
+          "Malformed JSON or a field tokens may not send.",
+          "Fix the request; do not retry as-is."
+        ],
+        [
+          "401",
+          "Missing, invalid, revoked, or expired token.",
+          "Check the token; mint a new one if it expired."
+        ],
+        [
+          "403",
+          "Resource outside your rooms, or a mismatched Origin header.",
+          "Check access, or drop the Origin header."
+        ],
+        [
+          "404",
+          "Unknown agent, task, or route.",
+          "Stop retrying; re-list to find the id."
+        ],
+        [
+          "409",
+          "Conflict: stale task version, task claimed, agent not accepting messages, or idempotency key reused.",
+          "Re-read the resource and decide again."
+        ],
+        [
+          "413",
+          "Request body too large.",
+          "Send less."
+        ],
+        [
+          "422",
+          "Validation failed.",
+          "Fix the field named in the error."
+        ],
+        [
+          "429",
+          "Queue full or rate limited.",
+          "Back off and retry later."
+        ]
+      ]
+    }
+  ]
+}

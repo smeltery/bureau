@@ -21,6 +21,7 @@ export function Header() {
         <a href="#workspace">Workspace</a>
         <a href="#hosting">Hosting</a>
         <a href="#faq">FAQ</a>
+        <a href={SITE.apiDocs}>Docs</a>
         <a className="nav-github" href={SITE.github} target="_blank" rel="noreferrer">
           <Logo icon={github} />
           GitHub

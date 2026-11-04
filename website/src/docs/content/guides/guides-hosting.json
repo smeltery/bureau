@@ -1,0 +1,71 @@
+{
+  "path": "/docs/guides/hosting",
+  "title": "Hosting",
+  "group": "Guides",
+  "description": "Run Bureau as a service on your own machine, a VPS, or a hosting provider.",
+  "sections": [
+    {
+      "id": "options",
+      "title": "Where to run it",
+      "paragraphs": [
+        "Bureau is one Bun process with its state on disk, so it runs anywhere that keeps a disk between restarts."
+      ],
+      "table": [
+        [
+          "Option",
+          "Good for"
+        ],
+        [
+          "Local machine",
+          "Trying Bureau, or a personal office on your workstation."
+        ],
+        [
+          "Private Tailscale",
+          "Reaching your office from your own devices."
+        ],
+        [
+          "Tailscale Funnel",
+          "A public URL without managing DNS or TLS."
+        ],
+        [
+          "Own domain with Caddy",
+          "Automatic TLS and app subdomains on your domain."
+        ],
+        [
+          "VPS",
+          "An always-on server you control."
+        ],
+        [
+          "Render Blueprint",
+          "A managed host with a persistent disk."
+        ],
+        [
+          "Kubernetes",
+          "An existing cluster; run exactly one replica."
+        ]
+      ]
+    },
+    {
+      "id": "systemd",
+      "title": "Run it as a service",
+      "paragraphs": [
+        "On Linux, install the example user service and point WorkingDirectory at your checkout. It rebuilds the UI, starts the server, and restarts it on failure. Enable lingering so the office keeps running after you log out."
+      ],
+      "code": "mkdir -p ~/.config/systemd/user\ncp docs/contributing/bureau.service.example ~/.config/systemd/user/bureau.service\n$EDITOR ~/.config/systemd/user/bureau.service   # set WorkingDirectory\nsystemctl --user enable --now bureau\nloginctl enable-linger \"$USER\"",
+      "language": "Shell"
+    },
+    {
+      "id": "state",
+      "title": "State and backups",
+      "paragraphs": [
+        "All state lives in ~/.bureau, or BUREAU_HOME if set. Bureau writes a daily backup to ~/bureau-backups and keeps the last seven. Restarting the server interrupts every running agent turn; agents resume their last conversation on startup."
+      ],
+      "links": [
+        {
+          "label": "Remote access",
+          "href": "/docs/guides/remote-access"
+        }
+      ]
+    }
+  ]
+}

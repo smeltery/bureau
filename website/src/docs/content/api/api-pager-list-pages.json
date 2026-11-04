@@ -1,0 +1,24 @@
+{
+  "path": "/docs/api/pager/list-pages",
+  "title": "List pages",
+  "group": "API endpoints",
+  "description": "Returns HTTP 200 with {pages, nextCursor}. Filter with roomId and includeResolved; limit is 1 to 100 (default 50). Acknowledge with POST /api/pager/{id}/ack and resolve with POST /api/pager/{id}/resolve.",
+  "sections": [
+    {
+      "id": "request",
+      "title": "GET /api/pager",
+      "paragraphs": [
+        "Every request requires Authorization: Bearer <token>."
+      ],
+      "code": "curl --fail-with-body \"$BUREAU_URL/api/pager?limit=20\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\"",
+      "language": "cURL"
+    },
+    {
+      "id": "response",
+      "title": "Behavior",
+      "paragraphs": [
+        "Returns HTTP 200 with {pages, nextCursor}. Filter with roomId and includeResolved; limit is 1 to 100 (default 50). Acknowledge with POST /api/pager/{id}/ack and resolve with POST /api/pager/{id}/resolve."
+      ]
+    }
+  ]
+}

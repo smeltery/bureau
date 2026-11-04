@@ -63,6 +63,7 @@ your **Pager** history. Manage agent prompts in the [Skills library](docs/featur
 |                                                                                       |                                                     |
 | ------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | [**Design & Architecture**](articles/punching-in-building-an-office-for-ai-agents.md) | Deep dive: how Bureau works under the hood          |
+| [**API docs**](https://bureau.smeltery.io/docs/api/)                                  | Script your office: tokens, messages, tasks, hooks  |
 | [**Documentation**](docs/README.md)                                                   | Navigate all design docs, investigations, and plans |
 | [**CLAUDE.md**](CLAUDE.md)                                                            | Developer & agent guide to the codebase             |
 

@@ -1,0 +1,30 @@
+{
+  "path": "/docs/api/tasks/list-tasks",
+  "title": "List tasks",
+  "group": "API endpoints",
+  "description": "Returns HTTP 200 with tasks. By default only open and in_progress tasks; pass status=all for everything. Filter with status, assignee, title, and roomId.",
+  "sections": [
+    {
+      "id": "request",
+      "title": "GET /api/tasks",
+      "paragraphs": [
+        "Every request requires Authorization: Bearer <token>."
+      ],
+      "code": "curl --fail-with-body \"$BUREAU_URL/api/tasks?status=all\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\"",
+      "language": "cURL"
+    },
+    {
+      "id": "response",
+      "title": "Behavior",
+      "paragraphs": [
+        "Returns HTTP 200 with tasks. By default only open and in_progress tasks; pass status=all for everything. Filter with status, assignee, title, and roomId."
+      ],
+      "links": [
+        {
+          "label": "Task board",
+          "href": "/docs/guides/tasks"
+        }
+      ]
+    }
+  ]
+}

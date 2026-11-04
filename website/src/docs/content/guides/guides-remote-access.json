@@ -1,0 +1,41 @@
+{
+  "path": "/docs/guides/remote-access",
+  "title": "Remote access",
+  "group": "Guides",
+  "description": "Reach your office from a laptop, phone, or CI runner.",
+  "sections": [
+    {
+      "id": "local",
+      "title": "Local by default",
+      "paragraphs": [
+        "A new office listens on 127.0.0.1:4000 and is only reachable from the server machine. Change the port with --port or the PORT environment variable."
+      ]
+    },
+    {
+      "id": "tailscale",
+      "title": "Tailscale",
+      "paragraphs": [
+        "The simplest remote setup is Tailscale. tailscale serve keeps the office private to your tailnet; tailscale funnel makes it public, which inbound webhooks need. Then enter the https://…ts.net address as the public URL in User Settings → Access and restart Bureau."
+      ],
+      "code": "tailscale serve --bg http://localhost:4000    # private to your tailnet\ntailscale funnel --bg http://localhost:4000   # public",
+      "language": "Shell"
+    },
+    {
+      "id": "proxy",
+      "title": "Your own domain",
+      "paragraphs": [
+        "Behind Caddy or another reverse proxy, set the public URL to your domain and set BUREAU_TRUSTED_PROXY to same-host or load-balancer so rate limits see real client addresses. Requests that arrive through a proxy always count as off the server machine, even when the proxy runs locally."
+      ],
+      "links": [
+        {
+          "label": "Hosting options",
+          "href": "/docs/guides/hosting"
+        },
+        {
+          "label": "Base URL",
+          "href": "/docs/reference/base-url"
+        }
+      ]
+    }
+  ]
+}

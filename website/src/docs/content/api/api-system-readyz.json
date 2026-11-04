@@ -1,0 +1,24 @@
+{
+  "path": "/docs/api/system/readyz",
+  "title": "Readiness",
+  "group": "API endpoints",
+  "description": "Returns HTTP 200 with {\"ok\":true} when the server is up. No token needed. Off-box callers are limited to 30 requests per minute per address.",
+  "sections": [
+    {
+      "id": "request",
+      "title": "GET /readyz",
+      "paragraphs": [
+        "No authentication required."
+      ],
+      "code": "curl --fail-with-body \"$BUREAU_URL/readyz\"",
+      "language": "cURL"
+    },
+    {
+      "id": "response",
+      "title": "Behavior",
+      "paragraphs": [
+        "Returns HTTP 200 with {\"ok\":true} when the server is up. No token needed. Off-box callers are limited to 30 requests per minute per address."
+      ]
+    }
+  ]
+}

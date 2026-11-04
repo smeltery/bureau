@@ -1,0 +1,59 @@
+{
+  "path": "/docs/reference/limits",
+  "title": "Limits",
+  "group": "Reference",
+  "description": "Built-in limits on queues, webhooks, pages, and requests.",
+  "sections": [
+    {
+      "id": "limits",
+      "title": "Limits",
+      "paragraphs": [],
+      "table": [
+        [
+          "Limit",
+          "Value"
+        ],
+        [
+          "Desks per room",
+          "8"
+        ],
+        [
+          "Queued messages per agent",
+          "50"
+        ],
+        [
+          "Idempotency-Key retention",
+          "5 minutes"
+        ],
+        [
+          "Webhook body",
+          "256 KiB"
+        ],
+        [
+          "Webhook deliveries",
+          "120 per minute per webhook"
+        ],
+        [
+          "Webhooks per office",
+          "1,000"
+        ],
+        [
+          "New pages",
+          "20 per hour per source"
+        ],
+        [
+          "GET /readyz from off-box",
+          "30 per minute per address"
+        ],
+        [
+          "API token name",
+          "64 characters"
+        ],
+        [
+          "Request body (server-wide)",
+          "512 MB"
+        ]
+      ]
+    }
+  ]
+}

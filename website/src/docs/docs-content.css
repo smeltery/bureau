@@ -1,0 +1,136 @@
+.docs-main .docs-flow {
+  margin-top: 20px;
+  font-size: 13px;
+}
+.docs-flow a {
+  color: #456336;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.docs-code {
+  margin: 24px 0;
+  border: 1px solid #dbe1d2;
+  border-radius: 12px;
+  background: #fcfdf8;
+  overflow: hidden;
+}
+.docs-code-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e3e8dc;
+  padding: 12px 16px;
+  font:
+    11px ui-monospace,
+    monospace;
+  color: #7b8570;
+}
+.docs-code button {
+  border: 1px solid #dbe1d2;
+  background: #f0f4e9;
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: 10px;
+  color: #57674b;
+}
+.docs-code pre {
+  margin: 0;
+  padding: 18px 0;
+  overflow: auto;
+  font:
+    12px / 1.9 ui-monospace,
+    monospace;
+  color: #456336;
+}
+.code-line {
+  display: block;
+  padding-right: 20px;
+}
+.code-number {
+  display: inline-block;
+  width: 38px;
+  padding-right: 14px;
+  text-align: right;
+  color: #a1ac96;
+  user-select: none;
+}
+.endpoint-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.method {
+  font:
+    9px ui-monospace,
+    monospace;
+  border-radius: 4px;
+  padding: 4px 6px;
+  background: #e5eddd;
+  color: #52743d;
+}
+.method-post {
+  background: #e1eaf0;
+  color: #4a7287;
+}
+.method-patch {
+  background: #efe9d6;
+  color: #85703a;
+}
+.method-delete {
+  background: #f1e5dc;
+  color: #996a49;
+}
+.endpoint-path {
+  display: block;
+  font-size: 13px;
+  margin: 18px 0;
+  color: #738269;
+  overflow-wrap: anywhere;
+}
+.docs-table {
+  overflow: auto;
+  margin-top: 24px;
+}
+.docs-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+.docs-table th,
+.docs-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 12px;
+}
+.docs-toc {
+  padding: 50px 24px 32px 8px;
+  position: sticky;
+  top: 76px;
+  height: fit-content;
+  display: grid;
+  gap: 17px;
+  font-size: 11px;
+  color: #7d8773;
+}
+.docs-toc p {
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.docs-page a:hover {
+  color: #3d602c;
+}
+.docs-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-between;
+  padding: 0 0 36px;
+  font-size: 12px;
+  color: #748269;
+}
+
+@media (max-width: 1100px) {
+  .docs-toc {
+    display: none;
+  }
+}

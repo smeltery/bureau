@@ -19,7 +19,8 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
   {
     title: 'Resources',
     links: [
-      ['Documentation', SITE.docs],
+      ['API docs', SITE.apiDocs],
+      ['Design docs', SITE.docs],
       ['How it’s built', SITE.article],
       ['Hosting options', SITE.hosting],
       ['Access & invites', SITE.access],

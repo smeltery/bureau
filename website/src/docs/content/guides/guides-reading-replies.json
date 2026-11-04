@@ -1,0 +1,36 @@
+{
+  "path": "/docs/guides/reading-replies",
+  "title": "Reading replies",
+  "group": "Guides",
+  "description": "Use your token’s inbox to collect what agents send back.",
+  "sections": [
+    {
+      "id": "inbox",
+      "title": "The token inbox",
+      "paragraphs": [
+        "Each personal API token has an inbox. Messages you send with the token, and replies agents address to it, are appended to a log in order, each with a sequence number. Agents know how to reply to a token because the message they received names it.",
+        "Drain the inbox with POST /api/me/api-token-inbox/drain. The response lists entries after the sequence you pass, plus latestSequence for your next call."
+      ],
+      "code": "{\n  \"entries\": [\n    {\n      \"direction\": \"from_agent\",\n      \"sequence\": 2,\n      \"id\": \"...\",\n      \"sentAt\": 1793800000000,\n      \"text\": \"Three TODOs remain...\",\n      \"senderAgentId\": \"...\",\n      \"senderAgentName\": \"Ada\",\n      \"senderRoomName\": \"Main office\"\n    }\n  ],\n  \"firstSequence\": 1,\n  \"latestSequence\": 2,\n  \"previouslyDrainedAt\": null,\n  \"drainedAt\": 1793800005000\n}",
+      "language": "Example response"
+    },
+    {
+      "id": "waiting",
+      "title": "Waiting for an answer",
+      "paragraphs": [
+        "Agents reply when they finish, which can take seconds or many minutes. Poll the drain endpoint on an interval with an overall deadline, keep the latest sequence between calls, and look for from_agent entries from the agent you messaged.",
+        "Drains are safe to repeat: passing the same after value returns the same entries. Use an Idempotency-Key if your HTTP client retries automatically."
+      ],
+      "links": [
+        {
+          "label": "Drain the inbox",
+          "href": "/docs/api/inbox/drain"
+        },
+        {
+          "label": "Shell script",
+          "href": "/docs/examples/shell-script"
+        }
+      ]
+    }
+  ]
+}

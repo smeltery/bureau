@@ -1,0 +1,70 @@
+{
+  "path": "/docs/guides/webhooks",
+  "title": "Inbound webhooks",
+  "group": "Guides",
+  "description": "Route signed GitHub events to an agent or a schedule.",
+  "sections": [
+    {
+      "id": "overview",
+      "title": "How webhooks work",
+      "paragraphs": [
+        "An inbound webhook turns a GitHub event into work. You choose which events and actions to accept and which payload fields to pass on, and whether they go to an agent or start a schedule. Create webhooks in the office settings; Bureau shows the delivery URL and the signing secret."
+      ],
+      "diagram": "webhook"
+    },
+    {
+      "id": "delivery",
+      "title": "Delivery URL and signature",
+      "paragraphs": [
+        "Deliveries go to POST /hooks/github/{id} on the office’s public URL. Each request must carry X-Hub-Signature-256 with the HMAC-SHA256 of the raw body using the webhook secret, plus X-GitHub-Delivery and X-GitHub-Event. GitHub sends all three when you paste the URL and secret into a repository webhook."
+      ],
+      "table": [
+        [
+          "Status",
+          "Meaning"
+        ],
+        [
+          "202",
+          "Accepted; the event was routed."
+        ],
+        [
+          "200",
+          "Duplicate delivery or an event this webhook ignores."
+        ],
+        [
+          "401",
+          "Missing or wrong signature."
+        ],
+        [
+          "404",
+          "Unknown or disabled webhook."
+        ],
+        [
+          "413",
+          "Body larger than 256 KiB."
+        ],
+        [
+          "429",
+          "More than 120 deliveries per minute for this webhook."
+        ]
+      ]
+    },
+    {
+      "id": "reachability",
+      "title": "Making the office reachable",
+      "paragraphs": [
+        "GitHub must reach the delivery URL, so the office needs a public URL such as Tailscale Funnel or your own domain. While external access is off, deliveries from outside the server machine are refused."
+      ],
+      "links": [
+        {
+          "label": "Remote access",
+          "href": "/docs/guides/remote-access"
+        },
+        {
+          "label": "Limits",
+          "href": "/docs/reference/limits"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "path": "/docs/guides/office-mcp",
+  "title": "Office MCP",
+  "group": "Guides",
+  "description": "Connect an MCP client to your office agents with a personal API token.",
+  "sections": [
+    {
+      "id": "endpoint",
+      "title": "The MCP endpoint",
+      "paragraphs": [
+        "Bureau exposes an MCP server at POST /mcp. Point any MCP client that supports HTTP transport and bearer authentication at it, using a personal API token. Other token types are refused with 401."
+      ],
+      "code": "{\n  \"mcpServers\": {\n    \"bureau\": {\n      \"type\": \"http\",\n      \"url\": \"https://office.example.ts.net/mcp\",\n      \"headers\": { \"Authorization\": \"Bearer bureau_pat_...\" }\n    }\n  }\n}",
+      "language": "JSON"
+    },
+    {
+      "id": "tools",
+      "title": "Tools",
+      "paragraphs": [
+        "The tools mirror the HTTP API and respect the same room access as the token’s owner."
+      ],
+      "table": [
+        [
+          "Tool",
+          "Purpose"
+        ],
+        [
+          "list_agents",
+          "List agents you can see."
+        ],
+        [
+          "read_conversation",
+          "Read an agent’s conversation."
+        ],
+        [
+          "send_message",
+          "Send a message to an agent."
+        ],
+        [
+          "read_replies",
+          "Read replies sent to your token."
+        ]
+      ]
+    }
+  ]
+}

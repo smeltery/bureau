@@ -1,0 +1,4 @@
+The GitHub SVG icon is from Simple Icons (CC0-1.0): https://github.com/simple-icons/simple-icons
+Brand names and marks belong to their respective owners. Their use identifies supported tools and does not imply endorsement.
+
+Chat-provider identification marks (ChatGPT, Claude, v0, T3 Chat, Scira, Cursor) are carried over from the smeltery/convrt documentation site. These marks remain the property of their respective owners.

@@ -1,0 +1,24 @@
+{
+  "path": "/docs/examples/shell-script",
+  "title": "Shell script",
+  "group": "Examples",
+  "description": "Ask an agent a question from Bash with curl and jq.",
+  "sections": [
+    {
+      "id": "script",
+      "title": "Save as ask.sh",
+      "paragraphs": [
+        "Requires curl with --fail-with-body and jq. The script records the inbox position first, sends the prompt, then polls every five seconds for a reply from that agent for up to ten minutes."
+      ],
+      "code": "#!/usr/bin/env bash\n# ask.sh AGENT_ID \"prompt\" — send a message and print the agent's reply.\nset -euo pipefail\n: \"${BUREAU_URL:?Set BUREAU_URL}\"\n: \"${BUREAU_TOKEN:?Set BUREAU_TOKEN}\"\nagent=${1:?Agent id}\nprompt=${2:?Prompt}\napi() { curl --silent --show-error --fail-with-body --max-time 30 \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\" -H \"Content-Type: application/json\" \"$@\"; }\n\n# Start after everything already in the inbox.\nafter=$(api -X POST \"$BUREAU_URL/api/me/api-token-inbox/drain\" -d '{\"after\":0}' | jq '.latestSequence')\napi -X POST \"$BUREAU_URL/api/agents/$agent/messages\" \\\n  -d \"$(jq -n --arg text \"$prompt\" '{text: $text}')\" >/dev/null\n\nfor ((attempt = 0; attempt < 120; attempt++)); do\n  inbox=$(api -X POST \"$BUREAU_URL/api/me/api-token-inbox/drain\" -d \"{\\\"after\\\":$after}\")\n  reply=$(jq -r --arg agent \"$agent\" '.entries[]\n    | select(.direction == \"from_agent\" and .senderAgentId == $agent) | .text' <<<\"$inbox\")\n  if [[ -n \"$reply\" ]]; then printf '%s\\n' \"$reply\"; exit 0; fi\n  after=$(jq '.latestSequence' <<<\"$inbox\")\n  sleep 5\ndone\necho \"No reply after 10 minutes\" >&2\nexit 1",
+      "language": "Shell"
+    },
+    {
+      "id": "run",
+      "title": "Run it",
+      "paragraphs": [],
+      "code": "chmod +x ask.sh\n./ask.sh \"$AGENT_ID\" \"What changed on main today?\"",
+      "language": "Shell"
+    }
+  ]
+}

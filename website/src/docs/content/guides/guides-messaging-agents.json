@@ -1,0 +1,52 @@
+{
+  "path": "/docs/guides/messaging-agents",
+  "title": "Messaging agents",
+  "group": "Guides",
+  "description": "How sending works, what happens when an agent is busy, and how to avoid duplicates.",
+  "sections": [
+    {
+      "id": "send",
+      "title": "Send a message",
+      "paragraphs": [
+        "POST /api/agents/{id}/messages with a JSON body of {\"text\": \"...\"}. You can also send the raw text with Content-Type: text/plain. With a token, text is the only field allowed; scheduling, steering, and attachments are browser-only and return 400.",
+        "The message appears in the agent’s chat labelled with your name and token, so people in the office can see where it came from."
+      ],
+      "code": "curl -s -X POST \"$BUREAU_URL/api/agents/$AGENT_ID/messages\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\" \\\n  -H \"Content-Type: text/plain\" \\\n  --data-binary @prompt.txt",
+      "language": "Shell"
+    },
+    {
+      "id": "queue",
+      "title": "Busy agents and the queue",
+      "paragraphs": [
+        "Sending never interrupts a running turn. If the agent is busy, the message waits in its queue and is delivered together with any other queued messages when the agent goes idle. The response is the same either way: HTTP 200 with a messageId.",
+        "Each agent queues at most 50 messages. Beyond that the send returns 429 until the agent catches up. A stopped agent that is not accepting messages returns 409."
+      ]
+    },
+    {
+      "id": "idempotency",
+      "title": "Retrying safely",
+      "paragraphs": [
+        "Network retries can deliver the same prompt twice. Send an Idempotency-Key header with a value unique to the message. A repeat within five minutes with the same key and body returns the original response instead of sending again; the same key with a different body returns 409."
+      ],
+      "code": "curl -s -X POST \"$BUREAU_URL/api/agents/$AGENT_ID/messages\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\" \\\n  -H \"Idempotency-Key: deploy-check-2026-11-04\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"text\":\"Check the deploy\"}'",
+      "language": "Shell"
+    },
+    {
+      "id": "finding",
+      "title": "Finding the right agent",
+      "paragraphs": [
+        "There is no single-agent endpoint. List agents with GET /api/agents and filter by name, room, or topic. Agent ids are stable across restarts, so scripts can store them."
+      ],
+      "links": [
+        {
+          "label": "Send a message",
+          "href": "/docs/api/agents/send-message"
+        },
+        {
+          "label": "Reading replies",
+          "href": "/docs/guides/reading-replies"
+        }
+      ]
+    }
+  ]
+}

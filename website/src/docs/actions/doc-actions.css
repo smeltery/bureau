@@ -1,0 +1,141 @@
+.doc-actions {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+.doc-actions > a,
+.doc-actions button,
+.doc-actions summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 0;
+  color: #6d7764;
+  background: none;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.doc-actions svg {
+  flex-shrink: 0;
+}
+.doc-actions summary {
+  list-style: none;
+}
+.doc-actions summary::-webkit-details-marker {
+  display: none;
+}
+.doc-actions button:hover,
+.doc-actions summary:hover {
+  color: #365728;
+}
+.action-chevron {
+  margin-left: auto;
+}
+.doc-actions details[open] .action-chevron {
+  transform: rotate(180deg);
+}
+.chat-providers {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 10px;
+  display: grid;
+  gap: 2px;
+}
+.chat-providers a {
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.chat-providers svg {
+  width: 14px;
+  height: 14px;
+}
+.chat-note {
+  margin-top: 9px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.doc-actions textarea {
+  width: 100%;
+  min-height: 140px;
+  font:
+    11px / 1.5 ui-monospace,
+    monospace;
+}
+.mobile-doc-actions {
+  display: none;
+}
+.doc-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+.doc-card {
+  position: relative;
+  padding: 24px;
+  border: 1px solid #dce2d4;
+  border-radius: 12px;
+  background: #fbfcf6;
+  transition:
+    border-color 150ms,
+    background 150ms;
+}
+.doc-card > svg {
+  display: block;
+  color: #688455;
+  margin-bottom: 18px;
+}
+.doc-card strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 550;
+  padding-right: 14px;
+}
+.docs-main .doc-card p {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.doc-card-arrow {
+  position: absolute;
+  top: 24px;
+  right: 22px;
+  color: #8f9e82;
+}
+.doc-card:hover {
+  background: #f0f4e8;
+  border-color: #a5b794;
+}
+.docs-toc {
+  max-height: calc(100dvh - 76px);
+  overflow-y: auto;
+}
+@media (max-width: 1100px) {
+  .mobile-doc-actions {
+    display: block;
+    margin-bottom: 32px;
+  }
+}
+@media (max-width: 540px) {
+  .doc-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chat-providers a {
+  gap: 10px;
+}
+.chat-providers a > span {
+  flex: 1;
+}
+.chat-providers .brand-icon {
+  opacity: 1;
+}

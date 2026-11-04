@@ -1,0 +1,30 @@
+{
+  "path": "/docs/api/agents/list-agents",
+  "title": "List agents",
+  "group": "API endpoints",
+  "description": "Returns HTTP 200 with an array of agents in rooms your account can see. There is no single-agent endpoint; filter this list by id or name.",
+  "sections": [
+    {
+      "id": "request",
+      "title": "GET /api/agents",
+      "paragraphs": [
+        "Every request requires Authorization: Bearer <token>."
+      ],
+      "code": "curl --fail-with-body \"$BUREAU_URL/api/agents\" \\\n  -H \"Authorization: Bearer $BUREAU_TOKEN\"",
+      "language": "cURL"
+    },
+    {
+      "id": "response",
+      "title": "Behavior",
+      "paragraphs": [
+        "Returns HTTP 200 with an array of agents in rooms your account can see. There is no single-agent endpoint; filter this list by id or name."
+      ],
+      "links": [
+        {
+          "label": "Agent fields",
+          "href": "/docs/reference/agent-fields"
+        }
+      ]
+    }
+  ]
+}
