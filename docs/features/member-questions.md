@@ -21,7 +21,8 @@ is checked again on every request and immediately before reply delivery.
 }
 ```
 
-Prompts allow 1–4000 characters. Optional choices have 1–10 distinct labels of
+Prompts allow 1–4000 characters and show as plain text, except that a fenced
+```` ```diff ```` block is drawn as red removed and green added rows. Optional choices have 1–10 distinct labels of
 at most 80 characters; a recommendation must match a label. With several
 choices, a tap fills the answer field for review. A single choice is a
 "do this, then tell me" step: tapping it sends the label at once, followed by

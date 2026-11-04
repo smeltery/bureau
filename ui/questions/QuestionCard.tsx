@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { MemberQuestion } from "../../shared/questions/types.ts";
 import { dialogCancelBtn, dialogInput, dialogSaveBtn } from "../components/modals/dialog-styles.ts";
 import { questionsChanged } from "./useQuestions.ts";
+import { QuestionPrompt } from "./QuestionPrompt.tsx";
 
 // A single option is a "do this, then tell me" step: a tap sends it, with any
 // typed note after it.
@@ -72,7 +73,7 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
           {t("questions.openChat")}
         </button>
       )}
-      <div style={{ whiteSpace: "pre-wrap" }}>{question.prompt}</div>
+      <QuestionPrompt prompt={question.prompt} />
       {changed && (
         <div role="status">
           {t("questions.changed")}{" "}
