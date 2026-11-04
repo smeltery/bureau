@@ -214,6 +214,8 @@ export interface RoomWire {
   name: string; // display name
   prompt: string | null;
   envFile: string | null;
+  // Folder new agents in the room start in, as typed (absolute or ~-rooted).
+  cwd?: string | null;
   pet?: RoomPet | null;
   /** Look for the room scene. Absent/null draws the office. */
   skin?: RoomSkin | null;

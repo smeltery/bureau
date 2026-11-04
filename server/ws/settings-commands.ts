@@ -98,7 +98,13 @@ export function handleSettingsCommand(cmd: ClientCommand, ws: ServerWebSocket<un
           return true;
         }
       }
+      const cwd = "cwd" in cmd ? AgentManager.parseRoomCwd(cmd.cwd) : null;
+      if (cwd && !cwd.ok) {
+        ws.send(JSON.stringify({ type: "settings_save_response", requestId: cmd.requestId, ok: false, error: cwd.reason } as ServerMessage));
+        return true;
+      }
       const ok = AgentManager.setRoomSettings(cmd.roomId, cmd.prompt, envFile);
+      if (ok && cwd) AgentManager.setRoomCwd(cmd.roomId, cwd.cwd);
       if (ok && "pet" in cmd) AgentManager.setRoomPet(cmd.roomId, cmd.pet ?? null);
       if (ok && "skin" in cmd) {
         const parsed = parseRoomSkin((cmd as { skin?: unknown }).skin);

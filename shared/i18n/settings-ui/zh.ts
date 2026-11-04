@@ -9,6 +9,8 @@ export const settingsUi = {
   "settingsUi.officeTitle": "办公室设置",
   "settingsUi.bossTitle": "主管称呼",
   "settingsUi.absoluteOptional": "（可选，绝对路径）",
+  "settingsUi.roomCwd": "默认工作文件夹",
+  "settingsUi.roomCwdHint": "（可选；此房间的新代理从这里开始）",
   "settingsUi.rules": "规则",
   "settingsUi.rulesScope": "（所有代理的系统提示）",
   "settingsUi.officeRules": "办公室规则",

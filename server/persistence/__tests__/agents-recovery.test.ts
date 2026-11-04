@@ -52,6 +52,22 @@ test("room, nested-array and flat-agent formats retain identities and migrate mo
   `);
 });
 
+test("a room folder round-trips, and a missing or blank one is left out", () => {
+  isolated(`
+    fs.writeFileSync(AGENTS_FILE, JSON.stringify([
+      { id: "room-a", name: "Project", cwd: "~/code/project", agents: [] },
+      { id: "room-b", name: "Other", cwd: "", agents: [] },
+      { id: "room-c", name: "Old", agents: [] },
+    ]));
+    const rooms = loadAgents();
+    expect(rooms[0].cwd).toBe("~/code/project");
+    expect("cwd" in rooms[1]).toBe(false);
+    expect("cwd" in rooms[2]).toBe(false);
+    saveAgents(rooms);
+    expect(loadAgents()).toEqual(rooms);
+  `);
+});
+
 test("damaged JSON and invalid structures preserve original bytes across saves and retries", () => {
   isolated(`
     const inputs = ["private prompt marker", "null", "{}", "[null]", '[{"name":"Room","agents":null}]', '[{"name":"Room","agents":[null]}]', '[[],null]'];

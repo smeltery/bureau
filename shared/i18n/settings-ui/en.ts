@@ -9,6 +9,8 @@ export const settingsUi = {
   "settingsUi.officeTitle": "Office Settings",
   "settingsUi.bossTitle": "Boss Title",
   "settingsUi.absoluteOptional": "(optional, absolute path)",
+  "settingsUi.roomCwd": "Default working folder",
+  "settingsUi.roomCwdHint": "(optional; new agents in this room start here)",
   "settingsUi.rules": "Rules",
   "settingsUi.rulesScope": "(system prompt for all agents)",
   "settingsUi.officeRules": "Office Rules",

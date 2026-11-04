@@ -9,6 +9,8 @@ export const settingsUi = {
   "settingsUi.officeTitle": "Configuració de l’oficina",
   "settingsUi.bossTitle": "Nom del cap",
   "settingsUi.absoluteOptional": "(opcional, camí absolut)",
+  "settingsUi.roomCwd": "Carpeta de treball predeterminada",
+  "settingsUi.roomCwdHint": "(opcional; els agents nous d’aquesta sala comencen aquí)",
   "settingsUi.rules": "Regles",
   "settingsUi.rulesScope": "(instruccions del sistema per a tots els agents)",
   "settingsUi.officeRules": "Regles de l’oficina",

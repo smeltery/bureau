@@ -215,6 +215,7 @@ export type AgentEvent =
   | { type: "room_renamed"; roomId: string; name: string }
   | { type: "room_settings_updated"; roomId: string; prompt: string | null; envFile: string | null }
   | { type: "room_pet_updated"; roomId: string; pet: RoomPet | null }
+  | { type: "room_cwd_updated"; roomId: string; cwd: string | null }
   | { type: "room_skin_updated"; roomId: string; skin: import("../../shared/types.ts").RoomSkin | null }
   | { type: "room_decor_updated"; roomId: string; decor: import("../../shared/types.ts").RoomDecor | null }
   | { type: "office_settings_updated"; prompt: string | null; envFile: string | null; experimental?: ExperimentalSettings; receptionistAgentId?: string | null }
@@ -240,6 +241,7 @@ export interface InternalRoom {
   name: string;
   prompt: string | null;
   envFile: string | null;
+  cwd?: string | null;
   pet?: RoomPet | null;
   skin?: import("../../shared/types.ts").RoomSkin | null;
   decor?: import("../../shared/types.ts").RoomDecor | null;

@@ -84,6 +84,7 @@ export type ClientCommand =
       roomId: string;
       prompt: string | null;
       envFile: string | null;
+      cwd?: string | null;
       pet?: RoomPet | null;
       skin?: RoomSkin | null;
       decor?: import("./types.ts").RoomDecor | null;

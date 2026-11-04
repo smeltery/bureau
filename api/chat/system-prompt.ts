@@ -68,6 +68,7 @@ Bureau gates every browser request (HTTP + WebSocket) with a session cookie. Ses
 - Click **doors** to switch between rooms (Room 1's left door opens the Lobby)
 - **Lobby** tab — isometric welcome scene; click the receptionist to open Team chat
 - Per-room **Look** (Room settings): classic Office or Hospital ward painting
+- Per-room **Default working folder** (Room settings): new agents in that room start there; the new-agent dialog fills it in and \`POST /api/agents\` uses it when no \`cwd\` is given
 - **Opus** agents have a book on their desk; **Haiku** agents have crayons
 - The entire SVG scene (~1,600 lines of raw coordinates and bezier curves) was drawn by Claude Opus — no libraries, assets, or tools
 

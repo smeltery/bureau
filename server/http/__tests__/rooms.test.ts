@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import * as AgentManager from "../../agent-manager.ts";
 import { handleRoomsRequest } from "../rooms.ts";
@@ -91,7 +94,7 @@ describe("handleRoomsRequest", () => {
 
     expect(res?.status).toBe(200);
     const body = await res?.json();
-    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, pet: null, skin: null, decor: null, version: body.version });
+    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, cwd: null, pet: null, skin: null, decor: null, version: body.version });
     expect(typeof body.version).toBe("string");
     AgentManager.setRoomSettings(room.id, null, null);
   });
@@ -114,6 +117,34 @@ describe("handleRoomsRequest", () => {
     expect(saved?.status).toBe(204);
     expect(AgentManager.getRoomSettings(room.id)?.pet).toEqual({ species: "cat", coat: "silver" });
     AgentManager.setRoomPet(room.id, null);
+  });
+
+  test("saves, validates and clears a room's default working folder", async () => {
+    const room = AgentManager.getRooms()[0]!;
+    const url = new URL(`http://local.test/api/rooms/${room.id}/settings`);
+    const save = async (cwd: unknown) => {
+      const current = await handleRoomsRequest(request(url.pathname), url, ownerAuth);
+      const { version } = (await current!.json()) as { version: string };
+      return handleRoomsRequest(request(url.pathname, { method: "PUT", body: JSON.stringify({ prompt: null, envFile: null, cwd, version }) }), url, ownerAuth);
+    };
+    const folder = mkdtempSync(join(tmpdir(), "bureau-room-cwd-"));
+    try {
+      expect((await save(folder))?.status).toBe(204);
+      expect(AgentManager.getRoomSettings(room.id)?.cwd).toBe(folder);
+      expect(AgentManager.roomDefaultCwd(room.id)).toBe(folder);
+
+      for (const bad of ["relative/path", join(folder, "missing"), 42]) {
+        const res = await save(bad);
+        expect(res?.status).toBe(422);
+        expect(AgentManager.getRoomSettings(room.id)?.cwd).toBe(folder);
+      }
+
+      expect((await save("  "))?.status).toBe(204);
+      expect(AgentManager.getRoomSettings(room.id)?.cwd).toBeNull();
+    } finally {
+      AgentManager.setRoomCwd(room.id, null);
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 
   test("saves room decor choices with versioned room settings", async () => {

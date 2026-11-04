@@ -79,6 +79,7 @@ export function wireAgentAndCronjobEvents() {
       event.type === "room_renamed" ||
       event.type === "room_settings_updated" ||
       event.type === "room_pet_updated" ||
+      event.type === "room_cwd_updated" ||
       event.type === "room_skin_updated" ||
       event.type === "room_decor_updated" ||
       event.type === "rooms_reordered"

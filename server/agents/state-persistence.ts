@@ -72,6 +72,7 @@ export function saveLiveAgents(agents: Iterable<ManagedAgent>, rooms: InternalRo
     name: r.name,
     prompt: r.prompt,
     envFile: r.envFile,
+    ...(r.cwd ? { cwd: r.cwd } : {}),
     pet: r.pet ?? null,
     skin: r.skin ?? null,
     decor: r.decor ?? null,
