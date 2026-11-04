@@ -24,7 +24,7 @@ SNAPSHOTTER_REF=v8.6.0
 CLUSTER=bureau-verify
 DOMAIN=office.k8s.test
 # The released image under test; owner/kustomization.yaml pins the same digest.
-RELEASED=ghcr.io/smeltery/bureau@sha256:56feb68ff1eea2ece0a6f0f7e8eaf522ad958021d0672fe6fe74abb69a22889c
+RELEASED=ghcr.io/smeltery/bureau@sha256:ad222c8028b35076cd102cc2baf3ff1b738ab537a109bcc7c3a4ead11b5185d1
 IMAGE=${BUREAU_VERIFY_IMAGE:-$RELEASED}
 
 here=$(cd "$(dirname "$0")" && pwd)
