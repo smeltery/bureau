@@ -1,9 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, afterEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import * as AgentManager from "../../agent-manager.ts";
+import type { AgentInfo } from "../../../shared/types.ts";
+import { claimUserByName, deleteUserById } from "../../users.ts";
+import { handleAgentSpawnRequest } from "../agent-spawn-route.ts";
 import { handleRoomsRequest } from "../rooms.ts";
 
 const ownerAuth: AuthResult = {
@@ -241,5 +244,52 @@ describe("handleRoomsRequest", () => {
 
     expect(res?.status).toBe(422);
     expect(await res?.json()).toEqual({ error: "deskA and deskB must be integers from 0 to 7" });
+  });
+});
+
+describe("agent creation in a room with a default folder", () => {
+  const spawnOwner = claimUserByName("Spawn Room Owner", { role: "owner" });
+  const spawnOwnerAuth: AuthResult = {
+    kind: "ok",
+    session: { sessionIdHash: "hash", sessionPrefix: "sess", userId: spawnOwner.id, username: "Spawn Room Owner", role: "owner", needsRolling: false, absoluteExpiresAt: Date.now() + 86_400_000 },
+  };
+  afterAll(() => deleteUserById(spawnOwner.id));
+
+  const room = () => AgentManager.getRooms()[0]!;
+  const spawnRequest = (body: Record<string, unknown>) =>
+    handleAgentSpawnRequest(
+      new Request("http://local.test/api/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Rae", roomId: room().id, desk: 0, ...body }) }),
+      spawnOwnerAuth,
+    );
+
+  afterEach(() => AgentManager.setRoomCwd(room().id, null));
+
+  test("an agent created without a cwd starts in its room's default folder", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "bureau-spawn-cwd-"));
+    const spawn = spyOn(AgentManager, "spawn").mockResolvedValue({ id: "agent-rae" } as AgentInfo);
+    try {
+      AgentManager.setRoomCwd(room().id, folder);
+      expect((await spawnRequest({}))?.status).toBe(201);
+      expect(spawn.mock.calls[0]?.[1]).toBe(folder);
+
+      // An explicit cwd still wins over the room's folder.
+      expect((await spawnRequest({ cwd: tmpdir() }))?.status).toBe(201);
+      expect(spawn.mock.calls[1]?.[1]).toBe(tmpdir());
+    } finally {
+      spawn.mockRestore();
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  test("an agent created without a cwd in a room with no folder is refused", async () => {
+    const spawn = spyOn(AgentManager, "spawn");
+    try {
+      const res = await spawnRequest({});
+      expect(res.status).toBe(422);
+      expect(await res.json()).toEqual({ error: "cwd is required when the room has no default folder" });
+      expect(spawn).not.toHaveBeenCalled();
+    } finally {
+      spawn.mockRestore();
+    }
   });
 });
