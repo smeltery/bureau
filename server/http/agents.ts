@@ -10,6 +10,7 @@ import { handleAgentBearerPost } from "./agent-bearer-routes.ts";
 import { handleAgentBrowserSessionRoute } from "./agent-browser-route.ts";
 import { handleAgentManagementRequest } from "./agent-management-routes.ts";
 import { handleAgentSpawnRequest } from "./agent-spawn-route.ts";
+import { handleAgentAvatarRequest } from "./agent-avatar.ts";
 import { acceptUserSend } from "./user-send/acceptance.ts";
 import {
   agentRouteParts,
@@ -33,8 +34,8 @@ import { AGENT_REFERENCE_VERSION, agentReferenceContent, agentReferenceTopics, r
  * Returns null for any other URL so the caller can fall through.
  */
 export async function handleAgentsRequest(req: Request, url: URL, auth?: AuthResult): Promise<Response | null> {
-  const questionResponse = await handleQuestionsRequest(req, url, auth);
-  if (questionResponse) return questionResponse;
+  const earlyResponse = (await handleQuestionsRequest(req, url, auth)) ?? handleAgentAvatarRequest(req, url, auth);
+  if (earlyResponse) return earlyResponse;
   const parts = agentRouteParts(url.pathname);
   if (!parts) return null;
   if (isRetiredLegacyAgentAffordance(url.pathname, parts, req.method)) return null;

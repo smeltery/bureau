@@ -58,7 +58,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 - Persistent agent desks with names, rooms, working directories, models,
   topics, and status.
-- Bearer-authenticated agent discovery manifest for inter-agent awareness.
+- Bearer-authenticated agent discovery manifest for inter-agent awareness, plus `GET /api/agents/<id>/avatar.svg` for an agent's portrait as an image.
 - Agents can register web apps they built; Bureau allocates the port, supervises
   the process past sessions and reboots, and shows state and logs in the Apps
   tab. Agents with app management access can upload a PNG thumbnail from a
