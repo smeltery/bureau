@@ -1,3 +1,4 @@
+import { apiTokenViewer } from "../auth/api-token-rooms.ts";
 import type { TaskItem } from "../../shared/types.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { resolveAgentToken } from "../agents/tokens.ts";
@@ -75,7 +76,10 @@ export function canAccessRoom(roomId: string, bearer: AgentBearer | null, cronRu
     const agent = AgentManager.getAgent(bearer.agentId);
     return !!agent && rooms[agent.room]?.id === roomId;
   }
-  if (auth?.kind === "api") return auth.token.role === "owner" || (!!getUserById(auth.token.userId) && canSeeRoom(getUserById(auth.token.userId), roomId));
+  if (auth?.kind === "api") {
+    const user = apiTokenViewer(auth.token);
+    return !!user && canSeeRoom(user, roomId);
+  }
   if (auth?.kind !== "ok") return false;
   if (auth.session.role === "owner") return true;
   return !!getUserById(auth.session.userId) && canSeeRoom(getUserById(auth.session.userId), roomId);

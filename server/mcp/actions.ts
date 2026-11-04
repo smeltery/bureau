@@ -2,6 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import * as AgentManager from "../agent-manager.ts";
 import { formatApiTokenDevice } from "../../shared/identity.ts";
 import { resolveApiToken, sendApiTokenMessage, drainApiTokenInbox } from "../auth/api-tokens.ts";
+import { apiTokenViewer } from "../auth/api-token-rooms.ts";
 import { readTokenLogAfter } from "../auth/api-token-log.ts";
 import { canSeeRoom, getUserById } from "../users.ts";
 import { projectedAgentsManifest } from "../http/agent-route-helpers.ts";
@@ -16,7 +17,7 @@ function identity(raw: string) {
 
 function visibleAgent(raw: string, agentId: string) {
   const token = identity(raw);
-  const user = getUserById(token.userId);
+  const user = apiTokenViewer(token);
   const agent = AgentManager.getAgent(agentId);
   if (!agent) throw new OfficeToolError("agent_not_found");
   const roomId = AgentManager.getRooms()[agent.room]?.id ?? agent.roomId;

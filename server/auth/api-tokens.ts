@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "fs";
 import type { ApiTokenInboxDrainRes, ApiTokenInboxMessage, ApiTokenLogEntry, ApiTokenWire } from "../../shared/types.ts";
 import { API_TOKENS_FILE, atomicWriteFileSync } from "../persistence/paths.ts";
 import { getUserById } from "../users.ts";
+import { validApiTokenRooms } from "./api-token-rooms.ts";
 import { redactLogEntry } from "../persistence/logs/log-redaction.ts";
 import { appendTokenLog, migrateLegacyInbox, readTokenLogAfter, refreshTokenLog, type LegacyInboxMessage, _testResetApiTokenLogs } from "./api-token-log.ts";
 
@@ -22,9 +23,11 @@ interface StoredApiToken extends ApiTokenWire {
 export interface ResolvedApiToken {
   userId: string;
   username: string;
+  // "member" for a room-limited token, whatever its member's role.
   role: "owner" | "member";
   tokenId: string;
   tokenName: string;
+  rooms?: string[];
 }
 
 let tokens: Map<string, StoredApiToken> | null = null;
@@ -75,6 +78,8 @@ function ensureLoaded(): void {
     for (const [id, value] of Object.entries(parsed)) {
       if (value.id !== id || typeof value.userId !== "string" || typeof value.name !== "string" || typeof value.tokenPrefix !== "string" || typeof value.tokenHash !== "string") continue;
       if (typeof value.createdAt !== "number" || (typeof value.expiresAt !== "number" && value.expiresAt !== null)) continue;
+      // A room list that cannot be read drops the token rather than widening it.
+      if (value.rooms !== undefined && !validApiTokenRooms(value.rooms)) continue;
       const inbox = Array.isArray(value.inbox) && value.inbox.every(validLegacyInboxMessage) ? value.inbox : [];
       const seeded = Number.isSafeInteger(value.lastSequence) && (value.lastSequence as number) >= 0 ? (value.lastSequence as number) : 0;
       const { lastSequence, failed } = migrateLegacyInbox(id, inbox, seeded);
@@ -91,6 +96,7 @@ function ensureLoaded(): void {
         lastSequence,
         ...(failed && inbox.length ? { inbox } : {}),
         lastDrainedAt: typeof value.lastDrainedAt === "number" || value.lastDrainedAt === null ? value.lastDrainedAt : null,
+        ...(value.rooms ? { rooms: value.rooms } : {}),
       };
       tokens.set(id, record);
       hashIndex.set(record.tokenHash, id);
@@ -129,6 +135,7 @@ function wire(record: StoredApiToken): ApiTokenWire {
     createdAt: record.createdAt,
     expiresAt: record.expiresAt,
     lastUsedAt: record.lastUsedAt,
+    ...(record.rooms ? { rooms: record.rooms } : {}),
   };
 }
 
@@ -140,7 +147,7 @@ export function listApiTokens(userId: string): ApiTokenWire[] {
     .map(wire);
 }
 
-export async function mintApiToken(input: { userId: string; name: string; expiresInDays: number | null; now?: number }): Promise<{ token: string; apiToken: ApiTokenWire }> {
+export async function mintApiToken(input: { userId: string; name: string; expiresInDays: number | null; rooms?: string[]; now?: number }): Promise<{ token: string; apiToken: ApiTokenWire }> {
   return mutate(() => {
     ensureLoaded();
     const now = input.now ?? Date.now();
@@ -161,6 +168,7 @@ export async function mintApiToken(input: { userId: string; name: string; expire
       lastUsedAt: null,
       lastSequence: 0,
       lastDrainedAt: null,
+      ...(input.rooms ? { rooms: [...input.rooms] } : {}),
     };
     tokens!.set(id, record);
     hashIndex!.set(tokenHash, id);
@@ -194,13 +202,15 @@ export async function enqueueApiTokenInboxMessage(input: {
   senderAgentId: string;
   senderAgentName: string;
   senderRoomName: string;
+  // Required for a room-limited token: only an agent in one of its rooms may write to it.
+  senderRoomId?: string | null;
   now?: number;
 }): Promise<{ ok: true; message: ApiTokenInboxMessage; lastDrainedAt: number | null; tokenName: string } | { ok: false; reason: "unavailable" }> {
   return mutate(() => {
     ensureLoaded();
     const now = input.now ?? Date.now();
     const record = tokens!.get(input.tokenId);
-    if (!record || record.userId !== input.userId || !isLive(record, now)) {
+    if (!record || record.userId !== input.userId || !isLive(record, now) || (record.rooms && !record.rooms.includes(input.senderRoomId ?? ""))) {
       return { ok: false as const, reason: "unavailable" as const };
     }
     const message: ApiTokenInboxMessage = {
@@ -305,6 +315,7 @@ export function resolveApiToken(raw: string | null, now = Date.now()): ResolvedA
       console.error("[auth] failed to persist API token last-used time:", err);
     }
   }
+  if (record.rooms) return { userId: user.id, username: user.name, role: "member", tokenId: id, tokenName: record.name, rooms: record.rooms };
   return { userId: user.id, username: user.name, role: user.role, tokenId: id, tokenName: record.name };
 }
 

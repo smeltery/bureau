@@ -1,4 +1,5 @@
 import { resolveApiToken } from "../auth/api-tokens.ts";
+import { apiTokenViewer } from "../auth/api-token-rooms.ts";
 import type { AuthResult } from "../auth/auth-middleware.ts";
 import { getUserById, getUserByName } from "../users.ts";
 import { privilegedAgentIdentity } from "../http/agent-route-helpers.ts";
@@ -11,7 +12,7 @@ export async function handleMemberInstructions(req: Request, username: string, a
   const bearer = readBearerToken(req);
   const personalToken = auth?.kind === "api" ? resolveApiToken(bearer) : null;
   if (bearer && !operator && !personalToken) return Response.json({ error: "privileged agent required" }, { status: 403 });
-  const actor = operator?.manager ?? (personalToken ? getUserById(personalToken.userId) : null) ?? (auth?.kind === "ok" ? getUserById(auth.session.userId) : null);
+  const actor = operator?.manager ?? (personalToken ? apiTokenViewer(personalToken) : null) ?? (auth?.kind === "ok" ? getUserById(auth.session.userId) : null);
   if (!actor) return Response.json({ error: "authentication required" }, { status: 401 });
   const user = getUserByName(username);
   if (!user || (actor.role !== "owner" && actor.id !== user.id)) return Response.json({ error: "member not found" }, { status: 404 });
@@ -49,7 +50,7 @@ export async function handleMemberInstructions(req: Request, username: string, a
   }
   // Re-read after the asynchronous body read so another write cannot invalidate the check.
   const latestToken = personalToken ? resolveApiToken(bearer) : null;
-  const latestActor = personalToken ? (latestToken?.userId === actor.id ? getUserById(actor.id) : null) : bearer ? privilegedAgentIdentity(req)?.manager : getUserById(actor.id);
+  const latestActor = personalToken ? (latestToken?.userId === actor.id ? apiTokenViewer(latestToken) : null) : bearer ? privilegedAgentIdentity(req)?.manager : getUserById(actor.id);
   if (!latestActor || (latestActor.role !== "owner" && latestActor.id !== user.id)) return Response.json({ error: "forbidden" }, { status: 403 });
   const current = getUserById(user.id);
   if (!current) return Response.json({ error: "member not found" }, { status: 404 });

@@ -140,6 +140,9 @@ export interface ApiTokenWire {
   createdAt: number;
   expiresAt: number | null;
   lastUsedAt: number | null;
+  // The rooms the token may reach; absent for a token with its member's
+  // full access.
+  rooms?: string[];
 }
 
 export interface ApiTokenInboxMessage {

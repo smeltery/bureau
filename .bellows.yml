@@ -1,0 +1,22 @@
+# Bellows (https://github.com/smeltery/bellows) settings. The macos profile
+# runs fresh-install.yml's install-macos-14-local steps natively on a macOS
+# workstation through the repository's Flox environment, so a maintainer can
+# check the macOS install path when hosted macOS runners are unavailable. It is
+# advisory evidence only; the hosted check stays the merge gate.
+version: 1
+
+secrets:
+  mode: none
+
+profiles:
+  macos:
+    executor: flox
+    checks:
+      install:
+        argv: [bun, install, --frozen-lockfile]
+      build-ui:
+        argv: [bun, run, build:ui]
+        needs: [install]
+      install-verify-local:
+        argv: [bun, deploy/install-verify/local.ts, local]
+        needs: [build-ui]

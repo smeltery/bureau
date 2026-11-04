@@ -134,7 +134,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Room lists in user settings follow your tab order, then show other accessible
   rooms in office order, including when an owner edits another member.
 - Full-page user settings for profiles, access, self-service device links,
-  personal API tokens, provider Connections (Claude/Codex status + API keys),
+  personal API tokens (optionally limited to chosen rooms), provider Connections (Claude/Codex status + API keys),
   ghost appearance, saved language preference (English / Spanish / Catalan /
   Simplified Chinese; UI chrome follows the same preference), and roster
   online/session summaries.

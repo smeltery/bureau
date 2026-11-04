@@ -90,6 +90,21 @@ That script chains `typecheck → lint → format:check → test`.
   file whose imports boot the server would otherwise restore another file's
   fixtures into the shared agents map.
 
+## Checking the macOS install locally
+
+When hosted macOS runners are queued or down, a maintainer on a Mac can run the
+`install-macos-14-local` steps natively with [Bellows](https://github.com/smeltery/bellows):
+
+```sh
+bellows verify --repository smeltery/bureau --pull-request <number> --profile macos
+```
+
+The `macos` profile in `.bellows.yml` runs `bun install --frozen-lockfile`,
+`bun run build:ui` and `bun deploy/install-verify/local.ts local` through the
+Flox environment, and saves a receipt naming the commit, host platform and
+toolchain. Add `--report` to post it as an advisory `bellows/verify` status.
+It is evidence, not a substitute: the hosted check still gates the merge.
+
 ## Fixing common failures
 
 - **Format check fails.** Run `bun run format` to fix in place, then commit.
@@ -134,7 +149,6 @@ Or via the UI: **Settings → Branches → Add branch protection rule** for
 
 After the rule exists, GitHub disables the merge button on any PR with a
 failing or pending check.
-
 
 ### Browser sharing extension
 

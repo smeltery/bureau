@@ -1,3 +1,4 @@
+import { apiTokenViewer } from "../auth/api-token-rooms.ts";
 import type { AuthOk, AuthResult } from "../auth/auth-middleware.ts";
 import * as AgentManager from "../agent-manager.ts";
 import { resolveRunToken } from "../cronjobs/tokens.ts";
@@ -190,7 +191,8 @@ export function cronjobRouteParts(pathname: string): string[] | null {
 
 export function scheduleViewer(req: Request, auth: AuthResult | undefined): ScheduleViewer | null {
   if (auth?.kind === "ok") return getUserById(auth.session.userId) ?? { id: auth.session.userId, role: auth.session.role, allowedRooms: [] };
-  const id = auth?.kind === "api" ? auth.token.userId : (resolveAgentToken(readBearerToken(req))?.userId ?? resolveRunToken(readBearerToken(req))?.userId);
+  if (auth?.kind === "api") return apiTokenViewer(auth.token);
+  const id = resolveAgentToken(readBearerToken(req))?.userId ?? resolveRunToken(readBearerToken(req))?.userId;
   return id ? getUserById(id) : null;
 }
 

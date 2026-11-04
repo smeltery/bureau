@@ -2,17 +2,25 @@
   "path": "/docs/guides/authentication",
   "title": "Authentication",
   "group": "Guides",
-  "description": "Personal API tokens: minting, using, scoping, and revoking them.",
+  "description": "Personal API tokens: minting, using, limiting to rooms, and revoking them.",
   "sections": [
     {
       "id": "tokens",
       "title": "Personal API tokens",
       "paragraphs": [
         "Every scripted call authenticates with a personal API token in the Authorization header. Tokens start with bureau_pat_ followed by 32 random bytes. Bureau stores only a SHA-256 hash and the first 19 characters, which it shows as the token prefix so you can tell tokens apart.",
-        "A token has no separate scopes. It acts as the person who created it, with that person’s role and room access. Mint one token per script or device so you can revoke one without breaking the others."
+        "By default a token acts as the person who created it, with that person’s role and room access. Mint one token per script or device so you can revoke one without breaking the others."
       ],
       "code": "curl -s \"$BUREAU_URL/api/agents\" -H \"Authorization: Bearer $BUREAU_TOKEN\"",
       "language": "Shell"
+    },
+    {
+      "id": "rooms",
+      "title": "Limit a token to rooms",
+      "paragraphs": [
+        "When you create a token you can tick rooms. A room-limited token reaches only the agents and tasks in those rooms (and that you can still see), plus office-wide tasks and its own replies. It never has an owner’s office-wide powers, even when an owner minted it, and the limit does not grow when you are given more rooms.",
+        "A room-limited token may call only /api/agents, /api/tasks and /api/me/api-token-inbox/drain, and the office MCP server, where it sees the same agents. Every other route answers 403. The token list shows each token’s rooms; to change them, mint a new token and revoke the old one."
+      ]
     },
     {
       "id": "minting",

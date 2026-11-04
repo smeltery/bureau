@@ -5,6 +5,7 @@ import type { ApiTokenWire } from "../../shared/types.ts";
 import { dialogInput, dialogLabel, dialogSaveBtn } from "./modals/dialog-styles.ts";
 import { sectionHeader } from "./AccessPane.tsx";
 import { cardStyle, hint, subsectionHeader } from "./AccessPaneShared.tsx";
+import { useAppState } from "../store.tsx";
 
 type TokenFailure = string | { key: PlainMessageKey };
 class TokenRequestError extends Error {
@@ -40,6 +41,10 @@ export function ApiTokensPane() {
   const [minted, setMinted] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [pending, setPending] = useState(false);
+  // Empty: the token has its member's full access.
+  const [limitRooms, setLimitRooms] = useState<string[]>([]);
+  const { rooms } = useAppState();
+  const roomName = (id: string) => rooms.find((room) => room.id === id)?.name ?? t("apiTokens.removedRoom");
 
   async function load() {
     setError(null);
@@ -68,10 +73,11 @@ export function ApiTokensPane() {
       const body = await request<{ token: string; apiToken: ApiTokenWire }>("/api/api-tokens", "apiTokens.mintFailed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmed, expiresInDays }),
+        body: JSON.stringify({ name: trimmed, expiresInDays, ...(limitRooms.length ? { rooms: limitRooms } : {}) }),
       });
       setMinted(body.token);
       setName("");
+      setLimitRooms([]);
       setTokens((current) => [body.apiToken, ...current]);
     } catch (caught) {
       setError(tokenFailure(caught, "apiTokens.mintFailed"));
@@ -142,6 +148,24 @@ curl -X POST ${window.location.origin}/api/me/api-token-inbox/drain \\
               </option>
             ))}
           </select>
+          {rooms.length > 1 && (
+            <fieldset style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "6px 10px", margin: 0 }}>
+              <legend style={{ fontSize: 11, color: "var(--text-dim)" }}>{t("apiTokens.rooms")}</legend>
+              <p style={{ ...hint, margin: "0 0 6px" }}>{t(limitRooms.length ? "apiTokens.roomsLimited" : "apiTokens.roomsAll")}</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
+                {rooms.map((room) => (
+                  <label key={room.id} style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={limitRooms.includes(room.id)}
+                      onChange={(e) => setLimitRooms((current) => (e.target.checked ? [...current, room.id] : current.filter((id) => id !== room.id)))}
+                    />
+                    {room.name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <button onClick={mint} disabled={pending || !name.trim()} style={{ ...dialogSaveBtn, opacity: pending || !name.trim() ? 0.5 : 1 }}>
             {pending ? t("apiTokens.creating") : t("apiTokens.create")}
           </button>
@@ -195,6 +219,7 @@ curl -X POST ${window.location.origin}/api/me/api-token-inbox/drain \\
                     expiry: token.expiresAt === null ? t("common.never") : new Date(token.expiresAt).toLocaleDateString(language),
                     used: token.lastUsedAt ? new Date(token.lastUsedAt).toLocaleString(language) : t("common.never"),
                   })}
+                  {token.rooms && ` · ${t("apiTokens.onlyRooms", { rooms: token.rooms.map(roomName).join(", ") })}`}
                 </div>
               </div>
               <button onClick={() => void revoke(token.id)} style={{ ...dialogSaveBtn, background: "var(--red, #f85149)" }}>

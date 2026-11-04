@@ -4,6 +4,7 @@ import { authLanguage } from "./preauth/language.ts";
 import type { Server } from "bun";
 import { browserSessionDiagnostic, emitBrowserSessionDiagnostic, readSessionCookies, validateSession, type SessionLookup } from "./auth.ts";
 import { resolveApiToken, type ResolvedApiToken } from "./api-tokens.ts";
+import { apiTokenRoomLimitedPath } from "./api-token-rooms.ts";
 import { renderLoginPage, securityHeaders } from "./auth-pages.ts";
 import { checkOrigin, requestIsOnBox } from "./auth-request-guards.ts";
 
@@ -80,6 +81,15 @@ export function authenticate<T>(req: Request, server: Server<T>, opts?: { allowL
   const bearerMatch = bearer ? /^bearer[ \t]+(.+)$/i.exec(bearer.trim()) : null;
   const apiToken = resolveApiToken(bearerMatch?.[1]?.trim() || null);
   if (apiToken) {
+    if (apiToken.rooms && !apiTokenRoomLimitedPath(new URL(req.url).pathname)) {
+      return {
+        kind: "rejected",
+        response: new Response(JSON.stringify({ error: "this API token is limited to rooms and can only use the agent, task and inbox routes" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }),
+      };
+    }
     return { kind: "api", token: apiToken };
   }
   if (looped) {

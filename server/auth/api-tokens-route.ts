@@ -4,7 +4,8 @@ import * as AgentManager from "../agent-manager.ts";
 import { readBearerToken, resolveAgentToken } from "../agents/tokens.ts";
 import { addLogEntry } from "../agents/state.ts";
 import type { AuthResult } from "./auth-middleware.ts";
-import { getUserByName } from "../users.ts";
+import { canSeeRoom, getUserById, getUserByName } from "../users.ts";
+import { MAX_API_TOKEN_ROOMS, validApiTokenRooms } from "./api-token-rooms.ts";
 import { API_TOKEN_EXPIRY_DAYS, drainApiTokenInbox, enqueueApiTokenInboxMessage, listApiTokens, mintApiToken, revokeApiToken } from "./api-tokens.ts";
 import { apiTokenIdempotency, cachedJson, idempotencyToResponse, readIdempotencyKey } from "../http/idempotency.ts";
 
@@ -55,6 +56,7 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
           senderAgentId: agentToken.agentId,
           senderAgentName: display.name,
           senderRoomName: display.roomName,
+          senderRoomId: AgentManager.getRooms()[sender.room]?.id ?? sender.roomId ?? null,
         });
         if (!result.ok) return cachedJson(404, { error: "api token unavailable" });
         addLogEntry(agentToken.agentId, "api_token_outbound", text, {
@@ -122,7 +124,17 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
     if (!(API_TOKEN_EXPIRY_DAYS as readonly unknown[]).includes(expiresInDays)) {
       return jsonError(422, "expiresInDays must be 30, 365, or null");
     }
-    return json(await mintApiToken({ userId: auth.session.userId, name, expiresInDays: expiresInDays as number | null }), 201);
+    // A token may be limited to rooms its member can see today; the limit
+    // stays even if the member later sees more.
+    let rooms: string[] | undefined;
+    if (body.rooms !== undefined && body.rooms !== null) {
+      if (!validApiTokenRooms(body.rooms)) return jsonError(422, `rooms must list 1–${MAX_API_TOKEN_ROOMS} distinct room ids`);
+      const user = getUserById(auth.session.userId);
+      const known = new Set(AgentManager.getRooms().map((room) => room.id));
+      if (!user || !body.rooms.every((room) => known.has(room) && canSeeRoom(user, room))) return jsonError(422, "rooms must be rooms you can see");
+      rooms = body.rooms;
+    }
+    return json(await mintApiToken({ userId: auth.session.userId, name, expiresInDays: expiresInDays as number | null, rooms }), 201);
   }
 
   const match = /^\/api\/api-tokens\/([^/]+)$/.exec(url.pathname);
