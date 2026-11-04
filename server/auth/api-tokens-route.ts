@@ -56,6 +56,7 @@ export async function handleApiTokensRequest(req: Request, url: URL, auth: AuthR
           senderAgentId: agentToken.agentId,
           senderAgentName: display.name,
           senderRoomName: display.roomName,
+          senderRoomId: AgentManager.getRooms()[sender.room]?.id ?? sender.roomId ?? null,
         });
         if (!result.ok) return cachedJson(404, { error: "api token unavailable" });
         addLogEntry(agentToken.agentId, "api_token_outbound", text, {

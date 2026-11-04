@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { readFileSync, rmSync, writeFileSync } from "fs";
 import type { AuthResult } from "../auth-middleware.ts";
 import { authenticate } from "../auth-middleware.ts";
-import { _testResetApiTokens, mintApiToken, resolveApiToken } from "../api-tokens.ts";
+import { _testResetApiTokens, enqueueApiTokenInboxMessage, mintApiToken, resolveApiToken } from "../api-tokens.ts";
 import { apiTokenRoomLimitedPath } from "../api-token-rooms.ts";
 import { handleApiTokensRequest } from "../api-tokens-route.ts";
 import { agents } from "../../agents/state.ts";
@@ -118,4 +118,14 @@ test("a token whose saved room list cannot be read is dropped, not widened", asy
   writeFileSync(API_TOKENS_FILE, JSON.stringify(saved));
   _testResetApiTokens();
   expect(resolveApiToken(minted.token)).toBeNull();
+});
+
+test("only an agent in one of a limited token's rooms can write to its inbox", async () => {
+  const { owner, firstRoomId, otherRoomId } = officeWithTwoRooms();
+  const minted = await mintApiToken({ userId: owner.id, name: "ci", expiresInDays: 30, rooms: [firstRoomId] });
+  const send = (senderRoomId: string | null) =>
+    enqueueApiTokenInboxMessage({ tokenId: minted.apiToken.id, userId: owner.id, text: "hi", senderAgentId: "a", senderAgentName: "A", senderRoomName: "R", senderRoomId });
+  expect((await send(otherRoomId)).ok).toBe(false);
+  expect((await send(null)).ok).toBe(false);
+  expect((await send(firstRoomId)).ok).toBe(true);
 });

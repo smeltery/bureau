@@ -202,13 +202,15 @@ export async function enqueueApiTokenInboxMessage(input: {
   senderAgentId: string;
   senderAgentName: string;
   senderRoomName: string;
+  // Required for a room-limited token: only an agent in one of its rooms may write to it.
+  senderRoomId?: string | null;
   now?: number;
 }): Promise<{ ok: true; message: ApiTokenInboxMessage; lastDrainedAt: number | null; tokenName: string } | { ok: false; reason: "unavailable" }> {
   return mutate(() => {
     ensureLoaded();
     const now = input.now ?? Date.now();
     const record = tokens!.get(input.tokenId);
-    if (!record || record.userId !== input.userId || !isLive(record, now)) {
+    if (!record || record.userId !== input.userId || !isLive(record, now) || (record.rooms && !record.rooms.includes(input.senderRoomId ?? ""))) {
       return { ok: false as const, reason: "unavailable" as const };
     }
     const message: ApiTokenInboxMessage = {
