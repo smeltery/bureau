@@ -1,7 +1,8 @@
+import type { ChatCopyFormat, ChatCopyScope } from "./chat-copy.ts";
+import { ChatCopyMenu } from "./header/ChatCopyMenu.tsx";
 import { ModelRecovery } from "./header/ModelRecovery.tsx";
 import { useI18n } from "../i18n.tsx";
 import type { AgentInfo } from "../../shared/types.ts";
-import { CopyButton } from "../components/controls/CopyButton.tsx";
 import { PersonIcon } from "../components/controls/Icons.tsx";
 import { StatusLight } from "../office/scene/StatusLight.tsx";
 import { HeaderTimer, STATE_LABELS } from "./StateIndicators.tsx";
@@ -31,7 +32,7 @@ export function HeaderMobile({
   showAvatar: boolean;
   toggleAvatar: () => void;
   stateChangedAt?: number;
-  getConversationText: () => string;
+  getConversationText: (scope: ChatCopyScope, format: ChatCopyFormat) => string;
   slideModeEnabled?: boolean;
   slideView?: boolean;
   setSlideView?: (active: boolean) => void;
@@ -117,7 +118,7 @@ export function HeaderMobile({
               {t("common.tasks")}
             </button>
           )}
-          {logs.length > 0 && <CopyButton getText={getConversationText} />}
+          {logs.length > 0 && <ChatCopyMenu getText={getConversationText} />}
           {slideModeEnabled && setSlideView && (
             <button
               onClick={() => setSlideView(!slideView)}

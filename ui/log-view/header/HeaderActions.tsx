@@ -1,6 +1,7 @@
+import type { ChatCopyFormat, ChatCopyScope } from "../chat-copy.ts";
+import { ChatCopyMenu } from "./ChatCopyMenu.tsx";
 import { useI18n } from "../../i18n.tsx";
 import { useState } from "react";
-import { CopyButton } from "../../components/controls/CopyButton.tsx";
 import { MoonIcon, PersonIcon, SunIcon } from "../../components/controls/Icons.tsx";
 import { ThemePicker } from "../../components/ThemePicker.tsx";
 import { useFeatures, useTheme } from "../../store.tsx";
@@ -36,7 +37,7 @@ export function HeaderActions({
   slideModeEnabled?: boolean;
   slideView?: boolean;
   setSlideView?: (active: boolean) => void;
-  getConversationText: () => string;
+  getConversationText: (scope: ChatCopyScope, format: ChatCopyFormat) => string;
 }) {
   const { t } = useI18n();
   const { mode } = useTheme();
@@ -61,7 +62,7 @@ export function HeaderActions({
           {t("common.tasks")}
         </button>
       )}
-      {logs.length > 0 && <CopyButton getText={getConversationText} />}
+      {logs.length > 0 && <ChatCopyMenu getText={getConversationText} />}
       {slideModeEnabled && setSlideView && (
         <button
           onClick={() => setSlideView(!slideView)}
