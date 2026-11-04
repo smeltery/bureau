@@ -50,6 +50,7 @@ export interface Room {
   name: string; // display name
   prompt: string | null; // room-level prompt
   envFile: string | null; // absolute path to dotenv file
+  cwd?: string | null; // folder new agents start in; omitted when unset
   pet?: RoomPet | null;
   skin?: RoomSkin | null;
   decor?: RoomDecor | null;
@@ -118,6 +119,7 @@ export function loadAgents(): Room[] {
     }
     if (typeof room.prompt !== "string") room.prompt = null;
     if (typeof room.envFile !== "string") room.envFile = null;
+    if (typeof room.cwd !== "string" || !room.cwd) delete room.cwd;
     room.pet = normalizeRoomPet(room.pet);
     const skinParsed = parseRoomSkin(room.skin);
     room.skin = skinParsed.ok ? skinParsed.skin : null;

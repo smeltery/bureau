@@ -40,6 +40,7 @@ export function roomsWire(): RoomWire[] {
     name: r.name,
     prompt: r.prompt,
     envFile: r.envFile,
+    cwd: r.cwd ?? null,
     pet: normalizeRoomPet(r.pet),
     skin: r.skin ?? null,
     decor: r.decor ?? null,

@@ -21,5 +21,7 @@ export interface MemberQuestion extends QuestionContent {
     userId: string;
     attemptId: string;
     error?: string;
+    // Set when the member filed the question on the task board instead.
+    taskId?: string;
   };
 }

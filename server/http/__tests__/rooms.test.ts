@@ -1,6 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, afterEach, describe, expect, spyOn, test } from "bun:test";
+import { mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import type { AuthResult } from "../../auth/auth-middleware.ts";
 import * as AgentManager from "../../agent-manager.ts";
+import type { AgentInfo } from "../../../shared/types.ts";
+import { claimUserByName, deleteUserById } from "../../users.ts";
+import { handleAgentSpawnRequest } from "../agent-spawn-route.ts";
 import { handleRoomsRequest } from "../rooms.ts";
 
 const ownerAuth: AuthResult = {
@@ -91,7 +97,7 @@ describe("handleRoomsRequest", () => {
 
     expect(res?.status).toBe(200);
     const body = await res?.json();
-    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, pet: null, skin: null, decor: null, version: body.version });
+    expect(body).toEqual({ prompt: "Keep reviews short.", envFile: null, cwd: null, pet: null, skin: null, decor: null, version: body.version });
     expect(typeof body.version).toBe("string");
     AgentManager.setRoomSettings(room.id, null, null);
   });
@@ -114,6 +120,34 @@ describe("handleRoomsRequest", () => {
     expect(saved?.status).toBe(204);
     expect(AgentManager.getRoomSettings(room.id)?.pet).toEqual({ species: "cat", coat: "silver" });
     AgentManager.setRoomPet(room.id, null);
+  });
+
+  test("saves, validates and clears a room's default working folder", async () => {
+    const room = AgentManager.getRooms()[0]!;
+    const url = new URL(`http://local.test/api/rooms/${room.id}/settings`);
+    const save = async (cwd: unknown) => {
+      const current = await handleRoomsRequest(request(url.pathname), url, ownerAuth);
+      const { version } = (await current!.json()) as { version: string };
+      return handleRoomsRequest(request(url.pathname, { method: "PUT", body: JSON.stringify({ prompt: null, envFile: null, cwd, version }) }), url, ownerAuth);
+    };
+    const folder = mkdtempSync(join(tmpdir(), "bureau-room-cwd-"));
+    try {
+      expect((await save(folder))?.status).toBe(204);
+      expect(AgentManager.getRoomSettings(room.id)?.cwd).toBe(folder);
+      expect(AgentManager.roomDefaultCwd(room.id)).toBe(folder);
+
+      for (const bad of ["relative/path", join(folder, "missing"), 42]) {
+        const res = await save(bad);
+        expect(res?.status).toBe(422);
+        expect(AgentManager.getRoomSettings(room.id)?.cwd).toBe(folder);
+      }
+
+      expect((await save("  "))?.status).toBe(204);
+      expect(AgentManager.getRoomSettings(room.id)?.cwd).toBeNull();
+    } finally {
+      AgentManager.setRoomCwd(room.id, null);
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 
   test("saves room decor choices with versioned room settings", async () => {
@@ -210,5 +244,52 @@ describe("handleRoomsRequest", () => {
 
     expect(res?.status).toBe(422);
     expect(await res?.json()).toEqual({ error: "deskA and deskB must be integers from 0 to 7" });
+  });
+});
+
+describe("agent creation in a room with a default folder", () => {
+  const spawnOwner = claimUserByName("Spawn Room Owner", { role: "owner" });
+  const spawnOwnerAuth: AuthResult = {
+    kind: "ok",
+    session: { sessionIdHash: "hash", sessionPrefix: "sess", userId: spawnOwner.id, username: "Spawn Room Owner", role: "owner", needsRolling: false, absoluteExpiresAt: Date.now() + 86_400_000 },
+  };
+  afterAll(() => deleteUserById(spawnOwner.id));
+
+  const room = () => AgentManager.getRooms()[0]!;
+  const spawnRequest = (body: Record<string, unknown>) =>
+    handleAgentSpawnRequest(
+      new Request("http://local.test/api/agents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Rae", roomId: room().id, desk: 0, ...body }) }),
+      spawnOwnerAuth,
+    );
+
+  afterEach(() => AgentManager.setRoomCwd(room().id, null));
+
+  test("an agent created without a cwd starts in its room's default folder", async () => {
+    const folder = mkdtempSync(join(tmpdir(), "bureau-spawn-cwd-"));
+    const spawn = spyOn(AgentManager, "spawn").mockResolvedValue({ id: "agent-rae" } as AgentInfo);
+    try {
+      AgentManager.setRoomCwd(room().id, folder);
+      expect((await spawnRequest({}))?.status).toBe(201);
+      expect(spawn.mock.calls[0]?.[1]).toBe(folder);
+
+      // An explicit cwd still wins over the room's folder.
+      expect((await spawnRequest({ cwd: tmpdir() }))?.status).toBe(201);
+      expect(spawn.mock.calls[1]?.[1]).toBe(tmpdir());
+    } finally {
+      spawn.mockRestore();
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  test("an agent created without a cwd in a room with no folder is refused", async () => {
+    const spawn = spyOn(AgentManager, "spawn");
+    try {
+      const res = await spawnRequest({});
+      expect(res.status).toBe(422);
+      expect(await res.json()).toEqual({ error: "cwd is required when the room has no default folder" });
+      expect(spawn).not.toHaveBeenCalled();
+    } finally {
+      spawn.mockRestore();
+    }
   });
 });

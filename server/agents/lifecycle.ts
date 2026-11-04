@@ -212,6 +212,7 @@ export async function restoreAgents(): Promise<AgentInfo[]> {
       name: r.name,
       prompt: r.prompt,
       envFile: r.envFile,
+      cwd: r.cwd ?? null,
       pet: r.pet ?? null,
       skin: r.skin ?? null,
     })),

@@ -85,6 +85,8 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
         return error(422, err instanceof Error ? err.message : "invalid env file");
       }
     }
+    const cwd = "cwd" in body ? AgentManager.parseRoomCwd(body.cwd) : null;
+    if (cwd && !cwd.ok) return error(422, cwd.reason);
     const current = AgentManager.getRoomSettings(roomId);
     if (!current) return error(404, "room not found");
     const version = typeof body.version === "string" ? body.version : "";
@@ -92,6 +94,7 @@ export async function handleRoomsRequest(req: Request, url: URL, auth: AuthResul
     const currentVersion = AgentManager.roomSettingsVersion(current);
     if (version !== currentVersion) return error(409, "room settings changed; fetch the latest version and retry");
     if (!AgentManager.setRoomSettings(roomId, prompt, envFile)) return error(404, "room not found");
+    if (cwd) AgentManager.setRoomCwd(roomId, cwd.cwd);
     if ("pet" in body) AgentManager.setRoomPet(roomId, normalizeRoomPet(body.pet));
     if ("skin" in body) {
       const parsed = parseRoomSkin(body.skin);

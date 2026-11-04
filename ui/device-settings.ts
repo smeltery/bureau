@@ -1,4 +1,5 @@
 import { storageGetItem, storageReadObject, storageRemoveItem, storageSetItem } from "./browser-storage.ts";
+import type { ChatCopyFormat } from "./log-view/header/chat-copy.ts";
 
 const KEY_DEVICE = "bureau-device";
 const KEY_APP_PREVIEWS = "bureau-app-previews";
@@ -6,6 +7,7 @@ const KEY_APP_FILTER_PREFIX = "bureau-app-filter:";
 const KEY_APP_PREVIEW_OPENS = "bureau-app-preview-opens";
 const KEY_SLIDE_VIEW = "bureau-slide-view";
 const KEY_SLIDE_POS = "bureau-slide-pos";
+const KEY_CHAT_COPY_FORMAT = "bureau-chat-copy-format";
 // Keep aligned with APP_SESSION_TTL_MS in server/apps/host/auth-cookie.ts.
 export const APP_PREVIEW_OPEN_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -86,6 +88,14 @@ export function pruneAppPreviewOpens(urls: readonly string[]): void {
 
 function readBoolMap(key: string): Record<string, boolean> {
   return storageReadObject<Record<string, boolean>>(key) ?? {};
+}
+
+export function getChatCopyFormat(): ChatCopyFormat {
+  return storageGetItem(KEY_CHAT_COPY_FORMAT) === "plain" ? "plain" : "markdown";
+}
+
+export function setChatCopyFormat(format: ChatCopyFormat): void {
+  storageSetItem(KEY_CHAT_COPY_FORMAT, format);
 }
 
 export function getSlideView(agentId: string): boolean {

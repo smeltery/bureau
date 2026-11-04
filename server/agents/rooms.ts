@@ -1,4 +1,7 @@
+import { isAbsolute } from "path";
 import { setOfficeName } from "../auth/http-env.ts";
+import { errMessage } from "../../shared/errors.ts";
+import { validateCwd } from "./session/paths.ts";
 import type { ExperimentalSettings, RoomDecor, RoomPet, RoomSkin, RoomWire } from "../../shared/types.ts";
 import { generateRoomId, normalizeRoomPet, parseRoomDecor, parseRoomSkin } from "../../shared/types.ts";
 import { validMemberShare } from "../../shared/member-usage/share.ts";
@@ -91,14 +94,16 @@ export function setRoomSettings(roomId: string, prompt: string | null, envFile: 
   return true;
 }
 
-/** Content hash over the room settings PUT surface (prompt + envFile + pet + skin + decor). */
-export function roomSettingsVersion(settings: { prompt: string | null; envFile: string | null; pet?: unknown; skin?: unknown; decor?: unknown }): string {
+/** Content hash over the room settings PUT surface (prompt + envFile + cwd + pet + skin + decor). */
+export function roomSettingsVersion(settings: { prompt: string | null; envFile: string | null; cwd?: string | null; pet?: unknown; skin?: unknown; decor?: unknown }): string {
   const skinParsed = parseRoomSkin(settings.skin);
   const decorParsed = parseRoomDecor(settings.decor);
   return versionOf(
     JSON.stringify({
       prompt: settings.prompt ?? null,
       envFile: settings.envFile ?? null,
+      // Only when set, so rooms without a folder keep their earlier version.
+      ...(settings.cwd ? { cwd: settings.cwd } : {}),
       pet: normalizeRoomPet(settings.pet),
       skin: skinParsed.ok ? skinParsed.skin : null,
       decor: decorParsed.ok ? decorParsed.decor : null,
@@ -106,11 +111,46 @@ export function roomSettingsVersion(settings: { prompt: string | null; envFile: 
   );
 }
 
-export function getRoomSettings(roomId: string): { prompt: string | null; envFile: string | null; pet: RoomPet | null; skin: RoomSkin | null; decor: RoomDecor | null } | null {
+export function getRoomSettings(roomId: string): { prompt: string | null; envFile: string | null; cwd: string | null; pet: RoomPet | null; skin: RoomSkin | null; decor: RoomDecor | null } | null {
   const idx = findRoomIndex(roomId);
   if (idx < 0) return null;
   const room = rooms[idx];
-  return { prompt: room.prompt, envFile: room.envFile, pet: normalizeRoomPet(room.pet), skin: room.skin ?? null, decor: room.decor ?? null };
+  return { prompt: room.prompt, envFile: room.envFile, cwd: room.cwd ?? null, pet: normalizeRoomPet(room.pet), skin: room.skin ?? null, decor: room.decor ?? null };
+}
+
+/**
+ * Check a room folder from a settings request. `null` or a blank string
+ * clears it; anything else must be an absolute or ~-rooted path to an
+ * existing directory. The folder is kept as typed, so "~/code" stays portable.
+ */
+export function parseRoomCwd(input: unknown): { ok: true; cwd: string | null } | { ok: false; reason: string } {
+  if (input === null || input === undefined) return { ok: true, cwd: null };
+  if (typeof input !== "string") return { ok: false, reason: "cwd must be a string or null" };
+  const cwd = input.trim();
+  if (!cwd) return { ok: true, cwd: null };
+  if (!isAbsolute(cwd) && cwd !== "~" && !cwd.startsWith("~/")) return { ok: false, reason: "cwd must be an absolute path or start with ~/" };
+  try {
+    validateCwd(cwd);
+  } catch (err) {
+    return { ok: false, reason: errMessage(err) };
+  }
+  return { ok: true, cwd };
+}
+
+export function setRoomCwd(roomId: string, cwd: string | null): boolean {
+  const idx = findRoomIndex(roomId);
+  if (idx < 0) return false;
+  const room = rooms[idx];
+  room.cwd = cwd || null;
+  persistAll();
+  emit({ type: "room_cwd_updated", roomId, cwd: room.cwd });
+  return true;
+}
+
+/** The folder a new agent in this room starts in, if the room has one. */
+export function roomDefaultCwd(roomId: string): string | null {
+  const idx = findRoomIndex(roomId);
+  return idx < 0 ? null : (rooms[idx].cwd ?? null);
 }
 
 export function setRoomPet(roomId: string, pet: RoomPet | null): boolean {

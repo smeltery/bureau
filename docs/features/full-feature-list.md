@@ -58,7 +58,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 
 - Persistent agent desks with names, rooms, working directories, models,
   topics, and status.
-- Bearer-authenticated agent discovery manifest for inter-agent awareness.
+- Bearer-authenticated agent discovery manifest for inter-agent awareness, plus `GET /api/agents/<id>/avatar.svg` for an agent's portrait as an image.
 - Agents can register web apps they built; Bureau allocates the port, supervises
   the process past sessions and reboots, and shows state and logs in the Apps
   tab. Agents with app management access can upload a PNG thumbnail from a
@@ -165,7 +165,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   state. Mid-turn desks show screen scroll lines and vessel steam; working
   characters get a face light.
 - Desk drinkware signals backend: Claude desks show a mug, Codex desks a teacup on a saucer, OpenCode desks a small flask.
-- Room tabs, room settings, drag/move flows, and desk swapping.
+- Room tabs, room settings (including a default working folder new agents in the room start in), drag/move flows, and desk swapping.
 - Usage and Storage panes in User Settings (Usage for all signed-in users; Storage prune for owners). Nested Office Settings links removed.
 - Theme picker with dark, light, Nord, Dracula, Solarized Dark, and Solarized
   Light themes.
@@ -198,7 +198,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Task ids in chat become chips that open the task board on that task; the description field expands to a near-fullscreen editor, and task drafts survive desktop/mobile layout changes. Edits can clear descriptions, assignees, and room assignments.
 - Room settings saves require the version from a preceding GET (HTTP and the settings dialog), matching office settings optimistic concurrency.
 - Markdown, syntax highlighting, Mermaid diagrams, LaTeX math, citations, and rich cards.
-- Collapsible thinking/tool-call cards with timing.
+- Collapsible thinking/tool-call cards with timing. The chat header's Copy menu copies messages only, your own messages, everything (tool calls included) or the last exchange, with each speaker named. Markdown or plain text, remembered per browser.
 - File attachments via path notices, inline image display, and PDF handling.
 - [Voice input and read aloud](voice-providers.md): per-member browser or OpenAI providers, server-held credentials, selectable voices, cancellable recording and playback, and saved speech language (en / es / ca / zh).
 - Office UI localization (English, Spanish, Catalan, Simplified Chinese) via typed catalogs and

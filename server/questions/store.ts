@@ -58,6 +58,7 @@ export function createQuestionStore(persistence: QuestionPersistence) {
           typeof row.answer.dismissed !== "boolean" ||
           typeof row.answer.username !== "string" ||
           row.answer.userId !== row.memberUserId ||
+          (row.answer.taskId !== undefined && typeof row.answer.taskId !== "string") ||
           typeof row.answer.attemptId !== "string")
       )
         throw new Error("Invalid question answer storage; the original file was kept");
@@ -128,12 +129,12 @@ export function createQuestionStore(persistence: QuestionPersistence) {
       persistence.write(next);
       rows = next;
     },
-    answer(id: string, revision: number, answer: { text: string; dismissed: boolean; username: string; userId: string }, send: Delivery) {
+    answer(id: string, revision: number, answer: { text: string; dismissed: boolean; username: string; userId: string; taskId?: string }, send: Delivery) {
       const row = get(id);
       version(row, revision);
       if (row.memberUserId !== answer.userId) throw new QuestionError("Only the addressed member may answer", 403);
       if (row.answer) {
-        if (row.answer.text === answer.text && row.answer.dismissed === answer.dismissed) return row;
+        if (row.answer.text === answer.text && row.answer.dismissed === answer.dismissed && row.answer.taskId === answer.taskId) return row;
         throw new QuestionError("This question already has an answer", 409);
       }
       if (typeof answer.text !== "string" || answer.text.length > 8000 || (!answer.dismissed && !answer.text.trim())) throw new QuestionError("Answer must contain 1–8000 characters");

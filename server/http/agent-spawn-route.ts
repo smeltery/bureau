@@ -22,11 +22,12 @@ export async function handleAgentSpawnRequest(req: Request, auth?: AuthResult): 
   const handoffError = handoffSettingsError(body);
   if (handoffError) return jsonError(422, handoffError);
   const name = typeof body.name === "string" ? body.name.trim() : "";
-  const cwd = typeof body.cwd === "string" ? body.cwd : "";
   const roomId = typeof body.roomId === "string" ? body.roomId : "";
+  // Without a cwd, a new agent starts in its room's folder, if it has one.
+  const cwd = typeof body.cwd === "string" && body.cwd ? body.cwd : (AgentManager.roomDefaultCwd(roomId) ?? "");
   const desk = typeof body.desk === "number" ? body.desk : undefined;
   if (!name) return jsonError(422, "name is required");
-  if (!cwd) return jsonError(422, "cwd is required");
+  if (!cwd) return jsonError(422, "cwd is required when the room has no default folder");
   if (!roomId) return jsonError(422, "roomId is required");
   if (desk === undefined) return jsonError(422, "desk is required");
   if (!isValidDesk(desk)) return jsonError(422, `desk must be an integer from 0 to ${DESK_COUNT - 1}`);

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { AgentInfo, LogEntry } from "../../shared/types.ts";
 import { useAppState, useDispatch, useFeatures } from "../store.tsx";
 import { useSwipeLeftRight } from "../hooks/useSwipeLeftRight.ts";
-import { serializeEntries } from "./entries/index.tsx";
+import { useChatCopyText } from "./hooks/useChatCopyText.ts";
 import { Header } from "./Header.tsx";
 import { InputBar } from "./InputBar.tsx";
 import { QueueChips } from "./QueueChips.tsx";
@@ -180,7 +180,7 @@ export function LogView({
     return () => window.removeEventListener("keydown", handleTerminalShortcut);
   }, [isMobile, features.terminal, panels.setTerminalOpen]);
 
-  const getConversationText = useCallback(() => serializeEntries(logs), [logs]);
+  const getConversationText = useChatCopyText(logs, agent.name);
 
   const inputBar = (
     <InputBar
