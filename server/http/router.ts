@@ -119,15 +119,15 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
   const authRouted = await tryHandleAuthRoute(req, url, getOfficeName(), server);
   if (authRouted) return authRouted;
 
-  // WebSocket upgrade — gated by both Origin and a valid session cookie
-  // (loopback peers bypass the cookie check).
+  // WebSocket upgrade — gated by both Origin and a valid session cookie.
   if (url.pathname === "/ws") {
     if (!originAllowed(req, url)) {
       return new Response("Forbidden", { status: 403 });
     }
     const auth = authenticate(req, server, { allowLoopback: false, officeName: getOfficeName(), gate: "ws" });
-    if (auth.kind === "rejected") return auth.response;
-    const session = auth.kind === "ok" ? auth.session : null;
+    // Only a browser session opens the socket: one without a session is never rechecked and may claim any member.
+    if (auth.kind !== "ok") return auth.kind === "rejected" ? auth.response : new Response("a signed-in browser session is required", { status: 403 });
+    const session = auth.session;
     // The __Host- cookie migration rides the 101. This is the seam that
     // reaches an already-open tab: a running SPA can reconnect its socket
     // for days without ever loading a page again, so a page-load-only
