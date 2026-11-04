@@ -21,7 +21,7 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
   const [error, setError] = useState<QuestionFailure | null>(null);
   const [confirmRetry, setConfirmRetry] = useState(false);
   // `answerText` overrides the field, as when a lone option is tapped.
-  async function act(action: "answer" | "dismiss" | "retry" | "remove", answerText = text) {
+  async function act(action: "answer" | "dismiss" | "file-task" | "retry" | "remove", answerText = text) {
     if (busy || changed) return;
     setBusy(true);
     setError(null);
@@ -31,7 +31,7 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           revision: question.revision,
-          ...(action === "answer" || action === "dismiss" ? { text: answerText } : {}),
+          ...(action === "answer" || action === "dismiss" || action === "file-task" ? { text: answerText } : {}),
           ...(action === "retry" ? { confirmedUncertain: confirmRetry } : {}),
         }),
       });
@@ -91,12 +91,15 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
             <button type="button" disabled={busy || changed} style={dialogCancelBtn} onClick={() => void act("dismiss")}>
               {t(text.trim() ? "questions.dismissReason" : "questions.dismiss")}
             </button>
+            <button type="button" disabled={busy || changed} style={dialogCancelBtn} onClick={() => void act("file-task")}>
+              {t("questions.fileAsTask")}
+            </button>
           </div>
         </>
       ) : (
         <>
           <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-            {t(question.answer?.dismissed ? "questions.dismissed" : "questions.answer")}
+            {question.answer?.taskId ? t("questions.filedAsTask", { id: question.answer.taskId }) : t(question.answer?.dismissed ? "questions.dismissed" : "questions.answer")}
             {question.answer?.text ? `: ${question.answer.text}` : ""}
           </p>
           <p style={{ margin: 0 }}>

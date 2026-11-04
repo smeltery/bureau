@@ -16,6 +16,8 @@ export const questions = {
   "questions.dismiss": "忽略",
   "questions.dismissReason": "以此原因忽略",
   "questions.dismissed": "已忽略",
+  "questions.fileAsTask": "暂不处理，记为任务",
+  "questions.filedAsTask": "已记为任务 {id}",
   "questions.delivered": "已被代理的消息队列接收。",
   "questions.refused": "发送被拒绝。你的回答已保存。",
   "questions.uncertain": "你的回答已保存，但无法确认是否送达。重试前请检查对话。",

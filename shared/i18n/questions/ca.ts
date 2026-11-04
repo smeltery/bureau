@@ -16,6 +16,8 @@ export const questions = {
   "questions.dismiss": "Descarta",
   "questions.dismissReason": "Descarta amb aquest motiu",
   "questions.dismissed": "Descartada",
+  "questions.fileAsTask": "Ara no, arxiva-la com a tasca",
+  "questions.filedAsTask": "Arxivada com a tasca {id}",
   "questions.delivered": "Acceptada per la cua de missatges de l'agent.",
   "questions.refused": "S'ha rebutjat el lliurament. La teva resposta està desada.",
   "questions.uncertain": "La teva resposta està desada, però no s'ha pogut confirmar el lliurament. Revisa la conversa abans de tornar-ho a provar.",
