@@ -1,6 +1,7 @@
 # Agent Discovery And Conversations
 
 - `GET /api/agents` lists agents visible to your manager. Live entries include room, backend, model, permission mode, and in-flight turn status. Model and permission mode reflect launch settings, including cloud alias targets and permission fallback; the saved family and preference are unchanged.
+- `GET /api/agents/<id>/avatar.svg` returns that agent's office figure, in its outfit, as an SVG image (`image/svg+xml`, revalidated by ETag). Use it as an `<img src>` in an app page to show which agent is which.
 - `GET /api/agents/<id>/logs` lists sessions. Add `?q=...` to search, `?session=<id>` to read a session, and `around=<entryId>&window=N` to read near one entry.
 - Session indexes and retrieved conversations include a `summary` when available. Search returns separate `summaryHits` for matching topics or summaries, alongside entry `results`; kind and tier filters apply only to entries.
 - Indexes accept `limit` (1–200, default 20) and timestamp bounds, and report `truncated` when more sessions match.
