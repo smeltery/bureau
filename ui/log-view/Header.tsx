@@ -1,4 +1,4 @@
-import type { ChatCopyFormat, ChatCopyScope } from "./header/chat-copy.ts";
+import type { ChatCopyGetter } from "./header/chat-html.ts";
 import { ModelRecovery } from "./header/ModelRecovery.tsx";
 import { useI18n } from "../i18n.tsx";
 import type { AgentInfo, PendingPromptKind } from "../../shared/types.ts";
@@ -50,7 +50,7 @@ export function Header({
   slideModeEnabled?: boolean;
   slideView?: boolean;
   setSlideView?: (active: boolean) => void;
-  getConversationText: (scope: ChatCopyScope, format: ChatCopyFormat) => string;
+  getConversationText: ChatCopyGetter;
 }) {
   const { t } = useI18n();
   const { stateChangedAt, isMobile } = useAppState();

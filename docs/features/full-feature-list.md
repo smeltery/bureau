@@ -198,7 +198,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Task ids in chat become chips that open the task board on that task; the description field expands to a near-fullscreen editor, and task drafts survive desktop/mobile layout changes. Edits can clear descriptions, assignees, and room assignments.
 - Room settings saves require the version from a preceding GET (HTTP and the settings dialog), matching office settings optimistic concurrency.
 - Markdown, syntax highlighting, Mermaid diagrams, LaTeX math, citations, and rich cards.
-- Collapsible thinking/tool-call cards with timing. The chat header's Copy menu copies messages only, your own messages, everything (tool calls included) or the last exchange, with each speaker named. Markdown or plain text, remembered per browser.
+- Collapsible thinking/tool-call cards with timing. The chat header's Copy menu copies messages only, your own messages, everything (tool calls included) or the last exchange, with each speaker named. Markdown or plain text, or saved as a self-contained HTML file that opens offline; the choice is remembered per browser.
 - File attachments via path notices, inline image display, and PDF handling.
 - [Voice input and read aloud](voice-providers.md): per-member browser or OpenAI providers, server-held credentials, selectable voices, cancellable recording and playback, and saved speech language (en / es / ca / zh).
 - Office UI localization (English, Spanish, Catalan, Simplified Chinese) via typed catalogs and

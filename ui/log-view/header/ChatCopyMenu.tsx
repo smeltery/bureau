@@ -2,13 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../../i18n.tsx";
 import { copyText } from "../../utils/clipboard.ts";
 import { getChatCopyFormat, setChatCopyFormat } from "../../device-settings.ts";
-import { CHAT_COPY_SCOPES, type ChatCopyFormat, type ChatCopyScope } from "./chat-copy.ts";
+import { CHAT_COPY_SCOPES, type ChatCopyScope } from "./chat-copy.ts";
+import { CHAT_COPY_OUTPUTS, saveHtmlFile, type ChatCopyGetter, type ChatCopyOutput } from "./chat-html.ts";
 
 const SCOPE_LABEL = {
   messages: "chat.copy.messages",
   mine: "chat.copy.mine",
   everything: "chat.copy.everything",
   lastExchange: "chat.copy.lastExchange",
+} as const;
+
+const OUTPUT_LABEL = {
+  markdown: "chat.copy.markdown",
+  plain: "chat.copy.plain",
+  html: "chat.copy.html",
 } as const;
 
 const COPY_ICON = (
@@ -37,9 +44,9 @@ const rowStyle = {
   cursor: "pointer",
 } as const;
 
-// The chat header's Copy: pick what to copy, in Markdown or plain text. The
-// format is remembered per browser.
-export function ChatCopyMenu({ getText, size = 24 }: { getText: (scope: ChatCopyScope, format: ChatCopyFormat) => string; size?: number }) {
+// The chat header's Copy: pick what to copy, in Markdown or plain text, or
+// save it as an HTML file. The format is remembered per browser.
+export function ChatCopyMenu({ getText, size = 24 }: { getText: ChatCopyGetter; size?: number }) {
   const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
   // Where the open menu sits, from the button's box: fixed, so the phone
@@ -51,7 +58,7 @@ export function ChatCopyMenu({ getText, size = 24 }: { getText: (scope: ChatCopy
     setAnchor(next && box ? { top: box.bottom + 4, right: Math.max(8, window.innerWidth - box.right) } : null);
   };
   const [copied, setCopied] = useState(false);
-  const [format, setFormat] = useState<ChatCopyFormat>(getChatCopyFormat);
+  const [format, setFormat] = useState<ChatCopyOutput>(getChatCopyFormat);
 
   useEffect(() => {
     if (!open) return;
@@ -73,12 +80,14 @@ export function ChatCopyMenu({ getText, size = 24 }: { getText: (scope: ChatCopy
 
   async function copy(scope: ChatCopyScope) {
     setOpen(false);
-    if (!(await copyText(getText(scope, format)))) return;
+    const { text, fileName } = getText(scope, format);
+    if (fileName) saveHtmlFile(text, fileName);
+    else if (!(await copyText(text))) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
 
-  function chooseFormat(next: ChatCopyFormat) {
+  function chooseFormat(next: ChatCopyOutput) {
     setFormat(next);
     setChatCopyFormat(next);
   }
@@ -133,7 +142,7 @@ export function ChatCopyMenu({ getText, size = 24 }: { getText: (scope: ChatCopy
             </button>
           ))}
           <div role="group" aria-label={t("chat.copy.format")} style={{ borderTop: "1px solid var(--border-light)", marginTop: 4, paddingTop: 4 }}>
-            {(["markdown", "plain"] as const).map((option) => (
+            {CHAT_COPY_OUTPUTS.map((option) => (
               <button
                 key={option}
                 type="button"
@@ -143,7 +152,7 @@ export function ChatCopyMenu({ getText, size = 24 }: { getText: (scope: ChatCopy
                 onClick={() => chooseFormat(option)}
               >
                 {format === option ? "● " : "○ "}
-                {t(option === "markdown" ? "chat.copy.markdown" : "chat.copy.plain")}
+                {t(OUTPUT_LABEL[option])}
               </button>
             ))}
           </div>

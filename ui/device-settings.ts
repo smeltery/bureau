@@ -1,5 +1,5 @@
 import { storageGetItem, storageReadObject, storageRemoveItem, storageSetItem } from "./browser-storage.ts";
-import type { ChatCopyFormat } from "./log-view/header/chat-copy.ts";
+import { CHAT_COPY_OUTPUTS, type ChatCopyOutput } from "./log-view/header/chat-html.ts";
 
 const KEY_DEVICE = "bureau-device";
 const KEY_APP_PREVIEWS = "bureau-app-previews";
@@ -90,11 +90,12 @@ function readBoolMap(key: string): Record<string, boolean> {
   return storageReadObject<Record<string, boolean>>(key) ?? {};
 }
 
-export function getChatCopyFormat(): ChatCopyFormat {
-  return storageGetItem(KEY_CHAT_COPY_FORMAT) === "plain" ? "plain" : "markdown";
+export function getChatCopyFormat(): ChatCopyOutput {
+  const saved = storageGetItem(KEY_CHAT_COPY_FORMAT);
+  return CHAT_COPY_OUTPUTS.find((output) => output === saved) ?? "markdown";
 }
 
-export function setChatCopyFormat(format: ChatCopyFormat): void {
+export function setChatCopyFormat(format: ChatCopyOutput): void {
   storageSetItem(KEY_CHAT_COPY_FORMAT, format);
 }
 

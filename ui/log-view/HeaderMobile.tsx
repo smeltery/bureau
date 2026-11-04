@@ -1,4 +1,4 @@
-import type { ChatCopyFormat, ChatCopyScope } from "./header/chat-copy.ts";
+import type { ChatCopyGetter } from "./header/chat-html.ts";
 import { ChatCopyMenu } from "./header/ChatCopyMenu.tsx";
 import { ModelRecovery } from "./header/ModelRecovery.tsx";
 import { useI18n } from "../i18n.tsx";
@@ -32,7 +32,7 @@ export function HeaderMobile({
   showAvatar: boolean;
   toggleAvatar: () => void;
   stateChangedAt?: number;
-  getConversationText: (scope: ChatCopyScope, format: ChatCopyFormat) => string;
+  getConversationText: ChatCopyGetter;
   slideModeEnabled?: boolean;
   slideView?: boolean;
   setSlideView?: (active: boolean) => void;

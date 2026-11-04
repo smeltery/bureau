@@ -43,6 +43,7 @@ export const chat = {
   "chat.copy.lastExchange": "Last exchange",
   "chat.copy.markdown": "Markdown",
   "chat.copy.plain": "Plain text",
+  "chat.copy.html": "HTML file",
   "chat.copy.format": "Format",
   "chat.attachments.one": "{total} attachment",
   "chat.attachments.other": "{total} attachments",

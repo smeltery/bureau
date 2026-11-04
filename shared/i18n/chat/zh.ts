@@ -43,6 +43,7 @@ export const chat = {
   "chat.copy.lastExchange": "最后一轮",
   "chat.copy.markdown": "Markdown",
   "chat.copy.plain": "纯文本",
+  "chat.copy.html": "HTML 文件",
   "chat.copy.format": "格式",
   "chat.attachments.one": "{total} 个附件",
   "chat.attachments.other": "{total} 个附件",
