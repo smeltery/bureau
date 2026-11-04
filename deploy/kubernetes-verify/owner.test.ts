@@ -7,7 +7,7 @@ test("the k3d owner overlay is the guide's overlay", () => {
   const guide = readFileSync(new URL("../../docs/contributing/hosting/kubernetes.md", import.meta.url), "utf8");
   const block = guide.match(/```yaml\n([\s\S]*?)```/)![1];
   const expected = block
-    .replace("https://github.com/dotbrains/bureau//deploy/kubernetes?ref=REPLACE_WITH_RELEASE_TAG", "../../kubernetes")
+    .replace("https://github.com/smeltery/bureau//deploy/kubernetes?ref=REPLACE_WITH_RELEASE_TAG", "../../kubernetes")
     .replace("REPLACE_WITH_IMAGE_DIGEST", "56feb68ff1eea2ece0a6f0f7e8eaf522ad958021d0672fe6fe74abb69a22889c")
     .replaceAll("office.example.com", "office.k8s.test");
   expect(expected).not.toBe(block);

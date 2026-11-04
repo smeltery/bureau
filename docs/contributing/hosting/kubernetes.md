@@ -45,10 +45,13 @@ from your own secret manager.
 
 ## 2. Write your deployment settings
 
-On the [Bureau container images page](https://github.com/dotbrains/bureau/pkgs/container/bureau),
+On the [Bureau container images page](https://github.com/smeltery/bureau/pkgs/container/bureau),
 choose a release tag, which starts with `v`, and copy its image digest
 (`sha256:…`). You can also read the digest with
-`docker buildx imagetools inspect ghcr.io/dotbrains/bureau:REPLACE_WITH_RELEASE_TAG`.
+`docker buildx imagetools inspect ghcr.io/smeltery/bureau:REPLACE_WITH_RELEASE_TAG`.
+Each release tag publishes the image through the
+[`release-image` workflow](https://github.com/smeltery/bureau/actions/workflows/release-image.yml),
+and the run summary shows the digest too.
 
 Create a directory for your office and save this file in it as
 `kustomization.yaml`. Replace the release tag, the digest, the certificate ARN,
@@ -58,9 +61,9 @@ and `office.example.com` in all four places.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://github.com/dotbrains/bureau//deploy/kubernetes?ref=REPLACE_WITH_RELEASE_TAG
+  - https://github.com/smeltery/bureau//deploy/kubernetes?ref=REPLACE_WITH_RELEASE_TAG
 images:
-  - name: ghcr.io/dotbrains/bureau
+  - name: ghcr.io/smeltery/bureau
     digest: sha256:REPLACE_WITH_IMAGE_DIGEST
 configMapGenerator:
   - name: bureau-config
@@ -85,7 +88,7 @@ patches:
 ```
 
 Use the same release tag for the manifests and the image. The
-[reference manifests](https://github.com/dotbrains/bureau/tree/master/deploy/kubernetes)
+[reference manifests](https://github.com/smeltery/bureau/tree/master/deploy/kubernetes)
 create:
 
 - A 30 GiB encrypted gp3 volume that is kept when you delete the claim.
@@ -158,8 +161,8 @@ kubectl -n bureau rollout restart deployment/bureau
 
 The office's Updates pane shows when a new release is out and links here; it
 has no Update now button on Kubernetes. Releases are on the
-[Bureau container images page](https://github.com/dotbrains/bureau/pkgs/container/bureau)
-and in the [release notes](https://github.com/dotbrains/bureau/releases).
+[Bureau container images page](https://github.com/smeltery/bureau/pkgs/container/bureau)
+and in the [release notes](https://github.com/smeltery/bureau/releases).
 
 1. Finish active agent work. The update restarts the office and its apps.
 2. Take a snapshot of the office's EBS volume. An update can change stored
@@ -194,5 +197,5 @@ kubectl -n bureau exec deployment/bureau -- \
 
 Only `/var/data` survives a pod replacement. Keep projects and dependency
 installs under `/var/data/home` or `/var/data/workspaces`. See the
-[container reference](https://github.com/dotbrains/bureau/blob/master/deploy/container/reference.md)
+[container reference](https://github.com/smeltery/bureau/blob/master/deploy/container/reference.md)
 for runtime details.

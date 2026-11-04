@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 # Reference base for a Bureau office on EKS. Use it from an overlay that sets
 # the office host, certificate and image digest:
-# https://github.com/dotbrains/bureau/blob/master/docs/contributing/hosting/kubernetes.md
+# https://github.com/smeltery/bureau/blob/master/docs/contributing/hosting/kubernetes.md
 resources:
   - namespace.yaml
   - serviceaccount.yaml
@@ -26,5 +26,5 @@ configMapGenerator:
       - x86_64.json=seccomp/amd64/bureau-chromium-v1.json
       - aarch64.json=seccomp/arm64/bureau-chromium-v1.json
 images:
-  - name: ghcr.io/dotbrains/bureau
+  - name: ghcr.io/smeltery/bureau
     digest: sha256:REPLACE_WITH_IMAGE_DIGEST

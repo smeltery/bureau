@@ -186,7 +186,7 @@ meets the list below works.
 ## 6. Updates
 
 The operator updates by image digest: `kustomize edit set image
-ghcr.io/dotbrains/bureau@sha256:…`, apply, and the Recreate rollout replaces the
+ghcr.io/smeltery/bureau@sha256:…`, apply, and the Recreate rollout replaces the
 pod (about one minute of downtime; apps restart from saved intent). Rollback is
 the previous digest, only with a snapshot, because a newer release can migrate
 state. The docs get the digest from the release tag
@@ -258,7 +258,7 @@ for the leaf key, so the origin stays secure. `BUREAU_PUBLIC_URL` is
 `https://office.k8s.test`. The seccomp file goes to the nodes through the
 shipped DaemonSet.
 
-Checks, image `ghcr.io/dotbrains/bureau@<v2026.9.23 digest>`:
+Checks, image `ghcr.io/smeltery/bureau@<v2026.9.23 digest>`:
 
 1. Pod starts as UID 1000 under namespace `restricted`; probes pass before
    and after the claim. Freeze the office child with `SIGSTOP` (a killed
