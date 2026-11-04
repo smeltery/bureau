@@ -291,7 +291,7 @@ export function App() {
       {spawnDesk !== null && (
         <EditAgentDialog
           deskIndex={spawnDesk}
-          defaultCwd="~"
+          defaultCwd={rooms[currentRoom]?.cwd || "~"}
           agentType="claude"
           onClose={() => {
             setSpawnDesk(null);

@@ -28,6 +28,7 @@ import { UnsavedChangesPrompt, useUnsavedChangesPrompt } from "./UnsavedChangesP
 type RoomBaseline = {
   prompt: string;
   envFile: string;
+  cwd: string;
   petSpecies: PetSpecies;
   petCoat: string;
   skin: RoomSkin;
@@ -44,6 +45,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
   const room = rooms.find((r) => r.id === roomId);
   const [prompt, setPrompt] = useState(room?.prompt ?? "");
   const [envFile, setEnvFile] = useState(room?.envFile ?? "");
+  const [cwd, setCwd] = useState(room?.cwd ?? "");
   const initialPet = room?.pet ?? DEFAULT_ROOM_PET;
   const [petSpecies, setPetSpecies] = useState<PetSpecies>(initialPet.species);
   const [petCoat, setPetCoat] = useState<string>(initialPet.coat);
@@ -61,6 +63,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     !!baseline &&
     (prompt !== baseline.prompt ||
       envFile !== baseline.envFile ||
+      cwd !== baseline.cwd ||
       petSpecies !== baseline.petSpecies ||
       petCoat !== baseline.petCoat ||
       skin !== baseline.skin ||
@@ -71,6 +74,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     if (!baseline) return;
     setPrompt(baseline.prompt);
     setEnvFile(baseline.envFile);
+    setCwd(baseline.cwd);
     setPetSpecies(baseline.petSpecies);
     setPetCoat(baseline.petCoat);
     setSkin(baseline.skin);
@@ -85,7 +89,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
     fetch(`/api/rooms/${encodeURIComponent(roomId)}/settings`, { credentials: "same-origin" })
       .then(async (res) => {
         if (!res.ok) throw new Error("could not load room settings");
-        return (await res.json()) as { prompt: string | null; envFile: string | null; pet?: RoomPet | null; skin?: RoomSkin | null; decor?: RoomDecor | null; version: string };
+        return (await res.json()) as { prompt: string | null; envFile: string | null; cwd?: string | null; pet?: RoomPet | null; skin?: RoomSkin | null; decor?: RoomDecor | null; version: string };
       })
       .then((data) => {
         if (cancelled) return;
@@ -93,6 +97,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
         const next: RoomBaseline = {
           prompt: data.prompt ?? "",
           envFile: data.envFile ?? "",
+          cwd: data.cwd ?? "",
           petSpecies: pet.species,
           petCoat: pet.coat,
           skin: effectiveRoomSkin({ skin: data.skin }),
@@ -100,6 +105,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
         };
         setPrompt(next.prompt);
         setEnvFile(next.envFile);
+        setCwd(next.cwd);
         setPetSpecies(next.petSpecies);
         setPetCoat(next.petCoat);
         setSkin(next.skin);
@@ -175,6 +181,7 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
       roomId,
       prompt: prompt.trim() ? prompt : null,
       envFile: envFile.trim() || null,
+      cwd: cwd.trim() || null,
       pet,
       skin,
       decor,
@@ -212,6 +219,19 @@ export function RoomSettingsModal({ roomId, onClose }: { roomId: string; onClose
             setStatus({ kind: "idle" });
           }}
           placeholder="/home/you/.secrets/room.env"
+          style={inputStyle}
+        />
+        <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginTop: 14, marginBottom: 5 }}>
+          {t("settingsUi.roomCwd")} <span style={{ fontWeight: 400, color: "var(--text-ghost)" }}>{t("settingsUi.roomCwdHint")}</span>
+        </label>
+        <input
+          aria-label={t("settingsUi.roomCwd")}
+          value={cwd}
+          onChange={(e) => {
+            setCwd(e.target.value);
+            setStatus({ kind: "idle" });
+          }}
+          placeholder="~/code/project"
           style={inputStyle}
         />
         {!settingsVersion && status.kind === "idle" && (

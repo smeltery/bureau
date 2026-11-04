@@ -165,7 +165,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
   state. Mid-turn desks show screen scroll lines and vessel steam; working
   characters get a face light.
 - Desk drinkware signals backend: Claude desks show a mug, Codex desks a teacup on a saucer, OpenCode desks a small flask.
-- Room tabs, room settings, drag/move flows, and desk swapping.
+- Room tabs, room settings (including a default working folder new agents in the room start in), drag/move flows, and desk swapping.
 - Usage and Storage panes in User Settings (Usage for all signed-in users; Storage prune for owners). Nested Office Settings links removed.
 - Theme picker with dark, light, Nord, Dracula, Solarized Dark, and Solarized
   Light themes.

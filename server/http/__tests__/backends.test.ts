@@ -105,7 +105,7 @@ describe("backend model environment access", () => {
     const spies = [
       spyOn(users, "getUserById").mockImplementation((id) => userMap[id] ?? null),
       spyOn(AgentManager, "getAgent").mockReturnValue({ id: "agent-1", userId: "manager-1", roomId: "room-1" } as AgentInfo),
-      spyOn(AgentManager, "getRoomSettings").mockReturnValue({ envFile: room, prompt: null, pet: null, skin: null, decor: null }),
+      spyOn(AgentManager, "getRoomSettings").mockReturnValue({ envFile: room, prompt: null, pet: null, skin: null, decor: null, cwd: null }),
       spyOn(AgentManager, "getOfficeSettings").mockReturnValue({ ...AgentManager.getOfficeSettings(), envFile: office }),
     ];
     const list = spyOn(getBackend("claude"), "listModels").mockImplementation(async (opts) => {
@@ -128,7 +128,7 @@ describe("backend model environment access", () => {
   test("refuses hidden rooms and another member's selected environment", async () => {
     const member = { ...ownerAuth, session: { ...ownerAuth.session, role: "member" as const } } as AuthResult;
     const user = spyOn(users, "getUserById").mockReturnValue({ id: "owner-1", role: "member", allowedRooms: [] } as unknown as UserRecord);
-    const room = spyOn(AgentManager, "getRoomSettings").mockReturnValue({ envFile: null, prompt: null, pet: null, skin: null, decor: null });
+    const room = spyOn(AgentManager, "getRoomSettings").mockReturnValue({ envFile: null, prompt: null, pet: null, skin: null, decor: null, cwd: null });
     try {
       for (const [query, status] of [
         ["roomId=hidden", 404],
