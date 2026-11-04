@@ -35,7 +35,7 @@ spec:
       containers:
         - name: install
           # The office image: already on the node, and it has bash and coreutils.
-          image: ghcr.io/dotbrains/bureau
+          image: ghcr.io/smeltery/bureau
           command:
             - bash
             - -c

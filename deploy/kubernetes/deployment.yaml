@@ -47,7 +47,7 @@ spec:
           localhostProfile: bureau/bureau-chromium-v1.json
       containers:
         - name: office
-          image: ghcr.io/dotbrains/bureau
+          image: ghcr.io/smeltery/bureau
           ports:
             - name: http
               containerPort: 10000

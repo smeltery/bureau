@@ -4,7 +4,7 @@ resources:
   - ../../kubernetes
 # The test builds this image from the checked-out revision.
 images:
-  - name: ghcr.io/dotbrains/bureau
+  - name: ghcr.io/smeltery/bureau
     newName: bureau-install
     newTag: verify
 configMapGenerator:

@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - ../../kubernetes
 images:
-  - name: ghcr.io/dotbrains/bureau
+  - name: ghcr.io/smeltery/bureau
     digest: sha256:56feb68ff1eea2ece0a6f0f7e8eaf522ad958021d0672fe6fe74abb69a22889c
 configMapGenerator:
   - name: bureau-config
