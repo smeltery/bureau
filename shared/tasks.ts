@@ -12,6 +12,8 @@ export interface TaskItem {
   roomId?: string;
   createdBy: string;
   createdAt: number;
+  // Set on a task imported from a GitHub issue.
+  github?: { repo: string; number: number; url: string };
 }
 
 // Generate a unique 8-char hex ID, avoiding collisions with `existing`.

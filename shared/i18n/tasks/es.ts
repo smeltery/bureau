@@ -44,4 +44,14 @@ export const tasks = {
   "tasks.deleted.more": "Más",
   "tasks.deleted.failed": "No se pudieron leer las tareas eliminadas.",
   "tasks.deleted.restoreFailed": "No se pudo restaurar esta tarea.",
+  "tasks.github.title": "Importar issues de GitHub",
+  "tasks.github.repo": "Repositorio de GitHub",
+  "tasks.github.label": "Etiqueta",
+  "tasks.github.labelHint": "Etiqueta (opcional)",
+  "tasks.github.import": "Importar",
+  "tasks.github.importing": "Importando…",
+  "tasks.github.hint":
+    "Solo repositorios públicos. Los issues abiertos nuevos se convierten en tareas de este tablero; al repetirlo, las tareas se marcan como hechas cuando su issue se cierra. No se escribe nada en GitHub.",
+  "tasks.github.done": "{created} añadidas, {closed} cerradas, {reopened} reabiertas.",
+  "tasks.github.failed": "No se pudieron importar los issues.",
 } as const;

@@ -313,7 +313,7 @@ in the architecture and feature docs linked from [docs/README.md](../README.md).
 - Per-agent MCP access design and plugin-management design docs for future
   expansion.
 
-- Task board: combined status/priority filters with counts, including unprioritized tasks; Obsolete retains dropped work separately from completed tasks.
+- Task board: combined status/priority filters with counts, including unprioritized tasks; Obsolete retains dropped work separately from completed tasks. Members can also import a public GitHub repository's issues (optionally one label) into the current board: new open issues become tasks linked back to their issue; importing again adds new issues and marks tasks done or reopened as their issues close or reopen. Read-only toward GitHub; pull requests are skipped.
 
 - Shared-tab and experimental host-browser actions support native selects and bounded dialog results, with explicit first-dialog acceptance. Clicks do not retry after pointer dispatch.
 

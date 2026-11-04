@@ -44,4 +44,13 @@ export const tasks = {
   "tasks.deleted.more": "更多",
   "tasks.deleted.failed": "无法读取已删除的任务。",
   "tasks.deleted.restoreFailed": "无法恢复此任务。",
+  "tasks.github.title": "导入 GitHub issue",
+  "tasks.github.repo": "GitHub 仓库",
+  "tasks.github.label": "标签",
+  "tasks.github.labelHint": "标签（可选）",
+  "tasks.github.import": "导入",
+  "tasks.github.importing": "正在导入…",
+  "tasks.github.hint": "仅限公开仓库。新的未关闭 issue 会成为此看板上的任务；再次导入时，issue 关闭的任务会标记为完成。不会向 GitHub 写入任何内容。",
+  "tasks.github.done": "新增 {created} 个，关闭 {closed} 个，重新打开 {reopened} 个。",
+  "tasks.github.failed": "无法导入 issue。",
 } as const;
