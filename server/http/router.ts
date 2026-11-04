@@ -330,11 +330,11 @@ async function routeFetch(req: Request, server: Server<WsData>): Promise<Respons
 
 function securityTxt(): string {
   return [
-    "Contact: https://github.com/dotbrains/bureau/security/advisories/new",
+    "Contact: https://github.com/smeltery/bureau/security/advisories/new",
     "Expires: 2027-08-24T00:00:00Z",
     "Preferred-Languages: en",
-    "Canonical: https://github.com/dotbrains/bureau/security/policy",
-    "Policy: https://github.com/dotbrains/bureau/security/policy",
+    "Canonical: https://github.com/smeltery/bureau/security/policy",
+    "Policy: https://github.com/smeltery/bureau/security/policy",
     "",
   ].join("\n");
 }

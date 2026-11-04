@@ -45,7 +45,10 @@ cannot alter or delete a member's saved answer.
 ## Answers and delivery
 
 Members answer or dismiss a question from the card. A dismissal may include a
-reason. **Not now, file as a task** closes the question by filing it on the
+reason. **Discuss in chat** starts a chat message about the question without
+answering it: it puts `About your question "<excerpt>": ` in front of the
+agent's chat draft (once) and focuses the composer, or opens that chat from the
+Inbox. **Not now, file as a task** closes the question by filing it on the
 task board in the agent's room: the first line becomes the title, and the full
 prompt, choices, link and any typed note go in the description, with the member
 as creator. The agent is told the task id. Repeating the request returns the

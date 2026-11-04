@@ -5,7 +5,7 @@
 Please report suspected vulnerabilities through GitHub's private vulnerability
 reporting for this repository:
 
-https://github.com/dotbrains/bureau/security/advisories/new
+https://github.com/smeltery/bureau/security/advisories/new
 
 Do not open a public issue for an unpatched vulnerability. Include enough detail
 to reproduce the issue, the affected version or commit if known, and any impact

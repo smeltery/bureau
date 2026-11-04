@@ -318,7 +318,7 @@ export function LogView({
             )}
             <QueueChips queue={agent.queue ?? []} agentId={agent.id} isMobile={isMobile} />
             <OutboxRows agentId={agent.id} isMobile={isMobile} onEdit={editOutboxAttempt} />
-            <QuestionsPane agentId={agent.id} />
+            <QuestionsPane agentId={agent.id} composerRef={textareaRef} />
             {inputBar}
           </>
         )}

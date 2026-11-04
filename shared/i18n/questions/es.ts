@@ -16,6 +16,8 @@ export const questions = {
   "questions.dismiss": "Descartar",
   "questions.dismissReason": "Descartar con este motivo",
   "questions.dismissed": "Descartada",
+  "questions.discuss": "Comentar en el chat",
+  "questions.discussPrefix": 'Sobre tu pregunta "{excerpt}": ',
   "questions.priorityLabel": "Prioridad",
   "questions.sortLabel": "Ordenar",
   "questions.sortAge": "Más tiempo esperando",

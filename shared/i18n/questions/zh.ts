@@ -16,6 +16,8 @@ export const questions = {
   "questions.dismiss": "忽略",
   "questions.dismissReason": "以此原因忽略",
   "questions.dismissed": "已忽略",
+  "questions.discuss": "在聊天中讨论",
+  "questions.discussPrefix": "关于你的问题“{excerpt}”：",
   "questions.priorityLabel": "优先级",
   "questions.sortLabel": "排序",
   "questions.sortAge": "等待最久",

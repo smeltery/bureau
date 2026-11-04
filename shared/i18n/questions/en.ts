@@ -16,6 +16,8 @@ export const questions = {
   "questions.dismiss": "Dismiss",
   "questions.dismissReason": "Dismiss with this reason",
   "questions.dismissed": "Dismissed",
+  "questions.discuss": "Discuss in chat",
+  "questions.discussPrefix": 'About your question "{excerpt}": ',
   "questions.priorityLabel": "Priority",
   "questions.sortLabel": "Sort",
   "questions.sortAge": "Longest waiting",
