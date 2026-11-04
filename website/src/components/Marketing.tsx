@@ -1,7 +1,17 @@
 import { github } from '../brand-icons.ts';
 import { SITE } from '../site.ts';
 import { Logo } from './Logo.tsx';
+import { MobileMenu } from './MobileMenu.tsx';
 import { OfficeScene, STATUS_COLOR, type Status } from './OfficeScene.tsx';
+
+const NAV_LINKS = [
+  ['How it works', '#how'],
+  ['Workflows', '#workflows'],
+  ['Workspace', '#workspace'],
+  ['Hosting', '#hosting'],
+  ['FAQ', '#faq'],
+  ['Docs', SITE.apiDocs],
+] as const;
 
 export function Header() {
   return (
@@ -12,21 +22,24 @@ export function Header() {
       <a className="brand" href="#top" aria-label="bureau home">
         <img src="/favicon.svg" alt="" width={22} height={22} />
         <span>
-          bureau<span className="brand-dot" aria-hidden="true">.</span>
+          bureau
+          <span className="brand-dot" aria-hidden="true">
+            .
+          </span>
         </span>
       </a>
-      <nav aria-label="Primary">
-        <a href="#how">How it works</a>
-        <a href="#workflows">Workflows</a>
-        <a href="#workspace">Workspace</a>
-        <a href="#hosting">Hosting</a>
-        <a href="#faq">FAQ</a>
-        <a href={SITE.apiDocs}>Docs</a>
+      <nav className="site-nav" aria-label="Primary">
+        {NAV_LINKS.map(([label, href]) => (
+          <a key={href} href={href}>
+            {label}
+          </a>
+        ))}
         <a className="nav-github" href={SITE.github} target="_blank" rel="noreferrer">
           <Logo icon={github} />
           GitHub
         </a>
       </nav>
+      <MobileMenu />
     </header>
   );
 }
@@ -50,8 +63,7 @@ export function Hero() {
           <em>One glance.</em>
         </h1>
         <p className="hero-desc">
-          Every Claude Code, Codex, and OpenCode agent gets a desk. See who's working, who's waiting,
-          and who needs you — <span className="marker">from any device.</span>
+          Every Claude Code, Codex, and OpenCode agent gets a desk. See who's working, who's waiting, and who needs you — <span className="marker">from any device.</span>
         </p>
         <div className="hero-actions">
           <a className="btn btn-primary" href={SITE.quickStart}>
@@ -61,7 +73,9 @@ export function Hero() {
             See how it works
           </a>
         </div>
-        <p className="fine">Self-hosted · personal use permitted · <a href="#faq-licensing">licensing & costs</a></p>
+        <p className="fine">
+          Self-hosted · personal use permitted · <a href="#faq-licensing">licensing & costs</a>
+        </p>
       </div>
       <figure className="office-card">
         <div className="window-bar" aria-hidden="true">

@@ -26,13 +26,13 @@ main,
   color: var(--accent);
 }
 
-.site-header nav {
+.site-nav {
   display: flex;
   gap: 22px;
   font-size: 14px;
 }
 
-.site-header nav a {
+.site-nav a {
   color: var(--muted);
   text-decoration: none;
 }
@@ -43,7 +43,7 @@ main,
   gap: 6px;
 }
 
-.site-header nav a:hover {
+.site-nav a:hover {
   color: var(--ink);
 }
 
@@ -233,19 +233,5 @@ main,
   .steps,
   .feature-grid {
     grid-template-columns: 1fr;
-  }
-  .site-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .site-header nav {
-    flex-wrap: wrap;
-    gap: 4px 20px;
-  }
-  .site-header nav a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
   }
 }
