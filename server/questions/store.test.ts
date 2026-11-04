@@ -113,6 +113,16 @@ test("a question offers between one and ten choices", () => {
   expect(f.store.edit(f.question.id, single.revision, { options: ten }).options).toEqual(ten);
 });
 
+test("a priority is optional, kept across edits, and cleared with null", () => {
+  const f = fixture();
+  const urgent = f.store.edit(f.question.id, 1, { priority: "P0" });
+  expect(urgent.priority).toBe("P0");
+  const reworded = f.store.edit(f.question.id, urgent.revision, { prompt: "Which option now?" });
+  expect(reworded.priority).toBe("P0");
+  expect(f.store.edit(f.question.id, reworded.revision, { priority: null }).priority).toBeUndefined();
+  expect(() => f.store.edit(f.question.id, reworded.revision + 1, { priority: "P4" })).toThrow("priority must be");
+});
+
 test("invalid prompts, choices, links, recipients and corrupt storage are refused", () => {
   const f = fixture();
   for (const input of [

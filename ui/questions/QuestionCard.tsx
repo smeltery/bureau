@@ -49,7 +49,24 @@ export function QuestionCard({ question, agentName, onOpenAgent }: { question: M
   }
   return (
     <article style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 12, display: "grid", gap: 8, fontSize: 12 }}>
-      <strong>{t("questions.asks", { name: agentName })}</strong>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <strong>{t("questions.asks", { name: agentName })}</strong>
+        {question.priority && (
+          <span
+            title={t("questions.priorityLabel")}
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              padding: "1px 6px",
+              borderRadius: 4,
+              border: "1px solid var(--border-medium)",
+              color: question.priority === "P0" ? "var(--red)" : "var(--text-dim)",
+            }}
+          >
+            {question.priority}
+          </span>
+        )}
+      </div>
       {onOpenAgent && (
         <button type="button" style={{ ...dialogCancelBtn, justifySelf: "start" }} onClick={onOpenAgent}>
           {t("questions.openChat")}

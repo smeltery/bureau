@@ -1,4 +1,5 @@
 import type { QuestionContent } from "../../shared/questions/types.ts";
+import { isValidPriority } from "../../shared/tasks.ts";
 
 export class QuestionError extends Error {
   constructor(
@@ -33,5 +34,13 @@ export function questionContent(input: Record<string, unknown>, previous?: Quest
   const link = input.link === null ? undefined : input.link === undefined ? previous?.link : input.link;
   if (link !== undefined && (typeof link !== "string" || !/^\/(?:tasks|apps|schedules|settings|inbox|pager)(?:\?[a-zA-Z0-9_%=&.-]*)?$/.test(link)))
     throw new QuestionError("link must be an office Tasks, Apps, Schedules, Settings or Inbox page");
-  return { prompt: prompt.trim(), ...(options ? { options } : {}), ...(recommended ? { recommended: recommended as string } : {}), ...(link ? { link: link as string } : {}) };
+  const priority = input.priority === null ? undefined : input.priority === undefined ? previous?.priority : input.priority;
+  if (priority !== undefined && !isValidPriority(priority)) throw new QuestionError("priority must be P0, P1, P2 or P3");
+  return {
+    prompt: prompt.trim(),
+    ...(priority ? { priority } : {}),
+    ...(options ? { options } : {}),
+    ...(recommended ? { recommended: recommended as string } : {}),
+    ...(link ? { link: link as string } : {}),
+  };
 }

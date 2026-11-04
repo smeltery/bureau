@@ -117,7 +117,7 @@ export function createQuestionStore(persistence: QuestionPersistence) {
       const row = get(id);
       version(row, revision);
       if (row.status !== "open") throw new QuestionError("An answered question cannot be edited", 409);
-      const { options: _options, recommended: _recommended, link: _link, ...base } = row;
+      const { options: _options, recommended: _recommended, link: _link, priority: _priority, ...base } = row;
       return put({ ...base, ...questionContent(input, row), revision: row.revision + 1, updatedAt: Date.now() });
     },
     remove(id: string, revision: number) {

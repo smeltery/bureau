@@ -72,7 +72,7 @@ export async function handleQuestionsRequest(req: Request, url: URL, auth?: Auth
       const body = await bodyOf(req);
       agent = agentIdentity(req, agentId);
       if (req.method === "POST" && !id) {
-        knownKeys(body, ["prompt", "member", "options", "recommended", "link"]);
+        knownKeys(body, ["prompt", "member", "options", "recommended", "link", "priority"]);
         if (body.member !== undefined && typeof body.member !== "string") throw new QuestionError("member must be a username");
         const member = typeof body.member === "string" ? getUserByName(body.member) : agent.info.userId ? getUserById(agent.info.userId) : null;
         const room = rooms[agent.info.room];
@@ -82,7 +82,7 @@ export async function handleQuestionsRequest(req: Request, url: URL, auth?: Auth
       if (!id) return json({ error: "Method not allowed" }, 405);
       const current = own();
       if (req.method === "PATCH") {
-        knownKeys(body, ["revision", "prompt", "options", "recommended", "link"]);
+        knownKeys(body, ["revision", "prompt", "options", "recommended", "link", "priority"]);
         return json(questions.edit(id, revision(body), body));
       }
       if (req.method === "DELETE") {
