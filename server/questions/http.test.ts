@@ -3,6 +3,60 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+test("filing a question creates one board task, tells the agent, and closes the question", () => {
+  const root = mkdtempSync(join(tmpdir(), "bureau-questions-file-task-"));
+  try {
+    const result = Bun.spawnSync(
+      [
+        process.execPath,
+        "--eval",
+        `
+      import { expect } from "bun:test";
+      import { handleAgentsRequest } from "./server/http/agents.ts";
+      import { setupPrivilegedFixture, TARGET_AGENT } from "./server/http/__tests__/privileged-agent-fixture.ts";
+      import { agents } from "./server/agents/state.ts";
+      import { mintAgentToken } from "./server/agents/tokens.ts";
+      import { tasks } from "./server/ws/broadcast.ts";
+      const fixture = setupPrivilegedFixture();
+      const target = agents.get(TARGET_AGENT);
+      target.info.state = "thinking"; target.sessionId = "question-session";
+      const token = mintAgentToken(TARGET_AGENT, fixture.manager.id, false);
+      const session = { kind: "ok", session: { userId: fixture.manager.id, role: fixture.manager.role } };
+      async function request(path, method, body, bearer, auth) {
+        const req = new Request("http://localhost" + path, { method, headers: { ...(bearer ? { Authorization: "Bearer " + bearer } : {}), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        return handleAgentsRequest(req, new URL(req.url), auth);
+      }
+      const question = await (await request("/api/agents/" + TARGET_AGENT + "/questions", "POST", { prompt: "Rename the staging bucket?\\nIt still uses the old name.", options: ["Yes", "No"], recommended: "Yes" }, token)).json();
+      const path = "/api/questions/" + question.id + "/file-task";
+
+      expect((await request(path, "POST", { revision: 2 }, undefined, session)).status).toBe(409);
+      expect(tasks).toHaveLength(0);
+
+      const filed = await (await request(path, "POST", { revision: 1, text: "After the release" }, undefined, session)).json();
+      expect(filed.status).toBe("delivered");
+      expect(filed.answer.taskId).toBe(tasks[0].id);
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0]).toMatchObject({ title: "Rename the staging bucket?", roomId: fixture.visibleRoomId, createdBy: fixture.manager.name, status: "open" });
+      expect(tasks[0].description).toContain("It still uses the old name.");
+      expect(tasks[0].description).toContain("Yes (recommended)");
+      expect(tasks[0].description).toContain("Note: After the release");
+      expect(target.messageQueue.at(-1).text).toContain("Filed as task " + tasks[0].id + " by the addressed member: After the release");
+
+      const repeat = await request(path, "POST", { revision: 1, text: "After the release" }, undefined, session);
+      expect((await repeat.json()).answer.taskId).toBe(tasks[0].id);
+      expect(tasks).toHaveLength(1);
+      expect((await request("/api/questions/" + question.id + "/answer", "POST", { revision: 1, text: "Yes" }, undefined, session)).status).toBe(409);
+      process.exit(0);
+    `,
+      ],
+      { env: { ...process.env, BUREAU_HOME: root }, stdout: "pipe", stderr: "pipe" },
+    );
+    expect(result.exitCode, result.stderr.toString()).toBe(0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("question routes enforce recipients, agent ownership, revisions and durable reply acceptance", () => {
   const root = mkdtempSync(join(tmpdir(), "bureau-questions-http-"));
   try {

@@ -16,6 +16,8 @@ export const questions = {
   "questions.dismiss": "Dismiss",
   "questions.dismissReason": "Dismiss with this reason",
   "questions.dismissed": "Dismissed",
+  "questions.fileAsTask": "Not now, file as a task",
+  "questions.filedAsTask": "Filed as task {id}",
   "questions.delivered": "Accepted by the agent's message queue.",
   "questions.refused": "Delivery was refused. Your answer is saved.",
   "questions.uncertain": "Your answer is saved, but delivery could not be confirmed. Check the conversation before retrying.",

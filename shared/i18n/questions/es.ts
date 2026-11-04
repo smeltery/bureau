@@ -16,6 +16,8 @@ export const questions = {
   "questions.dismiss": "Descartar",
   "questions.dismissReason": "Descartar con este motivo",
   "questions.dismissed": "Descartada",
+  "questions.fileAsTask": "Ahora no, archivar como tarea",
+  "questions.filedAsTask": "Archivada como tarea {id}",
   "questions.delivered": "Aceptada por la cola de mensajes del agente.",
   "questions.refused": "Se rechazó la entrega. Tu respuesta está guardada.",
   "questions.uncertain": "Tu respuesta está guardada, pero no se pudo confirmar la entrega. Revisa la conversación antes de reintentar.",

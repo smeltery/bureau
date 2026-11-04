@@ -41,7 +41,12 @@ cannot alter or delete a member's saved answer.
 ## Answers and delivery
 
 Members answer or dismiss a question from the card. A dismissal may include a
-reason. The answer is attributed to the member and queued with the original
+reason. **Not now, file as a task** closes the question by filing it on the
+task board in the agent's room: the first line becomes the title, and the full
+prompt, choices, link and any typed note go in the description, with the member
+as creator. The agent is told the task id. Repeating the request returns the
+saved result rather than filing a second task, and a refused save removes the
+task again. The answer is attributed to the member and queued with the original
 question text. A pending permission or model selection refuses delivery;
 retry after finishing that prompt. Replies are tied to the conversation that
 asked the question. If the agent starts a different session, the answer stays
